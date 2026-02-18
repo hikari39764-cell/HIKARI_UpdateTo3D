@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include "../../ThirdParty/imgui/imgui_impl_win32.h"
+#include <imgui_impl_win32.cpp>
 
 namespace HIKARI::PLATFORM {
 
