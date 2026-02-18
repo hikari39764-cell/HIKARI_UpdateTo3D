@@ -1,9 +1,50 @@
 ﻿#include "HIKARI_PostSystem.h"
 #include "HIKARI_PostEffect.h"
+#include "HIKARI_Utility.h"
 #include <cassert>
 
 namespace HIKARI {
     namespace POST {
+
+        namespace {
+            struct LetterboxRect {
+                float x;
+                float y;
+                float width;
+                float height;
+            };
+
+            static LetterboxRect ComputeLetterboxRect(int backBufferW, int backBufferH)
+            {
+                if (backBufferW <= 0 || backBufferH <= 0) {
+                    return { 0.0f, 0.0f, 1.0f, 1.0f };
+                }
+
+                const float targetAspect = static_cast<float>(kScreenW) / static_cast<float>(kScreenH);
+                const float backBufferAspect = static_cast<float>(backBufferW) / static_cast<float>(backBufferH);
+
+                int vpW = backBufferW;
+                int vpH = backBufferH;
+                int vpX = 0;
+                int vpY = 0;
+
+                if (backBufferAspect > targetAspect) {
+                    vpW = static_cast<int>(static_cast<float>(backBufferH) * targetAspect + 0.5f);
+                    vpX = (backBufferW - vpW) / 2;
+                }
+                else {
+                    vpH = static_cast<int>(static_cast<float>(backBufferW) / targetAspect + 0.5f);
+                    vpY = (backBufferH - vpH) / 2;
+                }
+
+                return {
+                    static_cast<float>(vpX),
+                    static_cast<float>(vpY),
+                    static_cast<float>(vpW),
+                    static_cast<float>(vpH)
+                };
+            }
+        }
 
         bool PostSystem::initialized_ = false;
         GFX::Context PostSystem::context_{};
@@ -50,8 +91,8 @@ namespace HIKARI {
         {
             if (!initialized_) { Initialize(context_); }
 
-            commonParams_.resolutionX = static_cast<float>(context_.backBufferWidth);
-            commonParams_.resolutionY = static_cast<float>(context_.backBufferHeight);
+            commonParams_.resolutionX = static_cast<float>(kScreenW);
+            commonParams_.resolutionY = static_cast<float>(kScreenH);
 
             commonParams_.deltaTime = deltaTime;
             elapsedTime_ += deltaTime;
@@ -84,8 +125,8 @@ namespace HIKARI {
 
         void PostSystem::EnsureSceneRTSize()
         {
-            int w = context_.backBufferWidth;
-            int h = context_.backBufferHeight;
+            int w = kScreenW;
+            int h = kScreenH;
             if (w <= 0 || h <= 0) return;
 
             sceneRT_.UpdateContext(context_);
@@ -173,6 +214,17 @@ namespace HIKARI {
 
             auto* cmd = context_.cmdList;
             cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, &context_.dsv);
+
+            const auto letterbox = ComputeLetterboxRect(context_.backBufferWidth, context_.backBufferHeight);
+            D3D12_VIEWPORT vp{ letterbox.x, letterbox.y, letterbox.width, letterbox.height, 0.0f, 1.0f };
+            D3D12_RECT sc{
+                static_cast<LONG>(letterbox.x),
+                static_cast<LONG>(letterbox.y),
+                static_cast<LONG>(letterbox.x + letterbox.width),
+                static_cast<LONG>(letterbox.y + letterbox.height)
+            };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
 
 
             quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
