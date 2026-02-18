@@ -1,5 +1,7 @@
 #include "HIKARI_Win32Window.h"
 
+#include <cstdio>
+
 namespace HIKARI::PLATFORM {
 
 bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool resizable) {
@@ -13,7 +15,16 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
     wc.lpszClassName = L"HIKARI_WindowClass";
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-    RegisterClassW(&wc);
+    const ATOM cls = RegisterClassW(&wc);
+    if (cls == 0) {
+        const DWORD err = GetLastError();
+        if (err != ERROR_CLASS_ALREADY_EXISTS) {
+            char msg[256]{};
+            std::snprintf(msg, sizeof(msg), "[Win32Window] RegisterClassW failed. err=%lu\n", static_cast<unsigned long>(err));
+            OutputDebugStringA(msg);
+            return false;
+        }
+    }
 
     DWORD style = WS_OVERLAPPEDWINDOW;
     if (!resizable) {
@@ -38,7 +49,12 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
         hInstance_,
         this);
 
-    if (!hwnd_) { return false; }
+    if (!hwnd_) {
+        char msg[256]{};
+        std::snprintf(msg, sizeof(msg), "[Win32Window] CreateWindowExW failed. err=%lu\n", static_cast<unsigned long>(GetLastError()));
+        OutputDebugStringA(msg);
+        return false;
+    }
 
     ShowWindow(hwnd_, SW_SHOW);
     UpdateWindow(hwnd_);
@@ -78,12 +94,12 @@ LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wparam, 
     }
 
     if (window) {
-        return window->WndProc(msg, wparam, lparam);
+        return window->WndProc(hwnd, msg, wparam, lparam);
     }
     return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-LRESULT Win32Window::WndProc(UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     switch (msg) {
     case WM_SIZE:
         width_ = LOWORD(lparam);
@@ -100,7 +116,8 @@ LRESULT Win32Window::WndProc(UINT msg, WPARAM wparam, LPARAM lparam) {
     default:
         break;
     }
-    return DefWindowProcW(hwnd_, msg, wparam, lparam);
+    // NOTE: 必ず「今処理中の hwnd」を渡す。CreateWindow 直後などで hwnd_ が未確定でも安全。
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 } // namespace HIKARI::PLATFORM
