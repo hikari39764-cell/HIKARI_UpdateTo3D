@@ -5,6 +5,7 @@
 #include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_PostCommon.h"
 #include "HIKARI_PostChain.h"
+#include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
     namespace POST {
@@ -14,7 +15,8 @@ namespace HIKARI {
         class PostSystem
         {
         public:
-            static void Initialize();
+            static void Initialize(const GFX::Context& ctx);
+            static void UpdateContext(const GFX::Context& ctx);
             static void Shutdown();
 
             static void UpdateCommonParams(float deltaTime);
@@ -48,6 +50,7 @@ namespace HIKARI {
 
         private:
             static bool initialized_;
+            static GFX::Context context_;
 
             static RenderTarget2D sceneRT_;
 

@@ -1,4 +1,5 @@
-﻿#include "HIKARI_Bgm.h"
+﻿#include "Audio/HIKARI_Audio.h"
+#include "HIKARI_Bgm.h"
 #include <cmath>
 
 namespace HIKARI {
@@ -34,13 +35,13 @@ namespace HIKARI {
 
         static inline void EnsureLoaded(int id) {
             if (id < 0 || id >= static_cast<int>(gEntries.size())) return;
-            if (gEntries[id].handle < 0) { gEntries[id].handle = Novice::LoadAudio(gEntries[id].path.c_str()); }
+            if (gEntries[id].handle < 0) { gEntries[id].handle = HIKARI::AUDIO::Load(gEntries[id].path.c_str()); }
         }
 
         bool LoadGroup(const std::string& group) {
             bool any = false;
             for (auto& e : gEntries) {
-                if (e.group == group && e.handle < 0) { e.handle = Novice::LoadAudio(e.path.c_str()); any = true; }
+                if (e.group == group && e.handle < 0) { e.handle = HIKARI::AUDIO::Load(e.path.c_str()); any = true; }
             }
             return any;
         }
@@ -48,7 +49,7 @@ namespace HIKARI {
         bool LoadAll() {
             bool any = false;
             for (auto& e : gEntries) {
-                if (e.handle < 0) { e.handle = Novice::LoadAudio(e.path.c_str()); any = true; }
+                if (e.handle < 0) { e.handle = HIKARI::AUDIO::Load(e.path.c_str()); any = true; }
             }
             return any;
         }
@@ -59,22 +60,22 @@ namespace HIKARI {
             if (gEntries[id].handle < 0) return;
 
             // 前のBGMが再生中なら停止
-            if (gVoiceId != -1) { Novice::StopAudio(gVoiceId); gVoiceId = -1; }
+            if (gVoiceId != -1) { HIKARI::AUDIO::Stop(gVoiceId); gVoiceId = -1; }
 
-            gVoiceId = Novice::PlayAudio(gEntries[id].handle, loop, volume);
+            gVoiceId = HIKARI::AUDIO::Play(gEntries[id].handle, loop, volume);
             gCurrent = id;
             gFadeMode = FadeMode::None;
         }
 
-        void Stop() { if (gVoiceId != -1) { Novice::StopAudio(gVoiceId); gVoiceId = -1; } gCurrent = -1; gFadeMode = FadeMode::None; }
+        void Stop() { if (gVoiceId != -1) { HIKARI::AUDIO::Stop(gVoiceId); gVoiceId = -1; } gCurrent = -1; gFadeMode = FadeMode::None; }
 
-        void SetVolume(float volume) { if (gVoiceId != -1) { Novice::SetAudioVolume(gVoiceId, volume); } }
+        void SetVolume(float volume) { if (gVoiceId != -1) { HIKARI::AUDIO::SetVolume(gVoiceId, volume); } }
 
         void FadeIn(float seconds, float targetVolume) {
             if (gVoiceId == -1) return;
             gFadeMode = FadeMode::In; gFadeTime = 0.0f; gFadeDur = (seconds < 0.0f ? 0.0f : seconds);
             gFadeStartVol = 0.0f; gFadeTargetVol = targetVolume;
-            Novice::SetAudioVolume(gVoiceId, 0.0f);
+            HIKARI::AUDIO::SetVolume(gVoiceId, 0.0f);
         }
 
         void FadeOut(float seconds) {
@@ -90,7 +91,7 @@ namespace HIKARI {
             if (gEntries[nextIdx].handle < 0) return;
 
             // 次の曲を音量0で再生開始
-            int nextVoice = Novice::PlayAudio(gEntries[nextIdx].handle, true, 0.0f);
+            int nextVoice = HIKARI::AUDIO::Play(gEntries[nextIdx].handle, true, 0.0f);
 
             // クロスフェード設定
             gFadeMode = FadeMode::Cross; gFadeTime = 0.0f; gFadeDur = (seconds < 0.0f ? 0.0f : seconds);
@@ -107,30 +108,30 @@ namespace HIKARI {
             switch (gFadeMode) {
             case FadeMode::In: {
                 float v = gFadeStartVol + (gFadeTargetVol - gFadeStartVol) * t;
-                if (gVoiceId != -1) Novice::SetAudioVolume(gVoiceId, v);
+                if (gVoiceId != -1) HIKARI::AUDIO::SetVolume(gVoiceId, v);
                 if (t >= 1.0f) gFadeMode = FadeMode::None;
                 break;
             }
             case FadeMode::Out: {
                 float v = gFadeStartVol + (gFadeTargetVol - gFadeStartVol) * t;
-                if (gVoiceId != -1) Novice::SetAudioVolume(gVoiceId, v);
-                if (t >= 1.0f) { if (gVoiceId != -1) Novice::StopAudio(gVoiceId); gVoiceId = -1; gCurrent = -1; gFadeMode = FadeMode::None; }
+                if (gVoiceId != -1) HIKARI::AUDIO::SetVolume(gVoiceId, v);
+                if (t >= 1.0f) { if (gVoiceId != -1) HIKARI::AUDIO::Stop(gVoiceId); gVoiceId = -1; gCurrent = -1; gFadeMode = FadeMode::None; }
                 break;
             }
             case FadeMode::Cross: {
                 // 古い曲をフェードアウトし、新しい曲をフェードイン
                 float vNew = gCrossNextTargetVol * t;
-                if (gVoiceId != -1) Novice::SetAudioVolume(gVoiceId, vNew);
+                if (gVoiceId != -1) HIKARI::AUDIO::SetVolume(gVoiceId, vNew);
                 float vOld = (1.0f - t);
-                if (gCrossOldVoice != -1) Novice::SetAudioVolume(gCrossOldVoice, vOld);
-                if (t >= 1.0f) { if (gCrossOldVoice != -1) Novice::StopAudio(gCrossOldVoice); gCrossOldVoice = -1; gFadeMode = FadeMode::None; }
+                if (gCrossOldVoice != -1) HIKARI::AUDIO::SetVolume(gCrossOldVoice, vOld);
+                if (t >= 1.0f) { if (gCrossOldVoice != -1) HIKARI::AUDIO::Stop(gCrossOldVoice); gCrossOldVoice = -1; gFadeMode = FadeMode::None; }
                 break;
             }
             default: break;
             }
         }
 
-        bool IsPlaying() { return (gVoiceId != -1) && Novice::IsPlayingAudio(gVoiceId); }
+        bool IsPlaying() { return (gVoiceId != -1) && HIKARI::AUDIO::IsPlaying(gVoiceId); }
 
         std::string Now() { return (gCurrent >= 0 && gCurrent < (int)gEntries.size()) ? gEntries[gCurrent].name : std::string(); }
 
