@@ -114,13 +114,22 @@ namespace HIKARI {
                 return false;
             }
 
-            gWindow.SetResizeCallback([](int w, int h) {
+            const int logicalScreenW = cfg.windowWidth;
+            const int logicalScreenH = cfg.windowHeight;
+
+            gWindow.SetResizeCallback([logicalScreenW, logicalScreenH](int w, int h) {
                 gCore.Resize(w, h);
                 gCtx = gCore.BuildContext();
                 DXTEX::DxTextureManager::UpdateContext(gCtx);
                 DX::DxRenderer::UpdateContext(gCtx);
                 POST::PostSystem::UpdateContext(gCtx);
-                HIKARI::CAMERA::SetScreenSize(w, h);
+
+                // NOTE:
+                // 物理窗口尺寸会在最大化时变化，但渲染仍通过 letterbox 维持逻辑分辨率比例。
+                // 相机若直接切换到物理窗口尺寸，会导致带 Camera 的对象在 Resize 后看起来“位移”。
+                // 这里固定相机逻辑尺寸，避免 Resize 影响世界到屏幕的坐标系。
+                HIKARI::CAMERA::SetScreenSize(logicalScreenW, logicalScreenH);
+                HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
             });
 
             gCtx = gCore.BuildContext();
