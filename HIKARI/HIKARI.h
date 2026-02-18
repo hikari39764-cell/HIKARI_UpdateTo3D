@@ -115,7 +115,12 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
-            HIKARI::HINPUT::Update(kDt);
+            // NOTE:
+            // 現在は Novice の window/render 初期化を外しているため、
+            // HINPUT::Update 内の Novice 入力取得 API が未初期化経路で落ちる可能性がある。
+            // 起動即終了の切り分けのため、いったん毎フレーム更新を無効化する。
+            // TODO: Win32 ベースの入力中継層へ置換後に再有効化。
+            // HIKARI::HINPUT::Update(kDt);
             HIKARI::CAMERA::Update(kDt);
         }
 
