@@ -13,6 +13,7 @@ public:
     void Shutdown();
 
     bool PumpMessages();
+    float ConsumeMouseWheelDelta();
 
     HWND GetHWND() const { return hwnd_; }
     int Width() const { return width_; }
@@ -32,6 +33,7 @@ private:
     int height_{};
     bool isMinimized_{};
     bool running_{};
+    float mouseWheelDelta_{};
     ResizeCallback onResize_{};
 };
 
