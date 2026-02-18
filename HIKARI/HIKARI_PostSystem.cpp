@@ -22,13 +22,16 @@ namespace HIKARI {
         {
             context_ = ctx;
             if (initialized_) return;
-            quad_.Init();
+            quad_.Init(context_);
             initialized_ = true;
         }
 
         void PostSystem::UpdateContext(const GFX::Context& ctx)
         {
             context_ = ctx;
+            quad_.UpdateContext(ctx);
+            sceneRT_.UpdateContext(ctx);
+            lightRT_.UpdateContext(ctx);
         }
 
         void PostSystem::Shutdown()
@@ -84,6 +87,9 @@ namespace HIKARI {
             int w = context_.backBufferWidth;
             int h = context_.backBufferHeight;
             if (w <= 0 || h <= 0) return;
+
+            sceneRT_.UpdateContext(context_);
+            lightRT_.UpdateContext(context_);
 
             if (!sceneRT_.GetResource() || sceneRT_.GetWidth() != w || sceneRT_.GetHeight() != h) {
                 sceneRT_.Init(w, h);

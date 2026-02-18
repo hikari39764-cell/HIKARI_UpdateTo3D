@@ -1,5 +1,4 @@
 ﻿#include "HIKARI_RenderTarget2D.h"
-#include <base/DirectXCommon.h>
 #include <cassert>
 
 using Microsoft::WRL::ComPtr;
@@ -36,6 +35,11 @@ namespace HIKARI {
         return true;
     }
 
+    void RenderTarget2D::UpdateContext(const HIKARI::GFX::Context& ctx)
+    {
+        context_ = ctx;
+    }
+
     void RenderTarget2D::Finalize()
     {
         if (!initialized_) {
@@ -51,8 +55,8 @@ namespace HIKARI {
 
     bool RenderTarget2D::CreateResources()
     {
-        auto* dx = KamataEngine::DirectXCommon::GetInstance();
-        ID3D12Device* device = dx->GetDevice();
+        ID3D12Device* device = context_.device;
+        if (!device) { return false; }
 
         D3D12_CLEAR_VALUE clearValue{};
         clearValue.Format = format_;
@@ -121,8 +125,8 @@ namespace HIKARI {
             return;
         }
 
-        auto* dx = KamataEngine::DirectXCommon::GetInstance();
-        ID3D12GraphicsCommandList* cmd = dx->GetCommandList();
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd) { return; }
 
         if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -147,8 +151,8 @@ namespace HIKARI {
     {
         if (!initialized_) return;
 
-        auto* dx = KamataEngine::DirectXCommon::GetInstance();
-        ID3D12GraphicsCommandList* cmd = dx->GetCommandList();
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd) { return; }
 
         if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -171,8 +175,8 @@ namespace HIKARI {
             return;
         }
 
-        auto* dx = KamataEngine::DirectXCommon::GetInstance();
-        ID3D12GraphicsCommandList* cmd = dx->GetCommandList();
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd) { return; }
 
         if (colorState_ != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(

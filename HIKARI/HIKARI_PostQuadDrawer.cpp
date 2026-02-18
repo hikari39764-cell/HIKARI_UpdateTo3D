@@ -1,9 +1,9 @@
 ﻿#include "HIKARI_PostQuadDrawer.h"
-#include <base/DirectXCommon.h>
 #include "HIKARI_D3DBlobCompat.h"
 #include <Windows.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
+#include <d3dx12.h>
 #include <cassert>
 #include <cstring>
 
@@ -53,8 +53,9 @@ float4 main(PS_IN i) : SV_TARGET
 )";
         }
 
-        bool QuadDrawer::Init()
+        bool QuadDrawer::Init(const GFX::Context& ctx)
         {
+            context_ = ctx;
             if (initialized_) { return true; }
 
             // 编译 Shader
@@ -82,8 +83,8 @@ float4 main(PS_IN i) : SV_TARGET
 
         bool QuadDrawer::CreateBlendPipelines()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            auto* device = context_.device;
+            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreateBlendPipelines\n"); return false; }
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
             pso.pRootSignature = rootSig_.Get();
@@ -133,6 +134,11 @@ float4 main(PS_IN i) : SV_TARGET
             return true;
         }
 
+        void QuadDrawer::UpdateContext(const GFX::Context& ctx)
+        {
+            context_ = ctx;
+        }
+
         void QuadDrawer::Finalize()
         {
             psoPost_.Reset();
@@ -152,8 +158,8 @@ float4 main(PS_IN i) : SV_TARGET
         // ... CreateRootSignature, CreatePipeline 保持不变 ...
         bool QuadDrawer::CreateRootSignature()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            auto* device = context_.device;
+            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreatePipeline\n"); return false; }
             D3D12_DESCRIPTOR_RANGE range{};
             range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             range.NumDescriptors = 1;
@@ -194,8 +200,8 @@ float4 main(PS_IN i) : SV_TARGET
 
         bool QuadDrawer::CreatePipeline(ID3DBlob* psBlob, ComPtr<ID3D12PipelineState>& outPso)
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            auto* device = context_.device;
+            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreatePipeline\n"); return false; }
             D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
             pso.pRootSignature = rootSig_.Get();
             pso.VS = { vsBlob_->GetBufferPointer(), vsBlob_->GetBufferSize() };
@@ -214,8 +220,8 @@ float4 main(PS_IN i) : SV_TARGET
         void QuadDrawer::DrawBlended(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu, BlendOption mode)
         {
             SetInputTexture(srvHeap, srvGpu);
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = context_.cmdList;
+            if (!cmd) { return; }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
@@ -258,8 +264,8 @@ float4 main(PS_IN i) : SV_TARGET
         void QuadDrawer::DrawFullscreen(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu)
         {
             SetInputTexture(srvHeap, srvGpu);
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = context_.cmdList;
+            if (!cmd) { return; }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
@@ -271,8 +277,8 @@ float4 main(PS_IN i) : SV_TARGET
 
         void QuadDrawer::DrawFullscreen()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = context_.cmdList;
+            if (!cmd) { return; }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
