@@ -1,4 +1,5 @@
 #include "HIKARI_Dx12Core.h"
+#include "../HIKARI_Utility.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -9,6 +10,44 @@
 using Microsoft::WRL::ComPtr;
 
 namespace HIKARI::GFX {
+
+namespace {
+    struct LetterboxRect {
+        float x;
+        float y;
+        float width;
+        float height;
+    };
+
+    static LetterboxRect ComputeLetterboxRect(int backBufferW, int backBufferH) {
+        if (backBufferW <= 0 || backBufferH <= 0) {
+            return { 0.0f, 0.0f, 1.0f, 1.0f };
+        }
+
+        const float targetAspect = static_cast<float>(kScreenW) / static_cast<float>(kScreenH);
+        const float backBufferAspect = static_cast<float>(backBufferW) / static_cast<float>(backBufferH);
+
+        int vpW = backBufferW;
+        int vpH = backBufferH;
+        int vpX = 0;
+        int vpY = 0;
+
+        if (backBufferAspect > targetAspect) {
+            vpW = static_cast<int>(static_cast<float>(backBufferH) * targetAspect + 0.5f);
+            vpX = (backBufferW - vpW) / 2;
+        } else {
+            vpH = static_cast<int>(static_cast<float>(backBufferW) / targetAspect + 0.5f);
+            vpY = (backBufferH - vpH) / 2;
+        }
+
+        return {
+            static_cast<float>(vpX),
+            static_cast<float>(vpY),
+            static_cast<float>(vpW),
+            static_cast<float>(vpH)
+        };
+    }
+}
 
 namespace {
 
@@ -198,12 +237,30 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
     auto dsv = DSV();
     cmdList_->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
+    const auto letterbox = ComputeLetterboxRect(width_, height_);
+
+    const float black[] = { 0.0f, 0.0f, 0.0f, clearA };
+    cmdList_->ClearRenderTargetView(rtv, black, 0, nullptr);
+
     const float color[] = { clearR, clearG, clearB, clearA };
-    cmdList_->ClearRenderTargetView(rtv, color, 0, nullptr);
+    const bool hasBlackBars =
+        (letterbox.x > 0.0f) || (letterbox.y > 0.0f) ||
+        (letterbox.width < static_cast<float>(width_)) ||
+        (letterbox.height < static_cast<float>(height_));
+
+    if (!hasBlackBars) {
+        cmdList_->ClearRenderTargetView(rtv, color, 0, nullptr);
+    }
+
     cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-    D3D12_VIEWPORT vp{ 0, 0, static_cast<float>(width_), static_cast<float>(height_), 0, 1 };
-    D3D12_RECT sc{ 0,0,width_,height_ };
+    D3D12_VIEWPORT vp{ letterbox.x, letterbox.y, letterbox.width, letterbox.height, 0, 1 };
+    D3D12_RECT sc{
+        static_cast<LONG>(letterbox.x),
+        static_cast<LONG>(letterbox.y),
+        static_cast<LONG>(letterbox.x + letterbox.width),
+        static_cast<LONG>(letterbox.y + letterbox.height)
+    };
     cmdList_->RSSetViewports(1, &vp);
     cmdList_->RSSetScissorRects(1, &sc);
 }

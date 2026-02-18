@@ -460,7 +460,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
 
 
-        void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
+void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
         void DxRenderer::Finalize()
         {
