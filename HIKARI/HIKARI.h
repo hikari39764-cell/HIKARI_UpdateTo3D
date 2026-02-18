@@ -32,7 +32,7 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
-#include <imgui.h>
+#include "imgui.h"
 #include "../ThirdParty/imgui/imgui_impl_dx12.h"
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
 #include <objbase.h>
