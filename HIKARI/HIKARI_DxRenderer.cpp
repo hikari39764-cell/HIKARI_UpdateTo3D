@@ -460,15 +460,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
 
 
-        void DxRenderer::UpdateContext(const GFX::Context& ctx) {
-            g_ctx = ctx;
-            if (ctx.backBufferWidth > 0) {
-                g_screenW = static_cast<float>(ctx.backBufferWidth);
-            }
-            if (ctx.backBufferHeight > 0) {
-                g_screenH = static_cast<float>(ctx.backBufferHeight);
-            }
-        }
+void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
         void DxRenderer::Finalize()
         {

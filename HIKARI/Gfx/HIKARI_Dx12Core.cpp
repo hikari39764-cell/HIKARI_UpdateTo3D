@@ -27,20 +27,25 @@ namespace {
         const float targetAspect = static_cast<float>(kScreenW) / static_cast<float>(kScreenH);
         const float backBufferAspect = static_cast<float>(backBufferW) / static_cast<float>(backBufferH);
 
-        float vpW = static_cast<float>(backBufferW);
-        float vpH = static_cast<float>(backBufferH);
-        float vpX = 0.0f;
-        float vpY = 0.0f;
+        int vpW = backBufferW;
+        int vpH = backBufferH;
+        int vpX = 0;
+        int vpY = 0;
 
         if (backBufferAspect > targetAspect) {
-            vpW = vpH * targetAspect;
-            vpX = (static_cast<float>(backBufferW) - vpW) * 0.5f;
+            vpW = static_cast<int>(static_cast<float>(backBufferH) * targetAspect + 0.5f);
+            vpX = (backBufferW - vpW) / 2;
         } else {
-            vpH = vpW / targetAspect;
-            vpY = (static_cast<float>(backBufferH) - vpH) * 0.5f;
+            vpH = static_cast<int>(static_cast<float>(backBufferW) / targetAspect + 0.5f);
+            vpY = (backBufferH - vpH) / 2;
         }
 
-        return { vpX, vpY, vpW, vpH };
+        return {
+            static_cast<float>(vpX),
+            static_cast<float>(vpY),
+            static_cast<float>(vpW),
+            static_cast<float>(vpH)
+        };
     }
 }
 
