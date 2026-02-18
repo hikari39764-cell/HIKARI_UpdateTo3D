@@ -1,12 +1,12 @@
-#include "HIKARI_PostSystem.h"
+﻿#include "HIKARI_PostSystem.h"
 #include "HIKARI_PostEffect.h"
-#include <base/DirectXCommon.h>
 #include <cassert>
 
 namespace HIKARI {
     namespace POST {
 
         bool PostSystem::initialized_ = false;
+        GFX::Context PostSystem::context_{};
         RenderTarget2D PostSystem::sceneRT_{};
         RenderTarget2D PostSystem::lightRT_{};
         QuadDrawer PostSystem::quad_{};
@@ -18,11 +18,20 @@ namespace HIKARI {
         bool PostSystem::useLighting_ = false;
 
 
-        void PostSystem::Initialize()
+        void PostSystem::Initialize(const GFX::Context& ctx)
         {
+            context_ = ctx;
             if (initialized_) return;
-            quad_.Init();
+            quad_.Init(context_);
             initialized_ = true;
+        }
+
+        void PostSystem::UpdateContext(const GFX::Context& ctx)
+        {
+            context_ = ctx;
+            quad_.UpdateContext(ctx);
+            sceneRT_.UpdateContext(ctx);
+            lightRT_.UpdateContext(ctx);
         }
 
         void PostSystem::Shutdown()
@@ -39,11 +48,10 @@ namespace HIKARI {
 
         void PostSystem::UpdateCommonParams(float deltaTime)
         {
-            if (!initialized_) { Initialize(); }
+            if (!initialized_) { Initialize(context_); }
 
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            commonParams_.resolutionX = static_cast<float>(dx->GetBackBufferWidth());
-            commonParams_.resolutionY = static_cast<float>(dx->GetBackBufferHeight());
+            commonParams_.resolutionX = static_cast<float>(context_.backBufferWidth);
+            commonParams_.resolutionY = static_cast<float>(context_.backBufferHeight);
 
             commonParams_.deltaTime = deltaTime;
             elapsedTime_ += deltaTime;
@@ -76,10 +84,12 @@ namespace HIKARI {
 
         void PostSystem::EnsureSceneRTSize()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            int w = dx->GetBackBufferWidth();
-            int h = dx->GetBackBufferHeight();
+            int w = context_.backBufferWidth;
+            int h = context_.backBufferHeight;
             if (w <= 0 || h <= 0) return;
+
+            sceneRT_.UpdateContext(context_);
+            lightRT_.UpdateContext(context_);
 
             if (!sceneRT_.GetResource() || sceneRT_.GetWidth() != w || sceneRT_.GetHeight() != h) {
                 sceneRT_.Init(w, h);
@@ -92,7 +102,7 @@ namespace HIKARI {
 
         void PostSystem::BeginSceneCapture()
         {
-            if (!initialized_) Initialize();
+            if (!initialized_) Initialize(context_);
 
             EnsureSceneRTSize();
             UpdateCommonParams(0.0f);
@@ -161,8 +171,8 @@ namespace HIKARI {
             }
 
 
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            dx->SetRenderTargets(true);
+            auto* cmd = context_.cmdList;
+            cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, &context_.dsv);
 
 
             quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
@@ -174,7 +184,7 @@ namespace HIKARI {
 
         void PostSystem::BeginLayer(PostChain& chain, float r, float g, float b, float a)
         {
-            if (!initialized_) Initialize();
+            if (!initialized_) Initialize(context_);
             if (rtStack_.empty()) {
                 BeginSceneCapture();
             }

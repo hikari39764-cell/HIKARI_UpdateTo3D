@@ -1,5 +1,4 @@
-﻿#include "HIKARI_DxTexture.h"
-#include <base/DirectXCommon.h>
+#include "HIKARI_DxTexture.h"
 #include <cassert>
 #include <cstdio>
 #include "../External/WICTextureLoader.h"
@@ -9,8 +8,8 @@ using Microsoft::WRL::ComPtr;
 namespace HIKARI {
     namespace DXTEX {
 
-        // ===== 静态成员 =====
         bool  DxTextureManager::initialized_ = false;
+        GFX::Context DxTextureManager::context_{};
         UINT  DxTextureManager::descriptorSize_ = 0;
 
         ComPtr<ID3D12DescriptorHeap> DxTextureManager::srvHeap_;
@@ -22,38 +21,30 @@ namespace HIKARI {
 
         int DxTextureManager::nextIndex_ = 0;
 
-
-
-        // 简单的存在检查
-        static bool FileExists(const std::string& path) {
-            FILE* fp = nullptr;
-            fopen_s(&fp, path.c_str(), "rb");
-            if (fp) { fclose(fp); return true; }
-            return false;
-        }
-
-        // ------------------------------------------------------
-        void DxTextureManager::Init(int maxTextures)
+        void DxTextureManager::Init(const GFX::Context& ctx, int maxTextures)
         {
             if (initialized_) return;
+            context_ = ctx;
+            auto* device = context_.device;
+            assert(device);
 
-            auto* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
-
-            // SRV Heap
-            D3D12_DESCRIPTOR_HEAP_DESC desc{};
-            desc.NumDescriptors = maxTextures;
-            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-            HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvHeap_));
-            assert(SUCCEEDED(hr));
+            if (context_.srvHeap) {
+                srvHeap_ = context_.srvHeap;
+            } else {
+                D3D12_DESCRIPTOR_HEAP_DESC desc{};
+                desc.NumDescriptors = maxTextures;
+                desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+                desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+                HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvHeap_));
+                assert(SUCCEEDED(hr));
+            }
 
             descriptorSize_ =
                 device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
             srvCpu_.resize(maxTextures);
             srvGpu_.resize(maxTextures);
-            textures_.resize(maxTextures); 
+            textures_.resize(maxTextures);
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
             D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
@@ -67,12 +58,18 @@ namespace HIKARI {
             initialized_ = true;
         }
 
+        void DxTextureManager::UpdateContext(const GFX::Context& ctx) {
+            context_ = ctx;
+        }
+
         void DxTextureManager::Finalize()
         {
             textures_.clear();
             srvCpu_.clear();
             srvGpu_.clear();
-            srvHeap_.Reset();
+            if (!context_.srvHeap) {
+                srvHeap_.Reset();
+            }
             nameToHandle_.clear();
             nextIndex_ = 0;
             DXTEX::CleanupWICResources();
@@ -82,16 +79,13 @@ namespace HIKARI {
         void DxTextureManager::EnsureInit()
         {
             if (!initialized_) {
-                Init(); // 用默认 128
+                Init(context_);
             }
         }
 
-        // ------------------------------------------------------
         int DxTextureManager::LoadTexture(const std::string& name, const std::string& path)
         {
             EnsureInit();
-
-            // 已经加载过
             auto it = nameToHandle_.find(name);
             if (it != nameToHandle_.end()) {
                 return it->second;
@@ -104,19 +98,19 @@ namespace HIKARI {
             return handle;
         }
 
-        // ------------------------------------------------------
         int DxTextureManager::CreateTextureFromFile(const std::string& path)
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
-            auto* cmdList = dx->GetCommandList();
+            auto* device = context_.device;
+            auto* cmdList = context_.cmdList;
+            assert(device && cmdList);
+
             wchar_t wpath[260]{};
             mbstowcs_s(nullptr, wpath, path.c_str(), _TRUNCATE);
 
             Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
 
             HRESULT hr = HIKARI::DXTEX::CreateWICTextureFromFile(
-                device, cmdList,wpath, texResource.GetAddressOf());
+                device, cmdList, wpath, texResource.GetAddressOf());
             if (FAILED(hr) || !texResource) {
                 OutputDebugStringA("DxTextureManager::CreateTextureFromFile - WIC load failed.\n");
                 return -1;
@@ -124,9 +118,7 @@ namespace HIKARI {
 
             int handle = nextIndex_++;
             if (handle >= static_cast<int>(textures_.size())) {
-                textures_.resize(handle + 1);
-                srvCpu_.resize(handle + 1);
-                srvGpu_.resize(handle + 1);
+                return -1;
             }
 
             textures_[handle] = texResource;
@@ -151,19 +143,16 @@ namespace HIKARI {
                 return -1;
             }
 
-            auto* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
-
+            auto* device = context_.device;
 
             int handle = nextIndex_++;
 
             if (handle >= static_cast<int>(textures_.size())) {
-
                 OutputDebugStringA("DxTextureManager::RegisterFromResource - out of texture slots.\n");
                 return -1;
             }
 
             textures_[handle] = resource;
-
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             auto desc = resource->GetDesc();
@@ -177,15 +166,12 @@ namespace HIKARI {
             device->CreateShaderResourceView(
                 resource,
                 &srvDesc,
-                srvCpu_[handle] 
+                srvCpu_[handle]
             );
 
             return handle;
         }
 
-
-
-        // ------------------------------------------------------
         D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)
         {
             if (handle < 0 || handle >= static_cast<int>(srvGpu_.size())) {

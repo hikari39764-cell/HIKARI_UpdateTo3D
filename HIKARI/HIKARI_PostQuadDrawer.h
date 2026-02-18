@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
     namespace POST {
@@ -19,7 +20,8 @@ namespace HIKARI {
             QuadDrawer() = default;
             ~QuadDrawer() { Finalize(); }
 
-            bool Init();
+            bool Init(const GFX::Context& ctx);
+            void UpdateContext(const GFX::Context& ctx);
             void Finalize();
 
             void DrawFullscreen(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu);
@@ -54,6 +56,7 @@ namespace HIKARI {
             ID3D12DescriptorHeap* currentSrvHeap_ = nullptr;
             D3D12_GPU_DESCRIPTOR_HANDLE currentSrvGpu_{};
             D3D12_GPU_VIRTUAL_ADDRESS currentCBV0_ = 0;
+            GFX::Context context_{};
         };
 
     } // POST

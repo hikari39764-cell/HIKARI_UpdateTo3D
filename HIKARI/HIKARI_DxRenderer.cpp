@@ -3,7 +3,6 @@
 #include "HIKARI_DxRenderer.h"
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_DynamicUploadBuffer.h"
-#include "KamataEngine.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -25,6 +24,7 @@ namespace HIKARI {
 
             DynamicUploadBuffer g_uploadCB;
             DynamicUploadBuffer g_uploadVB;
+            GFX::Context g_ctx{};
 
             float g_screenW = kScreenW;
             float g_screenH = kScreenH;
@@ -282,14 +282,14 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         Microsoft::WRL::ComPtr<ID3D12RootSignature> DxRenderer::rootSigMask_;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::psoMask_;
 
-        void DxRenderer::Init()
+        void DxRenderer::Init(const GFX::Context& ctx)
         {
+            g_ctx = ctx;
             g_screenW = static_cast<float>(kScreenW);
             g_screenH = static_cast<float>(kScreenH);
 
 
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            auto* device = g_ctx.device;
 
             // === UploadBuffers ===
             g_uploadCB.Init(device, static_cast<size_t>(1024 * 1024) * 8);
@@ -459,9 +459,12 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         }
 
 
+
+        void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
+
         void DxRenderer::Finalize()
         {
-            auto* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
+            auto* device = g_ctx.device;
             device;
         }
 
@@ -500,8 +503,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 return;
             }
 
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = g_ctx.cmdList;
 
             // 选 PSO
             size_t blendIdx = static_cast<size_t>(currentBlendMode_);
@@ -625,8 +627,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             };
             int vertexCount = 4;
 
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = g_ctx.cmdList;
 
             // 1. 切换到 Mask 专用的 RootSig 和 PSO
             cmd->SetGraphicsRootSignature(rootSigMask_.Get());
@@ -744,8 +745,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             float x1, float y1,
             uint32_t color)
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* cmd = dx->GetCommandList();
+            auto* cmd = g_ctx.cmdList;
 
             cmd->SetGraphicsRootSignature(rootSig_.Get());
             cmd->SetPipelineState(psoLine_.Get());

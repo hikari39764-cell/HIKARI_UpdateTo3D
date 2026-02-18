@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <d3dx12.h>
+#include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
 
@@ -15,6 +16,7 @@ namespace HIKARI {
         RenderTarget2D& operator=(const RenderTarget2D&) = delete;
 
         bool Init(int width, int height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM);
+        void UpdateContext(const HIKARI::GFX::Context& ctx);
         void Finalize();
 
         void BeginCapture(float r = 0, float g = 0, float b = 0, float a = 0);
@@ -49,6 +51,7 @@ namespace HIKARI {
         int height_ = 0;
         DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM;
         bool initialized_ = false;
+        HIKARI::GFX::Context context_{};
     };
 
 } // namespace HIKARI
