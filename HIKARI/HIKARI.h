@@ -120,6 +120,7 @@ namespace HIKARI {
                 DXTEX::DxTextureManager::UpdateContext(gCtx);
                 DX::DxRenderer::UpdateContext(gCtx);
                 POST::PostSystem::UpdateContext(gCtx);
+                HIKARI::CAMERA::SetScreenSize(w, h);
             });
 
             gCtx = gCore.BuildContext();
