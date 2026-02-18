@@ -1,6 +1,8 @@
 #pragma once
 #include "Gfx/HIKARI_GfxContext.h"
 #include <d3d12.h>
+#include <cstdint>
+#include <Windows.h>
 #include <wrl.h>
 #include <string>
 #include <unordered_map>
@@ -30,6 +32,11 @@ namespace HIKARI {
             static UINT descriptorSize_;
 
             static Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeap_;
+            static Microsoft::WRL::ComPtr<ID3D12CommandAllocator> uploadAllocator_;
+            static Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> uploadCmdList_;
+            static Microsoft::WRL::ComPtr<ID3D12Fence> uploadFence_;
+            static HANDLE uploadFenceEvent_;
+            static uint64_t uploadFenceValue_;
             static std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures_;
             static std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvCpu_;
             static std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvGpu_;
