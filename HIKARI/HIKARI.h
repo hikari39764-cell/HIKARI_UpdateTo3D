@@ -52,6 +52,7 @@ namespace HIKARI {
         inline GFX::Context gCtx{};
         inline bool gComInitialized = false;
         inline bool gImGuiInitialized = false;
+        inline bool gImGuiFrameBegun = false;
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
             HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -98,6 +99,13 @@ namespace HIKARI {
             if (!gImGuiInitialized) {
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
+                ImGui::StyleColorsDark();
+
+                ImGuiIO& io = ImGui::GetIO();
+                if (io.Fonts && io.Fonts->Fonts.empty()) {
+                    io.Fonts->AddFontDefault();
+                    io.Fonts->Build();
+                }
                 gImGuiInitialized = true;
             }
             return true;
@@ -108,6 +116,7 @@ namespace HIKARI {
                 ImGui::DestroyContext();
                 gImGuiInitialized = false;
             }
+            gImGuiFrameBegun = false;
             HIKARI::POST::PostSystem::Shutdown();
             DX::DxRenderer::Finalize();
             DXTEX::DxTextureManager::Finalize();
@@ -141,14 +150,27 @@ namespace HIKARI {
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
             if (gImGuiInitialized) {
+                if (!ImGui::GetCurrentContext()) {
+                    ImGui::CreateContext();
+                }
+
+                ImGuiIO& io = ImGui::GetIO();
+                io.DisplaySize = ImVec2(static_cast<float>(gWindow.Width()), static_cast<float>(gWindow.Height()));
+                io.DeltaTime = (kDt > 0.0f) ? kDt : (1.0f / 60.0f);
+                if (io.Fonts && io.Fonts->Fonts.empty()) {
+                    io.Fonts->AddFontDefault();
+                    io.Fonts->Build();
+                }
                 ImGui::NewFrame();
+                gImGuiFrameBegun = true;
             }
             HIKARI::CAMERA::Update(kDt);
         }
 
         inline void EndFrame() {
-            if (gImGuiInitialized) {
+            if (gImGuiInitialized && gImGuiFrameBegun) {
                 ImGui::Render();
+                gImGuiFrameBegun = false;
             }
             HIKARI::RENDERER::RenderAll();
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
