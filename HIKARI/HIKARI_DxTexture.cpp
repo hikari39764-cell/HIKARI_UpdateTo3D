@@ -13,6 +13,11 @@ namespace HIKARI {
         UINT  DxTextureManager::descriptorSize_ = 0;
 
         ComPtr<ID3D12DescriptorHeap> DxTextureManager::srvHeap_;
+        ComPtr<ID3D12CommandAllocator> DxTextureManager::uploadAllocator_;
+        ComPtr<ID3D12GraphicsCommandList> DxTextureManager::uploadCmdList_;
+        ComPtr<ID3D12Fence> DxTextureManager::uploadFence_;
+        HANDLE DxTextureManager::uploadFenceEvent_ = nullptr;
+        uint64_t DxTextureManager::uploadFenceValue_ = 1;
 
         std::vector<ComPtr<ID3D12Resource>>       DxTextureManager::textures_;
         std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvCpu_;
@@ -42,6 +47,27 @@ namespace HIKARI {
             descriptorSize_ =
                 device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+            HRESULT hr = device->CreateCommandAllocator(
+                D3D12_COMMAND_LIST_TYPE_DIRECT,
+                IID_PPV_ARGS(&uploadAllocator_));
+            assert(SUCCEEDED(hr));
+
+            hr = device->CreateCommandList(
+                0,
+                D3D12_COMMAND_LIST_TYPE_DIRECT,
+                uploadAllocator_.Get(),
+                nullptr,
+                IID_PPV_ARGS(&uploadCmdList_));
+            assert(SUCCEEDED(hr));
+            uploadCmdList_->Close();
+
+            hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&uploadFence_));
+            assert(SUCCEEDED(hr));
+
+            uploadFenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            assert(uploadFenceEvent_ != nullptr);
+            uploadFenceValue_ = 1;
+
             srvCpu_.resize(maxTextures);
             srvGpu_.resize(maxTextures);
             textures_.resize(maxTextures);
@@ -70,6 +96,14 @@ namespace HIKARI {
             if (!context_.srvHeap) {
                 srvHeap_.Reset();
             }
+            uploadCmdList_.Reset();
+            uploadAllocator_.Reset();
+            uploadFence_.Reset();
+            if (uploadFenceEvent_) {
+                CloseHandle(uploadFenceEvent_);
+                uploadFenceEvent_ = nullptr;
+            }
+            uploadFenceValue_ = 1;
             nameToHandle_.clear();
             nextIndex_ = 0;
             DXTEX::CleanupWICResources();
@@ -101,16 +135,46 @@ namespace HIKARI {
         int DxTextureManager::CreateTextureFromFile(const std::string& path)
         {
             auto* device = context_.device;
-            auto* cmdList = context_.cmdList;
-            assert(device && cmdList);
+            auto* queue = context_.queue;
+            assert(device && queue);
+
+            assert(uploadAllocator_ && uploadCmdList_ && uploadFence_ && uploadFenceEvent_);
+
+            HRESULT hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
 
             wchar_t wpath[260]{};
             mbstowcs_s(nullptr, wpath, path.c_str(), _TRUNCATE);
 
             Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
 
-            HRESULT hr = HIKARI::DXTEX::CreateWICTextureFromFile(
-                device, cmdList, wpath, texResource.GetAddressOf());
+            hr = HIKARI::DXTEX::CreateWICTextureFromFile(
+                device, uploadCmdList_.Get(), wpath, texResource.GetAddressOf());
+            if (FAILED(hr) || !texResource) {
+                uploadCmdList_->Close();
+                OutputDebugStringA("DxTextureManager::CreateTextureFromFile - WIC load failed.\n");
+                return -1;
+            }
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
             if (FAILED(hr) || !texResource) {
                 OutputDebugStringA("DxTextureManager::CreateTextureFromFile - WIC load failed.\n");
                 return -1;

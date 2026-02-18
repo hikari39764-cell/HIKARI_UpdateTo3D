@@ -33,6 +33,8 @@
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
 #include <imgui.h>
+#include "../ThirdParty/imgui/imgui_impl_dx12.h"
+#include "../ThirdParty/imgui/imgui_impl_win32.h"
 #include <objbase.h>
 
 namespace HIKARI {
@@ -52,7 +54,51 @@ namespace HIKARI {
         inline GFX::Context gCtx{};
         inline bool gComInitialized = false;
         inline bool gImGuiInitialized = false;
+        inline bool gImGuiBackendInitialized = false;
         inline bool gImGuiFrameBegun = false;
+        inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
+        inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
+
+        inline void InitializeImGuiBackend() {
+            if (gImGuiBackendInitialized) {
+                return;
+            }
+
+            auto* device = gCtx.device;
+            auto* srvHeap = gCtx.srvHeap;
+            if (!device || !srvHeap || !gWindow.GetHWND()) {
+                return;
+            }
+
+            const UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            auto cpuStart = srvHeap->GetCPUDescriptorHandleForHeapStart();
+            auto gpuStart = srvHeap->GetGPUDescriptorHandleForHeapStart();
+
+            // SRV heap is 2048 entries in Dx12Core. TextureManager currently uses up to 1024.
+            // Reserve the last descriptor for ImGui font texture.
+            constexpr UINT kImGuiFontSrvIndex = 2047;
+            gImGuiFontSrvCpu.ptr = cpuStart.ptr + static_cast<SIZE_T>(descriptorSize) * kImGuiFontSrvIndex;
+            gImGuiFontSrvGpu.ptr = gpuStart.ptr + static_cast<UINT64>(descriptorSize) * kImGuiFontSrvIndex;
+
+            if (!ImGui_ImplWin32_Init(gWindow.GetHWND())) {
+                OutputDebugStringA("[ImGui] ImGui_ImplWin32_Init failed.\n");
+                return;
+            }
+
+            if (!ImGui_ImplDX12_Init(
+                device,
+                2,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                srvHeap,
+                gImGuiFontSrvCpu,
+                gImGuiFontSrvGpu)) {
+                OutputDebugStringA("[ImGui] ImGui_ImplDX12_Init failed.\n");
+                ImGui_ImplWin32_Shutdown();
+                return;
+            }
+
+            gImGuiBackendInitialized = true;
+        }
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
             HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -108,11 +154,17 @@ namespace HIKARI {
                 }
                 gImGuiInitialized = true;
             }
+            InitializeImGuiBackend();
             return true;
         }
 
         inline void FinalizeAll() {
             if (gImGuiInitialized) {
+                if (gImGuiBackendInitialized) {
+                    ImGui_ImplDX12_Shutdown();
+                    ImGui_ImplWin32_Shutdown();
+                    gImGuiBackendInitialized = false;
+                }
                 ImGui::DestroyContext();
                 gImGuiInitialized = false;
             }
@@ -150,6 +202,15 @@ namespace HIKARI {
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
             if (gImGuiInitialized) {
+                if (!gImGuiBackendInitialized) {
+                    InitializeImGuiBackend();
+                }
+
+                if (gImGuiBackendInitialized) {
+                    ImGui_ImplDX12_NewFrame();
+                    ImGui_ImplWin32_NewFrame();
+                }
+
                 if (!ImGui::GetCurrentContext()) {
                     ImGui::CreateContext();
                 }
@@ -174,6 +235,14 @@ namespace HIKARI {
             }
             HIKARI::RENDERER::RenderAll();
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
+
+            if (gImGuiInitialized && gImGuiBackendInitialized) {
+                auto* cmd = gCtx.cmdList;
+                ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
+                cmd->SetDescriptorHeaps(1, heaps);
+                ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
+            }
+
             gCore.EndFrame();
         }
     } // namespace SERVICES
