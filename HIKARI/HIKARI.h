@@ -42,7 +42,7 @@ namespace HIKARI {
 
         struct BootstrapConfig {
             const char* inputConfigPath = "input.json";
-            bool enableDebugCamera = true;
+            bool enableDebugCamera = false;
             bool enableDebugLayer = true;
             bool resizableWindow = true;
             int windowWidth = kScreenW;
