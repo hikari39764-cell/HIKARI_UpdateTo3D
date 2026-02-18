@@ -6,6 +6,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 #include "HIKARI_Utility.h"
+#include "Gfx/HIKARI_GfxContext.h"
 namespace HIKARI {
     namespace DX {
 
@@ -27,7 +28,8 @@ namespace HIKARI {
 
         class DxRenderer {
         public:
-            static void Init();
+            static void Init(const GFX::Context& ctx);
+            static void UpdateContext(const GFX::Context& ctx);
             static void Finalize();
 
             static void BeginFrame();

@@ -1,0 +1,22 @@
+#pragma once
+
+#include <cstdint>
+#include <d3d12.h>
+
+namespace HIKARI::GFX {
+
+struct Context {
+    ID3D12Device* device{};
+    ID3D12GraphicsCommandList* cmdList{};
+    ID3D12CommandQueue* queue{};
+
+    ID3D12DescriptorHeap* srvHeap{};
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv{};
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+
+    uint32_t frameIndex{};
+    int backBufferWidth{};
+    int backBufferHeight{};
+};
+
+} // namespace HIKARI::GFX
