@@ -117,6 +117,7 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
+            HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
             HIKARI::CAMERA::Update(kDt);
         }

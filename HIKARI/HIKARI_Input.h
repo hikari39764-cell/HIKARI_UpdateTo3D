@@ -31,6 +31,7 @@ namespace HIKARI {
         void SetBackend(BackendType backend);
         BackendType GetBackend();
         void SetHostWindow(void* hwnd);
+        void SetExternalMouseWheelDelta(float delta);
         void Update(float dt);
 
         // —— 照会 —— //

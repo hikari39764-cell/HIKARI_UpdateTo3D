@@ -110,6 +110,7 @@ namespace HIKARI {
 		static float gTime = 0.0f;
 		static BackendType gBackend = BackendType::Win32;
 		static HWND gHostWindow = nullptr;
+		static float gExternalWheelDelta = 0.0f;
 
 		// ===== マウス =====
 		static Vector2 gMousePos{ 0.0f, 0.0f };
@@ -232,7 +233,8 @@ namespace HIKARI {
 			}
 
 			gMouseDelta = { gMousePos.x - gMousePrev.x, gMousePos.y - gMousePrev.y };
-			gWheelDelta = 0.0f;
+			gWheelDelta = gExternalWheelDelta;
+			gExternalWheelDelta = 0.0f;
 
 			gMousePrevBtns[0] = gMouseNow[0];
 			gMousePrevBtns[1] = gMouseNow[1];
@@ -576,6 +578,10 @@ namespace HIKARI {
 
 		void SetHostWindow(void* hwnd) {
 			gHostWindow = reinterpret_cast<HWND>(hwnd);
+		}
+
+		void SetExternalMouseWheelDelta(float delta) {
+			gExternalWheelDelta += delta;
 		}
 
 		// XInput の状態をポーリング

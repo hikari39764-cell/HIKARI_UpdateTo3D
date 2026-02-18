@@ -83,6 +83,12 @@ bool Win32Window::PumpMessages() {
     return running_;
 }
 
+float Win32Window::ConsumeMouseWheelDelta() {
+    const float delta = mouseWheelDelta_;
+    mouseWheelDelta_ = 0.0f;
+    return delta;
+}
+
 LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     Win32Window* window = nullptr;
     if (msg == WM_NCCREATE) {
@@ -112,6 +118,9 @@ LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
     case WM_DESTROY:
         running_ = false;
         PostQuitMessage(0);
+        return 0;
+    case WM_MOUSEWHEEL:
+        mouseWheelDelta_ += static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam)) / static_cast<float>(WHEEL_DELTA);
         return 0;
     default:
         break;
