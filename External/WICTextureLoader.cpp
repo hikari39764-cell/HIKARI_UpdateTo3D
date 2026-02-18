@@ -125,8 +125,10 @@ namespace HIKARI {
             }
 
             // ===== ① GPU 纹理（DEFAULT heap）=====
+            // NOTE: 現在のレンダーターゲット/スワップチェーンが UNORM 前提のため、
+            // ここも UNORM に揃えて二重ガンマ/暗化を避ける。
             CD3DX12_RESOURCE_DESC texDesc =
-                CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, w, h);
+                CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, w, h);
 
             CD3DX12_HEAP_PROPERTIES defaultHeapProps(D3D12_HEAP_TYPE_DEFAULT); // ★ 先放到局部变量
 
