@@ -108,6 +108,9 @@ namespace HIKARI {
 		static unsigned char gKeys[256] = { 0 };
 		static unsigned char gPrev[256] = { 0 };
 		static float gTime = 0.0f;
+		static BackendType gBackend = BackendType::Win32;
+		static HWND gHostWindow = nullptr;
+		static float gExternalWheelDelta = 0.0f;
 
 		// ===== マウス =====
 		static Vector2 gMousePos{ 0.0f, 0.0f };
@@ -205,6 +208,56 @@ namespace HIKARI {
 
 		// ===== ユーティリティ =====
 		static bool  KeyNow(int k) { return gKeys[k] != 0; }
+		static int DikToVirtualKey(int dik) {
+			if (dik < 0 || dik > 0xFF) return 0;
+			const UINT vk = ::MapVirtualKeyA(static_cast<UINT>(dik), MAPVK_VSC_TO_VK);
+			return static_cast<int>(vk);
+		}
+
+		static void PollKeyboardWin32(unsigned char* keys) {
+			for (int i = 0; i < 256; ++i) {
+				const int vk = DikToVirtualKey(i);
+				keys[i] = (vk != 0 && (::GetAsyncKeyState(vk) & 0x8000) != 0) ? 0x80 : 0x00;
+			}
+		}
+
+		static void PollMouseWin32() {
+			gMousePrev = gMousePos;
+
+			POINT pt{};
+			if (::GetCursorPos(&pt)) {
+				if (gHostWindow) {
+					::ScreenToClient(gHostWindow, &pt);
+				}
+				gMousePos = { static_cast<float>(pt.x), static_cast<float>(pt.y) };
+			}
+
+			gMouseDelta = { gMousePos.x - gMousePrev.x, gMousePos.y - gMousePrev.y };
+			gWheelDelta = gExternalWheelDelta;
+			gExternalWheelDelta = 0.0f;
+
+			gMousePrevBtns[0] = gMouseNow[0];
+			gMousePrevBtns[1] = gMouseNow[1];
+			gMousePrevBtns[2] = gMouseNow[2];
+			gMouseNow[0] = (::GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+			gMouseNow[1] = (::GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+			gMouseNow[2] = (::GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
+		}
+
+		static void PollMouseNovice() {
+			gMousePrev = gMousePos;
+			int mx = 0, my = 0;
+			Novice::GetMousePosition(&mx, &my);
+			gMousePos = { static_cast<float>(mx), static_cast<float>(my) };
+			gMouseDelta = { gMousePos.x - gMousePrev.x, gMousePos.y - gMousePrev.y };
+			gWheelDelta = static_cast<float>(Novice::GetWheel());
+			for (int i = 0; i < 3; ++i) { gMousePrevBtns[i] = gMouseNow[i]; gMouseNow[i] = (Novice::IsPressMouse(i) != 0); }
+		}
+
+		static void PollKeyboardNovice(unsigned char* keys) {
+			Novice::GetHitKeyStateAll(reinterpret_cast<char*>(keys));
+		}
+
 		static bool  MouseBtnNow(MouseButton btn) {
 			int idx = static_cast<int>(btn);
 			if (idx < 0 || idx >= 3) return false;
@@ -506,12 +559,29 @@ namespace HIKARI {
 			gVibIndex = -1;
 			gVibRemain = 0.0f;
 			gVibActive = false;
+			gBackend = BackendType::Win32;
 
 			if (jsonPath) {
 				TryLoadJson(jsonPath);
 			} else {
 				LoadDefaults();
 			}
+		}
+
+		void SetBackend(BackendType backend) {
+			gBackend = backend;
+		}
+
+		BackendType GetBackend() {
+			return gBackend;
+		}
+
+		void SetHostWindow(void* hwnd) {
+			gHostWindow = reinterpret_cast<HWND>(hwnd);
+		}
+
+		void SetExternalMouseWheelDelta(float delta) {
+			gExternalWheelDelta += delta;
 		}
 
 		// XInput の状態をポーリング
@@ -622,17 +692,14 @@ namespace HIKARI {
 		void Update(float dt) {
 			gTime += dt;
 
-			// マウス状態
-			gMousePrev = gMousePos;
-			int mx = 0, my = 0;
-			Novice::GetMousePosition(&mx, &my);
-			gMousePos = { static_cast<float>(mx), static_cast<float>(my) };
-			gMouseDelta = { gMousePos.x - gMousePrev.x, gMousePos.y - gMousePrev.y };
-			gWheelDelta = static_cast<float>(Novice::GetWheel());
-			for (int i = 0; i < 3; ++i) { gMousePrevBtns[i] = gMouseNow[i]; gMouseNow[i] = (Novice::IsPressMouse(i) != 0); }
+			if (gBackend == BackendType::Novice) {
+				PollMouseNovice();
+				PollKeyboardNovice(gKeys);
+			} else {
+				PollMouseWin32();
+				PollKeyboardWin32(gKeys);
+			}
 
-			// キーボード走査
-			Novice::GetHitKeyStateAll(reinterpret_cast<char*>(gKeys));
 			gAxisCache.clear();
 			gKbDownSample.clear();
 			gPadDownSample.clear();

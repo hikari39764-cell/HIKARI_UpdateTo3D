@@ -32,6 +32,8 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
+#include <imgui.h>
+#include <objbase.h>
 
 namespace HIKARI {
     namespace SERVICES {
@@ -48,8 +50,13 @@ namespace HIKARI {
         inline PLATFORM::Win32Window gWindow{};
         inline GFX::Dx12Core gCore{};
         inline GFX::Context gCtx{};
+        inline bool gComInitialized = false;
+        inline bool gImGuiInitialized = false;
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
+            HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+            gComInitialized = SUCCEEDED(coHr);
+
             wchar_t wTitle[256]{};
             mbstowcs_s(nullptr, wTitle, title, _TRUNCATE);
 
@@ -81,20 +88,36 @@ namespace HIKARI {
             else {
                 HIKARI::HINPUT::Init();
             }
+            HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
+            HIKARI::HINPUT::SetBackend(HIKARI::HINPUT::BackendType::Win32);
 
             HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
             HIKARI::CAMERA::EnableDebugControl(cfg.enableDebugCamera);
+
+            if (!gImGuiInitialized) {
+                IMGUI_CHECKVERSION();
+                ImGui::CreateContext();
+                gImGuiInitialized = true;
+            }
             return true;
         }
 
         inline void FinalizeAll() {
+            if (gImGuiInitialized) {
+                ImGui::DestroyContext();
+                gImGuiInitialized = false;
+            }
             HIKARI::POST::PostSystem::Shutdown();
             DX::DxRenderer::Finalize();
             DXTEX::DxTextureManager::Finalize();
             AUDIO::Shutdown();
             gCore.Shutdown();
             gWindow.Shutdown();
+            if (gComInitialized) {
+                CoUninitialize();
+                gComInitialized = false;
+            }
         }
 
         inline bool PumpMessages() {
@@ -115,16 +138,18 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
-            // NOTE:
-            // 現在は Novice の window/render 初期化を外しているため、
-            // HINPUT::Update 内の Novice 入力取得 API が未初期化経路で落ちる可能性がある。
-            // 起動即終了の切り分けのため、いったん毎フレーム更新を無効化する。
-            // TODO: Win32 ベースの入力中継層へ置換後に再有効化。
-            // HIKARI::HINPUT::Update(kDt);
+            HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
+            HIKARI::HINPUT::Update(kDt);
+            if (gImGuiInitialized) {
+                ImGui::NewFrame();
+            }
             HIKARI::CAMERA::Update(kDt);
         }
 
         inline void EndFrame() {
+            if (gImGuiInitialized) {
+                ImGui::Render();
+            }
             HIKARI::RENDERER::RenderAll();
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
             gCore.EndFrame();
