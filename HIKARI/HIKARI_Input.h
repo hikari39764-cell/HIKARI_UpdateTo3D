@@ -5,6 +5,11 @@
 namespace HIKARI {
     namespace HINPUT {
 
+        enum class BackendType {
+            Novice,
+            Win32
+        };
+
         void PushLayer(const std::string& name);
         void PopLayer();
         void SetLayerActions(const std::string& layer, const std::vector<std::string>& actions);
@@ -23,6 +28,9 @@ namespace HIKARI {
 
         // —— 初期化 / フレーム更新 —— //
         void Init(const char* jsonPath = nullptr);
+        void SetBackend(BackendType backend);
+        BackendType GetBackend();
+        void SetHostWindow(void* hwnd);
         void Update(float dt);
 
         // —— 照会 —— //

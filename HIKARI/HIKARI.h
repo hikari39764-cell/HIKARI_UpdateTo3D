@@ -81,6 +81,8 @@ namespace HIKARI {
             else {
                 HIKARI::HINPUT::Init();
             }
+            HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
+            HIKARI::HINPUT::SetBackend(HIKARI::HINPUT::BackendType::Win32);
 
             HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
@@ -115,12 +117,7 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
-            // NOTE:
-            // 現在は Novice の window/render 初期化を外しているため、
-            // HINPUT::Update 内の Novice 入力取得 API が未初期化経路で落ちる可能性がある。
-            // 起動即終了の切り分けのため、いったん毎フレーム更新を無効化する。
-            // TODO: Win32 ベースの入力中継層へ置換後に再有効化。
-            // HIKARI::HINPUT::Update(kDt);
+            HIKARI::HINPUT::Update(kDt);
             HIKARI::CAMERA::Update(kDt);
         }
 
