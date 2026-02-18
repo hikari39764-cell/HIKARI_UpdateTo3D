@@ -131,6 +131,9 @@
     <Filter Include="HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_GlowManager">
       <UniqueIdentifier>{3c0024a9-4961-4962-bc89-f34df7af3d67}</UniqueIdentifier>
     </Filter>
+    <Filter Include="HIKARIEngine\ImGui">
+      <UniqueIdentifier>{2e292973-0486-4d2d-b085-813e1bfeca66}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -440,6 +443,39 @@
     <ClCompile Include="HIKARI\HIKARI_RenderTarget2D.cpp">
       <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_RenderTarget2D</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_demo.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_impl_dx12.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_impl_win32.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_tables.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\KamataEngine\DirectXGame\audio\Audio.h">
@@ -639,6 +675,36 @@
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h">
       <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.h" />
+    <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
+    <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
+    <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
+    <ClInclude Include="ThirdParty\imgui\imconfig.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imgui.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imgui_impl_dx12.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imgui_impl_win32.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imgui_internal.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imstb_rectpack.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imstb_textedit.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\imgui\imstb_truetype.h">
+      <Filter>HIKARIEngine\ImGui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
