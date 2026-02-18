@@ -4,10 +4,21 @@
 #include <dxgi1_6.h>
 #include <d3dx12.h>
 #include <cassert>
+#include <cstdio>
 
 using Microsoft::WRL::ComPtr;
 
 namespace HIKARI::GFX {
+
+namespace {
+
+void LogHr(const char* stage, HRESULT hr) {
+    char buf[256]{};
+    std::snprintf(buf, sizeof(buf), "[Dx12Core] %s failed. hr=0x%08lX\n", stage, static_cast<unsigned long>(hr));
+    OutputDebugStringA(buf);
+}
+
+}
 
 bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     hwnd_ = hwnd;
@@ -28,7 +39,14 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     factoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
     HRESULT hr = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&factory_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        // Graphics Tools / DXGI Debug が無い環境では失敗するため、通常 Factory にフォールバックする。
+        hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&factory_));
+        if (FAILED(hr)) {
+            LogHr("CreateDXGIFactory2", hr);
+            return false;
+        }
+    }
 
     for (UINT i = 0; factory_->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter_)) != DXGI_ERROR_NOT_FOUND; ++i) {
         DXGI_ADAPTER_DESC3 desc{};
@@ -37,12 +55,22 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     }
 
     hr = D3D12CreateDevice(adapter_.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        // adapter_ が取れない環境向けフォールバック
+        hr = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device_));
+        if (FAILED(hr)) {
+            LogHr("D3D12CreateDevice", hr);
+            return false;
+        }
+    }
 
     D3D12_COMMAND_QUEUE_DESC qDesc{};
     qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     hr = device_->CreateCommandQueue(&qDesc, IID_PPV_ARGS(&queue_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        LogHr("CreateCommandQueue", hr);
+        return false;
+    }
 
     DXGI_SWAP_CHAIN_DESC1 scDesc{};
     scDesc.Width = static_cast<UINT>(w);
@@ -55,41 +83,75 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
 
     ComPtr<IDXGISwapChain1> sc1;
     hr = factory_->CreateSwapChainForHwnd(queue_.Get(), hwnd, &scDesc, nullptr, nullptr, &sc1);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        LogHr("CreateSwapChainForHwnd", hr);
+        return false;
+    }
     hr = sc1.As(&swapChain_);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        LogHr("SwapChain Cast to IDXGISwapChain4", hr);
+        return false;
+    }
 
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
 
     D3D12_DESCRIPTOR_HEAP_DESC rtvDesc{};
     rtvDesc.NumDescriptors = kFrameCount;
     rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    device_->CreateDescriptorHeap(&rtvDesc, IID_PPV_ARGS(&rtvHeap_));
+    hr = device_->CreateDescriptorHeap(&rtvDesc, IID_PPV_ARGS(&rtvHeap_));
+    if (FAILED(hr)) {
+        LogHr("Create RTV Heap", hr);
+        return false;
+    }
     rtvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
     dsvDesc.NumDescriptors = 1;
     dsvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    device_->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
+    hr = device_->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
+    if (FAILED(hr)) {
+        LogHr("Create DSV Heap", hr);
+        return false;
+    }
 
     D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
     srvDesc.NumDescriptors = 2048;
     srvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    device_->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(&srvHeap_));
+    hr = device_->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(&srvHeap_));
+    if (FAILED(hr)) {
+        LogHr("Create SRV Heap", hr);
+        return false;
+    }
 
     CreateSwapChainResources();
     CreateDepthBuffer();
 
     for (uint32_t i = 0; i < kFrameCount; ++i) {
-        device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocators_[i]));
+        hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocators_[i]));
+        if (FAILED(hr)) {
+            LogHr("CreateCommandAllocator", hr);
+            return false;
+        }
     }
-    device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocators_[frameIndex_].Get(), nullptr, IID_PPV_ARGS(&cmdList_));
+    hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocators_[frameIndex_].Get(), nullptr, IID_PPV_ARGS(&cmdList_));
+    if (FAILED(hr)) {
+        LogHr("CreateCommandList", hr);
+        return false;
+    }
     cmdList_->Close();
 
-    device_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
+    hr = device_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
+    if (FAILED(hr)) {
+        LogHr("CreateFence", hr);
+        return false;
+    }
     fenceValue_ = 1;
     fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!fenceEvent_) {
+        OutputDebugStringA("[Dx12Core] CreateEvent failed.\n");
+        return false;
+    }
     return true;
 }
 
