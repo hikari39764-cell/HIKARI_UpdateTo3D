@@ -285,8 +285,8 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         void DxRenderer::Init(const GFX::Context& ctx)
         {
             g_ctx = ctx;
-            g_screenW = static_cast<float>(kScreenW);
-            g_screenH = static_cast<float>(kScreenH);
+            g_screenW = (ctx.backBufferWidth > 0) ? static_cast<float>(ctx.backBufferWidth) : static_cast<float>(kScreenW);
+            g_screenH = (ctx.backBufferHeight > 0) ? static_cast<float>(ctx.backBufferHeight) : static_cast<float>(kScreenH);
 
 
             auto* device = g_ctx.device;
