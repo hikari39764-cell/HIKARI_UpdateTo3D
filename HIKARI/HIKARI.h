@@ -33,8 +33,8 @@
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
 #include <imgui.h>
-#include <imgui_impl_dx12.h>
-#include <imgui_impl_win32.h>
+#include "../ThirdParty/imgui/imgui_impl_dx12.h"
+#include "../ThirdParty/imgui/imgui_impl_win32.h"
 #include <objbase.h>
 
 namespace HIKARI {

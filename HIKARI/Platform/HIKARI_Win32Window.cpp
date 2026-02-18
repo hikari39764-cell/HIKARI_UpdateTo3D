@@ -1,7 +1,7 @@
 #include "HIKARI_Win32Window.h"
 
 #include <cstdio>
-#include <imgui_impl_win32.h>
+#include "../../ThirdParty/imgui/imgui_impl_win32.h"
 
 namespace HIKARI::PLATFORM {
 
