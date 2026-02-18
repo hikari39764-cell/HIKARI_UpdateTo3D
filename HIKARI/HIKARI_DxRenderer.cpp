@@ -1,0 +1,785 @@
+﻿// --- START OF FILE HIKARI_DxRenderer.cpp ---
+
+#include "HIKARI_DxRenderer.h"
+#include "HIKARI_DxTexture.h"
+#include "HIKARI_DynamicUploadBuffer.h"
+#include "KamataEngine.h"
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <d3dcompiler.h>
+#include <d3dx12.h>
+
+#include <cassert>
+#include <vector>
+#include <cmath> // for max
+
+using Microsoft::WRL::ComPtr;
+
+namespace HIKARI {
+    namespace DX {
+
+
+        namespace {
+
+
+            DynamicUploadBuffer g_uploadCB;
+            DynamicUploadBuffer g_uploadVB;
+
+            float g_screenW = kScreenW;
+            float g_screenH = kScreenH;
+
+            struct LineVertex {
+                float px, py;
+                float r, g, b, a;
+            };
+
+            // =========================================================
+            // ConstantBuffer 格式
+            // =========================================================
+
+            struct GlobalCB
+            {
+                float screenSize[2];
+                float pad[2];
+            };
+
+            // [新增] Mask 参数 CB
+            struct MaskCB
+            {
+                float playerScreenPos[2]; // screenX, screenY
+                float radius;
+                float softness;
+            };
+
+            // 全局存储当前的 Mask 参数
+            static MaskCB g_currentMaskParams = { {0.0f, 0.0f}, 0.0f, 0.0f };
+
+            // =========================================================
+            // Helper: RGBA → Float (0〜1)
+            // =========================================================
+
+            static void DecodeRGBA(uint32_t rgba, float& r, float& g, float& b, float& a)
+            {
+                a = (float)((rgba >> 0) & 0xFF) / 255.0f;
+                b = (float)((rgba >> 8) & 0xFF) / 255.0f;
+                g = (float)((rgba >> 16) & 0xFF) / 255.0f;
+                r = (float)((rgba >> 24) & 0xFF) / 255.0f;
+            }
+
+            static D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode)
+            {
+                // ... (保持原有的 MakeBlendDesc 代码不变) ...
+                D3D12_BLEND_DESC desc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+                auto& rt = desc.RenderTarget[0];
+
+                switch (mode) {
+                case BlendMode::StraightAlpha:
+                    rt.BlendEnable = TRUE;
+                    rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+                    rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                case BlendMode::PremultipliedAlpha:
+                    rt.BlendEnable = TRUE;
+                    rt.SrcBlend = D3D12_BLEND_ONE;
+                    rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                case BlendMode::Additive:
+                    rt.BlendEnable = TRUE;
+                    rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+                    rt.DestBlend = D3D12_BLEND_ONE;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_ONE;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                case BlendMode::Multiply:
+                    rt.BlendEnable = TRUE;
+                    rt.SrcBlend = D3D12_BLEND_DEST_COLOR;
+                    rt.DestBlend = D3D12_BLEND_ZERO;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                case BlendMode::Screen:
+                    rt.BlendEnable = TRUE;
+                    rt.SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+                    rt.DestBlend = D3D12_BLEND_ONE;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                case BlendMode::Opaque:
+                default:
+                    rt.BlendEnable = FALSE;
+                    rt.SrcBlend = D3D12_BLEND_ONE;
+                    rt.DestBlend = D3D12_BLEND_ZERO;
+                    rt.BlendOp = D3D12_BLEND_OP_ADD;
+                    rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+                    rt.DestBlendAlpha = D3D12_BLEND_ZERO;
+                    rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                    break;
+                }
+                return desc;
+            }
+
+
+            // =========================================================
+            // Shader（VS/PS）
+            // =========================================================
+
+            static const char* kMeshVS = R"(
+cbuffer GlobalCB : register(b0)
+{
+    float2 screenSize;
+    float2 pad;
+}
+struct VS_IN {
+    float2 pos : POSITION;
+    float2 uv  : TEXCOORD0;
+    float4 col : COLOR0;
+};
+struct VS_OUT {
+    float4 pos : SV_POSITION;
+    float2 uv  : TEXCOORD0;
+    float4 col : COLOR0;
+};
+VS_OUT main(VS_IN input)
+{
+    VS_OUT o;
+    float2 ndc;
+    ndc.x = (input.pos.x / screenSize.x) * 2.0f - 1.0f;
+    ndc.y = 1.0f - (input.pos.y / screenSize.y) * 2.0f;
+    o.pos = float4(ndc, 0.0f, 1.0f);
+    o.uv = input.uv;
+    o.col = input.col;
+    return o;
+}
+)";
+
+            static const char* kMeshPS = R"(
+Texture2D tex0 : register(t0);
+SamplerState smp : register(s0);
+struct PS_IN {
+    float4 pos : SV_POSITION;
+    float2 uv  : TEXCOORD0;
+    float4 col : COLOR0;
+};
+float4 main(PS_IN input) : SV_TARGET
+{
+    float4 texCol = tex0.Sample(smp, input.uv);
+    return texCol * input.col;
+}
+)";
+
+            static const char* kMaskPS = R"(
+Texture2D tex0 : register(t0);
+SamplerState smp : register(s0);
+
+cbuffer MaskCB : register(b1)
+{
+    float2 playerPos; 
+    float radius; 
+    float softness; 
+};
+
+struct PS_IN {
+    float4 pos : SV_POSITION;
+    float2 uv  : TEXCOORD0;
+    float4 col : COLOR0;
+};
+
+float4 main(PS_IN input) : SV_TARGET
+{
+    float4 texCol = tex0.Sample(smp, input.uv);
+    float4 finalColor = texCol * input.col;
+
+    // 1. 计算当前像素到玩家的距离
+    float dist = distance(input.pos.xy, playerPos);
+
+    // 2. 计算渐变 Alpha
+    // 从 0.0 (中心) 到 radius (边缘) 生成 0.0 -> 1.0 的平滑过渡
+    // 这样中心就是完全透明的，越往外越不透明
+    float alphaFactor = smoothstep(0.0f, radius, dist);
+
+    finalColor.a *= alphaFactor;
+    return finalColor;
+}
+)";
+
+            static const char* kLineVS = R"(
+cbuffer GlobalCB : register(b0)
+{
+    float2 screenSize;
+    float2 pad;
+}
+struct VS_IN {
+    float2 pos : POSITION;
+    float4 col : COLOR0;
+};
+struct VS_OUT {
+    float4 pos : SV_POSITION;
+    float4 col : COLOR0;
+};
+VS_OUT main(VS_IN input)
+{
+    VS_OUT o;
+    float2 ndc;
+    ndc.x = (input.pos.x / screenSize.x) * 2.0f - 1.0f;
+    ndc.y = 1.0f - (input.pos.y / screenSize.y) * 2.0f;
+    o.pos = float4(ndc, 0.0f, 1.0f);
+    o.col = input.col;
+    return o;
+}
+)";
+
+            static const char* kLinePS = R"(
+struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR0; };
+float4 main(PS_IN input) : SV_TARGET { return input.col; }
+)";
+
+
+            // =========================================================
+            // Helper - Shader Compile
+            // =========================================================
+
+            static ComPtr<ID3DBlob> CompileShader(const char* src, const char* entry, const char* profile)
+            {
+                ComPtr<ID3DBlob> blob;
+                ComPtr<ID3DBlob> error;
+                HRESULT hr = D3DCompile(src, strlen(src), nullptr, nullptr, nullptr,
+                    entry, profile, D3DCOMPILE_ENABLE_STRICTNESS, 0, &blob, &error);
+                if (FAILED(hr)) {
+                    if (error) OutputDebugStringA((char*)error->GetBufferPointer());
+                    assert(false);
+                }
+                return blob;
+            }
+
+
+            // =========================================================
+            // Init()
+            // =========================================================
+
+        } // anonymous namespace
+
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> DxRenderer::rootSig_;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::colorPsos_[static_cast<size_t>(BlendMode::Count)];
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::psoLine_;
+        BlendMode DxRenderer::currentBlendMode_ = BlendMode::StraightAlpha;
+
+        // [新增]
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> DxRenderer::rootSigMask_;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::psoMask_;
+
+        void DxRenderer::Init()
+        {
+            g_screenW = static_cast<float>(kScreenW);
+            g_screenH = static_cast<float>(kScreenH);
+
+
+            auto* dx = KamataEngine::DirectXCommon::GetInstance();
+            auto* device = dx->GetDevice();
+
+            // === UploadBuffers ===
+            g_uploadCB.Init(device, static_cast<size_t>(1024 * 1024) * 8);
+            g_uploadVB.Init(device, 1024 * 1024 * 16);
+
+            // === RootSignature (Default) ===
+            {
+                CD3DX12_DESCRIPTOR_RANGE range{};
+                range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+                CD3DX12_ROOT_PARAMETER params[2]{};
+                params[0].InitAsConstantBufferView(0); // b0
+                params[1].InitAsDescriptorTable(1, &range); // t0
+
+
+                D3D12_STATIC_SAMPLER_DESC staticSampler = {};
+                staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+                staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.MipLODBias = 0;
+                staticSampler.MaxAnisotropy = 0;
+                staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+                staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+                staticSampler.MinLOD = 0.0f;
+                staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
+                staticSampler.ShaderRegister = 0;   // s0!!
+                staticSampler.RegisterSpace = 0;
+                staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+
+                CD3DX12_ROOT_SIGNATURE_DESC desc;
+                desc.Init(
+                    _countof(params), params,
+                    1, &staticSampler,
+                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+                );
+
+                ComPtr<ID3DBlob> sigBlob, errBlob;
+                HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sigBlob, &errBlob);
+                if (FAILED(hr)) { if (errBlob) OutputDebugStringA((char*)errBlob->GetBufferPointer()); assert(false); }
+
+                hr = device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
+                assert(SUCCEEDED(hr));
+            }
+
+            // === [新增] RootSignature (Mask) ===
+            {
+                // 需要三个参数：b0 (Global), t0 (Texture), b1 (MaskParams)
+                CD3DX12_DESCRIPTOR_RANGE range{};
+                range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+                CD3DX12_ROOT_PARAMETER params[3]{};
+                params[0].InitAsConstantBufferView(0);      // b0: ScreenSize
+                params[1].InitAsDescriptorTable(1, &range); // t0: Texture
+                params[2].InitAsConstantBufferView(1);      // b1: MaskParams (新增)
+
+                D3D12_STATIC_SAMPLER_DESC staticSampler = {};
+                staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+                staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+                staticSampler.MipLODBias = 0;
+                staticSampler.MaxAnisotropy = 0;
+                staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+                staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+                staticSampler.MinLOD = 0.0f;
+                staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
+                staticSampler.ShaderRegister = 0;
+                staticSampler.RegisterSpace = 0;
+                staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+                CD3DX12_ROOT_SIGNATURE_DESC desc;
+                desc.Init(_countof(params), params, 1, &staticSampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+                ComPtr<ID3DBlob> sigBlob, errBlob;
+                HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sigBlob, &errBlob);
+                if (FAILED(hr)) { if (errBlob) OutputDebugStringA((char*)errBlob->GetBufferPointer()); assert(false); }
+
+                hr = device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSigMask_));
+                assert(SUCCEEDED(hr));
+            }
+
+            // === PSO: Mesh / Sprite ===
+            {
+                ComPtr<ID3DBlob> vs = CompileShader(kMeshVS, "main", "vs_5_0");
+                ComPtr<ID3DBlob> ps = CompileShader(kMeshPS, "main", "ps_5_0");
+
+                D3D12_INPUT_ELEMENT_DESC elems[] = {
+                    { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 8,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                    { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                };
+
+                auto FillBasePSO = [&](D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
+                    {
+                        ZeroMemory(&desc, sizeof(desc));
+                        desc.pRootSignature = rootSig_.Get();
+                        desc.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
+                        desc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+                        desc.InputLayout = { elems, _countof(elems) };
+                        desc.SampleMask = UINT_MAX;
+                        desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+                        desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+                        desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+                        desc.DepthStencilState.DepthEnable = FALSE;
+                        desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+                        desc.NumRenderTargets = 1;
+                        desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+                        desc.SampleDesc.Count = 1;
+                    };
+                D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc{};
+                FillBasePSO(baseDesc);
+
+                for (size_t i = 0; i < static_cast<size_t>(BlendMode::Count); ++i) {
+                    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+                    desc.BlendState = MakeBlendDesc(static_cast<BlendMode>(i));
+                    HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&colorPsos_[i]));
+                    assert(SUCCEEDED(hr));
+                }
+
+                // === [新增] PSO: Mask ===
+                // 编译 Mask PS
+                ComPtr<ID3DBlob> psMask = CompileShader(kMaskPS, "main", "ps_5_0");
+
+                D3D12_GRAPHICS_PIPELINE_STATE_DESC maskDesc = baseDesc;
+                maskDesc.pRootSignature = rootSigMask_.Get(); // 使用新的 RS
+                maskDesc.PS = CD3DX12_SHADER_BYTECODE(psMask.Get()); // 使用 Mask PS
+                maskDesc.BlendState = MakeBlendDesc(BlendMode::StraightAlpha); // 使用标准透明混合
+
+                HRESULT hr = device->CreateGraphicsPipelineState(&maskDesc, IID_PPV_ARGS(&psoMask_));
+                assert(SUCCEEDED(hr));
+            }
+
+            // === PSO: Line (保持不变) ===
+            {
+                ComPtr<ID3DBlob> vs = CompileShader(kLineVS, "main", "vs_5_0");
+                ComPtr<ID3DBlob> ps = CompileShader(kLinePS, "main", "ps_5_0");
+
+                D3D12_INPUT_ELEMENT_DESC elems[] = {
+                    { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                    { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                };
+
+                D3D12_GRAPHICS_PIPELINE_STATE_DESC d{};
+                d.pRootSignature = rootSig_.Get();
+                d.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
+                d.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+                d.InputLayout = { elems, _countof(elems) };
+                d.SampleMask = UINT_MAX;
+                d.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+                d.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+                d.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+                d.DepthStencilState.DepthEnable = FALSE;
+                d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+                d.NumRenderTargets = 1;
+                d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+                d.SampleDesc.Count = 1;
+
+                d.BlendState = MakeBlendDesc(BlendMode::StraightAlpha);
+
+                HRESULT hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&psoLine_));
+                assert(SUCCEEDED(hr));
+            }
+
+            OutputDebugStringA("[DxRenderer] Init OK.\n");
+        }
+
+
+        void DxRenderer::Finalize()
+        {
+            auto* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
+            device;
+        }
+
+
+        void DxRenderer::BeginFrame()
+        {
+
+            g_uploadCB.Reset();
+            g_uploadVB.Reset();
+        }
+
+        void DxRenderer::EndFrame()
+        {
+            // 目前是即时绘制，所以这里不做任何事
+        }
+
+
+        void DxRenderer::SetBlendMode(BlendMode mode)
+        {
+            if (mode >= BlendMode::Count) {
+                currentBlendMode_ = BlendMode::StraightAlpha;
+                return;
+            }
+
+            currentBlendMode_ = mode;
+        }
+
+        void DxRenderer::DrawMesh(
+            const MeshVertex* verts,
+            int vertexCount,
+            D3D_PRIMITIVE_TOPOLOGY topology,
+            int texHandle,
+            uint32_t color)
+        {
+            if (!verts || vertexCount <= 0 || texHandle < 0) {
+                return;
+            }
+
+            auto* dx = KamataEngine::DirectXCommon::GetInstance();
+            auto* cmd = dx->GetCommandList();
+
+            // 选 PSO
+            size_t blendIdx = static_cast<size_t>(currentBlendMode_);
+            if (blendIdx >= static_cast<size_t>(BlendMode::Count)) {
+                blendIdx = 0;
+            }
+
+            ID3D12PipelineState* pso = colorPsos_[blendIdx].Get();
+            if (!pso) {
+                pso = colorPsos_[static_cast<size_t>(BlendMode::StraightAlpha)].Get();
+            }
+
+            cmd->SetGraphicsRootSignature(rootSig_.Get());
+            cmd->SetPipelineState(pso);
+
+            // 颜色 tint
+            float r, g, b, a;
+            DecodeRGBA(color, r, g, b, a);
+
+            // Upload VB
+            D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
+            MeshVertex* vb = (MeshVertex*)g_uploadVB.Allocate(
+                sizeof(MeshVertex) * vertexCount, gpuVB);
+
+            for (int i = 0; i < vertexCount; ++i) {
+                vb[i] = verts[i];
+                vb[i].r = r;
+                vb[i].g = g;
+                vb[i].b = b;
+                vb[i].a = a;
+            }
+
+            D3D12_VERTEX_BUFFER_VIEW vbv{};
+            vbv.BufferLocation = gpuVB;
+            vbv.StrideInBytes = sizeof(MeshVertex);
+            vbv.SizeInBytes = sizeof(MeshVertex) * vertexCount;
+
+            // Upload CB（屏幕大小）
+            GlobalCB cb{};
+            cb.screenSize[0] = g_screenW;
+            cb.screenSize[1] = g_screenH;
+
+            D3D12_GPU_VIRTUAL_ADDRESS gpuCB;
+
+            // 【修改前】 memcpy(g_uploadCB.Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
+
+            // 【修改后】 强制 256 字节对齐
+            UINT cbSizeAligned = (sizeof(cb) + 255) & ~255;
+            memcpy(g_uploadCB.Allocate(cbSizeAligned, gpuCB), &cb, sizeof(cb));
+
+            cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
+
+
+            // 纹理 SRV
+            ID3D12DescriptorHeap* heap =
+                HIKARI::DXTEX::DxTextureManager::GetSrvHeap();
+            cmd->SetDescriptorHeaps(1, &heap);
+
+            auto gpuHandle =
+                HIKARI::DXTEX::DxTextureManager::GetSrvGpuHandle(texHandle);
+            cmd->SetGraphicsRootDescriptorTable(1, gpuHandle);
+
+            // IA & Draw
+            cmd->IASetPrimitiveTopology(topology);
+            cmd->IASetVertexBuffers(0, 1, &vbv);
+            cmd->DrawInstanced(vertexCount, 1, 0, 0);
+        }
+        // =========================================================
+        // DrawMeshQuad
+        // =========================================================
+
+        void DxRenderer::DrawMeshQuad(
+            float x0, float y0, float u0, float v0,
+            float x1, float y1, float u1, float v1,
+            float x2, float y2, float u2, float v2,
+            float x3, float y3, float u3, float v3,
+            int texHandle,
+            uint32_t color)
+        {
+            MeshVertex verts[4] = {
+                { x0, y0, u0, v0, 0,0,0,0 },
+                { x1, y1, u1, v1, 0,0,0,0 },
+                { x2, y2, u2, v2, 0,0,0,0 },
+                { x3, y3, u3, v3, 0,0,0,0 },
+            };
+
+            DrawMesh(
+                verts,
+                4,
+                D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,
+                texHandle,
+                color);
+        }
+
+        // =========================================================
+        // [新增] Mask 参数更新与绘制
+        // =========================================================
+
+        void DxRenderer::UpdateMaskParams(float screenX, float screenY, float radius, float softness)
+        {
+            g_currentMaskParams.playerScreenPos[0] = screenX;
+            g_currentMaskParams.playerScreenPos[1] = screenY;
+            g_currentMaskParams.radius = radius;
+            g_currentMaskParams.softness = softness;
+        }
+
+        void DxRenderer::DrawMeshQuadMasked(
+            float x0, float y0, float u0, float v0,
+            float x1, float y1, float u1, float v1,
+            float x2, float y2, float u2, float v2,
+            float x3, float y3, float u3, float v3,
+            int texHandle,
+            uint32_t color)
+        {
+            // 构造顶点数据
+            MeshVertex verts[4] = {
+                { x0, y0, u0, v0, 0,0,0,0 },
+                { x1, y1, u1, v1, 0,0,0,0 },
+                { x2, y2, u2, v2, 0,0,0,0 },
+                { x3, y3, u3, v3, 0,0,0,0 },
+            };
+            int vertexCount = 4;
+
+            auto* dx = KamataEngine::DirectXCommon::GetInstance();
+            auto* cmd = dx->GetCommandList();
+
+            // 1. 切换到 Mask 专用的 RootSig 和 PSO
+            cmd->SetGraphicsRootSignature(rootSigMask_.Get());
+            cmd->SetPipelineState(psoMask_.Get());
+
+            // 颜色解析
+            float r, g, b, a;
+            DecodeRGBA(color, r, g, b, a);
+
+            // 2. Upload Vertex Buffer (和普通绘制一样)
+            D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
+            MeshVertex* vb = (MeshVertex*)g_uploadVB.Allocate(
+                sizeof(MeshVertex) * vertexCount, gpuVB);
+
+            for (int i = 0; i < vertexCount; ++i) {
+                vb[i] = verts[i];
+                vb[i].r = r; vb[i].g = g; vb[i].b = b; vb[i].a = a;
+            }
+
+            D3D12_VERTEX_BUFFER_VIEW vbv{};
+            vbv.BufferLocation = gpuVB;
+            vbv.StrideInBytes = sizeof(MeshVertex);
+            vbv.SizeInBytes = sizeof(MeshVertex) * vertexCount;
+
+            // 3. Upload GlobalCB (b0)
+            GlobalCB cb{};
+            cb.screenSize[0] = g_screenW;
+            cb.screenSize[1] = g_screenH;
+            D3D12_GPU_VIRTUAL_ADDRESS gpuCB;
+
+            // =============== 修改 GlobalCB ===============
+            UINT globalSizeAligned = (sizeof(GlobalCB) + 255) & ~255;
+            memcpy(g_uploadCB.Allocate(globalSizeAligned, gpuCB), &cb, sizeof(cb));
+            cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
+
+            // 4. Upload MaskCB (b1)
+            D3D12_GPU_VIRTUAL_ADDRESS gpuMaskCB;
+
+            // =============== 修改 MaskCB ===============
+            UINT maskSizeAligned = (sizeof(MaskCB) + 255) & ~255;
+            memcpy(g_uploadCB.Allocate(maskSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
+            cmd->SetGraphicsRootConstantBufferView(2, gpuMaskCB);
+
+            // 计算对齐后的大小
+            UINT maskCbSizeAligned = (sizeof(MaskCB) + 255) & ~255;
+            // 申请对齐后的大小
+            memcpy(g_uploadCB.Allocate(maskCbSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
+
+            cmd->SetGraphicsRootConstantBufferView(2, gpuMaskCB); // RootParam[2]
+
+            // 5. 绑定纹理 SRV (t0)
+            ID3D12DescriptorHeap* heap = HIKARI::DXTEX::DxTextureManager::GetSrvHeap();
+            cmd->SetDescriptorHeaps(1, &heap);
+            auto gpuHandle = HIKARI::DXTEX::DxTextureManager::GetSrvGpuHandle(texHandle);
+            cmd->SetGraphicsRootDescriptorTable(1, gpuHandle); // RootParam[1]
+
+            // 6. 绘制
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            cmd->IASetVertexBuffers(0, 1, &vbv);
+            cmd->DrawInstanced(vertexCount, 1, 0, 0);
+        }
+
+        // =========================================================
+        // DrawSprite
+        // =========================================================
+
+        void DxRenderer::DrawSprite(
+            int texHandle,
+            float x, float y,
+            float w, float h,
+            uint32_t color)
+        {
+            float x0 = x;
+            float y0 = y;
+            float x1 = x + w;
+            float y1 = y + h;
+
+            DrawMeshQuad(
+                x0, y0, 0.0f, 0.0f,
+                x1, y0, 1.0f, 0.0f,
+                x0, y1, 0.0f, 1.0f,
+                x1, y1, 1.0f, 1.0f,
+                texHandle, color);
+        }
+
+
+        void DxRenderer::DrawSpriteUV(
+            int texHandle,
+            float x, float y,
+            float w, float h,
+            float u0, float v0,
+            float u1, float v1,
+            uint32_t color)
+        {
+            float x0 = x;
+            float y0 = y;
+            float x1 = x + w;
+            float y1 = y + h;
+
+            DrawMeshQuad(
+                x0, y0, u0, v0,
+                x1, y0, u1, v0,
+                x0, y1, u0, v1,
+                x1, y1, u1, v1,
+                texHandle, color);
+        }
+
+
+        // =========================================================
+        // DrawLine
+        // =========================================================
+
+        void DxRenderer::DrawLine(
+            float x0, float y0,
+            float x1, float y1,
+            uint32_t color)
+        {
+            auto* dx = KamataEngine::DirectXCommon::GetInstance();
+            auto* cmd = dx->GetCommandList();
+
+            cmd->SetGraphicsRootSignature(rootSig_.Get());
+            cmd->SetPipelineState(psoLine_.Get());
+
+            float r, g, b, a;
+            DecodeRGBA(color, r, g, b, a);
+
+            LineVertex verts[2] = {
+                { x0, y0, r, g, b, a },
+                { x1, y1, r, g, b, a }
+            };
+
+            D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
+            LineVertex* vb = (LineVertex*)g_uploadVB.Allocate(sizeof(verts), gpuVB);
+            memcpy(vb, verts, sizeof(verts));
+
+            D3D12_VERTEX_BUFFER_VIEW vbv{};
+            vbv.BufferLocation = gpuVB;
+            vbv.StrideInBytes = sizeof(LineVertex);
+            vbv.SizeInBytes = sizeof(verts);
+
+            GlobalCB cb{};
+            cb.screenSize[0] = g_screenW;
+            cb.screenSize[1] = g_screenH;
+            D3D12_GPU_VIRTUAL_ADDRESS gpuCB;
+            memcpy(g_uploadCB.Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
+
+            cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
+
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+            cmd->IASetVertexBuffers(0, 1, &vbv);
+
+            cmd->DrawInstanced(2, 1, 0, 0);
+        }
+
+    } // namespace DX
+} // namespace HIKARI

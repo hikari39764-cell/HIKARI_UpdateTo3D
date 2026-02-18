@@ -1,0 +1,289 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{e7cc83d6-d200-4d4a-85e4-7d93e060b066}</ProjectGuid>
+    <RootNamespace>HIKARI_UpdateTo3D</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(ProjectDir)..\Generated\Outputs\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\Generated\Obj\$(ProjectName)\$(Configuration)\</IntDir>
+    <LibraryPath>$(ProjectDir)..\External\KamataEngine\lib\$(Configuration);$(ProjectDir)..\External\DirectXTex\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(ProjectDir)..\Generated\Outputs\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\Generated\Obj\$(ProjectName)\$(Configuration)\</IntDir>
+    <LibraryPath>$(ProjectDir)..\External\KamataEngine\lib\$(Configuration);$(ProjectDir)..\External\DirectXTex\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\imgui;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy C:\KamataEngine\DirectXGame\Resources .\NoviceResources /S /E /I /D /R /Y
+xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /S /E /I /D /R /Y</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>MinSpace</Optimization>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy C:\KamataEngine\DirectXGame\Resources .\NoviceResources /S /E /I /D /R /Y
+xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /S /E /I /D /R /Y</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\KamataEngine\Adapter\Novice.cpp" />
+    <ClCompile Include="External\WICTextureLoader.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Anim.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Bgm.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Camera.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Camera2_5D.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_DxRenderer.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_DxTexture.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_DynamicUploadBuffer.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_MeshEffect.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Offscreen.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_PhysicsWorld.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_PostChain.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_PostEffect.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_PostQuadDrawer.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_PostSystem.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Renderer.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_RenderQueue25.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_RenderTarget2D.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_SE.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_SpineActor.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_SpineTextureLoader.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Texture.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_TiledCollision.cpp" />
+    <ClCompile Include="HIKARI\HIKARI_Transform2D.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Matrix3x3.cpp" />
+    <ClCompile Include="SpineDefaultExtensionShim.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Animation.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\AnimationState.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\AnimationStateData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Atlas.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\AtlasAttachmentLoader.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Attachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\AttachmentLoader.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\AttachmentTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Bone.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\BoneData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\BoundingBoxAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\ClippingAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\ColorTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\ConstraintData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\CurveTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\DeformTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\DrawOrderTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Event.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\EventData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\EventTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Extension.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\IkConstraint.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\IkConstraintData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\IkConstraintTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\InheritTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Json.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\LinkedMesh.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Log.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\MathUtil.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\MeshAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathConstraint.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathConstraintData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathConstraintMixTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathConstraintPositionTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PathConstraintSpacingTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PhysicsConstraint.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PhysicsConstraintData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PhysicsConstraintTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\PointAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\RegionAttachment.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\RotateTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\RTTI.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\ScaleTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Sequence.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SequenceTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\ShearTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Skeleton.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonBinary.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonBounds.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonClipping.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonJson.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SkeletonRenderer.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Skin.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Slot.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SlotData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\SpineObject.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\TextureLoader.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Timeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\TransformConstraint.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\TransformConstraintData.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\TransformConstraintTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\TranslateTimeline.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Triangulator.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\Updatable.cpp" />
+    <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\DirectXGame\3d\Camera.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\base\StringUtility.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Matrix4x4.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector2.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector3.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector4.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\CircleShadow.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DebugCamera.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DirectionalLight.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\LightGroup.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Material.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Mesh.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\PointLight.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\SpotLight.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\DebugText.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\Sprite.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\ImGuiManager.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Model.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\WorldTransform.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\audio\Audio.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\base\DirectXCommon.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\base\SafeDelete.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\base\TextureManager.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\base\WinApp.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
+    <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
+    <ClInclude Include="C:\KamataEngine\Adapter\Novice.h" />
+    <ClInclude Include="External\WICTextureLoader.h" />
+    <ClInclude Include="HIKARI\HIKARI.h" />
+    <ClInclude Include="HIKARI\HIKARI_Anim.h" />
+    <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
+    <ClInclude Include="HIKARI\HIKARI_Body2D.h" />
+    <ClInclude Include="HIKARI\HIKARI_Camera.h" />
+    <ClInclude Include="HIKARI\HIKARI_Camera2_5D.h" />
+    <ClInclude Include="HIKARI\HIKARI_Collision.h" />
+    <ClInclude Include="HIKARI\HIKARI_CollisionWorld.h" />
+    <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h" />
+    <ClInclude Include="HIKARI\HIKARI_DxRenderer.h" />
+    <ClInclude Include="HIKARI\HIKARI_DxTexture.h" />
+    <ClInclude Include="HIKARI\HIKARI_DynamicUploadBuffer.h" />
+    <ClInclude Include="HIKARI\HIKARI_GlowManager.h" />
+    <ClInclude Include="HIKARI\HIKARI_Input.h" />
+    <ClInclude Include="HIKARI\HIKARI_MapRoom.h" />
+    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h" />
+    <ClInclude Include="HIKARI\HIKARI_MeshEffect.h" />
+    <ClInclude Include="HIKARI\HIKARI_Offscreen.h" />
+    <ClInclude Include="HIKARI\HIKARI_Particle.h" />
+    <ClInclude Include="HIKARI\HIKARI_ParticleLab.h" />
+    <ClInclude Include="HIKARI\HIKARI_PhysicsWorld.h" />
+    <ClInclude Include="HIKARI\HIKARI_PostChain.h" />
+    <ClInclude Include="HIKARI\HIKARI_PostCommon.h" />
+    <ClInclude Include="HIKARI\HIKARI_PostEffect.h" />
+    <ClInclude Include="HIKARI\HIKARI_PostQuadDrawer.h" />
+    <ClInclude Include="HIKARI\HIKARI_PostSystem.h" />
+    <ClInclude Include="HIKARI\HIKARI_Renderer.h" />
+    <ClInclude Include="HIKARI\HIKARI_RenderQueue25.h" />
+    <ClInclude Include="HIKARI\HIKARI_RenderTarget2D.h" />
+    <ClInclude Include="HIKARI\HIKARI_SE.h" />
+    <ClInclude Include="HIKARI\HIKARI_SpineActor.h" />
+    <ClInclude Include="HIKARI\HIKARI_SpineTextureLoader.h" />
+    <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h" />
+    <ClInclude Include="HIKARI\HIKARI_Texture.h" />
+    <ClInclude Include="HIKARI\HIKARI_TiledCollision.h" />
+    <ClInclude Include="HIKARI\HIKARI_Transform2D.h" />
+    <ClInclude Include="HIKARI\HIKARI_Utility.h" />
+    <ClInclude Include="HIKARI\Matrix3x3.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="input.json" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
