@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <Novice.h>
 
 namespace HIKARI {
     namespace BGM {
@@ -11,7 +10,7 @@ namespace HIKARI {
             std::string name;
             std::string path;
             std::string group{ "default" };
-            int handle{ -1 };        // Novice のオーディオハンドル（音源リソース）
+            int handle{ -1 };        // HIKARI::AUDIO の音源ハンドル
         };
 
         // --- 登録 / 読み込み ---

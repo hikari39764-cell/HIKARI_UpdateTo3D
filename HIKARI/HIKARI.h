@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "HIKARI_Texture.h"
 #include "HIKARI_Renderer.h"
 #include "HIKARI_Camera.h"
@@ -29,53 +29,92 @@
 #include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_PostChain.h"
 
+#include "Platform/HIKARI_Win32Window.h"
+#include "Gfx/HIKARI_Dx12Core.h"
+#include "Audio/HIKARI_Audio.h"
+
 namespace HIKARI {
     namespace SERVICES {
 
         struct BootstrapConfig {
-            const char* inputConfigPath = "input.json"; // キーボード/マウス/Pad 設定
-            bool enableDebugCamera = true;               // デバッグ用カメラ操作
-            //bool drawScanlineBackground = true;          // スキャンライン背景の描画
+            const char* inputConfigPath = "input.json";
+            bool enableDebugCamera = true;
+            bool enableDebugLayer = true;
+            bool resizableWindow = true;
+            int windowWidth = kScreenW;
+            int windowHeight = kScreenH;
         };
 
-        // サービス層の初期化/終了
-        inline void Initialize(const char* title, const BootstrapConfig& cfg = {}) {
-            Novice::Initialize(title, kScreenW, kScreenH);
-            DXTEX::DxTextureManager::Init(1024);
-            DX::DxRenderer::Init();
-            HIKARI::POST::PostSystem::Initialize();
+        inline PLATFORM::Win32Window gWindow{};
+        inline GFX::Dx12Core gCore{};
+        inline GFX::Context gCtx{};
+
+        inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
+            wchar_t wTitle[256]{};
+            mbstowcs_s(nullptr, wTitle, title, _TRUNCATE);
+
+            if (!gWindow.Initialize(wTitle, cfg.windowWidth, cfg.windowHeight, cfg.resizableWindow)) {
+                return false;
+            }
+            if (!gCore.Initialize(gWindow.GetHWND(), cfg.windowWidth, cfg.windowHeight, cfg.enableDebugLayer)) {
+                return false;
+            }
+
+            gWindow.SetResizeCallback([](int w, int h) {
+                gCore.Resize(w, h);
+                gCtx = gCore.BuildContext();
+                DXTEX::DxTextureManager::UpdateContext(gCtx);
+                DX::DxRenderer::UpdateContext(gCtx);
+                POST::PostSystem::UpdateContext(gCtx);
+            });
+
+            gCtx = gCore.BuildContext();
+
+            DXTEX::DxTextureManager::Init(gCtx, 1024);
+            DX::DxRenderer::Init(gCtx);
+            POST::PostSystem::Initialize(gCtx);
+            AUDIO::Initialize(AUDIO::BackendType::Novice);
 
             if (cfg.inputConfigPath) {
                 HIKARI::HINPUT::Init(cfg.inputConfigPath);
-            } else {
+            }
+            else {
                 HIKARI::HINPUT::Init();
             }
 
-            HIKARI::CAMERA::SetScreenSize(kScreenW, kScreenH);
+            HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
             HIKARI::CAMERA::EnableDebugControl(cfg.enableDebugCamera);
+            return true;
         }
-        \
+
         inline void FinalizeAll() {
             HIKARI::POST::PostSystem::Shutdown();
             DX::DxRenderer::Finalize();
             DXTEX::DxTextureManager::Finalize();
-            Novice::Finalize();
+            AUDIO::Shutdown();
+            gCore.Shutdown();
+            gWindow.Shutdown();
         }
 
-        // 1 フレームの開始/終了（サービス層側）
-        inline void BeginFrame(const BootstrapConfig& cfg = {}) {
-            Novice::BeginFrame();
+        inline bool PumpMessages() {
+            return gWindow.PumpMessages();
+        }
 
-            // 1.清空渲染命令列表
+        inline void BeginFrame(const BootstrapConfig& cfg = {}) {
+            (void)cfg;
+            gCtx = gCore.BuildContext();
+            DXTEX::DxTextureManager::UpdateContext(gCtx);
+            DX::DxRenderer::UpdateContext(gCtx);
+            POST::PostSystem::UpdateContext(gCtx);
+
+            gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f);
+
             HIKARI::RENDERER::BeginFrame();
             HIKARI::POST::PostSystem::UpdateCommonParams(kDt);
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
-            // 3. 重置底层 DX 渲染器状态
             DX::DxRenderer::BeginFrame();
-
-            // 4. 更新输入和摄像机
             HIKARI::HINPUT::Update(kDt);
             HIKARI::CAMERA::Update(kDt);
         }
@@ -83,7 +122,7 @@ namespace HIKARI {
         inline void EndFrame() {
             HIKARI::RENDERER::RenderAll();
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
-            Novice::EndFrame();
+            gCore.EndFrame();
         }
     } // namespace SERVICES
 } // namespace HIKARI
