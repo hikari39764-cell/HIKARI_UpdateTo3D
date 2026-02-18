@@ -1,4 +1,5 @@
-﻿#include "HIKARI_SE.h"
+﻿#include "Audio/HIKARI_Audio.h"
+#include "HIKARI_SE.h"
 #include <unordered_set>
 
 namespace HIKARI {
@@ -12,7 +13,7 @@ namespace HIKARI {
 
         static inline void EnsureLoaded(int id) {
             if (id < 0 || id >= static_cast<int>(gEntries.size())) return;
-            if (gEntries[id].handle < 0) { gEntries[id].handle = Novice::LoadAudio(gEntries[id].path.c_str()); }
+            if (gEntries[id].handle < 0) { gEntries[id].handle = HIKARI::AUDIO::Load(gEntries[id].path.c_str()); }
         }
 
         void Register(const std::string& name, const std::string& path, const std::string& group) {
@@ -25,13 +26,13 @@ namespace HIKARI {
 
         bool LoadGroup(const std::string& group) {
             bool any = false;
-            for (auto& e : gEntries) { if (e.group == group && e.handle < 0) { e.handle = Novice::LoadAudio(e.path.c_str()); any = true; } }
+            for (auto& e : gEntries) { if (e.group == group && e.handle < 0) { e.handle = HIKARI::AUDIO::Load(e.path.c_str()); any = true; } }
             return any;
         }
 
         bool LoadAll() {
             bool any = false;
-            for (auto& e : gEntries) { if (e.handle < 0) { e.handle = Novice::LoadAudio(e.path.c_str()); any = true; } }
+            for (auto& e : gEntries) { if (e.handle < 0) { e.handle = HIKARI::AUDIO::Load(e.path.c_str()); any = true; } }
             return any;
         }
 
@@ -39,7 +40,7 @@ namespace HIKARI {
             auto it = gNameToId.find(name); if (it == gNameToId.end()) return -1;
             int id = it->second; EnsureLoaded(id);
             if (gEntries[id].handle < 0) return -1;
-            return Novice::PlayAudio(gEntries[id].handle, false, volume);
+            return HIKARI::AUDIO::Play(gEntries[id].handle, false, volume);
         }
 
         int PlayOnce(const std::string& name, float volume) {
@@ -50,47 +51,47 @@ namespace HIKARI {
             int prev = -1;
             auto it2 = gOnceVoices.find(name);
             if (it2 != gOnceVoices.end()) prev = it2->second;
-            if (prev != -1 && Novice::IsPlayingAudio(prev)) {
+            if (prev != -1 && HIKARI::AUDIO::IsPlaying(prev)) {
                 return prev; // まだ再生中の場合：新しく重ねずに既存の再生IDを返す
             }
-            int voice = Novice::PlayAudio(gEntries[id].handle, false, volume);
+            int voice = HIKARI::AUDIO::Play(gEntries[id].handle, false, volume);
             gOnceVoices[name] = voice;
             return voice;
         }
 
-        void Stop(int voiceId) { if (voiceId != -1) Novice::StopAudio(voiceId); }
+        void Stop(int voiceId) { if (voiceId != -1) HIKARI::AUDIO::Stop(voiceId); }
 
         void PlayLoop(const std::string& name, float volume) {
             auto it = gLoopVoices.find(name);
             if (it != gLoopVoices.end()) {
-                int v = it->second; if (v != -1 && Novice::IsPlayingAudio(v)) return; // すでにループ再生中なら何もしない
+                int v = it->second; if (v != -1 && HIKARI::AUDIO::IsPlaying(v)) return; // すでにループ再生中なら何もしない
             }
             auto ix = gNameToId.find(name); if (ix == gNameToId.end()) return;
             int id = ix->second; EnsureLoaded(id); if (gEntries[id].handle < 0) return;
-            int vId = Novice::PlayAudio(gEntries[id].handle, true, volume);
+            int vId = HIKARI::AUDIO::Play(gEntries[id].handle, true, volume);
             gLoopVoices[name] = vId;
         }
 
         void StopLoop(const std::string& name) {
             auto it = gLoopVoices.find(name);
             if (it == gLoopVoices.end()) return;
-            if (it->second != -1) { Novice::StopAudio(it->second); }
+            if (it->second != -1) { HIKARI::AUDIO::Stop(it->second); }
             gLoopVoices.erase(it);
         }
 
         bool IsPlayingName(const std::string& name) {
             // PlayOnceやLoop再生のいずれかで再生中かを判定
             auto it = gOnceVoices.find(name);
-            if (it != gOnceVoices.end() && it->second != -1 && Novice::IsPlayingAudio(it->second)) return true;
+            if (it != gOnceVoices.end() && it->second != -1 && HIKARI::AUDIO::IsPlaying(it->second)) return true;
             auto it2 = gLoopVoices.find(name);
-            if (it2 != gLoopVoices.end() && it2->second != -1 && Novice::IsPlayingAudio(it2->second)) return true;
+            if (it2 != gLoopVoices.end() && it2->second != -1 && HIKARI::AUDIO::IsPlaying(it2->second)) return true;
             return false;
         }
 
         void StopAll() {
-            for (auto& kv : gLoopVoices) { if (kv.second != -1) Novice::StopAudio(kv.second); }
+            for (auto& kv : gLoopVoices) { if (kv.second != -1) HIKARI::AUDIO::Stop(kv.second); }
             gLoopVoices.clear();
-            for (auto& kv : gOnceVoices) { if (kv.second != -1) Novice::StopAudio(kv.second); }
+            for (auto& kv : gOnceVoices) { if (kv.second != -1) HIKARI::AUDIO::Stop(kv.second); }
             gOnceVoices.clear();
         }
 
@@ -99,12 +100,12 @@ namespace HIKARI {
             for (auto& kv : gLoopVoices) {
                 const std::string& nm = kv.first; int voice = kv.second;
                 auto it = gNameToId.find(nm); if (it == gNameToId.end()) continue;
-                int id = it->second; if (gEntries[id].group == group && voice != -1) { Novice::StopAudio(voice); kv.second = -1; }
+                int id = it->second; if (gEntries[id].group == group && voice != -1) { HIKARI::AUDIO::Stop(voice); kv.second = -1; }
             }
             for (auto& kv : gOnceVoices) {
                 const std::string& nm = kv.first; int voice = kv.second;
                 auto it = gNameToId.find(nm); if (it == gNameToId.end()) continue;
-                int id = it->second; if (gEntries[id].group == group && voice != -1) { Novice::StopAudio(voice); kv.second = -1; }
+                int id = it->second; if (gEntries[id].group == group && voice != -1) { HIKARI::AUDIO::Stop(voice); kv.second = -1; }
             }
         }
 
