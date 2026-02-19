@@ -5,7 +5,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace HIKARI {
 
-    bool RenderTarget2D::Init(int width, int height, DXGI_FORMAT format)
+    bool RenderTarget2D::Init(int width, int height, DXGI_FORMAT format, bool withDepth)
     {
         if (initialized_) {
             return true;
@@ -14,6 +14,7 @@ namespace HIKARI {
         width_ = width;
         height_ = height;
         format_ = format;
+        hasDepth_ = withDepth;
 
         if (!CreateResources()) {
             return false;
@@ -47,10 +48,13 @@ namespace HIKARI {
         }
 
         colorTex_.Reset();
+        depthTex_.Reset();
         rtvHeap_.Reset();
         srvHeap_.Reset();
+        dsvHeap_.Reset();
 
         initialized_ = false;
+        hasDepth_ = false;
     }
 
     bool RenderTarget2D::CreateResources()
@@ -116,10 +120,50 @@ namespace HIKARI {
 
         device->CreateShaderResourceView(colorTex_.Get(), &srvView, srvCpuHandle_);
 
+        if (hasDepth_) {
+            D3D12_CLEAR_VALUE depthClear{};
+            depthClear.Format = DXGI_FORMAT_D32_FLOAT;
+            depthClear.DepthStencil.Depth = 1.0f;
+            depthClear.DepthStencil.Stencil = 0;
+
+            CD3DX12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_D32_FLOAT,
+                static_cast<UINT64>(width_),
+                static_cast<UINT>(height_),
+                1, 1, 1, 0,
+                D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+            );
+
+            hr = device->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &depthDesc,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                &depthClear,
+                IID_PPV_ARGS(&depthTex_)
+            );
+            assert(SUCCEEDED(hr));
+            depthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+            D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
+            dsvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+            dsvDesc.NumDescriptors = 1;
+            dsvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+            hr = device->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
+            assert(SUCCEEDED(hr));
+            dsvHandle_ = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+
+            D3D12_DEPTH_STENCIL_VIEW_DESC dsvView{};
+            dsvView.Format = DXGI_FORMAT_D32_FLOAT;
+            dsvView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+            dsvView.Flags = D3D12_DSV_FLAG_NONE;
+            device->CreateDepthStencilView(depthTex_.Get(), &dsvView, dsvHandle_);
+        }
+
         return true;
     }
 
-    void RenderTarget2D::BeginCapture(float r, float g, float b, float a)
+    void RenderTarget2D::BeginCapture(float r, float g, float b, float a, float depthClear)
     {
         if (!initialized_) {
             return;
@@ -138,10 +182,18 @@ namespace HIKARI {
             colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
         }
 
-        cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
+        if (hasDepth_) {
+            cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &dsvHandle_);
+        } else {
+            cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
+        }
 
         float clearColor[4] = { r, g, b, a };
         cmd->ClearRenderTargetView(rtvHandle_, clearColor, 0, nullptr);
+
+        if (hasDepth_) {
+            cmd->ClearDepthStencilView(dsvHandle_, D3D12_CLEAR_FLAG_DEPTH, depthClear, 0, 0, nullptr);
+        }
 
         cmd->RSSetViewports(1, &viewport_);
         cmd->RSSetScissorRects(1, &scissorRect_);
@@ -164,7 +216,11 @@ namespace HIKARI {
             colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
         }
 
-        cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
+        if (hasDepth_) {
+            cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &dsvHandle_);
+        } else {
+            cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
+        }
         cmd->RSSetViewports(1, &viewport_);
         cmd->RSSetScissorRects(1, &scissorRect_);
     }

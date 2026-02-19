@@ -1,0 +1,175 @@
+#include "HIKARI_Math3D.h"
+#include "HIKARI_MathConfig.h"
+#include <cassert>
+
+namespace HIKARI::MATH {
+
+    float Dot(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+    Vec3 Cross(const Vec3& a, const Vec3& b) {
+        return {
+            a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x
+        };
+    }
+
+    float Length(const Vec3& v) { return std::sqrt(Dot(v, v)); }
+
+    Vec3 Normalize(const Vec3& v) {
+        const float len = Length(v);
+        if (len <= 1e-6f) { return { 0.0f, 0.0f, 0.0f }; }
+        return { v.x / len, v.y / len, v.z / len };
+    }
+
+    Quat Quat::FromEulerXYZ(float rx, float ry, float rz) {
+        const float cx = std::cos(rx * 0.5f), sx = std::sin(rx * 0.5f);
+        const float cy = std::cos(ry * 0.5f), sy = std::sin(ry * 0.5f);
+        const float cz = std::cos(rz * 0.5f), sz = std::sin(rz * 0.5f);
+
+        Quat q{};
+        q.w = cx * cy * cz + sx * sy * sz;
+        q.x = sx * cy * cz - cx * sy * sz;
+        q.y = cx * sy * cz + sx * cy * sz;
+        q.z = cx * cy * sz - sx * sy * cz;
+        return q;
+    }
+
+    Mat4 Mat4::Identity() {
+        Mat4 r{};
+        r.m[0][0] = 1.0f; r.m[1][1] = 1.0f; r.m[2][2] = 1.0f; r.m[3][3] = 1.0f;
+        return r;
+    }
+
+    Mat4 Mat4::Translate(const Vec3& t) {
+        Mat4 r = Identity();
+        r.m[3][0] = t.x;
+        r.m[3][1] = t.y;
+        r.m[3][2] = t.z;
+        return r;
+    }
+
+    Mat4 Mat4::Scale(const Vec3& s) {
+        Mat4 r{};
+        r.m[0][0] = s.x;
+        r.m[1][1] = s.y;
+        r.m[2][2] = s.z;
+        r.m[3][3] = 1.0f;
+        return r;
+    }
+
+    Mat4 Mat4::Rotate(const Quat& q) {
+        Mat4 r = Identity();
+        const float xx = q.x * q.x;
+        const float yy = q.y * q.y;
+        const float zz = q.z * q.z;
+        const float xy = q.x * q.y;
+        const float xz = q.x * q.z;
+        const float yz = q.y * q.z;
+        const float wx = q.w * q.x;
+        const float wy = q.w * q.y;
+        const float wz = q.w * q.z;
+
+        r.m[0][0] = 1.0f - 2.0f * (yy + zz);
+        r.m[0][1] = 2.0f * (xy + wz);
+        r.m[0][2] = 2.0f * (xz - wy);
+
+        r.m[1][0] = 2.0f * (xy - wz);
+        r.m[1][1] = 1.0f - 2.0f * (xx + zz);
+        r.m[1][2] = 2.0f * (yz + wx);
+
+        r.m[2][0] = 2.0f * (xz + wy);
+        r.m[2][1] = 2.0f * (yz - wx);
+        r.m[2][2] = 1.0f - 2.0f * (xx + yy);
+        return r;
+    }
+
+    Mat4 Mat4::TRS(const Vec3& t, const Quat& r, const Vec3& s) {
+        return Translate(t) * Rotate(r) * Scale(s);
+    }
+
+    Mat4 Mat4::LookAtRH(const Vec3& eye, const Vec3& target, const Vec3& up) {
+        const Vec3 f = Normalize(target - eye);
+        const Vec3 r = Normalize(Cross(f, up));
+        const Vec3 u = Cross(r, f);
+
+        Mat4 m = Identity();
+        m.m[0][0] = r.x; m.m[0][1] = u.x; m.m[0][2] = -f.x;
+        m.m[1][0] = r.y; m.m[1][1] = u.y; m.m[1][2] = -f.y;
+        m.m[2][0] = r.z; m.m[2][1] = u.z; m.m[2][2] = -f.z;
+        m.m[3][0] = -Dot(r, eye);
+        m.m[3][1] = -Dot(u, eye);
+        m.m[3][2] = Dot(f, eye);
+        return m;
+    }
+
+    Mat4 Mat4::PerspectiveFovRH_ZO(float fovY, float aspect, float zNear, float zFar) {
+        Mat4 m{};
+        const float f = 1.0f / std::tan(fovY * 0.5f);
+        m.m[0][0] = f / aspect;
+        m.m[1][1] = f;
+        m.m[2][2] = zFar / (zNear - zFar);
+        m.m[2][3] = -1.0f;
+        m.m[3][2] = (zNear * zFar) / (zNear - zFar);
+        return m;
+    }
+
+    Mat4 Mat4::OrthoRH_ZO(float width, float height, float zNear, float zFar) {
+        Mat4 m = Identity();
+        m.m[0][0] = 2.0f / width;
+        m.m[1][1] = 2.0f / height;
+        m.m[2][2] = 1.0f / (zNear - zFar);
+        m.m[3][2] = zNear / (zNear - zFar);
+        return m;
+    }
+
+    Mat4 Mat4::operator*(const Mat4& rhs) const {
+        Mat4 out{};
+        for (int c = 0; c < 4; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                out.m[c][r] =
+                    m[0][r] * rhs.m[c][0] +
+                    m[1][r] * rhs.m[c][1] +
+                    m[2][r] * rhs.m[c][2] +
+                    m[3][r] * rhs.m[c][3];
+            }
+        }
+        return out;
+    }
+
+    Vec4 Mat4::TransformPoint(const Vec4& v) const {
+        Vec4 out{};
+        out.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0] * v.w;
+        out.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1] * v.w;
+        out.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2] * v.w;
+        out.w = m[0][3] * v.x + m[1][3] * v.y + m[2][3] * v.z + m[3][3] * v.w;
+        return out;
+    }
+
+    bool RunMathConventionSelfCheck() {
+        static bool alreadyChecked = false;
+        static bool result = false;
+        if (alreadyChecked) { return result; }
+        alreadyChecked = true;
+
+        assert(kRightHanded);
+        assert(kNdcDepthZeroToOne);
+
+        const Vec3 x{ 1.0f, 0.0f, 0.0f };
+        const Vec3 y{ 0.0f, 1.0f, 0.0f };
+        const Vec3 z = Cross(x, y);
+        const bool rhOk = (std::abs(z.z - 1.0f) < 1e-4f);
+
+        const Mat4 view = Mat4::LookAtRH({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
+        const Mat4 proj = Mat4::PerspectiveFovRH_ZO(60.0f * 3.1415926535f / 180.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+        const Vec4 clip = (proj * view).TransformPoint({ 0.0f, 0.0f, 0.0f, 1.0f });
+
+        const float ndcZ = clip.z / clip.w;
+        const bool depthOk = ndcZ >= 0.0f && ndcZ <= 1.0f;
+
+        result = rhOk && depthOk;
+        assert(result);
+        return result;
+    }
+
+} // namespace HIKARI::MATH

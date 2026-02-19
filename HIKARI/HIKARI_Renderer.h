@@ -335,6 +335,8 @@ namespace HIKARI {
         RenderLayer GetCurrentLayer();
         void BeginFrame();
         void RenderAll();
+        void RenderLayerRange(RenderLayer minLayer, RenderLayer maxLayer, bool clearAfter = false);
+        void ClearSubmittedCommands();
 
     } // namespace RENDERER
 } // namespace HIKARI
