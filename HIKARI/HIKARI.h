@@ -29,6 +29,12 @@
 #include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_PostChain.h"
 
+#include "HIKARI_MathConfig.h"
+#include "HIKARI_Math3D.h"
+#include "HIKARI_Transform3D.h"
+#include "HIKARI_Camera3D.h"
+#include "HIKARI_Renderer3D.h"
+
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
