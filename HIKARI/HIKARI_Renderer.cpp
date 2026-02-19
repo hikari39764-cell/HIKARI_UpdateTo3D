@@ -329,9 +329,12 @@ namespace HIKARI {
 
 
         void RenderAll() {
+            RenderLayerRange(RenderLayer::Background, RenderLayer::Debug, true);
+        }
+
+        void RenderLayerRange(RenderLayer minLayer, RenderLayer maxLayer, bool clearAfter) {
             if (gRenderList.empty()) return;
 
-            // 1. 排序 (保持原样)
             std::sort(gRenderList.begin(), gRenderList.end(),
                 [](const RenderCommand& a, const RenderCommand& b) {
                     if (a.layer != b.layer) return (int)a.layer < (int)b.layer;
@@ -342,14 +345,24 @@ namespace HIKARI {
                     return a.orderIndex < b.orderIndex;
                 });
 
-            // 2. 执行绘制 (保持原样)
             for (const auto& cmd : gRenderList) {
+                if ((int)cmd.layer < (int)minLayer || (int)cmd.layer > (int)maxLayer) {
+                    continue;
+                }
                 ExecuteDrawCommand(cmd);
             }
+
+            if (clearAfter) {
+                gRenderList.clear();
+                gSubmissionCount = 0;
+            }
+        }
+
+        void ClearSubmittedCommands() {
             gRenderList.clear();
             gSubmissionCount = 0;
-
         }
+
         void SetDefaultColor(unsigned int rgba) { gDefaultColor = rgba; }
         unsigned int GetDefaultColor() { return gDefaultColor; }
         void ReserveRenderCommands(size_t count) { gRenderList.reserve(count); }

@@ -249,8 +249,9 @@ namespace HIKARI {
                 ImGui::Render();
                 gImGuiFrameBegun = false;
             }
-            HIKARI::RENDERER::RenderAll();
+            HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
+            HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
 
             if (gImGuiInitialized && gImGuiBackendInitialized) {
                 auto* cmd = gCtx.cmdList;

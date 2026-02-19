@@ -32,9 +32,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         HIKARI::RENDERER3D::SubmitWireCube(cube);
         HIKARI::RENDERER3D::RenderAll(camera, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
 
+        HIKARI::RENDERER::SetCurrentLayer(HIKARI::RENDERER::RenderLayer::UI);
         HIKARI::Transform2D label{};
         label.position = { 16.0f, 16.0f };
         HIKARI::RENDERER::DrawBox(label, 220.0f, 44.0f, HIKARI::RENDERER::FillMode::Wireframe, HIKARI::RENDERER::CameraMode::Ignore, 0xFFFFFFFF);
+        HIKARI::RENDERER::SetCurrentLayer(HIKARI::RENDERER::RenderLayer::Entity);
 
         HIKARI::SERVICES::EndFrame();
 

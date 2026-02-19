@@ -132,11 +132,14 @@ namespace HIKARI {
             sceneRT_.UpdateContext(context_);
             lightRT_.UpdateContext(context_);
 
-            if (!sceneRT_.GetResource() || sceneRT_.GetWidth() != w || sceneRT_.GetHeight() != h) {
-                sceneRT_.Init(w, h);
+            const bool sceneInvalid = (!sceneRT_.GetResource() || sceneRT_.GetWidth() != w || sceneRT_.GetHeight() != h || !sceneRT_.HasDepth());
+            if (sceneInvalid) {
+                sceneRT_.Finalize();
+                sceneRT_.Init(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, true);
             }
 
             if (!lightRT_.GetResource() || lightRT_.GetWidth() != w || lightRT_.GetHeight() != h) {
+                lightRT_.Finalize();
                 lightRT_.Init(w, h);
             }
         }
