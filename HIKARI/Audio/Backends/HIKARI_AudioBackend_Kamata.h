@@ -4,7 +4,7 @@
 
 namespace HIKARI::AUDIO {
 
-class AudioBackendNovice : public IAudioBackend {
+class AudioBackendKamata : public IAudioBackend {
 public:
     bool Initialize() override;
     void Shutdown() override;

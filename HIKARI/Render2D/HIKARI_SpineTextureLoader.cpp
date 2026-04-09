@@ -3,7 +3,7 @@
 namespace HIKARI {
 
 
-    void TextureLoader_Novice::load(spine::AtlasPage& page, const spine::String& path) {
+    void TextureLoader_Kamata::load(spine::AtlasPage& page, const spine::String& path) {
         const std::string p = path.buffer();
 
         int handle = HIKARI::DXTEX::DxTextureManager::LoadTexture(p, p);
@@ -25,7 +25,7 @@ namespace HIKARI {
         page.texture = tex;
     }
 
-    void TextureLoader_Novice::unload(void* textureObject) {
+    void TextureLoader_Kamata::unload(void* textureObject) {
 
     }
 

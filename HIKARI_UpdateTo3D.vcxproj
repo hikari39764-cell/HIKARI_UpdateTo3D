@@ -61,7 +61,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -86,7 +86,7 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MinSpace</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -108,47 +108,47 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="C:\KamataEngine\Adapter\Novice.cpp" />
     <ClCompile Include="External\WICTextureLoader.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Anim.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Bgm.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Camera.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Camera2_5D.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp" />
+    <ClCompile Include="HIKARI\Legacy\HIKARI_Camera2_5D.cpp" />
     <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_DxRenderer.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_DxTexture.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_DxRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
     <ClCompile Include="HIKARI\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp" />
     <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_MeshEffect.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Offscreen.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_MeshEffect.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
     <ClCompile Include="HIKARI\HIKARI_PhysicsWorld.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_PostChain.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_PostEffect.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_PostQuadDrawer.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_PostSystem.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Renderer.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_RenderQueue25.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_RenderTarget2D.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostChain.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostEffect.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostSystem.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Renderer.cpp" />
+    <ClCompile Include="HIKARI\Legacy\HIKARI_RenderQueue25.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp" />
     <ClCompile Include="HIKARI\HIKARI_SE.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_SpineActor.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_SpineTextureLoader.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_SpineActor.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.cpp" />
     <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Texture.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Texture.cpp" />
     <ClCompile Include="HIKARI\HIKARI_TiledCollision.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Transform2D.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Renderer3D.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Camera3D.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Transform3D.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Math3D.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Camera3D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Transform3D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp" />
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
-    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.cpp" />
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -247,56 +247,66 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClInclude Include="C:\KamataEngine\DirectXGame\base\WinApp.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
-    <ClInclude Include="C:\KamataEngine\Adapter\Novice.h" />
     <ClInclude Include="External\WICTextureLoader.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />
+    <ClInclude Include="HIKARI\HIKARI_Core.h" />
+    <ClInclude Include="HIKARI\HIKARI_Services.h" />
+    <ClInclude Include="HIKARI\HIKARI_2D.h" />
+    <ClInclude Include="HIKARI\HIKARI_3D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Material.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelAsset.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelManager.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
     <ClInclude Include="HIKARI\HIKARI_Body2D.h" />
-    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.h" />
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
-    <ClInclude Include="HIKARI\HIKARI_Camera.h" />
-    <ClInclude Include="HIKARI\HIKARI_Camera2_5D.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />
+    <ClInclude Include="HIKARI\Legacy\HIKARI_Camera2_5D.h" />
     <ClInclude Include="HIKARI\HIKARI_Collision.h" />
     <ClInclude Include="HIKARI\HIKARI_CollisionWorld.h" />
     <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h" />
-    <ClInclude Include="HIKARI\HIKARI_DxRenderer.h" />
-    <ClInclude Include="HIKARI\HIKARI_DxTexture.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_DxRenderer.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_DxTexture.h" />
     <ClInclude Include="HIKARI\HIKARI_DynamicUploadBuffer.h" />
     <ClInclude Include="HIKARI\HIKARI_GlowManager.h" />
     <ClInclude Include="HIKARI\HIKARI_Input.h" />
     <ClInclude Include="HIKARI\HIKARI_MapRoom.h" />
     <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h" />
-    <ClInclude Include="HIKARI\HIKARI_MeshEffect.h" />
-    <ClInclude Include="HIKARI\HIKARI_Offscreen.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_MeshEffect.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h" />
     <ClInclude Include="HIKARI\HIKARI_Particle.h" />
     <ClInclude Include="HIKARI\HIKARI_ParticleLab.h" />
     <ClInclude Include="HIKARI\HIKARI_PhysicsWorld.h" />
-    <ClInclude Include="HIKARI\HIKARI_PostChain.h" />
-    <ClInclude Include="HIKARI\HIKARI_PostCommon.h" />
-    <ClInclude Include="HIKARI\HIKARI_PostEffect.h" />
-    <ClInclude Include="HIKARI\HIKARI_PostQuadDrawer.h" />
-    <ClInclude Include="HIKARI\HIKARI_PostSystem.h" />
-    <ClInclude Include="HIKARI\HIKARI_Renderer.h" />
-    <ClInclude Include="HIKARI\HIKARI_RenderQueue25.h" />
-    <ClInclude Include="HIKARI\HIKARI_RenderTarget2D.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostChain.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostCommon.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostEffect.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostSystem.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Renderer.h" />
+    <ClInclude Include="HIKARI\Legacy\HIKARI_RenderQueue25.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h" />
     <ClInclude Include="HIKARI\HIKARI_SE.h" />
-    <ClInclude Include="HIKARI\HIKARI_SpineActor.h" />
-    <ClInclude Include="HIKARI\HIKARI_SpineTextureLoader.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_SpineActor.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.h" />
     <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h" />
-    <ClInclude Include="HIKARI\HIKARI_Texture.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Texture.h" />
     <ClInclude Include="HIKARI\HIKARI_TiledCollision.h" />
-    <ClInclude Include="HIKARI\HIKARI_Transform2D.h" />
-    <ClInclude Include="HIKARI\HIKARI_Renderer3D.h" />
-    <ClInclude Include="HIKARI\HIKARI_Camera3D.h" />
-    <ClInclude Include="HIKARI\HIKARI_Transform3D.h" />
-    <ClInclude Include="HIKARI\HIKARI_Math3D.h" />
-    <ClInclude Include="HIKARI\HIKARI_MathConfig.h" />
-    <ClInclude Include="HIKARI\HIKARI_Utility.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Transform2D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Camera3D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
     <ClInclude Include="HIKARI\Matrix3x3.h" />
   </ItemGroup>
   <ItemGroup>
