@@ -1,4 +1,5 @@
-#include "HIKARI/HIKARI.h"
+#include "HIKARI/HIKARI_Services.h"
+#include "HIKARI/HIKARI_3D.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
