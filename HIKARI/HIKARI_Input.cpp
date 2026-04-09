@@ -1,5 +1,4 @@
 ﻿#include "HIKARI_Input.h"
-#include <Novice.h>
 #include <cstring>
 #include <unordered_map>
 #include <cmath>
@@ -242,20 +241,6 @@ namespace HIKARI {
 			gMouseNow[0] = (::GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
 			gMouseNow[1] = (::GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
 			gMouseNow[2] = (::GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
-		}
-
-		static void PollMouseNovice() {
-			gMousePrev = gMousePos;
-			int mx = 0, my = 0;
-			Novice::GetMousePosition(&mx, &my);
-			gMousePos = { static_cast<float>(mx), static_cast<float>(my) };
-			gMouseDelta = { gMousePos.x - gMousePrev.x, gMousePos.y - gMousePrev.y };
-			gWheelDelta = static_cast<float>(Novice::GetWheel());
-			for (int i = 0; i < 3; ++i) { gMousePrevBtns[i] = gMouseNow[i]; gMouseNow[i] = (Novice::IsPressMouse(i) != 0); }
-		}
-
-		static void PollKeyboardNovice(unsigned char* keys) {
-			Novice::GetHitKeyStateAll(reinterpret_cast<char*>(keys));
 		}
 
 		static bool  MouseBtnNow(MouseButton btn) {
@@ -692,13 +677,8 @@ namespace HIKARI {
 		void Update(float dt) {
 			gTime += dt;
 
-			if (gBackend == BackendType::Novice) {
-				PollMouseNovice();
-				PollKeyboardNovice(gKeys);
-			} else {
-				PollMouseWin32();
-				PollKeyboardWin32(gKeys);
-			}
+			PollMouseWin32();
+			PollKeyboardWin32(gKeys);
 
 			gAxisCache.clear();
 			gKbDownSample.clear();

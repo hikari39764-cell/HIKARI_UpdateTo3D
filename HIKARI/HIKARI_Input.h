@@ -6,7 +6,6 @@ namespace HIKARI {
     namespace HINPUT {
 
         enum class BackendType {
-            Novice,
             Win32
         };
 

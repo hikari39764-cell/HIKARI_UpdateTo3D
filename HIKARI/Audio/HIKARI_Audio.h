@@ -7,10 +7,10 @@ namespace HIKARI::AUDIO {
 class IAudioBackend;
 
 enum class BackendType {
-    Novice
+    Kamata
 };
 
-bool Initialize(BackendType type = BackendType::Novice);
+bool Initialize(BackendType type = BackendType::Kamata);
 void Shutdown();
 
 int Load(const char* path);

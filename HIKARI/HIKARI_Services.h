@@ -121,7 +121,7 @@ namespace HIKARI {
             DXTEX::DxTextureManager::Init(gCtx, 1024);
             DX::DxRenderer::Init(gCtx);
             POST::PostSystem::Initialize(gCtx);
-            AUDIO::Initialize(AUDIO::BackendType::Novice);
+            AUDIO::Initialize(AUDIO::BackendType::Kamata);
 
             if (cfg.inputConfigPath) {
                 HIKARI::HINPUT::Init(cfg.inputConfigPath);

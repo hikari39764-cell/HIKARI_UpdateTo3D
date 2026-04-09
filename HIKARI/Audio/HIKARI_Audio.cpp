@@ -1,7 +1,7 @@
 #include "HIKARI_Audio.h"
 
 #include "HIKARI_IAudioBackend.h"
-#include "Backends/HIKARI_AudioBackend_Novice.h"
+#include "Backends/HIKARI_AudioBackend_Kamata.h"
 
 namespace HIKARI::AUDIO {
 
@@ -10,9 +10,9 @@ static std::unique_ptr<IAudioBackend> g_backend{};
 bool Initialize(BackendType type) {
     Shutdown();
     switch (type) {
-    case BackendType::Novice:
+    case BackendType::Kamata:
     default:
-        g_backend = std::make_unique<AudioBackendNovice>();
+        g_backend = std::make_unique<AudioBackendKamata>();
         break;
     }
     return g_backend && g_backend->Initialize();

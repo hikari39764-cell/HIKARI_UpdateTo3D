@@ -35,15 +35,15 @@ namespace HIKARI {
 					continue;
 				}
 
-				//// Novice ‚È
+				//	e.handle = DX texture load(e.path.c_str());
 				//if (e.handle < 0) {
-				//	e.handle = Novice::LoadTexture(e.path.c_str());
+				//	e.handle = DX texture load(e.path.c_str());
 				//	if (e.handle < 0) {
 				//		ok = false;
 				//	}
 				//}
 
-				// DX ‚È
+				gEntries[id].handle = GetDxHandle(name);
 				if (e.dxHandle < 0) {
 					int dxH = HIKARI::DXTEX::DxTextureManager::LoadTexture(e.name, e.path);
 					if (dxH < 0) {
@@ -63,7 +63,7 @@ namespace HIKARI {
 
 			for (auto& e : gEntries) {
 
-				//// Novice ‚È
+				//// Novice Ã¢â‚¬Å¡ÃƒË†
 				//if (e.handle < 0) {
 				//	e.handle = Novice::LoadTexture(e.path.c_str());
 				//	if (e.handle < 0) {
@@ -71,7 +71,7 @@ namespace HIKARI {
 				//	}
 				//}
 
-				// DX ‚È
+				// DX Ã¢â‚¬Å¡ÃƒË†
 				if (e.dxHandle < 0) {
 					int dxH = HIKARI::DXTEX::DxTextureManager::LoadTexture(e.name, e.path);
 					if (dxH < 0) {

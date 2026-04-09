@@ -61,7 +61,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -86,7 +86,7 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\Adapter;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MinSpace</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -108,7 +108,6 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="C:\KamataEngine\Adapter\Novice.cpp" />
     <ClCompile Include="External\WICTextureLoader.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Anim.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Bgm.cpp" />
@@ -149,7 +148,7 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
-    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.cpp" />
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -248,7 +247,6 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClInclude Include="C:\KamataEngine\DirectXGame\base\WinApp.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
-    <ClInclude Include="C:\KamataEngine\Adapter\Novice.h" />
     <ClInclude Include="External\WICTextureLoader.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />
     <ClInclude Include="HIKARI\HIKARI_Core.h" />
@@ -265,7 +263,7 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
     <ClInclude Include="HIKARI\HIKARI_Body2D.h" />
-    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.h" />
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />

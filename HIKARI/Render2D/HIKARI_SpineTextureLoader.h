@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <string>
 #include <unordered_map>
-#include <Novice.h>
 #include "HIKARI_DxTexture.h"
 // Spine
 #include <spine/Atlas.h>
@@ -16,7 +15,7 @@ namespace HIKARI {
     };
 
 
-    class TextureLoader_Novice : public spine::TextureLoader {
+    class TextureLoader_Kamata : public spine::TextureLoader {
     public:
         void load(spine::AtlasPage& page, const spine::String& path) override;
         void unload(void* rendererObject) override;

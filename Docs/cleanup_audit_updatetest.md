@@ -15,10 +15,10 @@
 
 ## 2. 当前仍保留的过渡依赖
 
-工程配置中仍可见以下 Kamata/Novice 过渡依赖（本轮只记录，不激进删除）：
+工程配置中仍可见以下 Kamata/Novice 过渡依赖（当前状态）：
 
 - `.vcxproj` 仍链接 `KamataEngine.lib`。
-- `.vcxproj` 仍包含 `C:\KamataEngine\Adapter\Novice.cpp` 编译项。
+- `.vcxproj` 中 `C:\KamataEngine\Adapter\Novice.cpp` 编译项已移除。
 - `.vcxproj` 仍保留 Kamata include path（`C:\KamataEngine\...`）与 library path。
 - 工程根仍存在 `NoviceResources/` 资源目录。
 - `PostBuildEvent` 仍使用 `xcopy` 从 Kamata 路径复制资源。
@@ -27,7 +27,7 @@
 
 - 音频入口保持 `Audio/HIKARI_Audio.*` 抽象。
 - 后端接口为 `Audio/HIKARI_IAudioBackend.h`。
-- 当前默认后端仍为 `Audio/Backends/HIKARI_AudioBackend_Novice.*`。
+- 当前默认后端已改为 `Audio/Backends/HIKARI_AudioBackend_Kamata.*`（直接封装 `KamataEngine::Audio`）。
 - 图形主链可独立于音频后端实现演进；音频后端仍可在后续轮次替换。
 
 ## 4. Legacy 区列表
