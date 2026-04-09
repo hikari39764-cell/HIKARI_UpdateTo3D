@@ -35,27 +35,14 @@ namespace HIKARI {
 					continue;
 				}
 
-				//	e.handle = DX texture load(e.path.c_str());
-				//if (e.handle < 0) {
-				//	e.handle = DX texture load(e.path.c_str());
-				//	if (e.handle < 0) {
-				//		ok = false;
-				//	}
-				//}
-
-				gEntries[0].handle = GetDxHandle(e.name);
+				e.dxHandle = GetDxHandle(e.name);
 				if (e.dxHandle < 0) {
-					int dxH = HIKARI::DXTEX::DxTextureManager::LoadTexture(e.name, e.path);
-					if (dxH < 0) {
-						ok = false;
-					}
-					e.dxHandle = dxH;
+					ok = false;
 				}
 			}
 
 			return ok;
 		}
-
 
 
 		bool LoadAll() {
