@@ -43,7 +43,7 @@ namespace HIKARI {
 				//	}
 				//}
 
-				gEntries[id].handle = GetDxHandle(name);
+				gEntries[0].handle = GetDxHandle(e.name);
 				if (e.dxHandle < 0) {
 					int dxH = HIKARI::DXTEX::DxTextureManager::LoadTexture(e.name, e.path);
 					if (dxH < 0) {
@@ -86,15 +86,6 @@ namespace HIKARI {
 
 
 
-		int GetHandle(const std::string& name) {
-			auto it = gNameToId.find(name);
-			if (it == gNameToId.end()) return -1;
-			int id = it->second;
-			if (gEntries[id].handle < 0) {
-				gEntries[id].handle = Novice::LoadTexture(gEntries[id].path.c_str());
-			}
-			return gEntries[id].handle;
-		}
 
 		int GetDxHandle(const std::string& name) {
 			auto it = gNameToId.find(name);

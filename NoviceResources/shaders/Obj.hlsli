@@ -2,6 +2,7 @@
 
 cbuffer WorldTransform : register(b0) {
 	matrix world; // ワールド行列
+	matrix worldInverseTranspose; // 逆転置行列
 };
 
 cbuffer ViewProjection : register(b1) {
@@ -16,6 +17,7 @@ cbuffer Material : register(b2) {
 	float3 m_specular : packoffset(c2);  // スペキュラー係数
 	float m_alpha : packoffset(c2.w);    // アルファ
 	float3 m_uv_scale : packoffset(c3);  // UVスケール
+	float m_wrap : packoffset(c3.w);     // ラップ係数
 	float3 m_uv_offset : packoffset(c4); // UVオフセット
 }
 
@@ -23,8 +25,8 @@ cbuffer Material : register(b2) {
 static const int DIRLIGHT_NUM = 3;
 
 struct DirLight {
-	float3 lightv;     // ライトへの方向の単位ベクトル
-	float3 lightcolor; // ライトの色(RGB)
+	float3 direction;  // ライトへの方向の単位ベクトル
+	float3 color;      // ライトの色(RGB)
 	uint active;
 };
 
@@ -32,33 +34,37 @@ struct DirLight {
 static const int POINTLIGHT_NUM = 3;
 
 struct PointLight {
-	float3 lightpos;   // ライト座標
-	float3 lightcolor; // ライトの色(RGB)
-	float3 lightatten; // ライト距離減衰係数
-	uint active;
+	float3 color;      // ライトの色(RGB)
+	float intensity;   // 輝度
+	float3 position;   // ライト座標
+	float radius;      // ライトの届く最大距離
+	float decay;       // 減衰率
+	uint active;       // 有効フラグ
 };
 
 // スポットライトの数
 static const int SPOTLIGHT_NUM = 3;
 
 struct SpotLight {
-	float3 lightv;     // ライトの光線方向の逆ベクトル（単位ベクトル）
-	float3 lightpos;   // ライト座標
-	float3 lightcolor; // ライトの色(RGB)
-	float3 lightatten; // ライト距離減衰係数
-	float2 lightfactoranglecos; // ライト減衰角度のコサイン
-	uint active;
+	float3 color;      // ライトの色(RGB)
+	float intensity;   // 輝度
+	float3 position;   // ライト座標
+	float radius;      // ライトの届く最大距離
+	float3 direction;  // ライトの光線方向の逆ベクトル（単位ベクトル）
+	float decay;       // 減衰率
+	float2 cosAngle;   // ライト減衰角度のコサイン
+	uint active;       // 有効フラグ
 };
 
 // 丸影の数
 static const int CIRCLESHADOW_NUM = 3;
 
 struct CircleShadow {
-	float3 dir;                // 投影方向の逆ベクトル（単位ベクトル）
-	float3 casterPos;          // キャスター座標
+	float3 direction;          // 投影方向の逆ベクトル（単位ベクトル）
+	float3 position;           // キャスター座標
 	float distanceCasterLight; // キャスターとライトの距離
 	float3 atten;              // 距離減衰係数
-	float2 factorAngleCos;     // 減衰角度のコサイン
+	float2 cosAngle;           // 減衰角度のコサイン
 	uint active;
 };
 

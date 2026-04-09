@@ -17,6 +17,7 @@
 #include <json.hpp>
 #include <fstream>
 #include <sstream>
+#include <dinput.h>
 using nlohmann::json;
 
 namespace HIKARI {

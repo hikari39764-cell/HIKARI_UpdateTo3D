@@ -24,7 +24,6 @@ namespace HIKARI {
 		bool LoadAll();
 
 		// 名称から handle を取得（必要なら遅延読み込み）
-		int GetHandle(const std::string& name);
 		int GetDxHandle(const std::string& name);
 		//すべて解放
 		void UnloadAll();

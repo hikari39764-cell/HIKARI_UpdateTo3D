@@ -195,7 +195,7 @@ namespace HIKARI {
                         t.rotation = 0.0f;
                         t.pivotPx = { 0.0f, 0.0f };
 
-                        int texHandle = TEXTURE::GetHandle(ts->textureName);
+                        int texHandle = TEXTURE::GetDxHandle(ts->textureName);
                         if (texHandle < 0) { continue; }
 
                         RENDERER::DrawSpriteRectHandle(
