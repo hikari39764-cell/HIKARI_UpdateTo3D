@@ -10,7 +10,7 @@ namespace HIKARI {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         camera_.SetLookAt({ 0.0f, 2.0f, -6.0f }, { 0.0f, 0.0f, 0.0f });
 
-        modelManager_.RegisterAsset("Block", "Assets/Models/block.obj");
+        modelManager_.RegisterAsset("Block", "cube.obj");
         modelManager_.RegisterAsset("TestCube", "builtin:cube");
         modelManager_.LoadAllRegisteredAssets();
 
@@ -37,10 +37,7 @@ namespace HIKARI {
     }
 
     void SandboxScene::Update(float dt) {
-        spinAngle_ += dt;
-        if (selection_.selectedObject) {
-            selection_.selectedObject->Transform().rotation = MATH::Quat::FromEulerXYZ(0.0f, spinAngle_, 0.0f);
-        }
+     
         world_.Update(dt);
     }
 
