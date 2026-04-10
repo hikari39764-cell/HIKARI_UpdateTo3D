@@ -134,7 +134,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
             psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-            psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+            psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.pso.GetAddressOf())));
@@ -189,7 +189,10 @@ namespace HIKARI::MESHRENDERER {
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->SetPipelineState(g.pso.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmd->OMSetRenderTargets(1, &SERVICES::gCtx.rtv, FALSE, &SERVICES::gCtx.dsv);
+        // MeshRenderer runs inside the active scene render pass.
+        // Do not switch render targets here (especially not back to SERVICES::gCtx.rtv),
+        // otherwise scene-capture/present routing managed by the frame/post pipeline breaks.
+        // If an offscreen mesh preview is needed in the future, pass explicit render-target/context in.
 
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
 
