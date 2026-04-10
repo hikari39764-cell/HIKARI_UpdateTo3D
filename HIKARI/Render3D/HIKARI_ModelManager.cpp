@@ -3,7 +3,7 @@
 #include <cctype>
 #include <fstream>
 #include <sstream>
-#include "HIKARI/HIKARI_Services.h"
+#include "HIKARI_Services.h"
 
 namespace HIKARI {
 

@@ -4,12 +4,16 @@
 
 namespace HIKARI {
 
+
+
     GameObject* World::CreateObject(const std::string& name) {
         auto object = std::make_unique<GameObject>(name);
         GameObject* ptr = object.get();
         objects_.push_back(std::move(object));
         return ptr;
     }
+
+    World::~World() = default;
 
     void World::DestroyObject(GameObject* object) {
         objects_.erase(

@@ -1,18 +1,20 @@
 #pragma once
 #include <memory>
+#include "HIKARI_IScene.h"
 
 namespace HIKARI {
 
-    class IScene;
-
     class SceneManager {
     public:
+        SceneManager() = default;
+        ~SceneManager();
         void ChangeScene(std::unique_ptr<IScene> next);
         void Update(float dt);
         void Render();
         void RenderImGui();
 
         IScene* GetCurrentScene();
+
         const IScene* GetCurrentScene() const;
 
     private:

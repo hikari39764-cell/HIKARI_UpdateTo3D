@@ -1,7 +1,8 @@
 #include "HIKARI_SceneManager.h"
-#include "HIKARI_IScene.h"
 
 namespace HIKARI {
+
+    SceneManager::~SceneManager() = default;
 
     void SceneManager::ChangeScene(std::unique_ptr<IScene> next) {
         pending_ = std::move(next);

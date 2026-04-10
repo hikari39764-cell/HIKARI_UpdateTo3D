@@ -4,7 +4,7 @@
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
 #include "imgui.h"
-
+#include "Scene/HIKARI_GameObject.h"
 namespace HIKARI {
 
     void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {

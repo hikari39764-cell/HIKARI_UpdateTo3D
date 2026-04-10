@@ -5,7 +5,7 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <wrl/client.h>
-#include "HIKARI/HIKARI_Services.h"
+#include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 
 #pragma comment(lib, "d3dcompiler.lib")

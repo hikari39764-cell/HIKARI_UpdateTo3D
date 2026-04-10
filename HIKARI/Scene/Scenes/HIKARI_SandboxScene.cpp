@@ -2,7 +2,7 @@
 #include <numbers>
 #include "Render3D/HIKARI_MeshRenderer.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
-#include "HIKARI/HIKARI_3D.h"
+#include "HIKARI_3D.h"
 
 namespace HIKARI {
 
