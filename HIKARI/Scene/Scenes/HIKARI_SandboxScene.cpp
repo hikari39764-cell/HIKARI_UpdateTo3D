@@ -8,7 +8,7 @@ namespace HIKARI {
 
     void SandboxScene::OnEnter() {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
-        camera_.SetLookAt({ 0.0f, 2.0f, -6.0f }, { 0.0f, 0.0f, 0.0f });
+        debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
         modelManager_.RegisterAsset("Block", "cube.obj");
         modelManager_.RegisterAsset("TestCube", "builtin:cube");
@@ -37,7 +37,7 @@ namespace HIKARI {
     }
 
     void SandboxScene::Update(float dt) {
-     
+        debugCamera_.Update(dt, camera_);
         world_.Update(dt);
     }
 
@@ -76,15 +76,37 @@ namespace HIKARI {
             }
         }
 
-        MESHRENDERER::RenderAll(camera_);
+        SceneLighting activeLighting = lighting_;
+        if (!lightingEnabled_) {
+            activeLighting.directionalIntensity = 0.0f;
+            activeLighting.ambientIntensity = 0.0f;
+            activeLighting.specularIntensity = 0.0f;
+        }
+        MESHRENDERER::RenderAll(camera_, activeLighting);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
 
     void SandboxScene::RenderImGui() {
-        hierarchyPanel_.Draw(world_, selection_);
-        inspectorPanel_.Draw(selection_);
-        assetBrowserPanel_.Draw(modelManager_, selection_);
-        statsPanel_.Draw(GetSceneName(), world_, modelManager_, selection_, camera_);
+        debugMenuBar_.Draw(debugWindowState_, debugCamera_, lightingEnabled_);
+
+        if (debugWindowState_.showHierarchy) {
+            hierarchyPanel_.Draw(world_, selection_);
+        }
+        if (debugWindowState_.showInspector) {
+            inspectorPanel_.Draw(selection_);
+        }
+        if (debugWindowState_.showAssetBrowser) {
+            assetBrowserPanel_.Draw(modelManager_, selection_);
+        }
+        if (debugWindowState_.showStats) {
+            statsPanel_.Draw(GetSceneName(), world_, modelManager_, selection_, camera_);
+        }
+        if (debugWindowState_.showLighting) {
+            lightingPanel_.Draw(lighting_);
+        }
+        if (debugWindowState_.showDebugCamera) {
+            debugCameraPanel_.Draw(debugCamera_);
+        }
     }
 
 } // namespace HIKARI
