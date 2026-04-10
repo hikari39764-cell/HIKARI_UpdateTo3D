@@ -22,6 +22,15 @@ namespace HIKARI::MATH {
         return { v.x / len, v.y / len, v.z / len };
     }
 
+    Quat Normalize(const Quat& q) {
+        const float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+        if (len <= 1e-6f) {
+            return Quat::Identity();
+        }
+        const float inv = 1.0f / len;
+        return { q.x * inv, q.y * inv, q.z * inv, q.w * inv };
+    }
+
     Quat Quat::FromEulerXYZ(float rx, float ry, float rz) {
         const float cx = std::cos(rx * 0.5f), sx = std::sin(rx * 0.5f);
         const float cy = std::cos(ry * 0.5f), sy = std::sin(ry * 0.5f);

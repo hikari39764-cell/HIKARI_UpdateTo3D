@@ -3,7 +3,7 @@
 namespace HIKARI {
 
     MATH::Mat4 Transform3D::GetLocalMatrix() const {
-        return MATH::Mat4::TRS(position, rotation, scale);
+        return MATH::Mat4::TRS(position, MATH::Normalize(rotation), scale);
     }
 
     MATH::Mat4 Transform3D::GetWorldMatrix() const {

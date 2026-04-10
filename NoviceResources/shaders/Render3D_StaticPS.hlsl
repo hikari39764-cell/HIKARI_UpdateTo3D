@@ -33,5 +33,5 @@ float4 main(PSInput input) : SV_TARGET
     {
         albedo *= gBaseColorTex.Sample(gLinearWrap, input.uv);
     }
-    return float4(albedo.rgb * lit, albedo.a);
+    return float4(albedo.rgb * lit, 1.0f);
 }
