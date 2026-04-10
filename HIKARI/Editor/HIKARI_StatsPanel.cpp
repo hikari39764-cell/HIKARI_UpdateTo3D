@@ -1,6 +1,7 @@
 #include "HIKARI_StatsPanel.h"
 #include "HIKARI_EditorSelection.h"
 #include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
 #include "imgui.h"
@@ -18,6 +19,13 @@ namespace HIKARI {
         ImGui::Text("Model Assets: %zu", modelManager.GetAssets().size());
         ImGui::Text("Loaded Models: %zu", modelManager.CountLoadedAssets());
         ImGui::Text("Failed Models: %zu", modelManager.CountFailedAssets());
+        size_t texturedMaterialCount = 0;
+        for (const auto& asset : modelManager.GetAssets()) {
+            if (asset && asset->GetMaterial() && asset->GetMaterial()->HasBaseColorTexture()) {
+                ++texturedMaterialCount;
+            }
+        }
+        ImGui::Text("Textured Materials: %zu", texturedMaterialCount);
         ImGui::Text("Selected Object: %s", selection.selectedObject ? selection.selectedObject->GetName().c_str() : "<none>");
         ImGui::Text("Selected Asset: %s", selection.selectedAsset ? selection.selectedAsset->GetName().c_str() : "<none>");
 

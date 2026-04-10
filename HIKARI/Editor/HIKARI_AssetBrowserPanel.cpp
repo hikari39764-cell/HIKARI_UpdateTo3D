@@ -1,6 +1,7 @@
 #include "HIKARI_AssetBrowserPanel.h"
 #include <string>
 #include "HIKARI_EditorSelection.h"
+#include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "imgui.h"
 
@@ -49,6 +50,14 @@ namespace HIKARI {
                 GetSourceType(assetPtr->GetSourcePath()),
                 ToStateText(assetPtr->GetState()),
                 assetPtr->GetMesh() ? "Yes" : "No");
+            if (const Material* material = assetPtr->GetMaterial()) {
+                const bool hasTexture = material->HasBaseColorTexture();
+                const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
+                ImGui::Text("  Texture Path: %s", texturePath);
+                ImGui::Text("  Texture: %s (handle=%d)", hasTexture ? "Loaded" : "Not Loaded", material->GetBaseColorTextureHandle());
+            } else {
+                ImGui::TextUnformatted("  Texture Path: <no material>");
+            }
         }
 
         ImGui::End();

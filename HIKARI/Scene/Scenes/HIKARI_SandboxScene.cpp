@@ -10,9 +10,8 @@ namespace HIKARI {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         camera_.SetLookAt({ 0.0f, 2.0f, -6.0f }, { 0.0f, 0.0f, 0.0f });
 
+        modelManager_.RegisterAsset("Block", "Assets/Models/block.obj");
         modelManager_.RegisterAsset("TestCube", "builtin:cube");
-        modelManager_.RegisterAsset("TestCharacter", "Assets/Models/TestCharacter.gltf");
-        modelManager_.RegisterAsset("TestStage", "Assets/Models/TestStage.obj");
         modelManager_.LoadAllRegisteredAssets();
 
         GameObject* debugGrid = world_.CreateObject("DebugGrid");
@@ -20,13 +19,18 @@ namespace HIKARI {
         GameObject* axis = world_.CreateObject("Axis");
         (void)axis;
 
-        GameObject* testCube = world_.CreateObject("TestCube");
-        testCube->Transform().position = { 0.0f, 1.0f, 0.0f };
-        ModelComponent* modelComponent = testCube->AddComponent<ModelComponent>();
-        modelComponent->SetAsset(modelManager_.FindAsset("TestCube"));
+        GameObject* block = world_.CreateObject("Block");
+        block->Transform().position = { 0.0f, 0.5f, 0.0f };
+        ModelComponent* blockModelComponent = block->AddComponent<ModelComponent>();
+        blockModelComponent->SetAsset(modelManager_.FindAsset("Block"));
 
-        selection_.selectedObject = testCube;
-        selection_.selectedAsset = modelManager_.FindAsset("TestCube");
+        GameObject* testCube = world_.CreateObject("TestCube");
+        testCube->Transform().position = { 2.0f, 1.0f, 0.0f };
+        ModelComponent* cubeModelComponent = testCube->AddComponent<ModelComponent>();
+        cubeModelComponent->SetAsset(modelManager_.FindAsset("TestCube"));
+
+        selection_.selectedObject = block;
+        selection_.selectedAsset = modelManager_.FindAsset("Block");
     }
 
     void SandboxScene::OnExit() {
