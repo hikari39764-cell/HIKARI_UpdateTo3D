@@ -1,4 +1,5 @@
 #include "HIKARI_ModelComponent.h"
+#include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "imgui.h"
 
@@ -54,6 +55,11 @@ namespace HIKARI {
         if (const Material* material = asset_->GetMaterial()) {
             const MATH::Vec4& color = material->GetBaseColor();
             ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
+            const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
+            ImGui::Text("TexturePath: %s", texturePath);
+            ImGui::Text("TextureHandle: %d (%s)",
+                material->GetBaseColorTextureHandle(),
+                material->HasBaseColorTexture() ? "Valid" : "Invalid");
         }
     }
 

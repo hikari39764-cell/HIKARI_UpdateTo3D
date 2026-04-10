@@ -5,6 +5,8 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <wrl/client.h>
+#include "HIKARI_DxTexture.h"
+#include "HIKARI_Material.h"
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 
@@ -23,6 +25,8 @@ namespace HIKARI::MESHRENDERER {
         struct ObjectCB {
             MATH::Mat4 world{};
             MATH::Vec4 baseColor{};
+            uint32_t hasBaseColorTexture = 0;
+            float padding[3]{};
         };
 
         struct DrawItem {
@@ -41,6 +45,7 @@ namespace HIKARI::MESHRENDERER {
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             std::vector<DrawItem> drawItems;
+            int fallbackTextureHandle = -1;
         };
 
         State g;
@@ -84,7 +89,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER params[2]{};
+            D3D12_DESCRIPTOR_RANGE textureRange{};
+            textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            textureRange.NumDescriptors = 1;
+            textureRange.BaseShaderRegister = 0;
+            textureRange.RegisterSpace = 0;
+            textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[3]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -95,9 +107,26 @@ namespace HIKARI::MESHRENDERER {
             params[1].Descriptor.ShaderRegister = 1;
             params[1].Descriptor.RegisterSpace = 0;
 
+            params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[2].DescriptorTable.NumDescriptorRanges = 1;
+            params[2].DescriptorTable.pDescriptorRanges = &textureRange;
+
+            D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
+            linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+            linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            linearWrapSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            linearWrapSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            linearWrapSampler.ShaderRegister = 0;
+            linearWrapSampler.RegisterSpace = 0;
+            linearWrapSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            linearWrapSampler.MaxLOD = D3D12_FLOAT32_MAX;
+
             D3D12_ROOT_SIGNATURE_DESC rsDesc{};
             rsDesc.NumParameters = static_cast<UINT>(std::size(params));
             rsDesc.pParameters = params;
+            rsDesc.NumStaticSamplers = 1;
+            rsDesc.pStaticSamplers = &linearWrapSampler;
             rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
             ComPtr<ID3DBlob> sigBlob;
@@ -134,7 +163,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
             psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-            psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+            psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.pso.GetAddressOf())));
@@ -155,6 +184,7 @@ namespace HIKARI::MESHRENDERER {
             if (!CreatePipeline(device)) {
                 return false;
             }
+            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "NoviceResources/white1x1.png");
 
             g.initialized = true;
             return true;
@@ -189,9 +219,17 @@ namespace HIKARI::MESHRENDERER {
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->SetPipelineState(g.pso.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmd->OMSetRenderTargets(1, &SERVICES::gCtx.rtv, FALSE, &SERVICES::gCtx.dsv);
+        // MeshRenderer runs inside the active scene render pass.
+        // Do not switch render targets here (especially not back to SERVICES::gCtx.rtv),
+        // otherwise scene-capture/present routing managed by the frame/post pipeline breaks.
+        // If an offscreen mesh preview is needed in the future, pass explicit render-target/context in.
 
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
+        ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
+        if (srvHeap != nullptr) {
+            ID3D12DescriptorHeap* heaps[] = { srvHeap };
+            cmd->SetDescriptorHeaps(1, heaps);
+        }
 
         constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
 
@@ -205,8 +243,10 @@ namespace HIKARI::MESHRENDERER {
             obj.world = item.transform.GetWorldMatrix();
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
+                obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
             } else {
                 obj.baseColor = { 1,1,1,1 };
+                obj.hasBaseColorTexture = 0u;
             }
 
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * i;
@@ -214,6 +254,16 @@ namespace HIKARI::MESHRENDERER {
 
             const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * i;
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+            int textureHandle = g.fallbackTextureHandle;
+            if (const Material* material = item.asset->GetMaterial()) {
+                if (material->HasBaseColorTexture()) {
+                    textureHandle = material->GetBaseColorTextureHandle();
+                }
+            }
+            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+            if (textureSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(2, textureSrv);
+            }
 
             const Mesh* mesh = item.asset->GetMesh();
             D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
