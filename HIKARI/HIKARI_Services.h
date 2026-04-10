@@ -35,6 +35,18 @@ namespace HIKARI {
             bool enableDebugCamera = false;
             bool enableDebugLayer = true;
             bool resizableWindow = true;
+            bool enableImGui =
+#if defined(_DEBUG)
+                true;
+#else
+                false;
+#endif
+            bool enableEditorUI =
+#if defined(_DEBUG)
+                true;
+#else
+                false;
+#endif
             int windowWidth = kScreenW;
             int windowHeight = kScreenH;
         };
@@ -46,8 +58,14 @@ namespace HIKARI {
         inline bool gImGuiInitialized = false;
         inline bool gImGuiBackendInitialized = false;
         inline bool gImGuiFrameBegun = false;
+        inline bool gEnableImGui = false;
+        inline bool gEnableEditorUI = false;
         inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
         inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
+
+        inline bool IsImGuiEnabled() { return gEnableImGui; }
+        inline bool IsEditorUIEnabled() { return gEnableImGui && gEnableEditorUI; }
+        inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = enabled; }
 
         inline void InitializeImGuiBackend() {
             if (gImGuiBackendInitialized) {
@@ -89,6 +107,9 @@ namespace HIKARI {
         }
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
+            gEnableImGui = cfg.enableImGui;
+            gEnableEditorUI = cfg.enableEditorUI;
+
             HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
             gComInitialized = SUCCEEDED(coHr);
 
@@ -136,7 +157,7 @@ namespace HIKARI {
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
             HIKARI::CAMERA::EnableDebugControl(cfg.enableDebugCamera);
 
-            if (!gImGuiInitialized) {
+            if (gEnableImGui && !gImGuiInitialized) {
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
                 ImGui::StyleColorsDark();
@@ -148,7 +169,9 @@ namespace HIKARI {
                 }
                 gImGuiInitialized = true;
             }
-            InitializeImGuiBackend();
+            if (gEnableImGui) {
+                InitializeImGuiBackend();
+            }
             return true;
         }
 
@@ -195,7 +218,7 @@ namespace HIKARI {
             DX::DxRenderer::BeginFrame();
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
-            if (gImGuiInitialized) {
+            if (gEnableImGui && gImGuiInitialized) {
                 if (!gImGuiBackendInitialized) {
                     InitializeImGuiBackend();
                 }
@@ -223,7 +246,7 @@ namespace HIKARI {
         }
 
         inline void EndFrame() {
-            if (gImGuiInitialized && gImGuiFrameBegun) {
+            if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
                 ImGui::Render();
                 gImGuiFrameBegun = false;
             }
@@ -231,7 +254,7 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
             HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
 
-            if (gImGuiInitialized && gImGuiBackendInitialized) {
+            if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
                 auto* cmd = gCtx.cmdList;
                 ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
                 cmd->SetDescriptorHeaps(1, heaps);

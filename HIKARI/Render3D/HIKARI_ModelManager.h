@@ -1,10 +1,36 @@
 #pragma once
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include "HIKARI_ModelAsset.h"
 
 namespace HIKARI {
-    // Skeleton placeholder for next phase 3D model pipeline.
+
     class ModelManager {
     public:
-        ModelManager() = default;
-        ~ModelManager() = default;
+        ModelAsset* RegisterAsset(const std::string& name, const std::string& sourcePath);
+        ModelAsset* FindAsset(const std::string& name);
+        const ModelAsset* FindAsset(const std::string& name) const;
+
+        const std::vector<std::unique_ptr<ModelAsset>>& GetAssets() const;
+
+        bool MarkLoaded(const std::string& name);
+        bool MarkFailed(const std::string& name);
+
+        bool LoadAssetNow(const std::string& name);
+        bool LoadAllRegisteredAssets();
+
+        size_t CountLoadedAssets() const;
+        size_t CountFailedAssets() const;
+
+    private:
+        bool LoadAsObj(ModelAsset& asset);
+        bool BuildBuiltinCube(ModelAsset& asset);
+
+    private:
+        std::vector<std::unique_ptr<ModelAsset>> assets_;
+        std::unordered_map<std::string, ModelAsset*> nameToAsset_;
     };
-}
+
+} // namespace HIKARI
