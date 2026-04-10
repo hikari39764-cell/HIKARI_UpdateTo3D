@@ -150,6 +150,10 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Material.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_MeshRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
@@ -286,6 +290,12 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugMenuBar.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Animator.h" />
