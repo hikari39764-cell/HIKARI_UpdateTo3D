@@ -1,8 +1,11 @@
 #include "HIKARI_ModelManager.h"
 #include <array>
 #include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include "HIKARI_DxTexture.h"
+#include "HIKARI_Material.h"
 #include "HIKARI_Services.h"
 
 namespace HIKARI {
@@ -27,6 +30,12 @@ namespace HIKARI {
             }
         };
 
+        struct ObjMaterialInfo {
+            std::string name;
+            MATH::Vec4 baseColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+            std::string baseColorMapPath;
+        };
+
         bool ParseObjIndexToken(const std::string& token, ObjKey& key) {
             std::stringstream ss(token);
             std::string part;
@@ -49,6 +58,69 @@ namespace HIKARI {
                 return "";
             }
             return path.c_str() + dot;
+        }
+
+        std::string Trim(const std::string& value) {
+            size_t first = 0;
+            while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first])) != 0) {
+                ++first;
+            }
+            size_t last = value.size();
+            while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1])) != 0) {
+                --last;
+            }
+            return value.substr(first, last - first);
+        }
+
+        std::string NormalizePathString(const std::filesystem::path& path) {
+            return path.lexically_normal().generic_string();
+        }
+
+        bool ParseMtlMaterial(const std::filesystem::path& mtlPath, const std::string& targetMtlName, ObjMaterialInfo& outInfo) {
+            std::ifstream mtlFile(mtlPath);
+            if (!mtlFile.is_open()) {
+                return false;
+            }
+
+            bool inTargetMaterial = false;
+            bool foundTargetMaterial = false;
+            std::string line;
+            while (std::getline(mtlFile, line)) {
+                std::stringstream ss(line);
+                std::string tag;
+                ss >> tag;
+                if (tag.empty() || tag[0] == '#') {
+                    continue;
+                }
+
+                if (tag == "newmtl") {
+                    std::string materialName;
+                    ss >> materialName;
+                    inTargetMaterial = materialName == targetMtlName;
+                    if (inTargetMaterial) {
+                        outInfo = ObjMaterialInfo{};
+                        outInfo.name = materialName;
+                        foundTargetMaterial = true;
+                    } else if (foundTargetMaterial) {
+                        break;
+                    }
+                } else if (inTargetMaterial && tag == "Kd") {
+                    float r = 1.0f;
+                    float g = 1.0f;
+                    float b = 1.0f;
+                    ss >> r >> g >> b;
+                    outInfo.baseColor = { r, g, b, 1.0f };
+                } else if (inTargetMaterial && tag == "map_Kd") {
+                    std::string mapValue;
+                    std::getline(ss, mapValue);
+                    mapValue = Trim(mapValue);
+                    if (!mapValue.empty()) {
+                        const std::filesystem::path mapPath = mtlPath.parent_path() / mapValue;
+                        outInfo.baseColorMapPath = NormalizePathString(mapPath);
+                    }
+                }
+            }
+            return foundTargetMaterial;
         }
     }
 
@@ -202,6 +274,8 @@ namespace HIKARI {
         std::vector<VertexStatic3D> vertices;
         std::vector<uint32_t> indices;
         std::unordered_map<ObjKey, uint32_t, ObjKeyHash> uniqueMap;
+        std::string mtllibPath;
+        std::string firstUsedMaterialName;
 
         std::string line;
         while (std::getline(file, line)) {
@@ -214,6 +288,24 @@ namespace HIKARI {
                 MATH::Vec3 p{};
                 ss >> p.x >> p.y >> p.z;
                 positions.push_back(p);
+            } else if (tag == "mtllib") {
+                if (mtllibPath.empty()) {
+                    std::string mtlName;
+                    std::getline(ss, mtlName);
+                    mtlName = Trim(mtlName);
+                    if (!mtlName.empty()) {
+                        const std::filesystem::path objPath(asset.GetSourcePath());
+                        mtllibPath = NormalizePathString(objPath.parent_path() / mtlName);
+                    }
+                }
+            } else if (tag == "usemtl") {
+                if (firstUsedMaterialName.empty()) {
+                    std::string mtlName;
+                    ss >> mtlName;
+                    if (!mtlName.empty()) {
+                        firstUsedMaterialName = mtlName;
+                    }
+                }
             } else if (tag == "vn") {
                 MATH::Vec3 n{};
                 ss >> n.x >> n.y >> n.z;
@@ -278,6 +370,23 @@ namespace HIKARI {
 
         auto material = std::make_unique<Material>();
         material->SetBaseColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+        material->SetBaseColorTexturePath("");
+        material->SetBaseColorTextureHandle(-1);
+
+        if (!mtllibPath.empty() && !firstUsedMaterialName.empty()) {
+            ObjMaterialInfo materialInfo{};
+            if (ParseMtlMaterial(std::filesystem::path(mtllibPath), firstUsedMaterialName, materialInfo)) {
+                material->SetBaseColor(materialInfo.baseColor);
+                if (!materialInfo.baseColorMapPath.empty()) {
+                    material->SetBaseColorTexturePath(materialInfo.baseColorMapPath);
+                    const std::string textureName = asset.GetName() + "/baseColor";
+                    const int textureHandle = DXTEX::DxTextureManager::LoadTexture(textureName, materialInfo.baseColorMapPath);
+                    if (textureHandle >= 0) {
+                        material->SetBaseColorTextureHandle(textureHandle);
+                    }
+                }
+            }
+        }
 
         asset.SetMesh(std::move(mesh));
         asset.SetMaterial(std::move(material));

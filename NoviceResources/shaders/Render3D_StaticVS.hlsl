@@ -8,6 +8,8 @@ cbuffer ObjectCB : register(b1)
 {
     float4x4 gWorld;
     float4 gBaseColor;
+    uint gHasBaseColorTexture;
+    float3 gObjectPadding;
 };
 
 struct VSInput
