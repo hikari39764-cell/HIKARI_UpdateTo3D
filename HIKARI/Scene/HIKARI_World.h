@@ -2,10 +2,9 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include "Scene/HIKARI_GameObject.h"
 namespace HIKARI {
 
-    class GameObject;
 
     class World {
     public:

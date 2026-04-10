@@ -1,7 +1,7 @@
 #include "HIKARI_SandboxScene.h"
 #include <numbers>
 #include "Scene/Components/HIKARI_ModelComponent.h"
-#include "HIKARI/HIKARI_3D.h"
+#include "HIKARI_3D.h"
 
 namespace HIKARI {
 

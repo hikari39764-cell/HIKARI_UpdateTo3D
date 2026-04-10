@@ -8,6 +8,7 @@
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_World.h"
+#include "Scene/HIKARI_GameObject.h"
 
 namespace HIKARI {
 

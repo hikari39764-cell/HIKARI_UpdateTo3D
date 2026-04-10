@@ -3,6 +3,7 @@
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
+#include "Scene/HIKARI_GameObject.h"
 #include "imgui.h"
 
 namespace HIKARI {

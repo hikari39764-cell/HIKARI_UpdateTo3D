@@ -1,9 +1,7 @@
 #pragma once
 #include <memory>
-
+#include "Scene/HIKARI_IScene.h"
 namespace HIKARI {
-
-    class IScene;
 
     class SceneManager {
     public:
