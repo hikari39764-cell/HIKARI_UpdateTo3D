@@ -49,6 +49,12 @@ namespace HIKARI {
         ImGui::Text("Asset: %s", asset_->GetName().c_str());
         ImGui::Text("Source: %s", asset_->GetSourcePath().c_str());
         ImGui::Text("State: %s", ToStateText(asset_->GetState()));
+        ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
+        ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
+        if (const Material* material = asset_->GetMaterial()) {
+            const MATH::Vec4& color = material->GetBaseColor();
+            ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
+        }
     }
 
 } // namespace HIKARI

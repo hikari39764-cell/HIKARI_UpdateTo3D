@@ -147,6 +147,9 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_ModelAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_ModelManager.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Material.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_MeshRenderer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
@@ -268,6 +271,7 @@ xcopy C:\KamataEngine\DirectXGame\Resources "$(OutDirFullPath)NoviceResources" /
     <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Material.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_MeshRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />

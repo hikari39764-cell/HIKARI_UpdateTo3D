@@ -1,5 +1,6 @@
 #include "HIKARI_EngineApp.h"
 #include <memory>
+#include "HIKARI/HIKARI_Services.h"
 #include "Scene/Scenes/HIKARI_SandboxScene.h"
 
 namespace HIKARI {
@@ -18,6 +19,9 @@ namespace HIKARI {
     }
 
     void EngineApp::RenderImGui() {
+        if (!SERVICES::IsEditorUIEnabled()) {
+            return;
+        }
         sceneManager_.RenderImGui();
     }
 

@@ -1,4 +1,5 @@
 #include "HIKARI_AssetBrowserPanel.h"
+#include <string>
 #include "HIKARI_EditorSelection.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "imgui.h"
@@ -18,6 +19,17 @@ namespace HIKARI {
                 return "Unknown";
             }
         }
+
+        const char* GetSourceType(const std::string& sourcePath) {
+            if (sourcePath == "builtin:cube") {
+                return "builtin";
+            }
+            const size_t dot = sourcePath.find_last_of('.');
+            if (dot == std::string::npos) {
+                return "unknown";
+            }
+            return sourcePath.c_str() + dot + 1;
+        }
     }
 
     void AssetBrowserPanel::Draw(ModelManager& modelManager, EditorSelection& selection) const {
@@ -32,8 +44,11 @@ namespace HIKARI {
             if (ImGui::Selectable(assetPtr->GetName().c_str(), isSelected)) {
                 selection.selectedAsset = assetPtr;
             }
-            ImGui::SameLine(240.0f);
-            ImGui::Text("%s | %s", assetPtr->GetSourcePath().c_str(), ToStateText(assetPtr->GetState()));
+            ImGui::Text("  Source: %s", assetPtr->GetSourcePath().c_str());
+            ImGui::Text("  Type: %s | State: %s | Mesh: %s",
+                GetSourceType(assetPtr->GetSourcePath()),
+                ToStateText(assetPtr->GetState()),
+                assetPtr->GetMesh() ? "Yes" : "No");
         }
 
         ImGui::End();

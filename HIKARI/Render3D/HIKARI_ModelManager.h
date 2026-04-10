@@ -18,6 +18,16 @@ namespace HIKARI {
         bool MarkLoaded(const std::string& name);
         bool MarkFailed(const std::string& name);
 
+        bool LoadAssetNow(const std::string& name);
+        bool LoadAllRegisteredAssets();
+
+        size_t CountLoadedAssets() const;
+        size_t CountFailedAssets() const;
+
+    private:
+        bool LoadAsObj(ModelAsset& asset);
+        bool BuildBuiltinCube(ModelAsset& asset);
+
     private:
         std::vector<std::unique_ptr<ModelAsset>> assets_;
         std::unordered_map<std::string, ModelAsset*> nameToAsset_;

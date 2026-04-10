@@ -1,7 +1,8 @@
 #include "HIKARI_SandboxScene.h"
 #include <numbers>
+#include "Render3D/HIKARI_MeshRenderer.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
-#include "HIKARI_3D.h"
+#include "HIKARI/HIKARI_3D.h"
 
 namespace HIKARI {
 
@@ -9,9 +10,10 @@ namespace HIKARI {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         camera_.SetLookAt({ 0.0f, 2.0f, -6.0f }, { 0.0f, 0.0f, 0.0f });
 
-        modelManager_.RegisterAsset("TestCube", "Assets/Models/TestCube.obj");
+        modelManager_.RegisterAsset("TestCube", "builtin:cube");
         modelManager_.RegisterAsset("TestCharacter", "Assets/Models/TestCharacter.gltf");
-        modelManager_.RegisterAsset("TestStage", "Assets/Models/TestStage.gltf");
+        modelManager_.RegisterAsset("TestStage", "Assets/Models/TestStage.obj");
+        modelManager_.LoadAllRegisteredAssets();
 
         GameObject* debugGrid = world_.CreateObject("DebugGrid");
         (void)debugGrid;
@@ -40,6 +42,7 @@ namespace HIKARI {
 
     void SandboxScene::Render() {
         RENDERER3D::Reset();
+        MESHRENDERER::Reset();
 
         RENDERER3D::DEBUG::Grid3D grid{};
         grid.halfCount = 10;
@@ -58,14 +61,21 @@ namespace HIKARI {
                     continue;
                 }
 
-                RENDERER3D::WireCube cube{};
-                cube.transform = object->Transform();
-                cube.size = 1.0f;
-                cube.rgba = 0x66CCFFFF;
-                RENDERER3D::SubmitWireCube(cube);
+                const ModelAsset* asset = model->GetAsset();
+                if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
+                    MESHRENDERER::SubmitStaticMesh(*asset, object->Transform());
+                }
+                else {
+                    RENDERER3D::WireCube cube{};
+                    cube.transform = object->Transform();
+                    cube.size = 1.0f;
+                    cube.rgba = 0x66CCFFFF;
+                    RENDERER3D::SubmitWireCube(cube);
+                }
             }
         }
 
+        MESHRENDERER::RenderAll(camera_);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
 

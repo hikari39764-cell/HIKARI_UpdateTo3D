@@ -3,7 +3,6 @@
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
-#include "Scene/HIKARI_GameObject.h"
 #include "imgui.h"
 
 namespace HIKARI {
@@ -17,6 +16,8 @@ namespace HIKARI {
         ImGui::Text("Scene: %s", sceneName ? sceneName : "<none>");
         ImGui::Text("World Objects: %zu", world.GetObjects().size());
         ImGui::Text("Model Assets: %zu", modelManager.GetAssets().size());
+        ImGui::Text("Loaded Models: %zu", modelManager.CountLoadedAssets());
+        ImGui::Text("Failed Models: %zu", modelManager.CountFailedAssets());
         ImGui::Text("Selected Object: %s", selection.selectedObject ? selection.selectedObject->GetName().c_str() : "<none>");
         ImGui::Text("Selected Asset: %s", selection.selectedAsset ? selection.selectedAsset->GetName().c_str() : "<none>");
 
