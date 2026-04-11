@@ -143,9 +143,9 @@ namespace HIKARI::MESHRENDERER {
 
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-            linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-            linearWrapSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-            linearWrapSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            linearWrapSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            linearWrapSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
             linearWrapSampler.ShaderRegister = 0;
             linearWrapSampler.RegisterSpace = 0;
             linearWrapSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
