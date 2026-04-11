@@ -281,7 +281,7 @@ namespace HIKARI::MESHRENDERER {
 
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
-            MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::Normalize(item.transform.rotation));
+            MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::NormalizeQ(item.transform.rotation));
             const MATH::Vec3 s = item.transform.scale;
             const float invScaleX = (std::abs(s.x) > 1e-6f) ? (1.0f / s.x) : 0.0f;
             const float invScaleY = (std::abs(s.y) > 1e-6f) ? (1.0f / s.y) : 0.0f;

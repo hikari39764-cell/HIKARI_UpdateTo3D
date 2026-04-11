@@ -22,7 +22,7 @@ namespace HIKARI::MATH {
         return { v.x / len, v.y / len, v.z / len };
     }
 
-    Quat Normalize(const Quat& q) {
+    Quat NormalizeQ(const Quat& q) {
         const float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
         if (len <= 1e-6f) {
             return Quat::Identity();

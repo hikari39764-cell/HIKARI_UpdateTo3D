@@ -52,7 +52,7 @@ namespace HIKARI::MATH {
     Vec3 Cross(const Vec3& a, const Vec3& b);
     float Length(const Vec3& v);
     Vec3 Normalize(const Vec3& v);
-    Quat Normalize(const Quat& q);
+    Quat NormalizeQ(const Quat& q);
 
     // Runtime sanity checks for convention consistency.
     bool RunMathConventionSelfCheck();
