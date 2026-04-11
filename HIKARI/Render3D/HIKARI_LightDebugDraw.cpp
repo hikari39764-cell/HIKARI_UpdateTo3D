@@ -22,9 +22,9 @@ namespace HIKARI::LIGHTDEBUGDRAW {
             dir = { 0.0f, -1.0f, 0.0f };
         }
 
-        const MATH::Vec3 arrowDir{ -dir.x, -dir.y, -dir.z };
+        const MATH::Vec3 arrowDir = dir;
 
-        const MATH::Vec3 origin{ 0.0f, 0.0f, 0.0f };
+        const MATH::Vec3 origin{ 0.0f, 1.5f, 0.0f };
         const MATH::Vec3 head = origin + (arrowDir * kArrowLength);
 
         RENDERER3D::DEBUG::SubmitLine3D({ origin, head, kLightColor });
@@ -44,7 +44,7 @@ namespace HIKARI::LIGHTDEBUGDRAW {
         RENDERER3D::DEBUG::SubmitLine3D({ head, neck - (up * kHeadHalfWidth), kLightColor });
 
         RENDERER3D::DEBUG::WireCube marker{};
-        marker.transform.position = head;
+        marker.transform.position = origin;
         marker.size = kMarkerSize;
         marker.rgba = kLightColor;
         RENDERER3D::DEBUG::SubmitWireCube(marker);
