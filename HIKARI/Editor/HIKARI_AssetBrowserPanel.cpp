@@ -3,7 +3,9 @@
 #include "HIKARI_EditorSelection.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelManager.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
@@ -34,6 +36,7 @@ namespace HIKARI {
     }
 
     void AssetBrowserPanel::Draw(ModelManager& modelManager, EditorSelection& selection) const {
+#if defined(_DEBUG)
         if (!ImGui::Begin("Asset Browser")) {
             ImGui::End();
             return;
@@ -61,6 +64,10 @@ namespace HIKARI {
         }
 
         ImGui::End();
+#else
+        (void)modelManager;
+        (void)selection;
+#endif
     }
 
 } // namespace HIKARI

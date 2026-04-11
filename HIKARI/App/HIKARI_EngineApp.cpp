@@ -19,10 +19,12 @@ namespace HIKARI {
     }
 
     void EngineApp::RenderImGui() {
+#if defined(_DEBUG)
         if (!SERVICES::IsEditorUIEnabled()) {
             return;
         }
         sceneManager_.RenderImGui();
+#endif
     }
 
     void EngineApp::Shutdown() {

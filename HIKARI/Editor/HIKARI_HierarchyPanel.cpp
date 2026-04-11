@@ -2,11 +2,14 @@
 #include "HIKARI_EditorSelection.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
     void HierarchyPanel::Draw(World& world, EditorSelection& selection) const {
+#if defined(_DEBUG)
         if (!ImGui::Begin("Scene Hierarchy")) {
             ImGui::End();
             return;
@@ -21,6 +24,10 @@ namespace HIKARI {
         }
 
         ImGui::End();
+#else
+        (void)world;
+        (void)selection;
+#endif
     }
 
 } // namespace HIKARI

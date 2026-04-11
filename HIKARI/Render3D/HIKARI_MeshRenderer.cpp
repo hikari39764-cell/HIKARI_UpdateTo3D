@@ -36,11 +36,13 @@ namespace HIKARI::MESHRENDERER {
             MATH::Vec4 directionalDir{};
             MATH::Vec4 directionalColor{};
             MATH::Vec4 ambientColor{};
-            MATH::Vec4 specularColor{};
+            MATH::Vec4 specularParams{};
+            MATH::Vec4 pointLightPosRange[4]{};
+            MATH::Vec4 pointLightColorIntensity[4]{};
             float directionalIntensity = 1.0f;
             float ambientIntensity = 0.25f;
-            float specularIntensity = 0.2f;
-            float specularPower = 32.0f;
+            uint32_t pointLightCount = 0;
+            float padding[2]{};
         };
 
         struct DrawItem {
@@ -228,7 +230,7 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back({ &asset, transform });
     }
 
-    void RenderAll(const Camera3D& camera, const SceneLighting& lighting) {
+    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
         if (g.drawItems.empty()) {
             return;
         }
@@ -245,15 +247,37 @@ namespace HIKARI::MESHRENDERER {
         const MATH::Vec3 cameraPos = camera.GetPosition();
         g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
 
-        const MATH::Vec3 normalizedDir = MATH::Normalize(lighting.directionalDir);
+        const MATH::Vec3 normalizedDir = MATH::Normalize(environment.directional.direction);
         g.lightMapped->directionalDir = { normalizedDir.x, normalizedDir.y, normalizedDir.z, 0.0f };
-        g.lightMapped->directionalColor = { lighting.directionalColor.x, lighting.directionalColor.y, lighting.directionalColor.z, 1.0f };
-        g.lightMapped->ambientColor = { lighting.ambientColor.x, lighting.ambientColor.y, lighting.ambientColor.z, 1.0f };
-        g.lightMapped->specularColor = { lighting.specularColor.x, lighting.specularColor.y, lighting.specularColor.z, 1.0f };
-        g.lightMapped->directionalIntensity = std::max(0.0f, lighting.directionalIntensity);
-        g.lightMapped->ambientIntensity = std::max(0.0f, lighting.ambientIntensity);
-        g.lightMapped->specularIntensity = std::max(0.0f, lighting.specularIntensity);
-        g.lightMapped->specularPower = std::max(1.0f, lighting.specularPower);
+        g.lightMapped->directionalColor = { environment.directional.color.x, environment.directional.color.y, environment.directional.color.z, 1.0f };
+        g.lightMapped->ambientColor = { environment.ambient.color.x, environment.ambient.color.y, environment.ambient.color.z, 1.0f };
+        g.lightMapped->specularParams = { std::max(0.0f, environment.specularIntensity), std::max(1.0f, environment.specularPower), 0.0f, 0.0f };
+        g.lightMapped->directionalIntensity = environment.directional.enabled ? std::max(0.0f, environment.directional.intensity) : 0.0f;
+        g.lightMapped->ambientIntensity = std::max(0.0f, environment.ambient.intensity);
+        g.lightMapped->pointLightCount = 0;
+        for (size_t i = 0; i < std::size(g.lightMapped->pointLightPosRange); ++i) {
+            g.lightMapped->pointLightPosRange[i] = {};
+            g.lightMapped->pointLightColorIntensity[i] = {};
+        }
+        constexpr uint32_t kMaxPointLights = 4;
+        for (const PointLight& pointLight : environment.pointLights) {
+            if (!pointLight.enabled || g.lightMapped->pointLightCount >= kMaxPointLights) {
+                continue;
+            }
+            const uint32_t index = g.lightMapped->pointLightCount++;
+            g.lightMapped->pointLightPosRange[index] = {
+                pointLight.position.x,
+                pointLight.position.y,
+                pointLight.position.z,
+                std::max(0.001f, pointLight.range)
+            };
+            g.lightMapped->pointLightColorIntensity[index] = {
+                pointLight.color.x,
+                pointLight.color.y,
+                pointLight.color.z,
+                std::max(0.0f, pointLight.intensity)
+            };
+        }
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->SetPipelineState(g.pso.Get());

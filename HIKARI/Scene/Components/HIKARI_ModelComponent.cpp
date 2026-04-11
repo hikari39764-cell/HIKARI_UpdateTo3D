@@ -1,7 +1,10 @@
 #include "HIKARI_ModelComponent.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
@@ -41,6 +44,7 @@ namespace HIKARI {
     }
 
     void ModelComponent::RenderImGui() {
+#if defined(_DEBUG)
         ImGui::Checkbox("Visible", &visible_);
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Asset: <none>");
@@ -61,6 +65,7 @@ namespace HIKARI {
                 material->GetBaseColorTextureHandle(),
                 material->HasBaseColorTexture() ? "Valid" : "Invalid");
         }
+#endif
     }
 
 } // namespace HIKARI

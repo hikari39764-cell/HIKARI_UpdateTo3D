@@ -5,7 +5,9 @@
 #undef min
 #undef max
 #include "HIKARI_Input.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
@@ -43,9 +45,13 @@ namespace HIKARI {
             return;
         }
 
+        bool wantMouse = false;
+        bool wantKeyboard = false;
+#if defined(_DEBUG)
         ImGuiIO& io = ImGui::GetIO();
-        const bool wantMouse = io.WantCaptureMouse;
-        const bool wantKeyboard = io.WantCaptureKeyboard;
+        wantMouse = io.WantCaptureMouse;
+        wantKeyboard = io.WantCaptureKeyboard;
+#endif
 
         if (!wantKeyboard && (::GetAsyncKeyState('R') & 0x8000) != 0) {
             position_ = resetPosition_;

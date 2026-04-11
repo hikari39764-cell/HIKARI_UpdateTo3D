@@ -4,14 +4,14 @@
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_DebugWindowState.h"
 #include "Editor/HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
-#include "Editor/HIKARI_LightingPanel.h"
 #include "Editor/HIKARI_StatsPanel.h"
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_DebugCameraController3D.h"
 #include "Render3D/HIKARI_ModelManager.h"
-#include "Render3D/HIKARI_SceneLighting.h"
+#include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_World.h"
 
@@ -32,7 +32,7 @@ namespace HIKARI {
         ModelManager modelManager_{};
         EditorSelection selection_{};
         DebugCameraController3D debugCamera_{};
-        SceneLighting lighting_{};
+        SceneEnvironment environment_{};
 
         DebugWindowState debugWindowState_{};
         DebugMenuBar debugMenuBar_{};
@@ -40,11 +40,10 @@ namespace HIKARI {
         InspectorPanel inspectorPanel_{};
         AssetBrowserPanel assetBrowserPanel_{};
         StatsPanel statsPanel_{};
-        LightingPanel lightingPanel_{};
+        EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};
 
-        bool lightingEnabled_ = true;
-        float spinAngle_ = 0.0f;
+        bool environmentLightingEnabled_ = true;
     };
 
 } // namespace HIKARI
