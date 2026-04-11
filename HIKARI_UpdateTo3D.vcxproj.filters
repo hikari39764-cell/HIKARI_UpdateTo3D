@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <Filter Include="KamataEngine">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
@@ -134,86 +134,47 @@
     <Filter Include="HIKARIEngine\ImGui">
       <UniqueIdentifier>{2e292973-0486-4d2d-b085-813e1bfeca66}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{03BB99C9-9D7E-429E-B7CB-1C7D05340A87}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render2D">
+      <UniqueIdentifier>{E882EAD9-A0A6-4730-8451-4F20616209E8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Platform">
+      <UniqueIdentifier>{299E256B-82AF-45C6-97F8-F42B5A474535}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Audio">
+      <UniqueIdentifier>{DC19A739-B563-43FF-9B49-C8FC9F3DD2FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core / Services">
+      <UniqueIdentifier>{244525F5-91DA-42B7-A27E-256F71CA053B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{5F414BA1-F6AD-4E12-9600-46912DAC8B6D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render2D">
+      <UniqueIdentifier>{2CF658A9-CA4B-4A95-A9BC-DD5209255FFA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Platform">
+      <UniqueIdentifier>{54FBD3FB-63B4-4F90-980B-BFAF9DAEAE9D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Audio">
+      <UniqueIdentifier>{759E83F4-2F8E-4E0D-BAC6-EC286BC468B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core / Services">
+      <UniqueIdentifier>{ADA37193-99F4-4BB5-9BF0-6A29A249943A}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main.cpp"/>
     <ClCompile Include="C:\KamataEngine\Adapter\Novice.cpp">
       <Filter>KamataEngine\Adapter</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_SE.cpp">
-      <Filter>HIKARIEngine\HIKARI_Audio\HIKARI_SE</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Bgm.cpp">
-      <Filter>HIKARIEngine\HIKARI_Audio\HIKARI_Bgm</Filter>
     </ClCompile>
     <ClCompile Include="Matrix3x3.cpp">
       <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Matrix3x3</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Transform2D.cpp">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Transform2D</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Texture.cpp">
-      <Filter>HIKARIEngine\HIKARI_Texture</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Camera.cpp">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Renderer.cpp">
-      <Filter>HIKARIEngine\HIKARI_Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Anim.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Anim</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_SpineActor.cpp">
-      <Filter>HIKARIEngine\HIKARI_Spine\HIKARI_SpineActor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_SpineTextureLoader.cpp">
-      <Filter>HIKARIEngine\HIKARI_Spine\HIKARI_SpineTextureLoader</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Input.cpp">
-      <Filter>HIKARIEngine\HIKARI_Input</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Particle.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Particle</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_SpriteAnimator</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_MultiTextureAnimator</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Particle\HIKARI_ParticleLab</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_MeshEffect.cpp">
-      <Filter>HIKARIEngine\HIKARI_Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Collision</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_PhysicsWorld.cpp">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_TiledCollision.cpp">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Collision\HIKARI_TiledCollision</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp">
-      <Filter>HIKARIEngine\HIKARI_Map</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Offscreen.cpp">
-      <Filter>HIKARIEngine\HIKARI_Offscreen</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_DxRenderer.cpp">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DxRenderer</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_DxTexture.cpp">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DxTexture</Filter>
-    </ClCompile>
     <ClCompile Include="External\WICTextureLoader.cpp">
       <Filter>HIKARIEngine\WIC</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_DynamicUploadBuffer.cpp">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DynamicUploadBuffer</Filter>
     </ClCompile>
     <ClCompile Include="ThirdParty\spine\src\spine\Animation.cpp">
       <Filter>Spine\src</Filter>
@@ -419,42 +380,6 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Spine\src</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Camera2_5D.cpp">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_RenderQueue25.cpp">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_GlowManager</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_PostChain.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostChain</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_PostEffect.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostEffect.h</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_PostQuadDrawer.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostQuadDrawer</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_PostSystem.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_RenderTarget2D.cpp">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_RenderTarget2D</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp">
-      <Filter>KamataEngine</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp">
-      <Filter>KamataEngine</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp">
-      <Filter>KamataEngine</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.cpp">
-      <Filter>KamataEngine</Filter>
-    </ClCompile>
     <ClCompile Include="ThirdParty\imgui\imgui.cpp">
       <Filter>HIKARIEngine\ImGui</Filter>
     </ClCompile>
@@ -559,129 +484,9 @@
     <ClInclude Include="C:\KamataEngine\DirectXGame\2d\ImGuiManager.h">
       <Filter>KamataEngine\Include</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI.h">
-      <Filter>HIKARIEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_SE.h">
-      <Filter>HIKARIEngine\HIKARI_Audio\HIKARI_SE</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Bgm.h">
-      <Filter>HIKARIEngine\HIKARI_Audio\HIKARI_Bgm</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Transform2D.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Transform2D</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Texture.h">
-      <Filter>HIKARIEngine\HIKARI_Texture</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Camera.h">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Renderer.h">
-      <Filter>HIKARIEngine\HIKARI_Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_MeshEffect.h">
-      <Filter>HIKARIEngine\HIKARI_Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Anim.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Anim</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_SpineActor.h">
-      <Filter>HIKARIEngine\HIKARI_Spine\HIKARI_SpineActor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_SpineTextureLoader.h">
-      <Filter>HIKARIEngine\HIKARI_Spine\HIKARI_SpineTextureLoader</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Input.h">
-      <Filter>HIKARIEngine\HIKARI_Input</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Particle.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Particle</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_SpriteAnimator</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_MultiTextureAnimator</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Utility.h">
-      <Filter>HIKARIEngine\HIKARI_Math</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_ParticleLab.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Particle\HIKARI_ParticleLab</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Collision.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_CollisionWorld.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PhysicsWorld.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Body2D.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_TiledCollision.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Collision\HIKARI_TiledCollision</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_MapRoom.h">
-      <Filter>HIKARIEngine\HIKARI_Map</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Offscreen.h">
-      <Filter>HIKARIEngine\HIKARI_Offscreen</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_DxRenderer.h">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DxRenderer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_DxTexture.h">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DxTexture</Filter>
-    </ClInclude>
     <ClInclude Include="External\WICTextureLoader.h">
       <Filter>HIKARIEngine\WIC</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_DynamicUploadBuffer.h">
-      <Filter>HIKARIEngine\HIKARI_DX\HIKARI_DynamicUploadBuffer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Matrix3x3.h">
-      <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Matrix3x3</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Camera2_5D.h">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_RenderQueue25.h">
-      <Filter>HIKARIEngine\HIKARI_Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_GlowManager.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_GlowManager</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PostChain.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostChain</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PostEffect.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostEffect.h</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PostCommon.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostQuadDrawer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PostQuadDrawer.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostQuadDrawer</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_PostSystem.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_PostSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_RenderTarget2D.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader\HIKARI_RenderTarget2D</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h">
-      <Filter>HIKARIEngine\HIKARI_Performance\HIKARI_Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Novice.h" />
-    <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
-    <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
-    <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
-    <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
-    <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="ThirdParty\imgui\imconfig.h">
       <Filter>HIKARIEngine\ImGui</Filter>
     </ClInclude>
@@ -745,7 +550,169 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyRenderer.cpp">
+    <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
+      <Filter>Source Files\App</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp">
+      <Filter>Source Files\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp">
+      <Filter>Source Files\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_Anim.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_Bgm.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_DynamicUploadBuffer.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_Input.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_Particle.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_PhysicsWorld.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_SE.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_TiledCollision.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Legacy\HIKARI_Camera2_5D.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Legacy\HIKARI_RenderQueue25.cpp">
+      <Filter>Source Files\Core / Services</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_DxRenderer.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_MeshEffect.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostChain.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostEffect.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_PostSystem.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Renderer.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_SpineActor.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Texture.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp">
+      <Filter>Source Files\Render2D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Camera3D.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_LightDebugDraw.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Material.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_MeshRenderer.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_ModelAsset.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_ModelManager.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp">
@@ -754,30 +721,252 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyManager.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyRenderer.cpp">
+      <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_Transform3D.cpp">
+      <Filter>Source Files\Render3D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
-      <Filter>Source Files\App</Filter>
+    <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.cpp">
+      <Filter>Source Files\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
+      <Filter>Header Files\App</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h">
+      <Filter>Header Files\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h">
+      <Filter>Header Files\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h">
+      <Filter>Header Files\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_Utility.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugMenuBar.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_2D.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_3D.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Anim.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Bgm.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Body2D.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Collision.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_CollisionWorld.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Core.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_DynamicUploadBuffer.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_GlowManager.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Input.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_MapRoom.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Particle.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_ParticleLab.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_PhysicsWorld.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_SE.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Services.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_TiledCollision.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Legacy\HIKARI_Camera2_5D.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Legacy\HIKARI_RenderQueue25.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Matrix3x3.h">
+      <Filter>Header Files\Core / Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h">
+      <Filter>Header Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_DxRenderer.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_DxTexture.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_MeshEffect.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostChain.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostCommon.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostEffect.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_PostSystem.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Renderer.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_SpineActor.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Texture.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render2D\HIKARI_Transform2D.h">
+      <Filter>Header Files\Render2D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Animator.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Camera3D.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Material.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_MeshRenderer.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelAsset.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelManager.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneEnvironment.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h">
-      <Filter>Header Files\Render3D</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyRenderer.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h">
@@ -786,20 +975,32 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyManager.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyRenderer.h">
+      <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h">
+      <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
-      <Filter>Header Files\App</Filter>
+    <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_World.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
+      <Filter>Header Files\Scene</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
