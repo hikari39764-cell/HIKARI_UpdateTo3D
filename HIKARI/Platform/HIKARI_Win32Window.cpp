@@ -1,8 +1,10 @@
 #include "HIKARI_Win32Window.h"
 
 #include <cstdio>
+#if defined(_DEBUG)
 #include "../../ThirdParty/imgui/imgui_impl_win32.h"
 #include <imgui_impl_win32.cpp>
+#endif
 
 namespace HIKARI::PLATFORM {
 
@@ -108,9 +110,11 @@ LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wparam, 
 }
 
 LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+#if defined(_DEBUG)
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
         return TRUE;
     }
+#endif
 
     switch (msg) {
     case WM_SIZE:

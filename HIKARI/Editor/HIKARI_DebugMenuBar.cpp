@@ -1,11 +1,15 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "HIKARI_DebugWindowState.h"
 #include "Render3D/HIKARI_DebugCameraController3D.h"
+
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
-    void DebugMenuBar::Draw(DebugWindowState& windows, DebugCameraController3D& debugCamera, bool& lightingEnabled) const {
+#if defined(_DEBUG)
+    void DebugMenuBar::Draw(DebugWindowState& windows, DebugCameraController3D& debugCamera, bool& environmentLightingEnabled) const {
         if (!ImGui::BeginMainMenuBar()) {
             return;
         }
@@ -15,7 +19,7 @@ namespace HIKARI {
             ImGui::MenuItem("Inspector", nullptr, &windows.showInspector);
             ImGui::MenuItem("Asset Browser", nullptr, &windows.showAssetBrowser);
             ImGui::MenuItem("Stats", nullptr, &windows.showStats);
-            ImGui::MenuItem("Lighting", nullptr, &windows.showLighting);
+            ImGui::MenuItem("Environment", nullptr, &windows.showEnvironment);
             ImGui::MenuItem("Debug Camera", nullptr, &windows.showDebugCamera);
             ImGui::EndMenu();
         }
@@ -33,12 +37,14 @@ namespace HIKARI {
         }
 
         if (ImGui::BeginMenu("Render")) {
-            ImGui::MenuItem("Lighting Enabled", nullptr, &lightingEnabled);
-            ImGui::MenuItem("Show Light Debug", nullptr, &windows.showLightDebug);
+            ImGui::MenuItem("Environment Lighting", nullptr, &environmentLightingEnabled);
             ImGui::EndMenu();
         }
 
         ImGui::EndMainMenuBar();
     }
+#else
+    void DebugMenuBar::Draw(DebugWindowState&, DebugCameraController3D&, bool&) const {}
+#endif
 
 } // namespace HIKARI

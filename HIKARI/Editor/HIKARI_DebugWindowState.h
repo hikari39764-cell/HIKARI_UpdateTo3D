@@ -7,9 +7,8 @@ namespace HIKARI {
         bool showInspector = true;
         bool showAssetBrowser = false;
         bool showStats = true;
-        bool showLighting = true;
+        bool showEnvironment = true;
         bool showDebugCamera = true;
-        bool showLightDebug = true;
     };
 
 } // namespace HIKARI

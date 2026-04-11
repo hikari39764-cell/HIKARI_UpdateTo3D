@@ -1,6 +1,8 @@
-﻿#include "HIKARI_ParticleLab.h"
+#include "HIKARI_ParticleLab.h"
 #include "HIKARI_Renderer.h"
+#if defined(_DEBUG)
 #include <imgui.h>
+#endif
 #include <json.hpp>
 #include <fstream>
 
@@ -178,6 +180,7 @@ void LAB::ParticleLab::Update(float dt) {
 
 void LAB::ParticleLab::Draw() {
     particleSystem_.Draw();
+#if defined(_DEBUG)
     ImGui::Begin("HIKARI_Particle Lab");
 
     DrawSpawnSelectorGui();
@@ -186,12 +189,14 @@ void LAB::ParticleLab::Draw() {
     DrawControlGui();
 
     ImGui::End();
+#endif
 }
 
 
 // ========================= ImGui =========================
 
 void LAB::ParticleLab::DrawSpawnSelectorGui() {
+#if defined(_DEBUG)
     const char* currentName = kSpawnPresets[spawnIndex_].name;
     if (ImGui::BeginCombo("Spawn Strategy", currentName)) {
         for (int i = 0; i < kSpawnPresetCount; ++i) {
@@ -207,9 +212,11 @@ void LAB::ParticleLab::DrawSpawnSelectorGui() {
         }
         ImGui::EndCombo();
     }
+#endif
 }
 
 void LAB::ParticleLab::DrawDrawSelectorGui() {
+#if defined(_DEBUG)
     const char* currentName = kDrawNames[drawIndex_];
     if (ImGui::BeginCombo("Draw Strategy", currentName)) {
         for (int i = 0; i < kDrawPresetCount; ++i) {
@@ -237,9 +244,11 @@ void LAB::ParticleLab::DrawDrawSelectorGui() {
             RebuildEmitter();
         }
     }
+#endif
 }
 
 void LAB::ParticleLab::DrawConfigGui() {
+#if defined(_DEBUG)
     ImGui::SeparatorText("Basic Config");
     ImGui::DragInt("Max Particles", &currentConfig_.maxParticles, 1, 1, 4096);
 
@@ -289,9 +298,11 @@ void LAB::ParticleLab::DrawConfigGui() {
     if (ImGui::ColorEdit4("End Color", endCol)) {
         currentConfig_.endColor = Float4ToRGBAu32(endCol);
     }
+#endif
 }
 
 void LAB::ParticleLab::DrawControlGui() {
+#if defined(_DEBUG)
     ImGui::SeparatorText("Control");
 
     if (ImGui::Checkbox("Loop Play", &loopPlay_)) {
@@ -332,6 +343,7 @@ void LAB::ParticleLab::DrawControlGui() {
     if (ImGui::Button("Export JSON")) {
         ExportCurrentConfigToFile();
     }
+#endif
 }
 
 

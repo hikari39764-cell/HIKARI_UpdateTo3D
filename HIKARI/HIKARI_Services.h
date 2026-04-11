@@ -22,9 +22,11 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
+#if defined(_DEBUG)
 #include "imgui.h"
 #include "../ThirdParty/imgui/imgui_impl_dx12.h"
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
+#endif
 #include <objbase.h>
 
 namespace HIKARI {
@@ -68,6 +70,9 @@ namespace HIKARI {
         inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = enabled; }
 
         inline void InitializeImGuiBackend() {
+#if !defined(_DEBUG)
+            return;
+#else
             if (gImGuiBackendInitialized) {
                 return;
             }
@@ -104,6 +109,7 @@ namespace HIKARI {
             }
 
             gImGuiBackendInitialized = true;
+#endif
         }
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
@@ -158,6 +164,7 @@ namespace HIKARI {
             HIKARI::CAMERA::EnableDebugControl(cfg.enableDebugCamera);
 
             if (gEnableImGui && !gImGuiInitialized) {
+#if defined(_DEBUG)
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
                 ImGui::StyleColorsDark();
@@ -168,6 +175,10 @@ namespace HIKARI {
                     io.Fonts->Build();
                 }
                 gImGuiInitialized = true;
+#else
+                gEnableImGui = false;
+                gEnableEditorUI = false;
+#endif
             }
             if (gEnableImGui) {
                 InitializeImGuiBackend();
@@ -177,12 +188,14 @@ namespace HIKARI {
 
         inline void FinalizeAll() {
             if (gImGuiInitialized) {
+#if defined(_DEBUG)
                 if (gImGuiBackendInitialized) {
                     ImGui_ImplDX12_Shutdown();
                     ImGui_ImplWin32_Shutdown();
                     gImGuiBackendInitialized = false;
                 }
                 ImGui::DestroyContext();
+#endif
                 gImGuiInitialized = false;
             }
             gImGuiFrameBegun = false;
@@ -219,6 +232,7 @@ namespace HIKARI {
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
             if (gEnableImGui && gImGuiInitialized) {
+#if defined(_DEBUG)
                 if (!gImGuiBackendInitialized) {
                     InitializeImGuiBackend();
                 }
@@ -241,24 +255,29 @@ namespace HIKARI {
                 }
                 ImGui::NewFrame();
                 gImGuiFrameBegun = true;
+#endif
             }
             HIKARI::CAMERA::Update(kDt);
         }
 
         inline void EndFrame() {
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
+#if defined(_DEBUG)
                 ImGui::Render();
                 gImGuiFrameBegun = false;
+#endif
             }
             HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
             HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
             HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
 
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
+#if defined(_DEBUG)
                 auto* cmd = gCtx.cmdList;
                 ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
                 cmd->SetDescriptorHeaps(1, heaps);
                 ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
+#endif
             }
 
             gCore.EndFrame();

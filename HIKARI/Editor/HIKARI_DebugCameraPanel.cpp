@@ -1,10 +1,13 @@
 #include "HIKARI_DebugCameraPanel.h"
 #include "Render3D/HIKARI_DebugCameraController3D.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
 
     void DebugCameraPanel::Draw(DebugCameraController3D& debugCamera) const {
+#if defined(_DEBUG)
         if (!ImGui::Begin("Debug Camera")) {
             ImGui::End();
             return;
@@ -42,6 +45,9 @@ namespace HIKARI {
         }
 
         ImGui::End();
+#else
+        (void)debugCamera;
+#endif
     }
 
 } // namespace HIKARI

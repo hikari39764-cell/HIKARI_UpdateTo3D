@@ -4,11 +4,12 @@
 
 namespace HIKARI {
 
-    struct DebugWindowState;
+    struct SceneEnvironment;
 
     namespace LIGHTDEBUGDRAW {
 
-        void SubmitDirectionalLightArrow(const MATH::Vec3& directionalDir, const DebugWindowState& debugWindowState);
+        void SubmitDirectionalLightArrow(const MATH::Vec3& directionalDir, const SceneEnvironment& environment);
+        void SubmitPointLightDebug(const SceneEnvironment& environment);
 
     } // namespace LIGHTDEBUGDRAW
 

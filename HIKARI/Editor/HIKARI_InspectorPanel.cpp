@@ -3,7 +3,9 @@
 #include "HIKARI_EditorSelection.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 
 namespace HIKARI {
     namespace {
@@ -16,6 +18,7 @@ namespace HIKARI {
     }
 
     void InspectorPanel::Draw(EditorSelection& selection) const {
+#if defined(_DEBUG)
         if (!ImGui::Begin("Inspector")) {
             ImGui::End();
             return;
@@ -55,6 +58,9 @@ namespace HIKARI {
         }
 
         ImGui::End();
+#else
+        (void)selection;
+#endif
     }
 
 } // namespace HIKARI

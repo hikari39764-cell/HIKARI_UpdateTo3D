@@ -1,9 +1,12 @@
 #include "HIKARI_SandboxScene.h"
+
 #include <numbers>
-#include "Render3D/HIKARI_MeshRenderer.h"
-#include "Render3D/HIKARI_LightDebugDraw.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+
 #include "HIKARI_3D.h"
+#include "Render3D/HIKARI_LightDebugDraw.h"
+#include "Render3D/HIKARI_MeshRenderer.h"
+#include "Render3D/HIKARI_SkyRenderer.h"
+#include "Scene/Components/HIKARI_ModelComponent.h"
 
 namespace HIKARI {
 
@@ -13,6 +16,7 @@ namespace HIKARI {
 
         modelManager_.RegisterAsset("Block", "cube.obj");
         modelManager_.RegisterAsset("TestCube", "builtin:cube");
+        modelManager_.RegisterAsset("SkySphere", "cube.obj");
         modelManager_.LoadAllRegisteredAssets();
 
         GameObject* debugGrid = world_.CreateObject("DebugGrid");
@@ -32,6 +36,10 @@ namespace HIKARI {
 
         selection_.selectedObject = block;
         selection_.selectedAsset = modelManager_.FindAsset("Block");
+        environment_.directional.direction = MATH::Normalize(environment_.directional.direction);
+        if (environment_.pointLights.empty()) {
+            environment_.pointLights.push_back(PointLight{});
+        }
     }
 
     void SandboxScene::OnExit() {
@@ -45,6 +53,7 @@ namespace HIKARI {
     void SandboxScene::Render() {
         RENDERER3D::Reset();
         MESHRENDERER::Reset();
+        SKYRENDERER::Reset();
 
         RENDERER3D::DEBUG::Grid3D grid{};
         grid.halfCount = 10;
@@ -77,21 +86,27 @@ namespace HIKARI {
             }
         }
 
-        SceneLighting activeLighting = lighting_;
-        activeLighting.directionalDir = MATH::Normalize(activeLighting.directionalDir);
-        if (!lightingEnabled_) {
-            activeLighting.directionalIntensity = 0.0f;
-            activeLighting.ambientIntensity = 0.0f;
-            activeLighting.specularIntensity = 0.0f;
+        SceneEnvironment activeEnvironment = environment_;
+        activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);
+        if (!environmentLightingEnabled_) {
+            activeEnvironment.directional.intensity = 0.0f;
+            activeEnvironment.ambient.intensity = 0.0f;
+            activeEnvironment.specularIntensity = 0.0f;
+            for (PointLight& pointLight : activeEnvironment.pointLights) {
+                pointLight.intensity = 0.0f;
+            }
         }
 
-        LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeLighting.directionalDir, debugWindowState_);
-        MESHRENDERER::RenderAll(camera_, activeLighting);
+        SKYRENDERER::Render(camera_, activeEnvironment.sky, modelManager_);
+        LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
+        LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
+        MESHRENDERER::RenderAll(camera_, activeEnvironment);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
 
     void SandboxScene::RenderImGui() {
-        debugMenuBar_.Draw(debugWindowState_, debugCamera_, lightingEnabled_);
+#if defined(_DEBUG)
+        debugMenuBar_.Draw(debugWindowState_, debugCamera_, environmentLightingEnabled_);
 
         if (debugWindowState_.showHierarchy) {
             hierarchyPanel_.Draw(world_, selection_);
@@ -105,12 +120,13 @@ namespace HIKARI {
         if (debugWindowState_.showStats) {
             statsPanel_.Draw(GetSceneName(), world_, modelManager_, selection_, camera_);
         }
-        if (debugWindowState_.showLighting) {
-            lightingPanel_.Draw(lighting_);
+        if (debugWindowState_.showEnvironment) {
+            environmentPanel_.Draw(environment_);
         }
         if (debugWindowState_.showDebugCamera) {
             debugCameraPanel_.Draw(debugCamera_);
         }
+#endif
     }
 
 } // namespace HIKARI

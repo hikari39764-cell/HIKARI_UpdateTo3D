@@ -4,11 +4,14 @@
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
+#if defined(_DEBUG)
 #include "imgui.h"
+#endif
 #include "Scene/HIKARI_GameObject.h"
 namespace HIKARI {
 
     void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
+#if defined(_DEBUG)
         if (!ImGui::Begin("Scene / Render Stats")) {
             ImGui::End();
             return;
@@ -34,6 +37,13 @@ namespace HIKARI {
         ImGui::TextUnformatted("Debug Primitive Count: TODO");
 
         ImGui::End();
+#else
+        (void)sceneName;
+        (void)world;
+        (void)modelManager;
+        (void)selection;
+        (void)camera;
+#endif
     }
 
 } // namespace HIKARI
