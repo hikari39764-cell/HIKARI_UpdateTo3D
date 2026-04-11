@@ -1,6 +1,7 @@
 #include "HIKARI_SandboxScene.h"
 #include <numbers>
 #include "Render3D/HIKARI_MeshRenderer.h"
+#include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "HIKARI_3D.h"
 
@@ -77,11 +78,14 @@ namespace HIKARI {
         }
 
         SceneLighting activeLighting = lighting_;
+        activeLighting.directionalDir = MATH::Normalize(activeLighting.directionalDir);
         if (!lightingEnabled_) {
             activeLighting.directionalIntensity = 0.0f;
             activeLighting.ambientIntensity = 0.0f;
             activeLighting.specularIntensity = 0.0f;
         }
+
+        LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeLighting.directionalDir, debugWindowState_);
         MESHRENDERER::RenderAll(camera_, activeLighting);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
