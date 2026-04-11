@@ -4,7 +4,7 @@
 namespace HIKARI {
 
     struct SceneLighting {
-        MATH::Vec3 directionalDir{ 0.4f, 1.0f, -0.6f };
+        MATH::Vec3 directionalDir{ 0.4f, -1.0f, -0.6f };
         float directionalIntensity = 1.0f;
 
         MATH::Vec3 directionalColor{ 1.0f, 1.0f, 1.0f };
