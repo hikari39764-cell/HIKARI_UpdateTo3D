@@ -14,9 +14,9 @@ namespace HIKARI {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
-        modelManager_.RegisterAsset("Block", "cube.obj");
+        modelManager_.RegisterAsset("Block", "block.obj");
         modelManager_.RegisterAsset("TestCube", "builtin:cube");
-        modelManager_.RegisterAsset("SkySphere", "cube.obj");
+        modelManager_.RegisterAsset("SkySphere", "SkyDome.obj");
         modelManager_.LoadAllRegisteredAssets();
 
         GameObject* debugGrid = world_.CreateObject("DebugGrid");

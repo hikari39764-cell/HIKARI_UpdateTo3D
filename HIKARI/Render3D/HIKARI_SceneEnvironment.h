@@ -29,7 +29,7 @@ namespace HIKARI {
     struct SkySettings {
         bool enabled = true;
         std::string meshAsset = "SkySphere";
-        std::string texturePath = "Assets/Skies/sky_day.png";
+        std::string texturePath = "./sky_sphere.png";
         float yaw = 0.0f;
         float exposure = 1.0f;
         MATH::Vec3 tint{ 1.0f, 1.0f, 1.0f };

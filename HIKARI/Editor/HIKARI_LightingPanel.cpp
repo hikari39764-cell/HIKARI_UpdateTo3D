@@ -3,8 +3,8 @@
 
 namespace HIKARI {
 
-    void LightingPanel::Draw(SceneLighting& lighting) const {
-        (void)lighting;
+    void LightingPanel::Draw(SceneEnvironment& environment) const {
+        (void)environment;
     }
 
 } // namespace HIKARI

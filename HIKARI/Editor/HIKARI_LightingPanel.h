@@ -1,12 +1,11 @@
 #pragma once
+#include "Render3D/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI {
 
-    struct SceneLighting;
-
     class LightingPanel {
     public:
-        void Draw(SceneLighting& lighting) const;
+        void Draw(SceneEnvironment& environment) const;
     };
 
 } // namespace HIKARI
