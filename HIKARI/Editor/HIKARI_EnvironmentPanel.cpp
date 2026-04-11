@@ -1,6 +1,7 @@
 #include "HIKARI_EnvironmentPanel.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/HIKARI_SkyRenderer.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -10,7 +11,7 @@
 namespace HIKARI {
 
 #if defined(_DEBUG)
-    void EnvironmentPanel::Draw(SceneEnvironment& environment) const {
+    void EnvironmentPanel::Draw(SceneEnvironment& environment, const SKYRENDERER::SkyRendererDebugState* skyDebugState) const {
         if (!ImGui::Begin("Environment")) {
             ImGui::End();
             return;
@@ -32,7 +33,7 @@ namespace HIKARI {
             ImGui::DragFloat("Specular Power", &environment.specularPower, 1.0f, 1.0f, 256.0f);
 
             ImGui::SeparatorText("Point Lights");
-            if (environment.pointLights.size() < 4 && ImGui::Button("Add Point Light")) {
+            if (environment.pointLights.size() < 8 && ImGui::Button("Add Point Light")) {
                 environment.pointLights.push_back(PointLight{});
             }
             for (size_t i = 0; i < environment.pointLights.size(); ++i) {
@@ -58,25 +59,34 @@ namespace HIKARI {
 
         if (ImGui::CollapsingHeader("Sky", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Sky Enabled", &environment.sky.enabled);
-            char meshAssetBuffer[256]{};
-            std::strncpy(meshAssetBuffer, environment.sky.meshAsset.c_str(), sizeof(meshAssetBuffer) - 1);
-            if (ImGui::InputText("Sky Mesh Asset", meshAssetBuffer, sizeof(meshAssetBuffer))) {
-                environment.sky.meshAsset = meshAssetBuffer;
+            char skyAssetBuffer[256]{};
+            std::strncpy(skyAssetBuffer, environment.sky.skyAsset.c_str(), sizeof(skyAssetBuffer) - 1);
+            if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
+                environment.sky.skyAsset = skyAssetBuffer;
             }
-            char texturePathBuffer[512]{};
-            std::strncpy(texturePathBuffer, environment.sky.texturePath.c_str(), sizeof(texturePathBuffer) - 1);
-            if (ImGui::InputText("Sky Texture Path", texturePathBuffer, sizeof(texturePathBuffer))) {
-                environment.sky.texturePath = texturePathBuffer;
-            }
+            ImGui::DragFloat("Sky Scale", &environment.sky.scale, 0.01f, 0.0001f, 1000.0f);
             ImGui::DragFloat("Sky Yaw", &environment.sky.yaw, 0.01f);
             ImGui::DragFloat("Sky Exposure", &environment.sky.exposure, 0.01f, 0.0f, 16.0f);
             ImGui::ColorEdit3("Sky Tint", &environment.sky.tint.x);
+            ImGui::Checkbox("Follow Camera", &environment.sky.followCamera);
         }
 
         if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
             ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
+
+            if (skyDebugState && environment.showSkyDebugInfo) {
+                ImGui::SeparatorText("Sky Renderer State");
+                ImGui::Text("Initialized: %s", skyDebugState->initialized ? "true" : "false");
+                ImGui::Text("Render Submitted: %s", skyDebugState->lastRenderSubmitted ? "true" : "false");
+                ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
+                ImGui::Text("Sky Mesh Loaded: %s", skyDebugState->skyMeshLoaded ? "true" : "false");
+                ImGui::Text("Sky Mesh Valid: %s", skyDebugState->skyMeshValid ? "true" : "false");
+                ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
+                ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
+                ImGui::Text("Active Texture: %s", skyDebugState->activeTexturePath.c_str());
+            }
         }
 
         if (ImGui::Button("Reset Environment Defaults")) {
@@ -87,7 +97,7 @@ namespace HIKARI {
         ImGui::End();
     }
 #else
-    void EnvironmentPanel::Draw(SceneEnvironment&) const {}
+    void EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*) const {}
 #endif
 
 } // namespace HIKARI

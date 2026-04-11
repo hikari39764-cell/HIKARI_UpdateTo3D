@@ -19,6 +19,8 @@ namespace HIKARI {
         modelManager_.RegisterAsset("SkySphere", "SkyDome.obj");
         modelManager_.LoadAllRegisteredAssets();
 
+        skyManager_.RegisterAsset({ "DefaultSky", "SkySphere", "sky_sphere.png" });
+
         GameObject* debugGrid = world_.CreateObject("DebugGrid");
         (void)debugGrid;
         GameObject* axis = world_.CreateObject("Axis");
@@ -40,6 +42,8 @@ namespace HIKARI {
         if (environment_.pointLights.empty()) {
             environment_.pointLights.push_back(PointLight{});
         }
+        environment_.sky.skyAsset = "DefaultSky";
+        environment_.sky.scale = 0.05f;
     }
 
     void SandboxScene::OnExit() {
@@ -97,7 +101,7 @@ namespace HIKARI {
             }
         }
 
-        SKYRENDERER::Render(camera_, activeEnvironment.sky, modelManager_);
+        SKYRENDERER::Render(camera_, activeEnvironment.sky, modelManager_, skyManager_);
         LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
         LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
         MESHRENDERER::RenderAll(camera_, activeEnvironment);
@@ -121,7 +125,7 @@ namespace HIKARI {
             statsPanel_.Draw(GetSceneName(), world_, modelManager_, selection_, camera_);
         }
         if (debugWindowState_.showEnvironment) {
-            environmentPanel_.Draw(environment_);
+            environmentPanel_.Draw(environment_, &SKYRENDERER::GetDebugState());
         }
         if (debugWindowState_.showDebugCamera) {
             debugCameraPanel_.Draw(debugCamera_);
