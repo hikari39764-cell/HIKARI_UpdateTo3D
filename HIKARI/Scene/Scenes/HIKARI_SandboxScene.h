@@ -12,6 +12,7 @@
 #include "Render3D/HIKARI_DebugCameraController3D.h"
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/HIKARI_SkyManager.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_World.h"
 
@@ -30,6 +31,7 @@ namespace HIKARI {
         Camera3D camera_{};
         World world_{};
         ModelManager modelManager_{};
+        SkyManager skyManager_{};
         EditorSelection selection_{};
         DebugCameraController3D debugCamera_{};
         SceneEnvironment environment_{};

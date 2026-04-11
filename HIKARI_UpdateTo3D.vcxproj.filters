@@ -712,4 +712,94 @@
       <Filter>HIKARIEngine\HIKARI_Input</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files\App">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Components">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\App">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314007}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Components">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314008}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314009}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314010}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyRenderer.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyManager.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
+      <Filter>Source Files\App</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SceneEnvironment.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyRenderer.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyManager.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
+      <Filter>Header Files\App</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

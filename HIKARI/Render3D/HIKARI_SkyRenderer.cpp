@@ -34,6 +34,7 @@ namespace HIKARI::SKYRENDERER {
             std::string loadedTexturePath{};
             int textureHandle = -1;
             int fallbackTextureHandle = -1;
+            SkyRendererDebugState debug{};
         };
 
         State g;
@@ -146,27 +147,49 @@ namespace HIKARI::SKYRENDERER {
             }
             g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/fallback_white", "NoviceResources/white1x1.png");
             g.initialized = true;
+            g.debug.initialized = true;
             return true;
         }
     }
 
     void Reset() {
+        g.debug.lastRenderSubmitted = false;
+        g.debug.skyAssetFound = false;
+        g.debug.skyMeshLoaded = false;
+        g.debug.skyMeshValid = false;
+        g.debug.textureValid = false;
     }
 
-    void Render(const Camera3D& camera, const SkySettings& settings, ModelManager& modelManager) {
+    void Render(const Camera3D& camera, const SkySettings& settings, ModelManager& modelManager, SkyManager& skyManager) {
+        g.debug.initialized = g.initialized;
+        g.debug.activeSkyAsset = settings.skyAsset;
+        g.debug.activeTexturePath.clear();
+
         if (!settings.enabled || !EnsureInitialized()) {
+            g.debug.initialized = g.initialized;
             return;
         }
 
-        const ModelAsset* skyAsset = modelManager.FindAsset(settings.meshAsset);
-        if (!skyAsset || skyAsset->GetState() != ModelAsset::State::Loaded || !skyAsset->GetMesh() || !skyAsset->GetMesh()->IsValid()) {
+        const SkyAsset* skyAsset = skyManager.FindAsset(settings.skyAsset);
+        g.debug.skyAssetFound = (skyAsset != nullptr);
+        if (!skyAsset) {
             return;
         }
 
-        if (g.loadedTexturePath != settings.texturePath) {
-            g.loadedTexturePath = settings.texturePath;
-            if (!settings.texturePath.empty()) {
-                g.textureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/scene_sky", settings.texturePath.c_str());
+        g.debug.activeTexturePath = skyAsset->texturePath;
+
+        const ModelAsset* modelAsset = modelManager.FindAsset(skyAsset->meshAssetName);
+        g.debug.skyMeshLoaded = (modelAsset != nullptr && modelAsset->GetState() == ModelAsset::State::Loaded);
+        g.debug.skyMeshValid = g.debug.skyMeshLoaded && modelAsset->GetMesh() && modelAsset->GetMesh()->IsValid();
+        if (!g.debug.skyMeshValid) {
+            return;
+        }
+
+        if (g.loadedTexturePath != skyAsset->texturePath) {
+            g.loadedTexturePath = skyAsset->texturePath;
+            g.textureHandle = -1;
+            if (!skyAsset->texturePath.empty()) {
+                g.textureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/scene_sky", skyAsset->texturePath.c_str());
             }
         }
 
@@ -175,9 +198,10 @@ namespace HIKARI::SKYRENDERER {
             return;
         }
 
-        const MATH::Vec3 cameraPos = camera.GetPosition();
+        const MATH::Vec3 cameraPos = settings.followCamera ? camera.GetPosition() : MATH::Vec3{};
         const MATH::Quat yawRot = MATH::Quat::FromEulerXYZ(0.0f, settings.yaw, 0.0f);
-        const MATH::Mat4 world = MATH::Mat4::TRS(cameraPos, yawRot, { 0.05f, 0.05f, 0.05f });
+        const float s = std::max(0.0001f, settings.scale);
+        const MATH::Mat4 world = MATH::Mat4::TRS(cameraPos, yawRot, { s, s, s });
         g.mapped->worldViewProj = camera.GetViewProj() * world;
         g.mapped->tintExposure = { settings.tint.x, settings.tint.y, settings.tint.z, std::max(0.0f, settings.exposure) };
 
@@ -194,16 +218,22 @@ namespace HIKARI::SKYRENDERER {
 
         const int textureHandle = (g.textureHandle >= 0) ? g.textureHandle : g.fallbackTextureHandle;
         const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+        g.debug.textureValid = (textureSrv.ptr != 0);
         if (textureSrv.ptr != 0) {
             cmd->SetGraphicsRootDescriptorTable(1, textureSrv);
         }
 
-        const Mesh* mesh = skyAsset->GetMesh();
+        const Mesh* mesh = modelAsset->GetMesh();
         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
         cmd->IASetVertexBuffers(0, 1, &vb);
         cmd->IASetIndexBuffer(&ib);
         cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+        g.debug.lastRenderSubmitted = true;
+    }
+
+    const SkyRendererDebugState& GetDebugState() {
+        return g.debug;
     }
 
 } // namespace HIKARI::SKYRENDERER
