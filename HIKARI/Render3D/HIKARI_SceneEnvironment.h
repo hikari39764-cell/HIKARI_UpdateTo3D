@@ -28,11 +28,12 @@ namespace HIKARI {
 
     struct SkySettings {
         bool enabled = true;
-        std::string meshAsset = "SkySphere";
-        std::string texturePath = "sky_sphere.png";
+        std::string skyAsset = "DefaultSky";
+        float scale = 1.0f;
         float yaw = 0.0f;
         float exposure = 1.0f;
         MATH::Vec3 tint{ 1.0f, 1.0f, 1.0f };
+        bool followCamera = true;
     };
 
     struct SceneEnvironment {

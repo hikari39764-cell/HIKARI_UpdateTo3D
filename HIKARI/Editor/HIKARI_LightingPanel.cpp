@@ -1,5 +1,4 @@
 #include "HIKARI_LightingPanel.h"
-#include "Render3D/HIKARI_SceneLighting.h"
 
 namespace HIKARI {
 
