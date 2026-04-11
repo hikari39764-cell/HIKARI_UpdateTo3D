@@ -99,8 +99,8 @@ namespace HIKARI::MATH {
 
     Mat4 Mat4::LookAtRH(const Vec3& eye, const Vec3& target, const Vec3& up) {
         const Vec3 f = Normalize(target - eye);
-        const Vec3 r = Normalize(Cross(f, up));
-        const Vec3 u = Cross(r, f);
+        const Vec3 r = Normalize(Cross(up, f));
+        const Vec3 u = Cross(f, r);
 
         Mat4 m = Identity();
         m.m[0][0] = r.x; m.m[0][1] = u.x; m.m[0][2] = -f.x;
