@@ -76,6 +76,56 @@ namespace HIKARI {
             return path.lexically_normal().generic_string();
         }
 
+        void SanitizeAndFixNormalOrientation(std::vector<VertexStatic3D>& vertices, const std::vector<uint32_t>& indices) {
+            if (vertices.empty()) {
+                return;
+            }
+
+            int comparedTriangleCount = 0;
+            int opposedTriangleCount = 0;
+            for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+                const uint32_t i0 = indices[i + 0];
+                const uint32_t i1 = indices[i + 1];
+                const uint32_t i2 = indices[i + 2];
+                if (i0 >= vertices.size() || i1 >= vertices.size() || i2 >= vertices.size()) {
+                    continue;
+                }
+
+                const MATH::Vec3 p0 = vertices[i0].position;
+                const MATH::Vec3 p1 = vertices[i1].position;
+                const MATH::Vec3 p2 = vertices[i2].position;
+                const MATH::Vec3 faceNormal = MATH::Normalize(MATH::Cross(p1 - p0, p2 - p0));
+                if (MATH::Length(faceNormal) <= 1e-6f) {
+                    continue;
+                }
+
+                const MATH::Vec3 avgNormal = MATH::Normalize((vertices[i0].normal + vertices[i1].normal + vertices[i2].normal) * (1.0f / 3.0f));
+                if (MATH::Length(avgNormal) <= 1e-6f) {
+                    continue;
+                }
+
+                ++comparedTriangleCount;
+                if (MATH::Dot(avgNormal, faceNormal) < 0.0f) {
+                    ++opposedTriangleCount;
+                }
+            }
+
+            const bool shouldFlipAllNormals = (comparedTriangleCount > 0) && (opposedTriangleCount * 2 > comparedTriangleCount);
+            for (auto& v : vertices) {
+                MATH::Vec3 n = v.normal;
+                if (shouldFlipAllNormals) {
+                    n = n * -1.0f;
+                }
+
+                const float len = MATH::Length(n);
+                if (len <= 1e-6f) {
+                    v.normal = { 0.0f, 1.0f, 0.0f };
+                } else {
+                    v.normal = n * (1.0f / len);
+                }
+            }
+        }
+
         bool ParseMtlMaterial(const std::filesystem::path& mtlPath, const std::string& targetMtlName, ObjMaterialInfo& outInfo) {
             std::ifstream mtlFile(mtlPath);
             if (!mtlFile.is_open()) {
@@ -436,6 +486,8 @@ namespace HIKARI {
         if (vertices.empty() || indices.empty()) {
             return false;
         }
+
+        SanitizeAndFixNormalOrientation(vertices, indices);
 
         auto mesh = std::make_unique<Mesh>();
         if (!mesh->CreateStatic(SERVICES::gCtx.device, vertices, indices)) {
