@@ -9,6 +9,7 @@ namespace HIKARI {
         bool showStats = true;
         bool showLighting = true;
         bool showDebugCamera = true;
+        bool showLightDebug = true;
     };
 
 } // namespace HIKARI

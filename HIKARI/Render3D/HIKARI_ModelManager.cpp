@@ -274,6 +274,8 @@ namespace HIKARI {
         std::vector<VertexStatic3D> vertices;
         std::vector<uint32_t> indices;
         std::unordered_map<ObjKey, uint32_t, ObjKeyHash> uniqueMap;
+        bool hasAnyFaceNormalRef = false;
+        bool allFaceNormalsValid = true;
         std::string mtllibPath;
         std::string firstUsedMaterialName;
 
@@ -321,6 +323,14 @@ namespace HIKARI {
                     ObjKey key{};
                     if (ParseObjIndexToken(token, key)) {
                         faceKeys.push_back(key);
+                        if (key.normal >= 0) {
+                            hasAnyFaceNormalRef = true;
+                            if (key.normal >= static_cast<int>(normals.size())) {
+                                allFaceNormalsValid = false;
+                            }
+                        } else {
+                            allFaceNormalsValid = false;
+                        }
                     }
                 }
                 if (faceKeys.size() < 3) {
@@ -353,6 +363,70 @@ namespace HIKARI {
                         const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
                         vertices.push_back(v);
                         uniqueMap[key] = newIndex;
+                        indices.push_back(newIndex);
+                    }
+                }
+            }
+        }
+
+        const bool useFlatNormalFallback = !hasAnyFaceNormalRef || !allFaceNormalsValid;
+        if (useFlatNormalFallback) {
+            file.clear();
+            file.seekg(0, std::ios::beg);
+            vertices.clear();
+            indices.clear();
+            uniqueMap.clear();
+
+            while (std::getline(file, line)) {
+                if (line.size() < 2) continue;
+                std::stringstream ss(line);
+                std::string tag;
+                ss >> tag;
+                if (tag != "f") {
+                    continue;
+                }
+
+                std::vector<ObjKey> faceKeys;
+                std::string token;
+                while (ss >> token) {
+                    ObjKey key{};
+                    if (ParseObjIndexToken(token, key)) {
+                        faceKeys.push_back(key);
+                    }
+                }
+                if (faceKeys.size() < 3) {
+                    continue;
+                }
+
+                for (size_t i = 1; i + 1 < faceKeys.size(); ++i) {
+                    const ObjKey tri[3] = { faceKeys[0], faceKeys[i], faceKeys[i + 1] };
+                    const int p0 = tri[0].pos;
+                    const int p1 = tri[1].pos;
+                    const int p2 = tri[2].pos;
+                    if (p0 < 0 || p0 >= static_cast<int>(positions.size()) ||
+                        p1 < 0 || p1 >= static_cast<int>(positions.size()) ||
+                        p2 < 0 || p2 >= static_cast<int>(positions.size())) {
+                        return false;
+                    }
+
+                    const MATH::Vec3 pos0 = positions[static_cast<size_t>(p0)];
+                    const MATH::Vec3 pos1 = positions[static_cast<size_t>(p1)];
+                    const MATH::Vec3 pos2 = positions[static_cast<size_t>(p2)];
+                    MATH::Vec3 faceNormal = MATH::Normalize(MATH::Cross(pos1 - pos0, pos2 - pos0));
+                    if (MATH::Length(faceNormal) <= 1e-6f) {
+                        faceNormal = { 0.0f, 1.0f, 0.0f };
+                    }
+
+                    for (int j = 0; j < 3; ++j) {
+                        VertexStatic3D v{};
+                        v.position = positions[static_cast<size_t>(tri[j].pos)];
+                        v.normal = faceNormal;
+                        if (tri[j].uv >= 0 && tri[j].uv < static_cast<int>(uvs.size())) {
+                            v.u = uvs[static_cast<size_t>(tri[j].uv)][0];
+                            v.v = 1.0f - uvs[static_cast<size_t>(tri[j].uv)][1];
+                        }
+                        const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
+                        vertices.push_back(v);
                         indices.push_back(newIndex);
                     }
                 }

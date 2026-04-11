@@ -39,7 +39,7 @@ struct PSInput
 float4 main(PSInput input) : SV_TARGET
 {
     float3 n = normalize(input.normalWS);
-    float3 l = normalize(gDirectionalDir.xyz);
+    float3 l = normalize(-gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);
 

@@ -11,8 +11,9 @@ namespace HIKARI {
             return;
         }
 
-        ImGui::DragFloat3("Directional Dir", &lighting.directionalDir.x, 0.01f);
+        ImGui::DragFloat3("Light Direction", &lighting.directionalDir.x, 0.01f);
         lighting.directionalDir = MATH::Normalize(lighting.directionalDir);
+        ImGui::Text("normalized light dir: (%.3f, %.3f, %.3f)", lighting.directionalDir.x, lighting.directionalDir.y, lighting.directionalDir.z);
         ImGui::ColorEdit3("Directional Color", &lighting.directionalColor.x);
         ImGui::DragFloat("Directional Intensity", &lighting.directionalIntensity, 0.01f, 0.0f, 20.0f);
 
@@ -24,6 +25,12 @@ namespace HIKARI {
         ImGui::ColorEdit3("Specular Color", &lighting.specularColor.x);
         ImGui::DragFloat("Specular Intensity", &lighting.specularIntensity, 0.01f, 0.0f, 10.0f);
         ImGui::DragFloat("Specular Power", &lighting.specularPower, 1.0f, 1.0f, 256.0f);
+
+        ImGui::Separator();
+        if (ImGui::Button("Reset Lighting Defaults")) {
+            lighting = SceneLighting{};
+            lighting.directionalDir = MATH::Normalize(lighting.directionalDir);
+        }
 
         ImGui::End();
     }

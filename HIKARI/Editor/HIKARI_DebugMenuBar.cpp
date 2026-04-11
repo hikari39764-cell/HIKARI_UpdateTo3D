@@ -34,6 +34,7 @@ namespace HIKARI {
 
         if (ImGui::BeginMenu("Render")) {
             ImGui::MenuItem("Lighting Enabled", nullptr, &lightingEnabled);
+            ImGui::MenuItem("Show Light Debug", nullptr, &windows.showLightDebug);
             ImGui::EndMenu();
         }
 
