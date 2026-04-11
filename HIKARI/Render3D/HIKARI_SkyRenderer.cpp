@@ -119,7 +119,7 @@ namespace HIKARI::SKYRENDERER {
             psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-            psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+            psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
             psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -177,7 +177,7 @@ namespace HIKARI::SKYRENDERER {
 
         const MATH::Vec3 cameraPos = camera.GetPosition();
         const MATH::Quat yawRot = MATH::Quat::FromEulerXYZ(0.0f, settings.yaw, 0.0f);
-        const MATH::Mat4 world = MATH::Mat4::TRS(cameraPos, yawRot, { 50.0f, 50.0f, 50.0f });
+        const MATH::Mat4 world = MATH::Mat4::TRS(cameraPos, yawRot, { 0.05f, 0.05f, 0.05f });
         g.mapped->worldViewProj = camera.GetViewProj() * world;
         g.mapped->tintExposure = { settings.tint.x, settings.tint.y, settings.tint.z, std::max(0.0f, settings.exposure) };
 
