@@ -1,4 +1,6 @@
 #include "HIKARI_ModelComponent.h"
+
+#include "Editor/HIKARI_IInspectorBuilder.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 
@@ -25,6 +27,9 @@ namespace HIKARI {
 
     void ModelComponent::SetAsset(ModelAsset* asset) {
         asset_ = asset;
+        if (asset_) {
+            assetId_ = asset_->GetName();
+        }
     }
 
     ModelAsset* ModelComponent::GetAsset() {
@@ -41,6 +46,29 @@ namespace HIKARI {
 
     bool ModelComponent::IsVisible() const {
         return visible_;
+    }
+
+    const std::string& ModelComponent::GetAssetId() const {
+        return assetId_;
+    }
+
+    void ModelComponent::SetAssetId(std::string assetId) {
+        assetId_ = std::move(assetId);
+    }
+
+    void ModelComponent::Serialize(nlohmann::json& out) const {
+        out["assetId"] = assetId_;
+        out["visible"] = visible_;
+    }
+
+    void ModelComponent::Deserialize(const nlohmann::json& in) {
+        assetId_ = in.value("assetId", assetId_);
+        visible_ = in.value("visible", visible_);
+    }
+
+    void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
+        builder.Bool("Visible", visible_);
+        builder.String("Asset ID", assetId_);
     }
 
     void ModelComponent::RenderImGui() {

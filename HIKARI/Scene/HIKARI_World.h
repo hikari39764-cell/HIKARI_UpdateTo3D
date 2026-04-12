@@ -17,6 +17,7 @@ namespace HIKARI {
         void Update(float dt);
         void Render();
         void RenderImGui();
+        void Clear();
 
         const std::vector<std::unique_ptr<GameObject>>& GetObjects() const;
 

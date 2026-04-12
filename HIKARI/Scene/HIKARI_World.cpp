@@ -41,6 +41,10 @@ namespace HIKARI {
         }
     }
 
+    void World::Clear() {
+        objects_.clear();
+    }
+
     const std::vector<std::unique_ptr<GameObject>>& World::GetObjects() const {
         return objects_;
     }
