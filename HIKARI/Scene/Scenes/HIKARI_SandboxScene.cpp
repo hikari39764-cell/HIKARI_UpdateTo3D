@@ -16,6 +16,21 @@
 
 namespace HIKARI {
 
+    namespace {
+        bool IsObjectAlive(const World& world, const GameObject* object) {
+            if (!object) {
+                return false;
+            }
+
+            for (const auto& candidate : world.GetObjects()) {
+                if (candidate.get() == object) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     void SandboxScene::OnEnter() {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
@@ -92,6 +107,11 @@ namespace HIKARI {
 
     void SandboxScene::RenderImGui() {
 #if defined(_DEBUG)
+        if (!IsObjectAlive(world_, selection_.selectedObject)) {
+            selection_.selectedObject = nullptr;
+            selection_.selectedAsset = nullptr;
+        }
+
         DrawDocumentToolbar();
         debugMenuBar_.Draw(debugWindowState_, debugCamera_, environmentLightingEnabled_);
 
@@ -124,6 +144,7 @@ namespace HIKARI {
 
     bool SandboxScene::ReloadAssets() {
         assetRegistry_.Clear();
+        selection_.selectedAsset = nullptr;
         const bool okModels = assetJsonLoader_.LoadModelDescriptors("Data/assets_models.json", assetRegistry_);
         const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
         const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
@@ -150,6 +171,8 @@ namespace HIKARI {
         const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
         runtimeBuilder_.PreloadDependencies(deps, assetRegistry_, modelManager_, skyManager_);
         const bool built = runtimeBuilder_.BuildWorldFromDocument(sceneDocument_, world_, assetRegistry_, componentRegistry_, modelManager_, skyManager_);
+        selection_.selectedObject = nullptr;
+        selection_.selectedAsset = nullptr;
         environment_ = sceneDocument_.environment;
         environment_.directional.direction = MATH::Normalize(environment_.directional.direction);
         if (environment_.pointLights.empty()) {
@@ -225,11 +248,13 @@ namespace HIKARI {
             if (ImGui::Button("Delete Selected")) {
                 SceneObjectData* target = FindDocumentObjectByRuntime(selection_.selectedObject);
                 if (target != nullptr) {
+                    const SceneObjectId targetId = target->id;
                     sceneDocument_.objects.erase(
                         std::remove_if(sceneDocument_.objects.begin(), sceneDocument_.objects.end(),
-                            [target](const SceneObjectData& object) { return object.id == target->id; }),
+                            [targetId](const SceneObjectData& object) { return object.id == targetId; }),
                         sceneDocument_.objects.end());
                     selection_.selectedObject = nullptr;
+                    selection_.selectedAsset = nullptr;
                     RebuildRuntimeWorld();
                 }
             }
