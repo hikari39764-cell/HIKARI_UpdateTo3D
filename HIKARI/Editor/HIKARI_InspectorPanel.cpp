@@ -1,4 +1,6 @@
 #include "HIKARI_InspectorPanel.h"
+#include "HIKARI_ImGuiInspectorBuilder.h"
+#include <string>
 #include "Render3D/HIKARI_Math3D.h"
 #include "HIKARI_EditorSelection.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -50,8 +52,11 @@ namespace HIKARI {
         ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, 0.001f, 1000.0f);
 
         ImGui::SeparatorText("Components");
+        ImGuiInspectorBuilder builder{};
         for (const auto& component : object.GetComponents()) {
-            if (ImGui::TreeNode(component->GetTypeName())) {
+            const std::string label(component->GetTypeName());
+            if (ImGui::TreeNode(label.c_str())) {
+                component->BuildInspector(builder);
                 component->RenderImGui();
                 ImGui::TreePop();
             }

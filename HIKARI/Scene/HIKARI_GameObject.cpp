@@ -52,6 +52,18 @@ namespace HIKARI {
         }
     }
 
+    IComponent* GameObject::AddComponentInstance(std::unique_ptr<IComponent> component) {
+        if (!component) {
+            return nullptr;
+        }
+
+        IComponent* ptr = component.get();
+        ptr->SetOwner(this);
+        ptr->OnAttach();
+        components_.push_back(std::move(component));
+        return ptr;
+    }
+
     const std::vector<std::unique_ptr<IComponent>>& GameObject::GetComponents() const {
         return components_;
     }

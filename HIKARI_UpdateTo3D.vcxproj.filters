@@ -548,6 +548,18 @@
     <Filter Include="Source Files\Editor">
       <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314010}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Serialization">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Serialization">
+      <UniqueIdentifier>{A4D61855-E64B-4D07-90A2-B2CD2C314014}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
@@ -563,6 +575,27 @@
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp">
+      <Filter>Source Files\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRegistry.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_ImGuiInspectorBuilder.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
@@ -772,6 +805,36 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h">
+      <Filter>Header Files\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRegistry.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_IInspectorBuilder.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_ImGuiInspectorBuilder.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
