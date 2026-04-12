@@ -13,6 +13,13 @@
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_SkyManager.h"
+#include "Assets/HIKARI_AssetJsonLoader.h"
+#include "Assets/HIKARI_AssetRegistry.h"
+#include "Scene/HIKARI_ComponentRegistry.h"
+#include "Scene/HIKARI_SceneDocument.h"
+#include "Scene/HIKARI_SceneRegistry.h"
+#include "Scene/HIKARI_SceneRuntimeBuilder.h"
+#include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_World.h"
 
@@ -46,6 +53,25 @@ namespace HIKARI {
         DebugCameraPanel debugCameraPanel_{};
 
         bool environmentLightingEnabled_ = true;
+
+        AssetRegistry assetRegistry_{};
+        AssetJsonLoader assetJsonLoader_{};
+        ComponentRegistry componentRegistry_{};
+        SceneSerializer sceneSerializer_{};
+        SceneRuntimeBuilder runtimeBuilder_{};
+        SceneRegistry sceneRegistry_{};
+        SceneDocument sceneDocument_{};
+        std::string currentScenePath_{};
+        uint64_t nextSceneObjectId_ = 1;
+
+        bool ReloadAssets();
+        bool ReloadSceneDocument();
+        bool RebuildRuntimeWorld();
+        void EnsureComponentRegistry();
+        void EnsureSceneRegistry();
+        void DrawDocumentToolbar();
+        SceneObjectData* FindDocumentObjectByName(const std::string& name);
+        SceneObjectData* FindDocumentObjectByRuntime(GameObject* runtimeObject);
     };
 
 } // namespace HIKARI
