@@ -1,6 +1,8 @@
 #include "HIKARI_SandboxScene.h"
 
+#include <algorithm>
 #include <numbers>
+#include <string>
 
 #include "HIKARI_3D.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
@@ -8,42 +10,22 @@
 #include "Render3D/HIKARI_SkyRenderer.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 
+#if defined(_DEBUG)
+#include "imgui.h"
+#endif
+
 namespace HIKARI {
 
     void SandboxScene::OnEnter() {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
-        modelManager_.RegisterAsset("Block", "block.obj");
-        modelManager_.RegisterAsset("TestCube", "builtin:cube");
-        modelManager_.RegisterAsset("SkySphere", "SkyDome.obj");
-        modelManager_.LoadAllRegisteredAssets();
+        EnsureComponentRegistry();
+        EnsureSceneRegistry();
 
-        skyManager_.RegisterAsset({ "DefaultSky", "SkySphere", "sky_sphere.png" });
-
-        GameObject* debugGrid = world_.CreateObject("DebugGrid");
-        (void)debugGrid;
-        GameObject* axis = world_.CreateObject("Axis");
-        (void)axis;
-
-        GameObject* block = world_.CreateObject("Block");
-        block->Transform().position = { 0.0f, 0.5f, 0.0f };
-        ModelComponent* blockModelComponent = block->AddComponent<ModelComponent>();
-        blockModelComponent->SetAsset(modelManager_.FindAsset("Block"));
-
-        GameObject* testCube = world_.CreateObject("TestCube");
-        testCube->Transform().position = { 2.0f, 1.0f, 0.0f };
-        ModelComponent* cubeModelComponent = testCube->AddComponent<ModelComponent>();
-        cubeModelComponent->SetAsset(modelManager_.FindAsset("TestCube"));
-
-        selection_.selectedObject = block;
-        selection_.selectedAsset = modelManager_.FindAsset("Block");
-        environment_.directional.direction = MATH::Normalize(environment_.directional.direction);
-        if (environment_.pointLights.empty()) {
-            environment_.pointLights.push_back(PointLight{});
-        }
-        environment_.sky.skyAsset = "DefaultSky";
-        environment_.sky.scale = 0.05f;
+        ReloadAssets();
+        ReloadSceneDocument();
+        RebuildRuntimeWorld();
     }
 
     void SandboxScene::OnExit() {
@@ -110,6 +92,7 @@ namespace HIKARI {
 
     void SandboxScene::RenderImGui() {
 #if defined(_DEBUG)
+        DrawDocumentToolbar();
         debugMenuBar_.Draw(debugWindowState_, debugCamera_, environmentLightingEnabled_);
 
         if (debugWindowState_.showHierarchy) {
@@ -117,6 +100,11 @@ namespace HIKARI {
         }
         if (debugWindowState_.showInspector) {
             inspectorPanel_.Draw(selection_);
+
+            if (SceneObjectData* documentObject = FindDocumentObjectByRuntime(selection_.selectedObject)) {
+                documentObject->transform.position = selection_.selectedObject->Transform().position;
+                documentObject->transform.scale = selection_.selectedObject->Transform().scale;
+            }
         }
         if (debugWindowState_.showAssetBrowser) {
             assetBrowserPanel_.Draw(modelManager_, selection_);
@@ -126,10 +114,140 @@ namespace HIKARI {
         }
         if (debugWindowState_.showEnvironment) {
             environmentPanel_.Draw(environment_, &SKYRENDERER::GetDebugState());
+            sceneDocument_.environment = environment_;
         }
         if (debugWindowState_.showDebugCamera) {
             debugCameraPanel_.Draw(debugCamera_);
         }
+#endif
+    }
+
+    bool SandboxScene::ReloadAssets() {
+        assetRegistry_.Clear();
+        const bool okModels = assetJsonLoader_.LoadModelDescriptors("Data/assets_models.json", assetRegistry_);
+        const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
+        const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
+        return okModels && okSkies && okTextures;
+    }
+
+    bool SandboxScene::ReloadSceneDocument() {
+        const std::string* mappedPath = sceneRegistry_.FindPath("Sandbox");
+        currentScenePath_ = mappedPath ? *mappedPath : "Data/scenes/scene_sandbox.json";
+
+        if (!sceneSerializer_.LoadFromFile(currentScenePath_, sceneDocument_)) {
+            return false;
+        }
+
+        environment_ = sceneDocument_.environment;
+        nextSceneObjectId_ = 1;
+        for (const SceneObjectData& object : sceneDocument_.objects) {
+            nextSceneObjectId_ = (std::max)(nextSceneObjectId_, object.id.value + 1);
+        }
+        return true;
+    }
+
+    bool SandboxScene::RebuildRuntimeWorld() {
+        const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        runtimeBuilder_.PreloadDependencies(deps, assetRegistry_, modelManager_, skyManager_);
+        const bool built = runtimeBuilder_.BuildWorldFromDocument(sceneDocument_, world_, assetRegistry_, componentRegistry_, modelManager_, skyManager_);
+        environment_ = sceneDocument_.environment;
+        environment_.directional.direction = MATH::Normalize(environment_.directional.direction);
+        if (environment_.pointLights.empty()) {
+            environment_.pointLights.push_back(PointLight{});
+        }
+        return built;
+    }
+
+    void SandboxScene::EnsureComponentRegistry() {
+        if (componentRegistry_.Find("ModelComponent")) {
+            return;
+        }
+
+        componentRegistry_.Register(ComponentTypeInfo{
+            "ModelComponent",
+            []() -> std::unique_ptr<IComponent> {
+                return std::make_unique<ModelComponent>();
+            }
+            });
+    }
+
+    void SandboxScene::EnsureSceneRegistry() {
+        sceneRegistry_.RegisterScene("Sandbox", "Data/scenes/scene_sandbox.json");
+    }
+
+    SceneObjectData* SandboxScene::FindDocumentObjectByName(const std::string& name) {
+        for (SceneObjectData& object : sceneDocument_.objects) {
+            if (object.name == name) {
+                return &object;
+            }
+        }
+        return nullptr;
+    }
+
+    SceneObjectData* SandboxScene::FindDocumentObjectByRuntime(GameObject* runtimeObject) {
+        if (!runtimeObject) {
+            return nullptr;
+        }
+        return FindDocumentObjectByName(runtimeObject->GetName());
+    }
+
+    void SandboxScene::DrawDocumentToolbar() {
+#if defined(_DEBUG)
+        if (!ImGui::Begin("Scene Document")) {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::Button("Reload Assets")) {
+            ReloadAssets();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reload Scene")) {
+            ReloadSceneDocument();
+            RebuildRuntimeWorld();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save Scene")) {
+            sceneDocument_.environment = environment_;
+            sceneSerializer_.SaveToFile(currentScenePath_, sceneDocument_);
+        }
+
+        if (ImGui::Button("Create Object")) {
+            SceneObjectData newObject{};
+            newObject.id = SceneObjectId{ nextSceneObjectId_++ };
+            newObject.name = "GameObject_" + std::to_string(newObject.id.value);
+            sceneDocument_.objects.push_back(newObject);
+            RebuildRuntimeWorld();
+        }
+
+        if (selection_.selectedObject != nullptr) {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete Selected")) {
+                SceneObjectData* target = FindDocumentObjectByRuntime(selection_.selectedObject);
+                if (target != nullptr) {
+                    sceneDocument_.objects.erase(
+                        std::remove_if(sceneDocument_.objects.begin(), sceneDocument_.objects.end(),
+                            [target](const SceneObjectData& object) { return object.id == target->id; }),
+                        sceneDocument_.objects.end());
+                    selection_.selectedObject = nullptr;
+                    RebuildRuntimeWorld();
+                }
+            }
+
+            if (ImGui::Button("Add ModelComponent")) {
+                if (SceneObjectData* target = FindDocumentObjectByRuntime(selection_.selectedObject)) {
+                    target->components.push_back(SceneComponentData{
+                        "ModelComponent",
+                        nlohmann::json{ {"assetId", "Block"}, {"visible", true} }
+                        });
+                    RebuildRuntimeWorld();
+                }
+            }
+        }
+
+        ImGui::Text("Scene: %s", sceneDocument_.sceneName.c_str());
+        ImGui::Text("Objects: %zu", sceneDocument_.objects.size());
+        ImGui::End();
 #endif
     }
 

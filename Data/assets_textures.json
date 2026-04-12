@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "textures": [
+    { "id": "Sky_Default", "type": "Texture", "sourcePath": "sky_sphere.png" }
+  ]
+}

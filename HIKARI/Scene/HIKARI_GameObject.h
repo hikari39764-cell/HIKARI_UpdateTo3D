@@ -55,6 +55,7 @@ namespace HIKARI {
         void Update(float dt);
         void Render();
         void RenderImGui();
+        IComponent* AddComponentInstance(std::unique_ptr<IComponent> component);
 
         const std::vector<std::unique_ptr<IComponent>>& GetComponents() const;
 
