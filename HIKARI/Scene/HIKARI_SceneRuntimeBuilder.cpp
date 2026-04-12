@@ -13,6 +13,25 @@
 
 namespace HIKARI {
 
+    namespace {
+        void EnsureModelLoaded(ModelManager& modelManager, const ModelAssetDescriptor& descriptor) {
+            ModelAsset* existing = modelManager.FindAsset(descriptor.id.value);
+            if (existing != nullptr) {
+                if (existing->GetSourcePath() == descriptor.sourcePath && existing->GetState() == ModelAsset::State::Loaded) {
+                    return;
+                }
+
+                if (existing->GetSourcePath() == descriptor.sourcePath && existing->GetState() == ModelAsset::State::Unloaded) {
+                    modelManager.LoadAssetNow(descriptor.id.value);
+                    return;
+                }
+            }
+
+            modelManager.RegisterAsset(descriptor.id.value, descriptor.sourcePath);
+            modelManager.LoadAssetNow(descriptor.id.value);
+        }
+    }
+
     SceneDependencySet SceneRuntimeBuilder::CollectDependencies(const SceneDocument& document) const {
         SceneDependencySet deps{};
 
@@ -44,8 +63,7 @@ namespace HIKARI {
             if (!descriptor) {
                 continue;
             }
-            modelManager.RegisterAsset(descriptor->id.value, descriptor->sourcePath);
-            modelManager.LoadAssetNow(descriptor->id.value);
+            EnsureModelLoaded(modelManager, *descriptor);
         }
 
         for (const std::string& skyId : dependencies.skyAssetIds) {
@@ -56,8 +74,7 @@ namespace HIKARI {
 
             if (!descriptor->meshAssetId.empty()) {
                 if (const auto* meshDescriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ descriptor->meshAssetId })) {
-                    modelManager.RegisterAsset(meshDescriptor->id.value, meshDescriptor->sourcePath);
-                    modelManager.LoadAssetNow(meshDescriptor->id.value);
+                    EnsureModelLoaded(modelManager, *meshDescriptor);
                 }
             }
 
