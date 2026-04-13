@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "sceneName": "Title",
+  "environment": {
+    "ambient": { "color": [1.0, 1.0, 1.0], "intensity": 0.25 },
+    "directional": { "enabled": true, "direction": [0.4, -1.0, -0.6], "intensity": 1.0, "color": [1.0, 1.0, 1.0] },
+    "pointLights": [
+      { "enabled": true, "position": [0.0, 2.0, 0.0], "range": 5.0, "color": [1.0, 1.0, 1.0], "intensity": 1.0 }
+    ],
+    "sky": { "enabled": true, "skyAsset": "DefaultSky", "scale": 0.05, "yaw": 0.0, "exposure": 1.0, "tint": [1.0, 1.0, 1.0], "followCamera": true },
+    "specularIntensity": 0.2,
+    "specularPower": 32.0
+  },
+  "objects": [
+    {
+      "id": 1,
+      "name": "StartButton",
+      "parent": null,
+      "enabled": true,
+      "editorVisible": true,
+      "transform": {
+        "position": [0.0, 0.0, 0.0],
+        "rotationEulerDeg": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "UIButtonSceneTransitionComponent",
+          "properties": {
+            "enabled": true,
+            "screenRect": { "x": 40.0, "y": 40.0, "w": 260.0, "h": 90.0 },
+            "requireLeftClick": true,
+            "targetSceneId": "Sandbox",
+            "targetSpawnPointId": "",
+            "transitionProfileId": "DefaultFade",
+            "useTransition": true,
+            "debugDrawRect": true,
+            "debugColorRgba": 4291580671
+          }
+        }
+      ]
+    }
+  ]
+}
