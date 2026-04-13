@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <filesystem>
 #include <numbers>
 #include <string>
 #include <vector>
@@ -229,6 +230,38 @@ namespace HIKARI {
     void SandboxScene::EnsureSceneRegistry() {
         sceneRegistry_.RegisterScene("Sandbox", "Data/scenes/scene_sandbox.json");
         sceneRegistry_.RegisterScene("Empty", "Data/scenes/scene_empty.json");
+
+        std::error_code ec{};
+        const std::filesystem::path sceneRoot{ "Data/scenes" };
+        if (!std::filesystem::exists(sceneRoot, ec) || ec) {
+            return;
+        }
+
+        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(sceneRoot, ec)) {
+            if (ec) {
+                break;
+            }
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            const std::filesystem::path& path = entry.path();
+            if (path.extension() != ".json") {
+                continue;
+            }
+
+            std::string stem = path.stem().string();
+            if (stem == "scene_sandbox" || stem == "scene_empty") {
+                continue;
+            }
+            if (stem.rfind("scene_", 0) == 0) {
+                stem.erase(0, 6);
+            }
+            if (stem.empty()) {
+                continue;
+            }
+
+            sceneRegistry_.RegisterScene(stem, path.generic_string());
+        }
     }
 
     void SandboxScene::MarkSceneDirty() {
