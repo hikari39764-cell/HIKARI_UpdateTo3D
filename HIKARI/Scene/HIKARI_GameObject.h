@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include "Components/HIKARI_IComponent.h"
+#include "HIKARI_SceneDocument.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI {
@@ -15,6 +16,8 @@ namespace HIKARI {
 
         const std::string& GetName() const;
         void SetName(const std::string& name);
+        void SetDocumentId(SceneObjectId id);
+        SceneObjectId GetDocumentId() const;
 
         Transform3D& Transform();
         const Transform3D& Transform() const;
@@ -61,6 +64,7 @@ namespace HIKARI {
 
     private:
         std::string name_;
+        SceneObjectId documentId_{};
         Transform3D transform_{};
         std::vector<std::unique_ptr<IComponent>> components_;
         bool active_ = true;

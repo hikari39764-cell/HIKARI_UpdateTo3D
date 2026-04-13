@@ -61,16 +61,20 @@ namespace HIKARI {
         SceneRuntimeBuilder runtimeBuilder_{};
         SceneRegistry sceneRegistry_{};
         SceneDocument sceneDocument_{};
+        std::string currentSceneId_{ "Sandbox" };
         std::string currentScenePath_{};
         uint64_t nextSceneObjectId_ = 1;
+        bool sceneDirty_ = false;
 
         bool ReloadAssets();
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
+        void MarkSceneDirty();
+        bool IsSceneDirty() const;
         void EnsureComponentRegistry();
         void EnsureSceneRegistry();
         void DrawDocumentToolbar();
-        SceneObjectData* FindDocumentObjectByName(const std::string& name);
+        SceneObjectData* FindDocumentObjectById(SceneObjectId id);
         SceneObjectData* FindDocumentObjectByRuntime(GameObject* runtimeObject);
     };
 

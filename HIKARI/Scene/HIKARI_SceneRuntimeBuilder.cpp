@@ -99,6 +99,7 @@ namespace HIKARI {
 
         for (const SceneObjectData& objectData : document.objects) {
             GameObject* object = world.CreateObject(objectData.name);
+            object->SetDocumentId(objectData.id);
             object->Transform().position = objectData.transform.position;
             object->Transform().scale = objectData.transform.scale;
             object->Transform().rotation = MATH::Quat::FromEulerXYZ(
