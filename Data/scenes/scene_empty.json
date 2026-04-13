@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "sceneName": "Empty",
+  "environment": {
+    "ambient": { "color": [1.0, 1.0, 1.0], "intensity": 0.2 },
+    "directional": { "enabled": true, "direction": [0.3, -1.0, -0.4], "intensity": 1.0, "color": [1.0, 1.0, 1.0] },
+    "pointLights": [
+      { "enabled": true, "position": [0.0, 2.0, 0.0], "range": 5.0, "color": [1.0, 1.0, 1.0], "intensity": 1.0 }
+    ],
+    "sky": { "enabled": true, "skyAsset": "DefaultSky", "scale": 0.05, "yaw": 0.0, "exposure": 1.0, "tint": [1.0, 1.0, 1.0], "followCamera": true },
+    "specularIntensity": 0.2,
+    "specularPower": 32.0
+  },
+  "objects": []
+}

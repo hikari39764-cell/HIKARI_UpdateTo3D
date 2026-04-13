@@ -17,4 +17,13 @@ namespace HIKARI {
         return &it->second;
     }
 
+    std::vector<std::string> SceneRegistry::GetSceneIds() const {
+        std::vector<std::string> ids{};
+        ids.reserve(entries_.size());
+        for (const auto& [id, _] : entries_) {
+            ids.push_back(id);
+        }
+        return ids;
+    }
+
 } // namespace HIKARI

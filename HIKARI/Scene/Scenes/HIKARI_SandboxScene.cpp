@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numbers>
 #include <string>
+#include <vector>
 
 #include "HIKARI_3D.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
@@ -152,7 +153,7 @@ namespace HIKARI {
     }
 
     bool SandboxScene::ReloadSceneDocument() {
-        const std::string* mappedPath = sceneRegistry_.FindPath("Sandbox");
+        const std::string* mappedPath = sceneRegistry_.FindPath(currentSceneId_);
         currentScenePath_ = mappedPath ? *mappedPath : "Data/scenes/scene_sandbox.json";
 
         if (!sceneSerializer_.LoadFromFile(currentScenePath_, sceneDocument_)) {
@@ -164,6 +165,7 @@ namespace HIKARI {
         for (const SceneObjectData& object : sceneDocument_.objects) {
             nextSceneObjectId_ = (std::max)(nextSceneObjectId_, object.id.value + 1);
         }
+        sceneDirty_ = false;
         return true;
     }
 
@@ -196,11 +198,20 @@ namespace HIKARI {
 
     void SandboxScene::EnsureSceneRegistry() {
         sceneRegistry_.RegisterScene("Sandbox", "Data/scenes/scene_sandbox.json");
+        sceneRegistry_.RegisterScene("Empty", "Data/scenes/scene_empty.json");
     }
 
-    SceneObjectData* SandboxScene::FindDocumentObjectByName(const std::string& name) {
+    void SandboxScene::MarkSceneDirty() {
+        sceneDirty_ = true;
+    }
+
+    bool SandboxScene::IsSceneDirty() const {
+        return sceneDirty_;
+    }
+
+    SceneObjectData* SandboxScene::FindDocumentObjectById(SceneObjectId id) {
         for (SceneObjectData& object : sceneDocument_.objects) {
-            if (object.name == name) {
+            if (object.id == id) {
                 return &object;
             }
         }
@@ -211,7 +222,7 @@ namespace HIKARI {
         if (!runtimeObject) {
             return nullptr;
         }
-        return FindDocumentObjectByName(runtimeObject->GetName());
+        return FindDocumentObjectById(runtimeObject->GetDocumentId());
     }
 
     void SandboxScene::DrawDocumentToolbar() {
@@ -232,7 +243,57 @@ namespace HIKARI {
         ImGui::SameLine();
         if (ImGui::Button("Save Scene")) {
             sceneDocument_.environment = environment_;
-            sceneSerializer_.SaveToFile(currentScenePath_, sceneDocument_);
+            if (sceneSerializer_.SaveToFile(currentScenePath_, sceneDocument_)) {
+                sceneDirty_ = false;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save As")) {
+            sceneDocument_.environment = environment_;
+            std::string saveAsPath = "Data/scenes/" + sceneDocument_.sceneName + "_copy.json";
+            if (sceneSerializer_.SaveToFile(saveAsPath, sceneDocument_)) {
+                currentScenePath_ = saveAsPath;
+                currentSceneId_ = sceneDocument_.sceneName + "_copy";
+                sceneRegistry_.RegisterScene(currentSceneId_, currentScenePath_);
+                sceneDirty_ = false;
+            }
+        }
+
+        if (ImGui::Button("New Scene")) {
+            sceneDocument_ = SceneDocument{};
+            sceneDocument_.sceneName = "Untitled";
+            sceneDocument_.environment = environment_;
+            nextSceneObjectId_ = 1;
+            selection_.selectedObject = nullptr;
+            selection_.selectedAsset = nullptr;
+            MarkSceneDirty();
+            RebuildRuntimeWorld();
+        }
+
+        std::vector<std::string> sceneIds = sceneRegistry_.GetSceneIds();
+        std::sort(sceneIds.begin(), sceneIds.end());
+        if (!sceneIds.empty()) {
+            int currentSceneIndex = 0;
+            for (int i = 0; i < static_cast<int>(sceneIds.size()); ++i) {
+                if (sceneIds[i] == currentSceneId_) {
+                    currentSceneIndex = i;
+                    break;
+                }
+            }
+            if (ImGui::BeginCombo("Scene Switcher", sceneIds[currentSceneIndex].c_str())) {
+                for (int i = 0; i < static_cast<int>(sceneIds.size()); ++i) {
+                    const bool selected = (i == currentSceneIndex);
+                    if (ImGui::Selectable(sceneIds[i].c_str(), selected)) {
+                        currentSceneId_ = sceneIds[i];
+                        ReloadSceneDocument();
+                        RebuildRuntimeWorld();
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
         }
 
         if (ImGui::Button("Create Object")) {
@@ -240,6 +301,7 @@ namespace HIKARI {
             newObject.id = SceneObjectId{ nextSceneObjectId_++ };
             newObject.name = "GameObject_" + std::to_string(newObject.id.value);
             sceneDocument_.objects.push_back(newObject);
+            MarkSceneDirty();
             RebuildRuntimeWorld();
         }
 
@@ -255,22 +317,81 @@ namespace HIKARI {
                         sceneDocument_.objects.end());
                     selection_.selectedObject = nullptr;
                     selection_.selectedAsset = nullptr;
+                    MarkSceneDirty();
                     RebuildRuntimeWorld();
                 }
             }
 
-            if (ImGui::Button("Add ModelComponent")) {
+            if (ImGui::Button("Duplicate Selected")) {
                 if (SceneObjectData* target = FindDocumentObjectByRuntime(selection_.selectedObject)) {
-                    target->components.push_back(SceneComponentData{
-                        "ModelComponent",
-                        nlohmann::json{ {"assetId", "Block"}, {"visible", true} }
-                        });
+                    SceneObjectData duplicate = *target;
+                    duplicate.id = SceneObjectId{ nextSceneObjectId_++ };
+                    duplicate.name = duplicate.name + "_Copy";
+                    sceneDocument_.objects.push_back(std::move(duplicate));
+                    MarkSceneDirty();
+                    RebuildRuntimeWorld();
+                }
+            }
+
+            if (SceneObjectData* target = FindDocumentObjectByRuntime(selection_.selectedObject)) {
+                std::vector<std::string> componentTypes = componentRegistry_.GetTypeNames();
+                std::sort(componentTypes.begin(), componentTypes.end());
+                if (ImGui::BeginCombo("Add Component", "Select component type")) {
+                    for (const std::string& typeName : componentTypes) {
+                        if (ImGui::Selectable(typeName.c_str(), false)) {
+                            target->components.push_back(SceneComponentData{ typeName, nlohmann::json::object() });
+                            MarkSceneDirty();
+                            RebuildRuntimeWorld();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::SeparatorText("Document Components");
+                bool needsRebuild = false;
+                for (SceneComponentData& component : target->components) {
+                    if (!ImGui::TreeNode(component.type.c_str())) {
+                        continue;
+                    }
+
+                    if (component.type == "ModelComponent") {
+                        bool visible = component.properties.value("visible", true);
+                        if (ImGui::Checkbox("Visible", &visible)) {
+                            component.properties["visible"] = visible;
+                            MarkSceneDirty();
+                            needsRebuild = true;
+                        }
+
+                        std::string assetId = component.properties.value("assetId", std::string{});
+                        std::vector<const AssetDescriptor*> modelAssets = assetRegistry_.CollectByType(AssetType::Model);
+                        if (ImGui::BeginCombo("Model Asset", assetId.empty() ? "<none>" : assetId.c_str())) {
+                            for (const AssetDescriptor* descriptor : modelAssets) {
+                                if (!descriptor) {
+                                    continue;
+                                }
+                                const bool selected = (assetId == descriptor->id.value);
+                                if (ImGui::Selectable(descriptor->id.value.c_str(), selected)) {
+                                    component.properties["assetId"] = descriptor->id.value;
+                                    MarkSceneDirty();
+                                    needsRebuild = true;
+                                }
+                                if (selected) {
+                                    ImGui::SetItemDefaultFocus();
+                                }
+                            }
+                            ImGui::EndCombo();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+
+                if (needsRebuild) {
                     RebuildRuntimeWorld();
                 }
             }
         }
 
-        ImGui::Text("Scene: %s", sceneDocument_.sceneName.c_str());
+        ImGui::Text("Scene: %s%s", sceneDocument_.sceneName.c_str(), IsSceneDirty() ? "*" : "");
         ImGui::Text("Objects: %zu", sceneDocument_.objects.size());
         ImGui::End();
 #endif

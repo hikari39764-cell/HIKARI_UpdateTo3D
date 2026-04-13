@@ -14,6 +14,14 @@ namespace HIKARI {
         name_ = name;
     }
 
+    void GameObject::SetDocumentId(SceneObjectId id) {
+        documentId_ = id;
+    }
+
+    SceneObjectId GameObject::GetDocumentId() const {
+        return documentId_;
+    }
+
     Transform3D& GameObject::Transform() {
         return transform_;
     }
