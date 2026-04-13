@@ -121,11 +121,7 @@ namespace HIKARI {
         }
         if (debugWindowState_.showInspector) {
             inspectorPanel_.Draw(selection_);
-
-            if (SceneObjectData* documentObject = FindDocumentObjectByRuntime(selection_.selectedObject)) {
-                documentObject->transform.position = selection_.selectedObject->Transform().position;
-                documentObject->transform.scale = selection_.selectedObject->Transform().scale;
-            }
+            SyncSelectedObjectBackToDocument();
         }
         if (debugWindowState_.showAssetBrowser) {
             assetBrowserPanel_.Draw(modelManager_, selection_);
@@ -170,10 +166,11 @@ namespace HIKARI {
     }
 
     bool SandboxScene::RebuildRuntimeWorld() {
+        const SceneObjectId previousSelectionId = selection_.selectedObject ? selection_.selectedObject->GetDocumentId() : SceneObjectId{};
         const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
         runtimeBuilder_.PreloadDependencies(deps, assetRegistry_, modelManager_, skyManager_);
         const bool built = runtimeBuilder_.BuildWorldFromDocument(sceneDocument_, world_, assetRegistry_, componentRegistry_, modelManager_, skyManager_);
-        selection_.selectedObject = nullptr;
+        selection_.selectedObject = FindRuntimeObjectByDocumentId(previousSelectionId);
         selection_.selectedAsset = nullptr;
         environment_ = sceneDocument_.environment;
         environment_.directional.direction = MATH::Normalize(environment_.directional.direction);
@@ -223,6 +220,64 @@ namespace HIKARI {
             return nullptr;
         }
         return FindDocumentObjectById(runtimeObject->GetDocumentId());
+    }
+
+    GameObject* SandboxScene::FindRuntimeObjectByDocumentId(SceneObjectId id) {
+        if (id.value == 0) {
+            return nullptr;
+        }
+
+        for (const auto& object : world_.GetObjects()) {
+            if (object && object->GetDocumentId() == id) {
+                return object.get();
+            }
+        }
+        return nullptr;
+    }
+
+    void SandboxScene::SyncSelectedObjectBackToDocument() {
+        SceneObjectData* documentObject = FindDocumentObjectByRuntime(selection_.selectedObject);
+        if (!documentObject || !selection_.selectedObject) {
+            return;
+        }
+
+        const Transform3D& runtimeTransform = selection_.selectedObject->Transform();
+        documentObject->transform.position = runtimeTransform.position;
+        documentObject->transform.scale = runtimeTransform.scale;
+
+        bool requiresRebuild = false;
+        for (const auto& runtimeComponent : selection_.selectedObject->GetComponents()) {
+            if (!runtimeComponent || runtimeComponent->GetTypeName() != "ModelComponent") {
+                continue;
+            }
+
+            auto* runtimeModelComponent = dynamic_cast<const ModelComponent*>(runtimeComponent.get());
+            if (!runtimeModelComponent) {
+                continue;
+            }
+
+            for (SceneComponentData& componentData : documentObject->components) {
+                if (componentData.type != "ModelComponent") {
+                    continue;
+                }
+
+                const std::string runtimeAssetId = runtimeModelComponent->GetAssetId();
+                const bool runtimeVisible = runtimeModelComponent->IsVisible();
+                const std::string docAssetId = componentData.properties.value("assetId", std::string{});
+                const bool docVisible = componentData.properties.value("visible", true);
+                if (runtimeAssetId != docAssetId || runtimeVisible != docVisible) {
+                    componentData.properties["assetId"] = runtimeAssetId;
+                    componentData.properties["visible"] = runtimeVisible;
+                    MarkSceneDirty();
+                    requiresRebuild = true;
+                }
+                break;
+            }
+        }
+
+        if (requiresRebuild) {
+            RebuildRuntimeWorld();
+        }
     }
 
     void SandboxScene::DrawDocumentToolbar() {

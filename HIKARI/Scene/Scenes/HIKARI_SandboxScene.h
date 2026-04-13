@@ -75,6 +75,8 @@ namespace HIKARI {
         void EnsureSceneRegistry();
         void DrawDocumentToolbar();
         SceneObjectData* FindDocumentObjectById(SceneObjectId id);
+        GameObject* FindRuntimeObjectByDocumentId(SceneObjectId id);
+        void SyncSelectedObjectBackToDocument();
         SceneObjectData* FindDocumentObjectByRuntime(GameObject* runtimeObject);
     };
 
