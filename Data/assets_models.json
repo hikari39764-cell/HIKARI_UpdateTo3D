@@ -2,6 +2,7 @@
   "version": 1,
   "models": [
     { "id": "Block", "type": "Model", "sourcePath": "block.obj", "forceFlatNormals": false },
+    { "id": "Player", "type": "Model", "sourcePath": "player.obj", "forceFlatNormals": false },
     { "id": "TestCube", "type": "Model", "sourcePath": "builtin:cube", "forceFlatNormals": false },
     { "id": "SkySphere", "type": "Model", "sourcePath": "SkyDome.obj", "forceFlatNormals": false }
   ]

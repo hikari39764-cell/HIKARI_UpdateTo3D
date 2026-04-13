@@ -17,7 +17,7 @@ namespace {
     static float gOcclusionRadius = 0.0f;
 
     static int gWhiteTexHandle = -1;
-    static const char* kDefaultWhiteTexPath = "./NoviceResources/white1x1.png";
+    static const char* kDefaultWhiteTexPath = "./HIKARI/white1x1.png";
     static std::string gWhiteTexPath = kDefaultWhiteTexPath;
 
     enum class CommandType {

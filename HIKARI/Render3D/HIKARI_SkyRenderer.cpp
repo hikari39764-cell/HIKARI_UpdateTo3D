@@ -145,7 +145,7 @@ namespace HIKARI::SKYRENDERER {
             if (!CreateBuffers(device) || !CreatePipeline(device)) {
                 return false;
             }
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/fallback_white", "NoviceResources/white1x1.png");
+            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/fallback_white", "HIKARI/white1x1.png");
             g.initialized = true;
             g.debug.initialized = true;
             return true;

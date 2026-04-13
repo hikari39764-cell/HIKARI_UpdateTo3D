@@ -185,7 +185,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-            psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+            psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = TRUE;
             psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -215,7 +215,7 @@ namespace HIKARI::MESHRENDERER {
             if (!CreatePipeline(device)) {
                 return false;
             }
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "NoviceResources/white1x1.png");
+            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
 
             g.initialized = true;
             return true;
