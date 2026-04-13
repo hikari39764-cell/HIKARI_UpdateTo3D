@@ -178,8 +178,17 @@ namespace HIKARI {
         }
 
         if (requiresRebuild) {
-            RebuildRuntimeWorld();
+            RebuildRuntimeWorldWithSelectionSync();
         }
+    }
+
+
+    bool SandboxScene::RebuildRuntimeWorldWithSelectionSync() {
+        const SceneObjectId previousSelectionId = selection_.selectedObject ? selection_.selectedObject->GetDocumentId() : SceneObjectId{};
+        const bool built = DocumentSceneBase::RebuildRuntimeWorld();
+        selection_.selectedObject = FindRuntimeObjectByDocumentId(previousSelectionId);
+        selection_.selectedAsset = nullptr;
+        return built;
     }
 
     void SandboxScene::DrawDocumentToolbar() {
@@ -232,7 +241,7 @@ namespace HIKARI {
         ImGui::SameLine();
         if (ImGui::Button("Reload Scene")) {
             ReloadSceneDocument();
-            RebuildRuntimeWorld();
+            RebuildRuntimeWorldWithSelectionSync();
         }
         ImGui::SameLine();
         if (ImGui::Button("Save Scene")) {
@@ -260,7 +269,7 @@ namespace HIKARI {
             selection_.selectedObject = nullptr;
             selection_.selectedAsset = nullptr;
             MarkSceneDirty();
-            RebuildRuntimeWorld();
+            RebuildRuntimeWorldWithSelectionSync();
         }
 
         std::vector<std::string> sceneIds = sceneCatalog_.GetSceneIds();
@@ -279,7 +288,7 @@ namespace HIKARI {
                     if (ImGui::Selectable(sceneIds[i].c_str(), selected)) {
                         sceneId_ = sceneIds[i];
                         ReloadSceneDocument();
-                        RebuildRuntimeWorld();
+                        RebuildRuntimeWorldWithSelectionSync();
                     }
                     if (selected) {
                         ImGui::SetItemDefaultFocus();
@@ -295,7 +304,7 @@ namespace HIKARI {
             newObject.name = "GameObject_" + std::to_string(newObject.id.value);
             sceneDocument_.objects.push_back(newObject);
             MarkSceneDirty();
-            RebuildRuntimeWorld();
+            RebuildRuntimeWorldWithSelectionSync();
         }
 
         if (selection_.selectedObject != nullptr) {
@@ -311,7 +320,7 @@ namespace HIKARI {
                     selection_.selectedObject = nullptr;
                     selection_.selectedAsset = nullptr;
                     MarkSceneDirty();
-                    RebuildRuntimeWorld();
+                    RebuildRuntimeWorldWithSelectionSync();
                 }
             }
 
@@ -322,7 +331,7 @@ namespace HIKARI {
                     duplicate.name = duplicate.name + "_Copy";
                     sceneDocument_.objects.push_back(std::move(duplicate));
                     MarkSceneDirty();
-                    RebuildRuntimeWorld();
+                    RebuildRuntimeWorldWithSelectionSync();
                 }
             }
 
@@ -334,7 +343,7 @@ namespace HIKARI {
                         if (ImGui::Selectable(typeName.c_str(), false)) {
                             target->components.push_back(SceneComponentData{ typeName, nlohmann::json::object() });
                             MarkSceneDirty();
-                            RebuildRuntimeWorld();
+                            RebuildRuntimeWorldWithSelectionSync();
                         }
                     }
                     ImGui::EndCombo();
@@ -451,7 +460,7 @@ namespace HIKARI {
                 }
 
                 if (needsRebuild) {
-                    RebuildRuntimeWorld();
+                    RebuildRuntimeWorldWithSelectionSync();
                 }
             }
         }

@@ -43,6 +43,7 @@ namespace HIKARI {
         GameObject* FindRuntimeObjectByDocumentId(SceneObjectId id);
         void SyncSelectedObjectBackToDocument();
         SceneObjectData* FindDocumentObjectByRuntime(GameObject* runtimeObject);
+        bool RebuildRuntimeWorldWithSelectionSync();
 
         bool DrawDebugHelpers() const override { return true; }
         bool UseEnvironmentLighting() const override { return environmentLightingEnabled_; }
