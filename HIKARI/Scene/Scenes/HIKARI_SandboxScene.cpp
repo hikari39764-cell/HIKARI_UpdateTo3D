@@ -342,8 +342,11 @@ namespace HIKARI {
 
                 ImGui::SeparatorText("Document Components");
                 bool needsRebuild = false;
-                for (SceneComponentData& component : target->components) {
+                for (size_t componentIndex = 0; componentIndex < target->components.size(); ++componentIndex) {
+                    SceneComponentData& component = target->components[componentIndex];
+                    ImGui::PushID(static_cast<int>(componentIndex));
                     if (!ImGui::TreeNode(component.type.c_str())) {
+                        ImGui::PopID();
                         continue;
                     }
 
@@ -383,12 +386,14 @@ namespace HIKARI {
                         }
 
                         auto rect = component.properties.value("screenRect", nlohmann::json::object());
-                        float rectX = rect.value("x", 20.0f);
-                        float rectY = rect.value("y", 20.0f);
-                        float rectW = rect.value("w", 200.0f);
-                        float rectH = rect.value("h", 80.0f);
-                        if (ImGui::DragFloat4("screenRect(x,y,w,h)", &rectX, 1.0f)) {
-                            component.properties["screenRect"] = { {"x", rectX}, {"y", rectY}, {"w", rectW}, {"h", rectH} };
+                        float rectValues[4]{
+                            rect.value("x", 20.0f),
+                            rect.value("y", 20.0f),
+                            rect.value("w", 200.0f),
+                            rect.value("h", 80.0f)
+                        };
+                        if (ImGui::DragFloat4("screenRect(x,y,w,h)", rectValues, 1.0f)) {
+                            component.properties["screenRect"] = { {"x", rectValues[0]}, {"y", rectValues[1]}, {"w", rectValues[2]}, {"h", rectValues[3]} };
                             MarkSceneDirty();
                             needsRebuild = true;
                         }
@@ -442,6 +447,7 @@ namespace HIKARI {
                         }
                     }
                     ImGui::TreePop();
+                    ImGui::PopID();
                 }
 
                 if (needsRebuild) {
