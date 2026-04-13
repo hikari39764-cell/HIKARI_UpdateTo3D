@@ -8,41 +8,19 @@
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
 #include "Editor/HIKARI_StatsPanel.h"
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_DebugCameraController3D.h"
-#include "Render3D/HIKARI_ModelManager.h"
-#include "Render3D/HIKARI_SceneEnvironment.h"
-#include "Render3D/HIKARI_SkyManager.h"
-#include "Assets/HIKARI_AssetJsonLoader.h"
-#include "Assets/HIKARI_AssetRegistry.h"
-#include "Scene/HIKARI_ComponentRegistry.h"
-#include "Scene/HIKARI_SceneDocument.h"
-#include "Scene/HIKARI_SceneRegistry.h"
-#include "Scene/HIKARI_SceneRuntimeBuilder.h"
-#include "Scene/Serialization/HIKARI_SceneSerializer.h"
-#include "Scene/HIKARI_IScene.h"
-#include "Scene/HIKARI_World.h"
+#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI {
 
-    class SandboxScene final : public IScene {
+    class SandboxScene final : public DocumentSceneBase {
     public:
-        void OnEnter() override;
-        void OnExit() override;
+        SandboxScene(SceneCatalog& sceneCatalog, std::string sceneId = "Sandbox");
+
         void Update(float dt) override;
-        void Render() override;
         void RenderImGui() override;
         const char* GetSceneName() const override { return "SandboxScene"; }
 
     private:
-        Camera3D camera_{};
-        World world_{};
-        ModelManager modelManager_{};
-        SkyManager skyManager_{};
-        EditorSelection selection_{};
-        DebugCameraController3D debugCamera_{};
-        SceneEnvironment environment_{};
-
         DebugWindowState debugWindowState_{};
         DebugMenuBar debugMenuBar_{};
         HierarchyPanel hierarchyPanel_{};
@@ -52,34 +30,22 @@ namespace HIKARI {
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};
 
-        bool environmentLightingEnabled_ = true;
-
-        AssetRegistry assetRegistry_{};
-        AssetJsonLoader assetJsonLoader_{};
-        ComponentRegistry componentRegistry_{};
-        SceneSerializer sceneSerializer_{};
-        SceneRuntimeBuilder runtimeBuilder_{};
-        SceneRegistry sceneRegistry_{};
-        SceneDocument sceneDocument_{};
-        std::string currentSceneId_{ "Sandbox" };
-        std::string currentScenePath_{};
+        EditorSelection selection_{};
         std::string sceneNameEditBuffer_{ "Untitled" };
         std::string saveAsNameBuffer_{ "Untitled" };
         uint64_t nextSceneObjectId_ = 1;
         bool sceneDirty_ = false;
 
-        bool ReloadAssets();
-        bool ReloadSceneDocument();
-        bool RebuildRuntimeWorld();
         void MarkSceneDirty();
         bool IsSceneDirty() const;
-        void EnsureComponentRegistry();
-        void EnsureSceneRegistry();
         void DrawDocumentToolbar();
         SceneObjectData* FindDocumentObjectById(SceneObjectId id);
         GameObject* FindRuntimeObjectByDocumentId(SceneObjectId id);
         void SyncSelectedObjectBackToDocument();
         SceneObjectData* FindDocumentObjectByRuntime(GameObject* runtimeObject);
+
+        bool DrawDebugHelpers() const override { return true; }
+        bool UseEnvironmentLighting() const override { return environmentLightingEnabled_; }
     };
 
 } // namespace HIKARI
