@@ -1,6 +1,9 @@
 #include "HIKARI_SandboxScene.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <filesystem>
 #include <numbers>
 #include <string>
 #include <vector>
@@ -18,6 +21,35 @@
 namespace HIKARI {
 
     namespace {
+        std::string SanitizeSceneToken(const std::string& raw) {
+            std::string sanitized{};
+            sanitized.reserve(raw.size());
+            for (char ch : raw) {
+                const unsigned char c = static_cast<unsigned char>(ch);
+                if (std::isalnum(c) != 0 || ch == '_' || ch == '-') {
+                    sanitized.push_back(ch);
+                } else if (!std::isspace(c)) {
+                    sanitized.push_back('_');
+                }
+            }
+
+            while (!sanitized.empty() && (sanitized.front() == '_' || sanitized.front() == '-')) {
+                sanitized.erase(sanitized.begin());
+            }
+            while (!sanitized.empty() && (sanitized.back() == '_' || sanitized.back() == '-')) {
+                sanitized.pop_back();
+            }
+
+            if (sanitized.empty()) {
+                return "untitled";
+            }
+            return sanitized;
+        }
+
+        std::string BuildScenePath(const std::string& token) {
+            return "Data/scenes/scene_" + token + ".json";
+        }
+
         bool IsObjectAlive(const World& world, const GameObject* object) {
             if (!object) {
                 return false;
@@ -161,6 +193,8 @@ namespace HIKARI {
         for (const SceneObjectData& object : sceneDocument_.objects) {
             nextSceneObjectId_ = (std::max)(nextSceneObjectId_, object.id.value + 1);
         }
+        sceneNameEditBuffer_ = sceneDocument_.sceneName;
+        saveAsNameBuffer_ = sceneDocument_.sceneName;
         sceneDirty_ = false;
         return true;
     }
@@ -196,6 +230,38 @@ namespace HIKARI {
     void SandboxScene::EnsureSceneRegistry() {
         sceneRegistry_.RegisterScene("Sandbox", "Data/scenes/scene_sandbox.json");
         sceneRegistry_.RegisterScene("Empty", "Data/scenes/scene_empty.json");
+
+        std::error_code ec{};
+        const std::filesystem::path sceneRoot{ "Data/scenes" };
+        if (!std::filesystem::exists(sceneRoot, ec) || ec) {
+            return;
+        }
+
+        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(sceneRoot, ec)) {
+            if (ec) {
+                break;
+            }
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            const std::filesystem::path& path = entry.path();
+            if (path.extension() != ".json") {
+                continue;
+            }
+
+            std::string stem = path.stem().string();
+            if (stem == "scene_sandbox" || stem == "scene_empty") {
+                continue;
+            }
+            if (stem.rfind("scene_", 0) == 0) {
+                stem.erase(0, 6);
+            }
+            if (stem.empty()) {
+                continue;
+            }
+
+            sceneRegistry_.RegisterScene(stem, path.generic_string());
+        }
     }
 
     void SandboxScene::MarkSceneDirty() {
@@ -287,6 +353,43 @@ namespace HIKARI {
             return;
         }
 
+        char sceneNameBuffer[128]{};
+        std::snprintf(sceneNameBuffer, sizeof(sceneNameBuffer), "%s", sceneNameEditBuffer_.c_str());
+        if (ImGui::InputText("Scene Name", sceneNameBuffer, sizeof(sceneNameBuffer))) {
+            sceneNameEditBuffer_ = sceneNameBuffer;
+            if (sceneDocument_.sceneName != sceneNameEditBuffer_) {
+                sceneDocument_.sceneName = sceneNameEditBuffer_;
+                MarkSceneDirty();
+            }
+        }
+
+        char saveAsBuffer[128]{};
+        std::snprintf(saveAsBuffer, sizeof(saveAsBuffer), "%s", saveAsNameBuffer_.c_str());
+        if (ImGui::InputText("Save As Name", saveAsBuffer, sizeof(saveAsBuffer))) {
+            saveAsNameBuffer_ = saveAsBuffer;
+        }
+
+        auto saveSceneAsNewFile = [this]() {
+            const std::string desiredName = saveAsNameBuffer_.empty() ? sceneDocument_.sceneName : saveAsNameBuffer_;
+            const std::string token = SanitizeSceneToken(desiredName);
+            const std::string scenePath = BuildScenePath(token);
+            sceneDocument_.environment = environment_;
+            if (sceneSerializer_.SaveToFile(scenePath, sceneDocument_)) {
+                currentScenePath_ = scenePath;
+                currentSceneId_ = token;
+                sceneRegistry_.RegisterScene(currentSceneId_, currentScenePath_);
+                sceneDirty_ = false;
+                if (!desiredName.empty()) {
+                    sceneDocument_.sceneName = desiredName;
+                    sceneNameEditBuffer_ = desiredName;
+                } else {
+                    sceneDocument_.sceneName = token;
+                    sceneNameEditBuffer_ = token;
+                }
+                saveAsNameBuffer_ = sceneDocument_.sceneName;
+            }
+        };
+
         if (ImGui::Button("Reload Assets")) {
             ReloadAssets();
         }
@@ -298,26 +401,25 @@ namespace HIKARI {
         ImGui::SameLine();
         if (ImGui::Button("Save Scene")) {
             sceneDocument_.environment = environment_;
-            if (sceneSerializer_.SaveToFile(currentScenePath_, sceneDocument_)) {
+            if (currentScenePath_.empty()) {
+                saveSceneAsNewFile();
+            } else if (sceneSerializer_.SaveToFile(currentScenePath_, sceneDocument_)) {
                 sceneDirty_ = false;
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("Save As")) {
-            sceneDocument_.environment = environment_;
-            std::string saveAsPath = "Data/scenes/" + sceneDocument_.sceneName + "_copy.json";
-            if (sceneSerializer_.SaveToFile(saveAsPath, sceneDocument_)) {
-                currentScenePath_ = saveAsPath;
-                currentSceneId_ = sceneDocument_.sceneName + "_copy";
-                sceneRegistry_.RegisterScene(currentSceneId_, currentScenePath_);
-                sceneDirty_ = false;
-            }
+            saveSceneAsNewFile();
         }
 
         if (ImGui::Button("New Scene")) {
             sceneDocument_ = SceneDocument{};
             sceneDocument_.sceneName = "Untitled";
             sceneDocument_.environment = environment_;
+            currentSceneId_ = "Unsaved";
+            currentScenePath_.clear();
+            sceneNameEditBuffer_ = sceneDocument_.sceneName;
+            saveAsNameBuffer_ = sceneDocument_.sceneName;
             nextSceneObjectId_ = 1;
             selection_.selectedObject = nullptr;
             selection_.selectedAsset = nullptr;
