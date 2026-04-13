@@ -63,6 +63,8 @@ namespace HIKARI {
         SceneDocument sceneDocument_{};
         std::string currentSceneId_{ "Sandbox" };
         std::string currentScenePath_{};
+        std::string sceneNameEditBuffer_{ "Untitled" };
+        std::string saveAsNameBuffer_{ "Untitled" };
         uint64_t nextSceneObjectId_ = 1;
         bool sceneDirty_ = false;
 
