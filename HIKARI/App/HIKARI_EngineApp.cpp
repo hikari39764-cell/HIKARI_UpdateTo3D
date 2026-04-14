@@ -6,6 +6,7 @@
 #include <json.hpp>
 
 #include "HIKARI_Services.h"
+#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI {
 
@@ -74,10 +75,15 @@ namespace HIKARI {
 
     void EngineApp::RenderImGui() {
 #if defined(_DEBUG)
+        sceneManager_.RenderImGui();
+
         if (!SERVICES::IsEditorUIEnabled()) {
             return;
         }
-        sceneManager_.RenderImGui();
+
+        if (auto* docScene = dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene())) {
+            documentSceneEditorController_.Draw(*docScene);
+        }
 #endif
     }
 

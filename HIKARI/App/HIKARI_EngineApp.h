@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 
+#include "Editor/HIKARI_DocumentSceneEditorController.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneCatalog.h"
 #include "Scene/HIKARI_SceneFactory.h"
@@ -23,6 +24,7 @@ namespace HIKARI {
         SceneCatalog sceneCatalog_{};
         SceneFactory sceneFactory_;
         SceneTransitionBus sceneTransitionBus_;
+        DocumentSceneEditorController documentSceneEditorController_{};
     };
 
 } // namespace HIKARI

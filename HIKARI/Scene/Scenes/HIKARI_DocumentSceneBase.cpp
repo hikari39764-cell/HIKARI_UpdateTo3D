@@ -1,6 +1,7 @@
 #include "HIKARI_DocumentSceneBase.h"
 
 #include <filesystem>
+#include <utility>
 #include <numbers>
 
 #include "HIKARI_3D.h"
@@ -102,6 +103,82 @@ namespace HIKARI {
 
     const std::string& DocumentSceneBase::GetSceneId() const {
         return sceneId_;
+    }
+
+    const std::string& DocumentSceneBase::GetScenePath() const {
+        return scenePath_;
+    }
+
+    SceneCatalog& DocumentSceneBase::GetSceneCatalog() {
+        return sceneCatalog_;
+    }
+
+    const SceneCatalog& DocumentSceneBase::GetSceneCatalog() const {
+        return sceneCatalog_;
+    }
+
+    void DocumentSceneBase::SetSceneId(std::string sceneId) {
+        sceneId_ = std::move(sceneId);
+    }
+
+    void DocumentSceneBase::SetScenePath(std::string scenePath) {
+        scenePath_ = std::move(scenePath);
+    }
+
+    World& DocumentSceneBase::GetWorld() {
+        return world_;
+    }
+
+    const World& DocumentSceneBase::GetWorld() const {
+        return world_;
+    }
+
+    SceneDocument& DocumentSceneBase::GetSceneDocument() {
+        return sceneDocument_;
+    }
+
+    const SceneDocument& DocumentSceneBase::GetSceneDocument() const {
+        return sceneDocument_;
+    }
+
+    SceneEnvironment& DocumentSceneBase::GetSceneEnvironment() {
+        return environment_;
+    }
+
+    const SceneEnvironment& DocumentSceneBase::GetSceneEnvironment() const {
+        return environment_;
+    }
+
+    AssetRegistry& DocumentSceneBase::GetAssetRegistry() {
+        return assetRegistry_;
+    }
+
+    ModelManager& DocumentSceneBase::GetModelManager() {
+        return modelManager_;
+    }
+
+    SkyManager& DocumentSceneBase::GetSkyManager() {
+        return skyManager_;
+    }
+
+    ComponentRegistry& DocumentSceneBase::GetComponentRegistry() {
+        return componentRegistry_;
+    }
+
+    Camera3D& DocumentSceneBase::GetCamera() {
+        return camera_;
+    }
+
+    const Camera3D& DocumentSceneBase::GetCamera() const {
+        return camera_;
+    }
+
+    DebugCameraController3D& DocumentSceneBase::GetDebugCamera() {
+        return debugCamera_;
+    }
+
+    bool& DocumentSceneBase::GetEnvironmentLightingEnabled() {
+        return environmentLightingEnabled_;
     }
 
     bool DocumentSceneBase::ReloadAssets() {
