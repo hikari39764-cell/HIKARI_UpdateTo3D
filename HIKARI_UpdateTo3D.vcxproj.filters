@@ -577,6 +577,9 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
@@ -807,6 +810,9 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
@@ -838,6 +844,9 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h">

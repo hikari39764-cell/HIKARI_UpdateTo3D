@@ -151,6 +151,7 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
@@ -302,6 +303,7 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
@@ -315,6 +317,7 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyManager.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h" />

@@ -30,11 +30,35 @@ namespace HIKARI {
         void RenderImGui() override;
 
         const std::string& GetSceneId() const;
+        const std::string& GetScenePath() const;
+        SceneCatalog& GetSceneCatalog();
+        const SceneCatalog& GetSceneCatalog() const;
+        void SetSceneId(std::string sceneId);
+        void SetScenePath(std::string scenePath);
 
-    protected:
+        World& GetWorld();
+        const World& GetWorld() const;
+
+        SceneDocument& GetSceneDocument();
+        const SceneDocument& GetSceneDocument() const;
+
+        SceneEnvironment& GetSceneEnvironment();
+        const SceneEnvironment& GetSceneEnvironment() const;
+        AssetRegistry& GetAssetRegistry();
+        ModelManager& GetModelManager();
+        SkyManager& GetSkyManager();
+        ComponentRegistry& GetComponentRegistry();
+
+        Camera3D& GetCamera();
+        const Camera3D& GetCamera() const;
+        DebugCameraController3D& GetDebugCamera();
+
+        bool& GetEnvironmentLightingEnabled();
         bool ReloadAssets();
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
+
+    protected:
         void RegisterDefaultComponentTypes();
         void RegisterDefaultSceneCatalogEntries();
 
