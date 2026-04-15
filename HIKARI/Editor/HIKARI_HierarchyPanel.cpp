@@ -17,10 +17,12 @@ namespace HIKARI {
 
         for (const auto& object : world.GetObjects()) {
             GameObject* objectPtr = object.get();
+            ImGui::PushID(objectPtr);
             const bool isSelected = (selection.selectedObject == objectPtr);
             if (ImGui::Selectable(objectPtr->GetName().c_str(), isSelected)) {
                 selection.selectedObject = objectPtr;
             }
+            ImGui::PopID();
         }
 
         ImGui::End();
