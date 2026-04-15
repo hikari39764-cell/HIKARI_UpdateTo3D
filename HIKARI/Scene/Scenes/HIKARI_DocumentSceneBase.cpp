@@ -8,8 +8,10 @@
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_SkyRenderer.h"
+#include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
+#include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 
@@ -223,21 +225,83 @@ namespace HIKARI {
         if (!componentRegistry_.Find("ModelComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "ModelComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<ModelComponent>(); }
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<ModelComponent>(); },
+                {},
+                {},
+                {},
+                false
             });
         }
 
         if (!componentRegistry_.Find("UIButtonSceneTransitionComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "UIButtonSceneTransitionComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<UIButtonSceneTransitionComponent>(); }
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<UIButtonSceneTransitionComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["targetSceneId"] = "Title";
+                    properties["transitionProfileId"] = "DefaultFade";
+                    properties["screenRect"] = {
+                        { "x", 100.0f },
+                        { "y", 100.0f },
+                        { "w", 200.0f },
+                        { "h", 80.0f }
+                    };
+                }
             });
         }
 
         if (!componentRegistry_.Find("SpawnPointComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "SpawnPointComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<SpawnPointComponent>(); }
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<SpawnPointComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData& object, nlohmann::json& properties) {
+                    properties["spawnPointId"] = object.name.empty() ? "DefaultSpawn" : object.name;
+                    properties["enabled"] = true;
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("TriggerVolumeComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "TriggerVolumeComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<TriggerVolumeComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["boxSize"] = {
+                        { "x", 1.0f },
+                        { "y", 2.0f },
+                        { "z", 1.0f }
+                    };
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("DoorTransitionComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "DoorTransitionComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<DoorTransitionComponent>(); },
+                { "TriggerVolumeComponent" },
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["targetSceneId"] = "";
+                    properties["targetSpawnPointId"] = "";
+                    properties["requireInteractKey"] = true;
+                    properties["enabled"] = true;
+                }
             });
         }
     }

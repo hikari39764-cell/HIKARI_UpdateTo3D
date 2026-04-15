@@ -432,12 +432,23 @@ namespace HIKARI {
                 if (ImGui::BeginCombo("Add Component", "Select component type")) {
                     for (const std::string& typeName : componentTypes) {
                         if (ImGui::Selectable(typeName.c_str(), false)) {
-                            target->components.push_back(SceneComponentData{ typeName, nlohmann::json::object() });
-                            MarkSceneDirty();
-                            RebuildRuntimeWorldWithSelectionSync(scene);
+                            ComponentAddResult addResult = componentAuthoringService_.AddComponent(scene.GetComponentRegistry(), *target, typeName);
+                            componentAddStatusMessage_ = addResult.message;
+                            componentAddStatusIsError_ = !addResult.success;
+                            if (addResult.success && addResult.documentChanged) {
+                                MarkSceneDirty();
+                                RebuildRuntimeWorldWithSelectionSync(scene);
+                            }
                         }
                     }
                     ImGui::EndCombo();
+                }
+                if (!componentAddStatusMessage_.empty()) {
+                    if (componentAddStatusIsError_) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", componentAddStatusMessage_.c_str());
+                    } else {
+                        ImGui::TextColored(ImVec4(0.45f, 1.0f, 0.45f, 1.0f), "%s", componentAddStatusMessage_.c_str());
+                    }
                 }
 
                 ImGui::SeparatorText("Document Components");
