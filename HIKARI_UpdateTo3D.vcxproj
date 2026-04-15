@@ -152,6 +152,10 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp" />
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentToolbarController.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
@@ -332,6 +336,10 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentToolbarController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />

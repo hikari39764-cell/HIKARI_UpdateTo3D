@@ -15,12 +15,26 @@ namespace HIKARI {
         }
 
         if (ImGui::BeginMenu("Windows")) {
-            ImGui::MenuItem("Hierarchy", nullptr, &windows.showHierarchy);
-            ImGui::MenuItem("Inspector", nullptr, &windows.showInspector);
-            ImGui::MenuItem("Asset Browser", nullptr, &windows.showAssetBrowser);
-            ImGui::MenuItem("Stats", nullptr, &windows.showStats);
-            ImGui::MenuItem("Environment", nullptr, &windows.showEnvironment);
-            ImGui::MenuItem("Debug Camera", nullptr, &windows.showDebugCamera);
+            if (ImGui::BeginMenu("Scene Authoring")) {
+                ImGui::MenuItem("Scene Document", nullptr, &windows.authoring.showSceneDocument);
+                ImGui::MenuItem("Hierarchy", nullptr, &windows.authoring.showHierarchy);
+                ImGui::MenuItem("Inspector", nullptr, &windows.authoring.showInspector);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Resources & Environment")) {
+                ImGui::MenuItem("Asset Browser", nullptr, &windows.resources.showAssetBrowser);
+                ImGui::MenuItem("Environment", nullptr, &windows.resources.showEnvironment);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Runtime & Debug")) {
+                ImGui::MenuItem("Stats", nullptr, &windows.runtime.showStats);
+                ImGui::MenuItem("Debug Camera", nullptr, &windows.runtime.showDebugCamera);
+                ImGui::MenuItem("Gizmo Settings", nullptr, &windows.runtime.showGizmoSettings);
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 

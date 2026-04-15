@@ -12,6 +12,11 @@ namespace HIKARI {
         void Deserialize(const nlohmann::json& in) override;
         void BuildInspector(IInspectorBuilder& builder) override;
 
+        bool IsEnabled() const;
+        float GetBoxSizeX() const;
+        float GetBoxSizeY() const;
+        float GetBoxSizeZ() const;
+
     private:
         bool enabled_ = true;
         float boxSizeX_ = 1.0f;

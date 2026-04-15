@@ -10,13 +10,6 @@ namespace HIKARI {
     public:
         std::string_view GetTypeName() const override { return "UIButtonSceneTransitionComponent"; }
 
-        void Update(float dt) override;
-        void RenderImGui() override;
-        void Serialize(nlohmann::json& out) const override;
-        void Deserialize(const nlohmann::json& in) override;
-        void BuildInspector(IInspectorBuilder& builder) override;
-
-    private:
         struct ScreenRect {
             float x = 0.0f;
             float y = 0.0f;
@@ -24,6 +17,19 @@ namespace HIKARI {
             float h = 80.0f;
         };
 
+        void Update(float dt) override;
+        void RenderImGui() override;
+        void Serialize(nlohmann::json& out) const override;
+        void Deserialize(const nlohmann::json& in) override;
+        void BuildInspector(IInspectorBuilder& builder) override;
+
+        bool IsEnabled() const;
+        bool IsDebugDrawRectEnabled() const;
+        const ScreenRect& GetScreenRect() const;
+        uint32_t GetDebugColorRgba() const;
+        const std::string& GetTargetSceneId() const;
+
+    private:
         bool IsMouseInsideRect() const;
 
     private:

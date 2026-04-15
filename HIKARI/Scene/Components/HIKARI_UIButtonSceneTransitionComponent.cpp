@@ -7,10 +7,6 @@
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
 
-#if defined(_DEBUG)
-#include "imgui.h"
-#endif
-
 namespace HIKARI {
 
     void UIButtonSceneTransitionComponent::Update(float dt) {
@@ -43,20 +39,6 @@ namespace HIKARI {
     }
 
     void UIButtonSceneTransitionComponent::RenderImGui() {
-#if defined(_DEBUG)
-        if (!debugDrawRect_) {
-            return;
-        }
-
-        const ImU32 color = IM_COL32((debugColorRgba_ >> 24) & 0xFF, (debugColorRgba_ >> 16) & 0xFF, (debugColorRgba_ >> 8) & 0xFF, debugColorRgba_ & 0xFF);
-        const ImVec2 minP{ screenRect_.x, screenRect_.y };
-        const ImVec2 maxP{ screenRect_.x + screenRect_.w, screenRect_.y + screenRect_.h };
-        ImDrawList* drawList = ImGui::GetForegroundDrawList();
-        drawList->AddRect(minP, maxP, color, 0.0f, 0, 2.0f);
-        if (IsMouseInsideRect()) {
-            drawList->AddRectFilled(minP, maxP, IM_COL32(255, 255, 80, 32));
-        }
-#endif
     }
 
     void UIButtonSceneTransitionComponent::Serialize(nlohmann::json& out) const {
@@ -105,6 +87,26 @@ namespace HIKARI {
         if (builder.Int("Debug RGBA", colorInt)) {
             debugColorRgba_ = static_cast<uint32_t>((std::max)(0, colorInt));
         }
+    }
+
+    bool UIButtonSceneTransitionComponent::IsEnabled() const {
+        return enabled_;
+    }
+
+    bool UIButtonSceneTransitionComponent::IsDebugDrawRectEnabled() const {
+        return debugDrawRect_;
+    }
+
+    const UIButtonSceneTransitionComponent::ScreenRect& UIButtonSceneTransitionComponent::GetScreenRect() const {
+        return screenRect_;
+    }
+
+    uint32_t UIButtonSceneTransitionComponent::GetDebugColorRgba() const {
+        return debugColorRgba_;
+    }
+
+    const std::string& UIButtonSceneTransitionComponent::GetTargetSceneId() const {
+        return targetSceneId_;
     }
 
     bool UIButtonSceneTransitionComponent::IsMouseInsideRect() const {

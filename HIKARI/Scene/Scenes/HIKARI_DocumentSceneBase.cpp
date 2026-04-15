@@ -97,12 +97,15 @@ namespace HIKARI {
             LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
         }
 
+        componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
+
         MESHRENDERER::RenderAll(camera_, activeEnvironment);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
 
     void DocumentSceneBase::RenderImGui() {
         world_.RenderImGui();
+        componentGizmoRenderer_.DrawScreenSpaceGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
     }
 
     const std::string& DocumentSceneBase::GetSceneId() const {
@@ -183,6 +186,15 @@ namespace HIKARI {
 
     bool& DocumentSceneBase::GetEnvironmentLightingEnabled() {
         return environmentLightingEnabled_;
+    }
+
+
+    void DocumentSceneBase::SetComponentGizmoState(const ComponentGizmoState& state) {
+        componentGizmoState_ = state;
+    }
+
+    void DocumentSceneBase::SetSelectedGizmoObjectId(SceneObjectId id) {
+        selectedGizmoObjectId_ = id;
     }
 
     bool DocumentSceneBase::ReloadAssets() {
