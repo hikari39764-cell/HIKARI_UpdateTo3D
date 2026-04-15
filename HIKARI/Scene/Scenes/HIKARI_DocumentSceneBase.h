@@ -16,6 +16,7 @@
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
+#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 
 namespace HIKARI {
 
@@ -58,6 +59,9 @@ namespace HIKARI {
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
 
+        void SetComponentGizmoState(const ComponentGizmoState& state);
+        void SetSelectedGizmoObjectId(SceneObjectId id);
+
     protected:
         void RegisterDefaultComponentTypes();
         void RegisterDefaultSceneCatalogEntries();
@@ -85,6 +89,9 @@ namespace HIKARI {
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};
         SceneDocument sceneDocument_{};
+        ComponentGizmoRenderer componentGizmoRenderer_{};
+        ComponentGizmoState componentGizmoState_{};
+        SceneObjectId selectedGizmoObjectId_{};
     };
 
 } // namespace HIKARI

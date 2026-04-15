@@ -14,6 +14,10 @@ namespace HIKARI {
         void Deserialize(const nlohmann::json& in) override;
         void BuildInspector(IInspectorBuilder& builder) override;
 
+        bool IsEnabled() const;
+        const std::string& GetTargetSceneId() const;
+        const std::string& GetTargetSpawnPointId() const;
+
     private:
         bool enabled_ = true;
         std::string targetSceneId_{};

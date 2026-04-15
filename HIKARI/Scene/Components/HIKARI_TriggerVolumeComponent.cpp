@@ -31,4 +31,20 @@ namespace HIKARI {
         builder.Float("Box Size Z", boxSizeZ_);
     }
 
+    bool TriggerVolumeComponent::IsEnabled() const {
+        return enabled_;
+    }
+
+    float TriggerVolumeComponent::GetBoxSizeX() const {
+        return boxSizeX_;
+    }
+
+    float TriggerVolumeComponent::GetBoxSizeY() const {
+        return boxSizeY_;
+    }
+
+    float TriggerVolumeComponent::GetBoxSizeZ() const {
+        return boxSizeZ_;
+    }
+
 } // namespace HIKARI

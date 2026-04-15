@@ -25,4 +25,16 @@ namespace HIKARI {
         builder.Bool("Require Interact Key", requireInteractKey_);
     }
 
+    bool DoorTransitionComponent::IsEnabled() const {
+        return enabled_;
+    }
+
+    const std::string& DoorTransitionComponent::GetTargetSceneId() const {
+        return targetSceneId_;
+    }
+
+    const std::string& DoorTransitionComponent::GetTargetSpawnPointId() const {
+        return targetSpawnPointId_;
+    }
+
 } // namespace HIKARI
