@@ -1,0 +1,95 @@
+{
+  "environment": {
+    "ambient": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "intensity": 0.20000000298023224
+    },
+    "directional": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "direction": [
+        0.26832816004753113,
+        -0.8944271802902222,
+        -0.3577708899974823
+      ],
+      "enabled": true,
+      "intensity": 1.0
+    },
+    "pointLights": [
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "enabled": true,
+        "intensity": 1.0,
+        "position": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "range": 5.0
+      }
+    ],
+    "sky": {
+      "enabled": false,
+      "exposure": 1.0,
+      "followCamera": true,
+      "scale": 0.05000000074505806,
+      "skyAsset": "DefaultSky",
+      "tint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaw": 0.0
+    },
+    "specularIntensity": 0.20000000298023224,
+    "specularPower": 32.0
+  },
+  "objects": [
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "Player",
+            "visible": true
+          },
+          "type": "ModelComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 1,
+      "name": "GameObject_1",
+      "parent": null,
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "sceneName": "K",
+  "version": 1
+}
