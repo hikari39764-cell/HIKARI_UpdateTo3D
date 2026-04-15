@@ -7,15 +7,25 @@
 #include <unordered_map>
 #include <vector>
 
+#include <json.hpp>
+
 namespace HIKARI {
 
     class GameObject;
     class IComponent;
+    struct SceneObjectData;
 
     struct ComponentTypeInfo {
         using FactoryFn = std::function<std::unique_ptr<IComponent>()>;
+        using InitializeDefaultsFn = std::function<void(const SceneObjectData& object, nlohmann::json& properties)>;
+
         std::string typeName{};
         FactoryFn factory{};
+        std::vector<std::string> requiredComponents{};
+        std::vector<std::string> optionalComponents{};
+        std::vector<std::string> incompatibleComponents{};
+        bool allowMultiple = false;
+        InitializeDefaultsFn initializeDefaults{};
     };
 
     class ComponentRegistry {

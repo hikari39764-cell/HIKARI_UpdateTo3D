@@ -580,6 +580,9 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
@@ -766,6 +769,18 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -811,6 +826,9 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h">
@@ -1057,6 +1075,18 @@
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h">
