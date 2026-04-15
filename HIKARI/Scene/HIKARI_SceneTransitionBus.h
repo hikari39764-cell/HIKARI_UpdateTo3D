@@ -19,18 +19,29 @@ namespace HIKARI {
 
     class SceneTransitionBus {
     public:
+        enum class TransitionState {
+            Idle,
+            TransitionOut,
+            SwitchingScene,
+            TransitionIn,
+        };
+
         SceneTransitionBus(SceneManager& sceneManager, const SceneCatalog& sceneCatalog, const SceneFactory& sceneFactory);
 
         bool RequestTransition(const SceneTransitionRequest& request);
-        void Update();
+        void Update(float dt);
         bool IsTransitioning() const;
+        TransitionState GetState() const;
 
     private:
         SceneManager& sceneManager_;
         const SceneCatalog& sceneCatalog_;
         const SceneFactory& sceneFactory_;
         std::optional<SceneTransitionRequest> pendingRequest_{};
-        bool transitionActive_ = false;
+        TransitionState state_ = TransitionState::Idle;
+        float timer_ = 0.0f;
+        float transitionOutDuration_ = 0.2f;
+        float transitionInDuration_ = 0.2f;
     };
 
 } // namespace HIKARI

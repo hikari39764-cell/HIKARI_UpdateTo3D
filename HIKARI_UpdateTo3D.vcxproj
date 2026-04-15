@@ -152,6 +152,7 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
@@ -162,12 +163,15 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneFactory.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneTransitionBus.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.cpp" />
+    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.cpp" />
+    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_ImGuiInspectorBuilder.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.cpp" />
@@ -299,6 +303,10 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h" />
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.h" />
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.h" />
@@ -306,6 +314,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />

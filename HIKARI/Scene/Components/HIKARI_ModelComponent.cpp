@@ -1,5 +1,6 @@
 #include "HIKARI_ModelComponent.h"
 
+#include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/HIKARI_IInspectorBuilder.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
@@ -68,7 +69,7 @@ namespace HIKARI {
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Visible", visible_);
-        builder.String("Asset ID", assetId_);
+        builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
     }
 
     void ModelComponent::RenderImGui() {

@@ -66,7 +66,7 @@ namespace HIKARI {
 
     void EngineApp::Update(float dt) {
         sceneManager_.Update(dt);
-        sceneTransitionBus_.Update();
+        sceneTransitionBus_.Update(dt);
     }
 
     void EngineApp::Render() {
