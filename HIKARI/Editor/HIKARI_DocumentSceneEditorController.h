@@ -4,13 +4,17 @@
 #include <string>
 
 #include "HIKARI_AssetBrowserPanel.h"
+#include "HIKARI_ComponentDocumentEditor.h"
 #include "HIKARI_DebugCameraPanel.h"
 #include "HIKARI_DebugMenuBar.h"
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_EnvironmentPanel.h"
 #include "HIKARI_HierarchyPanel.h"
+#include "HIKARI_ImGuiInspectorBuilder.h"
 #include "HIKARI_InspectorPanel.h"
 #include "HIKARI_StatsPanel.h"
+#include "Scene/Prefab/HIKARI_PrefabRegistry.h"
+#include "Scene/Prefab/HIKARI_PrefabSerializer.h"
 
 namespace HIKARI {
 
@@ -32,10 +36,15 @@ namespace HIKARI {
         StatsPanel statsPanel_{};
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};
+        ComponentDocumentEditor componentDocumentEditor_{};
+        ImGuiInspectorBuilder componentInspectorBuilder_{};
+        PrefabRegistry prefabRegistry_{};
+        PrefabSerializer prefabSerializer_{};
 
         EditorSelection selection_{};
         std::string sceneNameEditBuffer_{ "Untitled" };
         std::string saveAsNameBuffer_{ "Untitled" };
+        std::string prefabNameBuffer_{ "NewPrefab" };
         uint64_t nextSceneObjectId_ = 1;
         bool sceneDirty_ = false;
 

@@ -92,21 +92,19 @@ namespace HIKARI {
 
     void UIButtonSceneTransitionComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Enabled", enabled_);
+        builder.Vec2("Screen Pos", screenRect_.x, screenRect_.y);
+        builder.Vec2("Screen Size", screenRect_.w, screenRect_.h);
         builder.Bool("Require Left Click", requireLeftClick_);
-        builder.String("Target Scene ID", targetSceneId_);
+        builder.SceneIdPicker("Target Scene ID", targetSceneId_);
         builder.String("Target Spawn Point", targetSpawnPointId_);
         builder.String("Transition Profile", transitionProfileId_);
         builder.Bool("Use Transition", useTransition_);
         builder.Bool("Debug Draw Rect", debugDrawRect_);
 
-#if defined(_DEBUG)
-        ImGui::DragFloat2("Screen Pos", &screenRect_.x, 1.0f);
-        ImGui::DragFloat2("Screen Size", &screenRect_.w, 1.0f, 1.0f, 8192.0f);
         int colorInt = static_cast<int>(debugColorRgba_);
-        if (ImGui::InputInt("Debug RGBA", &colorInt)) {
+        if (builder.Int("Debug RGBA", colorInt)) {
             debugColorRgba_ = static_cast<uint32_t>((std::max)(0, colorInt));
         }
-#endif
     }
 
     bool UIButtonSceneTransitionComponent::IsMouseInsideRect() const {

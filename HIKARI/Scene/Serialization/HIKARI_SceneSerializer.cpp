@@ -130,6 +130,7 @@ namespace HIKARI {
                 SceneObjectData objectData{};
                 objectData.id.value = node.value("id", 0ull);
                 objectData.name = node.value("name", std::string("GameObject"));
+                objectData.sourcePrefabId = node.value("sourcePrefabId", std::string{});
                 objectData.enabled = node.value("enabled", true);
                 objectData.editorVisible = node.value("editorVisible", true);
 
@@ -175,6 +176,7 @@ namespace HIKARI {
             json node = json::object();
             node["id"] = object.id.value;
             node["name"] = object.name;
+            node["sourcePrefabId"] = object.sourcePrefabId;
             if (object.parent.has_value()) {
                 node["parent"] = object.parent->value;
             } else {
