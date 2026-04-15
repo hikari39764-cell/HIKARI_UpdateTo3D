@@ -33,6 +33,7 @@ namespace HIKARI {
     struct SceneObjectData {
         SceneObjectId id{};
         std::string name{};
+        std::string sourcePrefabId{};
         std::optional<SceneObjectId> parent{};
         TransformData transform{};
         std::vector<SceneComponentData> components{};

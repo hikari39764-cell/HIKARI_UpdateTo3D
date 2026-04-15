@@ -1,5 +1,8 @@
 #include "HIKARI_SceneTransitionBus.h"
 
+#include <algorithm>
+
+#include "HIKARI_RuntimeSceneContext.h"
 #include "HIKARI_SceneCatalog.h"
 #include "HIKARI_SceneFactory.h"
 #include "HIKARI_IScene.h"
@@ -20,28 +23,66 @@ namespace HIKARI {
         }
 
         pendingRequest_ = request;
-        transitionActive_ = true;
+        state_ = request.useTransition ? TransitionState::TransitionOut : TransitionState::SwitchingScene;
+        timer_ = 0.0f;
         return true;
     }
 
-    void SceneTransitionBus::Update() {
+    void SceneTransitionBus::Update(float dt) {
         if (!pendingRequest_.has_value()) {
-            transitionActive_ = false;
+            state_ = TransitionState::Idle;
+            timer_ = 0.0f;
             return;
         }
 
-        // 第一版：立即切场，后续可插入 transition out / in 状态机。
-        std::unique_ptr<IScene> nextScene = sceneFactory_.CreateScene(pendingRequest_->targetSceneId);
-        if (nextScene) {
-            sceneManager_.ChangeScene(std::move(nextScene));
+        switch (state_) {
+        case TransitionState::Idle:
+            state_ = pendingRequest_->useTransition ? TransitionState::TransitionOut : TransitionState::SwitchingScene;
+            timer_ = 0.0f;
+            break;
+
+        case TransitionState::TransitionOut:
+            timer_ += (std::max)(0.0f, dt);
+            if (timer_ >= transitionOutDuration_) {
+                state_ = TransitionState::SwitchingScene;
+                timer_ = 0.0f;
+            }
+            break;
+
+        case TransitionState::SwitchingScene: {
+            RuntimeSceneContext::SetPendingSceneEntry(pendingRequest_->targetSceneId, pendingRequest_->targetSpawnPointId);
+            std::unique_ptr<IScene> nextScene = sceneFactory_.CreateScene(pendingRequest_->targetSceneId);
+            if (nextScene) {
+                sceneManager_.ChangeScene(std::move(nextScene));
+            }
+
+            if (pendingRequest_->useTransition) {
+                state_ = TransitionState::TransitionIn;
+                timer_ = 0.0f;
+            } else {
+                state_ = TransitionState::Idle;
+                pendingRequest_.reset();
+            }
+            break;
         }
 
-        pendingRequest_.reset();
-        transitionActive_ = false;
+        case TransitionState::TransitionIn:
+            timer_ += (std::max)(0.0f, dt);
+            if (timer_ >= transitionInDuration_) {
+                state_ = TransitionState::Idle;
+                timer_ = 0.0f;
+                pendingRequest_.reset();
+            }
+            break;
+        }
     }
 
     bool SceneTransitionBus::IsTransitioning() const {
-        return transitionActive_ || pendingRequest_.has_value();
+        return state_ != TransitionState::Idle || pendingRequest_.has_value();
+    }
+
+    SceneTransitionBus::TransitionState SceneTransitionBus::GetState() const {
+        return state_;
     }
 
 } // namespace HIKARI

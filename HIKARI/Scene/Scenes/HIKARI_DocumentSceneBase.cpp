@@ -9,7 +9,9 @@
 #include "Render3D/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_SkyRenderer.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
+#include "Scene/HIKARI_RuntimeSceneContext.h"
 
 namespace HIKARI {
 
@@ -212,6 +214,8 @@ namespace HIKARI {
             environment_.pointLights.push_back(PointLight{});
         }
 
+        RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
+
         return built;
     }
 
@@ -227,6 +231,13 @@ namespace HIKARI {
             componentRegistry_.Register(ComponentTypeInfo{
                 "UIButtonSceneTransitionComponent",
                 []() -> std::unique_ptr<IComponent> { return std::make_unique<UIButtonSceneTransitionComponent>(); }
+            });
+        }
+
+        if (!componentRegistry_.Find("SpawnPointComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "SpawnPointComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<SpawnPointComponent>(); }
             });
         }
     }

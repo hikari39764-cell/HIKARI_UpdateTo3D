@@ -6,10 +6,10 @@
 #include <vector>
 #include <utility>
 
-#include "Assets/HIKARI_AssetTypes.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Prefab/HIKARI_PrefabDocument.h"
 
 #undef max
 #undef min
@@ -145,40 +145,46 @@ namespace HIKARI {
             return;
         }
 
-        const Transform3D& runtimeTransform = selection_.selectedObject->Transform();
-        documentObject->transform.position = runtimeTransform.position;
-        documentObject->transform.scale = runtimeTransform.scale;
-
+        bool changed = false;
         bool requiresRebuild = false;
-        for (const auto& runtimeComponent : selection_.selectedObject->GetComponents()) {
-            if (!runtimeComponent || runtimeComponent->GetTypeName() != "ModelComponent") {
-                continue;
-            }
 
-            auto* runtimeModelComponent = dynamic_cast<const ModelComponent*>(runtimeComponent.get());
-            if (!runtimeModelComponent) {
-                continue;
-            }
-
-            for (SceneComponentData& componentData : documentObject->components) {
-                if (componentData.type != "ModelComponent") {
-                    continue;
-                }
-
-                const std::string runtimeAssetId = runtimeModelComponent->GetAssetId();
-                const bool runtimeVisible = runtimeModelComponent->IsVisible();
-                const std::string docAssetId = componentData.properties.value("assetId", std::string{});
-                const bool docVisible = componentData.properties.value("visible", true);
-                if (runtimeAssetId != docAssetId || runtimeVisible != docVisible) {
-                    componentData.properties["assetId"] = runtimeAssetId;
-                    componentData.properties["visible"] = runtimeVisible;
-                    MarkSceneDirty();
-                    requiresRebuild = true;
-                }
-                break;
-            }
+        const Transform3D& runtimeTransform = selection_.selectedObject->Transform();
+        if (documentObject->transform.position.x != runtimeTransform.position.x
+            || documentObject->transform.position.y != runtimeTransform.position.y
+            || documentObject->transform.position.z != runtimeTransform.position.z) {
+            documentObject->transform.position = runtimeTransform.position;
+            changed = true;
+        }
+        if (documentObject->transform.scale.x != runtimeTransform.scale.x
+            || documentObject->transform.scale.y != runtimeTransform.scale.y
+            || documentObject->transform.scale.z != runtimeTransform.scale.z) {
+            documentObject->transform.scale = runtimeTransform.scale;
+            changed = true;
         }
 
+        const auto& runtimeComponents = selection_.selectedObject->GetComponents();
+        const size_t count = (std::min)(runtimeComponents.size(), documentObject->components.size());
+        for (size_t i = 0; i < count; ++i) {
+            const auto& runtimeComponent = runtimeComponents[i];
+            SceneComponentData& componentData = documentObject->components[i];
+            if (!runtimeComponent || std::string(runtimeComponent->GetTypeName()) != componentData.type) {
+                continue;
+            }
+
+            nlohmann::json serialized = nlohmann::json::object();
+            runtimeComponent->Serialize(serialized);
+            if (serialized == componentData.properties) {
+                continue;
+            }
+
+            componentData.properties = std::move(serialized);
+            changed = true;
+            requiresRebuild = true;
+        }
+
+        if (changed) {
+            MarkSceneDirty();
+        }
         if (requiresRebuild) {
             RebuildRuntimeWorldWithSelectionSync(scene);
         }
@@ -368,6 +374,59 @@ namespace HIKARI {
             }
 
             if (SceneObjectData* target = FindDocumentObjectByRuntime(scene, selection_.selectedObject)) {
+                char prefabNameBuffer[128]{};
+                std::snprintf(prefabNameBuffer, sizeof(prefabNameBuffer), "%s", prefabNameBuffer_.c_str());
+                if (ImGui::InputText("Prefab ID", prefabNameBuffer, sizeof(prefabNameBuffer))) {
+                    prefabNameBuffer_ = prefabNameBuffer;
+                }
+
+                if (ImGui::Button("Save Selected As Prefab")) {
+                    const std::string prefabId = SanitizeSceneToken(prefabNameBuffer_.empty() ? target->name : prefabNameBuffer_);
+                    PrefabDocument prefab{};
+                    prefab.prefabName = prefabId;
+                    prefab.rootObject = *target;
+                    prefab.rootObject.parent.reset();
+                    prefab.rootObject.sourcePrefabId.clear();
+                    prefabRegistry_.Save(prefabId, prefab, prefabSerializer_);
+                }
+
+                std::vector<std::string> prefabIds = prefabRegistry_.ListPrefabIds();
+                std::sort(prefabIds.begin(), prefabIds.end());
+                if (!prefabIds.empty()) {
+                    if (prefabNameBuffer_.empty()) {
+                        prefabNameBuffer_ = prefabIds.front();
+                    }
+
+                    if (ImGui::BeginCombo("Create From Prefab", prefabNameBuffer_.c_str())) {
+                        for (const std::string& prefabId : prefabIds) {
+                            const bool selected = (prefabNameBuffer_ == prefabId);
+                            if (ImGui::Selectable(prefabId.c_str(), selected)) {
+                                prefabNameBuffer_ = prefabId;
+                            }
+                            if (selected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+
+                    if (ImGui::Button("Instantiate Prefab")) {
+                        PrefabDocument prefab{};
+                        if (prefabRegistry_.Load(prefabNameBuffer_, prefab, prefabSerializer_)) {
+                            SceneObjectData instance = prefab.rootObject;
+                            instance.id = SceneObjectId{ nextSceneObjectId_++ };
+                            instance.parent.reset();
+                            instance.sourcePrefabId = prefabNameBuffer_;
+                            if (instance.name.empty()) {
+                                instance.name = prefab.prefabName;
+                            }
+                            scene.GetSceneDocument().objects.push_back(std::move(instance));
+                            MarkSceneDirty();
+                            RebuildRuntimeWorldWithSelectionSync(scene);
+                        }
+                    }
+                }
+
                 std::vector<std::string> componentTypes = scene.GetComponentRegistry().GetTypeNames();
                 std::sort(componentTypes.begin(), componentTypes.end());
                 if (ImGui::BeginCombo("Add Component", "Select component type")) {
@@ -383,6 +442,11 @@ namespace HIKARI {
 
                 ImGui::SeparatorText("Document Components");
                 bool needsRebuild = false;
+                const InspectorContext context{
+                    &scene.GetAssetRegistry(),
+                    &scene.GetSceneCatalog()
+                };
+
                 for (size_t componentIndex = 0; componentIndex < target->components.size(); ++componentIndex) {
                     SceneComponentData& component = target->components[componentIndex];
                     ImGui::PushID(static_cast<int>(componentIndex));
@@ -391,102 +455,11 @@ namespace HIKARI {
                         continue;
                     }
 
-                    if (component.type == "ModelComponent") {
-                        bool visible = component.properties.value("visible", true);
-                        if (ImGui::Checkbox("Visible", &visible)) {
-                            component.properties["visible"] = visible;
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        std::string assetId = component.properties.value("assetId", std::string{});
-                        std::vector<const AssetDescriptor*> modelAssets = scene.GetAssetRegistry().CollectByType(AssetType::Model);
-                        if (ImGui::BeginCombo("Model Asset", assetId.empty() ? "<none>" : assetId.c_str())) {
-                            for (const AssetDescriptor* descriptor : modelAssets) {
-                                if (!descriptor) {
-                                    continue;
-                                }
-                                const bool selected = (assetId == descriptor->id.value);
-                                if (ImGui::Selectable(descriptor->id.value.c_str(), selected)) {
-                                    component.properties["assetId"] = descriptor->id.value;
-                                    MarkSceneDirty();
-                                    needsRebuild = true;
-                                }
-                                if (selected) {
-                                    ImGui::SetItemDefaultFocus();
-                                }
-                            }
-                            ImGui::EndCombo();
-                        }
-                    } else if (component.type == "UIButtonSceneTransitionComponent") {
-                        bool enabled = component.properties.value("enabled", true);
-                        if (ImGui::Checkbox("Enabled", &enabled)) {
-                            component.properties["enabled"] = enabled;
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        auto rect = component.properties.value("screenRect", nlohmann::json::object());
-                        float rectValues[4]{
-                            rect.value("x", 20.0f),
-                            rect.value("y", 20.0f),
-                            rect.value("w", 200.0f),
-                            rect.value("h", 80.0f)
-                        };
-                        if (ImGui::DragFloat4("screenRect(x,y,w,h)", rectValues, 1.0f)) {
-                            component.properties["screenRect"] = {{"x", rectValues[0]}, {"y", rectValues[1]}, {"w", rectValues[2]}, {"h", rectValues[3]}};
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        std::string targetSceneId = component.properties.value("targetSceneId", std::string("Title"));
-                        char targetSceneBuffer[128]{};
-                        std::snprintf(targetSceneBuffer, sizeof(targetSceneBuffer), "%s", targetSceneId.c_str());
-                        if (ImGui::InputText("Target Scene ID", targetSceneBuffer, sizeof(targetSceneBuffer))) {
-                            component.properties["targetSceneId"] = std::string(targetSceneBuffer);
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        std::string spawnPointId = component.properties.value("targetSpawnPointId", std::string{});
-                        char spawnBuffer[128]{};
-                        std::snprintf(spawnBuffer, sizeof(spawnBuffer), "%s", spawnPointId.c_str());
-                        if (ImGui::InputText("Target Spawn Point", spawnBuffer, sizeof(spawnBuffer))) {
-                            component.properties["targetSpawnPointId"] = std::string(spawnBuffer);
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        std::string transitionProfile = component.properties.value("transitionProfileId", std::string("DefaultFade"));
-                        char transitionBuffer[128]{};
-                        std::snprintf(transitionBuffer, sizeof(transitionBuffer), "%s", transitionProfile.c_str());
-                        if (ImGui::InputText("Transition Profile", transitionBuffer, sizeof(transitionBuffer))) {
-                            component.properties["transitionProfileId"] = std::string(transitionBuffer);
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        bool useTransition = component.properties.value("useTransition", true);
-                        if (ImGui::Checkbox("Use Transition", &useTransition)) {
-                            component.properties["useTransition"] = useTransition;
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        bool requireLeftClick = component.properties.value("requireLeftClick", true);
-                        if (ImGui::Checkbox("Require Left Click", &requireLeftClick)) {
-                            component.properties["requireLeftClick"] = requireLeftClick;
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
-
-                        bool debugDrawRect = component.properties.value("debugDrawRect", true);
-                        if (ImGui::Checkbox("Debug Draw Rect", &debugDrawRect)) {
-                            component.properties["debugDrawRect"] = debugDrawRect;
-                            MarkSceneDirty();
-                            needsRebuild = true;
-                        }
+                    if (componentDocumentEditor_.DrawComponent(scene.GetComponentRegistry(), component, componentInspectorBuilder_, context)) {
+                        MarkSceneDirty();
+                        needsRebuild = true;
                     }
+
                     ImGui::TreePop();
                     ImGui::PopID();
                 }
