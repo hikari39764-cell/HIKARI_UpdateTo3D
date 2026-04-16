@@ -1,7 +1,7 @@
 #include "HIKARI_World.h"
 #include <algorithm>
 #include "HIKARI_GameObject.h"
-
+#include "Effekseer/Effekseer.h"
 namespace HIKARI {
 
 

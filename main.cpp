@@ -1,7 +1,7 @@
 #include "HIKARI/HIKARI_Services.h"
 #include "HIKARI/App/HIKARI_EngineApp.h"
 #include <Windows.h>
-#include "Effekseer/Effekseer.h"
+
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -12,7 +12,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     HIKARI::HINPUT::SwitchLayer("Debug");
     HIKARI::MATH::RunMathConventionSelfCheck();
-
     HIKARI::EngineApp app;
     if (!app.Initialize()) {
         HIKARI::SERVICES::FinalizeAll();

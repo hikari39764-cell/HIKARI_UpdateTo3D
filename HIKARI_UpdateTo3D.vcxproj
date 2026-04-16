@@ -70,7 +70,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);.\ThirdPartyr\Effekseer\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -96,7 +96,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);.\ThirdPartyr\Effekseer\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
