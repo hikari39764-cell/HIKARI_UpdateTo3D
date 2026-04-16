@@ -92,7 +92,14 @@ namespace HIKARI {
             if (serializer.SaveToFile(scenePath, sceneDocument)) {
                 scene.SetScenePath(scenePath);
                 scene.SetSceneId(token);
-                scene.GetSceneCatalog().Register(SceneCatalogEntry{ scene.GetSceneId(), "GameDocumentScene", scene.GetScenePath(), true, scene.GetSceneId() });
+                scene.GetSceneCatalog().Register(SceneCatalogEntry{
+                    scene.GetSceneId(),
+                    "GameDocumentScene",
+                    scene.GetScenePath(),
+                    true,
+                    scene.GetSceneId(),
+                    SceneLifetimePolicy::ReloadOnEnter
+                });
                 context.sceneDirty = false;
                 if (!desiredName.empty()) {
                     sceneDocument.sceneName = desiredName;

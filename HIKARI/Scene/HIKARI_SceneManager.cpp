@@ -4,8 +4,10 @@ namespace HIKARI {
 
     SceneManager::~SceneManager() = default;
 
-    void SceneManager::ChangeScene(std::unique_ptr<IScene> next) {
+    void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool callOnEnterNext, bool callOnExitCurrent) {
         pending_ = std::move(next);
+        pendingCallOnEnter_ = callOnEnterNext;
+        pendingCallOnExitCurrent_ = callOnExitCurrent;
     }
 
     void SceneManager::Update(float dt) {
@@ -35,20 +37,27 @@ namespace HIKARI {
         return current_.get();
     }
 
+    std::unique_ptr<IScene> SceneManager::TakeCurrentScene() {
+        return std::move(current_);
+    }
+
     void SceneManager::CommitPendingScene() {
         if (!pending_) {
             return;
         }
 
-        if (current_) {
+        if (current_ && pendingCallOnExitCurrent_) {
             current_->OnExit();
         }
 
         current_ = std::move(pending_);
 
-        if (current_) {
+        if (current_ && pendingCallOnEnter_) {
             current_->OnEnter();
         }
+
+        pendingCallOnEnter_ = true;
+        pendingCallOnExitCurrent_ = true;
     }
 
 } // namespace HIKARI

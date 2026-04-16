@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace HIKARI {
 
     class IScene {
@@ -13,6 +15,7 @@ namespace HIKARI {
         virtual void Render() = 0;
         virtual void RenderImGui() = 0;
 
+        virtual const std::string& GetSceneId() const = 0;
         virtual const char* GetSceneName() const = 0;
     };
 

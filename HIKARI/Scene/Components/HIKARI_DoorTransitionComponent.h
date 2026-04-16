@@ -16,12 +16,10 @@ namespace HIKARI {
 
         bool IsEnabled() const;
         const std::string& GetTargetSceneId() const;
-        const std::string& GetTargetSpawnPointId() const;
 
     private:
         bool enabled_ = true;
         std::string targetSceneId_{};
-        std::string targetSpawnPointId_{};
         bool requireInteractKey_ = true;
     };
 

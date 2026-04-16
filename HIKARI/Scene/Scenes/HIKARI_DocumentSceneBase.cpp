@@ -310,7 +310,6 @@ namespace HIKARI {
                 false,
                 [](const SceneObjectData&, nlohmann::json& properties) {
                     properties["targetSceneId"] = "";
-                    properties["targetSpawnPointId"] = "";
                     properties["requireInteractKey"] = true;
                     properties["enabled"] = true;
                 }
@@ -319,9 +318,9 @@ namespace HIKARI {
     }
 
     void DocumentSceneBase::RegisterDefaultSceneCatalogEntries() {
-        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox" });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty" });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title" });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox", SceneLifetimePolicy::ReloadOnEnter });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty", SceneLifetimePolicy::ReloadOnEnter });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title", SceneLifetimePolicy::ReloadOnEnter });
 
         std::error_code ec{};
         const std::filesystem::path sceneRoot{ "Data/scenes" };
@@ -350,7 +349,7 @@ namespace HIKARI {
                 continue;
             }
 
-            sceneCatalog_.Register(SceneCatalogEntry{ stem, "GameDocumentScene", path.generic_string(), true, stem });
+            sceneCatalog_.Register(SceneCatalogEntry{ stem, "GameDocumentScene", path.generic_string(), true, stem, SceneLifetimePolicy::ReloadOnEnter });
         }
     }
 
