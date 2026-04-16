@@ -51,10 +51,13 @@ namespace HIKARI {
         const SceneDocument& document = scene.GetSceneDocument();
         if (context.sceneNameEditBuffer != document.sceneName) {
             context.sceneNameEditBuffer = document.sceneName;
-            context.saveAsNameBuffer = document.sceneName;
+            if (!context.saveAsNameOverriddenByUser) {
+                context.saveAsNameBuffer = document.sceneName;
+            }
         }
         if (context.saveAsNameBuffer.empty()) {
             context.saveAsNameBuffer = document.sceneName;
+            context.saveAsNameOverriddenByUser = false;
         }
         selectionSync.SyncNextSceneObjectId(scene, context.nextSceneObjectId);
     }
@@ -72,6 +75,9 @@ namespace HIKARI {
             context.sceneNameEditBuffer = sceneNameBuffer;
             if (scene.GetSceneDocument().sceneName != context.sceneNameEditBuffer) {
                 scene.GetSceneDocument().sceneName = context.sceneNameEditBuffer;
+                if (!context.saveAsNameOverriddenByUser) {
+                    context.saveAsNameBuffer = context.sceneNameEditBuffer;
+                }
                 context.sceneDirty = true;
             }
         }
@@ -80,6 +86,7 @@ namespace HIKARI {
         std::snprintf(saveAsBuffer, sizeof(saveAsBuffer), "%s", context.saveAsNameBuffer.c_str());
         if (ImGui::InputText("Save As Name", saveAsBuffer, sizeof(saveAsBuffer))) {
             context.saveAsNameBuffer = saveAsBuffer;
+            context.saveAsNameOverriddenByUser = (context.saveAsNameBuffer != context.sceneNameEditBuffer);
         }
 
         auto saveSceneAsNewFile = [&]() {
@@ -92,7 +99,14 @@ namespace HIKARI {
             if (serializer.SaveToFile(scenePath, sceneDocument)) {
                 scene.SetScenePath(scenePath);
                 scene.SetSceneId(token);
-                scene.GetSceneCatalog().Register(SceneCatalogEntry{ scene.GetSceneId(), "GameDocumentScene", scene.GetScenePath(), true, scene.GetSceneId() });
+                scene.GetSceneCatalog().Register(SceneCatalogEntry{
+                    scene.GetSceneId(),
+                    "GameDocumentScene",
+                    scene.GetScenePath(),
+                    true,
+                    scene.GetSceneId(),
+                    SceneLifetimePolicy::ReloadOnEnter
+                });
                 context.sceneDirty = false;
                 if (!desiredName.empty()) {
                     sceneDocument.sceneName = desiredName;
@@ -102,6 +116,7 @@ namespace HIKARI {
                     context.sceneNameEditBuffer = token;
                 }
                 context.saveAsNameBuffer = sceneDocument.sceneName;
+                context.saveAsNameOverriddenByUser = false;
             }
         };
 
@@ -115,6 +130,7 @@ namespace HIKARI {
             selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
             context.sceneNameEditBuffer = scene.GetSceneDocument().sceneName;
             context.saveAsNameBuffer = scene.GetSceneDocument().sceneName;
+            context.saveAsNameOverriddenByUser = false;
         }
         ImGui::SameLine();
         if (ImGui::Button("Save Scene")) {
@@ -139,6 +155,7 @@ namespace HIKARI {
             scene.SetScenePath({});
             context.sceneNameEditBuffer = scene.GetSceneDocument().sceneName;
             context.saveAsNameBuffer = scene.GetSceneDocument().sceneName;
+            context.saveAsNameOverriddenByUser = false;
             context.nextSceneObjectId = 1;
             context.selection.selectedObject = nullptr;
             context.selection.selectedAsset = nullptr;
@@ -166,6 +183,7 @@ namespace HIKARI {
                         selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
                         context.sceneNameEditBuffer = scene.GetSceneDocument().sceneName;
                         context.saveAsNameBuffer = scene.GetSceneDocument().sceneName;
+                        context.saveAsNameOverriddenByUser = false;
                     }
                     if (selected) {
                         ImGui::SetItemDefaultFocus();

@@ -52,6 +52,7 @@ namespace HIKARI {
 
         std::string sceneNameEditBuffer{ "Untitled" };
         std::string saveAsNameBuffer{ "Untitled" };
+        bool saveAsNameOverriddenByUser = false;
         std::string prefabNameBuffer{ "NewPrefab" };
         std::string componentAddStatusMessage{};
         bool componentAddStatusIsError = false;

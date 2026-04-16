@@ -5,13 +5,14 @@
 #include "HIKARI_RuntimeSceneContext.h"
 #include "HIKARI_SceneCatalog.h"
 #include "HIKARI_SceneFactory.h"
+#include "HIKARI_SceneInstanceCache.h"
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
 
 namespace HIKARI {
 
-    SceneTransitionBus::SceneTransitionBus(SceneManager& sceneManager, const SceneCatalog& sceneCatalog, const SceneFactory& sceneFactory)
-        : sceneManager_(sceneManager), sceneCatalog_(sceneCatalog), sceneFactory_(sceneFactory) {
+    SceneTransitionBus::SceneTransitionBus(SceneManager& sceneManager, const SceneCatalog& sceneCatalog, const SceneFactory& sceneFactory, SceneInstanceCache& sceneCache)
+        : sceneManager_(sceneManager), sceneCatalog_(sceneCatalog), sceneFactory_(sceneFactory), sceneCache_(sceneCache) {
     }
 
     bool SceneTransitionBus::RequestTransition(const SceneTransitionRequest& request) {
@@ -51,9 +52,46 @@ namespace HIKARI {
 
         case TransitionState::SwitchingScene: {
             RuntimeSceneContext::SetPendingSceneEntry(pendingRequest_->targetSceneId, pendingRequest_->targetSpawnPointId);
-            std::unique_ptr<IScene> nextScene = sceneFactory_.CreateScene(pendingRequest_->targetSceneId);
+            IScene* currentScene = sceneManager_.GetCurrentScene();
+            bool callOnExitCurrent = true;
+            if (currentScene) {
+                const SceneCatalogEntry* currentEntry = sceneCatalog_.Find(currentScene->GetSceneId());
+                bool shouldKeepCurrentAlive = currentEntry && currentEntry->lifetimePolicy == SceneLifetimePolicy::KeepAlive;
+                if (pendingRequest_->keepCurrentSceneAliveOverride.has_value()) {
+                    shouldKeepCurrentAlive = pendingRequest_->keepCurrentSceneAliveOverride.value();
+                }
+
+                if (shouldKeepCurrentAlive && currentEntry) {
+                    std::unique_ptr<IScene> cachedCurrent = sceneManager_.TakeCurrentScene();
+                    sceneCache_.Store(currentEntry->sceneId, std::move(cachedCurrent));
+                    callOnExitCurrent = false;
+                }
+            }
+
+            std::unique_ptr<IScene> nextScene{};
+            bool callOnEnterNext = true;
+            const SceneCatalogEntry* targetEntry = sceneCatalog_.Find(pendingRequest_->targetSceneId);
+            bool shouldReloadTarget = !targetEntry || targetEntry->lifetimePolicy == SceneLifetimePolicy::ReloadOnEnter;
+            if (pendingRequest_->reloadTargetSceneOverride.has_value()) {
+                shouldReloadTarget = pendingRequest_->reloadTargetSceneOverride.value();
+            }
+
+            if (!shouldReloadTarget && targetEntry) {
+                nextScene = sceneCache_.Take(targetEntry->sceneId);
+                if (nextScene) {
+                    callOnEnterNext = false;
+                    lastSceneLoadedFromCache_ = true;
+                }
+            } else if (targetEntry) {
+                sceneCache_.Clear(targetEntry->sceneId);
+            }
+
+            if (!nextScene) {
+                nextScene = sceneFactory_.CreateScene(pendingRequest_->targetSceneId);
+                lastSceneLoadedFromCache_ = false;
+            }
             if (nextScene) {
-                sceneManager_.ChangeScene(std::move(nextScene));
+                sceneManager_.ChangeScene(std::move(nextScene), callOnEnterNext, callOnExitCurrent);
             }
 
             if (pendingRequest_->useTransition) {
@@ -83,6 +121,18 @@ namespace HIKARI {
 
     SceneTransitionBus::TransitionState SceneTransitionBus::GetState() const {
         return state_;
+    }
+
+    bool SceneTransitionBus::WasLastSceneLoadedFromCache() const {
+        return lastSceneLoadedFromCache_;
+    }
+
+    size_t SceneTransitionBus::GetCachedSceneCount() const {
+        return sceneCache_.GetCachedCount();
+    }
+
+    std::vector<std::string> SceneTransitionBus::GetCachedSceneIds() const {
+        return sceneCache_.GetCachedSceneIds();
     }
 
 } // namespace HIKARI

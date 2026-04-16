@@ -32,9 +32,10 @@ namespace HIKARI {
 
         SceneTransitionRequest request{};
         request.targetSceneId = targetSceneId_;
-        request.targetSpawnPointId = targetSpawnPointId_;
         request.transitionProfileId = transitionProfileId_;
         request.useTransition = useTransition_;
+        request.keepCurrentSceneAliveOverride = keepCurrentSceneAlive_;
+        request.reloadTargetSceneOverride = reloadTargetScene_;
         transitionBus->RequestTransition(request);
     }
 
@@ -46,9 +47,10 @@ namespace HIKARI {
         out["screenRect"] = { { "x", screenRect_.x }, { "y", screenRect_.y }, { "w", screenRect_.w }, { "h", screenRect_.h } };
         out["requireLeftClick"] = requireLeftClick_;
         out["targetSceneId"] = targetSceneId_;
-        out["targetSpawnPointId"] = targetSpawnPointId_;
         out["transitionProfileId"] = transitionProfileId_;
         out["useTransition"] = useTransition_;
+        out["keepCurrentSceneAlive"] = keepCurrentSceneAlive_;
+        out["reloadTargetScene"] = reloadTargetScene_;
         out["debugDrawRect"] = debugDrawRect_;
         out["debugColorRgba"] = debugColorRgba_;
     }
@@ -57,9 +59,10 @@ namespace HIKARI {
         enabled_ = in.value("enabled", enabled_);
         requireLeftClick_ = in.value("requireLeftClick", requireLeftClick_);
         targetSceneId_ = in.value("targetSceneId", targetSceneId_);
-        targetSpawnPointId_ = in.value("targetSpawnPointId", targetSpawnPointId_);
         transitionProfileId_ = in.value("transitionProfileId", transitionProfileId_);
         useTransition_ = in.value("useTransition", useTransition_);
+        keepCurrentSceneAlive_ = in.value("keepCurrentSceneAlive", keepCurrentSceneAlive_);
+        reloadTargetScene_ = in.value("reloadTargetScene", reloadTargetScene_);
         debugDrawRect_ = in.value("debugDrawRect", debugDrawRect_);
         debugColorRgba_ = in.value("debugColorRgba", debugColorRgba_);
 
@@ -78,9 +81,10 @@ namespace HIKARI {
         builder.Vec2("Screen Size", screenRect_.w, screenRect_.h);
         builder.Bool("Require Left Click", requireLeftClick_);
         builder.SceneIdPicker("Target Scene ID", targetSceneId_);
-        builder.String("Target Spawn Point", targetSpawnPointId_);
         builder.String("Transition Profile", transitionProfileId_);
         builder.Bool("Use Transition", useTransition_);
+        builder.Bool("Keep Current Scene", keepCurrentSceneAlive_);
+        builder.Bool("Reload Target Scene", reloadTargetScene_);
         builder.Bool("Debug Draw Rect", debugDrawRect_);
 
         int colorInt = static_cast<int>(debugColorRgba_);

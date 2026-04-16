@@ -8,10 +8,11 @@ namespace HIKARI {
     public:
         SceneManager() = default;
         ~SceneManager();
-        void ChangeScene(std::unique_ptr<IScene> next);
+        void ChangeScene(std::unique_ptr<IScene> next, bool callOnEnterNext = true, bool callOnExitCurrent = true);
         void Update(float dt);
         void Render();
         void RenderImGui();
+        std::unique_ptr<IScene> TakeCurrentScene();
 
         IScene* GetCurrentScene();
 
@@ -23,6 +24,8 @@ namespace HIKARI {
     private:
         std::unique_ptr<IScene> current_;
         std::unique_ptr<IScene> pending_;
+        bool pendingCallOnEnter_ = true;
+        bool pendingCallOnExitCurrent_ = true;
     };
 
 } // namespace HIKARI
