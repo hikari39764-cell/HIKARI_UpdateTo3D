@@ -259,7 +259,7 @@ namespace HIKARI::MESHRENDERER {
             g.lightMapped->pointLightPosRange[i] = {};
             g.lightMapped->pointLightColorIntensity[i] = {};
         }
-        constexpr uint32_t kMaxPointLights = 4;
+        constexpr uint32_t kMaxPointLights = 8;
         for (const PointLight& pointLight : environment.pointLights) {
             if (!pointLight.enabled || g.lightMapped->pointLightCount >= kMaxPointLights) {
                 continue;
@@ -282,10 +282,7 @@ namespace HIKARI::MESHRENDERER {
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->SetPipelineState(g.pso.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        // MeshRenderer runs inside the active scene render pass.
-        // Do not switch render targets here (especially not back to SERVICES::gCtx.rtv),
-        // otherwise scene-capture/present routing managed by the frame/post pipeline breaks.
-        // If an offscreen mesh preview is needed in the future, pass explicit render-target/context in.
+
 
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());

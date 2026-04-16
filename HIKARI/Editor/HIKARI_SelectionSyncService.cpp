@@ -7,6 +7,9 @@
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
+#undef max
+#undef min
+
 namespace HIKARI {
 
     SceneObjectData* SelectionSyncService::FindDocumentObjectById(DocumentSceneBase& scene, SceneObjectId id) const {

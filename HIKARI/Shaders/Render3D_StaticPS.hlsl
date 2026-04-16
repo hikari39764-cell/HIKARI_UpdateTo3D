@@ -42,7 +42,7 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
 {
     float3 sum = 0.0f.xxx;
     [unroll]
-    for (uint i = 0; i < 4; ++i)
+    for (uint i = 0; i < 8; ++i)
     {
         if (i >= gPointLightCount)
         {
