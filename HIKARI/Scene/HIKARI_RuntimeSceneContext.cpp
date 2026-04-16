@@ -12,6 +12,7 @@ namespace HIKARI {
     std::string RuntimeSceneContext::pendingSceneId_{};
     std::string RuntimeSceneContext::pendingSpawnPointId_{};
     std::optional<ResolvedSceneEntry> RuntimeSceneContext::resolvedEntry_{};
+    World* RuntimeSceneContext::currentWorld_ = nullptr;
 
     void RuntimeSceneContext::SetTransitionBus(SceneTransitionBus* bus) {
         transitionBus_ = bus;
@@ -19,6 +20,15 @@ namespace HIKARI {
 
     SceneTransitionBus* RuntimeSceneContext::GetTransitionBus() {
         return transitionBus_;
+    }
+
+
+    void RuntimeSceneContext::SetCurrentWorld(World* world) {
+        currentWorld_ = world;
+    }
+
+    World* RuntimeSceneContext::GetCurrentWorld() {
+        return currentWorld_;
     }
 
     void RuntimeSceneContext::SetPendingSceneEntry(std::string sceneId, std::string spawnPointId) {

@@ -12,6 +12,7 @@ namespace HIKARI {
         Material,
         Animation,
         Particle,
+        VfxEffect,
         Unknown
     };
 
@@ -46,6 +47,12 @@ namespace HIKARI {
     };
 
     struct TextureAssetDescriptor final : AssetDescriptor {
+    };
+
+    struct VfxAssetDescriptor final : AssetDescriptor {
+        bool preload = true;
+        bool loopByDefault = false;
+        float defaultScale = 1.0f;
     };
 
 } // namespace HIKARI

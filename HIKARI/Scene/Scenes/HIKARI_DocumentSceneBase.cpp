@@ -13,6 +13,10 @@
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
+#include "HIKARI/Vfx/HIKARI_VfxAsset.h"
+#include "HIKARI/Vfx/HIKARI_VfxSystem.h"
+#include "Scene/Components/HIKARI_ComponentLinkComponent.h"
+#include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 
 namespace HIKARI {
@@ -29,11 +33,13 @@ namespace HIKARI {
         RegisterDefaultSceneCatalogEntries();
 
         ReloadAssets();
+        VFX::SetAssetRegistry(&assetRegistry_);
         ReloadSceneDocument();
         RebuildRuntimeWorld();
     }
 
     void DocumentSceneBase::OnExit() {
+        RuntimeSceneContext::SetCurrentWorld(nullptr);
     }
 
     void DocumentSceneBase::Update(float dt) {
@@ -100,6 +106,7 @@ namespace HIKARI {
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
 
         MESHRENDERER::RenderAll(camera_, activeEnvironment);
+        VFX::Render(camera_);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }
 
@@ -202,7 +209,8 @@ namespace HIKARI {
         const bool okModels = assetJsonLoader_.LoadModelDescriptors("Data/assets_models.json", assetRegistry_);
         const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
         const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
-        return okModels && okSkies && okTextures;
+        const bool okVfx = assetJsonLoader_.LoadVfxDescriptors("Data/assets_vfx.json", assetRegistry_);
+        return okModels && okSkies && okTextures && okVfx;
     }
 
     bool DocumentSceneBase::ReloadSceneDocument() {
@@ -228,6 +236,7 @@ namespace HIKARI {
             environment_.pointLights.push_back(PointLight{});
         }
 
+        RuntimeSceneContext::SetCurrentWorld(&world_);
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
         return built;
@@ -300,6 +309,41 @@ namespace HIKARI {
             });
         }
 
+
+        if (!componentRegistry_.Find("VfxPlayerComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "VfxPlayerComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<VfxPlayerComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["visible"] = true;
+                    properties["slots"] = nlohmann::json::array({
+                        {
+                            { "slotName", "Default" },
+                            { "effectAssetId", "Laser01" },
+                            { "loop", false },
+                            { "autoPlay", false },
+                            { "restartIfAlreadyPlaying", true }
+                        }
+                    });
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("ComponentLinkComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "ComponentLinkComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<ComponentLinkComponent>(); },
+                {},
+                {},
+                {},
+                false
+            });
+        }
         if (!componentRegistry_.Find("DoorTransitionComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "DoorTransitionComponent",

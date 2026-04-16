@@ -194,6 +194,11 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
     <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp" />
+    <ClCompile Include="HIKARI\Vfx\HIKARI_VfxSystem.cpp" />
+    <ClCompile Include="HIKARI\Vfx\HIKARI_VfxAsset.cpp" />
+    <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -315,6 +320,12 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h" />
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h" />
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxSystem.h" />
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxAsset.h" />
+    <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h" />
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h" />
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.h" />
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h" />
