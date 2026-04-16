@@ -18,6 +18,7 @@
 #include "HIKARI_PhysicsWorld.h"
 #include "HIKARI_Body2D.h"
 #include "HIKARI_TiledCollision.h"
+#include "Vfx/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"
@@ -138,6 +139,7 @@ namespace HIKARI {
                 DXTEX::DxTextureManager::UpdateContext(gCtx);
                 DX::DxRenderer::UpdateContext(gCtx);
                 POST::PostSystem::UpdateContext(gCtx);
+                HIKARI::VFX::UpdateContext(gCtx);
 
                 HIKARI::CAMERA::SetScreenSize(logicalScreenW, logicalScreenH);
                 HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
@@ -149,6 +151,7 @@ namespace HIKARI {
             DX::DxRenderer::Init(gCtx);
             POST::PostSystem::Initialize(gCtx);
             AUDIO::Initialize(AUDIO::BackendType::Kamata);
+            HIKARI::VFX::Initialize(gCtx);
 
             if (cfg.inputConfigPath) {
                 HIKARI::HINPUT::Init(cfg.inputConfigPath);
@@ -202,6 +205,7 @@ namespace HIKARI {
             HIKARI::POST::PostSystem::Shutdown();
             DX::DxRenderer::Finalize();
             DXTEX::DxTextureManager::Finalize();
+            HIKARI::VFX::Shutdown();
             AUDIO::Shutdown();
             gCore.Shutdown();
             gWindow.Shutdown();
@@ -221,6 +225,7 @@ namespace HIKARI {
             DXTEX::DxTextureManager::UpdateContext(gCtx);
             DX::DxRenderer::UpdateContext(gCtx);
             POST::PostSystem::UpdateContext(gCtx);
+            HIKARI::VFX::UpdateContext(gCtx);
 
             gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f);
 
@@ -231,6 +236,7 @@ namespace HIKARI {
             DX::DxRenderer::BeginFrame();
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(kDt);
+            HIKARI::VFX::BeginFrame(kDt);
             if (gEnableImGui && gImGuiInitialized) {
 #if defined(_DEBUG)
                 if (!gImGuiBackendInitialized) {
@@ -261,6 +267,7 @@ namespace HIKARI {
         }
 
         inline void EndFrame() {
+            HIKARI::VFX::EndFrame();
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
 #if defined(_DEBUG)
                 ImGui::Render();

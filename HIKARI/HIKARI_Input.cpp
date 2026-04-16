@@ -132,44 +132,81 @@ namespace HIKARI {
 						DIK_K,DIK_L,DIK_M,DIK_N,DIK_O,DIK_P,DIK_Q,DIK_R,DIK_S,DIK_T,
 						DIK_U,DIK_V,DIK_W,DIK_X,DIK_Y,DIK_Z
 					};
-					int idx = (c >= 'a') ? (c - 'a') : (c - 'A');
-					return mapAlpha[idx];
+					return mapAlpha[(c >= 'a') ? (c - 'a') : (c - 'A')];
 				}
 				if (c >= '0' && c <= '9') {
 					static const int mapNum[10] = { DIK_0,DIK_1,DIK_2,DIK_3,DIK_4,DIK_5,DIK_6,DIK_7,DIK_8,DIK_9 };
 					return mapNum[c - '0'];
 				}
+				if (c == '-') return DIK_MINUS;
+				if (c == '=') return DIK_EQUALS;
+				if (c == '[') return DIK_LBRACKET;
+				if (c == ']') return DIK_RBRACKET;
+				if (c == ';') return DIK_SEMICOLON;
+				if (c == '\'') return DIK_APOSTROPHE;
+				if (c == ',') return DIK_COMMA;
+				if (c == '.') return DIK_PERIOD;
+				if (c == '/') return DIK_SLASH;
+				if (c == '\\') return DIK_BACKSLASH;
 			}
 			if (StrEq(name, "Space")) return DIK_SPACE;
 			if (StrEq(name, "Enter")) return DIK_RETURN;
 			if (StrEq(name, "Esc") || StrEq(name, "Escape")) return DIK_ESCAPE;
 			if (StrEq(name, "Tab")) return DIK_TAB;
 			if (StrEq(name, "Backspace")) return DIK_BACK;
-
-			if (StrEq(name, "Left"))  return DIK_LEFT;
+			if (StrEq(name, "Left")) return DIK_LEFT;
 			if (StrEq(name, "Right")) return DIK_RIGHT;
-			if (StrEq(name, "Up"))    return DIK_UP;
-			if (StrEq(name, "Down"))  return DIK_DOWN;
-
-			if (StrEq(name, "LeftShift"))  return DIK_LSHIFT;
+			if (StrEq(name, "Up")) return DIK_UP;
+			if (StrEq(name, "Down")) return DIK_DOWN;
+			if (StrEq(name, "Shift")) return DIK_LSHIFT;
+			if (StrEq(name, "Ctrl")) return DIK_LCONTROL;
+			if (StrEq(name, "Alt")) return DIK_LMENU;
+			if (StrEq(name, "LeftShift")) return DIK_LSHIFT;
 			if (StrEq(name, "RightShift")) return DIK_RSHIFT;
-			if (StrEq(name, "LeftCtrl"))   return DIK_LCONTROL;
-			if (StrEq(name, "RightCtrl"))  return DIK_RCONTROL;
-			if (StrEq(name, "LeftAlt"))    return DIK_LMENU;
-			if (StrEq(name, "RightAlt"))   return DIK_RMENU;
-
-			if (StrEq(name, "Z")) return DIK_Z;
-			if (StrEq(name, "X")) return DIK_X;
-			if (StrEq(name, "J")) return DIK_J;
-
+			if (StrEq(name, "LeftCtrl")) return DIK_LCONTROL;
+			if (StrEq(name, "RightCtrl")) return DIK_RCONTROL;
+			if (StrEq(name, "LeftAlt")) return DIK_LMENU;
+			if (StrEq(name, "RightAlt")) return DIK_RMENU;
+			if (StrEq(name, "Minus")) return DIK_MINUS;
+			if (StrEq(name, "Equals")) return DIK_EQUALS;
+			if (StrEq(name, "LBracket")) return DIK_LBRACKET;
+			if (StrEq(name, "RBracket")) return DIK_RBRACKET;
+			if (StrEq(name, "Semicolon")) return DIK_SEMICOLON;
+			if (StrEq(name, "Quote")) return DIK_APOSTROPHE;
+			if (StrEq(name, "Comma")) return DIK_COMMA;
+			if (StrEq(name, "Period")) return DIK_PERIOD;
+			if (StrEq(name, "Slash")) return DIK_SLASH;
+			if (StrEq(name, "Backslash")) return DIK_BACKSLASH;
+			if (StrEq(name, "NumPad0")) return DIK_NUMPAD0;
+			if (StrEq(name, "NumPad1")) return DIK_NUMPAD1;
+			if (StrEq(name, "NumPad2")) return DIK_NUMPAD2;
+			if (StrEq(name, "NumPad3")) return DIK_NUMPAD3;
+			if (StrEq(name, "NumPad4")) return DIK_NUMPAD4;
+			if (StrEq(name, "NumPad5")) return DIK_NUMPAD5;
+			if (StrEq(name, "NumPad6")) return DIK_NUMPAD6;
+			if (StrEq(name, "NumPad7")) return DIK_NUMPAD7;
+			if (StrEq(name, "NumPad8")) return DIK_NUMPAD8;
+			if (StrEq(name, "NumPad9")) return DIK_NUMPAD9;
+			if (StrEq(name, "NumPadAdd")) return DIK_ADD;
+			if (StrEq(name, "NumPadSub")) return DIK_SUBTRACT;
+			if (StrEq(name, "NumPadMul")) return DIK_MULTIPLY;
+			if (StrEq(name, "NumPadDiv")) return DIK_DIVIDE;
+			if (StrEq(name, "NumPadEnter")) return DIK_NUMPADENTER;
 			if (StrEq(name, "F1")) return DIK_F1;
 			if (StrEq(name, "F2")) return DIK_F2;
 			if (StrEq(name, "F3")) return DIK_F3;
 			if (StrEq(name, "F4")) return DIK_F4;
 			if (StrEq(name, "F5")) return DIK_F5;
-
+			if (StrEq(name, "F6")) return DIK_F6;
+			if (StrEq(name, "F7")) return DIK_F7;
+			if (StrEq(name, "F8")) return DIK_F8;
+			if (StrEq(name, "F9")) return DIK_F9;
+			if (StrEq(name, "F10")) return DIK_F10;
+			if (StrEq(name, "F11")) return DIK_F11;
+			if (StrEq(name, "F12")) return DIK_F12;
 			return 0;
 		}
+
 
 		// ===== ゲームパッドボタン FLAG =====
 		enum PadButtonFlag {
@@ -282,6 +319,8 @@ namespace HIKARI {
 
 			// ---- P で ParticleLab を開く用 ----
 			BindButtonsIL("OpenParticleLab", { KeyCodeFromString("P") });
+			BindButtonsIL("ToggleEditorUI", { KeyCodeFromString("F1") });
+			BindButtonsIL("PlayTestVfx", { KeyCodeFromString("Space") });
 
 			// ---- Debug Camera ----
 			BindMouseButtons("CameraDrag", { MouseButton::Middle });
@@ -299,12 +338,16 @@ namespace HIKARI {
 			SetLayerActions("Debug", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
-				"OpenParticleLab"
+				"OpenParticleLab",
+				"ToggleEditorUI",
+				"PlayTestVfx"
 				});
 			SetLayerActions("Gameplay", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
-				"OpenParticleLab"
+				"OpenParticleLab",
+				"ToggleEditorUI",
+				"PlayTestVfx"
 				});
 			SetLayerActions("DebugCamera", {
 			 "CameraDrag",
@@ -547,10 +590,9 @@ namespace HIKARI {
 			gVibActive = false;
 			gBackend = BackendType::Win32;
 
+			LoadDefaults();
 			if (jsonPath) {
 				TryLoadJson(jsonPath);
-			} else {
-				LoadDefaults();
 			}
 		}
 

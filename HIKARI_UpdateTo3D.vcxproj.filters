@@ -1114,5 +1114,41 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
+      <ClCompile Include="HIKARI\Vfx\HIKARI_VfxSystem.cpp">
+      <Filter>ソース ファイル\Vfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\HIKARI_VfxAsset.cpp">
+      <Filter>ソース ファイル\Vfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp">
+      <Filter>ソース ファイル\Vfx\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp">
+      <Filter>ソース ファイル\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp">
+      <Filter>ソース ファイル\Scene\Components</Filter>
+    </ClCompile>
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
+      <Filter>ヘッダー ファイル\Vfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxSystem.h">
+      <Filter>ヘッダー ファイル\Vfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxAsset.h">
+      <Filter>ヘッダー ファイル\Vfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h">
+      <Filter>ヘッダー ファイル\Vfx\Backends</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h">
+      <Filter>ヘッダー ファイル\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h">
+      <Filter>ヘッダー ファイル\Scene\Components</Filter>
+    </ClInclude>
+</ItemGroup>
+  <ItemGroup>
+    <None Include="Data\assets_vfx.json" />
   </ItemGroup>
 </Project>

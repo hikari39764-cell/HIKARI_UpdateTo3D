@@ -1,0 +1,13 @@
+{
+  "vfx": [
+    {
+      "id": "Laser01",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/Laser01.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    }
+  ]
+}
