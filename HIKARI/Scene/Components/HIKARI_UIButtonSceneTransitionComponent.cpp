@@ -34,6 +34,8 @@ namespace HIKARI {
         request.targetSceneId = targetSceneId_;
         request.transitionProfileId = transitionProfileId_;
         request.useTransition = useTransition_;
+        request.keepCurrentSceneAliveOverride = keepCurrentSceneAlive_;
+        request.reloadTargetSceneOverride = reloadTargetScene_;
         transitionBus->RequestTransition(request);
     }
 
@@ -47,6 +49,8 @@ namespace HIKARI {
         out["targetSceneId"] = targetSceneId_;
         out["transitionProfileId"] = transitionProfileId_;
         out["useTransition"] = useTransition_;
+        out["keepCurrentSceneAlive"] = keepCurrentSceneAlive_;
+        out["reloadTargetScene"] = reloadTargetScene_;
         out["debugDrawRect"] = debugDrawRect_;
         out["debugColorRgba"] = debugColorRgba_;
     }
@@ -57,6 +61,8 @@ namespace HIKARI {
         targetSceneId_ = in.value("targetSceneId", targetSceneId_);
         transitionProfileId_ = in.value("transitionProfileId", transitionProfileId_);
         useTransition_ = in.value("useTransition", useTransition_);
+        keepCurrentSceneAlive_ = in.value("keepCurrentSceneAlive", keepCurrentSceneAlive_);
+        reloadTargetScene_ = in.value("reloadTargetScene", reloadTargetScene_);
         debugDrawRect_ = in.value("debugDrawRect", debugDrawRect_);
         debugColorRgba_ = in.value("debugColorRgba", debugColorRgba_);
 
@@ -77,6 +83,8 @@ namespace HIKARI {
         builder.SceneIdPicker("Target Scene ID", targetSceneId_);
         builder.String("Transition Profile", transitionProfileId_);
         builder.Bool("Use Transition", useTransition_);
+        builder.Bool("Keep Current Scene", keepCurrentSceneAlive_);
+        builder.Bool("Reload Target Scene", reloadTargetScene_);
         builder.Bool("Debug Draw Rect", debugDrawRect_);
 
         int colorInt = static_cast<int>(debugColorRgba_);

@@ -39,6 +39,8 @@ namespace HIKARI {
         std::string targetSceneId_{ "Title" };
         std::string transitionProfileId_{ "DefaultFade" };
         bool useTransition_ = true;
+        bool keepCurrentSceneAlive_ = false;
+        bool reloadTargetScene_ = false;
         bool debugDrawRect_ = true;
         uint32_t debugColorRgba_ = 0xFFCC33FF;
     };

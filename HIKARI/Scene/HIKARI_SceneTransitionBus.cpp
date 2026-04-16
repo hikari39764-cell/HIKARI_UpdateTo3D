@@ -56,7 +56,12 @@ namespace HIKARI {
             bool callOnExitCurrent = true;
             if (currentScene) {
                 const SceneCatalogEntry* currentEntry = sceneCatalog_.Find(currentScene->GetSceneId());
-                if (currentEntry && currentEntry->lifetimePolicy == SceneLifetimePolicy::KeepAlive) {
+                bool shouldKeepCurrentAlive = currentEntry && currentEntry->lifetimePolicy == SceneLifetimePolicy::KeepAlive;
+                if (pendingRequest_->keepCurrentSceneAliveOverride.has_value()) {
+                    shouldKeepCurrentAlive = pendingRequest_->keepCurrentSceneAliveOverride.value();
+                }
+
+                if (shouldKeepCurrentAlive && currentEntry) {
                     std::unique_ptr<IScene> cachedCurrent = sceneManager_.TakeCurrentScene();
                     sceneCache_.Store(currentEntry->sceneId, std::move(cachedCurrent));
                     callOnExitCurrent = false;
@@ -66,12 +71,19 @@ namespace HIKARI {
             std::unique_ptr<IScene> nextScene{};
             bool callOnEnterNext = true;
             const SceneCatalogEntry* targetEntry = sceneCatalog_.Find(pendingRequest_->targetSceneId);
-            if (targetEntry && targetEntry->lifetimePolicy == SceneLifetimePolicy::KeepAlive) {
+            bool shouldReloadTarget = !targetEntry || targetEntry->lifetimePolicy == SceneLifetimePolicy::ReloadOnEnter;
+            if (pendingRequest_->reloadTargetSceneOverride.has_value()) {
+                shouldReloadTarget = pendingRequest_->reloadTargetSceneOverride.value();
+            }
+
+            if (!shouldReloadTarget && targetEntry) {
                 nextScene = sceneCache_.Take(targetEntry->sceneId);
                 if (nextScene) {
                     callOnEnterNext = false;
                     lastSceneLoadedFromCache_ = true;
                 }
+            } else if (targetEntry) {
+                sceneCache_.Clear(targetEntry->sceneId);
             }
 
             if (!nextScene) {

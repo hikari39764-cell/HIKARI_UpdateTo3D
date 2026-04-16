@@ -18,6 +18,8 @@ namespace HIKARI {
         std::string transitionProfileId{ "DefaultFade" };
         bool useTransition = true;
         bool preserveGameplayState = false;
+        std::optional<bool> keepCurrentSceneAliveOverride{};
+        std::optional<bool> reloadTargetSceneOverride{};
     };
 
     class SceneTransitionBus {
