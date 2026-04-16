@@ -1,10 +1,10 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d12.h>
 
 namespace HIKARI {
     namespace DXTEX {
 
-        /// ¥·¥ó¥×¥ë°æ: ¥³¥Þ¥ó¥É¥ê¥¹¥È¤òÊ¹¤ï¤º¡¢UPLOAD¥Ò©`¥×¤Î¥Æ¥¯¥¹¥Á¥ã¤ò×÷¤ë¤À¤±
+
         HRESULT CreateWICTextureFromFile(
             ID3D12Device* device,
             ID3D12GraphicsCommandList* cmdList,

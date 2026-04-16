@@ -166,10 +166,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp"/>
-    <ClCompile Include="C:\KamataEngine\Adapter\Novice.cpp">
-      <Filter>KamataEngine\Adapter</Filter>
-    </ClCompile>
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp">
       <Filter>HIKARIEngine\HIKARI_Math\HIKARI_Matrix3x3</Filter>
     </ClCompile>
@@ -380,26 +377,50 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Spine\src</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_demo.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_draw.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_impl_dx12.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentToolbarController.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_impl_win32.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_tables.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneCatalog.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\imgui\imgui_widgets.cpp">
-      <Filter>HIKARIEngine\ImGui</Filter>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneFactory.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneInstanceCache.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneTransitionBus.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp">
+      <Filter>KamataEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.cpp">
+      <Filter>KamataEngine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -435,9 +456,6 @@
     </ClInclude>
     <ClInclude Include="C:\KamataEngine\DirectXGame\3d\WorldTransform.h">
       <Filter>KamataEngine\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\Adapter\Novice.h">
-      <Filter>KamataEngine\Adapter</Filter>
     </ClInclude>
     <ClInclude Include="C:\KamataEngine\DirectXGame\3d\CircleShadow.h">
       <Filter>KamataEngine\Include</Filter>
@@ -487,30 +505,22 @@
     <ClInclude Include="External\WICTextureLoader.h">
       <Filter>HIKARIEngine\WIC</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imconfig.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imgui.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imgui_impl_dx12.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imgui_impl_win32.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imgui_internal.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imstb_rectpack.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imstb_textedit.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\imgui\imstb_truetype.h">
-      <Filter>HIKARIEngine\ImGui</Filter>
-    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h" />
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.h" />
+    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h" />
+    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h" />
+    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
+    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentToolbarController.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneCatalog.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneFactory.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneInstanceCache.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneTransitionBus.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">

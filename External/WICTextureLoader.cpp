@@ -12,7 +12,6 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 
-    // 小工具：输出 hr
     void LogHR(const char* where, HRESULT hr)
     {
         char buf[256];
@@ -36,7 +35,7 @@ namespace {
             IID_PPV_ARGS(&g_wicFactory));
 
         if (FAILED(hr)) {
-            // 古い環境だと Factory2 が無いことがあるのでフォールバック
+
             LogHR("CoCreateInstance(CLSID_WICImagingFactory2)", hr);
             hr = CoCreateInstance(
                 CLSID_WICImagingFactory, nullptr,

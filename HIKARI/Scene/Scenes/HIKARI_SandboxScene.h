@@ -7,8 +7,13 @@ namespace HIKARI {
     class SandboxScene final : public DocumentSceneBase {
     public:
         SandboxScene(SceneCatalog& sceneCatalog, std::string sceneId = "Sandbox");
+        ~SandboxScene() override;
 
         const char* GetSceneName() const override { return "SandboxScene"; }
+
+        void OnEnter() override;
+        void Update(float dt) override;
+        void Render() override;
 
     private:
         bool DrawDebugHelpers() const override { return true; }

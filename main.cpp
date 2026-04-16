@@ -12,6 +12,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     HIKARI::HINPUT::SwitchLayer("Debug");
     HIKARI::MATH::RunMathConventionSelfCheck();
+
     HIKARI::EngineApp app;
     if (!app.Initialize()) {
         HIKARI::SERVICES::FinalizeAll();
