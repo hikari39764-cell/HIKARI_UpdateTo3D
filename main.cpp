@@ -1,7 +1,7 @@
 #include "HIKARI/HIKARI_Services.h"
 #include "HIKARI/App/HIKARI_EngineApp.h"
 #include <Windows.h>
-
+#include "Effekseer/Effekseer.h"
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
