@@ -36,13 +36,13 @@ namespace HIKARI {
 
     EngineApp::EngineApp()
         : sceneFactory_(sceneCatalog_),
-        sceneTransitionBus_(sceneManager_, sceneCatalog_, sceneFactory_) {
+        sceneTransitionBus_(sceneManager_, sceneCatalog_, sceneFactory_, sceneInstanceCache_) {
     }
 
     bool EngineApp::Initialize() {
-        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox" });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title" });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty" });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox", SceneLifetimePolicy::ReloadOnEnter });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title", SceneLifetimePolicy::ReloadOnEnter });
+        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty", SceneLifetimePolicy::ReloadOnEnter });
 
         const StartupConfig startup = LoadStartupConfig("Data/project.json");
 
@@ -89,6 +89,7 @@ namespace HIKARI {
 
     void EngineApp::Shutdown() {
         RuntimeSceneContext::SetTransitionBus(nullptr);
+        sceneInstanceCache_.ClearAll();
         sceneManager_.ChangeScene(nullptr);
         sceneManager_.Update(0.0f);
     }

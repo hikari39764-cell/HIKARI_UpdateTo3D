@@ -30,7 +30,7 @@ namespace HIKARI {
         void Render() override;
         void RenderImGui() override;
 
-        const std::string& GetSceneId() const;
+        const std::string& GetSceneId() const override;
         const std::string& GetScenePath() const;
         SceneCatalog& GetSceneCatalog();
         const SceneCatalog& GetSceneCatalog() const;

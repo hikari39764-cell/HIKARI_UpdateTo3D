@@ -166,6 +166,7 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneCatalog.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneFactory.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneInstanceCache.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneTransitionBus.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.cpp" />
     <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.cpp" />
@@ -351,6 +352,7 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneRegistry.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneCatalog.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneFactory.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneInstanceCache.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneTransitionBus.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_IInspectorBuilder.h" />

@@ -6,12 +6,18 @@
 
 namespace HIKARI {
 
+    enum class SceneLifetimePolicy {
+        ReloadOnEnter,
+        KeepAlive,
+    };
+
     struct SceneCatalogEntry {
         std::string sceneId{};
         std::string sceneType{};
         std::string documentPath{};
         bool startupAllowed = true;
         std::string displayName{};
+        SceneLifetimePolicy lifetimePolicy = SceneLifetimePolicy::ReloadOnEnter;
     };
 
     class SceneCatalog {
