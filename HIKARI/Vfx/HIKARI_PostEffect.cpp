@@ -5,6 +5,7 @@
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
 #include <cstring>
+#include <d3dx12.h>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -99,14 +100,7 @@ namespace HIKARI {
 
         void PostEffect::ApplyCommonParams(const CommonParams& p)
         {
-
-            DirectX::XMFLOAT4 backupUser[16];
-            std::memcpy(backupUser, params_.user, sizeof(backupUser));
-
-
             params_ = p;
-
-            std::memcpy(params_.user, backupUser, sizeof(backupUser));
         }
 
         void PostEffect::SetTime(float t)
