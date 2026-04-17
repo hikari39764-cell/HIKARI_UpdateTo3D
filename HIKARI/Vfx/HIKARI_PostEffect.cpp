@@ -4,8 +4,7 @@
 #include <Windows.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
-#include <cassert>
-#include <base/DirectXCommon.h>
+#include <cstring>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -14,10 +13,15 @@ using Microsoft::WRL::ComPtr;
 namespace HIKARI {
     namespace POST {
 
+        GFX::Context PostEffect::context_{};
+
         PostEffect::PostEffect()
         {
             ZeroMemory(&params_, sizeof(params_));
-            CreateConstantBuffer();
+        }
+
+        void PostEffect::UpdateContext(const GFX::Context& ctx) {
+            context_ = ctx;
         }
 
         PostEffect::~PostEffect()
@@ -28,10 +32,17 @@ namespace HIKARI {
             }
         }
 
-        void PostEffect::CreateConstantBuffer()
+        bool PostEffect::CreateConstantBuffer()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            if (constantBuffer_ && mappedPtr_) {
+                return true;
+            }
+
+            auto* device = context_.device;
+            if (!device) {
+                OutputDebugStringA("[PostEffect] context_.device is null; postpone constant buffer creation.\n");
+                return false;
+            }
 
             UINT size = Align256(sizeof(CommonParams));
 
@@ -46,10 +57,19 @@ namespace HIKARI {
                 nullptr,
                 IID_PPV_ARGS(constantBuffer_.GetAddressOf())
             );
-            assert(SUCCEEDED(hr));
+            if (FAILED(hr)) {
+                OutputDebugStringA("[PostEffect] CreateCommittedResource failed.\n");
+                return false;
+            }
 
             hr = constantBuffer_->Map(0, nullptr, &mappedPtr_);
-            assert(SUCCEEDED(hr));
+            if (FAILED(hr)) {
+                OutputDebugStringA("[PostEffect] Constant buffer map failed.\n");
+                constantBuffer_.Reset();
+                mappedPtr_ = nullptr;
+                return false;
+            }
+            return true;
         }
         bool PostEffect::LoadPixelShader(const wchar_t* path)
         {
@@ -104,6 +124,12 @@ namespace HIKARI {
         void PostEffect::BindAndDraw(QuadDrawer& drawer)
         {
             if (!psBlob_) { return; }
+            if (!mappedPtr_ && !CreateConstantBuffer()) {
+                return;
+            }
+            if (!constantBuffer_) {
+                return;
+            }
 
             memcpy(mappedPtr_, &params_, sizeof(params_));
 

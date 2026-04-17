@@ -1,10 +1,14 @@
 ﻿#pragma once
 #include <vector>
 #include <stack> 
+#include <string>
+#include <memory>
+#include <DirectXMath.h>
 #include "HIKARI_RenderTarget2D.h"
 #include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_PostCommon.h"
 #include "HIKARI_PostChain.h"
+#include "HIKARI_PostProfile.h"
 #include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
@@ -25,6 +29,8 @@ namespace HIKARI {
 
             static void ClearEffects();
             static void AddEffect(PostEffect* effect);
+            static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&userOverrides)[16]);
+            static void ClearGlobalProfile();
 
             // --- 场景捕获 ---
             static void BeginSceneCapture();
@@ -63,6 +69,10 @@ namespace HIKARI {
             static QuadDrawer quad_;
             static CommonParams commonParams_;
             static float elapsedTime_;
+            static std::string activeGlobalProfileId_;
+            static std::string activeGlobalProfilePath_;
+            static PostProfile activeGlobalProfile_;
+            static std::vector<std::unique_ptr<PostEffect>> activeGlobalEffects_;
 
             struct LayerInfo {
                 RenderTarget2D* rt;
