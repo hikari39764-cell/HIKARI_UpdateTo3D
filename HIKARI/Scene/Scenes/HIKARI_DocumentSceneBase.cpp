@@ -15,6 +15,7 @@
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/HIKARI_VfxAsset.h"
 #include "Vfx/HIKARI_VfxSystem.h"
+#include "Vfx/HIKARI_PostSystem.h"
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
@@ -54,6 +55,12 @@ namespace HIKARI {
         MESHRENDERER::Reset();
         SKYRENDERER::Reset();
 
+        if (environment_.post.enabled && !environment_.post.globalPostProfileId.empty()) {
+            POST::PostSystem::SetGlobalProfile(environment_.post.globalPostProfileId, environment_.post.userOverrides);
+        } else {
+            POST::PostSystem::ClearGlobalProfile();
+        }
+
         if (DrawDebugHelpers()) {
             RENDERER3D::DEBUG::Grid3D grid{};
             grid.halfCount = 10;
@@ -75,7 +82,7 @@ namespace HIKARI {
 
                 const ModelAsset* asset = model->GetAsset();
                 if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
-                    MESHRENDERER::SubmitStaticMesh(*asset, object->Transform());
+                    MESHRENDERER::SubmitStaticMesh(*asset, object->Transform(), model->GetMaterialFxProfileId(), model->GetPostGroupMask());
                 } else {
                     RENDERER3D::WireCube cube{};
                     cube.transform = object->Transform();
