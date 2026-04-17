@@ -272,7 +272,7 @@ namespace HIKARI {
             POST::PostSystem::ClearEffects();
 
             std::string profilePath = activeScenePostProfileId_;
-            if (const auto* descriptor = assetRegistry_.FindAs<PostProfileAssetDescriptor>(activeScenePostProfileId_)) {
+            if (const auto* descriptor = assetRegistry_.FindAs<PostProfileAssetDescriptor>(AssetId{ activeScenePostProfileId_ })) {
                 profilePath = descriptor->sourcePath;
             }
 
