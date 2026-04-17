@@ -2,8 +2,6 @@
 #include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_PostEffect.h"
 
-#include <base/DirectXCommon.h>
-
 namespace HIKARI {
     namespace POST {
 
@@ -18,6 +16,13 @@ namespace HIKARI {
                 return;
             }
             effects_.push_back(effect);
+        }
+
+        void PostChain::UpdateContext(const GFX::Context& ctx)
+        {
+            context_ = ctx;
+            ping_.UpdateContext(ctx);
+            pong_.UpdateContext(ctx);
         }
 
         void PostChain::Finalize()
@@ -35,18 +40,22 @@ namespace HIKARI {
             }
 
             if (!tempsInitialized_ || ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
-                ping_.Init(w, h);
-                pong_.Init(w, h);
-                tempsInitialized_ = true;
+                ping_.UpdateContext(context_);
+                pong_.UpdateContext(context_);
+                const bool okPing = ping_.Init(w, h);
+                const bool okPong = pong_.Init(w, h);
+                tempsInitialized_ = okPing && okPong;
                 return;
             }
 
             if (ping_.GetWidth() != w || ping_.GetHeight() != h) {
                 ping_.Finalize();
+                ping_.UpdateContext(context_);
                 ping_.Init(w, h);
             }
             if (pong_.GetWidth() != w || pong_.GetHeight() != h) {
                 pong_.Finalize();
+                pong_.UpdateContext(context_);
                 pong_.Init(w, h);
             }
         }
@@ -65,6 +74,9 @@ namespace HIKARI {
             int w = src.GetWidth();
             int h = src.GetHeight();
             EnsureTempSize(w, h);
+            if (ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
+                return &src;
+            }
 
             RenderTarget2D* cur = &src;
 

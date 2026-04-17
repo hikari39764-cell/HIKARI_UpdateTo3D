@@ -67,6 +67,7 @@ namespace HIKARI {
         {
             context_ = ctx;
             PostEffect::UpdateContext(ctx);
+            globalChain_.UpdateContext(ctx);
             if (initialized_) return;
             quad_.Init(context_);
             initialized_ = true;
@@ -76,6 +77,7 @@ namespace HIKARI {
         {
             context_ = ctx;
             PostEffect::UpdateContext(ctx);
+            globalChain_.UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
@@ -305,6 +307,7 @@ namespace HIKARI {
             int w = prevRT->GetWidth();
             int h = prevRT->GetHeight();
 
+            chain.UpdateContext(context_);
             chain.PrepareBuffers(w, h);
             RenderTarget2D* layerRT = chain.GetPing();
 
