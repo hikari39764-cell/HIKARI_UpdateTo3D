@@ -13,6 +13,7 @@
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include "Vfx/HIKARI_FxTypes.h"
+#include "Vfx/HIKARI_MaterialFxProfile.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -31,7 +32,12 @@ namespace HIKARI::MESHRENDERER {
             MATH::Mat4 normalMatrix{};
             MATH::Vec4 baseColor{};
             uint32_t hasBaseColorTexture = 0;
-            float padding[3]{};
+            uint32_t fxFlags = 0;
+            float padding[2]{};
+            MATH::Vec4 fxUser0{};
+            MATH::Vec4 fxUser1{};
+            MATH::Vec4 fxUser2{};
+            MATH::Vec4 fxUser3{};
         };
 
         struct LightCB {
@@ -50,7 +56,11 @@ namespace HIKARI::MESHRENDERER {
         struct DrawItem {
             const ModelAsset* asset = nullptr;
             Transform3D transform{};
+            std::string materialFxProfileId{};
+            uint32_t postGroupMask = 0;
             VFX::VariantKey variant{};
+            std::array<MATH::Vec4, 4> fxValues{};
+            uint32_t fxFlags = 0;
         };
 
         struct VariantKeyHasher {
@@ -80,6 +90,7 @@ namespace HIKARI::MESHRENDERER {
             std::vector<DrawItem> drawItems;
             int fallbackTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
+            std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
         };
 
         State g;
@@ -216,6 +227,119 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.pso.GetAddressOf())));
         }
 
+        const wchar_t* ResolvePixelShaderPath(const std::string& shaderProfileId) {
+            if (shaderProfileId == "StaticFx") {
+                return L"HIKARI/Shaders/Render3D_StaticFxPS.hlsl";
+            }
+            return L"HIKARI/Shaders/Render3D_StaticPS.hlsl";
+        }
+
+        bool LoadPixelShaderBlob(const std::string& shaderProfileId, ID3DBlob** outBlob) {
+            const std::string cacheKey = shaderProfileId.empty() ? "StaticLit" : shaderProfileId;
+            auto it = g.psBlobCache.find(cacheKey);
+            if (it != g.psBlobCache.end()) {
+                *outBlob = it->second.Get();
+                return true;
+            }
+
+            UINT flags = 0;
+#if defined(_DEBUG)
+            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+            ComPtr<ID3DBlob> blob;
+            ComPtr<ID3DBlob> err;
+            if (FAILED(D3DCompileFromFile(ResolvePixelShaderPath(cacheKey), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                return false;
+            }
+            auto [insertIt, _] = g.psBlobCache.emplace(cacheKey, blob);
+            *outBlob = insertIt->second.Get();
+            return true;
+        }
+
+        bool CreateVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
+            ID3DBlob* psBlob = nullptr;
+            if (!LoadPixelShaderBlob(key.shaderId, &psBlob) || psBlob == nullptr) {
+                return false;
+            }
+
+            const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            };
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+            psoDesc.pRootSignature = g.rootSig.Get();
+            psoDesc.VS = { g.vsBlob->GetBufferPointer(), g.vsBlob->GetBufferSize() };
+            psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
+            psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+            if (key.composite == VFX::CompositeMode::Additive) {
+                D3D12_RENDER_TARGET_BLEND_DESC& rt0 = psoDesc.BlendState.RenderTarget[0];
+                rt0.BlendEnable = TRUE;
+                rt0.SrcBlend = D3D12_BLEND_ONE;
+                rt0.DestBlend = D3D12_BLEND_ONE;
+                rt0.BlendOp = D3D12_BLEND_OP_ADD;
+                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+                rt0.DestBlendAlpha = D3D12_BLEND_ONE;
+                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            }
+            psoDesc.SampleMask = UINT_MAX;
+            psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+            psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
+            psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+            psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
+            psoDesc.DepthStencilState.DepthWriteMask = key.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+            psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+            psoDesc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
+            psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+            psoDesc.NumRenderTargets = 1;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+            psoDesc.SampleDesc.Count = 1;
+            return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
+        }
+
+        void ResolveDrawVariant(DrawItem& item) {
+            if (!item.asset) {
+                return;
+            }
+            const Material* material = item.asset->GetMaterial();
+            if (material) {
+                item.variant.shaderId = material->GetShaderProfileId();
+                item.variant.featureBits = material->GetFeatureBits();
+            }
+            item.variant.composite = VFX::CompositeMode::Alpha;
+            item.variant.depthTest = true;
+            item.variant.depthWrite = true;
+            item.variant.doubleSided = false;
+            item.fxValues = {};
+            item.fxFlags = 0;
+
+            if (item.materialFxProfileId.empty()) {
+                return;
+            }
+
+            MaterialFxProfile fxProfile{};
+            fxProfile.id = item.materialFxProfileId;
+            if (!fxProfile.LoadFromJson("Data/material_fx_profiles.json")) {
+                return;
+            }
+
+            item.variant.shaderId = fxProfile.shaderProfileId;
+            item.variant.featureBits = fxProfile.featureBits;
+            item.variant.composite = fxProfile.composite;
+            item.variant.depthTest = fxProfile.depthTest;
+            item.variant.depthWrite = fxProfile.depthWrite;
+            item.variant.doubleSided = fxProfile.doubleSided;
+            for (size_t i = 0; i < item.fxValues.size(); ++i) {
+                const DirectX::XMFLOAT4& value = fxProfile.values[i];
+                item.fxValues[i] = { value.x, value.y, value.z, value.w };
+            }
+            item.fxFlags = fxProfile.featureBits;
+        }
+
         bool EnsureInitialized() {
             if (g.initialized) {
                 return true;
@@ -232,6 +356,7 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
             return true;
@@ -242,13 +367,14 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.clear();
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform) {
-        VFX::VariantKey variant{};
-        if (const Material* material = asset.GetMaterial()) {
-            variant.shaderId = material->GetShaderProfileId();
-            variant.featureBits = material->GetFeatureBits();
-        }
-        g.drawItems.push_back({ &asset, transform, std::move(variant) });
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask) {
+        DrawItem item{};
+        item.asset = &asset;
+        item.transform = transform;
+        item.materialFxProfileId = materialFxProfileId;
+        item.postGroupMask = postGroupMask;
+        ResolveDrawVariant(item);
+        g.drawItems.push_back(std::move(item));
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -301,7 +427,6 @@ namespace HIKARI::MESHRENDERER {
         }
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
-        cmd->SetPipelineState(g.pso.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
@@ -339,6 +464,11 @@ namespace HIKARI::MESHRENDERER {
                 obj.baseColor = { 1,1,1,1 };
                 obj.hasBaseColorTexture = 0u;
             }
+            obj.fxFlags = item.fxFlags;
+            obj.fxUser0 = item.fxValues[0];
+            obj.fxUser1 = item.fxValues[1];
+            obj.fxUser2 = item.fxValues[2];
+            obj.fxUser3 = item.fxValues[3];
 
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * i;
             std::memcpy(dst, &obj, sizeof(ObjectCB));
@@ -348,8 +478,11 @@ namespace HIKARI::MESHRENDERER {
 
             auto foundPso = g.variantPsoCache.find(item.variant);
             if (foundPso == g.variantPsoCache.end()) {
-                g.variantPsoCache.emplace(item.variant, g.pso);
-                foundPso = g.variantPsoCache.find(item.variant);
+                ComPtr<ID3D12PipelineState> variantPso;
+                if (!CreateVariantPipeline(SERVICES::gCtx.device, item.variant, variantPso.GetAddressOf())) {
+                    variantPso = g.pso;
+                }
+                foundPso = g.variantPsoCache.emplace(item.variant, std::move(variantPso)).first;
             }
             cmd->SetPipelineState(foundPso->second.Get());
             int textureHandle = g.fallbackTextureHandle;

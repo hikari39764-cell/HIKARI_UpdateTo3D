@@ -1120,6 +1120,9 @@
     <ClCompile Include="HIKARI\Vfx\HIKARI_VfxAsset.cpp">
       <Filter>ソース ファイル\Vfx</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.cpp">
+      <Filter>ソース ファイル\Vfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp">
       <Filter>ソース ファイル\Vfx\Backends</Filter>
     </ClCompile>
@@ -1136,6 +1139,9 @@
       <Filter>ヘッダー ファイル\Vfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxAsset.h">
+      <Filter>ヘッダー ファイル\Vfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.h">
       <Filter>ヘッダー ファイル\Vfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h">
