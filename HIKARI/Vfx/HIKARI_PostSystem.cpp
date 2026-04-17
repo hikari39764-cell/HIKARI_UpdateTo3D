@@ -66,6 +66,7 @@ namespace HIKARI {
         void PostSystem::Initialize(const GFX::Context& ctx)
         {
             context_ = ctx;
+            PostEffect::UpdateContext(ctx);
             if (initialized_) return;
             quad_.Init(context_);
             initialized_ = true;
@@ -74,6 +75,7 @@ namespace HIKARI {
         void PostSystem::UpdateContext(const GFX::Context& ctx)
         {
             context_ = ctx;
+            PostEffect::UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
