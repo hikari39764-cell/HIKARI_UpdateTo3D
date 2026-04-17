@@ -2,11 +2,25 @@
 #include "HIKARI_PostEffect.h"
 #include "HIKARI_Utility.h"
 #include <cassert>
+#include <cmath>
 
 namespace HIKARI {
     namespace POST {
 
         namespace {
+            static bool IsNearZero(float v) {
+                return std::fabs(v) <= 1e-6f;
+            }
+
+            static bool HasAnyOverrideValue(const DirectX::XMFLOAT4(&userOverrides)[16]) {
+                for (const auto& v : userOverrides) {
+                    if (!IsNearZero(v.x) || !IsNearZero(v.y) || !IsNearZero(v.z) || !IsNearZero(v.w)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             struct LetterboxRect {
                 float x;
                 float y;
@@ -160,8 +174,10 @@ namespace HIKARI {
             }
 
             activeGlobalProfile_.ResetValuesFromDefaults();
-            for (size_t i = 0; i < activeGlobalProfile_.values.size(); ++i) {
-                activeGlobalProfile_.values[i] = userOverrides[i];
+            if (HasAnyOverrideValue(userOverrides)) {
+                for (size_t i = 0; i < activeGlobalProfile_.values.size(); ++i) {
+                    activeGlobalProfile_.values[i] = userOverrides[i];
+                }
             }
             activeGlobalProfile_.ApplyToCommonParams(commonParams_);
             return globalChain_.HasAny();
