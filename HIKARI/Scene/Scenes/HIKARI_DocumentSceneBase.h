@@ -1,8 +1,11 @@
 #pragma once
 
 #include <string>
+#include <memory>
+#include <vector>
 
 #include "Assets/HIKARI_AssetJsonLoader.h"
+#include "HIKARI_PostEffect.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_DebugCameraController3D.h"
@@ -19,6 +22,8 @@
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 
 namespace HIKARI {
+
+    class PostProfile;
 
     class DocumentSceneBase : public IScene {
     public:
@@ -59,6 +64,8 @@ namespace HIKARI {
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
 
+        void RefreshScenePostPipeline();
+
         void SetComponentGizmoState(const ComponentGizmoState& state);
         void SetSelectedGizmoObjectId(SceneObjectId id);
 
@@ -92,6 +99,9 @@ namespace HIKARI {
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         SceneObjectId selectedGizmoObjectId_{};
+
+        std::string activeScenePostProfileId_{};
+        std::vector<std::unique_ptr<POST::PostEffect>> activeScenePostEffects_{};
     };
 
 } // namespace HIKARI

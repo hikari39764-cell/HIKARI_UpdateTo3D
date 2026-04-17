@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <utility>
 #include <numbers>
+#include <locale>
 
 #include "HIKARI_3D.h"
+#include "HIKARI_PostSystem.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_SkyRenderer.h"
@@ -14,12 +16,19 @@
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/HIKARI_VfxAsset.h"
+#include "Vfx/HIKARI_PostProfile.h"
 #include "Vfx/HIKARI_VfxSystem.h"
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 
 namespace HIKARI {
+
+    namespace {
+        std::wstring ToWidePath(const std::string& path) {
+            return std::wstring(path.begin(), path.end());
+        }
+    }
 
     DocumentSceneBase::DocumentSceneBase(SceneCatalog& sceneCatalog, std::string sceneId)
         : sceneCatalog_(sceneCatalog), sceneId_(std::move(sceneId)) {
@@ -64,6 +73,8 @@ namespace HIKARI {
             axis.length = 2.5f;
             RENDERER3D::DEBUG::SubmitAxis3D(axis);
         }
+
+        RefreshScenePostPipeline();
 
         world_.Render();
 
@@ -210,7 +221,8 @@ namespace HIKARI {
         const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
         const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
         const bool okVfx = assetJsonLoader_.LoadVfxDescriptors("Data/assets_vfx.json", assetRegistry_);
-        return okModels && okSkies && okTextures && okVfx;
+        const bool okPostProfiles = assetJsonLoader_.LoadPostProfileDescriptors("Data/assets_posts.json", assetRegistry_);
+        return okModels && okSkies && okTextures && okVfx && okPostProfiles;
     }
 
     bool DocumentSceneBase::ReloadSceneDocument() {
@@ -240,6 +252,59 @@ namespace HIKARI {
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
         return built;
+    }
+
+
+
+    void DocumentSceneBase::RefreshScenePostPipeline() {
+        if (!environment_.post.enabled || environment_.post.globalPostProfileId.empty()) {
+            if (!activeScenePostProfileId_.empty() || !activeScenePostEffects_.empty()) {
+                POST::PostSystem::ClearEffects();
+                activeScenePostProfileId_.clear();
+                activeScenePostEffects_.clear();
+            }
+            return;
+        }
+
+        if (activeScenePostProfileId_ != environment_.post.globalPostProfileId) {
+            activeScenePostProfileId_ = environment_.post.globalPostProfileId;
+            activeScenePostEffects_.clear();
+            POST::PostSystem::ClearEffects();
+
+            std::string profilePath = activeScenePostProfileId_;
+            if (const auto* descriptor = assetRegistry_.FindAs<PostProfileAssetDescriptor>(activeScenePostProfileId_)) {
+                profilePath = descriptor->sourcePath;
+            }
+
+            PostProfile profile;
+            if (!profile.LoadFromJson(profilePath)) {
+                activeScenePostProfileId_.clear();
+                return;
+            }
+
+            if (profile.domain != VFX::FxDomain::GlobalPost) {
+                return;
+            }
+
+            for (const auto& pass : profile.passes) {
+                auto effect = std::make_unique<POST::PostEffect>();
+                if (!effect->LoadPixelShader(ToWidePath(pass.shaderId).c_str())) {
+                    continue;
+                }
+                activeScenePostEffects_.push_back(std::move(effect));
+            }
+        }
+
+        POST::PostSystem::ClearEffects();
+        for (auto& effect : activeScenePostEffects_) {
+            if (!effect) {
+                continue;
+            }
+            for (int i = 0; i < 16; ++i) {
+                effect->SetUser(i, environment_.post.userOverrides[i]);
+            }
+            POST::PostSystem::AddEffect(effect.get());
+        }
     }
 
     void DocumentSceneBase::RegisterDefaultComponentTypes() {

@@ -2,14 +2,162 @@
   "version": 1,
   "sceneName": "Sandbox",
   "environment": {
-    "ambient": { "color": [1.0, 1.0, 1.0], "intensity": 0.25 },
-    "directional": { "enabled": true, "direction": [0.4, -1.0, -0.6], "intensity": 1.0, "color": [1.0, 1.0, 1.0] },
+    "ambient": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "intensity": 0.25
+    },
+    "directional": {
+      "enabled": true,
+      "direction": [
+        0.4,
+        -1.0,
+        -0.6
+      ],
+      "intensity": 1.0,
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "pointLights": [
-      { "enabled": true, "position": [0.0, 2.0, 0.0], "range": 5.0, "color": [1.0, 1.0, 1.0], "intensity": 1.0 }
+      {
+        "enabled": true,
+        "position": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "range": 5.0,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 1.0
+      }
     ],
-    "sky": { "enabled": true, "skyAsset": "DefaultSky", "scale": 0.05, "yaw": 0.0, "exposure": 1.0, "tint": [1.0, 1.0, 1.0], "followCamera": true },
+    "sky": {
+      "enabled": true,
+      "skyAsset": "DefaultSky",
+      "scale": 0.05,
+      "yaw": 0.0,
+      "exposure": 1.0,
+      "tint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "followCamera": true
+    },
     "specularIntensity": 0.2,
-    "specularPower": 32.0
+    "specularPower": 32.0,
+    "post": {
+      "enabled": true,
+      "globalPostProfileId": "SceneTintTest",
+      "userOverrides": [
+        [
+          0.75,
+          1.0,
+          1.25,
+          0.35
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ]
+      ]
+    }
   },
   "objects": [
     {
@@ -19,12 +167,30 @@
       "enabled": true,
       "editorVisible": true,
       "transform": {
-        "position": [0.0, 0.5, 0.0],
-        "rotationEulerDeg": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "position": [
+          0.0,
+          0.5,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "components": [
-        { "type": "ModelComponent", "properties": { "assetId": "Block", "visible": true } }
+        {
+          "type": "ModelComponent",
+          "properties": {
+            "assetId": "Block",
+            "visible": true
+          }
+        }
       ]
     },
     {
@@ -34,12 +200,30 @@
       "enabled": true,
       "editorVisible": true,
       "transform": {
-        "position": [2.0, 1.0, 0.0],
-        "rotationEulerDeg": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "position": [
+          2.0,
+          1.0,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "components": [
-        { "type": "ModelComponent", "properties": { "assetId": "TestCube", "visible": true } }
+        {
+          "type": "ModelComponent",
+          "properties": {
+            "assetId": "TestCube",
+            "visible": true
+          }
+        }
       ]
     }
   ]

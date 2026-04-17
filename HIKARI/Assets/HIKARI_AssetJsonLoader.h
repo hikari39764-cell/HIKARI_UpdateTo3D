@@ -12,6 +12,7 @@ namespace HIKARI {
         bool LoadSkyDescriptors(const std::string& path, AssetRegistry& registry) const;
         bool LoadTextureDescriptors(const std::string& path, AssetRegistry& registry) const;
         bool LoadVfxDescriptors(const std::string& path, AssetRegistry& registry) const;
+        bool LoadPostProfileDescriptors(const std::string& path, AssetRegistry& registry) const;
     };
 
 } // namespace HIKARI
