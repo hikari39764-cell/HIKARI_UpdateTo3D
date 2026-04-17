@@ -1,4 +1,4 @@
-﻿#include "HIKARI_RenderTarget2D.h"
+#include "HIKARI_RenderTarget2D.h"
 #include <cassert>
 
 using Microsoft::WRL::ComPtr;
@@ -62,13 +62,6 @@ namespace HIKARI {
         ID3D12Device* device = context_.device;
         if (!device) { return false; }
 
-        D3D12_CLEAR_VALUE clearValue{};
-        clearValue.Format = format_;
-        clearValue.Color[0] = 0.0f;
-        clearValue.Color[1] = 0.0f;
-        clearValue.Color[2] = 0.0f;
-        clearValue.Color[3] = 0.0f;
-
         CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
         CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
             format_,
@@ -83,7 +76,7 @@ namespace HIKARI {
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            &clearValue,
+            nullptr,
             IID_PPV_ARGS(&colorTex_)
         );
         assert(SUCCEEDED(hr));

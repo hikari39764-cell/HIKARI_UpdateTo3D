@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 
 #include "HIKARI_IComponent.h"
 
@@ -26,10 +27,18 @@ namespace HIKARI {
         const std::string& GetAssetId() const;
         void SetAssetId(std::string assetId);
 
+        void SetPostGroupMask(uint32_t mask);
+        uint32_t GetPostGroupMask() const;
+
+        void SetMaterialFxProfileId(std::string profileId);
+        const std::string& GetMaterialFxProfileId() const;
+
     private:
         ModelAsset* asset_ = nullptr;
         std::string assetId_{};
         bool visible_ = true;
+        uint32_t postGroupMask_ = 0;
+        std::string materialFxProfileId_{};
     };
 
 } // namespace HIKARI

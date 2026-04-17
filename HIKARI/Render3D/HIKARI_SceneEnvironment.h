@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <DirectXMath.h>
 #include "HIKARI_Math3D.h"
 
 namespace HIKARI {
@@ -36,6 +37,13 @@ namespace HIKARI {
         bool followCamera = true;
     };
 
+
+    struct ScenePostSettings {
+        bool enabled = false;
+        std::string globalPostProfileId{};
+        DirectX::XMFLOAT4 userOverrides[16]{};
+    };
+
     struct SceneEnvironment {
         AmbientLight ambient{};
         DirectionalLight directional{};
@@ -46,6 +54,7 @@ namespace HIKARI {
         bool showLightDebug = true;
         bool showPointLightMarkers = true;
         bool showSkyDebugInfo = false;
+        ScenePostSettings post{};
     };
 
 } // namespace HIKARI

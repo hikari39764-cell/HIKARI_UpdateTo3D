@@ -71,6 +71,24 @@ namespace HIKARI {
             ImGui::Checkbox("Follow Camera", &environment.sky.followCamera);
         }
 
+
+        if (ImGui::CollapsingHeader("Post Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Post Enabled", &environment.post.enabled);
+            char profileBuffer[256]{};
+            std::strncpy(profileBuffer, environment.post.globalPostProfileId.c_str(), sizeof(profileBuffer) - 1);
+            if (ImGui::InputText("Global Post Profile", profileBuffer, sizeof(profileBuffer))) {
+                environment.post.globalPostProfileId = profileBuffer;
+            }
+            if (ImGui::TreeNode("User Overrides (16x float4)")) {
+                for (int i = 0; i < 16; ++i) {
+                    ImGui::PushID(i);
+                    ImGui::InputFloat4("Override", &environment.post.userOverrides[i].x);
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+        }
+
         if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);

@@ -1,4 +1,4 @@
-﻿#include "HIKARI_PostSystem.h"
+#include "HIKARI_PostSystem.h"
 #include "HIKARI_PostEffect.h"
 #include "HIKARI_Utility.h"
 #include <cassert>
@@ -216,7 +216,7 @@ namespace HIKARI {
 
 
             auto* cmd = context_.cmdList;
-            cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, &context_.dsv);
+            cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, nullptr);
 
             const auto letterbox = ComputeLetterboxRect(context_.backBufferWidth, context_.backBufferHeight);
             D3D12_VIEWPORT vp{ letterbox.x, letterbox.y, letterbox.width, letterbox.height, 0.0f, 1.0f };
@@ -272,6 +272,10 @@ namespace HIKARI {
 
             LayerInfo prevLayer = rtStack_.top();
             prevLayer.rt->Rebind();
+
+            auto* cmd = context_.cmdList;
+            D3D12_CPU_DESCRIPTOR_HANDLE rtv = prevLayer.rt->GetRtvHandle();
+            cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
             quad_.DrawBlended(processedRT->GetSrvHeap(), processedRT->GetSrvGpu(), blendMode);
         }
