@@ -1,6 +1,8 @@
 #include "HIKARI_SceneSerializer.h"
 
 #include <fstream>
+#include <algorithm>
+#include <array>
 
 #include <json.hpp>
 
@@ -13,6 +15,22 @@ namespace HIKARI {
     namespace {
         json ToVec3(const MATH::Vec3& v) {
             return json::array({ v.x, v.y, v.z });
+        }
+
+        json ToFloat4(const DirectX::XMFLOAT4& v) {
+            return json::array({ v.x, v.y, v.z, v.w });
+        }
+
+        DirectX::XMFLOAT4 FromFloat4(const json& in, const DirectX::XMFLOAT4& fallback) {
+            if (!in.is_array() || in.size() < 4) {
+                return fallback;
+            }
+            return {
+                in[0].is_number() ? in[0].get<float>() : fallback.x,
+                in[1].is_number() ? in[1].get<float>() : fallback.y,
+                in[2].is_number() ? in[2].get<float>() : fallback.z,
+                in[3].is_number() ? in[3].get<float>() : fallback.w
+            };
         }
 
         MATH::Vec3 FromVec3(const json& in, const MATH::Vec3& fallback) {
@@ -56,6 +74,13 @@ namespace HIKARI {
 
             out["specularIntensity"] = environment.specularIntensity;
             out["specularPower"] = environment.specularPower;
+
+            out["post"]["enabled"] = environment.post.enabled;
+            out["post"]["globalPostProfileId"] = environment.post.globalPostProfileId;
+            out["post"]["userOverrides"] = json::array();
+            for (const DirectX::XMFLOAT4& value : environment.post.userOverrides) {
+                out["post"]["userOverrides"].push_back(ToFloat4(value));
+            }
         }
 
         void DeserializeEnvironment(const json& in, SceneEnvironment& environment) {
@@ -99,6 +124,19 @@ namespace HIKARI {
 
             environment.specularIntensity = in.value("specularIntensity", environment.specularIntensity);
             environment.specularPower = in.value("specularPower", environment.specularPower);
+
+            if (in.contains("post") && in["post"].is_object()) {
+                const json& post = in["post"];
+                environment.post.enabled = post.value("enabled", environment.post.enabled);
+                environment.post.globalPostProfileId = post.value("globalPostProfileId", environment.post.globalPostProfileId);
+                if (post.contains("userOverrides") && post["userOverrides"].is_array()) {
+                    const json& overrides = post["userOverrides"];
+                    const size_t count = std::min<size_t>(overrides.size(), std::size(environment.post.userOverrides));
+                    for (size_t i = 0; i < count; ++i) {
+                        environment.post.userOverrides[i] = FromFloat4(overrides[i], environment.post.userOverrides[i]);
+                    }
+                }
+            }
         }
     }
 

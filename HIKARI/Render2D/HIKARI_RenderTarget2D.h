@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <d3d12.h>
 #include <wrl.h>
 #include <d3dx12.h>
@@ -32,6 +32,7 @@ namespace HIKARI {
 
         ID3D12DescriptorHeap* GetSrvHeap() const { return srvHeap_.Get(); }
         D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpu() const { return srvGpuHandle_; }
+        D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const { return rtvHandle_; }
 
     private:
         bool CreateResources();

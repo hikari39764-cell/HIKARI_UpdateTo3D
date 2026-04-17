@@ -1,0 +1,10 @@
+{
+  "postProfiles": [
+    {
+      "id": "SceneTintTest",
+      "type": "PostProfile",
+      "sourcePath": "Data/postprofiles/post_scene_tint_test.json",
+      "version": 1
+    }
+  ]
+}

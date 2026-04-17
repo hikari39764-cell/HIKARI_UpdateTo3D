@@ -26,7 +26,7 @@ namespace HIKARI {
             void BindAndDraw(QuadDrawer& drawer);
 
         private:
-            void CreateConstantBuffer();
+            bool CreateConstantBuffer();
 
         private:
             Microsoft::WRL::ComPtr<ID3DBlob> psBlob_;

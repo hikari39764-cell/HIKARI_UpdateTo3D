@@ -4,8 +4,7 @@
 #include <Windows.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
-#include <cassert>
-#include <base/DirectXCommon.h>
+#include "HIKARI_Services.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -17,7 +16,6 @@ namespace HIKARI {
         PostEffect::PostEffect()
         {
             ZeroMemory(&params_, sizeof(params_));
-            CreateConstantBuffer();
         }
 
         PostEffect::~PostEffect()
@@ -28,12 +26,19 @@ namespace HIKARI {
             }
         }
 
-        void PostEffect::CreateConstantBuffer()
+        bool PostEffect::CreateConstantBuffer()
         {
-            auto* dx = KamataEngine::DirectXCommon::GetInstance();
-            auto* device = dx->GetDevice();
+            if (constantBuffer_ && mappedPtr_) {
+                return true;
+            }
 
-            UINT size = Align256(sizeof(CommonParams));
+            ID3D12Device* device = SERVICES::gCtx.device;
+            if (!device) {
+                OutputDebugStringA("[PostEffect] CreateConstantBuffer failed: device is null.\n");
+                return false;
+            }
+
+            const UINT size = Align256(sizeof(CommonParams));
 
             CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
             CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
@@ -46,10 +51,17 @@ namespace HIKARI {
                 nullptr,
                 IID_PPV_ARGS(constantBuffer_.GetAddressOf())
             );
-            assert(SUCCEEDED(hr));
+            if (FAILED(hr)) {
+                return false;
+            }
 
             hr = constantBuffer_->Map(0, nullptr, &mappedPtr_);
-            assert(SUCCEEDED(hr));
+            if (FAILED(hr)) {
+                constantBuffer_.Reset();
+                mappedPtr_ = nullptr;
+                return false;
+            }
+            return true;
         }
         bool PostEffect::LoadPixelShader(const wchar_t* path)
         {
@@ -104,6 +116,10 @@ namespace HIKARI {
         void PostEffect::BindAndDraw(QuadDrawer& drawer)
         {
             if (!psBlob_) { return; }
+
+            if (!CreateConstantBuffer() || !mappedPtr_) {
+                return;
+            }
 
             memcpy(mappedPtr_, &params_, sizeof(params_));
 

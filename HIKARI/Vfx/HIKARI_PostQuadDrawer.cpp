@@ -1,4 +1,4 @@
-﻿#include "HIKARI_PostQuadDrawer.h"
+#include "HIKARI_PostQuadDrawer.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include <Windows.h>
 #include <d3dcommon.h>
@@ -93,10 +93,12 @@ float4 main(PS_IN i) : SV_TARGET
             pso.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             pso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             pso.DepthStencilState.DepthEnable = FALSE;
+            pso.DepthStencilState.StencilEnable = FALSE;
             pso.SampleMask = UINT_MAX;
             pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             pso.NumRenderTargets = 1;
             pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            pso.DSVFormat = DXGI_FORMAT_UNKNOWN;
             pso.SampleDesc.Count = 1;
 
             D3D12_RENDER_TARGET_BLEND_DESC blendDesc{};
@@ -209,10 +211,13 @@ float4 main(PS_IN i) : SV_TARGET
             pso.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
             pso.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             pso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+            pso.DepthStencilState.DepthEnable = FALSE;
+            pso.DepthStencilState.StencilEnable = FALSE;
             pso.SampleMask = UINT_MAX;
             pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             pso.NumRenderTargets = 1;
             pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            pso.DSVFormat = DXGI_FORMAT_UNKNOWN;
             pso.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(outPso.GetAddressOf())));
         }
