@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "HIKARI_IComponent.h"
-#include "HIKARI/Vfx/HIKARI_VfxSystem.h"
+#include "Vfx/HIKARI_VfxSystem.h"
 
 namespace HIKARI {
 

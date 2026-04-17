@@ -43,24 +43,24 @@ bool Initialize(const GFX::Context& ctx) {
 
     gCtx = ctx;
     gManager = Effekseer::Manager::Create(8000);
-    if (!gManager) return false;
+    if (gManager == nullptr) return false;
 
     gGraphicsDevice = EffekseerRendererDX12::CreateGraphicsDevice(ctx.device, ctx.queue, 3);
-    if (!gGraphicsDevice) {
+    if (gGraphicsDevice == nullptr) {
         Shutdown();
         return false;
     }
 
     DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     gRenderer = EffekseerRendererDX12::Create(gGraphicsDevice, &colorFormat, 1, DXGI_FORMAT_D32_FLOAT, false, 8000);
-    if (!gRenderer) {
+    if (gRenderer == nullptr) {
         Shutdown();
         return false;
     }
 
     gMemoryPool = EffekseerRenderer::CreateSingleFrameMemoryPool(gRenderer->GetGraphicsDevice());
     gCommandList = EffekseerRenderer::CreateCommandList(gRenderer->GetGraphicsDevice(), gMemoryPool);
-    if (!gMemoryPool || !gCommandList) {
+    if (gMemoryPool == nullptr || gCommandList == nullptr) {
         Shutdown();
         return false;
     }
@@ -85,8 +85,8 @@ void Shutdown() {
         return;
     }
 
-    if (gManager) gManager->StopAllEffects();
-    if (gRenderer) gRenderer->SetCommandList(nullptr);
+    if (gManager != nullptr) gManager->StopAllEffects();
+    if (gRenderer!= nullptr) gRenderer->SetCommandList(nullptr);
 
     gEffects.clear();
     gInstanceMap.clear();
@@ -105,7 +105,7 @@ void UpdateContext(const GFX::Context& ctx) {
 }
 
 void BeginFrame(float dt) {
-    if (!gInitialized || !gManager) return;
+    if (!gInitialized || gManager == nullptr) return;
     gTime += dt;
     Effekseer::Manager::UpdateParameter p{};
     gManager->Update(p);
@@ -133,7 +133,7 @@ bool LoadEffect(const std::string& assetId, const std::string& sourcePath) {
 
     std::u16string path(sourcePath.begin(), sourcePath.end());
     Effekseer::EffectRef effect = Effekseer::Effect::Create(gManager, reinterpret_cast<const char16_t*>(path.c_str()));
-    if (!effect) {
+    if (effect == nullptr) {
         return false;
     }
 
@@ -151,11 +151,11 @@ void ReloadEffect(const std::string& assetId, const std::string& sourcePath) {
 }
 
 static VfxHandle PlayImpl(const std::string& assetId, const MATH::Vec3* pos) {
-    if (!gInitialized || !gManager) {
+    if (!gInitialized || gManager == nullptr) {
         return kInvalidVfxHandle;
     }
     auto it = gEffects.find(assetId);
-    if (it == gEffects.end() || !it->second) {
+    if (it == gEffects.end() || it->second == nullptr) {
         return kInvalidVfxHandle;
     }
 
@@ -182,43 +182,43 @@ VfxHandle PlayAt(const std::string& assetId, const MATH::Vec3& worldPos) {
 
 void Stop(VfxHandle handle) {
     auto it = gInstanceMap.find(handle);
-    if (it == gInstanceMap.end() || !gManager) return;
+    if (it == gInstanceMap.end() || gManager == nullptr) return;
     gManager->StopEffect(it->second);
     gInstanceMap.erase(it);
 }
 
 void StopAll() {
-    if (gManager) gManager->StopAllEffects();
+    if (gManager != nullptr) gManager->StopAllEffects();
     gInstanceMap.clear();
 }
 
 bool IsAlive(VfxHandle handle) {
     auto it = gInstanceMap.find(handle);
-    if (it == gInstanceMap.end() || !gManager) return false;
+    if (it == gInstanceMap.end() || gManager == nullptr) return false;
     return gManager->Exists(it->second);
 }
 
 void SetVisible(VfxHandle handle, bool visible) {
     auto it = gInstanceMap.find(handle);
-    if (it == gInstanceMap.end() || !gManager) return;
+    if (it == gInstanceMap.end() || gManager == nullptr) return;
     gManager->SetShown(it->second, visible);
 }
 
 void SetPaused(VfxHandle handle, bool paused) {
     auto it = gInstanceMap.find(handle);
-    if (it == gInstanceMap.end() || !gManager) return;
+    if (it == gInstanceMap.end() || gManager == nullptr) return;
     gManager->SetPaused(it->second, paused);
 }
 
 void SetTransform(VfxHandle handle, const Transform3D& transform) {
     auto it = gInstanceMap.find(handle);
-    if (it == gInstanceMap.end() || !gManager) return;
+    if (it == gInstanceMap.end() || gManager == nullptr) return;
     const auto& p = transform.position;
     gManager->SetLocation(it->second, p.x, p.y, p.z);
 }
 
 void Render(const Camera3D& camera) {
-    if (!gInitialized || !gManager || !gRenderer || !gMemoryPool || !gCommandList || !gCtx.cmdList) return;
+    if (!gInitialized || gManager == nullptr || gRenderer == nullptr || gMemoryPool == nullptr || gCommandList == nullptr || gCtx.cmdList == nullptr) return;
 
     gMemoryPool->NewFrame();
     EffekseerRendererDX12::BeginCommandList(gCommandList, gCtx.cmdList);
