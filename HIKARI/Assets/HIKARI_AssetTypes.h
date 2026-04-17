@@ -13,6 +13,7 @@ namespace HIKARI {
         Animation,
         Particle,
         VfxEffect,
+        PostProfile,
         Unknown
     };
 
@@ -53,6 +54,9 @@ namespace HIKARI {
         bool preload = true;
         bool loopByDefault = false;
         float defaultScale = 1.0f;
+    };
+
+    struct PostProfileAssetDescriptor final : AssetDescriptor {
     };
 
 } // namespace HIKARI

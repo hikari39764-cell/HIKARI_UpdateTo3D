@@ -31,4 +31,20 @@ namespace HIKARI {
         return baseColorTextureHandle_ >= 0;
     }
 
+    void Material::SetShaderProfileId(std::string shaderProfileId) {
+        shaderProfileId_ = std::move(shaderProfileId);
+    }
+
+    const std::string& Material::GetShaderProfileId() const {
+        return shaderProfileId_;
+    }
+
+    void Material::SetFeatureBits(uint32_t featureBits) {
+        featureBits_ = featureBits;
+    }
+
+    uint32_t Material::GetFeatureBits() const {
+        return featureBits_;
+    }
+
 } // namespace HIKARI
