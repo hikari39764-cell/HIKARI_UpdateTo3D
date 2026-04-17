@@ -227,20 +227,35 @@ float4 main(PS_IN i) : SV_TARGET
             SetInputTexture(srvHeap, srvGpu);
             auto* cmd = context_.cmdList;
             if (!cmd) { return; }
+            if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
+                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: invalid SRV heap/handle.\n");
+                return;
+            }
+            if (!rootSig_) {
+                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: root signature is null.\n");
+                return;
+            }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
 
-            // 切换PSO
+            ID3D12PipelineState* selectedPso = nullptr;
             if (mode == BlendOption::Additive) {
-                cmd->SetPipelineState(psoBlendAdd_.Get());
+                selectedPso = psoBlendAdd_.Get();
             }
             else if (mode == BlendOption::Multiply) {
-                cmd->SetPipelineState(psoBlendMultiply_.Get()); // [新增]
+                selectedPso = psoBlendMultiply_.Get();
             }
             else {
-                cmd->SetPipelineState(psoBlendAlpha_.Get());
+                selectedPso = psoBlendAlpha_.Get();
             }
+            if ((mode == BlendOption::Additive && !psoBlendAdd_) ||
+                (mode == BlendOption::Multiply && !psoBlendMultiply_) ||
+                (mode == BlendOption::Alpha && !psoBlendAlpha_)) {
+                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: blend PSO is null.\n");
+                return;
+            }
+            cmd->SetPipelineState(selectedPso);
 
             cmd->SetGraphicsRootDescriptorTable(0, currentSrvGpu_);
             cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -251,6 +266,9 @@ float4 main(PS_IN i) : SV_TARGET
         {
             currentSrvHeap_ = srvHeap;
             currentSrvGpu_ = srvGpu;
+            if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
+                OutputDebugStringA("[PostQuadDrawer] SetInputTexture received invalid SRV heap/handle.\n");
+            }
         }
 
         void QuadDrawer::SetPixelShader(ID3DBlob* psBlob)
@@ -271,6 +289,14 @@ float4 main(PS_IN i) : SV_TARGET
             SetInputTexture(srvHeap, srvGpu);
             auto* cmd = context_.cmdList;
             if (!cmd) { return; }
+            if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: invalid SRV heap/handle.\n");
+                return;
+            }
+            if (!rootSig_ || !psoCopy_) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: root signature/PSO is null.\n");
+                return;
+            }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
@@ -284,6 +310,14 @@ float4 main(PS_IN i) : SV_TARGET
         {
             auto* cmd = context_.cmdList;
             if (!cmd) { return; }
+            if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: invalid SRV heap/handle.\n");
+                return;
+            }
+            if (!rootSig_ || !psoPost_) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: root signature/PSO is null.\n");
+                return;
+            }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
             cmd->SetDescriptorHeaps(1, heaps);
             cmd->SetGraphicsRootSignature(rootSig_.Get());
