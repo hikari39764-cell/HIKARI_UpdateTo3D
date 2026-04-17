@@ -4,6 +4,7 @@
 #include "Editor/HIKARI_IInspectorBuilder.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+#include <cstring>
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -57,24 +58,58 @@ namespace HIKARI {
         assetId_ = std::move(assetId);
     }
 
+    void ModelComponent::SetPostGroupMask(uint32_t mask) {
+        postGroupMask_ = mask;
+    }
+
+    uint32_t ModelComponent::GetPostGroupMask() const {
+        return postGroupMask_;
+    }
+
+    void ModelComponent::SetMaterialFxProfileId(std::string profileId) {
+        materialFxProfileId_ = std::move(profileId);
+    }
+
+    const std::string& ModelComponent::GetMaterialFxProfileId() const {
+        return materialFxProfileId_;
+    }
+
     void ModelComponent::Serialize(nlohmann::json& out) const {
         out["assetId"] = assetId_;
         out["visible"] = visible_;
+        out["postGroupMask"] = postGroupMask_;
+        out["materialFxProfileId"] = materialFxProfileId_;
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
         assetId_ = in.value("assetId", assetId_);
         visible_ = in.value("visible", visible_);
+        postGroupMask_ = in.value("postGroupMask", postGroupMask_);
+        materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
     }
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Visible", visible_);
+        int postMask = static_cast<int>(postGroupMask_);
+        if (builder.Int("Post Group Mask", postMask)) {
+            postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
+        }
+        builder.String("Material FX Profile", materialFxProfileId_);
         builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
     }
 
     void ModelComponent::RenderImGui() {
 #if defined(_DEBUG)
         ImGui::Checkbox("Visible", &visible_);
+        int postMask = static_cast<int>(postGroupMask_);
+        if (ImGui::InputInt("Post Group Mask", &postMask)) {
+            postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
+        }
+        char profileBuffer[256]{};
+        std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
+        if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
+            materialFxProfileId_ = profileBuffer;
+        }
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Asset: <none>");
             return;

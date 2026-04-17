@@ -1,0 +1,27 @@
+{
+  "id": "SceneTintTest",
+  "displayName": "Scene Tint Test",
+  "domain": "GlobalPost",
+  "passes": [
+    {
+      "passName": "Tint",
+      "shaderId": "HIKARI/Shaders/Post_SceneTintTestPS.hlsl",
+      "composite": "Replace",
+      "depthTest": false,
+      "depthWrite": false,
+      "doubleSided": false
+    }
+  ],
+  "params": [
+    {
+      "key": "tint",
+      "label": "Scene Tint",
+      "type": "Color",
+      "ref": { "slot": 0, "channel": 0 },
+      "defaultValues": [1.0, 1.0, 1.0, 0.0],
+      "minValues": [0.0, 0.0, 0.0, 0.0],
+      "maxValues": [3.0, 3.0, 3.0, 1.0],
+      "speed": 0.01
+    }
+  ]
+}

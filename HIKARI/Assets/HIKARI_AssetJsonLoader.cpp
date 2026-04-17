@@ -19,6 +19,7 @@ namespace HIKARI {
             if (type == "Animation") return AssetType::Animation;
             if (type == "Particle") return AssetType::Particle;
             if (type == "VfxEffect") return AssetType::VfxEffect;
+            if (type == "PostProfile") return AssetType::PostProfile;
             return AssetType::Unknown;
         }
 
@@ -136,6 +137,32 @@ namespace HIKARI {
             descriptor->preload = node.value("preload", descriptor->preload);
             descriptor->loopByDefault = node.value("loopByDefault", descriptor->loopByDefault);
             descriptor->defaultScale = node.value("defaultScale", descriptor->defaultScale);
+            registry.RegisterDescriptor(std::move(descriptor));
+        }
+
+        return true;
+    }
+
+    bool AssetJsonLoader::LoadPostProfileDescriptors(const std::string& path, AssetRegistry& registry) const {
+        json root;
+        if (!ReadJson(path, root)) {
+            return false;
+        }
+
+        if (!root.contains("postProfiles") || !root["postProfiles"].is_array()) {
+            return false;
+        }
+
+        for (const json& node : root["postProfiles"]) {
+            if (!node.is_object()) {
+                continue;
+            }
+
+            auto descriptor = std::make_unique<PostProfileAssetDescriptor>();
+            descriptor->id.value = node.value("id", "");
+            descriptor->type = ParseAssetType(node.value("type", "PostProfile"));
+            descriptor->sourcePath = node.value("sourcePath", "");
+            descriptor->version = node.value("version", 1u);
             registry.RegisterDescriptor(std::move(descriptor));
         }
 

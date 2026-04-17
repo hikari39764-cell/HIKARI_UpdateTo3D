@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include <unordered_map>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <wrl/client.h>
@@ -11,6 +12,7 @@
 #include "HIKARI_Material.h"
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
+#include "Vfx/HIKARI_FxTypes.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -48,6 +50,19 @@ namespace HIKARI::MESHRENDERER {
         struct DrawItem {
             const ModelAsset* asset = nullptr;
             Transform3D transform{};
+            VFX::VariantKey variant{};
+        };
+
+        struct VariantKeyHasher {
+            size_t operator()(const VFX::VariantKey& key) const noexcept {
+                size_t seed = std::hash<std::string>{}(key.shaderId);
+                seed ^= static_cast<size_t>(key.featureBits) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= static_cast<size_t>(key.composite) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= static_cast<size_t>(key.depthTest) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= static_cast<size_t>(key.depthWrite) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= static_cast<size_t>(key.doubleSided) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return seed;
+            }
         };
 
         struct State {
@@ -64,6 +79,7 @@ namespace HIKARI::MESHRENDERER {
             LightCB* lightMapped = nullptr;
             std::vector<DrawItem> drawItems;
             int fallbackTextureHandle = -1;
+            std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
         };
 
         State g;
@@ -227,7 +243,12 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform) {
-        g.drawItems.push_back({ &asset, transform });
+        VFX::VariantKey variant{};
+        if (const Material* material = asset.GetMaterial()) {
+            variant.shaderId = material->GetShaderProfileId();
+            variant.featureBits = material->GetFeatureBits();
+        }
+        g.drawItems.push_back({ &asset, transform, std::move(variant) });
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -324,6 +345,13 @@ namespace HIKARI::MESHRENDERER {
 
             const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * i;
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+
+            auto foundPso = g.variantPsoCache.find(item.variant);
+            if (foundPso == g.variantPsoCache.end()) {
+                g.variantPsoCache.emplace(item.variant, g.pso);
+                foundPso = g.variantPsoCache.find(item.variant);
+            }
+            cmd->SetPipelineState(foundPso->second.Get());
             int textureHandle = g.fallbackTextureHandle;
             if (const Material* material = item.asset->GetMaterial()) {
                 if (material->HasBaseColorTexture()) {
