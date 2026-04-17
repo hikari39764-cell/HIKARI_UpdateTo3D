@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 #include "HIKARI_Math3D.h"
 
 namespace HIKARI {
@@ -14,10 +15,17 @@ namespace HIKARI {
         int GetBaseColorTextureHandle() const;
         bool HasBaseColorTexture() const;
 
+        void SetShaderProfileId(std::string shaderProfileId);
+        const std::string& GetShaderProfileId() const;
+        void SetFeatureBits(uint32_t featureBits);
+        uint32_t GetFeatureBits() const;
+
     private:
         MATH::Vec4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
         std::string baseColorTexturePath_{};
         int baseColorTextureHandle_ = -1;
+        std::string shaderProfileId_{};
+        uint32_t featureBits_ = 0;
     };
 
 } // namespace HIKARI

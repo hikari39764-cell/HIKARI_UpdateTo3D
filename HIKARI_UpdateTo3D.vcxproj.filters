@@ -701,16 +701,16 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render2D\HIKARI_PostChain.cpp">
+    <ClCompile Include="HIKARI\Vfx\HIKARI_PostChain.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render2D\HIKARI_PostEffect.cpp">
+    <ClCompile Include="HIKARI\Vfx\HIKARI_PostEffect.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.cpp">
+    <ClCompile Include="HIKARI\Vfx\HIKARI_PostQuadDrawer.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render2D\HIKARI_PostSystem.cpp">
+    <ClCompile Include="HIKARI\Vfx\HIKARI_PostSystem.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp">
@@ -991,19 +991,19 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render2D\HIKARI_PostChain.h">
+    <ClInclude Include="HIKARI\Vfx\HIKARI_PostChain.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render2D\HIKARI_PostCommon.h">
+    <ClInclude Include="HIKARI\Vfx\HIKARI_PostCommon.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render2D\HIKARI_PostEffect.h">
+    <ClInclude Include="HIKARI\Vfx\HIKARI_PostEffect.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render2D\HIKARI_PostQuadDrawer.h">
+    <ClInclude Include="HIKARI\Vfx\HIKARI_PostQuadDrawer.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render2D\HIKARI_PostSystem.h">
+    <ClInclude Include="HIKARI\Vfx\HIKARI_PostSystem.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h">
