@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include "HIKARI_D3DBlobCompat.h"
 #include "HIKARI_PostCommon.h"
+#include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
     namespace POST {
@@ -15,6 +16,7 @@ namespace HIKARI {
         public:
             PostEffect();
             ~PostEffect();
+            static void UpdateContext(const GFX::Context& ctx);
 
             bool LoadPixelShader(const wchar_t* path);
 
@@ -26,9 +28,10 @@ namespace HIKARI {
             void BindAndDraw(QuadDrawer& drawer);
 
         private:
-            void CreateConstantBuffer();
+            bool CreateConstantBuffer();
 
         private:
+            static GFX::Context context_;
             Microsoft::WRL::ComPtr<ID3DBlob> psBlob_;
 
             Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;

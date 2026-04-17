@@ -57,11 +57,16 @@ namespace HIKARI {
         std::stack<PostSystem::LayerInfo> PostSystem::rtStack_{};
         float PostSystem::ambientColor_[3] = { 1.0f, 1.0f, 1.0f };
         bool PostSystem::useLighting_ = false;
+        std::string PostSystem::activeGlobalProfileId_{};
+        std::string PostSystem::activeGlobalProfilePath_{};
+        PostProfile PostSystem::activeGlobalProfile_{};
+        std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
 
 
         void PostSystem::Initialize(const GFX::Context& ctx)
         {
             context_ = ctx;
+            PostEffect::UpdateContext(ctx);
             if (initialized_) return;
             quad_.Init(context_);
             initialized_ = true;
@@ -70,6 +75,7 @@ namespace HIKARI {
         void PostSystem::UpdateContext(const GFX::Context& ctx)
         {
             context_ = ctx;
+            PostEffect::UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
@@ -78,6 +84,7 @@ namespace HIKARI {
         void PostSystem::Shutdown()
         {
             if (!initialized_) return;
+            ClearGlobalProfile();
             globalChain_.Finalize();
             sceneRT_.Finalize();
             lightRT_.Finalize();
@@ -114,6 +121,56 @@ namespace HIKARI {
         void PostSystem::AddEffect(PostEffect* effect)
         {
             globalChain_.Add(effect);
+        }
+
+        bool PostSystem::SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&userOverrides)[16]) {
+            if (profileId.empty()) {
+                ClearGlobalProfile();
+                return false;
+            }
+
+            const std::string profilePath = std::string("Data/post_profiles/") + profileId + ".json";
+            bool needsRebuild = (activeGlobalProfileId_ != profileId || activeGlobalProfilePath_ != profilePath || activeGlobalEffects_.empty());
+            if (needsRebuild) {
+                PostProfile loadedProfile{};
+                if (!loadedProfile.LoadFromJson(profilePath)) {
+                    ClearGlobalProfile();
+                    return false;
+                }
+
+                activeGlobalEffects_.clear();
+                activeGlobalEffects_.reserve(loadedProfile.passes.size());
+                globalChain_.Clear();
+                for (const auto& pass : loadedProfile.passes) {
+                    auto effect = std::make_unique<PostEffect>();
+                    std::wstring shaderPath = L"HIKARI/Shaders/";
+                    shaderPath += std::wstring(pass.shaderId.begin(), pass.shaderId.end());
+                    shaderPath += L".hlsl";
+                    if (!effect->LoadPixelShader(shaderPath.c_str())) {
+                        continue;
+                    }
+                    globalChain_.Add(effect.get());
+                    activeGlobalEffects_.push_back(std::move(effect));
+                }
+                activeGlobalProfile_ = std::move(loadedProfile);
+                activeGlobalProfileId_ = profileId;
+                activeGlobalProfilePath_ = profilePath;
+            }
+
+            activeGlobalProfile_.ResetValuesFromDefaults();
+            for (size_t i = 0; i < activeGlobalProfile_.values.size(); ++i) {
+                activeGlobalProfile_.values[i] = userOverrides[i];
+            }
+            activeGlobalProfile_.ApplyToCommonParams(commonParams_);
+            return globalChain_.HasAny();
+        }
+
+        void PostSystem::ClearGlobalProfile() {
+            activeGlobalProfileId_.clear();
+            activeGlobalProfilePath_.clear();
+            activeGlobalProfile_ = PostProfile{};
+            activeGlobalEffects_.clear();
+            globalChain_.Clear();
         }
 
         void PostSystem::SetAmbientColor(float r, float g, float b)

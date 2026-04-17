@@ -2,6 +2,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_SkyRenderer.h"
+#include "Vfx/HIKARI_PostProfile.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -11,6 +12,52 @@
 namespace HIKARI {
 
 #if defined(_DEBUG)
+    namespace {
+        bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
+            float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
+            bool changed = false;
+            const char* label = param.label.empty() ? param.key.c_str() : param.label.c_str();
+            if (param.ref.channel >= 4) {
+                return false;
+            }
+            switch (param.type) {
+            case VFX::ParamType::Float:
+                changed = ImGui::DragFloat(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float2:
+                if (param.ref.channel > 2) break;
+                changed = ImGui::DragFloat2(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float3:
+                if (param.ref.channel > 1) break;
+                changed = ImGui::DragFloat3(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float4:
+                if (param.ref.channel > 0) break;
+                changed = ImGui::DragFloat4(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Color:
+                if (param.ref.channel > 0) break;
+                changed = ImGui::ColorEdit4(label, &value[param.ref.channel]);
+                break;
+            case VFX::ParamType::Toggle: {
+                bool enabled = value[param.ref.channel] >= 0.5f;
+                if (ImGui::Checkbox(label, &enabled)) {
+                    value[param.ref.channel] = enabled ? 1.0f : 0.0f;
+                    changed = true;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+            if (changed) {
+                slotValue = { value[0], value[1], value[2], value[3] };
+            }
+            return changed;
+        }
+    }
+
     void EnvironmentPanel::Draw(SceneEnvironment& environment, const SKYRENDERER::SkyRendererDebugState* skyDebugState) const {
         if (!ImGui::Begin("Environment")) {
             ImGui::End();
@@ -79,7 +126,29 @@ namespace HIKARI {
             if (ImGui::InputText("Global Post Profile", profileBuffer, sizeof(profileBuffer))) {
                 environment.post.globalPostProfileId = profileBuffer;
             }
-            if (ImGui::TreeNode("User Overrides (16x float4)")) {
+
+            if (!environment.post.globalPostProfileId.empty()) {
+                PostProfile profile{};
+                const std::string profilePath = "Data/post_profiles/" + environment.post.globalPostProfileId + ".json";
+                if (profile.LoadFromJson(profilePath)) {
+                    if (ImGui::TreeNode("Profile Parameters")) {
+                        for (const VFX::ParamDesc& param : profile.params) {
+                            const int slot = static_cast<int>(param.ref.slot);
+                            if (slot < 0 || slot >= 16 || param.ref.channel >= 4) {
+                                continue;
+                            }
+                            ImGui::PushID(param.key.c_str());
+                            DrawParamControl(param, environment.post.userOverrides[slot]);
+                            ImGui::PopID();
+                        }
+                        ImGui::TreePop();
+                    }
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Profile not found: %s", profilePath.c_str());
+                }
+            }
+
+            if (ImGui::TreeNode("Advanced Raw User Overrides (16x float4)")) {
                 for (int i = 0; i < 16; ++i) {
                     ImGui::PushID(i);
                     ImGui::InputFloat4("Override", &environment.post.userOverrides[i].x);

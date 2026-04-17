@@ -10,7 +10,12 @@ cbuffer ObjectCB : register(b1)
     float4x4 gNormalMatrix;
     float4 gBaseColor;
     uint gHasBaseColorTexture;
-    float3 gObjectPadding;
+    uint gFxFlags;
+    float2 gObjectPadding;
+    float4 gFxUser0;
+    float4 gFxUser1;
+    float4 gFxUser2;
+    float4 gFxUser3;
 };
 
 struct VSInput

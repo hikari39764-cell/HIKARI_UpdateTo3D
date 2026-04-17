@@ -1,6 +1,8 @@
 #include "HIKARI_PostProfile.h"
 
 #include <fstream>
+#include <algorithm>
+#include <iterator>
 
 #include <json.hpp>
 
@@ -102,7 +104,31 @@ namespace HIKARI {
             }
         }
 
+        ResetValuesFromDefaults();
         return true;
+    }
+
+    void PostProfile::ResetValuesFromDefaults() {
+        values.fill(DirectX::XMFLOAT4{});
+        for (const VFX::ParamDesc& param : params) {
+            const size_t slot = static_cast<size_t>(param.ref.slot);
+            const size_t channel = static_cast<size_t>(param.ref.channel);
+            if (slot >= values.size() || channel >= 4u) {
+                continue;
+            }
+            float* dst = &values[slot].x;
+            const size_t writeCount = std::min<size_t>(4u - channel, 4u);
+            for (size_t i = 0; i < writeCount; ++i) {
+                dst[channel + i] = param.defaultValues[i];
+            }
+        }
+    }
+
+    void PostProfile::ApplyToCommonParams(POST::CommonParams& out) const {
+        const size_t count = std::min(values.size(), std::size(out.user));
+        for (size_t i = 0; i < count; ++i) {
+            out.user[i] = values[i];
+        }
     }
 
 } // namespace HIKARI
