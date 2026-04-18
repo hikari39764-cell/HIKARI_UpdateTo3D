@@ -164,6 +164,72 @@
     <Filter Include="Source Files\Core / Services">
       <UniqueIdentifier>{ADA37193-99F4-4BB5-9BF0-6A29A249943A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Editor\Panels">
+      <UniqueIdentifier>{2A111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Controllers">
+      <UniqueIdentifier>{2A222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Inspectors">
+      <UniqueIdentifier>{2A333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Panels">
+      <UniqueIdentifier>{2B111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Controllers">
+      <UniqueIdentifier>{2B222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Inspectors">
+      <UniqueIdentifier>{2B333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core">
+      <UniqueIdentifier>{2C111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Lighting">
+      <UniqueIdentifier>{2C222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Debug">
+      <UniqueIdentifier>{2C333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core">
+      <UniqueIdentifier>{2D111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Animation">
+      <UniqueIdentifier>{2D122222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Lighting">
+      <UniqueIdentifier>{2D222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Debug">
+      <UniqueIdentifier>{2D333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\Post">
+      <UniqueIdentifier>{2E111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\Transition">
+      <UniqueIdentifier>{2E222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\MaterialFx">
+      <UniqueIdentifier>{2E333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\Runtime">
+      <UniqueIdentifier>{2E444444-4444-4444-8444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Post">
+      <UniqueIdentifier>{2F111111-1111-4111-8111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Transition">
+      <UniqueIdentifier>{2F222222-2222-4222-8222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\MaterialFx">
+      <UniqueIdentifier>{2F333333-3333-4333-8333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Runtime">
+      <UniqueIdentifier>{2F444444-4444-4444-8444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Common">
+      <UniqueIdentifier>{2F555555-5555-4555-8555-555555555555}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -386,8 +452,8 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
       <Filter>KamataEngine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentToolbarController.cpp">
-      <Filter>KamataEngine</Filter>
+    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
       <Filter>KamataEngine</Filter>
@@ -515,7 +581,7 @@
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
-    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentToolbarController.h" />
+    <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneCatalog.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneFactory.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneInstanceCache.h" />
@@ -587,8 +653,8 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.cpp">
-      <Filter>Source Files\Editor</Filter>
+    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
       <Filter>Source Files\Editor</Filter>
@@ -611,14 +677,14 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRegistry.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_ImGuiInspectorBuilder.cpp">
-      <Filter>Source Files\Editor</Filter>
+    <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp">
+      <Filter>Source Files\Editor\Inspectors</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_EnvironmentPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
       <Filter>Source Files\Editor</Filter>
@@ -701,17 +767,17 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_PostChain.cpp">
-      <Filter>Source Files\Render2D</Filter>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_PostEffect.cpp">
-      <Filter>Source Files\Render2D</Filter>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostEffect.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_PostQuadDrawer.cpp">
-      <Filter>Source Files\Render2D</Filter>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_PostSystem.cpp">
-      <Filter>Source Files\Render2D</Filter>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostSystem.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp">
       <Filter>Source Files\Render2D</Filter>
@@ -731,17 +797,17 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_Camera3D.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Camera3D.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp">
+      <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_LightDebugDraw.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_Material.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Material.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp">
       <Filter>Source Files\Render3D</Filter>
@@ -749,29 +815,29 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_MeshRenderer.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_ModelAsset.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_ModelManager.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelManager.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.cpp">
+      <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyManager.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyRenderer.cpp">
-      <Filter>Source Files\Render3D</Filter>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_Transform3D.cpp">
       <Filter>Source Files\Render3D</Filter>
@@ -835,8 +901,8 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_DocumentSceneEditorController.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h">
       <Filter>Header Files\Editor</Filter>
@@ -865,11 +931,11 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneRegistry.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_IInspectorBuilder.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_IInspectorBuilder.h">
+      <Filter>Header Files\Editor\Inspectors</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_ImGuiInspectorBuilder.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.h">
+      <Filter>Header Files\Editor\Inspectors</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
       <Filter>Header Files\Editor</Filter>
@@ -877,8 +943,8 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_EnvironmentPanel.h">
-      <Filter>Header Files\Editor</Filter>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
       <Filter>Header Files\Editor</Filter>
@@ -991,20 +1057,20 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_PostChain.h">
-      <Filter>Header Files\Render2D</Filter>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostChain.h">
+      <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_PostCommon.h">
-      <Filter>Header Files\Render2D</Filter>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostCommon.h">
+      <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_PostEffect.h">
-      <Filter>Header Files\Render2D</Filter>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostEffect.h">
+      <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_PostQuadDrawer.h">
-      <Filter>Header Files\Render2D</Filter>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.h">
+      <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_PostSystem.h">
-      <Filter>Header Files\Render2D</Filter>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostSystem.h">
+      <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h">
       <Filter>Header Files\Render2D</Filter>
@@ -1024,20 +1090,20 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_Transform2D.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Animator.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h">
+      <Filter>Header Files\Render3D\Animation</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Camera3D.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Camera3D.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_DebugCameraController3D.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h">
+      <Filter>Header Files\Render3D\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Material.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h">
       <Filter>Header Files\Render3D</Filter>
@@ -1045,26 +1111,26 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_MeshRenderer.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelAsset.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelManager.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D_Debug.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h">
+      <Filter>Header Files\Render3D\Debug</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_SceneEnvironment.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h">
       <Filter>Header Files\Render3D</Filter>
@@ -1072,11 +1138,11 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyManager.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyRenderer.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h">
       <Filter>Header Files\Render3D</Filter>
@@ -1114,17 +1180,17 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
-      <ClCompile Include="HIKARI\Vfx\HIKARI_VfxSystem.cpp">
-      <Filter>ソース ファイル\Vfx</Filter>
+      <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.cpp">
+      <Filter>Source Files\Vfx\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_VfxAsset.cpp">
-      <Filter>ソース ファイル\Vfx</Filter>
+    <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxAsset.cpp">
+      <Filter>Source Files\Vfx\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.cpp">
-      <Filter>ソース ファイル\Vfx</Filter>
+    <ClCompile Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.cpp">
+      <Filter>Source Files\Vfx\MaterialFx</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Vfx\HIKARI_TransitionProfile.cpp">
-      <Filter>ソース ファイル\Vfx</Filter>
+    <ClCompile Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.cpp">
+      <Filter>Source Files\Vfx\Transition</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp">
       <Filter>ソース ファイル\Vfx\Backends</Filter>
@@ -1138,17 +1204,17 @@
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
       <Filter>ヘッダー ファイル\Vfx</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxSystem.h">
-      <Filter>ヘッダー ファイル\Vfx</Filter>
+    <ClInclude Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.h">
+      <Filter>Header Files\Vfx\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_VfxAsset.h">
-      <Filter>ヘッダー ファイル\Vfx</Filter>
+    <ClInclude Include="HIKARI\Vfx\Runtime\HIKARI_VfxAsset.h">
+      <Filter>Header Files\Vfx\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.h">
-      <Filter>ヘッダー ファイル\Vfx</Filter>
+    <ClInclude Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.h">
+      <Filter>Header Files\Vfx\MaterialFx</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Vfx\HIKARI_TransitionProfile.h">
-      <Filter>ヘッダー ファイル\Vfx</Filter>
+    <ClInclude Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.h">
+      <Filter>Header Files\Vfx\Transition</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h">
       <Filter>ヘッダー ファイル\Vfx\Backends</Filter>

@@ -1,11 +1,11 @@
 #include "HIKARI_ModelComponent.h"
 
 #include "Assets/HIKARI_AssetTypes.h"
-#include "Editor/HIKARI_IInspectorBuilder.h"
-#include "Render3D/HIKARI_Material.h"
-#include "Render3D/HIKARI_ModelAsset.h"
-#include "Vfx/HIKARI_MaterialFxProfile.h"
-#include "Vfx/HIKARI_FxTypes.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
+#include "Vfx/Common/HIKARI_FxTypes.h"
 #include <cstring>
 #include <algorithm>
 #include <utility>

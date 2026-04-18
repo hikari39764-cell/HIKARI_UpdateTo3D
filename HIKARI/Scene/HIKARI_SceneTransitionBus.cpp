@@ -8,7 +8,7 @@
 #include "HIKARI_SceneInstanceCache.h"
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
-#include "Vfx/HIKARI_TransitionProfile.h"
+#include "Vfx/Transition/HIKARI_TransitionProfile.h"
 
 namespace HIKARI {
 

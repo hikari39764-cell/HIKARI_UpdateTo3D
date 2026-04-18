@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "Editor/HIKARI_IInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "HIKARI_Input.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"

@@ -1,6 +1,6 @@
 #include "HIKARI_ComponentGizmoRenderer.h"
 
-#include "Render3D/HIKARI_Renderer3D_Debug.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"

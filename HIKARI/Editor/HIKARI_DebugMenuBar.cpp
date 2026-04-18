@@ -1,6 +1,6 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "HIKARI_DebugWindowState.h"
-#include "Render3D/HIKARI_DebugCameraController3D.h"
+#include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -17,8 +17,7 @@ namespace HIKARI {
         if (ImGui::BeginMenu("Windows")) {
             if (ImGui::BeginMenu("Scene Authoring")) {
                 ImGui::MenuItem("Scene Document", nullptr, &windows.authoring.showSceneDocument);
-                ImGui::MenuItem("Hierarchy", nullptr, &windows.authoring.showHierarchy);
-                ImGui::MenuItem("Inspector", nullptr, &windows.authoring.showInspector);
+                ImGui::MenuItem("Scene & Object", nullptr, &windows.authoring.showSceneObject);
                 ImGui::EndMenu();
             }
 
@@ -30,8 +29,7 @@ namespace HIKARI {
 
             if (ImGui::BeginMenu("Runtime & Debug")) {
                 ImGui::MenuItem("Stats", nullptr, &windows.runtime.showStats);
-                ImGui::MenuItem("Debug Camera", nullptr, &windows.runtime.showDebugCamera);
-                ImGui::MenuItem("Gizmo Settings", nullptr, &windows.runtime.showGizmoSettings);
+                ImGui::MenuItem("Debug Tools", nullptr, &windows.runtime.showDebugTools);
                 ImGui::EndMenu();
             }
 
