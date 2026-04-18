@@ -36,6 +36,12 @@ namespace HIKARI {
         DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[4];
         const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[4];
         bool AreMaterialFxValuesInitialized() const;
+        bool SetMaterialFxFloat(const std::string& key, float value);
+        bool SetMaterialFxFloat2(const std::string& key, const DirectX::XMFLOAT2& value);
+        bool SetMaterialFxFloat3(const std::string& key, const DirectX::XMFLOAT3& value);
+        bool SetMaterialFxFloat4(const std::string& key, const DirectX::XMFLOAT4& value);
+        bool GetMaterialFxFloat(const std::string& key, float& out) const;
+        void ResetMaterialFxToProfileDefaults();
 
     private:
         ModelAsset* asset_ = nullptr;

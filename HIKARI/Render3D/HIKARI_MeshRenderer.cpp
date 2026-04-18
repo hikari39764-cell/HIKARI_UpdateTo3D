@@ -13,7 +13,6 @@
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include "Vfx/HIKARI_FxTypes.h"
-#include "Vfx/HIKARI_MaterialFxProfile.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -318,27 +317,14 @@ namespace HIKARI::MESHRENDERER {
             item.variant.doubleSided = false;
             item.fxValues = {};
             item.fxFlags = 0;
-
-            if (item.materialFxProfileId.empty()) {
+            if (!item.materialFxValuesInitialized) {
                 return;
             }
-
-            MaterialFxProfile fxProfile{};
-            if (!MaterialFxProfile::LoadById(item.materialFxProfileId, fxProfile)) {
-                return;
-            }
-
-            item.variant.shaderId = fxProfile.shaderProfileId;
-            item.variant.featureBits = fxProfile.featureBits;
-            item.variant.composite = fxProfile.composite;
-            item.variant.depthTest = fxProfile.depthTest;
-            item.variant.depthWrite = fxProfile.depthWrite;
-            item.variant.doubleSided = fxProfile.doubleSided;
             for (size_t i = 0; i < item.fxValues.size(); ++i) {
-                const DirectX::XMFLOAT4& value = item.materialFxValuesInitialized ? item.materialFxParamValues[i] : fxProfile.values[i];
+                const DirectX::XMFLOAT4& value = item.materialFxParamValues[i];
                 item.fxValues[i] = { value.x, value.y, value.z, value.w };
             }
-            item.fxFlags = fxProfile.featureBits;
+            item.fxFlags = item.variant.featureBits;
         }
 
         bool EnsureInitialized() {

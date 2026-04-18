@@ -284,7 +284,7 @@ namespace HIKARI {
                 false,
                 [](const SceneObjectData&, nlohmann::json& properties) {
                     properties["targetSceneId"] = "Title";
-                    properties["transitionProfileId"] = "DefaultFade";
+                    properties["transitionProfileId"] = "noise_wipe";
                     properties["screenRect"] = {
                         { "x", 100.0f },
                         { "y", 100.0f },

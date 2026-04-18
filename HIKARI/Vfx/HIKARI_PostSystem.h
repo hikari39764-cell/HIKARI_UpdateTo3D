@@ -9,6 +9,8 @@
 #include "HIKARI_PostCommon.h"
 #include "HIKARI_PostChain.h"
 #include "HIKARI_PostProfile.h"
+#include "Scene/HIKARI_SceneTransitionBus.h"
+#include "HIKARI_TransitionProfile.h"
 #include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
@@ -31,6 +33,8 @@ namespace HIKARI {
             static void AddEffect(PostEffect* effect);
             static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&paramValues)[16]);
             static void ClearGlobalProfile();
+            static void SetTransitionState(const TransitionVisualState& state);
+            static void ClearTransitionState();
 
             // --- 场景捕获 ---
             static void BeginSceneCapture();
@@ -72,6 +76,11 @@ namespace HIKARI {
             static std::string activeGlobalProfileId_;
             static PostProfile activeGlobalProfile_;
             static std::vector<std::unique_ptr<PostEffect>> activeGlobalEffects_;
+            static bool transitionActive_;
+            static std::string activeTransitionProfileId_;
+            static TransitionProfile activeTransitionProfile_;
+            static std::unique_ptr<PostEffect> transitionEffect_;
+            static CommonParams transitionParams_;
 
             struct LayerInfo {
                 RenderTarget2D* rt;
