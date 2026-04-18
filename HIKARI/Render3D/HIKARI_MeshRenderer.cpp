@@ -61,6 +61,8 @@ namespace HIKARI::MESHRENDERER {
             VFX::VariantKey variant{};
             std::array<MATH::Vec4, 4> fxValues{};
             uint32_t fxFlags = 0;
+            std::array<DirectX::XMFLOAT4, 4> materialFxParamValues{};
+            bool materialFxValuesInitialized = false;
         };
 
         struct VariantKeyHasher {
@@ -322,8 +324,7 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MaterialFxProfile fxProfile{};
-            fxProfile.id = item.materialFxProfileId;
-            if (!fxProfile.LoadFromJson("Data/material_fx_profiles.json")) {
+            if (!MaterialFxProfile::LoadById(item.materialFxProfileId, fxProfile)) {
                 return;
             }
 
@@ -334,7 +335,7 @@ namespace HIKARI::MESHRENDERER {
             item.variant.depthWrite = fxProfile.depthWrite;
             item.variant.doubleSided = fxProfile.doubleSided;
             for (size_t i = 0; i < item.fxValues.size(); ++i) {
-                const DirectX::XMFLOAT4& value = fxProfile.values[i];
+                const DirectX::XMFLOAT4& value = item.materialFxValuesInitialized ? item.materialFxParamValues[i] : fxProfile.values[i];
                 item.fxValues[i] = { value.x, value.y, value.z, value.w };
             }
             item.fxFlags = fxProfile.featureBits;
@@ -367,12 +368,16 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.clear();
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask) {
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
         item.materialFxProfileId = materialFxProfileId;
         item.postGroupMask = postGroupMask;
+        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
+            item.materialFxParamValues[i] = materialFxParamValues[i];
+        }
+        item.materialFxValuesInitialized = materialFxValuesInitialized;
         ResolveDrawVariant(item);
         g.drawItems.push_back(std::move(item));
     }

@@ -23,7 +23,9 @@ public:
     std::vector<VFX::ParamDesc> params;
     std::array<DirectX::XMFLOAT4, 4> values{};
 
+    static bool LoadById(const std::string& profileId, MaterialFxProfile& out);
     bool LoadFromJson(const std::string& path);
+    void CopyValuesTo(DirectX::XMFLOAT4 (&dst)[4]) const;
 };
 
 } // namespace HIKARI

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <DirectXMath.h>
 
 #include "HIKARI_IComponent.h"
 
@@ -32,6 +33,9 @@ namespace HIKARI {
 
         void SetMaterialFxProfileId(std::string profileId);
         const std::string& GetMaterialFxProfileId() const;
+        DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[4];
+        const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[4];
+        bool AreMaterialFxValuesInitialized() const;
 
     private:
         ModelAsset* asset_ = nullptr;
@@ -39,6 +43,8 @@ namespace HIKARI {
         bool visible_ = true;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
+        DirectX::XMFLOAT4 materialFxParamValues_[4]{};
+        bool materialFxValuesInitialized_ = false;
     };
 
 } // namespace HIKARI

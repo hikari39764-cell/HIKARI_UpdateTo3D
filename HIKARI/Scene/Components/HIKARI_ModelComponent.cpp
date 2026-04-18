@@ -4,7 +4,11 @@
 #include "Editor/HIKARI_IInspectorBuilder.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+#include "Vfx/HIKARI_MaterialFxProfile.h"
+#include "Vfx/HIKARI_FxTypes.h"
 #include <cstring>
+#include <algorithm>
+#include <utility>
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -13,6 +17,52 @@
 namespace HIKARI {
 
     namespace {
+#if defined(_DEBUG)
+        bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
+            float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
+            bool changed = false;
+            const char* label = param.label.empty() ? param.key.c_str() : param.label.c_str();
+            if (param.ref.channel >= 4) {
+                return false;
+            }
+            switch (param.type) {
+            case VFX::ParamType::Float:
+                changed = ImGui::DragFloat(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float2:
+                if (param.ref.channel > 2) break;
+                changed = ImGui::DragFloat2(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float3:
+                if (param.ref.channel > 1) break;
+                changed = ImGui::DragFloat3(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Float4:
+                if (param.ref.channel > 0) break;
+                changed = ImGui::DragFloat4(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
+                break;
+            case VFX::ParamType::Color:
+                if (param.ref.channel > 0) break;
+                changed = ImGui::ColorEdit4(label, &value[param.ref.channel]);
+                break;
+            case VFX::ParamType::Toggle: {
+                bool enabled = value[param.ref.channel] >= 0.5f;
+                if (ImGui::Checkbox(label, &enabled)) {
+                    value[param.ref.channel] = enabled ? 1.0f : 0.0f;
+                    changed = true;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+            if (changed) {
+                slotValue = { value[0], value[1], value[2], value[3] };
+            }
+            return changed;
+        }
+#endif
+
         const char* ToStateText(ModelAsset::State state) {
             switch (state) {
             case ModelAsset::State::Unloaded:
@@ -68,10 +118,23 @@ namespace HIKARI {
 
     void ModelComponent::SetMaterialFxProfileId(std::string profileId) {
         materialFxProfileId_ = std::move(profileId);
+        materialFxValuesInitialized_ = false;
     }
 
     const std::string& ModelComponent::GetMaterialFxProfileId() const {
         return materialFxProfileId_;
+    }
+
+    DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues())[4] {
+        return materialFxParamValues_;
+    }
+
+    const DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues() const)[4] {
+        return materialFxParamValues_;
+    }
+
+    bool ModelComponent::AreMaterialFxValuesInitialized() const {
+        return materialFxValuesInitialized_;
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
@@ -79,6 +142,11 @@ namespace HIKARI {
         out["visible"] = visible_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
+        out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
+        out["materialFxParamValues"] = nlohmann::json::array();
+        for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
+            out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
+        }
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
@@ -86,6 +154,25 @@ namespace HIKARI {
         visible_ = in.value("visible", visible_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
+        bool hasParamValues = false;
+        if (in.contains("materialFxParamValues") && in["materialFxParamValues"].is_array()) {
+            const auto& values = in["materialFxParamValues"];
+            const size_t count = std::min<size_t>(values.size(), std::size(materialFxParamValues_));
+            for (size_t i = 0; i < count; ++i) {
+                const auto& node = values[i];
+                if (!node.is_array() || node.size() < 4) {
+                    continue;
+                }
+                materialFxParamValues_[i] = {
+                    node[0].is_number() ? node[0].get<float>() : materialFxParamValues_[i].x,
+                    node[1].is_number() ? node[1].get<float>() : materialFxParamValues_[i].y,
+                    node[2].is_number() ? node[2].get<float>() : materialFxParamValues_[i].z,
+                    node[3].is_number() ? node[3].get<float>() : materialFxParamValues_[i].w
+                };
+            }
+            hasParamValues = true;
+        }
+        materialFxValuesInitialized_ = in.value("materialFxValuesInitialized", hasParamValues);
     }
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
@@ -106,9 +193,58 @@ namespace HIKARI {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
         char profileBuffer[256]{};
+        const std::string previousProfileId = materialFxProfileId_;
         std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
         if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
             materialFxProfileId_ = profileBuffer;
+            materialFxValuesInitialized_ = false;
+        }
+
+        if (!materialFxProfileId_.empty()) {
+            MaterialFxProfile profile{};
+            if (MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+                const bool profileChanged = (materialFxProfileId_ != previousProfileId);
+                if (profileChanged || !materialFxValuesInitialized_) {
+                    profile.CopyValuesTo(materialFxParamValues_);
+                    materialFxValuesInitialized_ = true;
+                }
+
+                if (ImGui::Button("Reset Material FX Defaults")) {
+                    profile.CopyValuesTo(materialFxParamValues_);
+                    materialFxValuesInitialized_ = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Reload Material FX Profile")) {
+                    MaterialFxProfile reloadedProfile{};
+                    if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
+                        profile = std::move(reloadedProfile);
+                    }
+                }
+
+                if (ImGui::TreeNode("Material FX Parameters")) {
+                    for (const VFX::ParamDesc& param : profile.params) {
+                        const int slot = static_cast<int>(param.ref.slot);
+                        if (slot < 0 || slot >= static_cast<int>(std::size(materialFxParamValues_)) || param.ref.channel >= 4) {
+                            continue;
+                        }
+                        ImGui::PushID(param.key.c_str());
+                        DrawParamControl(param, materialFxParamValues_[slot]);
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Material FX profile not found: %s", materialFxProfileId_.c_str());
+            }
+        }
+
+        if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)")) {
+            for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::InputFloat4("Param", &materialFxParamValues_[i].x);
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
         }
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Asset: <none>");

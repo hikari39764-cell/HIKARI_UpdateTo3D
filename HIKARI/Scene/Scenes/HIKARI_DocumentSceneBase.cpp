@@ -16,6 +16,7 @@
 #include "Vfx/HIKARI_VfxAsset.h"
 #include "Vfx/HIKARI_VfxSystem.h"
 #include "Vfx/HIKARI_PostSystem.h"
+#include "Vfx/HIKARI_PostProfile.h"
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
@@ -56,7 +57,14 @@ namespace HIKARI {
         SKYRENDERER::Reset();
 
         if (environment_.post.enabled && !environment_.post.globalPostProfileId.empty()) {
-            POST::PostSystem::SetGlobalProfile(environment_.post.globalPostProfileId, environment_.post.userOverrides);
+            if (!environment_.post.valuesInitialized) {
+                PostProfile profile{};
+                if (PostProfile::LoadById(environment_.post.globalPostProfileId, profile)) {
+                    profile.CopyValuesTo(environment_.post.paramValues);
+                    environment_.post.valuesInitialized = true;
+                }
+            }
+            POST::PostSystem::SetGlobalProfile(environment_.post.globalPostProfileId, environment_.post.paramValues);
         } else {
             POST::PostSystem::ClearGlobalProfile();
         }
@@ -82,7 +90,12 @@ namespace HIKARI {
 
                 const ModelAsset* asset = model->GetAsset();
                 if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
-                    MESHRENDERER::SubmitStaticMesh(*asset, object->Transform(), model->GetMaterialFxProfileId(), model->GetPostGroupMask());
+                    MESHRENDERER::SubmitStaticMesh(*asset,
+                        object->Transform(),
+                        model->GetMaterialFxProfileId(),
+                        model->GetPostGroupMask(),
+                        model->GetMaterialFxParamValues(),
+                        model->AreMaterialFxValuesInitialized());
                 } else {
                     RENDERER3D::WireCube cube{};
                     cube.transform = object->Transform();

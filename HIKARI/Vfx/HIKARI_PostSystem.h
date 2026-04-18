@@ -29,7 +29,7 @@ namespace HIKARI {
 
             static void ClearEffects();
             static void AddEffect(PostEffect* effect);
-            static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&userOverrides)[16]);
+            static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&paramValues)[16]);
             static void ClearGlobalProfile();
 
             // --- 场景捕获 ---
@@ -70,7 +70,6 @@ namespace HIKARI {
             static CommonParams commonParams_;
             static float elapsedTime_;
             static std::string activeGlobalProfileId_;
-            static std::string activeGlobalProfilePath_;
             static PostProfile activeGlobalProfile_;
             static std::vector<std::unique_ptr<PostEffect>> activeGlobalEffects_;
 
