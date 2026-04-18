@@ -13,6 +13,7 @@
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include "Vfx/HIKARI_FxTypes.h"
+#include "Vfx/HIKARI_MaterialFxProfile.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -315,6 +316,21 @@ namespace HIKARI::MESHRENDERER {
             item.variant.depthTest = true;
             item.variant.depthWrite = true;
             item.variant.doubleSided = false;
+
+            if (!item.materialFxProfileId.empty()) {
+                MaterialFxProfile profile{};
+                if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
+                    if (!profile.shaderProfileId.empty()) {
+                        item.variant.shaderId = profile.shaderProfileId;
+                    }
+                    item.variant.featureBits = profile.featureBits;
+                    item.variant.composite = profile.composite;
+                    item.variant.depthTest = profile.depthTest;
+                    item.variant.depthWrite = profile.depthWrite;
+                    item.variant.doubleSided = profile.doubleSided;
+                }
+            }
+
             item.fxValues = {};
             item.fxFlags = 0;
             if (!item.materialFxValuesInitialized) {
