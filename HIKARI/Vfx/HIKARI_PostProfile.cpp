@@ -49,6 +49,14 @@ namespace HIKARI {
         }
     }
 
+    bool PostProfile::LoadById(const std::string& profileId, PostProfile& out) {
+        if (profileId.empty()) {
+            return false;
+        }
+        const std::string path = std::string("Data/post_profiles/") + profileId + ".json";
+        return out.LoadFromJson(path);
+    }
+
     bool PostProfile::LoadFromJson(const std::string& path) {
         std::ifstream ifs(path);
         if (!ifs.is_open()) {
@@ -128,6 +136,13 @@ namespace HIKARI {
         const size_t count = std::min(values.size(), std::size(out.user));
         for (size_t i = 0; i < count; ++i) {
             out.user[i] = values[i];
+        }
+    }
+
+    void PostProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[16]) const {
+        const size_t count = std::min(values.size(), std::size(dst));
+        for (size_t i = 0; i < count; ++i) {
+            dst[i] = values[i];
         }
     }
 

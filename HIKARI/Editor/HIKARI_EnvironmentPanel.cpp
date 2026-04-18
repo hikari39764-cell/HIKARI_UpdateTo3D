@@ -7,6 +7,7 @@
 #if defined(_DEBUG)
 #include "imgui.h"
 #include <cstring>
+#include <utility>
 #endif
 
 namespace HIKARI {
@@ -121,6 +122,7 @@ namespace HIKARI {
 
         if (ImGui::CollapsingHeader("Post Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Post Enabled", &environment.post.enabled);
+            const std::string previousProfileId = environment.post.globalPostProfileId;
             char profileBuffer[256]{};
             std::strncpy(profileBuffer, environment.post.globalPostProfileId.c_str(), sizeof(profileBuffer) - 1);
             if (ImGui::InputText("Global Post Profile", profileBuffer, sizeof(profileBuffer))) {
@@ -129,8 +131,25 @@ namespace HIKARI {
 
             if (!environment.post.globalPostProfileId.empty()) {
                 PostProfile profile{};
-                const std::string profilePath = "Data/post_profiles/" + environment.post.globalPostProfileId + ".json";
-                if (profile.LoadFromJson(profilePath)) {
+                if (PostProfile::LoadById(environment.post.globalPostProfileId, profile)) {
+                    const bool profileChanged = (environment.post.globalPostProfileId != previousProfileId);
+                    if (profileChanged || !environment.post.valuesInitialized) {
+                        profile.CopyValuesTo(environment.post.paramValues);
+                        environment.post.valuesInitialized = true;
+                    }
+
+                    if (ImGui::Button("Reset To Profile Defaults")) {
+                        profile.CopyValuesTo(environment.post.paramValues);
+                        environment.post.valuesInitialized = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reload Profile")) {
+                        PostProfile reloadedProfile{};
+                        if (PostProfile::LoadById(environment.post.globalPostProfileId, reloadedProfile)) {
+                            profile = std::move(reloadedProfile);
+                        }
+                    }
+
                     if (ImGui::TreeNode("Profile Parameters")) {
                         for (const VFX::ParamDesc& param : profile.params) {
                             const int slot = static_cast<int>(param.ref.slot);
@@ -138,20 +157,20 @@ namespace HIKARI {
                                 continue;
                             }
                             ImGui::PushID(param.key.c_str());
-                            DrawParamControl(param, environment.post.userOverrides[slot]);
+                            DrawParamControl(param, environment.post.paramValues[slot]);
                             ImGui::PopID();
                         }
                         ImGui::TreePop();
                     }
                 } else {
-                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Profile not found: %s", profilePath.c_str());
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Profile not found: %s", environment.post.globalPostProfileId.c_str());
                 }
             }
 
-            if (ImGui::TreeNode("Advanced Raw User Overrides (16x float4)")) {
+            if (ImGui::TreeNode("Advanced Raw Parameter Block (16x float4)")) {
                 for (int i = 0; i < 16; ++i) {
                     ImGui::PushID(i);
-                    ImGui::InputFloat4("Override", &environment.post.userOverrides[i].x);
+                    ImGui::InputFloat4("Param", &environment.post.paramValues[i].x);
                     ImGui::PopID();
                 }
                 ImGui::TreePop();

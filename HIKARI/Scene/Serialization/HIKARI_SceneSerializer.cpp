@@ -77,9 +77,10 @@ namespace HIKARI {
 
             out["post"]["enabled"] = environment.post.enabled;
             out["post"]["globalPostProfileId"] = environment.post.globalPostProfileId;
-            out["post"]["userOverrides"] = json::array();
-            for (const DirectX::XMFLOAT4& value : environment.post.userOverrides) {
-                out["post"]["userOverrides"].push_back(ToFloat4(value));
+            out["post"]["valuesInitialized"] = environment.post.valuesInitialized;
+            out["post"]["paramValues"] = json::array();
+            for (const DirectX::XMFLOAT4& value : environment.post.paramValues) {
+                out["post"]["paramValues"].push_back(ToFloat4(value));
             }
         }
 
@@ -129,13 +130,23 @@ namespace HIKARI {
                 const json& post = in["post"];
                 environment.post.enabled = post.value("enabled", environment.post.enabled);
                 environment.post.globalPostProfileId = post.value("globalPostProfileId", environment.post.globalPostProfileId);
-                if (post.contains("userOverrides") && post["userOverrides"].is_array()) {
-                    const json& overrides = post["userOverrides"];
-                    const size_t count = std::min<size_t>(overrides.size(), std::size(environment.post.userOverrides));
+                bool hasParamValues = false;
+                if (post.contains("paramValues") && post["paramValues"].is_array()) {
+                    const json& paramValues = post["paramValues"];
+                    const size_t count = std::min<size_t>(paramValues.size(), std::size(environment.post.paramValues));
                     for (size_t i = 0; i < count; ++i) {
-                        environment.post.userOverrides[i] = FromFloat4(overrides[i], environment.post.userOverrides[i]);
+                        environment.post.paramValues[i] = FromFloat4(paramValues[i], environment.post.paramValues[i]);
                     }
+                    hasParamValues = true;
+                } else if (post.contains("userOverrides") && post["userOverrides"].is_array()) {
+                    const json& overrides = post["userOverrides"];
+                    const size_t count = std::min<size_t>(overrides.size(), std::size(environment.post.paramValues));
+                    for (size_t i = 0; i < count; ++i) {
+                        environment.post.paramValues[i] = FromFloat4(overrides[i], environment.post.paramValues[i]);
+                    }
+                    hasParamValues = true;
                 }
+                environment.post.valuesInitialized = post.value("valuesInitialized", hasParamValues);
             }
         }
     }

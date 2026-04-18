@@ -56,7 +56,7 @@ namespace HIKARI {
         SKYRENDERER::Reset();
 
         if (environment_.post.enabled && !environment_.post.globalPostProfileId.empty()) {
-            POST::PostSystem::SetGlobalProfile(environment_.post.globalPostProfileId, environment_.post.userOverrides);
+            POST::PostSystem::SetGlobalProfile(environment_.post.globalPostProfileId, environment_.post.paramValues);
         } else {
             POST::PostSystem::ClearGlobalProfile();
         }
