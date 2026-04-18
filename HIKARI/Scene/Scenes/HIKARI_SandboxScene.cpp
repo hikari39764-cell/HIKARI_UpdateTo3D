@@ -1,7 +1,7 @@
 #include "HIKARI_SandboxScene.h"
 
 #include "HIKARI_Input.h"
-#include "Vfx/HIKARI_VfxSystem.h"
+#include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 namespace HIKARI {
 

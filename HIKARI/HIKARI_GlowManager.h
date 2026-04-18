@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "HIKARI_PostChain.h"
-#include "HIKARI_PostEffect.h"
+#include "Vfx/Post/HIKARI_PostChain.h"
+#include "Vfx/Post/HIKARI_PostEffect.h"
 
 namespace HIKARI {
     namespace POST {

@@ -15,6 +15,17 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(world, selection);
+
+        ImGui::End();
+#else
+        (void)world;
+        (void)selection;
+#endif
+    }
+
+    void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) const {
+#if defined(_DEBUG)
         for (const auto& object : world.GetObjects()) {
             GameObject* objectPtr = object.get();
             ImGui::PushID(objectPtr);
@@ -24,8 +35,6 @@ namespace HIKARI {
             }
             ImGui::PopID();
         }
-
-        ImGui::End();
 #else
         (void)world;
         (void)selection;

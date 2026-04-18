@@ -26,9 +26,18 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(selection);
+
+        ImGui::End();
+#else
+        (void)selection;
+#endif
+    }
+
+    void InspectorPanel::DrawContents(EditorSelection& selection) const {
+#if defined(_DEBUG)
         if (selection.selectedObject == nullptr) {
             ImGui::TextUnformatted("No object selected.");
-            ImGui::End();
             return;
         }
 
@@ -61,8 +70,6 @@ namespace HIKARI {
                 ImGui::TreePop();
             }
         }
-
-        ImGui::End();
 #else
         (void)selection;
 #endif

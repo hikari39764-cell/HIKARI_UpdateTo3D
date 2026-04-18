@@ -15,6 +15,7 @@ namespace HIKARI {
     class SceneObjectAuthoringPanel {
     public:
         void Draw(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync);
+        void DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync);
 
     private:
         ComponentDocumentEditor componentDocumentEditor_{};

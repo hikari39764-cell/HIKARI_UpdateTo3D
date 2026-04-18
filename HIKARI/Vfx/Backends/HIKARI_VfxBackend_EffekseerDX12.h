@@ -4,7 +4,7 @@
 
 #include "Vfx/HIKARI_VfxTypes.h"
 #include "Gfx/HIKARI_GfxContext.h"
-#include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI::VFX::Backend {

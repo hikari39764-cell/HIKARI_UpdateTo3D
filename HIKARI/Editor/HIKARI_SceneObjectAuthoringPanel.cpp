@@ -40,6 +40,19 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(scene, context, selectionSync);
+
+        ImGui::End();
+#else
+        (void)scene;
+        (void)context;
+        (void)selectionSync;
+#endif
+    }
+
+    void SceneObjectAuthoringPanel::DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) {
+#if defined(_DEBUG)
+
         if (ImGui::Button("Create Object")) {
             SceneObjectData newObject{};
             newObject.id = SceneObjectId{ context.nextSceneObjectId++ };
@@ -186,8 +199,6 @@ namespace HIKARI {
                 }
             }
         }
-
-        ImGui::End();
 #else
         (void)scene;
         (void)context;

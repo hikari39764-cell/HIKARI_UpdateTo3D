@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numbers>
 #include "HIKARI_Renderer3D_Debug.h"
-#include "HIKARI_SceneEnvironment.h"
+#include "Render3D/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI::LIGHTDEBUGDRAW {
 

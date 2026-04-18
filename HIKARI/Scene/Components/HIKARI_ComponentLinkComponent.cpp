@@ -1,6 +1,6 @@
 #include "HIKARI_ComponentLinkComponent.h"
 
-#include "Editor/HIKARI_IInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "HIKARI_Input.h"
 #include "HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_GameObject.h"

@@ -1,8 +1,8 @@
 #include "HIKARI_AssetBrowserPanel.h"
 #include <string>
 #include "HIKARI_EditorSelection.h"
-#include "Render3D/HIKARI_Material.h"
-#include "Render3D/HIKARI_ModelManager.h"
+#include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_ModelManager.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif
