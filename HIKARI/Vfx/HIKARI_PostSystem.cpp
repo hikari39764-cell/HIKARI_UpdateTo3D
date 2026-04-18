@@ -2,25 +2,11 @@
 #include "HIKARI_PostEffect.h"
 #include "HIKARI_Utility.h"
 #include <cassert>
-#include <cmath>
 
 namespace HIKARI {
     namespace POST {
 
         namespace {
-            static bool IsNearZero(float v) {
-                return std::fabs(v) <= 1e-6f;
-            }
-
-            static bool HasAnyOverrideValue(const DirectX::XMFLOAT4(&userOverrides)[16]) {
-                for (const auto& v : userOverrides) {
-                    if (!IsNearZero(v.x) || !IsNearZero(v.y) || !IsNearZero(v.z) || !IsNearZero(v.w)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
             struct LetterboxRect {
                 float x;
                 float y;
@@ -72,7 +58,6 @@ namespace HIKARI {
         float PostSystem::ambientColor_[3] = { 1.0f, 1.0f, 1.0f };
         bool PostSystem::useLighting_ = false;
         std::string PostSystem::activeGlobalProfileId_{};
-        std::string PostSystem::activeGlobalProfilePath_{};
         PostProfile PostSystem::activeGlobalProfile_{};
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
 
@@ -139,17 +124,16 @@ namespace HIKARI {
             globalChain_.Add(effect);
         }
 
-        bool PostSystem::SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&userOverrides)[16]) {
+        bool PostSystem::SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&paramValues)[16]) {
             if (profileId.empty()) {
                 ClearGlobalProfile();
                 return false;
             }
 
-            const std::string profilePath = std::string("Data/post_profiles/") + profileId + ".json";
-            bool needsRebuild = (activeGlobalProfileId_ != profileId || activeGlobalProfilePath_ != profilePath || activeGlobalEffects_.empty());
+            bool needsRebuild = (activeGlobalProfileId_ != profileId || activeGlobalEffects_.empty());
             if (needsRebuild) {
                 PostProfile loadedProfile{};
-                if (!loadedProfile.LoadFromJson(profilePath)) {
+                if (!PostProfile::LoadById(profileId, loadedProfile)) {
                     ClearGlobalProfile();
                     return false;
                 }
@@ -170,14 +154,11 @@ namespace HIKARI {
                 }
                 activeGlobalProfile_ = std::move(loadedProfile);
                 activeGlobalProfileId_ = profileId;
-                activeGlobalProfilePath_ = profilePath;
             }
 
             activeGlobalProfile_.ResetValuesFromDefaults();
-            if (HasAnyOverrideValue(userOverrides)) {
-                for (size_t i = 0; i < activeGlobalProfile_.values.size(); ++i) {
-                    activeGlobalProfile_.values[i] = userOverrides[i];
-                }
+            for (size_t i = 0; i < activeGlobalProfile_.values.size(); ++i) {
+                activeGlobalProfile_.values[i] = paramValues[i];
             }
             activeGlobalProfile_.ApplyToCommonParams(commonParams_);
             return globalChain_.HasAny();
@@ -185,7 +166,6 @@ namespace HIKARI {
 
         void PostSystem::ClearGlobalProfile() {
             activeGlobalProfileId_.clear();
-            activeGlobalProfilePath_.clear();
             activeGlobalProfile_ = PostProfile{};
             activeGlobalEffects_.clear();
             globalChain_.Clear();

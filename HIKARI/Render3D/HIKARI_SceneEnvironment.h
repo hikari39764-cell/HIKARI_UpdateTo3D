@@ -41,7 +41,8 @@ namespace HIKARI {
     struct ScenePostSettings {
         bool enabled = false;
         std::string globalPostProfileId{};
-        DirectX::XMFLOAT4 userOverrides[16]{};
+        DirectX::XMFLOAT4 paramValues[16]{};
+        bool valuesInitialized = false;
     };
 
     struct SceneEnvironment {
