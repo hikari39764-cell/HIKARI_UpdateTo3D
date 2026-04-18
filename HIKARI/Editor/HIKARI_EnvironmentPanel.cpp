@@ -127,6 +127,9 @@ namespace HIKARI {
             std::strncpy(profileBuffer, environment.post.globalPostProfileId.c_str(), sizeof(profileBuffer) - 1);
             if (ImGui::InputText("Global Post Profile", profileBuffer, sizeof(profileBuffer))) {
                 environment.post.globalPostProfileId = profileBuffer;
+                if (environment.post.globalPostProfileId.empty()) {
+                    environment.post.valuesInitialized = false;
+                }
             }
 
             if (!environment.post.globalPostProfileId.empty()) {

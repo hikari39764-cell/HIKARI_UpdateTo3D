@@ -126,4 +126,19 @@ bool MaterialFxProfile::LoadFromJson(const std::string& path) {
     return ParseProfileNode(root, id, *this);
 }
 
+bool MaterialFxProfile::LoadById(const std::string& profileId, MaterialFxProfile& out) {
+    if (profileId.empty()) {
+        return false;
+    }
+    out.id = profileId;
+    return out.LoadFromJson("Data/material_fx_profiles.json");
+}
+
+void MaterialFxProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[4]) const {
+    const size_t count = std::min(values.size(), std::size(dst));
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = values[i];
+    }
+}
+
 } // namespace HIKARI
