@@ -16,8 +16,7 @@ namespace HIKARI {
 
         if (ImGui::BeginMenu("Windows")) {
             if (ImGui::BeginMenu("Scene Authoring")) {
-                ImGui::MenuItem("Scene Document", nullptr, &windows.authoring.showSceneDocument);
-                ImGui::MenuItem("Scene & Object", nullptr, &windows.authoring.showSceneObject);
+                ImGui::MenuItem("Scene Workspace", nullptr, &windows.authoring.showSceneWorkspace);
                 ImGui::EndMenu();
             }
 
@@ -28,8 +27,7 @@ namespace HIKARI {
             }
 
             if (ImGui::BeginMenu("Runtime & Debug")) {
-                ImGui::MenuItem("Stats", nullptr, &windows.runtime.showStats);
-                ImGui::MenuItem("Debug Tools", nullptr, &windows.runtime.showDebugTools);
+                ImGui::MenuItem("Debug Workspace", nullptr, &windows.runtime.showDebugWorkspace);
                 ImGui::EndMenu();
             }
 

@@ -23,8 +23,7 @@ namespace HIKARI {
     };
 
     struct AuthoringWindowState {
-        bool showSceneDocument = true;
-        bool showSceneObject = true;
+        bool showSceneWorkspace = true;
     };
 
     struct ResourceWindowState {
@@ -33,8 +32,7 @@ namespace HIKARI {
     };
 
     struct RuntimeDebugWindowState {
-        bool showStats = true;
-        bool showDebugTools = true;
+        bool showDebugWorkspace = true;
     };
 
     struct DebugWindowState {

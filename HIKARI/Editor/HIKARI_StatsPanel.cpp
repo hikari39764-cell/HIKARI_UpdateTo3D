@@ -17,6 +17,21 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(sceneName, world, modelManager, selection, camera);
+
+        ImGui::End();
+#else
+        (void)sceneName;
+        (void)world;
+        (void)modelManager;
+        (void)selection;
+        (void)camera;
+#endif
+    }
+
+    void StatsPanel::DrawContents(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
+#if defined(_DEBUG)
+
         ImGui::Text("Scene: %s", sceneName ? sceneName : "<none>");
         ImGui::Text("World Objects: %zu", world.GetObjects().size());
         ImGui::Text("Model Assets: %zu", modelManager.GetAssets().size());
@@ -35,8 +50,6 @@ namespace HIKARI {
         const MATH::Vec3 cameraPos = camera.GetPosition();
         ImGui::Text("Camera Pos: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
         ImGui::TextUnformatted("Debug Primitive Count: TODO");
-
-        ImGui::End();
 #else
         (void)sceneName;
         (void)world;

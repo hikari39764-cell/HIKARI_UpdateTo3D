@@ -69,6 +69,19 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(scene, context, selectionSync);
+
+        ImGui::End();
+#else
+        (void)scene;
+        (void)context;
+        (void)selectionSync;
+#endif
+    }
+
+    void DocumentToolbarController::DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) const {
+#if defined(_DEBUG)
+
         char sceneNameBuffer[128]{};
         std::snprintf(sceneNameBuffer, sizeof(sceneNameBuffer), "%s", context.sceneNameEditBuffer.c_str());
         if (ImGui::InputText("Scene Name", sceneNameBuffer, sizeof(sceneNameBuffer))) {
@@ -195,8 +208,6 @@ namespace HIKARI {
 
         ImGui::Text("Scene: %s%s", scene.GetSceneDocument().sceneName.c_str(), context.sceneDirty ? "*" : "");
         ImGui::Text("Objects: %zu", scene.GetSceneDocument().objects.size());
-
-        ImGui::End();
 #else
         (void)scene;
         (void)context;
