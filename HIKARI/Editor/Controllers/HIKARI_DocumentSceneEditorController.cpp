@@ -48,12 +48,8 @@ namespace HIKARI {
             sceneObjectAuthoringPanel_.Draw(scene, context_, selectionSync_);
         }
 
-        if (context_.windows.authoring.showHierarchy) {
-            hierarchyPanel_.Draw(scene.GetWorld(), context_.selection);
-        }
-        if (context_.windows.authoring.showInspector) {
-            inspectorPanel_.Draw(context_.selection);
-            selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
+        if (context_.windows.authoring.showSceneObject) {
+            DrawSceneObjectWindow(scene);
         }
         if (context_.windows.resources.showAssetBrowser) {
             assetBrowserPanel_.Draw(scene.GetModelManager(), context_.selection);
@@ -65,32 +61,63 @@ namespace HIKARI {
             environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState());
             scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
         }
-        if (context_.windows.runtime.showDebugCamera) {
-            debugCameraPanel_.Draw(scene.GetDebugCamera());
-        }
-        if (context_.windows.runtime.showGizmoSettings) {
-            DrawGizmoSettingsWindow();
+        if (context_.windows.runtime.showDebugTools) {
+            DrawDebugToolsWindow(scene);
         }
 #else
         (void)scene;
 #endif
     }
 
-    void DocumentSceneEditorController::DrawGizmoSettingsWindow() {
+    void DocumentSceneEditorController::DrawSceneObjectWindow(DocumentSceneBase& scene) {
 #if defined(_DEBUG)
-        if (!ImGui::Begin("Gizmo Settings")) {
+        if (!ImGui::Begin("Scene & Object")) {
             ImGui::End();
             return;
         }
 
-        ImGui::Checkbox("Show Component Gizmos", &context_.gizmos.showComponentGizmos);
-        ImGui::Checkbox("Show Trigger Volumes", &context_.gizmos.showTriggerVolumes);
-        ImGui::Checkbox("Show Spawn Points", &context_.gizmos.showSpawnPoints);
-        ImGui::Checkbox("Show Door Transitions", &context_.gizmos.showDoorTransitions);
-        ImGui::Checkbox("Show UI Screen Rects", &context_.gizmos.showUIScreenRects);
-        ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
+        if (ImGui::BeginTabBar("SceneObjectTabs")) {
+            if (ImGui::BeginTabItem("Scene")) {
+                hierarchyPanel_.DrawContents(scene.GetWorld(), context_.selection);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Object")) {
+                inspectorPanel_.DrawContents(context_.selection);
+                selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
 
         ImGui::End();
+#else
+        (void)scene;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawDebugToolsWindow(DocumentSceneBase& scene) {
+#if defined(_DEBUG)
+        if (!ImGui::Begin("Debug Tools")) {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::CollapsingHeader("Debug Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+            debugCameraPanel_.DrawContents(scene.GetDebugCamera());
+        }
+
+        if (ImGui::CollapsingHeader("Gizmo Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Show Component Gizmos", &context_.gizmos.showComponentGizmos);
+            ImGui::Checkbox("Show Trigger Volumes", &context_.gizmos.showTriggerVolumes);
+            ImGui::Checkbox("Show Spawn Points", &context_.gizmos.showSpawnPoints);
+            ImGui::Checkbox("Show Door Transitions", &context_.gizmos.showDoorTransitions);
+            ImGui::Checkbox("Show UI Screen Rects", &context_.gizmos.showUIScreenRects);
+            ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
+        }
+
+        ImGui::End();
+#else
+        (void)scene;
 #endif
     }
 

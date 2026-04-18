@@ -13,6 +13,16 @@ namespace HIKARI {
             return;
         }
 
+        DrawContents(debugCamera);
+
+        ImGui::End();
+#else
+        (void)debugCamera;
+#endif
+    }
+
+    void DebugCameraPanel::DrawContents(DebugCameraController3D& debugCamera) const {
+#if defined(_DEBUG)
         bool enabled = debugCamera.IsEnabled();
         if (ImGui::Checkbox("Enabled", &enabled)) {
             debugCamera.SetEnabled(enabled);
@@ -43,8 +53,6 @@ namespace HIKARI {
             const MATH::Vec3 resetPos{ 0.0f, 2.0f, -6.0f };
             debugCamera.Reset(resetPos, 0.0f, 0.0f);
         }
-
-        ImGui::End();
 #else
         (void)debugCamera;
 #endif

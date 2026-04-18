@@ -35,7 +35,8 @@ namespace HIKARI {
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};
 
-        void DrawGizmoSettingsWindow();
+        void DrawSceneObjectWindow(DocumentSceneBase& scene);
+        void DrawDebugToolsWindow(DocumentSceneBase& scene);
     };
 
 } // namespace HIKARI
