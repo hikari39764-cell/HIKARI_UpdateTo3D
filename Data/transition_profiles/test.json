@@ -1,0 +1,19 @@
+{
+  "id": "linear_wipe",
+  "displayName": "Linear Wipe",
+  "shaderId": "Post_TransitionLinearWipePS",
+  "outDuration": 0.6,
+  "inDuration": 0.6,
+  "params": [
+    {
+      "key": "softness",
+      "label": "Softness",
+      "type": "Float",
+      "ref": { "slot": 0, "channel": 0 },
+      "defaultValues": [0.02, 0.0, 0.0, 0.0],
+      "minValues": [0.0, 0.0, 0.0, 0.0],
+      "maxValues": [0.2, 0.0, 0.0, 0.0],
+      "speed": 0.001
+    }
+  ]
+}

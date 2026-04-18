@@ -8,6 +8,24 @@
       "preload": true,
       "loopByDefault": false,
       "defaultScale": 1.0
+    },
+      {
+      "id": "Laser02",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/Laser02.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+      {
+      "id": "Laser03",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/Laser03.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
     }
   ]
 }
