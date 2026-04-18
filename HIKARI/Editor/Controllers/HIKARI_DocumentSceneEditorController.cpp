@@ -1,0 +1,97 @@
+#include "Editor/HIKARI_DocumentSceneEditorController.h"
+
+#include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Scene/HIKARI_GameObject.h"
+#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+
+#if defined(_DEBUG)
+#include "imgui.h"
+#endif
+
+namespace HIKARI {
+
+    namespace {
+        bool IsObjectAlive(const World& world, const GameObject* object) {
+            if (!object) {
+                return false;
+            }
+
+            for (const auto& candidate : world.GetObjects()) {
+                if (candidate.get() == object) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    void DocumentSceneEditorController::Draw(DocumentSceneBase& scene) {
+#if defined(_DEBUG)
+        if (!IsObjectAlive(scene.GetWorld(), context_.selection.selectedObject)) {
+            context_.selection.selectedObject = nullptr;
+            context_.selection.selectedAsset = nullptr;
+        }
+
+        documentToolbarController_.SyncDocumentMeta(scene, context_, selectionSync_);
+        if (context_.selection.selectedObject) {
+            scene.SetSelectedGizmoObjectId(context_.selection.selectedObject->GetDocumentId());
+        } else {
+            scene.SetSelectedGizmoObjectId(SceneObjectId{});
+        }
+        scene.SetComponentGizmoState(context_.gizmos);
+
+        debugMenuBar_.Draw(context_.windows, scene.GetDebugCamera(), scene.GetEnvironmentLightingEnabled());
+
+        if (context_.windows.authoring.showSceneDocument) {
+            documentToolbarController_.Draw(scene, context_, selectionSync_);
+            sceneObjectAuthoringPanel_.Draw(scene, context_, selectionSync_);
+        }
+
+        if (context_.windows.authoring.showHierarchy) {
+            hierarchyPanel_.Draw(scene.GetWorld(), context_.selection);
+        }
+        if (context_.windows.authoring.showInspector) {
+            inspectorPanel_.Draw(context_.selection);
+            selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
+        }
+        if (context_.windows.resources.showAssetBrowser) {
+            assetBrowserPanel_.Draw(scene.GetModelManager(), context_.selection);
+        }
+        if (context_.windows.runtime.showStats) {
+            statsPanel_.Draw(scene.GetSceneName(), scene.GetWorld(), scene.GetModelManager(), context_.selection, scene.GetCamera());
+        }
+        if (context_.windows.resources.showEnvironment) {
+            environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState());
+            scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
+        }
+        if (context_.windows.runtime.showDebugCamera) {
+            debugCameraPanel_.Draw(scene.GetDebugCamera());
+        }
+        if (context_.windows.runtime.showGizmoSettings) {
+            DrawGizmoSettingsWindow();
+        }
+#else
+        (void)scene;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawGizmoSettingsWindow() {
+#if defined(_DEBUG)
+        if (!ImGui::Begin("Gizmo Settings")) {
+            ImGui::End();
+            return;
+        }
+
+        ImGui::Checkbox("Show Component Gizmos", &context_.gizmos.showComponentGizmos);
+        ImGui::Checkbox("Show Trigger Volumes", &context_.gizmos.showTriggerVolumes);
+        ImGui::Checkbox("Show Spawn Points", &context_.gizmos.showSpawnPoints);
+        ImGui::Checkbox("Show Door Transitions", &context_.gizmos.showDoorTransitions);
+        ImGui::Checkbox("Show UI Screen Rects", &context_.gizmos.showUIScreenRects);
+        ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
+
+        ImGui::End();
+#endif
+    }
+
+} // namespace HIKARI

@@ -1,8 +1,8 @@
 #include "HIKARI_StatsPanel.h"
 #include "HIKARI_EditorSelection.h"
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_Material.h"
-#include "Render3D/HIKARI_ModelManager.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Scene/HIKARI_World.h"
 #if defined(_DEBUG)
 #include "imgui.h"

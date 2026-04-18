@@ -7,7 +7,7 @@
 
 #include "HIKARI_Services.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
-#include "Vfx/HIKARI_PostSystem.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI {
 

@@ -1,6 +1,6 @@
 #include "HIKARI_DoorTransitionComponent.h"
 
-#include "Editor/HIKARI_IInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 
 namespace HIKARI {
 
