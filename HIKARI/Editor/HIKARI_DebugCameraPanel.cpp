@@ -1,5 +1,5 @@
 #include "HIKARI_DebugCameraPanel.h"
-#include "Render3D/HIKARI_DebugCameraController3D.h"
+#include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif

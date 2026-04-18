@@ -1,6 +1,6 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "HIKARI_DebugWindowState.h"
-#include "Render3D/HIKARI_DebugCameraController3D.h"
+#include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"

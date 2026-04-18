@@ -18,7 +18,7 @@
 #include "HIKARI_PhysicsWorld.h"
 #include "HIKARI_Body2D.h"
 #include "HIKARI_TiledCollision.h"
-#include "Vfx/HIKARI_VfxSystem.h"
+#include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_Dx12Core.h"

@@ -7,7 +7,7 @@
 
 #include <json.hpp>
 
-#include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI {
 

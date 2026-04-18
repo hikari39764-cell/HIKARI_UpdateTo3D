@@ -1,6 +1,6 @@
 #include "HIKARI_SpawnPointComponent.h"
 
-#include "Editor/HIKARI_IInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 
 namespace HIKARI {
 
