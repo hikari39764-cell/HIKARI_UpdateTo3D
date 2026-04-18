@@ -198,6 +198,7 @@
     <ClCompile Include="HIKARI\Vfx\HIKARI_VfxAsset.cpp" />
     <ClCompile Include="HIKARI\Vfx\HIKARI_PostProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.cpp" />
+    <ClCompile Include="HIKARI\Vfx\HIKARI_TransitionProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
@@ -328,6 +329,7 @@
     <ClInclude Include="HIKARI\Vfx\HIKARI_FxTypes.h" />
     <ClInclude Include="HIKARI\Vfx\HIKARI_PostProfile.h" />
     <ClInclude Include="HIKARI\Vfx\HIKARI_MaterialFxProfile.h" />
+    <ClInclude Include="HIKARI\Vfx\HIKARI_TransitionProfile.h" />
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h" />
@@ -431,6 +433,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json" />
+    <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Shaders\Post_TransitionNoiseWipePS.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

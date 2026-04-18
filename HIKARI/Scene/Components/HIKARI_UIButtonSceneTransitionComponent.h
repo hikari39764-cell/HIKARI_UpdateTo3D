@@ -37,7 +37,7 @@ namespace HIKARI {
         ScreenRect screenRect_{};
         bool requireLeftClick_ = true;
         std::string targetSceneId_{ "Title" };
-        std::string transitionProfileId_{ "DefaultFade" };
+        std::string transitionProfileId_{ "noise_wipe" };
         bool useTransition_ = true;
         bool keepCurrentSceneAlive_ = false;
         bool reloadTargetScene_ = false;

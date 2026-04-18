@@ -7,6 +7,7 @@
 
 #include "HIKARI_Services.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Vfx/HIKARI_PostSystem.h"
 
 namespace HIKARI {
 
@@ -67,6 +68,12 @@ namespace HIKARI {
     void EngineApp::Update(float dt) {
         sceneManager_.Update(dt);
         sceneTransitionBus_.Update(dt);
+        const TransitionVisualState visualState = sceneTransitionBus_.GetVisualState();
+        if (visualState.active) {
+            POST::PostSystem::SetTransitionState(visualState);
+        } else {
+            POST::PostSystem::ClearTransitionState();
+        }
     }
 
     void EngineApp::Render() {

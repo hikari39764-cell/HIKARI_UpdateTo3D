@@ -8,6 +8,7 @@
 #include "HIKARI_SceneInstanceCache.h"
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
+#include "Vfx/HIKARI_TransitionProfile.h"
 
 namespace HIKARI {
 
@@ -24,6 +25,14 @@ namespace HIKARI {
         }
 
         pendingRequest_ = request;
+        activeTransitionProfileId_ = request.transitionProfileId;
+        transitionOutDuration_ = 0.2f;
+        transitionInDuration_ = 0.2f;
+        TransitionProfile profile{};
+        if (TransitionProfile::LoadById(request.transitionProfileId, profile)) {
+            transitionOutDuration_ = (std::max)(0.0f, profile.outDuration);
+            transitionInDuration_ = (std::max)(0.0f, profile.inDuration);
+        }
         state_ = request.useTransition ? TransitionState::TransitionOut : TransitionState::SwitchingScene;
         timer_ = 0.0f;
         return true;
@@ -133,6 +142,45 @@ namespace HIKARI {
 
     std::vector<std::string> SceneTransitionBus::GetCachedSceneIds() const {
         return sceneCache_.GetCachedSceneIds();
+    }
+
+    TransitionVisualState SceneTransitionBus::GetVisualState() const {
+        TransitionVisualState visual{};
+        visual.profileId = activeTransitionProfileId_;
+
+        switch (state_) {
+        case TransitionState::TransitionOut:
+            visual.active = true;
+            visual.isTransitionIn = false;
+            if (transitionOutDuration_ > 0.0f) {
+                visual.progress = (std::min)(1.0f, (std::max)(0.0f, timer_ / transitionOutDuration_));
+            } else {
+                visual.progress = 1.0f;
+            }
+            break;
+        case TransitionState::SwitchingScene:
+            visual.active = true;
+            visual.isTransitionIn = false;
+            visual.progress = 1.0f;
+            break;
+        case TransitionState::TransitionIn:
+            visual.active = true;
+            visual.isTransitionIn = true;
+            if (transitionInDuration_ > 0.0f) {
+                visual.progress = (std::min)(1.0f, (std::max)(0.0f, timer_ / transitionInDuration_));
+            } else {
+                visual.progress = 1.0f;
+            }
+            break;
+        case TransitionState::Idle:
+        default:
+            visual.active = false;
+            visual.progress = 0.0f;
+            visual.isTransitionIn = false;
+            break;
+        }
+
+        return visual;
     }
 
 } // namespace HIKARI

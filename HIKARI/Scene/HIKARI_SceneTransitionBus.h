@@ -7,6 +7,13 @@
 
 namespace HIKARI {
 
+    struct TransitionVisualState {
+        bool active = false;
+        std::string profileId{};
+        float progress = 0.0f;
+        bool isTransitionIn = false;
+    };
+
     class SceneCatalog;
     class SceneFactory;
     class SceneManager;
@@ -15,7 +22,7 @@ namespace HIKARI {
     struct SceneTransitionRequest {
         std::string targetSceneId{};
         std::string targetSpawnPointId{};
-        std::string transitionProfileId{ "DefaultFade" };
+        std::string transitionProfileId{ "noise_wipe" };
         bool useTransition = true;
         bool preserveGameplayState = false;
         std::optional<bool> keepCurrentSceneAliveOverride{};
@@ -40,6 +47,7 @@ namespace HIKARI {
         bool WasLastSceneLoadedFromCache() const;
         size_t GetCachedSceneCount() const;
         std::vector<std::string> GetCachedSceneIds() const;
+        TransitionVisualState GetVisualState() const;
 
     private:
         SceneManager& sceneManager_;
@@ -52,6 +60,7 @@ namespace HIKARI {
         float transitionOutDuration_ = 0.2f;
         float transitionInDuration_ = 0.2f;
         bool lastSceneLoadedFromCache_ = false;
+        std::string activeTransitionProfileId_{ "noise_wipe" };
     };
 
 } // namespace HIKARI

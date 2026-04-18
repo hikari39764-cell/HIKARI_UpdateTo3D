@@ -17,6 +17,35 @@
 namespace HIKARI {
 
     namespace {
+        bool ResolveParamRef(const MaterialFxProfile& profile, const std::string& key, VFX::ParamRef& outRef, VFX::ParamType* outType = nullptr) {
+            for (const VFX::ParamDesc& param : profile.params) {
+                if (param.key == key) {
+                    outRef = param.ref;
+                    if (outType) {
+                        *outType = param.type;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool EnsureMaterialFxValuesReady(const std::string& profileId, DirectX::XMFLOAT4(&values)[4], bool& initialized) {
+            if (initialized) {
+                return true;
+            }
+            if (profileId.empty()) {
+                return false;
+            }
+            MaterialFxProfile profile{};
+            if (!MaterialFxProfile::LoadById(profileId, profile)) {
+                return false;
+            }
+            profile.CopyValuesTo(values);
+            initialized = true;
+            return true;
+        }
+
 #if defined(_DEBUG)
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
@@ -118,7 +147,7 @@ namespace HIKARI {
 
     void ModelComponent::SetMaterialFxProfileId(std::string profileId) {
         materialFxProfileId_ = std::move(profileId);
-        materialFxValuesInitialized_ = false;
+        ResetMaterialFxToProfileDefaults();
     }
 
     const std::string& ModelComponent::GetMaterialFxProfileId() const {
@@ -135,6 +164,158 @@ namespace HIKARI {
 
     bool ModelComponent::AreMaterialFxValuesInitialized() const {
         return materialFxValuesInitialized_;
+    }
+
+    bool ModelComponent::SetMaterialFxFloat(const std::string& key, float value) {
+        if (materialFxProfileId_.empty()) {
+            return false;
+        }
+
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return false;
+        }
+        if (!EnsureMaterialFxValuesReady(materialFxProfileId_, materialFxParamValues_, materialFxValuesInitialized_)) {
+            return false;
+        }
+
+        VFX::ParamRef ref{};
+        VFX::ParamType type = VFX::ParamType::Float;
+        if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float) {
+            return false;
+        }
+        if (ref.slot >= std::size(materialFxParamValues_) || ref.channel >= 4u) {
+            return false;
+        }
+        float* dst = &materialFxParamValues_[ref.slot].x;
+        dst[ref.channel] = value;
+        materialFxValuesInitialized_ = true;
+        return true;
+    }
+
+    bool ModelComponent::SetMaterialFxFloat2(const std::string& key, const DirectX::XMFLOAT2& value) {
+        if (materialFxProfileId_.empty()) {
+            return false;
+        }
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return false;
+        }
+        if (!EnsureMaterialFxValuesReady(materialFxProfileId_, materialFxParamValues_, materialFxValuesInitialized_)) {
+            return false;
+        }
+
+        VFX::ParamRef ref{};
+        VFX::ParamType type = VFX::ParamType::Float;
+        if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float2 || ref.channel > 2u) {
+            return false;
+        }
+        if (ref.slot >= std::size(materialFxParamValues_)) {
+            return false;
+        }
+        float* dst = &materialFxParamValues_[ref.slot].x;
+        dst[ref.channel] = value.x;
+        dst[ref.channel + 1] = value.y;
+        materialFxValuesInitialized_ = true;
+        return true;
+    }
+
+    bool ModelComponent::SetMaterialFxFloat3(const std::string& key, const DirectX::XMFLOAT3& value) {
+        if (materialFxProfileId_.empty()) {
+            return false;
+        }
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return false;
+        }
+        if (!EnsureMaterialFxValuesReady(materialFxProfileId_, materialFxParamValues_, materialFxValuesInitialized_)) {
+            return false;
+        }
+
+        VFX::ParamRef ref{};
+        VFX::ParamType type = VFX::ParamType::Float;
+        if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float3 || ref.channel > 1u) {
+            return false;
+        }
+        if (ref.slot >= std::size(materialFxParamValues_)) {
+            return false;
+        }
+        float* dst = &materialFxParamValues_[ref.slot].x;
+        dst[ref.channel] = value.x;
+        dst[ref.channel + 1] = value.y;
+        dst[ref.channel + 2] = value.z;
+        materialFxValuesInitialized_ = true;
+        return true;
+    }
+
+    bool ModelComponent::SetMaterialFxFloat4(const std::string& key, const DirectX::XMFLOAT4& value) {
+        if (materialFxProfileId_.empty()) {
+            return false;
+        }
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return false;
+        }
+        if (!EnsureMaterialFxValuesReady(materialFxProfileId_, materialFxParamValues_, materialFxValuesInitialized_)) {
+            return false;
+        }
+
+        VFX::ParamRef ref{};
+        VFX::ParamType type = VFX::ParamType::Float;
+        if (!ResolveParamRef(profile, key, ref, &type) || (type != VFX::ParamType::Float4 && type != VFX::ParamType::Color) || ref.channel > 0u) {
+            return false;
+        }
+        if (ref.slot >= std::size(materialFxParamValues_)) {
+            return false;
+        }
+        materialFxParamValues_[ref.slot] = value;
+        materialFxValuesInitialized_ = true;
+        return true;
+    }
+
+    bool ModelComponent::GetMaterialFxFloat(const std::string& key, float& out) const {
+        if (materialFxProfileId_.empty()) {
+            return false;
+        }
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return false;
+        }
+
+        VFX::ParamRef ref{};
+        VFX::ParamType type = VFX::ParamType::Float;
+        if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float) {
+            return false;
+        }
+        if (ref.slot >= std::size(materialFxParamValues_) || ref.channel >= 4u) {
+            return false;
+        }
+
+        const DirectX::XMFLOAT4* sourceValues = materialFxParamValues_;
+        DirectX::XMFLOAT4 defaultValues[4]{};
+        if (!materialFxValuesInitialized_) {
+            profile.CopyValuesTo(defaultValues);
+            sourceValues = defaultValues;
+        }
+        const float* src = &sourceValues[ref.slot].x;
+        out = src[ref.channel];
+        return true;
+    }
+
+    void ModelComponent::ResetMaterialFxToProfileDefaults() {
+        materialFxValuesInitialized_ = false;
+        for (DirectX::XMFLOAT4& value : materialFxParamValues_) {
+            value = {};
+        }
+        if (materialFxProfileId_.empty()) {
+            return;
+        }
+        MaterialFxProfile profile{};
+        if (!MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+            return;
+        }
+        profile.CopyValuesTo(materialFxParamValues_);
+        materialFxValuesInitialized_ = true;
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
@@ -173,6 +354,9 @@ namespace HIKARI {
             hasParamValues = true;
         }
         materialFxValuesInitialized_ = in.value("materialFxValuesInitialized", hasParamValues);
+        if (!materialFxValuesInitialized_) {
+            ResetMaterialFxToProfileDefaults();
+        }
     }
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
@@ -196,8 +380,7 @@ namespace HIKARI {
         const std::string previousProfileId = materialFxProfileId_;
         std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
         if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
-            materialFxProfileId_ = profileBuffer;
-            materialFxValuesInitialized_ = false;
+            SetMaterialFxProfileId(profileBuffer);
         }
 
         if (!materialFxProfileId_.empty()) {

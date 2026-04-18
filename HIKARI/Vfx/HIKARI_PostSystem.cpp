@@ -60,6 +60,11 @@ namespace HIKARI {
         std::string PostSystem::activeGlobalProfileId_{};
         PostProfile PostSystem::activeGlobalProfile_{};
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
+        bool PostSystem::transitionActive_ = false;
+        std::string PostSystem::activeTransitionProfileId_{};
+        TransitionProfile PostSystem::activeTransitionProfile_{};
+        std::unique_ptr<PostEffect> PostSystem::transitionEffect_{};
+        CommonParams PostSystem::transitionParams_{};
 
 
         void PostSystem::Initialize(const GFX::Context& ctx)
@@ -86,6 +91,7 @@ namespace HIKARI {
         {
             if (!initialized_) return;
             ClearGlobalProfile();
+            ClearTransitionState();
             globalChain_.Finalize();
             sceneRT_.Finalize();
             lightRT_.Finalize();
@@ -169,6 +175,60 @@ namespace HIKARI {
             activeGlobalProfile_ = PostProfile{};
             activeGlobalEffects_.clear();
             globalChain_.Clear();
+        }
+
+        void PostSystem::SetTransitionState(const TransitionVisualState& state) {
+            if (!state.active) {
+                ClearTransitionState();
+                return;
+            }
+
+            std::string requestedProfile = state.profileId;
+            if (requestedProfile.empty()) {
+                requestedProfile = "noise_wipe";
+            }
+
+            if (activeTransitionProfileId_ != requestedProfile || !transitionEffect_) {
+                TransitionProfile loadedProfile{};
+                if (!TransitionProfile::LoadById(requestedProfile, loadedProfile)) {
+                    requestedProfile = "noise_wipe";
+                    if (!TransitionProfile::LoadById(requestedProfile, loadedProfile)) {
+                        ClearTransitionState();
+                        return;
+                    }
+                }
+
+                std::unique_ptr<PostEffect> effect = std::make_unique<PostEffect>();
+                std::wstring shaderPath = L"HIKARI/Shaders/";
+                shaderPath += std::wstring(loadedProfile.shaderId.begin(), loadedProfile.shaderId.end());
+                shaderPath += L".hlsl";
+                if (!effect->LoadPixelShader(shaderPath.c_str())) {
+                    ClearTransitionState();
+                    return;
+                }
+
+                activeTransitionProfile_ = std::move(loadedProfile);
+                activeTransitionProfileId_ = requestedProfile;
+                transitionEffect_ = std::move(effect);
+            }
+
+            transitionActive_ = true;
+            transitionParams_ = commonParams_;
+            activeTransitionProfile_.ApplyToCommonParams(transitionParams_);
+            transitionParams_.user[14] = {
+                (std::min)(1.0f, (std::max)(0.0f, state.progress)),
+                state.isTransitionIn ? 1.0f : 0.0f,
+                0.0f,
+                0.0f
+            };
+        }
+
+        void PostSystem::ClearTransitionState() {
+            transitionActive_ = false;
+            activeTransitionProfileId_.clear();
+            activeTransitionProfile_ = TransitionProfile{};
+            transitionEffect_.reset();
+            transitionParams_ = CommonParams{};
         }
 
         void PostSystem::SetAmbientColor(float r, float g, float b)
@@ -285,7 +345,13 @@ namespace HIKARI {
             cmd->RSSetScissorRects(1, &sc);
 
 
-            quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+            if (transitionActive_ && transitionEffect_) {
+                quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+                transitionEffect_->ApplyCommonParams(transitionParams_);
+                transitionEffect_->BindAndDraw(quad_);
+            } else {
+                quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+            }
 
             if (useLighting_) {
                 quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
