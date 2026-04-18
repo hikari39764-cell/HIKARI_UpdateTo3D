@@ -17,7 +17,7 @@
 namespace HIKARI {
 
     namespace {
-        bool ResolveParamRef(const MaterialFxProfile& profile, const std::string& key, VFX::ParamRef& outRef, VFX::ParamType* outType = nullptr) {
+        bool ResolveParamRef(const MaterialFxProfile& profile, const std::string& key, VFX::ParamChannelRef& outRef, VFX::ParamType* outType = nullptr) {
             for (const VFX::ParamDesc& param : profile.params) {
                 if (param.key == key) {
                     outRef = param.ref;
@@ -179,7 +179,7 @@ namespace HIKARI {
             return false;
         }
 
-        VFX::ParamRef ref{};
+        VFX::ParamChannelRef ref{};
         VFX::ParamType type = VFX::ParamType::Float;
         if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float) {
             return false;
@@ -205,7 +205,7 @@ namespace HIKARI {
             return false;
         }
 
-        VFX::ParamRef ref{};
+        VFX::ParamChannelRef ref{};
         VFX::ParamType type = VFX::ParamType::Float;
         if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float2 || ref.channel > 2u) {
             return false;
@@ -232,7 +232,7 @@ namespace HIKARI {
             return false;
         }
 
-        VFX::ParamRef ref{};
+        VFX::ParamChannelRef ref{};
         VFX::ParamType type = VFX::ParamType::Float;
         if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float3 || ref.channel > 1u) {
             return false;
@@ -260,7 +260,7 @@ namespace HIKARI {
             return false;
         }
 
-        VFX::ParamRef ref{};
+        VFX::ParamChannelRef ref{};
         VFX::ParamType type = VFX::ParamType::Float;
         if (!ResolveParamRef(profile, key, ref, &type) || (type != VFX::ParamType::Float4 && type != VFX::ParamType::Color) || ref.channel > 0u) {
             return false;
@@ -282,7 +282,7 @@ namespace HIKARI {
             return false;
         }
 
-        VFX::ParamRef ref{};
+        VFX::ParamChannelRef ref{};
         VFX::ParamType type = VFX::ParamType::Float;
         if (!ResolveParamRef(profile, key, ref, &type) || type != VFX::ParamType::Float) {
             return false;

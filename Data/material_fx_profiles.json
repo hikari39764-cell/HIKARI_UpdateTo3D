@@ -1,7 +1,7 @@
 {
   "profiles": [
     {
-      "id": "rim_dissolve_energy",
+      "id": "test",
       "displayName": "Rim Dissolve Energy",
       "shaderProfileId": "StaticFx",
       "featureBits": 1,

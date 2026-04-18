@@ -4,6 +4,8 @@
 #include <fstream>
 
 #include <json.hpp>
+#undef min
+#undef max
 
 namespace HIKARI {
 
@@ -92,7 +94,7 @@ void TransitionProfile::ResetValuesFromDefaults() {
             continue;
         }
         float* dst = &values[slot].x;
-        const size_t writeCount = (std::min)(4u - channel, 4u);
+        const size_t writeCount = std::min<size_t>(4u - channel, 4u);
         for (size_t i = 0; i < writeCount; ++i) {
             dst[channel + i] = param.defaultValues[i];
         }
