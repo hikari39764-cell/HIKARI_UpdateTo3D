@@ -12,6 +12,8 @@ namespace HIKARI {
         std::string profileId{};
         float progress = 0.0f;
         bool isTransitionIn = false;
+        float outDuration = 0.0f; // 追加: outDuration メンバー
+        float inDuration = 0.0f;  // 追加: inDuration メンバー（必要に応じて）
     };
 
     class SceneCatalog;
@@ -22,7 +24,7 @@ namespace HIKARI {
     struct SceneTransitionRequest {
         std::string targetSceneId{};
         std::string targetSpawnPointId{};
-        std::string transitionProfileId{ "noise_wipe" };
+        std::string transitionProfileId{ "Default" };
         bool useTransition = true;
         bool preserveGameplayState = false;
         std::optional<bool> keepCurrentSceneAliveOverride{};
