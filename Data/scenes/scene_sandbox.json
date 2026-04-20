@@ -1,46 +1,233 @@
 {
-  "version": 1,
-  "sceneName": "Sandbox",
   "environment": {
-    "ambient": { "color": [1.0, 1.0, 1.0], "intensity": 0.25 },
-    "directional": { "enabled": true, "direction": [0.4, -1.0, -0.6], "intensity": 1.0, "color": [1.0, 1.0, 1.0] },
+    "ambient": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "intensity": 0.25
+    },
+    "directional": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "direction": [
+        0.32444286346435547,
+        -0.8111071586608887,
+        -0.4866642951965332
+      ],
+      "enabled": true,
+      "intensity": 1.0
+    },
     "pointLights": [
-      { "enabled": true, "position": [0.0, 2.0, 0.0], "range": 5.0, "color": [1.0, 1.0, 1.0], "intensity": 1.0 }
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "enabled": true,
+        "intensity": 1.0,
+        "position": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "range": 5.0
+      }
     ],
-    "sky": { "enabled": true, "skyAsset": "DefaultSky", "scale": 0.05, "yaw": 0.0, "exposure": 1.0, "tint": [1.0, 1.0, 1.0], "followCamera": true },
-    "specularIntensity": 0.2,
+    "post": {
+      "enabled": true,
+      "globalPostProfileId": "test",
+      "paramValues": [
+        [
+          0.3499999940395355,
+          0.0020000000949949026,
+          1.0,
+          1.100000023841858
+        ],
+        [
+          1.0,
+          0.019999999552965164,
+          0.014999999664723873,
+          720.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "valuesInitialized": true
+    },
+    "sky": {
+      "enabled": true,
+      "exposure": 1.0,
+      "followCamera": true,
+      "scale": 0.05000000074505806,
+      "skyAsset": "DefaultSky",
+      "tint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaw": 0.0
+    },
+    "specularIntensity": 0.20000000298023224,
     "specularPower": 32.0
   },
   "objects": [
     {
+      "components": [
+        {
+          "properties": {
+            "assetId": "Block",
+            "visible": true
+          },
+          "type": "ModelComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
       "id": 1,
       "name": "Block",
       "parent": null,
-      "enabled": true,
-      "editorVisible": true,
+      "sourcePrefabId": "",
       "transform": {
-        "position": [0.0, 0.5, 0.0],
-        "rotationEulerDeg": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
-      },
-      "components": [
-        { "type": "ModelComponent", "properties": { "assetId": "Block", "visible": true } }
-      ]
+        "position": [
+          0.0,
+          0.5,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
     },
     {
+      "components": [
+        {
+          "properties": {
+            "assetId": "TestCube",
+            "visible": true
+          },
+          "type": "ModelComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
       "id": 2,
       "name": "TestCube",
       "parent": null,
-      "enabled": true,
-      "editorVisible": true,
+      "sourcePrefabId": "",
       "transform": {
-        "position": [2.0, 1.0, 0.0],
-        "rotationEulerDeg": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
-      },
-      "components": [
-        { "type": "ModelComponent", "properties": { "assetId": "TestCube", "visible": true } }
-      ]
+        "position": [
+          2.0,
+          1.0,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
     }
-  ]
+  ],
+  "sceneName": "Sandbox",
+  "version": 1
 }

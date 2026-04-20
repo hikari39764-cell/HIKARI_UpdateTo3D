@@ -26,6 +26,70 @@
       "preload": true,
       "loopByDefault": false,
       "defaultScale": 1.0
+    },
+       {
+      "id": "MonsterRoar",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/MonsterRoar.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+        {
+      "id": "Sand",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/sand.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+    {
+      "id": "Shandian",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/Shandian.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+    {
+      "id": "Fire",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/Fire.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+     {
+      "id": "shiled",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/shiled.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+     {
+      "id": "shiled2",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/shiled2.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
+    },
+     {
+      "id": "sword",
+      "type": "VfxEffect",
+      "sourcePath": "Data/vfx/sword.efkefc",
+      "version": 1,
+      "preload": true,
+      "loopByDefault": false,
+      "defaultScale": 1.0
     }
+    
   ]
 }

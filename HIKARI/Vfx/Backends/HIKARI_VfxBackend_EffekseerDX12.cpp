@@ -158,7 +158,6 @@ static VfxHandle PlayImpl(const std::string& assetId, const MATH::Vec3* pos) {
     if (it == gEffects.end() || it->second == nullptr) {
         return kInvalidVfxHandle;
     }
-
     const float x = pos ? pos->x : 0.0f;
     const float y = pos ? pos->y : 0.0f;
     const float z = pos ? pos->z : 0.0f;
@@ -214,7 +213,9 @@ void SetTransform(VfxHandle handle, const Transform3D& transform) {
     auto it = gInstanceMap.find(handle);
     if (it == gInstanceMap.end() || gManager == nullptr) return;
     const auto& p = transform.position;
+	const auto& s = transform.scale;
     gManager->SetLocation(it->second, p.x, p.y, p.z);
+    gManager->SetScale(it->second, s.x, s.y, s.z);
 }
 
 void Render(const Camera3D& camera) {

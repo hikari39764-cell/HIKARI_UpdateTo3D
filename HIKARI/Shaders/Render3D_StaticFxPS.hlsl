@@ -153,7 +153,7 @@ float4 main(PSInput input) : SV_TARGET
         discard;
     }
 
-    float3 edgeColor = float3(0.2, 0.9, 1.0) * edgeBand * edgeBoost;
+    float3 edgeColor = float3(0.4, 0.5, 1.0) * edgeBand * edgeBoost;
     float3 finalColor = lit * edge + rimColor + edgeColor;
 
     return float4(saturate(finalColor), albedo.a);
