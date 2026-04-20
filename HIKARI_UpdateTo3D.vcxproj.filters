@@ -64,22 +64,22 @@
     <Filter Include="Header Files\Render3D\Lighting">
       <UniqueIdentifier>{A5284DF4-6862-505D-A7C1-5D4FD7F789E9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene">
+    <Filter Include="Header Files\Runtime\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Components">
+    <Filter Include="Header Files\Runtime\Scene\Components">
       <UniqueIdentifier>{F00B23EA-3B1C-53CB-B0AC-2F0ECD5136A2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Debug">
+    <Filter Include="Header Files\Runtime\Scene\Debug">
       <UniqueIdentifier>{4C3EB3DD-15E0-5D1C-85D7-4AA8807C63FE}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Prefab">
+    <Filter Include="Header Files\Runtime\Scene\Prefab">
       <UniqueIdentifier>{0D697DE1-8847-580E-9C3D-9C62C434BF48}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Scenes">
+    <Filter Include="Header Files\Runtime\Scene\Scenes">
       <UniqueIdentifier>{2DD67FF5-5054-5A33-B6C2-86F7E144F277}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Serialization">
+    <Filter Include="Header Files\Runtime\Scene\Serialization">
       <UniqueIdentifier>{77CB0B58-F53A-54E9-B326-C8CDB53D7982}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\ThirdParty">
@@ -178,6 +178,24 @@
     <Filter Include="Source Files\Legacy">
       <UniqueIdentifier>{F5DED7DD-3C33-54E0-AEED-D729A2828D55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Services">
+      <UniqueIdentifier>{62FE7DDB-4E55-4DA2-BC12-2451FCF058B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Frame">
+      <UniqueIdentifier>{F5F03C87-8F9A-4A6F-89F7-DA52A9917BEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Input">
+      <UniqueIdentifier>{4E55CC74-60E9-4D3A-8E63-BA6576169E39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Graphics">
+      <UniqueIdentifier>{7BFCC7C2-AFE8-4E7B-8399-7F84ACAF6EF5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Systems">
+      <UniqueIdentifier>{C47CDA12-EAC4-4D42-8AF6-52D7BF08C91A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Systems">
+      <UniqueIdentifier>{95C687DA-4E84-45B7-9969-4B5D1944D1D5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Platform">
       <UniqueIdentifier>{9003B766-941A-535E-880E-FB4C38C19805}</UniqueIdentifier>
     </Filter>
@@ -196,22 +214,22 @@
     <Filter Include="Source Files\Render3D\Lighting">
       <UniqueIdentifier>{C1A3C0C6-B467-522C-9581-6B8444E82C66}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene">
+    <Filter Include="Source Files\Runtime\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Components">
+    <Filter Include="Source Files\Runtime\Scene\Components">
       <UniqueIdentifier>{B16A3B17-051C-5A7F-ACAF-CD825550867C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Debug">
+    <Filter Include="Source Files\Runtime\Scene\Debug">
       <UniqueIdentifier>{61D0EB26-341C-5110-87A3-AEEF1F6750A6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Prefab">
+    <Filter Include="Source Files\Runtime\Scene\Prefab">
       <UniqueIdentifier>{C1264B45-8BA5-5A2B-A4D8-F8D173EB557C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Scenes">
+    <Filter Include="Source Files\Runtime\Scene\Scenes">
       <UniqueIdentifier>{0992EEE0-C100-5625-A00B-129F161A9799}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Serialization">
+    <Filter Include="Source Files\Runtime\Scene\Serialization">
       <UniqueIdentifier>{D1BA8550-A781-5589-B985-1DA0CA6F48C0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\ThirdParty">
@@ -384,8 +402,8 @@
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
-      <Filter>Source Files\Scene\Debug</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
+      <Filter>Source Files\Runtime\Scene\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
       <Filter>Source Files\Editor</Filter>
@@ -408,77 +426,77 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp">
-      <Filter>Source Files\Scene\Serialization</Filter>
+    <ClCompile Include="HIKARI\Authoring\Serialization\HIKARI_SceneSerializer.cpp">
+      <Filter>Source Files\Runtime\Scene\Serialization</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_ComponentRegistry.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Authoring\Scene\HIKARI_SceneRuntimeBuilder.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRegistry.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneRegistry.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneCatalog.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneCatalog.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneFactory.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneFactory.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneInstanceCache.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneInstanceCache.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneTransitionBus.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneTransitionBus.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_RuntimeSceneContext.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.cpp">
-      <Filter>Source Files\Scene\Prefab</Filter>
+    <ClCompile Include="HIKARI\Authoring\Prefab\HIKARI_PrefabSerializer.cpp">
+      <Filter>Source Files\Runtime\Scene\Prefab</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.cpp">
-      <Filter>Source Files\Scene\Prefab</Filter>
+    <ClCompile Include="HIKARI\Authoring\Prefab\HIKARI_PrefabRegistry.cpp">
+      <Filter>Source Files\Runtime\Scene\Prefab</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp">
       <Filter>Source Files\Editor\Inspectors</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneManager.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Core\HIKARI_GameObject.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp">
-      <Filter>Source Files\Scene</Filter>
+    <ClCompile Include="HIKARI\Runtime\Core\HIKARI_World.cpp">
+      <Filter>Source Files\Runtime\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_ModelComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_UIButtonSceneTransitionComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_SpawnPointComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_TriggerVolumeComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_DoorTransitionComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
-      <Filter>Source Files\Scene\Scenes</Filter>
+      <Filter>Source Files\Runtime\Scene\Scenes</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp">
-      <Filter>Source Files\Scene\Scenes</Filter>
+      <Filter>Source Files\Runtime\Scene\Scenes</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.cpp">
-      <Filter>Source Files\Scene\Scenes</Filter>
+      <Filter>Source Files\Runtime\Scene\Scenes</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.cpp">
-      <Filter>Source Files\Scene\Scenes</Filter>
+      <Filter>Source Files\Runtime\Scene\Scenes</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
       <Filter>Source Files\Editor</Filter>
@@ -494,6 +512,12 @@
     </ClCompile>
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
       <Filter>Source Files\App</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.cpp">
+      <Filter>Source Files\Runtime\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.cpp">
+      <Filter>Source Files\Runtime\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp">
       <Filter>Source Files\Platform</Filter>
@@ -525,11 +549,11 @@
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp">
       <Filter>Source Files\Vfx\Backends</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_VfxPlayerComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_ComponentLinkComponent.cpp">
+      <Filter>Source Files\Runtime\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files\App</Filter>
@@ -836,7 +860,7 @@
     <ClInclude Include="HIKARI\HIKARI_Core.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Services.h">
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_2D.h">
@@ -866,35 +890,35 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_IScene.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneManager.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Core\HIKARI_GameObject.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_World.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Core\HIKARI_World.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_IComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_ModelComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_UIButtonSceneTransitionComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_SpawnPointComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_TriggerVolumeComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_DoorTransitionComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
       <Filter>Header Files\Vfx\Common</Filter>
@@ -920,32 +944,32 @@
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h">
       <Filter>Header Files\Vfx\Backends</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_VfxPlayerComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_ComponentLinkComponent.h">
+      <Filter>Header Files\Runtime\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h">
-      <Filter>Header Files\Scene\Prefab</Filter>
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabDocument.h">
+      <Filter>Header Files\Runtime\Scene\Prefab</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.h">
-      <Filter>Header Files\Scene\Prefab</Filter>
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabSerializer.h">
+      <Filter>Header Files\Runtime\Scene\Prefab</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h">
-      <Filter>Header Files\Scene\Prefab</Filter>
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabRegistry.h">
+      <Filter>Header Files\Runtime\Scene\Prefab</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h">
-      <Filter>Header Files\Scene\Scenes</Filter>
+      <Filter>Header Files\Runtime\Scene\Scenes</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h">
-      <Filter>Header Files\Scene\Scenes</Filter>
+      <Filter>Header Files\Runtime\Scene\Scenes</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.h">
-      <Filter>Header Files\Scene\Scenes</Filter>
+      <Filter>Header Files\Runtime\Scene\Scenes</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h">
-      <Filter>Header Files\Scene\Scenes</Filter>
+      <Filter>Header Files\Runtime\Scene\Scenes</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
@@ -995,8 +1019,8 @@
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h">
       <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h">
-      <Filter>Header Files\Scene\Debug</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\Debug\HIKARI_ComponentGizmoRenderer.h">
+      <Filter>Header Files\Runtime\Scene\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
       <Filter>Header Files\Editor</Filter>
@@ -1019,35 +1043,35 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Authoring\Scene\HIKARI_SceneDocument.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h">
-      <Filter>Header Files\Scene\Serialization</Filter>
+    <ClInclude Include="HIKARI\Authoring\Serialization\HIKARI_SceneSerializer.h">
+      <Filter>Header Files\Runtime\Scene\Serialization</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_ComponentRegistry.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Authoring\Scene\HIKARI_SceneRuntimeBuilder.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRegistry.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneRegistry.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneCatalog.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneCatalog.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneFactory.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneFactory.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneInstanceCache.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneInstanceCache.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneTransitionBus.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneTransitionBus.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.h">
-      <Filter>Header Files\Scene</Filter>
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_RuntimeSceneContext.h">
+      <Filter>Header Files\Runtime\Scene</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_IInspectorBuilder.h">
       <Filter>Header Files\Editor\Inspectors</Filter>
@@ -1065,7 +1089,34 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
-      <Filter>Header Files\App</Filter>
+      <Filter>Header Files\Application</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_FrameContext.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_TimeService.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Input\HIKARI_InputService.h">
+      <Filter>Header Files\Services\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Graphics\HIKARI_GraphicsService.h">
+      <Filter>Header Files\Services\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_ISystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h">
       <Filter>Header Files\Render3D</Filter>
