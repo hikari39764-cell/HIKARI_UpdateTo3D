@@ -3,11 +3,11 @@
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
-#include "Scene/HIKARI_World.h"
+#include "Runtime/Core/HIKARI_World.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif
-#include "Scene/HIKARI_GameObject.h"
+#include "Runtime/Core/HIKARI_GameObject.h"
 namespace HIKARI {
 
     void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {

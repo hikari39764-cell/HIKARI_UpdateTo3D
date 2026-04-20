@@ -6,7 +6,7 @@
 
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_SelectionSyncService.h"
-#include "Scene/Prefab/HIKARI_PrefabDocument.h"
+#include "Authoring/Prefab/HIKARI_PrefabDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 #if defined(_DEBUG)

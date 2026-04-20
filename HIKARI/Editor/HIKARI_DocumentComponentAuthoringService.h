@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "Scene/HIKARI_ComponentRegistry.h"
-#include "Scene/HIKARI_SceneDocument.h"
+#include "Runtime/Scene/HIKARI_ComponentRegistry.h"
+#include "Authoring/Scene/HIKARI_SceneDocument.h"
 
 namespace HIKARI {
 

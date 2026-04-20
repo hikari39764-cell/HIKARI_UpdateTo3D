@@ -9,7 +9,7 @@
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
-#include "Scene/Serialization/HIKARI_SceneSerializer.h"
+#include "Authoring/Serialization/HIKARI_SceneSerializer.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
