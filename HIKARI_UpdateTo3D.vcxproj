@@ -61,7 +61,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)include;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -83,7 +83,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)include;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MinSpace</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>

@@ -1,9 +1,9 @@
 #include "Runtime/Scene/HIKARI_SceneFactory.h"
 
 #include "Runtime/Scene/HIKARI_SceneCatalog.h"
-#include "Scenes/HIKARI_GameDocumentScene.h"
-#include "Scenes/HIKARI_SandboxScene.h"
-#include "Scenes/HIKARI_TitleScene.h"
+#include "Scene/Scenes/HIKARI_GameDocumentScene.h"
+#include "Scene/Scenes/HIKARI_SandboxScene.h"
+#include "Scene/Scenes/HIKARI_TitleScene.h"
 
 namespace HIKARI {
 
