@@ -12,6 +12,8 @@ static inline uint32_t PackRGBA(int r, int g, int b, int a) {
         static_cast<uint32_t>(a);
 }
 
+// legacy fixed-step default / fallback value.
+// not the runtime frame delta source.
 static const float kDt = 1.0f / 60.0f;
 
 struct Vector2 { float x, y; };

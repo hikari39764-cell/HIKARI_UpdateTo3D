@@ -8,6 +8,7 @@
 #include "HIKARI_SE.h"
 #include "HIKARI_Anim.h"
 #include "HIKARI_Input.h"
+#include "Core/HIKARI_TimeService.h"
 #include "HIKARI_Particle.h"
 #include "HIKARI_SpriteAnimator.h"
 #include "HIKARI_MultiTextureAnimator.h"
@@ -221,6 +222,7 @@ namespace HIKARI {
 
         inline void BeginFrame(const BootstrapConfig& cfg = {}) {
             (void)cfg;
+            const FrameContext& frame = HIKARI::TIME::BeginFrame();
             gCtx = gCore.BuildContext();
             DXTEX::DxTextureManager::UpdateContext(gCtx);
             DX::DxRenderer::UpdateContext(gCtx);
@@ -230,13 +232,13 @@ namespace HIKARI {
             gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f);
 
             HIKARI::RENDERER::BeginFrame();
-            HIKARI::POST::PostSystem::UpdateCommonParams(kDt);
+            HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
             HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
-            HIKARI::HINPUT::Update(kDt);
-            HIKARI::VFX::BeginFrame(kDt);
+            HIKARI::HINPUT::Update(frame.unscaledDt);
+            HIKARI::VFX::BeginFrame(frame.gameDt);
             if (gEnableImGui && gImGuiInitialized) {
 #if defined(_DEBUG)
                 if (!gImGuiBackendInitialized) {
@@ -254,7 +256,7 @@ namespace HIKARI {
 
                 ImGuiIO& io = ImGui::GetIO();
                 io.DisplaySize = ImVec2(static_cast<float>(gWindow.Width()), static_cast<float>(gWindow.Height()));
-                io.DeltaTime = (kDt > 0.0f) ? kDt : (1.0f / 60.0f);
+                io.DeltaTime = (frame.unscaledDt > 0.0f) ? frame.unscaledDt : (1.0f / 60.0f);
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
                     io.Fonts->AddFontDefault();
                     io.Fonts->Build();
@@ -263,7 +265,7 @@ namespace HIKARI {
                 gImGuiFrameBegun = true;
 #endif
             }
-            HIKARI::CAMERA::Update(kDt);
+            HIKARI::CAMERA::Update(frame.gameDt);
         }
 
         inline void EndFrame() {

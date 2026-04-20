@@ -159,6 +159,7 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
+    <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
@@ -173,6 +174,8 @@
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp" />
@@ -423,8 +426,13 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Camera3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
     <ClInclude Include="HIKARI\Matrix3x3.h" />
   </ItemGroup>
   <ItemGroup>
