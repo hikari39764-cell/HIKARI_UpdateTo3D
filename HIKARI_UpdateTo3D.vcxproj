@@ -105,7 +105,6 @@
     <ClCompile Include="HIKARI\HIKARI_Anim.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Bgm.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp" />
-    <ClCompile Include="HIKARI\Legacy\HIKARI_Camera2_5D.cpp" />
     <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxRenderer.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
@@ -124,7 +123,6 @@
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostSystem.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_Renderer.cpp" />
-    <ClCompile Include="HIKARI\Legacy\HIKARI_RenderQueue25.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp" />
     <ClCompile Include="HIKARI\HIKARI_SE.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_SpineActor.cpp" />
@@ -392,7 +390,6 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />
-    <ClInclude Include="HIKARI\Legacy\HIKARI_Camera2_5D.h" />
     <ClInclude Include="HIKARI\HIKARI_Collision.h" />
     <ClInclude Include="HIKARI\HIKARI_CollisionWorld.h" />
     <ClInclude Include="HIKARI\HIKARI_D3DBlobCompat.h" />
@@ -414,7 +411,6 @@
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.h" />
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostSystem.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Renderer.h" />
-    <ClInclude Include="HIKARI\Legacy\HIKARI_RenderQueue25.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h" />
     <ClInclude Include="HIKARI\HIKARI_SE.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_SpineActor.h" />

@@ -252,9 +252,6 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Legacy\HIKARI_Camera2_5D.cpp">
-      <Filter>Source Files\Legacy</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_CollisionWorld.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -274,9 +271,6 @@
       <Filter>Source Files\Core</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp">
-      <Filter>Source Files\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_MeshEffect.cpp">
@@ -309,9 +303,6 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Renderer.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Legacy\HIKARI_RenderQueue25.cpp">
-      <Filter>Source Files\Legacy</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_RenderTarget2D.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
@@ -323,9 +314,6 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.cpp">
       <Filter>Source Files\Render2D</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
-      <Filter>Source Files\Core</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_Texture.cpp">
       <Filter>Source Files\Render2D</Filter>
@@ -753,6 +741,12 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Source Files\ThirdParty\Spine</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp">
+      <Filter>Source Files\Legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
+      <Filter>Source Files\Legacy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\DirectXGame\3d\Camera.h">
@@ -1109,9 +1103,6 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Legacy\HIKARI_Camera2_5D.h">
-      <Filter>Header Files\Legacy</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_Collision.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
@@ -1137,9 +1128,6 @@
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_MapRoom.h">
-      <Filter>Header Files\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_MeshEffect.h">
@@ -1175,9 +1163,6 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_Renderer.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Legacy\HIKARI_RenderQueue25.h">
-      <Filter>Header Files\Legacy</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_RenderTarget2D.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
@@ -1189,9 +1174,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_SpineTextureLoader.h">
       <Filter>Header Files\Render2D</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
-      <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_Texture.h">
       <Filter>Header Files\Render2D</Filter>
@@ -1222,6 +1204,12 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Matrix3x3.h">
       <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h">
+      <Filter>Header Files\Legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
+      <Filter>Header Files\Legacy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
