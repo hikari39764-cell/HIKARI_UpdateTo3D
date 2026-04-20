@@ -2,10 +2,9 @@
 
 #include <memory>
 #include <vector>
-
+#include "Scene/HIKARI_ISystem.h"
 namespace HIKARI {
 
-class ISystem;
 class World;
 struct FrameContext;
 
