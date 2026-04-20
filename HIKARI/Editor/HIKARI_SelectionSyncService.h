@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Scene/HIKARI_SceneDocument.h"
+#include "Authoring/Scene/HIKARI_SceneDocument.h"
 
 namespace HIKARI {
 

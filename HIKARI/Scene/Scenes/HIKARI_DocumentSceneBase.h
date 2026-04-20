@@ -9,14 +9,16 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
-#include "Scene/HIKARI_ComponentRegistry.h"
-#include "Scene/HIKARI_IScene.h"
-#include "Scene/HIKARI_SceneCatalog.h"
-#include "Scene/HIKARI_SceneDocument.h"
-#include "Scene/HIKARI_SceneRuntimeBuilder.h"
-#include "Scene/HIKARI_World.h"
-#include "Scene/Serialization/HIKARI_SceneSerializer.h"
-#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Runtime/Scene/HIKARI_ComponentRegistry.h"
+#include "Runtime/Scene/HIKARI_IScene.h"
+#include "Runtime/Scene/HIKARI_SceneCatalog.h"
+#include "Authoring/Scene/HIKARI_SceneDocument.h"
+#include "Authoring/Scene/HIKARI_SceneRuntimeBuilder.h"
+#include "Runtime/Core/HIKARI_World.h"
+#include "Authoring/Serialization/HIKARI_SceneSerializer.h"
+#include "Runtime/Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Runtime/Systems/HIKARI_SystemScheduler.h"
+#include "Services/Frame/HIKARI_FrameContext.h"
 
 namespace HIKARI {
 
@@ -89,6 +91,8 @@ namespace HIKARI {
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};
         SceneDocument sceneDocument_{};
+        SystemScheduler systemScheduler_{};
+        FrameContext frameContext_{};
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         SceneObjectId selectedGizmoObjectId_{};

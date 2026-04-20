@@ -3,8 +3,8 @@
 #include <string>
 #include "Render3D/HIKARI_Math3D.h"
 #include "HIKARI_EditorSelection.h"
-#include "Scene/HIKARI_GameObject.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Runtime/Core/HIKARI_GameObject.h"
+#include "Runtime/Components/HIKARI_ModelComponent.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif
