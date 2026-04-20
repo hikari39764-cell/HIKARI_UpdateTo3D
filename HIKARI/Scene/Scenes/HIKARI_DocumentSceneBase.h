@@ -14,6 +14,7 @@
 #include "Scene/HIKARI_SceneCatalog.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
+#include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
@@ -65,6 +66,7 @@ namespace HIKARI {
     protected:
         void RegisterDefaultComponentTypes();
         void RegisterDefaultSceneCatalogEntries();
+        void RegisterDefaultSystems();
 
         virtual bool UseDebugCamera() const;
         virtual bool DrawDebugHelpers() const;
@@ -78,6 +80,7 @@ namespace HIKARI {
         Camera3D camera_{};
         DebugCameraController3D debugCamera_{};
         World world_{};
+        SystemScheduler systemScheduler_{};
         ModelManager modelManager_{};
         SkyManager skyManager_{};
         SceneEnvironment environment_{};

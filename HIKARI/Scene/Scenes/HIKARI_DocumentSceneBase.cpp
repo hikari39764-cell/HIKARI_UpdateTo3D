@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <utility>
 #include <numbers>
+#include <memory>
 
 #include "HIKARI_3D.h"
+#include "Core/HIKARI_TimeService.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -20,6 +22,7 @@
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
+#include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 namespace HIKARI {
 
@@ -37,18 +40,28 @@ namespace HIKARI {
         ReloadAssets();
         VFX::SetAssetRegistry(&assetRegistry_);
         ReloadSceneDocument();
-        RebuildRuntimeWorld();
+        if (RebuildRuntimeWorld()) {
+            systemScheduler_.Clear();
+            RegisterDefaultSystems();
+            systemScheduler_.AttachWorld(world_);
+        }
     }
 
     void DocumentSceneBase::OnExit() {
+        systemScheduler_.DetachWorld(world_);
+        systemScheduler_.Clear();
         RuntimeSceneContext::SetCurrentWorld(nullptr);
     }
 
     void DocumentSceneBase::Update(float dt) {
+        const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         if (UseDebugCamera()) {
             debugCamera_.Update(dt, camera_);
         }
+        systemScheduler_.PreUpdate(world_, frame);
         world_.Update(dt);
+        systemScheduler_.Update(world_, frame);
+        systemScheduler_.LateUpdate(world_, frame);
     }
 
     void DocumentSceneBase::Render() {
@@ -81,30 +94,10 @@ namespace HIKARI {
         }
 
         world_.Render();
-
-        for (const auto& object : world_.GetObjects()) {
-            if (const ModelComponent* model = object->GetComponent<ModelComponent>()) {
-                if (!model->IsVisible()) {
-                    continue;
-                }
-
-                const ModelAsset* asset = model->GetAsset();
-                if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
-                    MESHRENDERER::SubmitStaticMesh(*asset,
-                        object->Transform(),
-                        model->GetMaterialFxProfileId(),
-                        model->GetPostGroupMask(),
-                        model->GetMaterialFxParamValues(),
-                        model->AreMaterialFxValuesInitialized());
-                } else {
-                    RENDERER3D::WireCube cube{};
-                    cube.transform = object->Transform();
-                    cube.size = 1.0f;
-                    cube.rgba = 0x66CCFFFF;
-                    RENDERER3D::SubmitWireCube(cube);
-                }
-            }
-        }
+        const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        systemScheduler_.PreRender(world_, frame);
+        systemScheduler_.Render(world_, frame);
+        systemScheduler_.PostRender(world_, frame);
 
         SceneEnvironment activeEnvironment = environment_;
         activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);
@@ -260,6 +253,10 @@ namespace HIKARI {
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
         return built;
+    }
+
+    void DocumentSceneBase::RegisterDefaultSystems() {
+        systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
     }
 
     void DocumentSceneBase::RegisterDefaultComponentTypes() {

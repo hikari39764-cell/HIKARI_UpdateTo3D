@@ -1,5 +1,6 @@
 #include "HIKARI/HIKARI_Services.h"
 #include "HIKARI/App/HIKARI_EngineApp.h"
+#include "HIKARI/Core/HIKARI_TimeService.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
@@ -20,8 +21,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     while (HIKARI::SERVICES::PumpMessages()) {
         HIKARI::SERVICES::BeginFrame(servicesCfg);
+        const HIKARI::FrameContext& frame = HIKARI::TIME::GetFrameContext();
 
-        app.Update(kDt);
+        app.Update(frame.gameDt);
         app.Render();
         app.RenderImGui();
 
