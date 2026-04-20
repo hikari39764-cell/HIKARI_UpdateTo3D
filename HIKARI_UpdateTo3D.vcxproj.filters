@@ -1164,6 +1164,33 @@
     <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h">
       <Filter>Header Files\Runtime\Systems</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_FrameContext.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_TimeService.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Input\HIKARI_InputService.h">
+      <Filter>Header Files\Services\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Graphics\HIKARI_GraphicsService.h">
+      <Filter>Header Files\Services\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_ISystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>

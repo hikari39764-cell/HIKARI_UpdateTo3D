@@ -11,6 +11,15 @@ struct FrameContext;
 
 class SystemScheduler {
 public:
+    SystemScheduler() = default;
+    ~SystemScheduler();
+
+    SystemScheduler(SystemScheduler&&) noexcept;
+    SystemScheduler& operator=(SystemScheduler&&) noexcept;
+
+    SystemScheduler(const SystemScheduler&) = delete;
+    SystemScheduler& operator=(const SystemScheduler&) = delete;
+
     void AttachWorld(World* world);
     void DetachWorld();
 

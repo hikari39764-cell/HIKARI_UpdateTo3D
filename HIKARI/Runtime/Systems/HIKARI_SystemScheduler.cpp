@@ -6,6 +6,10 @@
 
 namespace HIKARI {
 
+SystemScheduler::~SystemScheduler() = default;
+SystemScheduler::SystemScheduler(SystemScheduler&&) noexcept = default;
+SystemScheduler& SystemScheduler::operator=(SystemScheduler&&) noexcept = default;
+
 void SystemScheduler::AttachWorld(World* world) {
     if (world_ == world) {
         return;
