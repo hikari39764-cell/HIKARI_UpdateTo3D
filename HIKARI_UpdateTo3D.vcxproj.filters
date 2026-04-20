@@ -157,6 +157,24 @@
     <Filter Include="Source Files\Gfx">
       <UniqueIdentifier>{5FD85F18-282B-5C94-8D1E-1B0F6B4030D0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Services">
+      <UniqueIdentifier>{62FE7DDB-4E55-4DA2-BC12-2451FCF058B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Frame">
+      <UniqueIdentifier>{F5F03C87-8F9A-4A6F-89F7-DA52A9917BEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Input">
+      <UniqueIdentifier>{4E55CC74-60E9-4D3A-8E63-BA6576169E39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Services\Graphics">
+      <UniqueIdentifier>{7BFCC7C2-AFE8-4E7B-8399-7F84ACAF6EF5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Systems">
+      <UniqueIdentifier>{C47CDA12-EAC4-4D42-8AF6-52D7BF08C91A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Systems">
+      <UniqueIdentifier>{95C687DA-4E84-45B7-9969-4B5D1944D1D5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Platform">
       <UniqueIdentifier>{C8BB1B63-2AB8-5449-8763-51DD9920A972}</UniqueIdentifier>
     </Filter>
@@ -204,6 +222,52 @@
     </Filter>
     <Filter Include="Source Files\Vfx\Transition">
       <UniqueIdentifier>{AA9811D1-6F82-5BFC-8289-B033474619A5}</UniqueIdentifier>
+    </Filter>
+
+    <Filter Include="Header Files\Services">
+      <UniqueIdentifier>{62FE7DDB-4E55-4DA2-BC12-2451FCF058B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Core">
+      <UniqueIdentifier>{8E86EC77-B250-4A02-9CAF-68E55D4644B2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Scene">
+      <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Components">
+      <UniqueIdentifier>{0F8D6CB6-B94E-4C8D-8EEC-2BDF20AAB6E8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Runtime\Systems">
+      <UniqueIdentifier>{C47CDA12-EAC4-4D42-8AF6-52D7BF08C91A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Authoring\Scene">
+      <UniqueIdentifier>{A7D30184-C418-46C0-9F19-EA7C353B2D8A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Authoring\Serialization">
+      <UniqueIdentifier>{6A305335-CC0C-44E6-B8F1-F7EF4AB2C5BE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Authoring\Prefab">
+      <UniqueIdentifier>{22E8F3B4-E391-463A-A8EE-4D3655A2A776}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Core">
+      <UniqueIdentifier>{31E5A943-E0FC-4A9D-BB4E-6FB1E6291114}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Scene">
+      <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Components">
+      <UniqueIdentifier>{0E8D6975-CF0F-4C1D-B7E2-7DBFB3D36904}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime\Systems">
+      <UniqueIdentifier>{95C687DA-4E84-45B7-9969-4B5D1944D1D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Authoring\Scene">
+      <UniqueIdentifier>{85682275-2D78-43FB-A90C-57295346B6D2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Authoring\Serialization">
+      <UniqueIdentifier>{A72E26D4-726A-40D4-82D1-E40B9E42B38B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Authoring\Prefab">
+      <UniqueIdentifier>{6476597D-5792-4A88-837E-5A6D01C59F62}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -1038,7 +1102,61 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
-      <Filter>Header Files\App</Filter>
+      <Filter>Header Files\Application</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_FrameContext.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_TimeService.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Input\HIKARI_InputService.h">
+      <Filter>Header Files\Services\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Graphics\HIKARI_GraphicsService.h">
+      <Filter>Header Files\Services\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_ISystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h">
+      <Filter>Header Files\Services</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_FrameContext.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_TimeService.h">
+      <Filter>Header Files\Services\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Input\HIKARI_InputService.h">
+      <Filter>Header Files\Services\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Services\Graphics\HIKARI_GraphicsService.h">
+      <Filter>Header Files\Services\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_ISystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Runtime\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_Services.h">
       <Filter>Header Files</Filter>
