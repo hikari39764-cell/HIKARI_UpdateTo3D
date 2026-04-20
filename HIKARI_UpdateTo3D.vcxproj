@@ -61,7 +61,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)include;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -83,7 +83,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)HIKARI;$(ProjectDir)include;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\Effekseer\Include;$(ProjectDir)ThirdParty\Effekseer\Include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\Include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\Include\LLGI;C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MinSpace</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -151,7 +151,7 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp" />
-    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp" />
@@ -159,26 +159,26 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
-    <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRegistry.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneCatalog.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneFactory.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneInstanceCache.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneTransitionBus.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.cpp" />
-    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.cpp" />
-    <ClCompile Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.cpp" />
+    <ClCompile Include="HIKARI\Authoring\Serialization\HIKARI_SceneSerializer.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_ComponentRegistry.cpp" />
+    <ClCompile Include="HIKARI\Authoring\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneRegistry.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneCatalog.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneFactory.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneInstanceCache.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneTransitionBus.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_RuntimeSceneContext.cpp" />
+    <ClCompile Include="HIKARI\Authoring\Prefab\HIKARI_PrefabSerializer.cpp" />
+    <ClCompile Include="HIKARI\Authoring\Prefab\HIKARI_PrefabRegistry.cpp" />
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Scene\HIKARI_SceneManager.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Core\HIKARI_GameObject.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Core\HIKARI_World.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_ModelComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_UIButtonSceneTransitionComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_SpawnPointComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_TriggerVolumeComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_DoorTransitionComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.cpp" />
@@ -188,6 +188,8 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp" />
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.cpp" />
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
@@ -198,8 +200,8 @@
     <ClCompile Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_VfxPlayerComponent.cpp" />
+    <ClCompile Include="HIKARI\Runtime\Components\HIKARI_ComponentLinkComponent.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -301,7 +303,7 @@
     <ClInclude Include="External\WICTextureLoader.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />
     <ClInclude Include="HIKARI\HIKARI_Core.h" />
-    <ClInclude Include="HIKARI\HIKARI_Services.h" />
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h" />
     <ClInclude Include="HIKARI\HIKARI_2D.h" />
     <ClInclude Include="HIKARI\HIKARI_3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h" />
@@ -311,16 +313,16 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_World.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_IScene.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneManager.h" />
+    <ClInclude Include="HIKARI\Runtime\Core\HIKARI_GameObject.h" />
+    <ClInclude Include="HIKARI\Runtime\Core\HIKARI_World.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_IComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_ModelComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_UIButtonSceneTransitionComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_SpawnPointComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_TriggerVolumeComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_DoorTransitionComponent.h" />
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h" />
     <ClInclude Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.h" />
     <ClInclude Include="HIKARI\Vfx\Runtime\HIKARI_VfxAsset.h" />
@@ -329,11 +331,11 @@
     <ClInclude Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.h" />
     <ClInclude Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.h" />
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h" />
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h" />
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabSerializer.h" />
-    <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_VfxPlayerComponent.h" />
+    <ClInclude Include="HIKARI\Runtime\Components\HIKARI_ComponentLinkComponent.h" />
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabDocument.h" />
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabSerializer.h" />
+    <ClInclude Include="HIKARI\Authoring\Prefab\HIKARI_PrefabRegistry.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_TitleScene.h" />
@@ -354,7 +356,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
-    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
@@ -362,22 +364,31 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
-    <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRegistry.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneCatalog.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneFactory.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneInstanceCache.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneTransitionBus.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeSceneContext.h" />
+    <ClInclude Include="HIKARI\Authoring\Scene\HIKARI_SceneDocument.h" />
+    <ClInclude Include="HIKARI\Authoring\Serialization\HIKARI_SceneSerializer.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_ComponentRegistry.h" />
+    <ClInclude Include="HIKARI\Authoring\Scene\HIKARI_SceneRuntimeBuilder.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneRegistry.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneCatalog.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneFactory.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneInstanceCache.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_SceneTransitionBus.h" />
+    <ClInclude Include="HIKARI\Runtime\Scene\HIKARI_RuntimeSceneContext.h" />
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_IInspectorBuilder.h" />
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugMenuBar.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
+    <ClInclude Include="HIKARI\HIKARI_Services.h" />
+    <ClInclude Include="HIKARI\Services\HIKARI_Services.h" />
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_FrameContext.h" />
+    <ClInclude Include="HIKARI\Services\Frame\HIKARI_TimeService.h" />
+    <ClInclude Include="HIKARI\Services\Input\HIKARI_InputService.h" />
+    <ClInclude Include="HIKARI\Services\Graphics\HIKARI_GraphicsService.h" />
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_ISystem.h" />
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_SystemScheduler.h" />
+    <ClInclude Include="HIKARI\Runtime\Systems\HIKARI_RenderSubmissionSystem.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />

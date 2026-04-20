@@ -5,7 +5,7 @@
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
-#include "Scene/HIKARI_SceneCatalog.h"
+#include "Runtime/Scene/HIKARI_SceneCatalog.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"

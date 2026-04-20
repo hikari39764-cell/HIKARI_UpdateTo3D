@@ -1,8 +1,8 @@
 #include "Editor/HIKARI_DocumentSceneEditorController.h"
 
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
-#include "Scene/HIKARI_GameObject.h"
-#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Runtime/Core/HIKARI_GameObject.h"
+#include "Runtime/Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 #if defined(_DEBUG)

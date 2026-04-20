@@ -3,8 +3,8 @@
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
-#include "Scene/HIKARI_RuntimeSceneContext.h"
-#include "Scene/HIKARI_SceneTransitionBus.h"
+#include "Runtime/Scene/HIKARI_RuntimeSceneContext.h"
+#include "Runtime/Scene/HIKARI_SceneTransitionBus.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
