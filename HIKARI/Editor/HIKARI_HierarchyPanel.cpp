@@ -1,7 +1,7 @@
 #include "HIKARI_HierarchyPanel.h"
 #include "HIKARI_EditorSelection.h"
-#include "Scene/HIKARI_GameObject.h"
-#include "Scene/HIKARI_World.h"
+#include "Runtime/Core/HIKARI_GameObject.h"
+#include "Runtime/Core/HIKARI_World.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif

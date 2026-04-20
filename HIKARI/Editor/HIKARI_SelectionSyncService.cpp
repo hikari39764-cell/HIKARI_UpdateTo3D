@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "HIKARI_EditorContext.h"
-#include "Scene/HIKARI_GameObject.h"
+#include "Runtime/Core/HIKARI_GameObject.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 #undef max

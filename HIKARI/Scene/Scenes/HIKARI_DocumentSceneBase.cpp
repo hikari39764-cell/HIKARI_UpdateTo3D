@@ -1,6 +1,7 @@
 #include "HIKARI_DocumentSceneBase.h"
 
 #include <filesystem>
+#include <memory>
 #include <utility>
 #include <numbers>
 
@@ -8,18 +9,18 @@
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
-#include "Scene/Components/HIKARI_DoorTransitionComponent.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
-#include "Scene/Components/HIKARI_SpawnPointComponent.h"
-#include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
-#include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
+#include "Runtime/Components/HIKARI_DoorTransitionComponent.h"
+#include "Runtime/Components/HIKARI_SpawnPointComponent.h"
+#include "Runtime/Components/HIKARI_TriggerVolumeComponent.h"
+#include "Runtime/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/Runtime/HIKARI_VfxAsset.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
-#include "Scene/Components/HIKARI_ComponentLinkComponent.h"
-#include "Scene/Components/HIKARI_VfxPlayerComponent.h"
-#include "Scene/HIKARI_RuntimeSceneContext.h"
+#include "Runtime/Components/HIKARI_ComponentLinkComponent.h"
+#include "Runtime/Components/HIKARI_VfxPlayerComponent.h"
+#include "Runtime/Scene/HIKARI_RuntimeSceneContext.h"
+#include "Runtime/Systems/HIKARI_RenderSubmissionSystem.h"
 
 namespace HIKARI {
 
@@ -38,17 +39,29 @@ namespace HIKARI {
         VFX::SetAssetRegistry(&assetRegistry_);
         ReloadSceneDocument();
         RebuildRuntimeWorld();
+        systemScheduler_.Register(std::make_unique<RenderSubmissionSystem>());
+        systemScheduler_.AttachWorld(&world_);
     }
 
     void DocumentSceneBase::OnExit() {
+        systemScheduler_.DetachWorld();
         RuntimeSceneContext::SetCurrentWorld(nullptr);
     }
 
     void DocumentSceneBase::Update(float dt) {
+        frameContext_.rawDt = dt;
+        frameContext_.unscaledDt = dt;
+        frameContext_.gameDt = dt * frameContext_.gameTimeScale;
+        ++frameContext_.frameIndex;
+
         if (UseDebugCamera()) {
             debugCamera_.Update(dt, camera_);
         }
+
+        systemScheduler_.PreUpdate(frameContext_);
         world_.Update(dt);
+        systemScheduler_.Update(frameContext_);
+        systemScheduler_.LateUpdate(frameContext_);
     }
 
     void DocumentSceneBase::Render() {
@@ -81,30 +94,9 @@ namespace HIKARI {
         }
 
         world_.Render();
-
-        for (const auto& object : world_.GetObjects()) {
-            if (const ModelComponent* model = object->GetComponent<ModelComponent>()) {
-                if (!model->IsVisible()) {
-                    continue;
-                }
-
-                const ModelAsset* asset = model->GetAsset();
-                if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
-                    MESHRENDERER::SubmitStaticMesh(*asset,
-                        object->Transform(),
-                        model->GetMaterialFxProfileId(),
-                        model->GetPostGroupMask(),
-                        model->GetMaterialFxParamValues(),
-                        model->AreMaterialFxValuesInitialized());
-                } else {
-                    RENDERER3D::WireCube cube{};
-                    cube.transform = object->Transform();
-                    cube.size = 1.0f;
-                    cube.rgba = 0x66CCFFFF;
-                    RENDERER3D::SubmitWireCube(cube);
-                }
-            }
-        }
+        systemScheduler_.PreRender(frameContext_);
+        systemScheduler_.Render(frameContext_);
+        systemScheduler_.PostRender(frameContext_);
 
         SceneEnvironment activeEnvironment = environment_;
         activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);

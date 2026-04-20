@@ -9,7 +9,7 @@
 #include "Vfx/Post/HIKARI_PostCommon.h"
 #include "Vfx/Post/HIKARI_PostChain.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
-#include "Scene/HIKARI_SceneTransitionBus.h"
+#include "Runtime/Scene/HIKARI_SceneTransitionBus.h"
 #include "Vfx/Transition/HIKARI_TransitionProfile.h"
 #include "Gfx/HIKARI_GfxContext.h"
 
