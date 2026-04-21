@@ -1,4 +1,4 @@
-#include "HIKARI_DynamicUploadBuffer.h"
+﻿#include "HIKARI_DynamicUploadBuffer.h"
 #include <cassert>
 #include <d3dx12.h>
 
@@ -39,7 +39,7 @@ void* DynamicUploadBuffer::Allocate(size_t size, D3D12_GPU_VIRTUAL_ADDRESS& gpuA
     size_t aligned = Align256(size);
 
     if (offset_ + aligned > bufferSize_) {
-        offset_ = 0; // �ػ�
+        offset_ = 0; // ｻﾘｻｷ
     }
 
     void* cpuAddr = cpuBase_ + offset_;

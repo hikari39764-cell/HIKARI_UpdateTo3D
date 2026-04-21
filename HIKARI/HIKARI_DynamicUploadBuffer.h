@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d12.h>
 #include <wrl.h>
 #include <cstdint>
@@ -11,15 +11,15 @@ namespace HIKARI {
             DynamicUploadBuffer();
             ~DynamicUploadBuffer();
 
-            // ³õÊ¼»¯ upload heap, size ÐèÒª 256 ¶ÔÆë
+
             void Init(ID3D12Device* device, size_t bufferSize);
 
-            // Ã¿´ÎÉêÇëÒ»¶Î¿Õ¼ä£¬×Ô¶¯±£Ö¤ 256 ¶ÔÆë
+   
             void* Allocate(size_t size, D3D12_GPU_VIRTUAL_ADDRESS& gpuAddress);
 
             void Finalize();
 
-            // Ã¿Ö¡¿ªÊ¼Ê±µ÷ÓÃ
+
             void Reset();
 
         private:

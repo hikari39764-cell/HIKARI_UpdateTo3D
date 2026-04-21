@@ -658,8 +658,8 @@ Attachment *SkeletonBinary::readAttachment(DataInput *input, Skin *skin, int slo
 			mesh->_sequence = sequence;
 			if (nonessential) {
 				mesh->_edges.addAll(edges);
-				mesh->_width = width;
-				mesh->_height = height;
+				mesh->_width = static_cast<int>(width);
+				mesh->_height = static_cast<int>(height);
 			}
 			_attachmentLoader->configureAttachment(mesh);
 			return mesh;
@@ -687,8 +687,8 @@ Attachment *SkeletonBinary::readAttachment(DataInput *input, Skin *skin, int slo
 			mesh->_color.set(color);
 			mesh->_sequence = sequence;
 			if (nonessential) {
-				mesh->_width = width;
-				mesh->_height = height;
+				mesh->_width = static_cast<int>(width);
+				mesh->_height = static_cast<int>(height);
 			}
 
 			LinkedMesh *linkedMesh = new (__FILE__, __LINE__) LinkedMesh(mesh, skinIndex, slotIndex,
@@ -805,7 +805,7 @@ void SkeletonBinary::setBezier(DataInput *input, CurveTimeline *timeline, int be
 	float cy1 = readFloat(input);
 	float cx2 = readFloat(input);
 	float cy2 = readFloat(input);
-	timeline->setBezier(bezier, frame, value, time1, value1, cx1, cy1 * scale, cx2, cy2 * scale, time2, value2);
+	timeline->setBezier(bezier, frame, static_cast<float>(value), time1, value1, cx1, cy1 * scale, cx2, cy2 * scale, time2, value2);
 }
 
 void SkeletonBinary::readTimeline(DataInput *input, Vector<Timeline *> &timelines, CurveTimeline1 *timeline, float scale) {
@@ -882,20 +882,20 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 					RGBATimeline *timeline = new (__FILE__, __LINE__) RGBATimeline(frameCount, bezierCount, slotIndex);
 
 					float time = readFloat(input);
-					float r = readByte(input) / 255.0;
-					float g = readByte(input) / 255.0;
-					float b = readByte(input) / 255.0;
-					float a = readByte(input) / 255.0;
+					float r = readByte(input) / 255.0f;
+					float g = readByte(input) / 255.0f;
+					float b = readByte(input) / 255.0f;
+					float a = readByte(input) / 255.0f;
 
 					for (int frame = 0, bezier = 0;; frame++) {
 						timeline->setFrame(frame, time, r, g, b, a);
 						if (frame == frameLast) break;
 
 						float time2 = readFloat(input);
-						float r2 = readByte(input) / 255.0;
-						float g2 = readByte(input) / 255.0;
-						float b2 = readByte(input) / 255.0;
-						float a2 = readByte(input) / 255.0;
+						float r2 = readByte(input) / 255.0f;
+						float g2 = readByte(input) / 255.0f;
+						float b2 = readByte(input) / 255.0f;
+						float a2 = readByte(input) / 255.0f;
 
 						switch (readSByte(input)) {
 							case CURVE_STEPPED:
@@ -921,18 +921,18 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 					RGBTimeline *timeline = new (__FILE__, __LINE__) RGBTimeline(frameCount, bezierCount, slotIndex);
 
 					float time = readFloat(input);
-					float r = readByte(input) / 255.0;
-					float g = readByte(input) / 255.0;
-					float b = readByte(input) / 255.0;
+					float r = readByte(input) / 255.0f;
+					float g = readByte(input) / 255.0f;
+					float b = readByte(input) / 255.0f;
 
 					for (int frame = 0, bezier = 0;; frame++) {
 						timeline->setFrame(frame, time, r, g, b);
 						if (frame == frameLast) break;
 
 						float time2 = readFloat(input);
-						float r2 = readByte(input) / 255.0;
-						float g2 = readByte(input) / 255.0;
-						float b2 = readByte(input) / 255.0;
+						float r2 = readByte(input) / 255.0f;
+						float g2 = readByte(input) / 255.0f;
+						float b2 = readByte(input) / 255.0f;
 
 						switch (readSByte(input)) {
 							case CURVE_STEPPED:
@@ -956,25 +956,25 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 					RGBA2Timeline *timeline = new (__FILE__, __LINE__) RGBA2Timeline(frameCount, bezierCount, slotIndex);
 
 					float time = readFloat(input);
-					float r = readByte(input) / 255.0;
-					float g = readByte(input) / 255.0;
-					float b = readByte(input) / 255.0;
-					float a = readByte(input) / 255.0;
-					float r2 = readByte(input) / 255.0;
-					float g2 = readByte(input) / 255.0;
-					float b2 = readByte(input) / 255.0;
+					float r = readByte(input) / 255.0f;
+					float g = readByte(input) / 255.0f;
+					float b = readByte(input) / 255.0f;
+					float a = readByte(input) / 255.0f;
+					float r2 = readByte(input) / 255.0f;
+					float g2 = readByte(input) / 255.0f;
+					float b2 = readByte(input) / 255.0f;
 
 					for (int frame = 0, bezier = 0;; frame++) {
 						timeline->setFrame(frame, time, r, g, b, a, r2, g2, b2);
 						if (frame == frameLast) break;
 						float time2 = readFloat(input);
-						float nr = readByte(input) / 255.0;
-						float ng = readByte(input) / 255.0;
-						float nb = readByte(input) / 255.0;
-						float na = readByte(input) / 255.0;
-						float nr2 = readByte(input) / 255.0;
-						float ng2 = readByte(input) / 255.0;
-						float nb2 = readByte(input) / 255.0;
+						float nr = readByte(input) / 255.0f;
+						float ng = readByte(input) / 255.0f;
+						float nb = readByte(input) / 255.0f;
+						float na = readByte(input) / 255.0f;
+						float nr2 = readByte(input) / 255.0f;
+						float ng2 = readByte(input) / 255.0f;
+						float nb2 = readByte(input) / 255.0f;
 
 						switch (readSByte(input)) {
 							case CURVE_STEPPED:
@@ -1006,23 +1006,23 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 					RGB2Timeline *timeline = new (__FILE__, __LINE__) RGB2Timeline(frameCount, bezierCount, slotIndex);
 
 					float time = readFloat(input);
-					float r = readByte(input) / 255.0;
-					float g = readByte(input) / 255.0;
-					float b = readByte(input) / 255.0;
-					float r2 = readByte(input) / 255.0;
-					float g2 = readByte(input) / 255.0;
-					float b2 = readByte(input) / 255.0;
+					float r = readByte(input) / 255.0f;
+					float g = readByte(input) / 255.0f;
+					float b = readByte(input) / 255.0f;
+					float r2 = readByte(input) / 255.0f;
+					float g2 = readByte(input) / 255.0f;
+					float b2 = readByte(input) / 255.0f;
 
 					for (int frame = 0, bezier = 0;; frame++) {
 						timeline->setFrame(frame, time, r, g, b, r2, g2, b2);
 						if (frame == frameLast) break;
 						float time2 = readFloat(input);
-						float nr = readByte(input) / 255.0;
-						float ng = readByte(input) / 255.0;
-						float nb = readByte(input) / 255.0;
-						float nr2 = readByte(input) / 255.0;
-						float ng2 = readByte(input) / 255.0;
-						float nb2 = readByte(input) / 255.0;
+						float nr = readByte(input) / 255.0f;
+						float ng = readByte(input) / 255.0f;
+						float nb = readByte(input) / 255.0f;
+						float nr2 = readByte(input) / 255.0f;
+						float ng2 = readByte(input) / 255.0f;
+						float nb2 = readByte(input) / 255.0f;
 
 						switch (readSByte(input)) {
 							case CURVE_STEPPED:
@@ -1051,12 +1051,12 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 					int bezierCount = readVarint(input, true);
 					AlphaTimeline *timeline = new (__FILE__, __LINE__) AlphaTimeline(frameCount, bezierCount, slotIndex);
 					float time = readFloat(input);
-					float a = readByte(input) / 255.0;
+					float a = readByte(input) / 255.0f;
 					for (int frame = 0, bezier = 0;; frame++) {
 						timeline->setFrame(frame, time, a);
 						if (frame == frameLast) break;
 						float time2 = readFloat(input);
-						float a2 = readByte(input) / 255.0;
+						float a2 = readByte(input) / 255.0f;
 						switch (readSByte(input)) {
 							case CURVE_STEPPED:
 								timeline->setStepped(frame);

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <cstddef>
 #include <optional>
@@ -12,8 +12,8 @@ namespace HIKARI {
         std::string profileId{};
         float progress = 0.0f;
         bool isTransitionIn = false;
-        float outDuration = 0.0f; // ’Ç‰Á: outDuration ƒƒ“ƒo[
-        float inDuration = 0.0f;  // ’Ç‰Á: inDuration ƒƒ“ƒo[i•K—v‚É‰‚¶‚Äj
+        float outDuration = 0.0f; // è¿½åŠ : outDuration ãƒ¡ãƒ³ãƒãƒ¼
+        float inDuration = 0.0f;  // è¿½åŠ : inDuration ãƒ¡ãƒ³ãƒãƒ¼ï¼ˆå¿…è¦ã«å¿œã˜ã¦ï¼‰
     };
 
     class SceneCatalog;

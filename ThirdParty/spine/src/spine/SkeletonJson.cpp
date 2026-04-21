@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Spine Runtimes License Agreement
  * Last updated April 5, 2025. Replaces all prior versions.
  *
@@ -664,8 +664,8 @@ SkeletonData *SkeletonJson::readSkeletonData(const char *json) {
 								color = Json::getString(attachmentMap, "color", 0);
 								if (color) toColor(mesh->getColor(), color, true);
 
-								mesh->_width = Json::getFloat(attachmentMap, "width", 32) * _scale;
-								mesh->_height = Json::getFloat(attachmentMap, "height", 32) * _scale;
+								mesh->_width =  static_cast<int>(Json::getFloat(attachmentMap, "width", 32) *_scale);
+								mesh->_height = static_cast<int>(Json::getFloat(attachmentMap, "height", 32) * _scale);
 								mesh->_sequence = sequence;
 
 								entry = Json::getItem(attachmentMap, "parent");
@@ -865,7 +865,7 @@ Sequence *SkeletonJson::readSequence(Json *item) {
 void SkeletonJson::setBezier(CurveTimeline *timeline, int frame, int value, int bezier, float time1, float value1, float cx1,
 							 float cy1,
 							 float cx2, float cy2, float time2, float value2) {
-	timeline->setBezier(bezier, frame, value, time1, value1, cx1, cy1, cx2, cy2, time2, value2);
+	timeline->setBezier(bezier, frame, static_cast<float>(value), time1, value1, cx1, cy1, cx2, cy2, time2, value2);
 }
 
 int SkeletonJson::readCurve(Json *curve, CurveTimeline *timeline, int bezier, int frame, int value, float time1,

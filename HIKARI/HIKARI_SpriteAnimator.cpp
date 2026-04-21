@@ -1,4 +1,4 @@
-#include "HIKARI_SpriteAnimator.h"
+ï»¿#include "HIKARI_SpriteAnimator.h"
 
 namespace HIKARI {
     namespace ANIM {
@@ -34,7 +34,7 @@ namespace HIKARI {
 
             if (newFrame >= desc_.totalFrames) {
                 if (desc_.loop) {
-                    // ƒ‹[ƒvÄ¶
+                    // ãƒ«ãƒ¼ãƒ—å†ç”Ÿ
                     int loopFrames = desc_.totalFrames;
                     if (loopFrames > 0) {
                         newFrame = newFrame % loopFrames;
@@ -43,7 +43,7 @@ namespace HIKARI {
                     }
                     finished_ = false;
                 } else {
-                    // ˆê‰ñ‚«‚èÄ¶
+                    // ä¸€å›ãã‚Šå†ç”Ÿ
                     newFrame = desc_.totalFrames - 1;
                     playing_ = false;
                     finished_ = true;

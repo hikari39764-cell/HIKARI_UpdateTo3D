@@ -56,9 +56,9 @@ SequenceTimeline::~SequenceTimeline() {
 void SequenceTimeline::setFrame(int frame, float time, SequenceMode mode, int index, float delay) {
 	Vector<float> &frames = this->_frames;
 	frame *= ENTRIES;
-	frames[frame] = time;
-	frames[frame + MODE] = mode | (index << 4);
-	frames[frame + DELAY] = delay;
+	frames[static_cast<size_t>(frame)] = time;
+	frames[static_cast<size_t>(frame) + MODE] = static_cast<float>(mode | (index << 4));
+	frames[static_cast<size_t>(frame) + DELAY] = delay;
 }
 
 void SequenceTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents,

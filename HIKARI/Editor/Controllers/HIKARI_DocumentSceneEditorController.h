@@ -11,6 +11,7 @@
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
 #include "Editor/HIKARI_DocumentToolbarController.h"
+#include "Editor/HIKARI_TimePanel.h"
 
 namespace HIKARI {
 
@@ -29,6 +30,7 @@ namespace HIKARI {
         SceneObjectAuthoringPanel sceneObjectAuthoringPanel_{};
 
         HierarchyPanel hierarchyPanel_{};
+        TimePanel timePanel_{};
         InspectorPanel inspectorPanel_{};
         AssetBrowserPanel assetBrowserPanel_{};
         StatsPanel statsPanel_{};

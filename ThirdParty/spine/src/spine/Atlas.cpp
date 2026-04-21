@@ -182,7 +182,8 @@ struct AtlasInput {
 	int length;
 	SimpleString line;
 
-	AtlasInput(const char *data, int length) : start(data), end(data + length), index((char *) data), length(length) {}
+	AtlasInput(const char *data, int length)
+		: start(data), end(data + length), index((char *)data), length(length), line{nullptr, nullptr, 0} {}
 
 	SimpleString *readLine() {
 		if (index >= end) return 0;
@@ -305,16 +306,16 @@ void Atlas::load(const char *begin, int length, const char *dir, bool createText
 					region->width = entry[3].toInt();
 					region->height = entry[4].toInt();
 				} else if (entry[0].equals("offset")) {
-					region->offsetX = entry[1].toInt();
-					region->offsetY = entry[2].toInt();
+					region->offsetX = static_cast<float>(entry[1].toInt());
+					region->offsetY = static_cast<float>(entry[2].toInt());
 				} else if (entry[0].equals("orig")) {
-					region->originalWidth = entry[1].toInt();
-					region->originalHeight = entry[2].toInt();
+					region->originalWidth = static_cast<int>(entry[1].toInt());
+					region->originalHeight = static_cast<int>(entry[2].toInt());
 				} else if (entry[0].equals("offsets")) {
-					region->offsetX = entry[1].toInt();
-					region->offsetY = entry[2].toInt();
-					region->originalWidth = entry[3].toInt();
-					region->originalHeight = entry[4].toInt();
+					region->offsetX = static_cast<float>(entry[1].toInt());
+					region->offsetY = static_cast<float>(entry[2].toInt());
+					region->originalWidth = static_cast<int>(entry[3].toInt());
+					region->originalHeight = static_cast<int>(entry[4].toInt());
 				} else if (entry[0].equals("rotate")) {
 					if (entry[1].equals("true")) {
 						region->degrees = 90;
@@ -326,7 +327,7 @@ void Atlas::load(const char *begin, int length, const char *dir, bool createText
 				} else {
 					region->names.add(String(entry[0].copy()));
 					for (int i = 0; i < count; i++) {
-						region->values.add(entry[i + 1].toInt());
+						region->values.add(static_cast<float>(entry[i + 1].toInt()));
 					}
 				}
 			}

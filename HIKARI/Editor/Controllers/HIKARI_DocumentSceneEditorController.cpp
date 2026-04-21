@@ -121,6 +121,11 @@ namespace HIKARI {
                 selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
                 ImGui::EndTabItem();
             }
+            if (ImGui::BeginTabItem("Time")){
+                timePanel_.DrawContents();
+                ImGui::EndTabItem();
+            }
+
             ImGui::EndTabBar();
         }
 

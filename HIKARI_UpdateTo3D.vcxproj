@@ -57,14 +57,14 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <TreatWarningAsError>false</TreatWarningAsError>
+      <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -73,6 +73,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);C:\KamataEngine\External\DirectXTex\lib\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -102,6 +103,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="External\WICTextureLoader.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Anim.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Bgm.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp" />
@@ -302,6 +304,7 @@
     <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
     <ClInclude Include="External\WICTextureLoader.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />
     <ClInclude Include="HIKARI\HIKARI_Core.h" />
     <ClInclude Include="HIKARI\HIKARI_Services.h" />

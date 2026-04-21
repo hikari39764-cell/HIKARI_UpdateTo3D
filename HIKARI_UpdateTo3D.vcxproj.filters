@@ -747,6 +747,10 @@
     <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
       <Filter>Source Files\Legacy</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp" />
+    <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\DirectXGame\3d\Camera.h">
@@ -1211,6 +1215,12 @@
     <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
       <Filter>Header Files\Legacy</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">

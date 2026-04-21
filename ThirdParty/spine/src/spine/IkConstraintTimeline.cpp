@@ -114,7 +114,7 @@ void IkConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time,
 			constraint._compress = constraint._data._compress;
 			constraint._stretch = constraint._data._stretch;
 		} else {
-			constraint._bendDirection = _frames[i + IkConstraintTimeline::BEND_DIRECTION];
+			constraint._bendDirection = static_cast<int>(_frames[i + IkConstraintTimeline::BEND_DIRECTION]);
 			constraint._compress = _frames[i + IkConstraintTimeline::COMPRESS] != 0;
 			constraint._stretch = _frames[i + IkConstraintTimeline::STRETCH] != 0;
 		}
@@ -122,7 +122,7 @@ void IkConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time,
 		constraint._mix += (mix - constraint._mix) * alpha;
 		constraint._softness += (softness - constraint._softness) * alpha;
 		if (direction == MixDirection_In) {
-			constraint._bendDirection = _frames[i + IkConstraintTimeline::BEND_DIRECTION];
+			constraint._bendDirection = static_cast<int>(_frames[i + IkConstraintTimeline::BEND_DIRECTION]);
 			constraint._compress = _frames[i + IkConstraintTimeline::COMPRESS] != 0;
 			constraint._stretch = _frames[i + IkConstraintTimeline::STRETCH] != 0;
 		}
@@ -132,10 +132,10 @@ void IkConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time,
 void IkConstraintTimeline::setFrame(int frame, float time, float mix, float softness, int bendDirection, bool compress,
 									bool stretch) {
 	frame *= ENTRIES;
-	_frames[frame] = time;
-	_frames[frame + MIX] = mix;
-	_frames[frame + SOFTNESS] = softness;
-	_frames[frame + BEND_DIRECTION] = (float) bendDirection;
-	_frames[frame + COMPRESS] = compress ? 1 : 0;
-	_frames[frame + STRETCH] = stretch ? 1 : 0;
+	_frames[static_cast<size_t>(frame)] = time;
+	_frames[static_cast<size_t>(frame) + MIX] = mix;
+	_frames[static_cast<size_t>(frame) + SOFTNESS] = softness;
+	_frames[static_cast<size_t>(frame) + BEND_DIRECTION] = (float) bendDirection;
+	_frames[static_cast<size_t>(frame) + COMPRESS] = static_cast<float>(compress ? 1 : 0);
+	_frames[static_cast<size_t>(frame) + STRETCH] = static_cast<float>(stretch ? 1 : 0);
 }

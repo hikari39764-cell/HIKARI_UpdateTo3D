@@ -4,11 +4,21 @@
 
 namespace HIKARI {
 
-class RenderSubmissionSystem final : public ISystem {
-public:
-    std::string_view GetName() const override { return "RenderSubmissionSystem"; }
+    struct RenderSubmissionDebugStats {
+        int submittedModelCount = 0;
+        int fallbackWireCount = 0;
+    };
 
-    void PreRender(World& world, const FrameContext& frame) override;
-};
+    class RenderSubmissionSystem final : public ISystem {
+    public:
+        std::string_view GetName() const override { return "RenderSubmissionSystem"; }
+
+        void PreRender(World& world, const FrameContext& frame) override;
+
+        static const RenderSubmissionDebugStats& GetDebugStats();
+
+    private:
+        static RenderSubmissionDebugStats sDebugStats_;
+    };
 
 } // namespace HIKARI

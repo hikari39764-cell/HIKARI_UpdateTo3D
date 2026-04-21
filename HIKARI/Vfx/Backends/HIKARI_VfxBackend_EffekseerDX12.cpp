@@ -105,9 +105,14 @@ void UpdateContext(const GFX::Context& ctx) {
 }
 
 void BeginFrame(float dt) {
-    if (!gInitialized || gManager == nullptr) return;
+    if (!gInitialized || gManager == nullptr) {
+        return;
+    }
+
     gTime += dt;
+
     Effekseer::Manager::UpdateParameter p{};
+    p.DeltaFrame = dt * 60.0f;
     gManager->Update(p);
 
     for (auto it = gInstanceMap.begin(); it != gInstanceMap.end();) {
