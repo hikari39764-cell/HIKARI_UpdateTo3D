@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
-
+#include "HIKARI_2D.h"
+#include <HIKARI.h>
 namespace HIKARI {
 
     class SandboxScene final : public DocumentSceneBase {
@@ -17,6 +18,8 @@ namespace HIKARI {
 
     private:
         bool DrawDebugHelpers() const override { return true; }
+        HIKARI::SpineActor op;
+
     };
 
 } // namespace HIKARI

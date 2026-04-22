@@ -14,7 +14,7 @@ namespace HIKARI {
     void SandboxScene::OnEnter()
     {
         DocumentSceneBase::OnEnter();
-        VFX::LoadEffect("Laser01");
+        VFX::LoadEffect("sword");
     }
 
     void SandboxScene::Update(float dt)
@@ -22,7 +22,7 @@ namespace HIKARI {
         DocumentSceneBase::Update(dt);
 
         if (HINPUT::IsPressed("PlayTestVfx")) {
-            VFX::Play("Laser01");
+            VFX::Play("sword");
         }
     }
 

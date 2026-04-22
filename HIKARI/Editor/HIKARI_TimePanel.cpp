@@ -39,8 +39,8 @@ namespace HIKARI {
             TIME::SetGameTimeScale(1.0f);
         }
 
-        if (ImGui::Button("TimeScale 0.2")) {
-            TIME::SetGameTimeScale(0.2f);
+        if (ImGui::Button("TimeScale 0.1")) {
+            TIME::SetGameTimeScale(0.1f);
         }
         ImGui::SameLine();
         if (ImGui::Button("TimeScale 2.0")) {

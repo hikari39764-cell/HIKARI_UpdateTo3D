@@ -75,6 +75,7 @@ bool Initialize(const GFX::Context& ctx) {
     gManager->SetMaterialLoader(gRenderer->CreateMaterialLoader());
     gManager->SetCurveLoader(Effekseer::MakeRefPtr<Effekseer::CurveLoader>());
     gManager->SetCoordinateSystem(Effekseer::CoordinateSystem::RH);
+    
 
     gInitialized = true;
     return true;
