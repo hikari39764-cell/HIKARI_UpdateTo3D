@@ -6,18 +6,23 @@ namespace HIKARI {
     void TextureLoader_Kamata::load(spine::AtlasPage& page, const spine::String& path) {
         const std::string p = path.buffer();
 
-        int handle = HIKARI::DXTEX::DxTextureManager::LoadTexture(p, p);
-        if (handle < 0) {
+        const uint32_t gpuTextureId = HIKARI::GpuResources::LoadTexture(p, p);
+        if (gpuTextureId == 0) {
             return;
         }
 
         // 查询纹理尺寸
         UINT w = 0, h = 0;
-        HIKARI::DXTEX::DxTextureManager::GetTextureSize(handle, w, h);
+        uint32_t w32 = 0;
+        uint32_t h32 = 0;
+        HIKARI::GpuResources::GetTextureSize(gpuTextureId, w32, h32);
+        w = static_cast<UINT>(w32);
+        h = static_cast<UINT>(h32);
 
         // 创建扩展信息
         SpineTexture* tex = new SpineTexture{};
-        tex->handle = handle;
+        tex->gpuResourceId = gpuTextureId;
+        tex->legacyHandle = static_cast<int>(gpuTextureId) - 1;
         tex->width = static_cast<int>(w);
         tex->height = static_cast<int>(h);
 

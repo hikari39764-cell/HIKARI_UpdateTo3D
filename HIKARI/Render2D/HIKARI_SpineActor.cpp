@@ -111,7 +111,7 @@ namespace HIKARI {
             int texHandle = -1;
             if (cmd->texture) {
                 SpineTexture* tex = static_cast<SpineTexture*>(cmd->texture);
-                texHandle = tex->handle;
+                texHandle = tex->legacyHandle;
             }
             if (texHandle < 0) continue;
 

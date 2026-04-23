@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 
 #include "HIKARI_IComponent.h"
+#include "Assets/HIKARI_Assets.h"
 
 namespace HIKARI {
 
@@ -14,6 +15,8 @@ namespace HIKARI {
         std::string_view GetTypeName() const override { return "ModelComponent"; }
 
         void SetAsset(ModelAsset* asset);
+        void SetModelHandle(ASSET::AssetHandle<ASSET::ModelAsset> handle);
+        ASSET::AssetHandle<ASSET::ModelAsset> GetModelHandle() const;
         ModelAsset* GetAsset();
         const ModelAsset* GetAsset() const;
 
@@ -45,6 +48,7 @@ namespace HIKARI {
 
     private:
         ModelAsset* asset_ = nullptr;
+        ASSET::AssetHandle<ASSET::ModelAsset> modelHandle_{};
         std::string assetId_{};
         bool visible_ = true;
         uint32_t postGroupMask_ = 0;

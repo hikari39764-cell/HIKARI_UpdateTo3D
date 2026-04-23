@@ -111,6 +111,7 @@ namespace HIKARI {
         if (asset_) {
             assetId_ = asset_->GetName();
         }
+        modelHandle_ = {};
     }
 
     ModelAsset* ModelComponent::GetAsset() {
@@ -119,6 +120,15 @@ namespace HIKARI {
 
     const ModelAsset* ModelComponent::GetAsset() const {
         return asset_;
+    }
+
+
+    void ModelComponent::SetModelHandle(ASSET::AssetHandle<ASSET::ModelAsset> handle) {
+        modelHandle_ = handle;
+    }
+
+    ASSET::AssetHandle<ASSET::ModelAsset> ModelComponent::GetModelHandle() const {
+        return modelHandle_;
     }
 
     void ModelComponent::SetVisible(bool visible) {
@@ -320,6 +330,7 @@ namespace HIKARI {
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
         out["assetId"] = assetId_;
+        out["model"] = assetId_;
         out["visible"] = visible_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
@@ -332,6 +343,9 @@ namespace HIKARI {
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
         assetId_ = in.value("assetId", assetId_);
+        if (assetId_.empty()) {
+            assetId_ = in.value("model", std::string{});
+        }
         visible_ = in.value("visible", visible_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);

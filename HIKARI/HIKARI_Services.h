@@ -11,7 +11,6 @@
 #include "Core/HIKARI_TimeService.h"
 #include "HIKARI_Particle.h"
 #include "HIKARI_SpriteAnimator.h"
-#include "HIKARI_MultiTextureAnimator.h"
 #include "HIKARI_ParticleLab.h"
 #include "HIKARI_Collision.h"
 #include "HIKARI_CollisionWorld.h"
