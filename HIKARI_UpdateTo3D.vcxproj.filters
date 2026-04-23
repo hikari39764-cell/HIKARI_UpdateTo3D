@@ -372,14 +372,8 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
@@ -387,20 +381,11 @@
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
       <Filter>Source Files\Scene\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
-      <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
       <Filter>Source Files\Assets</Filter>
@@ -479,18 +464,6 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.cpp">
       <Filter>Source Files\Scene\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp">
-      <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp">
       <Filter>Source Files\App</Filter>
@@ -747,10 +720,39 @@
     <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
       <Filter>Source Files\Legacy</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\DirectXGame\3d\Camera.h">
@@ -957,19 +959,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h">
@@ -1001,9 +991,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h">
       <Filter>Header Files\Scene\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
-      <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h">
       <Filter>Header Files\Editor</Filter>
@@ -1060,12 +1047,6 @@
       <Filter>Header Files\Editor\Inspectors</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugMenuBar.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
@@ -1215,12 +1196,35 @@
     <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
       <Filter>Header Files\Legacy</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">

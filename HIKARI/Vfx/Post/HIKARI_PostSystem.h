@@ -40,7 +40,7 @@ namespace HIKARI {
             static void BeginSceneCapture();
             static void EndSceneCaptureAndPresent(); // 这里会自动应用光照合成
 
-            // --- 光照系统 (新增) ---
+            // --- 光照系统  ---
             // 设置环境光颜色 (R,G,B), 0.0=全黑, 1.0=全亮
             static void SetAmbientColor(float r, float g, float b);
 

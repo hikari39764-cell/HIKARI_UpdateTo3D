@@ -143,7 +143,7 @@ namespace {
 
             Vector2 a = TransformPoint(cmd.p0, m);
             Vector2 b = TransformPoint(cmd.p1, m);
-            HIKARI::DX::DxRenderer::DrawLine((int)a.x, (int)a.y, (int)b.x, (int)b.y, cmd.rgba);
+            HIKARI::DX::DxRenderer::DrawLine((float)a.x, (float)a.y, (float)b.x, (float)b.y, cmd.rgba);
             break;
         }
         case CommandType::Box:

@@ -50,7 +50,7 @@ namespace HIKARI {
             // 混合管线
             Microsoft::WRL::ComPtr<ID3D12PipelineState> psoBlendAlpha_;
             Microsoft::WRL::ComPtr<ID3D12PipelineState> psoBlendAdd_;
-            Microsoft::WRL::ComPtr<ID3D12PipelineState> psoBlendMultiply_; // [新增]
+            Microsoft::WRL::ComPtr<ID3D12PipelineState> psoBlendMultiply_; 
 
             ID3DBlob* currentPostPS_ = nullptr;
             ID3D12DescriptorHeap* currentSrvHeap_ = nullptr;

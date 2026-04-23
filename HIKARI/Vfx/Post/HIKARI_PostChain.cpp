@@ -42,21 +42,44 @@ namespace HIKARI {
             if (!tempsInitialized_ || ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
                 ping_.UpdateContext(context_);
                 pong_.UpdateContext(context_);
-                const bool okPing = ping_.Init(w, h);
-                const bool okPong = pong_.Init(w, h);
+                const bool okPing = ping_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    false,
+                    { 0.0f, 0.0f, 0.0f, 0.0f }
+                );
+
+                const bool okPong = pong_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    false,
+                    { 0.0f, 0.0f, 0.0f, 0.0f }
+                );
                 tempsInitialized_ = okPing && okPong;
                 return;
             }
 
+
+
             if (ping_.GetWidth() != w || ping_.GetHeight() != h) {
                 ping_.Finalize();
                 ping_.UpdateContext(context_);
-                ping_.Init(w, h);
+                ping_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    false,
+                    { 0.0f, 0.0f, 0.0f, 0.0f }
+                );
             }
             if (pong_.GetWidth() != w || pong_.GetHeight() != h) {
                 pong_.Finalize();
                 pong_.UpdateContext(context_);
-                pong_.Init(w, h);
+                pong_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    false,
+                    { 0.0f, 0.0f, 0.0f, 0.0f }
+                );
             }
         }
         void PostChain::PrepareBuffers(int w, int h)

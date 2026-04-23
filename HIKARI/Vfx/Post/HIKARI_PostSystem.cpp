@@ -1,4 +1,4 @@
-#include "HIKARI_PostSystem.h"
+﻿#include "HIKARI_PostSystem.h"
 #include "Vfx/Post/HIKARI_PostEffect.h"
 #include "HIKARI_Utility.h"
 #include <cassert>
@@ -247,15 +247,32 @@ namespace HIKARI {
             sceneRT_.UpdateContext(context_);
             lightRT_.UpdateContext(context_);
 
-            const bool sceneInvalid = (!sceneRT_.GetResource() || sceneRT_.GetWidth() != w || sceneRT_.GetHeight() != h || !sceneRT_.HasDepth());
+            const bool sceneInvalid =
+                (!sceneRT_.GetResource() ||
+                    sceneRT_.GetWidth() != w ||
+                    sceneRT_.GetHeight() != h ||
+                    !sceneRT_.HasDepth());
+
             if (sceneInvalid) {
                 sceneRT_.Finalize();
-                sceneRT_.Init(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, true);
+                sceneRT_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    true,
+                    { 0.0f, 0.0f, 0.0f, 1.0f }   // sceneRT 常用黑底不透明
+                );
             }
 
-            if (!lightRT_.GetResource() || lightRT_.GetWidth() != w || lightRT_.GetHeight() != h) {
+            if (!lightRT_.GetResource() ||
+                lightRT_.GetWidth() != w ||
+                lightRT_.GetHeight() != h) {
                 lightRT_.Finalize();
-                lightRT_.Init(w, h);
+                lightRT_.Init(
+                    w, h,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    false,
+                    { 1.0f, 1.0f, 1.0f, 1.0f }   // lightRT 默认 ambientColor 初始值就是白
+                );
             }
         }
 

@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <d3dx12.h>
+#include <array>
 #include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
@@ -15,13 +16,21 @@ namespace HIKARI {
         RenderTarget2D(const RenderTarget2D&) = delete;
         RenderTarget2D& operator=(const RenderTarget2D&) = delete;
 
-        bool Init(int width, int height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, bool withDepth = false);
+        bool Init(
+            int width,
+            int height,
+            DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            bool withDepth = false,
+            const std::array<float, 4>& optimizedClearColor = { 0.0f, 0.0f, 0.0f, 0.0f }
+        );
+
         void UpdateContext(const HIKARI::GFX::Context& ctx);
         void Finalize();
 
         void BeginCapture(float r = 0, float g = 0, float b = 0, float a = 0, float depthClear = 1.0f);
         void Rebind();
         void EndCapture();
+
         int GetWidth() const { return width_; }
         int GetHeight() const { return height_; }
         DXGI_FORMAT GetFormat() const { return format_; }
@@ -61,6 +70,8 @@ namespace HIKARI {
         bool initialized_ = false;
         bool hasDepth_ = false;
         HIKARI::GFX::Context context_{};
+
+        std::array<float, 4> optimizedClearColor_ = { 0.0f, 0.0f, 0.0f, 0.0f };
     };
 
 } // namespace HIKARI
