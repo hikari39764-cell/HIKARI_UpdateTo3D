@@ -129,7 +129,7 @@ namespace HIKARI {
         out["localOffset"] = { { "x", localOffset_.x }, { "y", localOffset_.y }, { "z", localOffset_.z } };
         out["localEulerOffset"] = { { "x", localEulerOffset_.x }, { "y", localEulerOffset_.y }, { "z", localEulerOffset_.z } };
         out["localScale"] = { { "x", localScale_.x }, { "y", localScale_.y }, { "z", localScale_.z } };
-        out["localScaleUniform"] = localScaleUniform_;
+		out["localScaleUniform"] = localScaleUniform_;
 
         out["slots"] = nlohmann::json::array();
         for (const VfxSlot& slot : slots_) {
@@ -162,7 +162,7 @@ namespace HIKARI {
         if (in.contains("localOffset")) readVec3(in["localOffset"], localOffset_);
         if (in.contains("localEulerOffset")) readVec3(in["localEulerOffset"], localEulerOffset_);
         if (in.contains("localScale")) readVec3(in["localScale"], localScale_);
-		localScaleUniform_ = in.value("localScaleUniform", localScaleUniform_);
+        if (in.contains("localScaleUniform")) localScaleUniform_ = in.value("localScaleUniform", localScaleUniform_);
 
         if (in.contains("slots") && in["slots"].is_array()) {
             slots_.clear();
@@ -210,7 +210,7 @@ namespace HIKARI {
         builder.Float("Scale X", localScale_.x);
         builder.Float("Scale Y", localScale_.y);
         builder.Float("Scale Z", localScale_.z);
-        builder.Float("Scale Uniform", localScaleUniform_);
+		builder.Float("Uniform Scale", localScaleUniform_);
 
         int slotCount = static_cast<int>(slots_.size());
         if (builder.Int("Slot Count", slotCount)) {
