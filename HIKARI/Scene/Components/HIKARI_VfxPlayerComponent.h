@@ -58,6 +58,7 @@ namespace HIKARI {
         MATH::Vec3 localOffset_{ 0.0f, 0.0f, 0.0f };
         MATH::Vec3 localEulerOffset_{ 0.0f, 0.0f, 0.0f };
         MATH::Vec3 localScale_{ 1.0f, 1.0f, 1.0f };
+		float localScaleUniform_ = 1.0f;
 
         std::vector<VfxSlot> slots_{};
         std::unordered_map<std::string, VFX::VfxHandle> playing_{};
