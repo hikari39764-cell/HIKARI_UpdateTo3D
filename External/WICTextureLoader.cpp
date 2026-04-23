@@ -123,17 +123,17 @@ namespace HIKARI {
                 return hr;
             }
 
-            // ===== ① GPU 纹理（DEFAULT heap）=====
-            // NOTE: 現在のレンダーターゲット/スワップチェーンが UNORM 前提のため、
-            // ここも UNORM に揃えて二重ガンマ/暗化を避ける。
+            // ===== GPU 纹理=====
+         
+   
             CD3DX12_RESOURCE_DESC texDesc =
                 CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, w, h);
 
-            CD3DX12_HEAP_PROPERTIES defaultHeapProps(D3D12_HEAP_TYPE_DEFAULT); // ★ 先放到局部变量
+            CD3DX12_HEAP_PROPERTIES defaultHeapProps(D3D12_HEAP_TYPE_DEFAULT); // 先放到局部变量
 
             ComPtr<ID3D12Resource> tex;
             hr = device->CreateCommittedResource(
-                &defaultHeapProps,                // ★ 对 lvalue 取地址
+                &defaultHeapProps,                //  对 lvalue 取地址
                 D3D12_HEAP_FLAG_NONE,
                 &texDesc,
                 D3D12_RESOURCE_STATE_COPY_DEST,
@@ -144,16 +144,16 @@ namespace HIKARI {
                 return hr;
             }
 
-            // ===== ② Upload Buffer (UPLOAD heap + Buffer desc) =====
+            // ===== Upload Buffer =====
             UINT64 uploadSize = GetRequiredIntermediateSize(tex.Get(), 0, 1);
 
             CD3DX12_RESOURCE_DESC uploadDesc =
-                CD3DX12_RESOURCE_DESC::Buffer(uploadSize);           // ★ desc 局部变量
-            CD3DX12_HEAP_PROPERTIES uploadHeapProps(D3D12_HEAP_TYPE_UPLOAD); // ★ heap 局部变量
+                CD3DX12_RESOURCE_DESC::Buffer(uploadSize);           // desc 局部变量
+            CD3DX12_HEAP_PROPERTIES uploadHeapProps(D3D12_HEAP_TYPE_UPLOAD); // heap 局部变量
 
             ComPtr<ID3D12Resource> upload;
             hr = device->CreateCommittedResource(
-                &uploadHeapProps,                 // ★ 对 lvalue 取地址
+                &uploadHeapProps,                 // 对 lvalue 取地址
                 D3D12_HEAP_FLAG_NONE,
                 &uploadDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -164,7 +164,7 @@ namespace HIKARI {
                 return hr;
             }
 
-            // ===== ③ 把 CPU 像素写进 Upload Buffer，再拷贝到 GPU 纹理 =====
+            // =====  把 CPU 像素写进 Upload Buffer，再拷贝到 GPU 纹理 =====
             D3D12_SUBRESOURCE_DATA sub{};
             sub.pData = pixels.data();
             sub.RowPitch = stride;
