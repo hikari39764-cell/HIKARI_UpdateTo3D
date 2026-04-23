@@ -114,7 +114,6 @@
     <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_MeshEffect.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
@@ -160,6 +159,11 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
+    <ClCompile Include="HIKARI\Assets\HIKARI_Assets.cpp" />
+    <ClCompile Include="HIKARI\Assets\HIKARI_Assets_Obj.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GpuResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\HIKARI_ModelRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render2D\HIKARI_SpriteAnimator.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
@@ -367,6 +371,10 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
+    <ClInclude Include="HIKARI\Assets\HIKARI_Assets.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GpuResources.h" />
+    <ClInclude Include="HIKARI\Render3D\HIKARI_ModelRenderer.h" />
+    <ClInclude Include="HIKARI\Render2D\HIKARI_SpriteAnimator.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
     <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h" />
@@ -384,7 +392,6 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
@@ -405,7 +412,6 @@
     <ClInclude Include="HIKARI\HIKARI_GlowManager.h" />
     <ClInclude Include="HIKARI\HIKARI_Input.h" />
     <ClInclude Include="HIKARI\HIKARI_MapRoom.h" />
-    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_MeshEffect.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h" />
     <ClInclude Include="HIKARI\HIKARI_Particle.h" />

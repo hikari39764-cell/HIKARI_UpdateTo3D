@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <string>
 #include <unordered_map>
-#include "HIKARI_DxTexture.h"
+#include "Gfx/HIKARI_GpuResources.h"
 // Spine
 #include <spine/Atlas.h>
 #include <spine/TextureLoader.h>
@@ -9,7 +9,8 @@
 namespace HIKARI {
 
     struct SpineTexture {
-        int handle{ -1 };
+        uint32_t gpuResourceId{ 0 };
+        int legacyHandle{ -1 };
         int width{ 0 };
         int height{ 0 };
     };
