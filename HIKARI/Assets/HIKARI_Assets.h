@@ -154,10 +154,6 @@ namespace HIKARI::ASSET {
 
         const TextureAsset* FindTexture(AssetHandle<TextureAsset> handle) const;
         const ModelAsset* FindModel(AssetHandle<ModelAsset> handle) const;
-
-    private:
-        AssetId AllocateId();
-
         std::unordered_map<AssetId, TextureAsset> textures_{};
         std::unordered_map<AssetId, MaterialAsset> materials_{};
         std::unordered_map<AssetId, MeshAsset> meshes_{};
@@ -165,6 +161,10 @@ namespace HIKARI::ASSET {
 
         std::unordered_map<std::string, AssetId> textureByPath_{};
         std::unordered_map<std::string, AssetId> modelByPath_{};
+        AssetId AllocateId();
+
+    private:
+
         AssetId nextId_ = 1;
 
         friend bool ImportModelStatic(AssetRegistry& registry, ModelAsset& model, const std::string& sourcePath);

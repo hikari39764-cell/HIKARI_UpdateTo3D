@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 #include "Gfx/HIKARI_GpuResources.h"
 
