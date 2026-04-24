@@ -1,6 +1,7 @@
 #include "HIKARI_ModelComponent.h"
 
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include <cstring>
@@ -445,6 +446,20 @@ namespace HIKARI {
             } else {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Material FX profile not found: %s", materialFxProfileId_.c_str());
             }
+        }
+
+        if (ImGui::TreeNode("Object FX Debug")) {
+            MaterialFxProfile debugProfile{};
+            const bool profileLoadOk = materialFxProfileId_.empty() ? false : MaterialFxProfile::LoadById(materialFxProfileId_, debugProfile);
+            MESHRENDERER::StaticModelDrawItem debugItem{};
+            debugItem.postGroupMask = postGroupMask_;
+            debugItem.materialFxProfileId = materialFxProfileId_;
+            ImGui::Text("materialFxProfileId: %s", materialFxProfileId_.empty() ? "<empty>" : materialFxProfileId_.c_str());
+            ImGui::Text("postGroupMask: %u", postGroupMask_);
+            ImGui::Text("profile load: %s", profileLoadOk ? "success" : "fail");
+            ImGui::Text("bucket route: %s", MESHRENDERER::ResolveDrawItemBucketTag(debugItem));
+            ImGui::Text("object fx bucket count (frame): %zu", MESHRENDERER::GetObjectFxBucketCount());
+            ImGui::TreePop();
         }
 
         if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)")) {
