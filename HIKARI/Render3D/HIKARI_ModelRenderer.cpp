@@ -4,6 +4,18 @@
 
 namespace HIKARI::MODELR {
 
+    namespace {
+        MATH::Mat4 ToMat4(const DirectX::XMFLOAT4X4& matrix) {
+            MATH::Mat4 out{};
+            for (int c = 0; c < 4; ++c) {
+                for (int r = 0; r < 4; ++r) {
+                    out.m[c][r] = matrix.m[c][r];
+                }
+            }
+            return out;
+        }
+    }
+
     void SubmitModelComponent(
         ASSET::AssetRegistry& registry,
         ASSET::AssetHandle<ASSET::ModelAsset> model,
@@ -16,25 +28,42 @@ namespace HIKARI::MODELR {
         uint32_t postGroupMask,
         const DirectX::XMFLOAT4(&materialFxParamValues)[4],
         bool materialFxValuesInitialized) {
-        const ASSET::ModelAsset* resolved = registry.FindModel(model);
-        if (resolved == nullptr || resolved->state == ASSET::AssetState::Failed) {
+        if (!visible) {
             return;
         }
 
-        MESHRENDERER::StaticModelSubmission submission{};
-        submission.model = model;
-        submission.world = world;
-        submission.visible = visible;
-        submission.castShadow = castShadow;
-        submission.receiveShadow = receiveShadow;
-        submission.renderLayerMask = renderLayerMask;
-        submission.postGroupMask = postGroupMask;
-        submission.materialFxProfileId = materialFxProfileId;
-        for (size_t i = 0; i < 4; ++i) {
-            submission.materialFxUser[i] = materialFxParamValues[i];
+        const ASSET::ModelAsset* resolved = registry.FindModel(model);
+        if (resolved == nullptr || resolved->state != ASSET::AssetState::Ready) {
+            return;
         }
-        submission.materialFxValuesInitialized = materialFxValuesInitialized;
-        MESHRENDERER::SubmitStaticModel(registry, submission);
+
+        const MATH::Mat4 entityWorld = world.GetWorldMatrix();
+        for (const ASSET::ModelAsset::Primitive& primitive : resolved->primitives) {
+            const ASSET::MeshAsset* mesh = registry.FindMesh(primitive.mesh);
+            if (mesh == nullptr || mesh->gpuMeshId == 0) {
+                continue;
+            }
+
+            MESHRENDERER::StaticModelDrawItem item{};
+            item.registry = &registry;
+            item.gpuMeshId = mesh->gpuMeshId;
+            item.material = primitive.material;
+            item.world = ToMat4(primitive.localTransform) * entityWorld;
+            item.normalMatrix = item.world;
+            item.normalMatrix.m[3][0] = 0.0f;
+            item.normalMatrix.m[3][1] = 0.0f;
+            item.normalMatrix.m[3][2] = 0.0f;
+            item.castShadow = castShadow;
+            item.receiveShadow = receiveShadow;
+            item.renderLayerMask = renderLayerMask;
+            item.postGroupMask = postGroupMask;
+            item.materialFxProfileId = materialFxProfileId;
+            for (size_t i = 0; i < item.materialFxUser.size(); ++i) {
+                item.materialFxUser[i] = materialFxParamValues[i];
+            }
+            item.materialFxValuesInitialized = materialFxValuesInitialized;
+            MESHRENDERER::SubmitStaticDrawItem(item);
+        }
     }
 
 } // namespace HIKARI::MODELR
