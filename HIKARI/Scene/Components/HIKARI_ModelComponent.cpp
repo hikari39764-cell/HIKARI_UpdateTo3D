@@ -393,6 +393,7 @@ namespace HIKARI {
             modelPath_.clear();
             modelHandle_ = {};
         }
+        builder.String("Model Path", modelPath_);
         builder.String("Material FX Profile", materialFxProfileId_);
     }
 
@@ -415,6 +416,13 @@ namespace HIKARI {
             modelAssetId_ = modelAssetIdBuffer;
             modelPath_.clear();
             modelHandle_ = {};
+        }
+        char modelPathBuffer[512]{};
+        std::strncpy(modelPathBuffer, modelPath_.c_str(), sizeof(modelPathBuffer) - 1);
+        if (ImGui::InputText("Model Path", modelPathBuffer, sizeof(modelPathBuffer))) {
+            modelPath_ = modelPathBuffer;
+            modelAssetId_.clear();
+            modelHandle_ = modelPath_.empty() ? ASSET::AssetHandle<ASSET::ModelAsset>{} : ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
         }
         char profileBuffer[256]{};
         const std::string previousProfileId = materialFxProfileId_;
