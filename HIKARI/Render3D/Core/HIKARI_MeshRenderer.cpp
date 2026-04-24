@@ -45,8 +45,8 @@ namespace HIKARI::MESHRENDERER {
             MATH::Vec4 directionalColor{};
             MATH::Vec4 ambientColor{};
             MATH::Vec4 specularParams{};
-            MATH::Vec4 pointLightPosRange[4]{};
-            MATH::Vec4 pointLightColorIntensity[4]{};
+            MATH::Vec4 pointLightPosRange[8]{};
+            MATH::Vec4 pointLightColorIntensity[8]{};
             float directionalIntensity = 1.0f;
             float ambientIntensity = 0.25f;
             uint32_t pointLightCount = 0;
@@ -289,7 +289,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_NONE;
+            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
             psoDesc.DepthStencilState.DepthWriteMask = key.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
