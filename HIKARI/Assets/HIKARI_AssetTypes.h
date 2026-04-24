@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace HIKARI {
 
@@ -14,6 +15,64 @@ namespace HIKARI {
         Particle,
         VfxEffect,
         Unknown
+    };
+
+    enum class CoordinateSystem {
+        RightHanded_YUp,
+        LeftHanded_YUp,
+    };
+
+    enum class ModelImporterKind {
+        Builtin,
+        Gltf,
+        Assimp,
+    };
+
+    enum class NormalImportPolicy {
+        Require,
+        IfMissing,
+        Always,
+    };
+
+    enum class TangentImportPolicy {
+        None,
+        IfMissing,
+        Always,
+    };
+
+    struct AnimationClipAlias {
+        std::string name;
+        std::string sourceName;
+    };
+
+    struct ModelImportOptions {
+        float unitScale = 1.0f;
+        CoordinateSystem coordinateSystem = CoordinateSystem::RightHanded_YUp;
+
+        NormalImportPolicy generateNormals = NormalImportPolicy::IfMissing;
+        TangentImportPolicy generateTangents = TangentImportPolicy::IfMissing;
+
+        bool triangulate = true;
+        bool flipUV = false;
+        bool mergeMeshes = false;
+        bool keepNodeHierarchy = true;
+
+        bool loadMaterials = true;
+        bool loadTextures = true;
+        bool loadAnimations = true;
+        bool loadSkins = true;
+    };
+
+    struct ModelMaterialOverrideDesc {
+        std::string targetMaterialName;
+        std::string shaderProfileId;
+        std::string materialFxProfileId;
+        bool doubleSided = false;
+    };
+
+    struct ModelAnimationImportDesc {
+        std::string defaultClip;
+        std::vector<AnimationClipAlias> clips;
     };
 
     struct AssetId {
@@ -34,11 +93,15 @@ namespace HIKARI {
         AssetId id{};
         AssetType type = AssetType::Unknown;
         std::string sourcePath{};
-        uint32_t version = 1;
+        uint32_t version = 2;
     };
 
     struct ModelAssetDescriptor final : AssetDescriptor {
-        bool forceFlatNormals = false;
+        ModelImporterKind importer = ModelImporterKind::Gltf;
+        bool preload = true;
+        ModelImportOptions importOptions{};
+        std::vector<ModelMaterialOverrideDesc> materialOverrides{};
+        ModelAnimationImportDesc animation{};
     };
 
     struct SkyAssetDescriptor final : AssetDescriptor {

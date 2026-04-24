@@ -714,9 +714,6 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Source Files\ThirdParty\Spine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp">
-      <Filter>Source Files\Legacy</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_SpriteAnimator.cpp">
       <Filter>Source Files\Legacy</Filter>
     </ClCompile>
@@ -1189,9 +1186,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Matrix3x3.h">
       <Filter>Header Files\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h">
-      <Filter>Header Files\Legacy</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_SpriteAnimator.h">
       <Filter>Header Files\Legacy</Filter>
