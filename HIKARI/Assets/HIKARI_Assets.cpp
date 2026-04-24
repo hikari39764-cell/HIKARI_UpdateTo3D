@@ -4,6 +4,10 @@
 
 namespace HIKARI::ASSET {
 
+    namespace {
+        AssetRegistry gGlobalAssetRegistry{};
+    }
+
     AssetId AssetRegistry::AllocateId() {
         return nextId_++;
     }
@@ -87,6 +91,10 @@ namespace HIKARI::ASSET {
     const ModelAsset* AssetRegistry::FindModel(AssetHandle<ModelAsset> handle) const {
         const auto it = models_.find(handle.id);
         return (it == models_.end()) ? nullptr : &it->second;
+    }
+
+    AssetRegistry& GetGlobalAssetRegistry() {
+        return gGlobalAssetRegistry;
     }
 
 } // namespace HIKARI::ASSET

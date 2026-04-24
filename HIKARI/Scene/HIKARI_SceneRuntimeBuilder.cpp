@@ -2,6 +2,7 @@
 
 #include <numbers>
 
+#include "Assets/HIKARI_Assets.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
@@ -42,9 +43,14 @@ namespace HIKARI {
         for (const SceneObjectData& object : document.objects) {
             for (const SceneComponentData& component : object.components) {
                 if (component.type == "ModelComponent") {
-                    const std::string assetId = component.properties.value("assetId", std::string{});
-                    if (!assetId.empty()) {
-                        deps.modelAssetIds.insert(assetId);
+                    const std::string modelRef = component.properties.value("model", std::string{});
+                    if (!modelRef.empty()) {
+                        deps.modelAssetIds.insert(modelRef);
+                    } else {
+                        const std::string assetId = component.properties.value("assetId", std::string{});
+                        if (!assetId.empty()) {
+                            deps.modelAssetIds.insert(assetId);
+                        }
                     }
                 }
             }
@@ -58,12 +64,15 @@ namespace HIKARI {
         const AssetRegistry& assetRegistry,
         ModelManager& modelManager,
         SkyManager& skyManager) const {
-        for (const std::string& modelId : dependencies.modelAssetIds) {
-            const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ modelId });
-            if (!descriptor) {
-                continue;
+        for (const std::string& modelRef : dependencies.modelAssetIds) {
+            std::string sourcePath = modelRef;
+            if (const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ modelRef })) {
+                sourcePath = descriptor->sourcePath;
             }
-            EnsureModelLoaded(modelManager, *descriptor);
+
+            if (!sourcePath.empty()) {
+                ASSET::GetGlobalAssetRegistry().GetOrLoadModel(sourcePath);
+            }
         }
 
         for (const std::string& skyId : dependencies.skyAssetIds) {
@@ -89,7 +98,7 @@ namespace HIKARI {
     bool SceneRuntimeBuilder::BuildWorldFromDocument(
         const SceneDocument& document,
         World& world,
-        const AssetRegistry&,
+        const AssetRegistry& assetRegistry,
         const ComponentRegistry& componentRegistry,
         ModelManager& modelManager,
         SkyManager&) const {
@@ -115,8 +124,17 @@ namespace HIKARI {
                 component->Deserialize(componentData.properties);
 
                 if (auto* modelComponent = dynamic_cast<ModelComponent*>(component)) {
-                    modelComponent->SetAsset(modelManager.FindAsset(modelComponent->GetAssetId()));
+                    if (!modelComponent->GetModelHandle().IsValid()) {
+                        const std::string assetId = componentData.properties.value("assetId", std::string{});
+                        if (!assetId.empty()) {
+                            if (const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ assetId })) {
+                                modelComponent->SetModelHandle(ASSET::GetGlobalAssetRegistry().GetOrLoadModel(descriptor->sourcePath));
+                            }
+                        }
+                    }
                 }
+
+                (void)modelManager;
             }
         }
 

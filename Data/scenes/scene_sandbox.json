@@ -163,7 +163,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Block",
+            "model": "./Assets/TestModel/block.obj",
             "visible": true
           },
           "type": "ModelComponent"
@@ -197,7 +197,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Player",
+            "model": "./Assets/TestModel/player.obj",
             "materialFxParamValues": [
               [
                 0.0,
