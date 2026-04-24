@@ -446,8 +446,13 @@ namespace HIKARI::MESHRENDERER {
         }
 
         constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
+        constexpr size_t kMaxObjectCount = 2048u;
+        if (g.objectMapped == nullptr || g.objectCB == nullptr) {
+            return;
+        }
 
-        for (size_t i = 0; i < g.drawItems.size(); ++i) {
+        const size_t drawCount = std::min(g.drawItems.size(), kMaxObjectCount);
+        for (size_t i = 0; i < drawCount; ++i) {
             const DrawItem& item = g.drawItems[i];
             if (!item.asset || !item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
                 continue;
@@ -510,6 +515,8 @@ namespace HIKARI::MESHRENDERER {
             cmd->IASetIndexBuffer(&ib);
             cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
         }
+
+        g.drawItems.clear();
     }
 
 } // namespace HIKARI::MESHRENDERER

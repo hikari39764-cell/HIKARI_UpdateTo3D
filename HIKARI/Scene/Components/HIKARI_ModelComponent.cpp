@@ -106,19 +106,31 @@ namespace HIKARI {
         }
     }
 
-    void ModelComponent::SetAsset(ModelAsset* asset) {
+    void ModelComponent::SetModelAsset(ModelAsset* asset) {
         asset_ = asset;
         if (asset_) {
             assetId_ = asset_->GetName();
         }
     }
 
-    ModelAsset* ModelComponent::GetAsset() {
+    ModelAsset* ModelComponent::GetModelAsset() {
         return asset_;
     }
 
-    const ModelAsset* ModelComponent::GetAsset() const {
+    const ModelAsset* ModelComponent::GetModelAsset() const {
         return asset_;
+    }
+
+    void ModelComponent::SetAsset(ModelAsset* asset) {
+        SetModelAsset(asset);
+    }
+
+    ModelAsset* ModelComponent::GetAsset() {
+        return GetModelAsset();
+    }
+
+    const ModelAsset* ModelComponent::GetAsset() const {
+        return GetModelAsset();
     }
 
     void ModelComponent::SetVisible(bool visible) {
@@ -328,6 +340,12 @@ namespace HIKARI {
         for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
             out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
         }
+        out["animation"] = {
+            {"clip", animationClip_},
+            {"timeSec", animationTimeSec_},
+            {"loop", animationLoop_},
+            {"autoPlay", animationAutoPlay_}
+        };
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
@@ -356,6 +374,14 @@ namespace HIKARI {
         materialFxValuesInitialized_ = in.value("materialFxValuesInitialized", hasParamValues);
         if (!materialFxValuesInitialized_) {
             ResetMaterialFxToProfileDefaults();
+        }
+
+        if (in.contains("animation") && in["animation"].is_object()) {
+            const auto& animationNode = in["animation"];
+            animationClip_ = animationNode.value("clip", animationClip_);
+            animationTimeSec_ = animationNode.value("timeSec", animationTimeSec_);
+            animationLoop_ = animationNode.value("loop", animationLoop_);
+            animationAutoPlay_ = animationNode.value("autoPlay", animationAutoPlay_);
         }
     }
 
@@ -449,6 +475,39 @@ namespace HIKARI {
                 material->HasBaseColorTexture() ? "Valid" : "Invalid");
         }
 #endif
+    }
+
+
+    void ModelComponent::SetAnimationClip(std::string clip) {
+        animationClip_ = std::move(clip);
+    }
+
+    const std::string& ModelComponent::GetAnimationClip() const {
+        return animationClip_;
+    }
+
+    void ModelComponent::SetAnimationTime(float timeSec) {
+        animationTimeSec_ = timeSec;
+    }
+
+    float ModelComponent::GetAnimationTime() const {
+        return animationTimeSec_;
+    }
+
+    void ModelComponent::SetAnimationLoop(bool loop) {
+        animationLoop_ = loop;
+    }
+
+    bool ModelComponent::GetAnimationLoop() const {
+        return animationLoop_;
+    }
+
+    void ModelComponent::SetAnimationAutoPlay(bool autoPlay) {
+        animationAutoPlay_ = autoPlay;
+    }
+
+    bool ModelComponent::GetAnimationAutoPlay() const {
+        return animationAutoPlay_;
     }
 
 } // namespace HIKARI
