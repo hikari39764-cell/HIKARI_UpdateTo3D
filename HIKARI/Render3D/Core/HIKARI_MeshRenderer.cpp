@@ -8,8 +8,7 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <wrl/client.h>
-#include "HIKARI_DxTexture.h"
-#include "Render3D/HIKARI_Material.h"
+#include "Gfx/HIKARI_GpuResources.h"
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
@@ -30,10 +29,20 @@ namespace HIKARI::MESHRENDERER {
         struct ObjectCB {
             MATH::Mat4 world{};
             MATH::Mat4 normalMatrix{};
-            MATH::Vec4 baseColor{};
+            MATH::Vec4 baseColorFactor{};
+            MATH::Vec4 emissiveFactor{};
+            float normalScale = 1.0f;
+            float occlusionStrength = 1.0f;
+            float metallicFactor = 1.0f;
+            float roughnessFactor = 1.0f;
             uint32_t hasBaseColorTexture = 0;
+            uint32_t hasNormalTexture = 0;
+            uint32_t hasOrmTexture = 0;
+            uint32_t hasEmissiveTexture = 0;
+            uint32_t alphaMode = 0;
+            float alphaCutoff = 0.5f;
             uint32_t fxFlags = 0;
-            float padding[2]{};
+            float padding[1]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -54,8 +63,11 @@ namespace HIKARI::MESHRENDERER {
         };
 
         struct DrawItem {
-            const ModelAsset* asset = nullptr;
-            Transform3D transform{};
+            ASSET::AssetRegistry* registry = nullptr;
+            ASSET::AssetHandle<ASSET::MeshAsset> mesh{};
+            ASSET::AssetHandle<ASSET::MaterialAsset> material{};
+            MATH::Mat4 world{};
+            MATH::Mat4 normalMatrix{};
             std::string materialFxProfileId{};
             uint32_t postGroupMask = 0;
             VFX::VariantKey variant{};
@@ -90,12 +102,22 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
             std::vector<DrawItem> drawItems;
-            int fallbackTextureHandle = -1;
+            uint32_t fallbackTextureId = 0;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
         };
 
         State g;
+
+        MATH::Mat4 ToMat4(const DirectX::XMFLOAT4X4& matrix) {
+            MATH::Mat4 out{};
+            for (int c = 0; c < 4; ++c) {
+                for (int r = 0; r < 4; ++r) {
+                    out.m[c][r] = matrix.m[c][r];
+                }
+            }
+            return out;
+        }
 
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = (sizeof(CameraCB) + 255u) & ~255u;
@@ -146,7 +168,7 @@ namespace HIKARI::MESHRENDERER {
 
             D3D12_DESCRIPTOR_RANGE textureRange{};
             textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-            textureRange.NumDescriptors = 1;
+            textureRange.NumDescriptors = 4;
             textureRange.BaseShaderRegister = 0;
             textureRange.RegisterSpace = 0;
             textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -201,9 +223,10 @@ namespace HIKARI::MESHRENDERER {
             }
 
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
-                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, px)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, nx)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, tx)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
@@ -266,9 +289,10 @@ namespace HIKARI::MESHRENDERER {
             }
 
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
-                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, px)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, nx)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, tx)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(ASSET::MeshAsset::Vertex, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
@@ -304,13 +328,13 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void ResolveDrawVariant(DrawItem& item) {
-            if (!item.asset) {
+            if (item.registry == nullptr) {
                 return;
             }
-            const Material* material = item.asset->GetMaterial();
+            const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material);
             if (material) {
-                item.variant.shaderId = material->GetShaderProfileId();
-                item.variant.featureBits = material->GetFeatureBits();
+                item.variant.shaderId = material->shaderProfileId;
+                item.variant.featureBits = material->featureBits;
             }
             item.variant.composite = VFX::CompositeMode::Alpha;
             item.variant.depthTest = true;
@@ -358,7 +382,7 @@ namespace HIKARI::MESHRENDERER {
             if (!CreatePipeline(device)) {
                 return false;
             }
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.fallbackTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
             g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
@@ -370,18 +394,36 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.clear();
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
-        DrawItem item{};
-        item.asset = &asset;
-        item.transform = transform;
-        item.materialFxProfileId = materialFxProfileId;
-        item.postGroupMask = postGroupMask;
-        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-            item.materialFxParamValues[i] = materialFxParamValues[i];
+    void SubmitStaticModel(ASSET::AssetRegistry& registry, const StaticModelSubmission& submission) {
+        if (!submission.visible) {
+            return;
         }
-        item.materialFxValuesInitialized = materialFxValuesInitialized;
-        ResolveDrawVariant(item);
-        g.drawItems.push_back(std::move(item));
+        const ASSET::ModelAsset* model = registry.FindModel(submission.model);
+        if (model == nullptr || model->state != ASSET::AssetState::Ready) {
+            return;
+        }
+
+        for (const ASSET::ModelAsset::Primitive& primitive : model->primitives) {
+            DrawItem item{};
+            item.registry = &registry;
+            item.mesh = primitive.mesh;
+            item.material = primitive.material;
+            const MATH::Mat4 world = submission.world.GetWorldMatrix();
+            const MATH::Mat4 local = ToMat4(primitive.localTransform);
+            item.world = local * world;
+            item.normalMatrix = item.world;
+            item.normalMatrix.m[3][0] = 0.0f;
+            item.normalMatrix.m[3][1] = 0.0f;
+            item.normalMatrix.m[3][2] = 0.0f;
+            item.materialFxProfileId = submission.materialFxProfileId;
+            item.postGroupMask = submission.postGroupMask;
+            for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
+                item.materialFxParamValues[i] = submission.materialFxUser[i];
+            }
+            item.materialFxValuesInitialized = submission.materialFxValuesInitialized;
+            ResolveDrawVariant(item);
+            g.drawItems.push_back(std::move(item));
+        }
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -439,7 +481,7 @@ namespace HIKARI::MESHRENDERER {
 
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
-        ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
+        ID3D12DescriptorHeap* srvHeap = GpuResources::GetSrvHeap();
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
             cmd->SetDescriptorHeaps(1, heaps);
@@ -449,27 +491,39 @@ namespace HIKARI::MESHRENDERER {
 
         for (size_t i = 0; i < g.drawItems.size(); ++i) {
             const DrawItem& item = g.drawItems[i];
-            if (!item.asset || !item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
+            if (item.registry == nullptr) {
+                continue;
+            }
+            const ASSET::MeshAsset* mesh = item.registry->FindMesh(item.mesh);
+            if (mesh == nullptr || mesh->gpuMeshId == 0) {
                 continue;
             }
 
             ObjectCB obj{};
-            obj.world = item.transform.GetWorldMatrix();
-            MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::NormalizeQ(item.transform.rotation));
-            const MATH::Vec3 s = item.transform.scale;
-            const float invScaleX = (std::abs(s.x) > 1e-6f) ? (1.0f / s.x) : 0.0f;
-            const float invScaleY = (std::abs(s.y) > 1e-6f) ? (1.0f / s.y) : 0.0f;
-            const float invScaleZ = (std::abs(s.z) > 1e-6f) ? (1.0f / s.z) : 0.0f;
-            normalMatrix.m[0][0] *= invScaleX; normalMatrix.m[0][1] *= invScaleX; normalMatrix.m[0][2] *= invScaleX;
-            normalMatrix.m[1][0] *= invScaleY; normalMatrix.m[1][1] *= invScaleY; normalMatrix.m[1][2] *= invScaleY;
-            normalMatrix.m[2][0] *= invScaleZ; normalMatrix.m[2][1] *= invScaleZ; normalMatrix.m[2][2] *= invScaleZ;
-            obj.normalMatrix = normalMatrix;
-            if (const Material* material = item.asset->GetMaterial()) {
-                obj.baseColor = material->GetBaseColor();
-                obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
+            obj.world = item.world;
+            obj.normalMatrix = item.normalMatrix;
+            if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
+                obj.baseColorFactor = { material->baseColorFactor.x, material->baseColorFactor.y, material->baseColorFactor.z, material->baseColorFactor.w };
+                obj.emissiveFactor = { material->emissiveFactor.x, material->emissiveFactor.y, material->emissiveFactor.z, 0.0f };
+                obj.normalScale = material->normalScale;
+                obj.occlusionStrength = material->occlusionStrength;
+                obj.metallicFactor = material->metallicFactor;
+                obj.roughnessFactor = material->roughnessFactor;
+                obj.hasBaseColorTexture = material->baseColorTexture.IsValid() ? 1u : 0u;
+                obj.hasNormalTexture = 0u;
+                obj.hasOrmTexture = 0u;
+                obj.hasEmissiveTexture = 0u;
+                obj.alphaMode = static_cast<uint32_t>(material->alphaMode);
+                obj.alphaCutoff = material->alphaCutoff;
             } else {
-                obj.baseColor = { 1,1,1,1 };
+                obj.baseColorFactor = { 1,1,1,1 };
+                obj.emissiveFactor = { 0,0,0,0 };
                 obj.hasBaseColorTexture = 0u;
+                obj.hasNormalTexture = 0u;
+                obj.hasOrmTexture = 0u;
+                obj.hasEmissiveTexture = 0u;
+                obj.alphaMode = 0u;
+                obj.alphaCutoff = 0.5f;
             }
             obj.fxFlags = item.fxFlags;
             obj.fxUser0 = item.fxValues[0];
@@ -492,23 +546,24 @@ namespace HIKARI::MESHRENDERER {
                 foundPso = g.variantPsoCache.emplace(item.variant, std::move(variantPso)).first;
             }
             cmd->SetPipelineState(foundPso->second.Get());
-            int textureHandle = g.fallbackTextureHandle;
-            if (const Material* material = item.asset->GetMaterial()) {
-                if (material->HasBaseColorTexture()) {
-                    textureHandle = material->GetBaseColorTextureHandle();
+            uint32_t textureId = g.fallbackTextureId;
+            if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
+                if (const ASSET::TextureAsset* baseColor = item.registry->FindTexture(material->baseColorTexture)) {
+                    textureId = baseColor->gpuResourceId;
                 }
             }
-            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = GpuResources::GetSrvGpuHandle(textureId);
             if (textureSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
             }
 
-            const Mesh* mesh = item.asset->GetMesh();
-            D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
-            D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
-            cmd->IASetVertexBuffers(0, 1, &vb);
-            cmd->IASetIndexBuffer(&ib);
-            cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+            const GpuResources::StaticMeshViews views = GpuResources::GetStaticMeshViews(mesh->gpuMeshId);
+            if (!views.valid) {
+                continue;
+            }
+            cmd->IASetVertexBuffers(0, 1, &views.vbv);
+            cmd->IASetIndexBuffer(&views.ibv);
+            cmd->DrawIndexedInstanced(views.indexCount, 1, 0, 0, 0);
         }
     }
 
