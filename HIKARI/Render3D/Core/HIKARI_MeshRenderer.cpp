@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <map>
 #include <vector>
 #include <unordered_map>
 #include <d3dcompiler.h>
@@ -22,6 +24,8 @@ namespace HIKARI::MESHRENDERER {
     using Microsoft::WRL::ComPtr;
 
     namespace {
+        constexpr uint32_t kVariantFlagAlphaBlend = 1u << 31;
+
         struct CameraCB {
             MATH::Mat4 viewProj{};
             MATH::Vec4 cameraPos{};
@@ -68,6 +72,9 @@ namespace HIKARI::MESHRENDERER {
             VFX::VariantKey variant{};
             std::array<MATH::Vec4, 4> fxValues{};
             uint32_t fxFlags = 0;
+            ASSET::AlphaMode alphaMode = ASSET::AlphaMode::Opaque;
+            float sortDistanceSq = 0.0f;
+            uint32_t materialBlockTextureIds[4]{};
         };
 
         struct VariantKeyHasher {
@@ -95,8 +102,13 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
             std::vector<StaticModelDrawItem> drawItems;
+            std::vector<StaticModelDrawItem> normalDrawItems;
+            std::map<uint32_t, std::vector<StaticModelDrawItem>> postBuckets;
             std::vector<DrawItemRuntime> runtimeItems;
             uint32_t fallbackTextureId = 0;
+            uint32_t fallbackNormalTextureId = 0;
+            uint32_t fallbackOrmTextureId = 0;
+            uint32_t fallbackEmissiveTextureId = 0;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
         };
@@ -293,11 +305,20 @@ namespace HIKARI::MESHRENDERER {
                 rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
                 rt0.DestBlendAlpha = D3D12_BLEND_ONE;
                 rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            } else if ((key.featureBits & kVariantFlagAlphaBlend) != 0u) {
+                D3D12_RENDER_TARGET_BLEND_DESC& rt0 = psoDesc.BlendState.RenderTarget[0];
+                rt0.BlendEnable = TRUE;
+                rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+                rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+                rt0.BlendOp = D3D12_BLEND_OP_ADD;
+                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+                rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             }
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_NONE;
+            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
             psoDesc.DepthStencilState.DepthWriteMask = key.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -320,11 +341,16 @@ namespace HIKARI::MESHRENDERER {
             if (material) {
                 runtime.variant.shaderId = material->shaderProfileId;
                 runtime.variant.featureBits = material->featureBits;
+                runtime.variant.doubleSided = material->doubleSided;
+                runtime.alphaMode = material->alphaMode;
             }
             runtime.variant.composite = VFX::CompositeMode::Alpha;
             runtime.variant.depthTest = true;
             runtime.variant.depthWrite = true;
-            runtime.variant.doubleSided = false;
+            if (!material) {
+                runtime.variant.doubleSided = false;
+                runtime.alphaMode = ASSET::AlphaMode::Opaque;
+            }
 
             if (!item.materialFxProfileId.empty()) {
                 MaterialFxProfile profile{};
@@ -338,6 +364,11 @@ namespace HIKARI::MESHRENDERER {
                     runtime.variant.depthWrite = profile.depthWrite;
                     runtime.variant.doubleSided = profile.doubleSided;
                 }
+            }
+
+            if (runtime.alphaMode == ASSET::AlphaMode::Blend) {
+                runtime.variant.depthWrite = false;
+                runtime.variant.featureBits |= kVariantFlagAlphaBlend;
             }
 
             runtime.fxValues = {};
@@ -368,6 +399,9 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             g.fallbackTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.fallbackNormalTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_normal", "HIKARI/white1x1.png");
+            g.fallbackOrmTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_orm", "HIKARI/white1x1.png");
+            g.fallbackEmissiveTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_black", "HIKARI/white1x1.png");
             g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
@@ -377,7 +411,10 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
+        g.normalDrawItems.clear();
+        g.postBuckets.clear();
         g.runtimeItems.clear();
+        GpuResources::ResetMaterialSrvAllocator();
     }
 
     void SubmitStaticDrawItem(const StaticModelDrawItem& item) {
@@ -385,6 +422,11 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
         g.drawItems.push_back(item);
+        if (item.postGroupMask == 0u) {
+            g.normalDrawItems.push_back(item);
+            return;
+        }
+        g.postBuckets[item.postGroupMask].push_back(item);
     }
 
     const std::vector<StaticModelDrawItem>& GetSubmittedDrawItems() {
@@ -450,107 +492,167 @@ namespace HIKARI::MESHRENDERER {
             };
         }
 
-
-        g.runtimeItems.clear();
-        g.runtimeItems.reserve(g.drawItems.size());
-        for (const StaticModelDrawItem& item : g.drawItems) {
-            DrawItemRuntime runtime{};
-            runtime.item = item;
-            ResolveDrawVariant(runtime);
-            g.runtimeItems.push_back(std::move(runtime));
-        }
-
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
-        ID3D12DescriptorHeap* srvHeap = GpuResources::GetSrvHeap();
-        if (srvHeap != nullptr) {
-            ID3D12DescriptorHeap* heaps[] = { srvHeap };
-            cmd->SetDescriptorHeaps(1, heaps);
-        }
 
         constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
 
         SubmissionRendererDebugOptions& debugOptions = GetDebugOptions();
-
-        for (size_t i = 0; i < g.runtimeItems.size(); ++i) {
-            const DrawItemRuntime& runtime = g.runtimeItems[i];
-            const StaticModelDrawItem& item = runtime.item;
-            if (item.registry == nullptr) {
-                continue;
-            }
-            if (item.gpuMeshId == 0) {
-                continue;
-            }
-
-            ObjectCB obj{};
-            obj.world = item.world;
-            obj.normalMatrix = item.normalMatrix;
-            if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
-                obj.baseColorFactor = { material->baseColorFactor.x, material->baseColorFactor.y, material->baseColorFactor.z, material->baseColorFactor.w };
-                obj.emissiveFactor = { material->emissiveFactor.x, material->emissiveFactor.y, material->emissiveFactor.z, 0.0f };
-                obj.normalScale = material->normalScale;
-                obj.occlusionStrength = material->occlusionStrength;
-                obj.metallicFactor = material->metallicFactor;
-                obj.roughnessFactor = material->roughnessFactor;
-                obj.hasBaseColorTexture = material->baseColorTexture.IsValid() ? 1u : 0u;
-                obj.hasNormalTexture = (debugOptions.useNormal && material->normalTexture.IsValid()) ? 1u : 0u;
-                obj.hasOrmTexture = material->ormTexture.IsValid() ? 1u : 0u;
-                obj.hasEmissiveTexture = (debugOptions.useEmissive && material->emissiveTexture.IsValid()) ? 1u : 0u;
-                obj.alphaMode = static_cast<uint32_t>(material->alphaMode);
-                obj.alphaCutoff = material->alphaCutoff;
-            } else {
-                obj.baseColorFactor = { 1,1,1,1 };
-                obj.emissiveFactor = { 0,0,0,0 };
-                obj.hasBaseColorTexture = 0u;
-                obj.hasNormalTexture = 0u;
-                obj.hasOrmTexture = 0u;
-                obj.hasEmissiveTexture = 0u;
-                obj.alphaMode = 0u;
-                obj.alphaCutoff = 0.5f;
-            }
-            obj.fxFlags = runtime.fxFlags;
-            obj.fxUser0 = runtime.fxValues[0];
-            obj.fxUser1 = runtime.fxValues[1];
-            obj.fxUser2 = runtime.fxValues[2];
-            obj.fxUser3 = runtime.fxValues[3];
-
-            uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * i;
-            std::memcpy(dst, &obj, sizeof(ObjectCB));
-
-            const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * i;
-            cmd->SetGraphicsRootConstantBufferView(1, objAddress);
-
-            auto foundPso = g.variantPsoCache.find(runtime.variant);
-            if (foundPso == g.variantPsoCache.end()) {
-                ComPtr<ID3D12PipelineState> variantPso;
-                if (!CreateVariantPipeline(SERVICES::gCtx.device, runtime.variant, variantPso.GetAddressOf())) {
-                    variantPso = g.pso;
+        auto prepareRuntimeQueue = [&](const std::vector<StaticModelDrawItem>& queueItems) {
+            g.runtimeItems.clear();
+            g.runtimeItems.reserve(queueItems.size());
+            for (const StaticModelDrawItem& item : queueItems) {
+                DrawItemRuntime runtime{};
+                runtime.item = item;
+                ResolveDrawVariant(runtime);
+                if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
+                    const ASSET::TextureAsset* baseColor = item.registry->FindTexture(material->baseColorTexture);
+                    const ASSET::TextureAsset* normal = item.registry->FindTexture(material->normalTexture);
+                    const ASSET::TextureAsset* orm = item.registry->FindTexture(material->ormTexture);
+                    const ASSET::TextureAsset* emissive = item.registry->FindTexture(material->emissiveTexture);
+                    runtime.materialBlockTextureIds[0] = (baseColor && baseColor->gpuResourceId != 0) ? baseColor->gpuResourceId : g.fallbackTextureId;
+                    runtime.materialBlockTextureIds[1] = (normal && normal->gpuResourceId != 0) ? normal->gpuResourceId : g.fallbackNormalTextureId;
+                    runtime.materialBlockTextureIds[2] = (orm && orm->gpuResourceId != 0) ? orm->gpuResourceId : g.fallbackOrmTextureId;
+                    runtime.materialBlockTextureIds[3] = (emissive && emissive->gpuResourceId != 0) ? emissive->gpuResourceId : g.fallbackEmissiveTextureId;
+                    if (runtime.alphaMode == ASSET::AlphaMode::Blend) {
+                        const MATH::Vec3 cameraToObject = {
+                            item.world.m[3][0] - cameraPos.x,
+                            item.world.m[3][1] - cameraPos.y,
+                            item.world.m[3][2] - cameraPos.z
+                        };
+                        runtime.sortDistanceSq = cameraToObject.x * cameraToObject.x + cameraToObject.y * cameraToObject.y + cameraToObject.z * cameraToObject.z;
+                    }
+                } else {
+                    runtime.materialBlockTextureIds[0] = g.fallbackTextureId;
+                    runtime.materialBlockTextureIds[1] = g.fallbackNormalTextureId;
+                    runtime.materialBlockTextureIds[2] = g.fallbackOrmTextureId;
+                    runtime.materialBlockTextureIds[3] = g.fallbackEmissiveTextureId;
                 }
-                foundPso = g.variantPsoCache.emplace(runtime.variant, std::move(variantPso)).first;
+                g.runtimeItems.push_back(std::move(runtime));
             }
-            cmd->SetPipelineState(foundPso->second.Get());
-            uint32_t textureId = g.fallbackTextureId;
-            if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
-                if (const ASSET::TextureAsset* baseColor = item.registry->FindTexture(material->baseColorTexture)) {
-                    textureId = baseColor->gpuResourceId;
+        };
+
+        auto renderRuntimeQueue = [&](const char* /*queueTag*/) {
+            std::vector<size_t> opaqueIndices;
+            std::vector<size_t> maskedIndices;
+            std::vector<size_t> blendedIndices;
+            opaqueIndices.reserve(g.runtimeItems.size());
+            maskedIndices.reserve(g.runtimeItems.size());
+            blendedIndices.reserve(g.runtimeItems.size());
+            for (size_t i = 0; i < g.runtimeItems.size(); ++i) {
+                const ASSET::AlphaMode alphaMode = g.runtimeItems[i].alphaMode;
+                if (alphaMode == ASSET::AlphaMode::Mask) {
+                    maskedIndices.push_back(i);
+                } else if (alphaMode == ASSET::AlphaMode::Blend) {
+                    blendedIndices.push_back(i);
+                } else {
+                    opaqueIndices.push_back(i);
                 }
             }
-            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = GpuResources::GetSrvGpuHandle(textureId);
-            if (textureSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
-            }
+            std::sort(blendedIndices.begin(), blendedIndices.end(), [](size_t a, size_t b) {
+                return g.runtimeItems[a].sortDistanceSq > g.runtimeItems[b].sortDistanceSq;
+            });
 
-            const GpuResources::StaticMeshViews views = GpuResources::GetStaticMeshViews(item.gpuMeshId);
-            if (!views.valid) {
-                continue;
+            auto drawRange = [&](const std::vector<size_t>& indices) {
+                ID3D12DescriptorHeap* materialHeap = GpuResources::GetMaterialSrvHeap();
+                if (materialHeap != nullptr) {
+                    ID3D12DescriptorHeap* heaps[] = { materialHeap };
+                    cmd->SetDescriptorHeaps(1, heaps);
+                }
+
+                for (size_t drawIndex : indices) {
+                    const DrawItemRuntime& runtime = g.runtimeItems[drawIndex];
+                    const StaticModelDrawItem& item = runtime.item;
+                    if (item.registry == nullptr || item.gpuMeshId == 0) {
+                        continue;
+                    }
+
+                    ObjectCB obj{};
+                    obj.world = item.world;
+                    obj.normalMatrix = item.normalMatrix;
+                    if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
+                        obj.baseColorFactor = { material->baseColorFactor.x, material->baseColorFactor.y, material->baseColorFactor.z, material->baseColorFactor.w };
+                        obj.emissiveFactor = { material->emissiveFactor.x, material->emissiveFactor.y, material->emissiveFactor.z, 0.0f };
+                        obj.normalScale = material->normalScale;
+                        obj.occlusionStrength = material->occlusionStrength;
+                        obj.metallicFactor = material->metallicFactor;
+                        obj.roughnessFactor = material->roughnessFactor;
+                        obj.hasBaseColorTexture = material->baseColorTexture.IsValid() ? 1u : 0u;
+                        obj.hasNormalTexture = (debugOptions.useNormal && material->normalTexture.IsValid()) ? 1u : 0u;
+                        obj.hasOrmTexture = material->ormTexture.IsValid() ? 1u : 0u;
+                        obj.hasEmissiveTexture = (debugOptions.useEmissive && material->emissiveTexture.IsValid()) ? 1u : 0u;
+                        obj.alphaMode = static_cast<uint32_t>(material->alphaMode);
+                        obj.alphaCutoff = material->alphaCutoff;
+                    } else {
+                        obj.baseColorFactor = { 1,1,1,1 };
+                        obj.emissiveFactor = { 0,0,0,0 };
+                        obj.hasBaseColorTexture = 0u;
+                        obj.hasNormalTexture = 0u;
+                        obj.hasOrmTexture = 0u;
+                        obj.hasEmissiveTexture = 0u;
+                        obj.alphaMode = 0u;
+                        obj.alphaCutoff = 0.5f;
+                    }
+                    obj.fxFlags = runtime.fxFlags;
+                    obj.fxUser0 = runtime.fxValues[0];
+                    obj.fxUser1 = runtime.fxValues[1];
+                    obj.fxUser2 = runtime.fxValues[2];
+                    obj.fxUser3 = runtime.fxValues[3];
+
+                    uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * drawIndex;
+                    std::memcpy(dst, &obj, sizeof(ObjectCB));
+
+                    const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * drawIndex;
+                    cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+
+                    auto foundPso = g.variantPsoCache.find(runtime.variant);
+                    if (foundPso == g.variantPsoCache.end()) {
+                        ComPtr<ID3D12PipelineState> variantPso;
+                        if (!CreateVariantPipeline(SERVICES::gCtx.device, runtime.variant, variantPso.GetAddressOf())) {
+                            variantPso = g.pso;
+                        }
+                        foundPso = g.variantPsoCache.emplace(runtime.variant, std::move(variantPso)).first;
+                    }
+                    cmd->SetPipelineState(foundPso->second.Get());
+
+                    const auto materialBlock = GpuResources::AllocateMaterialSrvBlock(
+                        runtime.materialBlockTextureIds[0],
+                        runtime.materialBlockTextureIds[1],
+                        runtime.materialBlockTextureIds[2],
+                        runtime.materialBlockTextureIds[3]);
+                    if (materialBlock.valid) {
+                        cmd->SetGraphicsRootDescriptorTable(3, materialBlock.gpuStart);
+                    }
+
+                    const GpuResources::StaticMeshViews views = GpuResources::GetStaticMeshViews(item.gpuMeshId);
+                    if (!views.valid) {
+                        continue;
+                    }
+                    cmd->IASetVertexBuffers(0, 1, &views.vbv);
+                    cmd->IASetIndexBuffer(&views.ibv);
+                    cmd->DrawIndexedInstanced(views.indexCount, 1, 0, 0, 0);
+                }
+            };
+
+            drawRange(opaqueIndices);
+            drawRange(maskedIndices);
+            drawRange(blendedIndices);
+        };
+
+        GpuResources::ResetMaterialSrvAllocator();
+        prepareRuntimeQueue(g.normalDrawItems);
+        renderRuntimeQueue("normal");
+
+        for (const auto& [postGroupMask, bucket] : g.postBuckets) {
+            if (postGroupMask != 0u) {
+                char msg[128]{};
+                std::snprintf(msg, sizeof(msg), "[MeshRenderer] Rendering object-post bucket mask=%u, count=%zu\n", postGroupMask, bucket.size());
+                OutputDebugStringA(msg);
             }
-            cmd->IASetVertexBuffers(0, 1, &views.vbv);
-            cmd->IASetIndexBuffer(&views.ibv);
-            cmd->DrawIndexedInstanced(views.indexCount, 1, 0, 0, 0);
+            prepareRuntimeQueue(bucket);
+            renderRuntimeQueue("object_post");
         }
     }
 

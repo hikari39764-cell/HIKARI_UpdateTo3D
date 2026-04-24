@@ -13,6 +13,9 @@
 namespace HIKARI::GpuResources {
 
     namespace {
+        constexpr uint32_t kDescriptorsPerMaterial = 4;
+        constexpr uint32_t kMaxMaterialDescriptors = 4096;
+
         struct StaticMeshGpu {
             Microsoft::WRL::ComPtr<ID3D12Resource> vb;
             Microsoft::WRL::ComPtr<ID3D12Resource> ib;
@@ -21,6 +24,36 @@ namespace HIKARI::GpuResources {
 
         std::unordered_map<uint32_t, StaticMeshGpu> gStaticMeshes;
         uint32_t gNextMeshId = 1;
+
+        Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> gMaterialSrvHeap;
+        D3D12_CPU_DESCRIPTOR_HANDLE gMaterialCpuStart{};
+        D3D12_GPU_DESCRIPTOR_HANDLE gMaterialGpuStart{};
+        uint32_t gMaterialDescriptorSize = 0;
+        uint32_t gMaterialDescriptorCursor = 0;
+
+        bool EnsureMaterialHeap() {
+            if (gMaterialSrvHeap) {
+                return true;
+            }
+            auto* device = SERVICES::gCtx.device;
+            if (!device) {
+                return false;
+            }
+
+            D3D12_DESCRIPTOR_HEAP_DESC desc{};
+            desc.NumDescriptors = kMaxMaterialDescriptors;
+            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            if (FAILED(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(gMaterialSrvHeap.GetAddressOf())))) {
+                return false;
+            }
+
+            gMaterialCpuStart = gMaterialSrvHeap->GetCPUDescriptorHandleForHeapStart();
+            gMaterialGpuStart = gMaterialSrvHeap->GetGPUDescriptorHandleForHeapStart();
+            gMaterialDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            gMaterialDescriptorCursor = 0;
+            return true;
+        }
     }
 
     uint32_t LoadTexture(const std::string& name, const std::string& sourcePath) {
@@ -100,11 +133,53 @@ namespace HIKARI::GpuResources {
         return DXTEX::DxTextureManager::GetSrvHeap();
     }
 
+    ID3D12DescriptorHeap* GetMaterialSrvHeap() {
+        return EnsureMaterialHeap() ? gMaterialSrvHeap.Get() : nullptr;
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(uint32_t gpuTextureId) {
         if (gpuTextureId == 0) {
             return {};
         }
         return DXTEX::DxTextureManager::GetSrvGpuHandle(static_cast<int>(gpuTextureId - 1));
+    }
+
+    MaterialSrvBlock AllocateMaterialSrvBlock(uint32_t baseColorTex, uint32_t normalTex, uint32_t ormTex, uint32_t emissiveTex) {
+        MaterialSrvBlock block{};
+        if (!EnsureMaterialHeap()) {
+            return block;
+        }
+
+        if (gMaterialDescriptorCursor + kDescriptorsPerMaterial > kMaxMaterialDescriptors) {
+            gMaterialDescriptorCursor = 0;
+        }
+
+        auto* device = SERVICES::gCtx.device;
+        if (!device) {
+            return block;
+        }
+
+        const uint32_t textureIds[kDescriptorsPerMaterial] = { baseColorTex, normalTex, ormTex, emissiveTex };
+        for (uint32_t i = 0; i < kDescriptorsPerMaterial; ++i) {
+            const D3D12_CPU_DESCRIPTOR_HANDLE src = DXTEX::DxTextureManager::GetSrvCpuHandle(static_cast<int>(textureIds[i] > 0 ? textureIds[i] - 1 : -1));
+            if (src.ptr == 0) {
+                return {};
+            }
+
+            D3D12_CPU_DESCRIPTOR_HANDLE dst = gMaterialCpuStart;
+            dst.ptr += static_cast<SIZE_T>(gMaterialDescriptorCursor + i) * gMaterialDescriptorSize;
+            device->CopyDescriptorsSimple(1, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        }
+
+        block.gpuStart = gMaterialGpuStart;
+        block.gpuStart.ptr += static_cast<UINT64>(gMaterialDescriptorCursor) * gMaterialDescriptorSize;
+        block.valid = true;
+        gMaterialDescriptorCursor += kDescriptorsPerMaterial;
+        return block;
+    }
+
+    void ResetMaterialSrvAllocator() {
+        gMaterialDescriptorCursor = 0;
     }
 
 } // namespace HIKARI::GpuResources
