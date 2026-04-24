@@ -115,7 +115,7 @@ namespace HIKARI {
                 component->Deserialize(componentData.properties);
 
                 if (auto* modelComponent = dynamic_cast<ModelComponent*>(component)) {
-                    modelComponent->SetAsset(modelManager.FindAsset(modelComponent->GetAssetId()));
+                    modelComponent->SetModelAsset(modelManager.FindAsset(modelComponent->GetAssetId()));
                 }
             }
         }
