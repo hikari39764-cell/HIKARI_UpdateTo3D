@@ -60,7 +60,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Player",
+            "model": "./Assets/TestModel/player.obj",
             "visible": true
           },
           "type": "ModelComponent"

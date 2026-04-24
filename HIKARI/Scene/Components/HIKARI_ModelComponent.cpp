@@ -332,6 +332,12 @@ namespace HIKARI {
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
         modelPath_ = in.value("model", modelPath_);
+        if (modelPath_.empty()) {
+            const std::string legacyAssetId = in.value("assetId", std::string{});
+            if (legacyAssetId.rfind("builtin:", 0) == 0 || legacyAssetId.find('/') != std::string::npos || legacyAssetId.find('\\') != std::string::npos) {
+                modelPath_ = legacyAssetId;
+            }
+        }
         if (!modelPath_.empty()) {
             modelHandle_ = ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
         }
