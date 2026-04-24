@@ -176,7 +176,7 @@
               "y": 40.0
             },
             "targetSceneId": "Sandbox",
-            "transitionProfileId": "noise_wipe",
+            "transitionProfileId": "test",
             "useTransition": true
           },
           "type": "UIButtonSceneTransitionComponent"

@@ -8,6 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
+#undef max
+#undef min
+
 namespace HIKARI::ASSET {
 
     using AssetId = uint64_t;

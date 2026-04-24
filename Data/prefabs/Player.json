@@ -1,0 +1,103 @@
+{
+  "prefabName": "Player",
+  "rootObject": {
+    "components": [
+      {
+        "properties": {
+          "assetId": "Player",
+          "materialFxParamValues": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "materialFxProfileId": "",
+          "materialFxValuesInitialized": false,
+          "postGroupMask": 0,
+          "visible": true
+        },
+        "type": "ModelComponent"
+      },
+      {
+        "properties": {
+          "attachmentMode": 1,
+          "enabled": true,
+          "localEulerOffset": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "localOffset": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "localScale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "slots": [
+            {
+              "autoPlay": false,
+              "effectAssetId": "sword",
+              "loop": false,
+              "restartIfAlreadyPlaying": true,
+              "slotName": "Default"
+            }
+          ],
+          "stopOnDisable": true,
+          "stopOnOwnerDestroy": true,
+          "targetObjectId": 0,
+          "targetSocketName": "",
+          "visible": true
+        },
+        "type": "VfxPlayerComponent"
+      }
+    ],
+    "editorVisible": true,
+    "enabled": true,
+    "id": 2,
+    "name": "TestCube",
+    "parent": null,
+    "sourcePrefabId": "",
+    "transform": {
+      "position": [
+        2.0,
+        1.0,
+        0.0
+      ],
+      "rotationEulerDeg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "version": 1
+}

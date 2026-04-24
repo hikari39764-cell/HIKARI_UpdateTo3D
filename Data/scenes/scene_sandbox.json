@@ -197,7 +197,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "TestCube",
+            "assetId": "Player",
             "materialFxParamValues": [
               [
                 0.0,
