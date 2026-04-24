@@ -2,8 +2,6 @@
 
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
-#include "Render3D/Core/HIKARI_Material.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include <cstring>
@@ -92,39 +90,13 @@ namespace HIKARI {
         }
 #endif
 
-        const char* ToStateText(ModelAsset::State state) {
-            switch (state) {
-            case ModelAsset::State::Unloaded:
-                return "Unloaded";
-            case ModelAsset::State::Loaded:
-                return "Loaded";
-            case ModelAsset::State::Failed:
-                return "Failed";
-            default:
-                return "Unknown";
-            }
-        }
     }
-
-    void ModelComponent::SetAsset(ModelAsset* asset) {
-        asset_ = asset;
-        if (asset_) {
-            assetId_ = asset_->GetName();
-        }
-        modelHandle_ = {};
-    }
-
-    ModelAsset* ModelComponent::GetAsset() {
-        return asset_;
-    }
-
-    const ModelAsset* ModelComponent::GetAsset() const {
-        return asset_;
-    }
-
 
     void ModelComponent::SetModelHandle(ASSET::AssetHandle<ASSET::ModelAsset> handle) {
         modelHandle_ = handle;
+        if (const ASSET::ModelAsset* model = ASSET::GetGlobalAssetRegistry().FindModel(handle)) {
+            modelPath_ = model->sourcePath;
+        }
     }
 
     ASSET::AssetHandle<ASSET::ModelAsset> ModelComponent::GetModelHandle() const {
@@ -139,12 +111,28 @@ namespace HIKARI {
         return visible_;
     }
 
-    const std::string& ModelComponent::GetAssetId() const {
-        return assetId_;
+    void ModelComponent::SetCastShadow(bool castShadow) {
+        castShadow_ = castShadow;
     }
 
-    void ModelComponent::SetAssetId(std::string assetId) {
-        assetId_ = std::move(assetId);
+    bool ModelComponent::CastShadow() const {
+        return castShadow_;
+    }
+
+    void ModelComponent::SetReceiveShadow(bool receiveShadow) {
+        receiveShadow_ = receiveShadow;
+    }
+
+    bool ModelComponent::ReceiveShadow() const {
+        return receiveShadow_;
+    }
+
+    void ModelComponent::SetRenderLayerMask(uint32_t mask) {
+        renderLayerMask_ = mask;
+    }
+
+    uint32_t ModelComponent::GetRenderLayerMask() const {
+        return renderLayerMask_;
     }
 
     void ModelComponent::SetPostGroupMask(uint32_t mask) {
@@ -329,9 +317,16 @@ namespace HIKARI {
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
-        out["assetId"] = assetId_;
-        out["model"] = assetId_;
+        if (!modelAssetId_.empty()) {
+            out["assetId"] = modelAssetId_;
+        }
+        if (!modelPath_.empty()) {
+            out["model"] = modelPath_;
+        }
         out["visible"] = visible_;
+        out["castShadow"] = castShadow_;
+        out["receiveShadow"] = receiveShadow_;
+        out["renderLayerMask"] = renderLayerMask_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
         out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
@@ -342,11 +337,20 @@ namespace HIKARI {
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
-        assetId_ = in.value("assetId", assetId_);
-        if (assetId_.empty()) {
-            assetId_ = in.value("model", std::string{});
+        modelAssetId_ = in.value("assetId", modelAssetId_);
+        modelPath_ = in.value("model", modelPath_);
+        if (modelPath_.empty()) {
+            if (modelAssetId_.rfind("builtin:", 0) == 0 || modelAssetId_.find('/') != std::string::npos || modelAssetId_.find('\\') != std::string::npos) {
+                modelPath_ = modelAssetId_;
+            }
+        }
+        if (!modelPath_.empty()) {
+            modelHandle_ = ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
         }
         visible_ = in.value("visible", visible_);
+        castShadow_ = in.value("castShadow", castShadow_);
+        receiveShadow_ = in.value("receiveShadow", receiveShadow_);
+        renderLayerMask_ = in.value("renderLayerMask", renderLayerMask_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
         bool hasParamValues = false;
@@ -375,20 +379,42 @@ namespace HIKARI {
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Visible", visible_);
+        builder.Bool("Cast Shadow", castShadow_);
+        builder.Bool("Receive Shadow", receiveShadow_);
+        int layerMask = static_cast<int>(renderLayerMask_);
+        if (builder.Int("Render Layer Mask", layerMask)) {
+            renderLayerMask_ = static_cast<uint32_t>(std::max(layerMask, 0));
+        }
         int postMask = static_cast<int>(postGroupMask_);
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
+        if (builder.AssetIdPicker("Model Asset", AssetType::Model, modelAssetId_)) {
+            modelPath_.clear();
+            modelHandle_ = {};
+        }
         builder.String("Material FX Profile", materialFxProfileId_);
-        builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
     }
 
     void ModelComponent::RenderImGui() {
 #if defined(_DEBUG)
         ImGui::Checkbox("Visible", &visible_);
+        ImGui::Checkbox("Cast Shadow", &castShadow_);
+        ImGui::Checkbox("Receive Shadow", &receiveShadow_);
+        int layerMask = static_cast<int>(renderLayerMask_);
+        if (ImGui::InputInt("Render Layer Mask", &layerMask)) {
+            renderLayerMask_ = static_cast<uint32_t>(std::max(layerMask, 0));
+        }
         int postMask = static_cast<int>(postGroupMask_);
         if (ImGui::InputInt("Post Group Mask", &postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
+        }
+        char modelAssetIdBuffer[256]{};
+        std::strncpy(modelAssetIdBuffer, modelAssetId_.c_str(), sizeof(modelAssetIdBuffer) - 1);
+        if (ImGui::InputText("Model Asset Id", modelAssetIdBuffer, sizeof(modelAssetIdBuffer))) {
+            modelAssetId_ = modelAssetIdBuffer;
+            modelPath_.clear();
+            modelHandle_ = {};
         }
         char profileBuffer[256]{};
         const std::string previousProfileId = materialFxProfileId_;
@@ -443,25 +469,16 @@ namespace HIKARI {
             }
             ImGui::TreePop();
         }
-        if (asset_ == nullptr) {
-            ImGui::TextUnformatted("Asset: <none>");
+        auto* model = ASSET::GetGlobalAssetRegistry().FindModel(modelHandle_);
+        if (model == nullptr) {
+            ImGui::TextUnformatted("Model: <none>");
             return;
         }
 
-        ImGui::Text("Asset: %s", asset_->GetName().c_str());
-        ImGui::Text("Source: %s", asset_->GetSourcePath().c_str());
-        ImGui::Text("State: %s", ToStateText(asset_->GetState()));
-        ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
-        ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
-        if (const Material* material = asset_->GetMaterial()) {
-            const MATH::Vec4& color = material->GetBaseColor();
-            ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
-            const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
-            ImGui::Text("TexturePath: %s", texturePath);
-            ImGui::Text("TextureHandle: %d (%s)",
-                material->GetBaseColorTextureHandle(),
-                material->HasBaseColorTexture() ? "Valid" : "Invalid");
-        }
+        ImGui::Text("Model: %s", model->name.c_str());
+        ImGui::Text("Source: %s", model->sourcePath.c_str());
+        ImGui::Text("State: %d", static_cast<int>(model->state));
+        ImGui::Text("Primitive Count: %u", static_cast<unsigned>(model->primitives.size()));
 #endif
     }
 

@@ -8,28 +8,26 @@
 
 namespace HIKARI {
 
-    class ModelAsset;
-
     class ModelComponent final : public IComponent {
     public:
         std::string_view GetTypeName() const override { return "ModelComponent"; }
 
-        void SetAsset(ModelAsset* asset);
         void SetModelHandle(ASSET::AssetHandle<ASSET::ModelAsset> handle);
         ASSET::AssetHandle<ASSET::ModelAsset> GetModelHandle() const;
-        ModelAsset* GetAsset();
-        const ModelAsset* GetAsset() const;
 
         void SetVisible(bool visible);
         bool IsVisible() const;
+        void SetCastShadow(bool castShadow);
+        bool CastShadow() const;
+        void SetReceiveShadow(bool receiveShadow);
+        bool ReceiveShadow() const;
+        void SetRenderLayerMask(uint32_t mask);
+        uint32_t GetRenderLayerMask() const;
 
         void RenderImGui() override;
         void Serialize(nlohmann::json& out) const override;
         void Deserialize(const nlohmann::json& in) override;
         void BuildInspector(IInspectorBuilder& builder) override;
-
-        const std::string& GetAssetId() const;
-        void SetAssetId(std::string assetId);
 
         void SetPostGroupMask(uint32_t mask);
         uint32_t GetPostGroupMask() const;
@@ -47,10 +45,13 @@ namespace HIKARI {
         void ResetMaterialFxToProfileDefaults();
 
     private:
-        ModelAsset* asset_ = nullptr;
         ASSET::AssetHandle<ASSET::ModelAsset> modelHandle_{};
-        std::string assetId_{};
+        std::string modelPath_{};
+        std::string modelAssetId_{};
         bool visible_ = true;
+        bool castShadow_ = true;
+        bool receiveShadow_ = true;
+        uint32_t renderLayerMask_ = 0xFFFFFFFFu;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
         DirectX::XMFLOAT4 materialFxParamValues_[4]{};

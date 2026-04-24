@@ -1,7 +1,7 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
-#include "Render3D/HIKARI_ModelAsset.h"
-#include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Assets/HIKARI_Assets.h"
+#include "Render3D/HIKARI_ModelRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_World.h"
@@ -25,13 +25,18 @@ namespace HIKARI {
                 return;
             }
 
-            const ModelAsset* asset = model.GetAsset();
-            if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
+            ASSET::AssetRegistry& registry = ASSET::GetGlobalAssetRegistry();
+            const ASSET::ModelAsset* asset = registry.FindModel(model.GetModelHandle());
+            if (asset && asset->state == ASSET::AssetState::Ready && !asset->primitives.empty()) {
                 ++sDebugStats_.submittedModelCount;
-
-                MESHRENDERER::SubmitStaticMesh(
-                    *asset,
+                MODELR::SubmitModelComponent(
+                    registry,
+                    model.GetModelHandle(),
                     object.Transform(),
+                    model.IsVisible(),
+                    model.CastShadow(),
+                    model.ReceiveShadow(),
+                    model.GetRenderLayerMask(),
                     model.GetMaterialFxProfileId(),
                     model.GetPostGroupMask(),
                     model.GetMaterialFxParamValues(),
