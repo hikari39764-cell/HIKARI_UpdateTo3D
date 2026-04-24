@@ -114,7 +114,6 @@
     <ClCompile Include="HIKARI\HIKARI_GlowManager.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_MapRoom.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_MultiTextureAnimator.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_MeshEffect.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_Offscreen.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
@@ -144,6 +143,7 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Material.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
@@ -315,6 +315,8 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h" />
+    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
+    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />
@@ -405,7 +407,6 @@
     <ClInclude Include="HIKARI\HIKARI_GlowManager.h" />
     <ClInclude Include="HIKARI\HIKARI_Input.h" />
     <ClInclude Include="HIKARI\HIKARI_MapRoom.h" />
-    <ClInclude Include="HIKARI\HIKARI_MultiTextureAnimator.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_MeshEffect.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Offscreen.h" />
     <ClInclude Include="HIKARI\HIKARI_Particle.h" />

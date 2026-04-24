@@ -1,0 +1,26 @@
+#pragma once
+
+#include <string>
+#include <cstdint>
+#include <DirectXMath.h>
+
+#include "Render3D/HIKARI_Transform3D.h"
+
+namespace HIKARI {
+    class ModelAsset;
+
+    struct ModelRenderItem {
+        const ModelAsset* model = nullptr;
+        Transform3D worldTransform;
+
+        std::string materialFxProfileId;
+        DirectX::XMFLOAT4 materialFxParamValues[4]{};
+        bool materialFxValuesInitialized = false;
+
+        uint32_t postGroupMask = 0;
+
+        std::string animationClipName;
+        float animationTimeSec = 0.0f;
+        bool animationLoop = true;
+    };
+}
