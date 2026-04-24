@@ -14,6 +14,7 @@ namespace HIKARI {
         uint32_t hasNormalTexture = 0;
         uint32_t hasOrmTexture = 0;
         uint32_t hasEmissiveTexture = 0;
+        uint32_t postGroupMask = 0;
         ASSET::AssetState modelState = ASSET::AssetState::Unloaded;
     };
 

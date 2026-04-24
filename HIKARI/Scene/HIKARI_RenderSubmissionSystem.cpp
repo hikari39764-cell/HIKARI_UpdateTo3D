@@ -75,6 +75,7 @@ namespace HIKARI {
                     debugInfo.gpuMeshId = item.gpuMeshId;
                     debugInfo.material = item.material;
                     debugInfo.modelState = asset->state;
+                    debugInfo.postGroupMask = item.postGroupMask;
                     if (const ASSET::MaterialAsset* material = registry.FindMaterial(item.material)) {
                         debugInfo.hasBaseColorTexture = material->baseColorTexture.IsValid() ? 1u : 0u;
                         debugInfo.hasNormalTexture = material->normalTexture.IsValid() ? 1u : 0u;

@@ -339,6 +339,9 @@ namespace HIKARI::MESHRENDERER {
                     runtime.variant.doubleSided = profile.doubleSided;
                 }
             }
+            if (item.postGroupMask != 0 && item.materialFxProfileId.empty()) {
+                runtime.variant.shaderId = "StaticFx";
+            }
 
             runtime.fxValues = {};
             runtime.fxFlags = 0;

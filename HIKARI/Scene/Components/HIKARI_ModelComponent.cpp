@@ -379,6 +379,10 @@ namespace HIKARI {
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
+        if (builder.AssetIdPicker("Model Asset", AssetType::Model, modelAssetId_)) {
+            modelPath_.clear();
+            modelHandle_ = {};
+        }
         builder.String("Model Path", modelPath_);
         builder.String("Material FX Profile", materialFxProfileId_);
     }
@@ -400,6 +404,13 @@ namespace HIKARI {
         std::strncpy(modelPathBuffer, modelPath_.c_str(), sizeof(modelPathBuffer) - 1);
         if (ImGui::InputText("Model Path", modelPathBuffer, sizeof(modelPathBuffer))) {
             modelPath_ = modelPathBuffer;
+            modelHandle_ = modelPath_.empty() ? ASSET::AssetHandle<ASSET::ModelAsset>{} : ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
+        }
+        char modelPathBuffer[512]{};
+        std::strncpy(modelPathBuffer, modelPath_.c_str(), sizeof(modelPathBuffer) - 1);
+        if (ImGui::InputText("Model Path", modelPathBuffer, sizeof(modelPathBuffer))) {
+            modelPath_ = modelPathBuffer;
+            modelAssetId_.clear();
             modelHandle_ = modelPath_.empty() ? ASSET::AssetHandle<ASSET::ModelAsset>{} : ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
         }
         char profileBuffer[256]{};

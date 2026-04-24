@@ -68,11 +68,12 @@ namespace HIKARI {
                 const SubmittedDrawItemDebugInfo& item = renderStats.items[i];
                 ImGui::PushID(static_cast<int>(i));
                 ImGui::Text("[%zu] gpuMeshId=%u material=%llu", i, item.gpuMeshId, static_cast<unsigned long long>(item.material.id));
-                ImGui::Text("hasBaseColor=%u hasNormal=%u hasOrm=%u hasEmissive=%u modelState=%u",
+                ImGui::Text("hasBaseColor=%u hasNormal=%u hasOrm=%u hasEmissive=%u postMask=%u modelState=%u",
                     item.hasBaseColorTexture,
                     item.hasNormalTexture,
                     item.hasOrmTexture,
                     item.hasEmissiveTexture,
+                    item.postGroupMask,
                     static_cast<unsigned>(item.modelState));
                 ImGui::Separator();
                 ImGui::PopID();
