@@ -5,29 +5,26 @@
 namespace HIKARI {
 
     const std::string& ModelAsset::GetName() const {
-        return name_;
+        return id.value;
     }
 
     const std::string& ModelAsset::GetSourcePath() const {
-        return sourcePathLegacy_;
+        return sourcePath;
     }
 
     ModelAsset::State ModelAsset::GetState() const {
-        return state_;
+        return state;
     }
 
     void ModelAsset::SetName(std::string name) {
-        name_ = std::move(name);
-        id.value = name_;
+        id.value = std::move(name);
     }
 
     void ModelAsset::SetSourcePath(std::string path) {
-        sourcePathLegacy_ = std::move(path);
-        sourcePath = sourcePathLegacy_;
+        sourcePath = std::move(path);
     }
 
     void ModelAsset::SetState(State stateValue) {
-        state_ = stateValue;
         state = stateValue;
     }
 

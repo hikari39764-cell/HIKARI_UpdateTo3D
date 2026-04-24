@@ -198,9 +198,6 @@ namespace HIKARI {
         Bounds bounds{};
 
     private:
-        std::string name_;
-        std::string sourcePathLegacy_;
-        State state_ = State::Unloaded;
         std::unique_ptr<Mesh> mesh_;
         std::unique_ptr<Material> material_;
     };
