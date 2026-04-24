@@ -246,9 +246,22 @@ namespace HIKARI {
             return srvGpu_[handle];
         }
 
+        D3D12_CPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvCpuHandle(int handle)
+        {
+            if (handle < 0 || handle >= static_cast<int>(srvCpu_.size())) {
+                return {};
+            }
+            return srvCpu_[handle];
+        }
+
         ID3D12DescriptorHeap* DxTextureManager::GetSrvHeap()
         {
             return srvHeap_.Get();
+        }
+
+        UINT DxTextureManager::GetSrvDescriptorSize()
+        {
+            return descriptorSize_;
         }
 
         void DxTextureManager::GetTextureSize(int handle, UINT& outWidth, UINT& outHeight) {
