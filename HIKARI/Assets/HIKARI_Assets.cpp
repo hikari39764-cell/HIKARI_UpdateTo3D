@@ -49,7 +49,10 @@ namespace HIKARI::ASSET {
         model.id = AllocateId();
         model.name = sourcePath;
         model.sourcePath = sourcePath;
-        model.state = AssetState::Failed;
+        model.state = AssetState::Loading;
+
+        const bool imported = ImportModelStatic(*this, model, sourcePath);
+        model.state = imported ? AssetState::Ready : AssetState::Failed;
 
         modelByPath_[sourcePath] = model.id;
         models_.emplace(model.id, model);

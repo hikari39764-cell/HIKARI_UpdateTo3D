@@ -35,6 +35,12 @@ namespace HIKARI::ASSET {
         Failed
     };
 
+    enum class AlphaMode : uint8_t {
+        Opaque = 0,
+        Mask,
+        Blend
+    };
+
     template<class TAsset>
     struct AssetHandle {
         AssetId id = kInvalidAssetId;
@@ -60,6 +66,14 @@ namespace HIKARI::ASSET {
         AssetState state = AssetState::Unloaded;
         std::string name{};
         DirectX::XMFLOAT4 baseColorFactor{ 1, 1, 1, 1 };
+        DirectX::XMFLOAT3 emissiveFactor{ 0, 0, 0 };
+        float normalScale = 1.0f;
+        float occlusionStrength = 1.0f;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        AlphaMode alphaMode = AlphaMode::Opaque;
+        float alphaCutoff = 0.5f;
+        bool doubleSided = false;
         AssetHandle<TextureAsset> baseColorTexture{};
         AssetHandle<TextureAsset> normalTexture{};
         AssetHandle<TextureAsset> ormTexture{};
@@ -72,6 +86,7 @@ namespace HIKARI::ASSET {
         struct Vertex {
             float px = 0, py = 0, pz = 0;
             float nx = 0, ny = 1, nz = 0;
+            float tx = 1, ty = 0, tz = 0, tw = 1;
             float u = 0, v = 0;
         };
         struct Submesh {
@@ -92,6 +107,10 @@ namespace HIKARI::ASSET {
         struct Primitive {
             AssetHandle<MeshAsset> mesh{};
             AssetHandle<MaterialAsset> material{};
+            DirectX::XMFLOAT4X4 localTransform{ 1, 0, 0, 0,
+                                                0, 1, 0, 0,
+                                                0, 0, 1, 0,
+                                                0, 0, 0, 1 };
         };
 
         AssetId id = kInvalidAssetId;
@@ -147,6 +166,10 @@ namespace HIKARI::ASSET {
         std::unordered_map<std::string, AssetId> textureByPath_{};
         std::unordered_map<std::string, AssetId> modelByPath_{};
         AssetId nextId_ = 1;
+
+        friend bool ImportModelStatic(AssetRegistry& registry, ModelAsset& model, const std::string& sourcePath);
     };
+
+    bool ImportModelStatic(AssetRegistry& registry, ModelAsset& model, const std::string& sourcePath);
 
 } // namespace HIKARI::ASSET
