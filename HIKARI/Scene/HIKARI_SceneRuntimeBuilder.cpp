@@ -7,7 +7,6 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Scene/Components/HIKARI_IComponent.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_World.h"
@@ -46,11 +45,6 @@ namespace HIKARI {
                     const std::string modelRef = component.properties.value("model", std::string{});
                     if (!modelRef.empty()) {
                         deps.modelAssetIds.insert(modelRef);
-                    } else {
-                        const std::string assetId = component.properties.value("assetId", std::string{});
-                        if (!assetId.empty()) {
-                            deps.modelAssetIds.insert(assetId);
-                        }
                     }
                 }
             }
@@ -64,14 +58,9 @@ namespace HIKARI {
         const AssetRegistry& assetRegistry,
         ModelManager& modelManager,
         SkyManager& skyManager) const {
-        for (const std::string& modelRef : dependencies.modelAssetIds) {
-            std::string sourcePath = modelRef;
-            if (const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ modelRef })) {
-                sourcePath = descriptor->sourcePath;
-            }
-
-            if (!sourcePath.empty()) {
-                ASSET::GetGlobalAssetRegistry().GetOrLoadModel(sourcePath);
+        for (const std::string& modelPath : dependencies.modelAssetIds) {
+            if (!modelPath.empty()) {
+                ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath);
             }
         }
 
@@ -122,17 +111,6 @@ namespace HIKARI {
                     continue;
                 }
                 component->Deserialize(componentData.properties);
-
-                if (auto* modelComponent = dynamic_cast<ModelComponent*>(component)) {
-                    if (!modelComponent->GetModelHandle().IsValid()) {
-                        const std::string assetId = componentData.properties.value("assetId", std::string{});
-                        if (!assetId.empty()) {
-                            if (const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ assetId })) {
-                                modelComponent->SetModelHandle(ASSET::GetGlobalAssetRegistry().GetOrLoadModel(descriptor->sourcePath));
-                            }
-                        }
-                    }
-                }
 
                 (void)modelManager;
             }
