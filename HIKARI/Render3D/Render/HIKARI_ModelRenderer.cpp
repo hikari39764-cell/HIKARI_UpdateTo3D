@@ -13,6 +13,7 @@ namespace HIKARI::MODELRENDERER {
 
     void Reset() {
         gQueue.clear();
+        MESHRENDERER::Reset();
     }
 
     void SubmitModel(const ModelRenderItem& item) {
@@ -37,6 +38,7 @@ namespace HIKARI::MODELRENDERER {
         }
 
         MESHRENDERER::RenderAll(camera, environment);
+        gQueue.clear();
     }
 
 }
