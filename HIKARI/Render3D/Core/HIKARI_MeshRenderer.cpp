@@ -101,9 +101,9 @@ namespace HIKARI::MESHRENDERER {
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
-            std::vector<StaticModelDrawItem> drawItems;
-            std::vector<StaticModelDrawItem> normalDrawItems;
-            std::map<uint32_t, std::vector<StaticModelDrawItem>> postBuckets;
+            std::vector<StaticModelDrawItem> submittedDrawItems;
+            std::vector<StaticModelDrawItem> baseDrawItems;
+            std::unordered_map<ObjectFxBucketKey, std::vector<StaticModelDrawItem>, ObjectFxBucketKeyHasher> objectFxBuckets;
             std::vector<DrawItemRuntime> runtimeItems;
             uint32_t fallbackTextureId = 0;
             uint32_t fallbackNormalTextureId = 0;
@@ -332,7 +332,7 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
         }
 
-        void ResolveDrawVariant(DrawItemRuntime& runtime) {
+        void ResolveDrawVariant(DrawItemRuntime& runtime, bool applyMaterialFxProfile, const std::string* overrideMaterialFxProfileId = nullptr) {
             StaticModelDrawItem& item = runtime.item;
             if (item.registry == nullptr) {
                 return;
@@ -352,9 +352,14 @@ namespace HIKARI::MESHRENDERER {
                 runtime.alphaMode = ASSET::AlphaMode::Opaque;
             }
 
-            if (!item.materialFxProfileId.empty()) {
+            const std::string* materialFxProfileId = overrideMaterialFxProfileId;
+            if (materialFxProfileId == nullptr) {
+                materialFxProfileId = &item.materialFxProfileId;
+            }
+
+            if (applyMaterialFxProfile && materialFxProfileId != nullptr && !materialFxProfileId->empty()) {
                 MaterialFxProfile profile{};
-                if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
+                if (MaterialFxProfile::LoadById(*materialFxProfileId, profile)) {
                     if (!profile.shaderProfileId.empty()) {
                         runtime.variant.shaderId = profile.shaderProfileId;
                     }
@@ -399,9 +404,9 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             g.fallbackTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
-            g.fallbackNormalTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_normal", "HIKARI/white1x1.png");
+            g.fallbackNormalTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_normal", "Data/vfx/Textures/Normal01.png");
             g.fallbackOrmTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_orm", "HIKARI/white1x1.png");
-            g.fallbackEmissiveTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_black", "HIKARI/white1x1.png");
+            g.fallbackEmissiveTextureId = GpuResources::LoadTexture("mesh_renderer/fallback_black", "Data/vfx/Textures/Gradation_White_Black_Sharp.png");
             g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
@@ -410,9 +415,9 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void Reset() {
-        g.drawItems.clear();
-        g.normalDrawItems.clear();
-        g.postBuckets.clear();
+        g.submittedDrawItems.clear();
+        g.baseDrawItems.clear();
+        g.objectFxBuckets.clear();
         g.runtimeItems.clear();
         GpuResources::ResetMaterialSrvAllocator();
     }
@@ -421,16 +426,55 @@ namespace HIKARI::MESHRENDERER {
         if (item.registry == nullptr || item.gpuMeshId == 0) {
             return;
         }
-        g.drawItems.push_back(item);
-        if (item.postGroupMask == 0u) {
-            g.normalDrawItems.push_back(item);
-            return;
+
+        g.submittedDrawItems.push_back(item);
+
+        const bool useObjectFx = (item.postGroupMask != 0u) && !item.materialFxProfileId.empty();
+        if (!useObjectFx) {
+            g.baseDrawItems.push_back(item);
+        } else {
+            ObjectFxBucketKey key{};
+            key.postGroupMask = item.postGroupMask;
+            key.materialFxProfileId = item.materialFxProfileId;
+            auto& bucket = g.objectFxBuckets[key];
+            bucket.push_back(item);
         }
-        g.postBuckets[item.postGroupMask].push_back(item);
+
+#if defined(_DEBUG)
+        char msg[256]{};
+        std::snprintf(
+            msg,
+            sizeof(msg),
+            "[MeshRenderer] SubmitStaticDrawItem base=%zu objectFxBuckets=%zu (mask=%u, profile=%s)\n",
+            g.baseDrawItems.size(),
+            g.objectFxBuckets.size(),
+            item.postGroupMask,
+            item.materialFxProfileId.empty() ? "<none>" : item.materialFxProfileId.c_str());
+        OutputDebugStringA(msg);
+        for (const auto& [bucketKey, bucketItems] : g.objectFxBuckets) {
+            std::snprintf(
+                msg,
+                sizeof(msg),
+                "[MeshRenderer]   bucket mask=%u profile=%s count=%zu\n",
+                bucketKey.postGroupMask,
+                bucketKey.materialFxProfileId.c_str(),
+                bucketItems.size());
+            OutputDebugStringA(msg);
+        }
+#endif
     }
 
     const std::vector<StaticModelDrawItem>& GetSubmittedDrawItems() {
-        return g.drawItems;
+        return g.submittedDrawItems;
+    }
+
+    size_t GetObjectFxBucketCount() {
+        return g.objectFxBuckets.size();
+    }
+
+    const char* ResolveDrawItemBucketTag(const StaticModelDrawItem& item) {
+        const bool useObjectFx = (item.postGroupMask != 0u) && !item.materialFxProfileId.empty();
+        return useObjectFx ? "ObjectFx" : "Base";
     }
 
     SubmissionRendererDebugOptions& GetDebugOptions() {
@@ -439,7 +483,7 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
-        if (g.drawItems.empty()) {
+        if (g.submittedDrawItems.empty()) {
             return;
         }
         if (!EnsureInitialized()) {
@@ -500,13 +544,13 @@ namespace HIKARI::MESHRENDERER {
         constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
 
         SubmissionRendererDebugOptions& debugOptions = GetDebugOptions();
-        auto prepareRuntimeQueue = [&](const std::vector<StaticModelDrawItem>& queueItems) {
+        auto prepareRuntimeQueue = [&](const std::vector<StaticModelDrawItem>& queueItems, bool applyMaterialFxProfile, const std::string* overrideProfileId = nullptr) {
             g.runtimeItems.clear();
             g.runtimeItems.reserve(queueItems.size());
             for (const StaticModelDrawItem& item : queueItems) {
                 DrawItemRuntime runtime{};
                 runtime.item = item;
-                ResolveDrawVariant(runtime);
+                ResolveDrawVariant(runtime, applyMaterialFxProfile, overrideProfileId);
                 if (const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material)) {
                     const ASSET::TextureAsset* baseColor = item.registry->FindTexture(material->baseColorTexture);
                     const ASSET::TextureAsset* normal = item.registry->FindTexture(material->normalTexture);
@@ -642,17 +686,29 @@ namespace HIKARI::MESHRENDERER {
         };
 
         GpuResources::ResetMaterialSrvAllocator();
-        prepareRuntimeQueue(g.normalDrawItems);
-        renderRuntimeQueue("normal");
 
-        for (const auto& [postGroupMask, bucket] : g.postBuckets) {
-            if (postGroupMask != 0u) {
-                char msg[128]{};
-                std::snprintf(msg, sizeof(msg), "[MeshRenderer] Rendering object-post bucket mask=%u, count=%zu\n", postGroupMask, bucket.size());
-                OutputDebugStringA(msg);
-            }
-            prepareRuntimeQueue(bucket);
-            renderRuntimeQueue("object_post");
+        // Stage A: base static draw.
+        prepareRuntimeQueue(g.baseDrawItems, false, nullptr);
+        renderRuntimeQueue("base");
+
+        // Stage B: object-level FX buckets.
+        for (const auto& [bucketKey, bucket] : g.objectFxBuckets) {
+            MaterialFxProfile profile{};
+            const bool profileOk = MaterialFxProfile::LoadById(bucketKey.materialFxProfileId, profile);
+            char msg[256]{};
+            std::snprintf(
+                msg,
+                sizeof(msg),
+                "[MeshRenderer] ObjectFx bucket mask=%u profile=%s count=%zu load=%s\n",
+                bucketKey.postGroupMask,
+                bucketKey.materialFxProfileId.c_str(),
+                bucket.size(),
+                profileOk ? "ok" : "fail");
+            OutputDebugStringA(msg);
+
+            const std::string* overrideProfile = profileOk ? &bucketKey.materialFxProfileId : nullptr;
+            prepareRuntimeQueue(bucket, true, overrideProfile);
+            renderRuntimeQueue("object_fx");
         }
     }
 

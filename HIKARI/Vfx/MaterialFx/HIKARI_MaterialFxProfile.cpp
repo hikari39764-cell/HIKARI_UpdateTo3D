@@ -2,6 +2,11 @@
 
 #include <algorithm>
 #include <fstream>
+#include <cstdio>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 #include <json.hpp>
 
@@ -107,23 +112,43 @@ bool MaterialFxProfile::LoadFromJson(const std::string& path) {
 
     std::ifstream ifs(path);
     if (!ifs.is_open()) {
+#if defined(_DEBUG)
+        char msg[512]{};
+        std::snprintf(msg, sizeof(msg), "[MaterialFxProfile] LoadFromJson open failed path=%s profileId=%s\n", path.c_str(), id.c_str());
+        OutputDebugStringA(msg);
+#endif
         return false;
     }
 
     nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
     if (root.is_discarded() || !root.is_object()) {
+#if defined(_DEBUG)
+        char msg[512]{};
+        std::snprintf(msg, sizeof(msg), "[MaterialFxProfile] LoadFromJson parse failed path=%s profileId=%s\n", path.c_str(), id.c_str());
+        OutputDebugStringA(msg);
+#endif
         return false;
     }
 
     if (root.contains("profiles") && root["profiles"].is_array()) {
         for (const auto& profileNode : root["profiles"]) {
             if (ParseProfileNode(profileNode, id, *this)) {
+                #if defined(_DEBUG)
+                char msg[768]{};
+                std::snprintf(msg, sizeof(msg), "[MaterialFxProfile] LoadFromJson success path=%s profileId=%s shaderProfileId=%s composite=%d\n", path.c_str(), id.c_str(), shaderProfileId.c_str(), static_cast<int>(composite));
+                OutputDebugStringA(msg);
+                #endif
                 return true;
             }
         }
     }
-
-    return ParseProfileNode(root, id, *this);
+    const bool ok = ParseProfileNode(root, id, *this);
+#if defined(_DEBUG)
+    char msg[768]{};
+    std::snprintf(msg, sizeof(msg), "[MaterialFxProfile] LoadFromJson %s path=%s profileId=%s shaderProfileId=%s composite=%d\n", ok ? "success" : "not_found", path.c_str(), id.c_str(), shaderProfileId.c_str(), static_cast<int>(composite));
+    OutputDebugStringA(msg);
+#endif
+    return ok;
 }
 
 bool MaterialFxProfile::LoadById(const std::string& profileId, MaterialFxProfile& out) {
@@ -131,7 +156,13 @@ bool MaterialFxProfile::LoadById(const std::string& profileId, MaterialFxProfile
         return false;
     }
     out.id = profileId;
-    return out.LoadFromJson("Data/material_fx_profiles.json");
+    const bool ok = out.LoadFromJson("Data/material_fx_profiles.json");
+#if defined(_DEBUG)
+    char msg[768]{};
+    std::snprintf(msg, sizeof(msg), "[MaterialFxProfile] LoadById profileId=%s path=%s success=%s shaderProfileId=%s composite=%d\n", profileId.c_str(), "Data/material_fx_profiles.json", ok ? "true" : "false", out.shaderProfileId.c_str(), static_cast<int>(out.composite));
+    OutputDebugStringA(msg);
+#endif
+    return ok;
 }
 
 void MaterialFxProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[4]) const {
