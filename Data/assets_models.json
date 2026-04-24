@@ -3,7 +3,7 @@
   "models": [
     { "id": "Block", "type": "Model", "sourcePath": "./Assets/TestModel/block.obj", "forceFlatNormals": false },
     { "id": "Player", "type": "Model", "sourcePath": "./Assets/TestModel/player.obj", "forceFlatNormals": false },
-    { "id": "TestCube", "type": "Model", "sourcePath": "builtin:cube", "forceFlatNormals": false },
+    { "id": "TestCube", "type": "Model", "sourcePath": "./Assets/TestModel/Wizard.gltf", "forceFlatNormals": false },
     { "id": "SandboxPlane", "type": "Model", "sourcePath": "builtin:plane", "forceFlatNormals": false },
     { "id": "SandboxCube", "type": "Model", "sourcePath": "builtin:cube", "forceFlatNormals": false },
     { "id": "SkySphere", "type": "Model", "sourcePath": "./Assets/TestModel/SkyDome.obj", "forceFlatNormals": false }

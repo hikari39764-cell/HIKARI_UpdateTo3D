@@ -6,6 +6,7 @@
 #include <cstring>
 #include <algorithm>
 #include <utility>
+#include "Assets/HIKARI_AssetTypes.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
