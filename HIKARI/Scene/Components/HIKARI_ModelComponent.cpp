@@ -1,6 +1,5 @@
 #include "HIKARI_ModelComponent.h"
 
-#include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
