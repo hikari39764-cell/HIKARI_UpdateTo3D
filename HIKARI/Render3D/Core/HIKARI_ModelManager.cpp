@@ -374,7 +374,15 @@ namespace HIKARI {
             }
         }
 
-        auto readAccessor = [&](int accessorIndex, std::vector<float>& out, int expectedComponents, int* outCount = nullptr) -> bool {
+        auto accessorCompCount = [](const std::string& type) -> int {
+            if (type == "SCALAR") return 1;
+            if (type == "VEC2") return 2;
+            if (type == "VEC3") return 3;
+            if (type == "VEC4") return 4;
+            return 0;
+        };
+
+        auto readAccessorFloats = [&](int accessorIndex, int expectedComponents, std::vector<float>& out, int* outCount = nullptr) -> bool {
             if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) return false;
             const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
             const int bufferViewIndex = accessor.value("bufferView", -1);
@@ -384,15 +392,10 @@ namespace HIKARI {
             if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) return false;
 
             const int componentType = accessor.value("componentType", 0);
-            if (componentType != 5126) return false; // FLOAT only for now
+            if (componentType != 5126) return false; // FLOAT
 
-            const std::string type = accessor.value("type", "");
-            int actualComponents = 0;
-            if (type == "SCALAR") actualComponents = 1;
-            else if (type == "VEC2") actualComponents = 2;
-            else if (type == "VEC3") actualComponents = 3;
-            else if (type == "VEC4") actualComponents = 4;
-            if (actualComponents != expectedComponents) return false;
+            const int components = accessorCompCount(accessor.value("type", ""));
+            if (components != expectedComponents) return false;
 
             const int count = accessor.value("count", 0);
             if (count <= 0) return false;
@@ -400,18 +403,48 @@ namespace HIKARI {
 
             const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
             const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
-            const size_t stride = static_cast<size_t>(view.value("byteStride", actualComponents * 4));
+            const size_t stride = static_cast<size_t>(view.value("byteStride", components * 4));
             const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
 
-            out.resize(static_cast<size_t>(count) * static_cast<size_t>(actualComponents));
+            out.resize(static_cast<size_t>(count) * static_cast<size_t>(components));
             for (int i = 0; i < count; ++i) {
                 const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
-                if (srcOffset + static_cast<size_t>(actualComponents * 4) > bufferData.size()) {
+                if (srcOffset + static_cast<size_t>(components * 4) > bufferData.size()) {
                     return false;
                 }
-                std::memcpy(out.data() + static_cast<size_t>(i * actualComponents), bufferData.data() + srcOffset, static_cast<size_t>(actualComponents * 4));
+                std::memcpy(out.data() + static_cast<size_t>(i * components), bufferData.data() + srcOffset, static_cast<size_t>(components * 4));
             }
             return true;
+        };
+
+        auto readAccessorScalars = [&](int accessorIndex, std::vector<float>& out) -> bool {
+            if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) return false;
+            const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
+            const int bufferViewIndex = accessor.value("bufferView", -1);
+            if (bufferViewIndex < 0 || bufferViewIndex >= static_cast<int>(bufferViews.size())) return false;
+            const json& view = bufferViews[static_cast<size_t>(bufferViewIndex)];
+            const int bufferIndex = view.value("buffer", -1);
+            if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) return false;
+
+            const int componentType = accessor.value("componentType", 0);
+            const int count = accessor.value("count", 0);
+            if (count <= 0) return false;
+
+            const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
+            const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
+            const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
+            out.resize(static_cast<size_t>(count));
+
+            if (componentType == 5126) {
+                const size_t stride = static_cast<size_t>(view.value("byteStride", 4));
+                for (int i = 0; i < count; ++i) {
+                    const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
+                    if (srcOffset + 4 > bufferData.size()) return false;
+                    std::memcpy(&out[static_cast<size_t>(i)], bufferData.data() + srcOffset, 4);
+                }
+                return true;
+            }
+            return false;
         };
 
         auto readIndices = [&](int accessorIndex, std::vector<uint32_t>& out) -> bool {
@@ -450,99 +483,6 @@ namespace HIKARI {
             return true;
         };
 
-        const json& mesh0 = meshes[0];
-        if (!mesh0.contains("primitives") || !mesh0["primitives"].is_array() || mesh0["primitives"].empty()) {
-            return false;
-        }
-        const json& primitive = mesh0["primitives"][0];
-        if (!primitive.contains("attributes") || !primitive["attributes"].is_object()) {
-            return false;
-        }
-        const json& attributes = primitive["attributes"];
-
-        std::vector<float> positions;
-        std::vector<float> normals;
-        std::vector<float> texcoords;
-        int vertexCount = 0;
-        if (!readAccessor(attributes.value("POSITION", -1), positions, 3, &vertexCount)) {
-            return false;
-        }
-        if (!readAccessor(attributes.value("NORMAL", -1), normals, 3, nullptr)) {
-            normals.assign(static_cast<size_t>(vertexCount) * 3u, 0.0f);
-            for (int i = 0; i < vertexCount; ++i) {
-                normals[static_cast<size_t>(i) * 3u + 1u] = 1.0f;
-            }
-        }
-        if (!readAccessor(attributes.value("TEXCOORD_0", -1), texcoords, 2, nullptr)) {
-            texcoords.assign(static_cast<size_t>(vertexCount) * 2u, 0.0f);
-        }
-
-        std::vector<uint32_t> indices;
-        if (!readIndices(primitive.value("indices", -1), indices)) {
-            indices.resize(static_cast<size_t>(vertexCount));
-            for (int i = 0; i < vertexCount; ++i) {
-                indices[static_cast<size_t>(i)] = static_cast<uint32_t>(i);
-            }
-        }
-
-        std::vector<VertexStatic3D> vertices(static_cast<size_t>(vertexCount));
-        for (int i = 0; i < vertexCount; ++i) {
-            VertexStatic3D v{};
-            const size_t p = static_cast<size_t>(i) * 3u;
-            const size_t t = static_cast<size_t>(i) * 2u;
-            v.position = { positions[p + 0], positions[p + 1], positions[p + 2] };
-            v.normal = { normals[p + 0], normals[p + 1], normals[p + 2] };
-            v.u = texcoords[t + 0];
-            v.v = 1.0f - texcoords[t + 1];
-            vertices[static_cast<size_t>(i)] = v;
-        }
-
-        auto mesh = std::make_unique<Mesh>();
-        if (!mesh->CreateStatic(SERVICES::gCtx.device, vertices, indices)) {
-            return false;
-        }
-
-        auto material = std::make_unique<Material>();
-        material->SetBaseColor({ 1.0f, 1.0f, 1.0f, 1.0f });
-        material->SetBaseColorTextureHandle(-1);
-        if (root.contains("materials") && root["materials"].is_array() && !root["materials"].empty()) {
-            const int materialIndex = primitive.value("material", -1);
-            if (materialIndex >= 0 && materialIndex < static_cast<int>(root["materials"].size())) {
-                const json& matNode = root["materials"][static_cast<size_t>(materialIndex)];
-                if (matNode.contains("pbrMetallicRoughness")) {
-                    const json& pbr = matNode["pbrMetallicRoughness"];
-                    if (pbr.contains("baseColorFactor") && pbr["baseColorFactor"].is_array() && pbr["baseColorFactor"].size() >= 4) {
-                        material->SetBaseColor({
-                            pbr["baseColorFactor"][0].get<float>(),
-                            pbr["baseColorFactor"][1].get<float>(),
-                            pbr["baseColorFactor"][2].get<float>(),
-                            pbr["baseColorFactor"][3].get<float>()
-                            });
-                    }
-                    if (pbr.contains("baseColorTexture") && pbr["baseColorTexture"].is_object()) {
-                        const int textureIndex = pbr["baseColorTexture"].value("index", -1);
-                        if (textureIndex >= 0 && root.contains("textures") && root["textures"].is_array() &&
-                            textureIndex < static_cast<int>(root["textures"].size())) {
-                            const int imageIndex = root["textures"][static_cast<size_t>(textureIndex)].value("source", -1);
-                            if (imageIndex >= 0 && root.contains("images") && root["images"].is_array() &&
-                                imageIndex < static_cast<int>(root["images"].size())) {
-                                const std::string imageUri = root["images"][static_cast<size_t>(imageIndex)].value("uri", "");
-                                if (!imageUri.empty()) {
-                                    const std::string texPath = NormalizePathString(gltfPath.parent_path() / imageUri);
-                                    material->SetBaseColorTexturePath(texPath);
-                                    const int handle = DXTEX::DxTextureManager::LoadTexture(asset.GetName() + "/gltf_baseColor", texPath);
-                                    if (handle >= 0) {
-                                        material->SetBaseColorTextureHandle(handle);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Fill new CPU-side model representation with minimum viable data.
         asset.nodes.clear();
         asset.meshes.clear();
         asset.materials.clear();
@@ -551,33 +491,305 @@ namespace HIKARI {
         asset.animations.clear();
         asset.defaultSceneRootNode = 0;
 
-        MeshAsset meshAsset{};
-        meshAsset.name = mesh0.value("name", "Mesh0");
-        MeshPrimitive primitiveAsset{};
-        primitiveAsset.name = "Primitive0";
-        primitiveAsset.layout = VertexLayoutKind::StaticPNTT;
-        primitiveAsset.indices = indices;
-        primitiveAsset.staticVertices.reserve(vertices.size());
-        for (const VertexStatic3D& v : vertices) {
-            Vertex3D out{};
-            out.position = v.position;
-            out.normal = v.normal;
-            out.uv0 = { v.u, v.v };
-            out.tangent = { 1.0f, 0.0f, 0.0f, 1.0f };
-            primitiveAsset.staticVertices.push_back(out);
+        if (root.contains("images") && root["images"].is_array()) {
+            for (const auto& img : root["images"]) {
+                TextureAsset3D tex{};
+                tex.name = img.value("name", "");
+                const std::string uri = img.value("uri", "");
+                if (!uri.empty()) {
+                    tex.sourcePath = NormalizePathString(gltfPath.parent_path() / uri);
+                }
+                asset.textures.push_back(std::move(tex));
+            }
         }
-        meshAsset.primitives.push_back(std::move(primitiveAsset));
-        asset.meshes.push_back(std::move(meshAsset));
 
-        ModelNode rootNode{};
-        rootNode.name = "Root";
-        rootNode.meshIndex = 0;
-        asset.nodes.push_back(std::move(rootNode));
+        if (root.contains("materials") && root["materials"].is_array()) {
+            for (const auto& matNode : root["materials"]) {
+                MaterialAsset mat{};
+                mat.name = matNode.value("name", "");
+                if (matNode.contains("pbrMetallicRoughness")) {
+                    const json& pbr = matNode["pbrMetallicRoughness"];
+                    if (pbr.contains("baseColorFactor") && pbr["baseColorFactor"].is_array() && pbr["baseColorFactor"].size() >= 4) {
+                        mat.baseColorFactor = {
+                            pbr["baseColorFactor"][0].get<float>(),
+                            pbr["baseColorFactor"][1].get<float>(),
+                            pbr["baseColorFactor"][2].get<float>(),
+                            pbr["baseColorFactor"][3].get<float>()
+                        };
+                    }
+                    if (pbr.contains("baseColorTexture") && pbr["baseColorTexture"].is_object()) {
+                        const int textureIndex = pbr["baseColorTexture"].value("index", -1);
+                        if (textureIndex >= 0 && root.contains("textures") && root["textures"].is_array() &&
+                            textureIndex < static_cast<int>(root["textures"].size())) {
+                            const int imageIndex = root["textures"][static_cast<size_t>(textureIndex)].value("source", -1);
+                            mat.baseColorTexture.textureIndex = imageIndex;
+                        }
+                    }
+                }
+                mat.alphaMode = AlphaMode::Opaque;
+                asset.materials.push_back(std::move(mat));
+            }
+        }
+        if (asset.materials.empty()) {
+            asset.materials.push_back(MaterialAsset{});
+        }
 
-        MaterialAsset matAsset{};
-        matAsset.name = "Material0";
-        matAsset.baseColorFactor = material->GetBaseColor();
-        asset.materials.push_back(std::move(matAsset));
+        if (root.contains("nodes") && root["nodes"].is_array()) {
+            const json& nodes = root["nodes"];
+            asset.nodes.resize(nodes.size());
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                const json& node = nodes[i];
+                ModelNode modelNode{};
+                modelNode.name = node.value("name", "");
+                if (node.contains("translation") && node["translation"].is_array() && node["translation"].size() >= 3) {
+                    modelNode.localTransform.position = {
+                        node["translation"][0].get<float>(),
+                        node["translation"][1].get<float>(),
+                        node["translation"][2].get<float>()
+                    };
+                }
+                if (node.contains("scale") && node["scale"].is_array() && node["scale"].size() >= 3) {
+                    modelNode.localTransform.scale = {
+                        node["scale"][0].get<float>(),
+                        node["scale"][1].get<float>(),
+                        node["scale"][2].get<float>()
+                    };
+                }
+                if (node.contains("rotation") && node["rotation"].is_array() && node["rotation"].size() >= 4) {
+                    modelNode.localTransform.rotation = {
+                        node["rotation"][0].get<float>(),
+                        node["rotation"][1].get<float>(),
+                        node["rotation"][2].get<float>(),
+                        node["rotation"][3].get<float>()
+                    };
+                }
+                modelNode.meshIndex = node.value("mesh", -1);
+                asset.nodes[i] = std::move(modelNode);
+            }
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                const json& node = nodes[i];
+                if (!node.contains("children") || !node["children"].is_array()) {
+                    continue;
+                }
+                for (const auto& child : node["children"]) {
+                    const int childIndex = child.get<int>();
+                    if (childIndex >= 0 && childIndex < static_cast<int>(asset.nodes.size())) {
+                        asset.nodes[i].children.push_back(childIndex);
+                        asset.nodes[static_cast<size_t>(childIndex)].parent = static_cast<int>(i);
+                    }
+                }
+            }
+        }
+
+        std::vector<VertexStatic3D> legacyVertices;
+        std::vector<uint32_t> legacyIndices;
+
+        for (size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex) {
+            const json& meshNode = meshes[meshIndex];
+            if (!meshNode.contains("primitives") || !meshNode["primitives"].is_array()) {
+                continue;
+            }
+
+            MeshAsset meshAsset{};
+            meshAsset.name = meshNode.value("name", "Mesh" + std::to_string(meshIndex));
+
+            const json& primitives = meshNode["primitives"];
+            for (size_t primitiveIndex = 0; primitiveIndex < primitives.size(); ++primitiveIndex) {
+                const json& primitive = primitives[primitiveIndex];
+                if (!primitive.contains("attributes") || !primitive["attributes"].is_object()) {
+                    continue;
+                }
+                const json& attributes = primitive["attributes"];
+
+                std::vector<float> positions;
+                std::vector<float> normals;
+                std::vector<float> texcoords;
+                std::vector<float> tangents;
+                int vertexCount = 0;
+                if (!readAccessorFloats(attributes.value("POSITION", -1), 3, positions, &vertexCount)) {
+                    continue;
+                }
+                if (!readAccessorFloats(attributes.value("NORMAL", -1), 3, normals, nullptr)) {
+                    normals.assign(static_cast<size_t>(vertexCount) * 3u, 0.0f);
+                    for (int i = 0; i < vertexCount; ++i) {
+                        normals[static_cast<size_t>(i) * 3u + 1u] = 1.0f;
+                    }
+                }
+                if (!readAccessorFloats(attributes.value("TEXCOORD_0", -1), 2, texcoords, nullptr)) {
+                    texcoords.assign(static_cast<size_t>(vertexCount) * 2u, 0.0f);
+                }
+                readAccessorFloats(attributes.value("TANGENT", -1), 4, tangents, nullptr);
+
+                std::vector<uint32_t> indices;
+                if (!readIndices(primitive.value("indices", -1), indices)) {
+                    indices.resize(static_cast<size_t>(vertexCount));
+                    for (int i = 0; i < vertexCount; ++i) {
+                        indices[static_cast<size_t>(i)] = static_cast<uint32_t>(i);
+                    }
+                }
+
+                MeshPrimitive primitiveAsset{};
+                primitiveAsset.name = "Primitive" + std::to_string(primitiveIndex);
+                primitiveAsset.layout = VertexLayoutKind::StaticPNTT;
+                primitiveAsset.materialIndex = static_cast<uint32_t>(std::max(0, primitive.value("material", 0)));
+                primitiveAsset.indices = indices;
+                primitiveAsset.staticVertices.reserve(static_cast<size_t>(vertexCount));
+
+                const uint32_t legacyBaseVertex = static_cast<uint32_t>(legacyVertices.size());
+                for (int i = 0; i < vertexCount; ++i) {
+                    const size_t p = static_cast<size_t>(i) * 3u;
+                    const size_t t = static_cast<size_t>(i) * 2u;
+                    Vertex3D out{};
+                    out.position = { positions[p + 0], positions[p + 1], positions[p + 2] };
+                    out.normal = { normals[p + 0], normals[p + 1], normals[p + 2] };
+                    out.uv0 = { texcoords[t + 0], 1.0f - texcoords[t + 1] };
+                    if (!tangents.empty()) {
+                        const size_t tg = static_cast<size_t>(i) * 4u;
+                        out.tangent = { tangents[tg + 0], tangents[tg + 1], tangents[tg + 2], tangents[tg + 3] };
+                    } else {
+                        out.tangent = { 1.0f, 0.0f, 0.0f, 1.0f };
+                    }
+                    primitiveAsset.staticVertices.push_back(out);
+
+                    VertexStatic3D legacy{};
+                    legacy.position = out.position;
+                    legacy.normal = out.normal;
+                    legacy.u = out.uv0.x;
+                    legacy.v = out.uv0.y;
+                    legacyVertices.push_back(legacy);
+                }
+                for (uint32_t index : indices) {
+                    legacyIndices.push_back(legacyBaseVertex + index);
+                }
+
+                meshAsset.primitives.push_back(std::move(primitiveAsset));
+            }
+
+            if (!meshAsset.primitives.empty()) {
+                asset.meshes.push_back(std::move(meshAsset));
+            }
+        }
+
+        if (root.contains("animations") && root["animations"].is_array()) {
+            for (const auto& animNode : root["animations"]) {
+                AnimationClip clip{};
+                clip.name = animNode.value("name", "Clip");
+
+                if (!animNode.contains("channels") || !animNode["channels"].is_array() ||
+                    !animNode.contains("samplers") || !animNode["samplers"].is_array()) {
+                    continue;
+                }
+
+                const auto& channels = animNode["channels"];
+                const auto& samplers = animNode["samplers"];
+                for (const auto& ch : channels) {
+                    if (!ch.is_object() || !ch.contains("target") || !ch["target"].is_object()) {
+                        continue;
+                    }
+                    const int samplerIndex = ch.value("sampler", -1);
+                    if (samplerIndex < 0 || samplerIndex >= static_cast<int>(samplers.size())) {
+                        continue;
+                    }
+                    const auto& sampler = samplers[static_cast<size_t>(samplerIndex)];
+                    const int inputAccessor = sampler.value("input", -1);
+                    const int outputAccessor = sampler.value("output", -1);
+                    if (inputAccessor < 0 || outputAccessor < 0) {
+                        continue;
+                    }
+
+                    std::vector<float> times;
+                    if (!readAccessorScalars(inputAccessor, times)) {
+                        continue;
+                    }
+
+                    NodeAnimationChannel channel{};
+                    channel.targetNode = ch["target"].value("node", -1);
+                    const std::string path = ch["target"].value("path", "translation");
+                    if (path == "rotation") {
+                        channel.path = AnimationTargetPath::Rotation;
+                        std::vector<float> values;
+                        if (!readAccessorFloats(outputAccessor, 4, values, nullptr)) {
+                            continue;
+                        }
+                        const size_t keyCount = std::min(times.size(), values.size() / 4u);
+                        channel.quatKeys.reserve(keyCount);
+                        for (size_t i = 0; i < keyCount; ++i) {
+                            AnimationKeyframe<MATH::Quat> key{};
+                            key.timeSec = times[i];
+                            key.value = {
+                                values[i * 4u + 0u],
+                                values[i * 4u + 1u],
+                                values[i * 4u + 2u],
+                                values[i * 4u + 3u]
+                            };
+                            channel.quatKeys.push_back(key);
+                            if (key.timeSec > clip.durationSec) {
+                                clip.durationSec = key.timeSec;
+                            }
+                        }
+                    } else {
+                        channel.path = (path == "scale") ? AnimationTargetPath::Scale : AnimationTargetPath::Translation;
+                        std::vector<float> values;
+                        if (!readAccessorFloats(outputAccessor, 3, values, nullptr)) {
+                            continue;
+                        }
+                        const size_t keyCount = std::min(times.size(), values.size() / 3u);
+                        channel.vec3Keys.reserve(keyCount);
+                        for (size_t i = 0; i < keyCount; ++i) {
+                            AnimationKeyframe<MATH::Vec3> key{};
+                            key.timeSec = times[i];
+                            key.value = {
+                                values[i * 3u + 0u],
+                                values[i * 3u + 1u],
+                                values[i * 3u + 2u]
+                            };
+                            channel.vec3Keys.push_back(key);
+                            if (key.timeSec > clip.durationSec) {
+                                clip.durationSec = key.timeSec;
+                            }
+                        }
+                    }
+
+                    const std::string interpolation = sampler.value("interpolation", "LINEAR");
+                    if (interpolation == "STEP") {
+                        channel.interpolation = AnimationInterpolation::Step;
+                    } else if (interpolation == "CUBICSPLINE") {
+                        channel.interpolation = AnimationInterpolation::CubicSpline;
+                    } else {
+                        channel.interpolation = AnimationInterpolation::Linear;
+                    }
+                    clip.channels.push_back(std::move(channel));
+                }
+                if (!clip.channels.empty()) {
+                    asset.animations.push_back(std::move(clip));
+                }
+            }
+        }
+
+        if (legacyVertices.empty() || legacyIndices.empty()) {
+            return false;
+        }
+
+        auto mesh = std::make_unique<Mesh>();
+        if (!mesh->CreateStatic(SERVICES::gCtx.device, legacyVertices, legacyIndices)) {
+            return false;
+        }
+
+        auto material = std::make_unique<Material>();
+        const MaterialAsset& primaryMat = asset.materials.front();
+        material->SetBaseColor(primaryMat.baseColorFactor);
+        material->SetBaseColorTextureHandle(-1);
+        if (primaryMat.baseColorTexture.textureIndex >= 0 &&
+            primaryMat.baseColorTexture.textureIndex < static_cast<int>(asset.textures.size())) {
+            const std::string& texPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
+            if (!texPath.empty()) {
+                material->SetBaseColorTexturePath(texPath);
+                const int handle = DXTEX::DxTextureManager::LoadTexture(asset.GetName() + "/gltf_baseColor", texPath);
+                if (handle >= 0) {
+                    material->SetBaseColorTextureHandle(handle);
+                }
+            }
+        }
 
         asset.SetMesh(std::move(mesh));
         asset.SetMaterial(std::move(material));

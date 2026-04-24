@@ -26,7 +26,9 @@ namespace HIKARI {
             }
 
             const ModelAsset* asset = model.GetAsset();
-            if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
+            const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
+            const bool hasModelPrimitives = asset && !asset->meshes.empty();
+            if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
                 ++sDebugStats_.submittedModelCount;
 
                 ModelRenderItem item{};
