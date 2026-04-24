@@ -6,7 +6,6 @@
 #include <cstring>
 #include <algorithm>
 #include <utility>
-#include "Assets/HIKARI_AssetTypes.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -317,9 +316,6 @@ namespace HIKARI {
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
-        if (!modelAssetId_.empty()) {
-            out["assetId"] = modelAssetId_;
-        }
         if (!modelPath_.empty()) {
             out["model"] = modelPath_;
         }
@@ -337,13 +333,7 @@ namespace HIKARI {
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
-        modelAssetId_ = in.value("assetId", modelAssetId_);
         modelPath_ = in.value("model", modelPath_);
-        if (modelPath_.empty()) {
-            if (modelAssetId_.rfind("builtin:", 0) == 0 || modelAssetId_.find('/') != std::string::npos || modelAssetId_.find('\\') != std::string::npos) {
-                modelPath_ = modelAssetId_;
-            }
-        }
         if (!modelPath_.empty()) {
             modelHandle_ = ASSET::GetGlobalAssetRegistry().GetOrLoadModel(modelPath_);
         }
