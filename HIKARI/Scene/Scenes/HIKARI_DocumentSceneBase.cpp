@@ -8,7 +8,7 @@
 #include "HIKARI_3D.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
-#include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
@@ -66,7 +66,7 @@ namespace HIKARI {
 
     void DocumentSceneBase::Render() {
         RENDERER3D::Reset();
-        MESHRENDERER::Reset();
+        MODELRENDERER::Reset();
         SKYRENDERER::Reset();
 
         if (environment_.post.enabled && !environment_.post.globalPostProfileId.empty()) {
@@ -118,7 +118,7 @@ namespace HIKARI {
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
 
-        MESHRENDERER::RenderAll(camera_, activeEnvironment);
+        MODELRENDERER::RenderAll(camera_, activeEnvironment);
         VFX::Render(camera_);
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
     }

@@ -24,8 +24,8 @@ cbuffer LightCB : register(b2)
     float4 gDirectionalColor;
     float4 gAmbientColor;
     float4 gSpecularParams;
-    float4 gPointLightPosRange[4];
-    float4 gPointLightColorIntensity[4];
+    float4 gPointLightPosRange[8];
+    float4 gPointLightColorIntensity[8];
     float gDirectionalIntensity;
     float gAmbientIntensity;
     uint gPointLightCount;
