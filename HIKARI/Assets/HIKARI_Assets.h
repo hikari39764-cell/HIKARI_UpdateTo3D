@@ -172,4 +172,6 @@ namespace HIKARI::ASSET {
 
     bool ImportModelStatic(AssetRegistry& registry, ModelAsset& model, const std::string& sourcePath);
 
+    AssetRegistry& GetGlobalAssetRegistry();
+
 } // namespace HIKARI::ASSET
