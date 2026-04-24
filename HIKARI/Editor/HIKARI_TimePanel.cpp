@@ -1,6 +1,7 @@
 #include "HIKARI_TimePanel.h"
 
 #include "Core/HIKARI_TimeService.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -48,11 +49,37 @@ namespace HIKARI {
         }
 
         const RenderSubmissionDebugStats& renderStats = RenderSubmissionSystem::GetDebugStats();
+        MESHRENDERER::SubmissionRendererDebugOptions& renderDebug = MESHRENDERER::GetDebugOptions();
 
         ImGui::Separator();
-        ImGui::TextUnformatted("Render Submission System");
+        ImGui::TextUnformatted("Show Submission Debug");
+        ImGui::Checkbox("Rotate Light", &renderDebug.rotateLight);
+        ImGui::SameLine();
+        ImGui::Checkbox("Use Normal", &renderDebug.useNormal);
+        ImGui::SameLine();
+        ImGui::Checkbox("Use Emissive", &renderDebug.useEmissive);
+
         ImGui::Text("Submitted Models: %d", renderStats.submittedModelCount);
+        ImGui::Text("Draw Items:       %d", renderStats.submittedDrawItemCount);
         ImGui::Text("Fallback Wires:   %d", renderStats.fallbackWireCount);
+
+        if (ImGui::TreeNode("Submission Items")) {
+            for (size_t i = 0; i < renderStats.items.size(); ++i) {
+                const SubmittedDrawItemDebugInfo& item = renderStats.items[i];
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::Text("[%zu] gpuMeshId=%u material=%llu", i, item.gpuMeshId, static_cast<unsigned long long>(item.material.id));
+                ImGui::Text("hasBaseColor=%u hasNormal=%u hasOrm=%u hasEmissive=%u postMask=%u modelState=%u",
+                    item.hasBaseColorTexture,
+                    item.hasNormalTexture,
+                    item.hasOrmTexture,
+                    item.hasEmissiveTexture,
+                    item.postGroupMask,
+                    static_cast<unsigned>(item.modelState));
+                ImGui::Separator();
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
 #endif
     }
 

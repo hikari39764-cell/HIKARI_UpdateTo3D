@@ -10,6 +10,7 @@
 #include <wrl/client.h>
 #include "Gfx/HIKARI_GpuResources.h"
 #include "HIKARI_Services.h"
+#include "Core/HIKARI_TimeService.h"
 #include "HIKARI_D3DBlobCompat.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -62,19 +63,11 @@ namespace HIKARI::MESHRENDERER {
             float padding[2]{};
         };
 
-        struct DrawItem {
-            ASSET::AssetRegistry* registry = nullptr;
-            ASSET::AssetHandle<ASSET::MeshAsset> mesh{};
-            ASSET::AssetHandle<ASSET::MaterialAsset> material{};
-            MATH::Mat4 world{};
-            MATH::Mat4 normalMatrix{};
-            std::string materialFxProfileId{};
-            uint32_t postGroupMask = 0;
+        struct DrawItemRuntime {
+            StaticModelDrawItem item{};
             VFX::VariantKey variant{};
             std::array<MATH::Vec4, 4> fxValues{};
             uint32_t fxFlags = 0;
-            std::array<DirectX::XMFLOAT4, 4> materialFxParamValues{};
-            bool materialFxValuesInitialized = false;
         };
 
         struct VariantKeyHasher {
@@ -101,23 +94,14 @@ namespace HIKARI::MESHRENDERER {
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
-            std::vector<DrawItem> drawItems;
+            std::vector<StaticModelDrawItem> drawItems;
+            std::vector<DrawItemRuntime> runtimeItems;
             uint32_t fallbackTextureId = 0;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
         };
 
         State g;
-
-        MATH::Mat4 ToMat4(const DirectX::XMFLOAT4X4& matrix) {
-            MATH::Mat4 out{};
-            for (int c = 0; c < 4; ++c) {
-                for (int r = 0; r < 4; ++r) {
-                    out.m[c][r] = matrix.m[c][r];
-                }
-            }
-            return out;
-        }
 
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = (sizeof(CameraCB) + 255u) & ~255u;
@@ -327,44 +311,48 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
         }
 
-        void ResolveDrawVariant(DrawItem& item) {
+        void ResolveDrawVariant(DrawItemRuntime& runtime) {
+            StaticModelDrawItem& item = runtime.item;
             if (item.registry == nullptr) {
                 return;
             }
             const ASSET::MaterialAsset* material = item.registry->FindMaterial(item.material);
             if (material) {
-                item.variant.shaderId = material->shaderProfileId;
-                item.variant.featureBits = material->featureBits;
+                runtime.variant.shaderId = material->shaderProfileId;
+                runtime.variant.featureBits = material->featureBits;
             }
-            item.variant.composite = VFX::CompositeMode::Alpha;
-            item.variant.depthTest = true;
-            item.variant.depthWrite = true;
-            item.variant.doubleSided = false;
+            runtime.variant.composite = VFX::CompositeMode::Alpha;
+            runtime.variant.depthTest = true;
+            runtime.variant.depthWrite = true;
+            runtime.variant.doubleSided = false;
 
             if (!item.materialFxProfileId.empty()) {
                 MaterialFxProfile profile{};
                 if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
                     if (!profile.shaderProfileId.empty()) {
-                        item.variant.shaderId = profile.shaderProfileId;
+                        runtime.variant.shaderId = profile.shaderProfileId;
                     }
-                    item.variant.featureBits = profile.featureBits;
-                    item.variant.composite = profile.composite;
-                    item.variant.depthTest = profile.depthTest;
-                    item.variant.depthWrite = profile.depthWrite;
-                    item.variant.doubleSided = profile.doubleSided;
+                    runtime.variant.featureBits = profile.featureBits;
+                    runtime.variant.composite = profile.composite;
+                    runtime.variant.depthTest = profile.depthTest;
+                    runtime.variant.depthWrite = profile.depthWrite;
+                    runtime.variant.doubleSided = profile.doubleSided;
                 }
             }
+            if (item.postGroupMask != 0 && item.materialFxProfileId.empty()) {
+                runtime.variant.shaderId = "StaticFx";
+            }
 
-            item.fxValues = {};
-            item.fxFlags = 0;
+            runtime.fxValues = {};
+            runtime.fxFlags = 0;
             if (!item.materialFxValuesInitialized) {
                 return;
             }
-            for (size_t i = 0; i < item.fxValues.size(); ++i) {
-                const DirectX::XMFLOAT4& value = item.materialFxParamValues[i];
-                item.fxValues[i] = { value.x, value.y, value.z, value.w };
+            for (size_t i = 0; i < runtime.fxValues.size(); ++i) {
+                const DirectX::XMFLOAT4& value = item.materialFxUser[i];
+                runtime.fxValues[i] = { value.x, value.y, value.z, value.w };
             }
-            item.fxFlags = item.variant.featureBits;
+            runtime.fxFlags = runtime.variant.featureBits;
         }
 
         bool EnsureInitialized() {
@@ -392,38 +380,23 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
+        g.runtimeItems.clear();
     }
 
-    void SubmitStaticModel(ASSET::AssetRegistry& registry, const StaticModelSubmission& submission) {
-        if (!submission.visible) {
+    void SubmitStaticDrawItem(const StaticModelDrawItem& item) {
+        if (item.registry == nullptr || item.gpuMeshId == 0) {
             return;
         }
-        const ASSET::ModelAsset* model = registry.FindModel(submission.model);
-        if (model == nullptr || model->state != ASSET::AssetState::Ready) {
-            return;
-        }
+        g.drawItems.push_back(item);
+    }
 
-        for (const ASSET::ModelAsset::Primitive& primitive : model->primitives) {
-            DrawItem item{};
-            item.registry = &registry;
-            item.mesh = primitive.mesh;
-            item.material = primitive.material;
-            const MATH::Mat4 world = submission.world.GetWorldMatrix();
-            const MATH::Mat4 local = ToMat4(primitive.localTransform);
-            item.world = local * world;
-            item.normalMatrix = item.world;
-            item.normalMatrix.m[3][0] = 0.0f;
-            item.normalMatrix.m[3][1] = 0.0f;
-            item.normalMatrix.m[3][2] = 0.0f;
-            item.materialFxProfileId = submission.materialFxProfileId;
-            item.postGroupMask = submission.postGroupMask;
-            for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-                item.materialFxParamValues[i] = submission.materialFxUser[i];
-            }
-            item.materialFxValuesInitialized = submission.materialFxValuesInitialized;
-            ResolveDrawVariant(item);
-            g.drawItems.push_back(std::move(item));
-        }
+    const std::vector<StaticModelDrawItem>& GetSubmittedDrawItems() {
+        return g.drawItems;
+    }
+
+    SubmissionRendererDebugOptions& GetDebugOptions() {
+        static SubmissionRendererDebugOptions options{};
+        return options;
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -443,7 +416,12 @@ namespace HIKARI::MESHRENDERER {
         const MATH::Vec3 cameraPos = camera.GetPosition();
         g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
 
-        const MATH::Vec3 normalizedDir = MATH::Normalize(environment.directional.direction);
+        MATH::Vec3 normalizedDir = MATH::Normalize(environment.directional.direction);
+        if (GetDebugOptions().rotateLight) {
+            const FrameContext& frame = TIME::GetFrameContext();
+            const float t = static_cast<float>(std::fmod(static_cast<double>(frame.frameIndex) * frame.unscaledDt, 1000.0));
+            normalizedDir = MATH::Normalize(MATH::Vec3{ std::cos(t * 0.5f), normalizedDir.y, std::sin(t * 0.5f) });
+        }
         g.lightMapped->directionalDir = { normalizedDir.x, normalizedDir.y, normalizedDir.z, 0.0f };
         g.lightMapped->directionalColor = { environment.directional.color.x, environment.directional.color.y, environment.directional.color.z, 1.0f };
         g.lightMapped->ambientColor = { environment.ambient.color.x, environment.ambient.color.y, environment.ambient.color.z, 1.0f };
@@ -475,6 +453,16 @@ namespace HIKARI::MESHRENDERER {
             };
         }
 
+
+        g.runtimeItems.clear();
+        g.runtimeItems.reserve(g.drawItems.size());
+        for (const StaticModelDrawItem& item : g.drawItems) {
+            DrawItemRuntime runtime{};
+            runtime.item = item;
+            ResolveDrawVariant(runtime);
+            g.runtimeItems.push_back(std::move(runtime));
+        }
+
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -489,13 +477,15 @@ namespace HIKARI::MESHRENDERER {
 
         constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
 
-        for (size_t i = 0; i < g.drawItems.size(); ++i) {
-            const DrawItem& item = g.drawItems[i];
+        SubmissionRendererDebugOptions& debugOptions = GetDebugOptions();
+
+        for (size_t i = 0; i < g.runtimeItems.size(); ++i) {
+            const DrawItemRuntime& runtime = g.runtimeItems[i];
+            const StaticModelDrawItem& item = runtime.item;
             if (item.registry == nullptr) {
                 continue;
             }
-            const ASSET::MeshAsset* mesh = item.registry->FindMesh(item.mesh);
-            if (mesh == nullptr || mesh->gpuMeshId == 0) {
+            if (item.gpuMeshId == 0) {
                 continue;
             }
 
@@ -510,9 +500,9 @@ namespace HIKARI::MESHRENDERER {
                 obj.metallicFactor = material->metallicFactor;
                 obj.roughnessFactor = material->roughnessFactor;
                 obj.hasBaseColorTexture = material->baseColorTexture.IsValid() ? 1u : 0u;
-                obj.hasNormalTexture = 0u;
-                obj.hasOrmTexture = 0u;
-                obj.hasEmissiveTexture = 0u;
+                obj.hasNormalTexture = (debugOptions.useNormal && material->normalTexture.IsValid()) ? 1u : 0u;
+                obj.hasOrmTexture = material->ormTexture.IsValid() ? 1u : 0u;
+                obj.hasEmissiveTexture = (debugOptions.useEmissive && material->emissiveTexture.IsValid()) ? 1u : 0u;
                 obj.alphaMode = static_cast<uint32_t>(material->alphaMode);
                 obj.alphaCutoff = material->alphaCutoff;
             } else {
@@ -525,11 +515,11 @@ namespace HIKARI::MESHRENDERER {
                 obj.alphaMode = 0u;
                 obj.alphaCutoff = 0.5f;
             }
-            obj.fxFlags = item.fxFlags;
-            obj.fxUser0 = item.fxValues[0];
-            obj.fxUser1 = item.fxValues[1];
-            obj.fxUser2 = item.fxValues[2];
-            obj.fxUser3 = item.fxValues[3];
+            obj.fxFlags = runtime.fxFlags;
+            obj.fxUser0 = runtime.fxValues[0];
+            obj.fxUser1 = runtime.fxValues[1];
+            obj.fxUser2 = runtime.fxValues[2];
+            obj.fxUser3 = runtime.fxValues[3];
 
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * i;
             std::memcpy(dst, &obj, sizeof(ObjectCB));
@@ -537,13 +527,13 @@ namespace HIKARI::MESHRENDERER {
             const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * i;
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
-            auto foundPso = g.variantPsoCache.find(item.variant);
+            auto foundPso = g.variantPsoCache.find(runtime.variant);
             if (foundPso == g.variantPsoCache.end()) {
                 ComPtr<ID3D12PipelineState> variantPso;
-                if (!CreateVariantPipeline(SERVICES::gCtx.device, item.variant, variantPso.GetAddressOf())) {
+                if (!CreateVariantPipeline(SERVICES::gCtx.device, runtime.variant, variantPso.GetAddressOf())) {
                     variantPso = g.pso;
                 }
-                foundPso = g.variantPsoCache.emplace(item.variant, std::move(variantPso)).first;
+                foundPso = g.variantPsoCache.emplace(runtime.variant, std::move(variantPso)).first;
             }
             cmd->SetPipelineState(foundPso->second.Get());
             uint32_t textureId = g.fallbackTextureId;
@@ -557,7 +547,7 @@ namespace HIKARI::MESHRENDERER {
                 cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
             }
 
-            const GpuResources::StaticMeshViews views = GpuResources::GetStaticMeshViews(mesh->gpuMeshId);
+            const GpuResources::StaticMeshViews views = GpuResources::GetStaticMeshViews(item.gpuMeshId);
             if (!views.valid) {
                 continue;
             }
