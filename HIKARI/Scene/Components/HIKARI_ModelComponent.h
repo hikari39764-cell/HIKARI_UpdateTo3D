@@ -47,6 +47,7 @@ namespace HIKARI {
     private:
         ASSET::AssetHandle<ASSET::ModelAsset> modelHandle_{};
         std::string modelPath_{};
+        std::string modelAssetId_{};
         bool visible_ = true;
         bool castShadow_ = true;
         bool receiveShadow_ = true;

@@ -316,7 +316,12 @@ namespace HIKARI {
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
-        out["model"] = modelPath_;
+        if (!modelAssetId_.empty()) {
+            out["assetId"] = modelAssetId_;
+        }
+        if (!modelPath_.empty()) {
+            out["model"] = modelPath_;
+        }
         out["visible"] = visible_;
         out["castShadow"] = castShadow_;
         out["receiveShadow"] = receiveShadow_;
@@ -331,11 +336,11 @@ namespace HIKARI {
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
+        modelAssetId_ = in.value("assetId", modelAssetId_);
         modelPath_ = in.value("model", modelPath_);
         if (modelPath_.empty()) {
-            const std::string legacyAssetId = in.value("assetId", std::string{});
-            if (legacyAssetId.rfind("builtin:", 0) == 0 || legacyAssetId.find('/') != std::string::npos || legacyAssetId.find('\\') != std::string::npos) {
-                modelPath_ = legacyAssetId;
+            if (modelAssetId_.rfind("builtin:", 0) == 0 || modelAssetId_.find('/') != std::string::npos || modelAssetId_.find('\\') != std::string::npos) {
+                modelPath_ = modelAssetId_;
             }
         }
         if (!modelPath_.empty()) {
@@ -383,6 +388,10 @@ namespace HIKARI {
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
+        if (builder.AssetIdPicker("Model Asset", AssetType::Model, modelAssetId_)) {
+            modelPath_.clear();
+            modelHandle_ = {};
+        }
         builder.String("Material FX Profile", materialFxProfileId_);
     }
 
@@ -398,6 +407,13 @@ namespace HIKARI {
         int postMask = static_cast<int>(postGroupMask_);
         if (ImGui::InputInt("Post Group Mask", &postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
+        }
+        char modelAssetIdBuffer[256]{};
+        std::strncpy(modelAssetIdBuffer, modelAssetId_.c_str(), sizeof(modelAssetIdBuffer) - 1);
+        if (ImGui::InputText("Model Asset Id", modelAssetIdBuffer, sizeof(modelAssetIdBuffer))) {
+            modelAssetId_ = modelAssetIdBuffer;
+            modelPath_.clear();
+            modelHandle_ = {};
         }
         char profileBuffer[256]{};
         const std::string previousProfileId = materialFxProfileId_;
