@@ -1,7 +1,7 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #include "Render3D/HIKARI_ModelAsset.h"
-#include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_World.h"
@@ -29,14 +29,19 @@ namespace HIKARI {
             if (asset && asset->GetState() == ModelAsset::State::Loaded && asset->GetMesh() && asset->GetMesh()->IsValid()) {
                 ++sDebugStats_.submittedModelCount;
 
-                MESHRENDERER::SubmitStaticMesh(
-                    *asset,
-                    object.Transform(),
-                    model.GetMaterialFxProfileId(),
-                    model.GetPostGroupMask(),
-                    model.GetMaterialFxParamValues(),
-                    model.AreMaterialFxValuesInitialized()
-                );
+                ModelRenderItem item{};
+                item.model = asset;
+                item.worldTransform = object.Transform();
+                item.materialFxProfileId = model.GetMaterialFxProfileId();
+                item.postGroupMask = model.GetPostGroupMask();
+                item.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
+                for (int i = 0; i < 4; ++i) {
+                    item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
+                }
+                item.animationClipName = model.GetAnimationClip();
+                item.animationTimeSec = model.GetAnimationTime();
+                item.animationLoop = model.GetAnimationLoop();
+                MODELRENDERER::SubmitModel(item);
             } else {
                 ++sDebugStats_.fallbackWireCount;
 
