@@ -2,8 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <deque>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -13,7 +14,25 @@ namespace HIKARI::MODELRENDERER {
 
     namespace {
         std::vector<ModelRenderItem> gQueue;
-        std::deque<ModelAsset> gExpandedNodeAssets;
+
+        struct ExpandedNodeMeshKey {
+            const ModelAsset* source = nullptr;
+            int meshIndex = -1;
+
+            bool operator==(const ExpandedNodeMeshKey& rhs) const noexcept {
+                return source == rhs.source && meshIndex == rhs.meshIndex;
+            }
+        };
+
+        struct ExpandedNodeMeshKeyHash {
+            size_t operator()(const ExpandedNodeMeshKey& key) const noexcept {
+                size_t seed = std::hash<const ModelAsset*>{}(key.source);
+                seed ^= static_cast<size_t>(key.meshIndex) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return seed;
+            }
+        };
+
+        std::unordered_map<ExpandedNodeMeshKey, std::unique_ptr<ModelAsset>, ExpandedNodeMeshKeyHash> gExpandedNodeMeshCache;
 
         MATH::Quat MulQuat(const MATH::Quat& a, const MATH::Quat& b) {
             return MATH::NormalizeQ({
@@ -157,20 +176,30 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        ModelAsset& MakeSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex, int nodeIndex) {
-            ModelAsset& expanded = gExpandedNodeAssets.emplace_back();
-            expanded.id.value = source.GetName() + "#node" + std::to_string(nodeIndex) + "#mesh" + std::to_string(meshIndex);
-            expanded.sourcePath = source.sourcePath;
-            expanded.state = source.state;
-            expanded.materials = source.materials;
-            expanded.textures = source.textures;
-            expanded.bounds = source.bounds;
-            expanded.defaultSceneRootNode = 0;
-
-            if (meshIndex >= 0 && meshIndex < static_cast<int>(source.meshes.size())) {
-                expanded.meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+        ModelAsset* GetOrCreateSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex) {
+            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
+                return nullptr;
             }
-            return expanded;
+
+            const ExpandedNodeMeshKey key{ &source, meshIndex };
+            auto found = gExpandedNodeMeshCache.find(key);
+            if (found != gExpandedNodeMeshCache.end()) {
+                return found->second.get();
+            }
+
+            auto expanded = std::make_unique<ModelAsset>();
+            expanded->id.value = source.GetName() + "#mesh" + std::to_string(meshIndex);
+            expanded->sourcePath = source.sourcePath;
+            expanded->state = source.state;
+            expanded->materials = source.materials;
+            expanded->textures = source.textures;
+            expanded->bounds = source.bounds;
+            expanded->defaultSceneRootNode = 0;
+            expanded->meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+
+            ModelAsset* raw = expanded.get();
+            gExpandedNodeMeshCache.emplace(key, std::move(expanded));
+            return raw;
         }
 
         bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
@@ -188,13 +217,13 @@ namespace HIKARI::MODELRENDERER {
                     continue;
                 }
 
-                ModelAsset& expandedAsset = MakeSingleMeshExpandedAsset(*item.model, node.meshIndex, static_cast<int>(nodeIndex));
-                if (expandedAsset.meshes.empty()) {
+                ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
+                if (expandedAsset == nullptr || expandedAsset->meshes.empty()) {
                     continue;
                 }
 
                 MESHRENDERER::SubmitStaticMesh(
-                    expandedAsset,
+                    *expandedAsset,
                     nodeGlobals[nodeIndex],
                     item.materialFxProfileId,
                     item.postGroupMask,
@@ -208,7 +237,6 @@ namespace HIKARI::MODELRENDERER {
 
     void Reset() {
         gQueue.clear();
-        gExpandedNodeAssets.clear();
         MESHRENDERER::Reset();
     }
 
@@ -220,8 +248,6 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
-        gExpandedNodeAssets.clear();
-
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
@@ -241,7 +267,6 @@ namespace HIKARI::MODELRENDERER {
         }
 
         MESHRENDERER::RenderAll(camera, environment);
-        gExpandedNodeAssets.clear();
         gQueue.clear();
     }
 
