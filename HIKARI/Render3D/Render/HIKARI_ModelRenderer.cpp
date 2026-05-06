@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
+#include <string>
 #include <vector>
 
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -11,6 +13,41 @@ namespace HIKARI::MODELRENDERER {
 
     namespace {
         std::vector<ModelRenderItem> gQueue;
+        std::deque<ModelAsset> gExpandedNodeAssets;
+
+        MATH::Quat MulQuat(const MATH::Quat& a, const MATH::Quat& b) {
+            return MATH::NormalizeQ({
+                a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+                a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+                a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+                a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+            });
+        }
+
+        MATH::Vec3 RotateVector(const MATH::Quat& q, const MATH::Vec3& v) {
+            const MATH::Quat nq = MATH::NormalizeQ(q);
+            const MATH::Vec3 u{ nq.x, nq.y, nq.z };
+            const float s = nq.w;
+            return u * (2.0f * MATH::Dot(u, v)) + v * (s * s - MATH::Dot(u, u)) + MATH::Cross(u, v) * (2.0f * s);
+        }
+
+        Transform3D ComposeTransform(const Transform3D& parent, const Transform3D& local) {
+            Transform3D out{};
+            out.scale = {
+                parent.scale.x * local.scale.x,
+                parent.scale.y * local.scale.y,
+                parent.scale.z * local.scale.z
+            };
+            out.rotation = MulQuat(parent.rotation, local.rotation);
+
+            const MATH::Vec3 scaledLocalPosition{
+                local.position.x * parent.scale.x,
+                local.position.y * parent.scale.y,
+                local.position.z * parent.scale.z
+            };
+            out.position = parent.position + RotateVector(parent.rotation, scaledLocalPosition);
+            return out;
+        }
 
         template<typename T>
         T Lerp(const T& a, const T& b, float t);
@@ -83,10 +120,95 @@ namespace HIKARI::MODELRENDERER {
             }
             return out;
         }
+
+        void EvaluateNodeRecursive(const ModelAsset& asset, int nodeIndex, const Transform3D& parentWorld, std::vector<Transform3D>& outGlobals, std::vector<bool>& visited) {
+            if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
+                return;
+            }
+            if (visited[static_cast<size_t>(nodeIndex)]) {
+                return;
+            }
+
+            const ModelNode& node = asset.nodes[static_cast<size_t>(nodeIndex)];
+            outGlobals[static_cast<size_t>(nodeIndex)] = ComposeTransform(parentWorld, node.localTransform);
+            visited[static_cast<size_t>(nodeIndex)] = true;
+
+            for (int childIndex : node.children) {
+                EvaluateNodeRecursive(asset, childIndex, outGlobals[static_cast<size_t>(nodeIndex)], outGlobals, visited);
+            }
+        }
+
+        void BuildNodeGlobalTransforms(const ModelAsset& asset, const Transform3D& objectTransform, std::vector<Transform3D>& outGlobals) {
+            outGlobals.assign(asset.nodes.size(), objectTransform);
+            std::vector<bool> visited(asset.nodes.size(), false);
+
+            for (size_t i = 0; i < asset.nodes.size(); ++i) {
+                if (asset.nodes[i].parent == -1) {
+                    EvaluateNodeRecursive(asset, static_cast<int>(i), objectTransform, outGlobals, visited);
+                }
+            }
+
+            for (size_t i = 0; i < asset.nodes.size(); ++i) {
+                if (!visited[i]) {
+                    const int parent = asset.nodes[i].parent;
+                    const Transform3D parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : objectTransform;
+                    EvaluateNodeRecursive(asset, static_cast<int>(i), parentWorld, outGlobals, visited);
+                }
+            }
+        }
+
+        ModelAsset& MakeSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex, int nodeIndex) {
+            ModelAsset& expanded = gExpandedNodeAssets.emplace_back();
+            expanded.id.value = source.GetName() + "#node" + std::to_string(nodeIndex) + "#mesh" + std::to_string(meshIndex);
+            expanded.sourcePath = source.sourcePath;
+            expanded.state = source.state;
+            expanded.materials = source.materials;
+            expanded.textures = source.textures;
+            expanded.bounds = source.bounds;
+            expanded.defaultSceneRootNode = 0;
+
+            if (meshIndex >= 0 && meshIndex < static_cast<int>(source.meshes.size())) {
+                expanded.meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+            }
+            return expanded;
+        }
+
+        bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
+            if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
+                return false;
+            }
+
+            std::vector<Transform3D> nodeGlobals;
+            BuildNodeGlobalTransforms(*item.model, item.worldTransform, nodeGlobals);
+
+            bool submitted = false;
+            for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
+                const ModelNode& node = item.model->nodes[nodeIndex];
+                if (node.meshIndex < 0 || node.meshIndex >= static_cast<int>(item.model->meshes.size())) {
+                    continue;
+                }
+
+                ModelAsset& expandedAsset = MakeSingleMeshExpandedAsset(*item.model, node.meshIndex, static_cast<int>(nodeIndex));
+                if (expandedAsset.meshes.empty()) {
+                    continue;
+                }
+
+                MESHRENDERER::SubmitStaticMesh(
+                    expandedAsset,
+                    nodeGlobals[nodeIndex],
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized);
+                submitted = true;
+            }
+            return submitted;
+        }
     }
 
     void Reset() {
         gQueue.clear();
+        gExpandedNodeAssets.clear();
         MESHRENDERER::Reset();
     }
 
@@ -98,10 +220,17 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
+        gExpandedNodeAssets.clear();
+
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
             }
+
+            if (SubmitStructuredModelNodes(item)) {
+                continue;
+            }
+
             MESHRENDERER::SubmitStaticMesh(
                 *item.model,
                 BuildAnimatedTransform(item),
@@ -112,6 +241,7 @@ namespace HIKARI::MODELRENDERER {
         }
 
         MESHRENDERER::RenderAll(camera, environment);
+        gExpandedNodeAssets.clear();
         gQueue.clear();
     }
 
