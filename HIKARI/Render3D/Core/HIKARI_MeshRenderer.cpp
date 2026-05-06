@@ -3,6 +3,8 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <memory>
+#include <string>
 #include <vector>
 #include <unordered_map>
 #include <d3dcompiler.h>
@@ -93,6 +95,8 @@ namespace HIKARI::MESHRENDERER {
             int fallbackTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
+            std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
+            std::unordered_map<std::string, int> materialTextureCache;
         };
 
         State g;
@@ -303,6 +307,26 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
         }
 
+        void ApplyMaterialFxOverride(DrawItem& item) {
+            if (item.materialFxProfileId.empty()) {
+                return;
+            }
+
+            MaterialFxProfile profile{};
+            if (!MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
+                return;
+            }
+
+            if (!profile.shaderProfileId.empty()) {
+                item.variant.shaderId = profile.shaderProfileId;
+            }
+            item.variant.featureBits = profile.featureBits;
+            item.variant.composite = profile.composite;
+            item.variant.depthTest = profile.depthTest;
+            item.variant.depthWrite = profile.depthWrite;
+            item.variant.doubleSided = profile.doubleSided;
+        }
+
         void ResolveDrawVariant(DrawItem& item) {
             if (!item.asset) {
                 return;
@@ -317,19 +341,7 @@ namespace HIKARI::MESHRENDERER {
             item.variant.depthWrite = true;
             item.variant.doubleSided = false;
 
-            if (!item.materialFxProfileId.empty()) {
-                MaterialFxProfile profile{};
-                if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
-                    if (!profile.shaderProfileId.empty()) {
-                        item.variant.shaderId = profile.shaderProfileId;
-                    }
-                    item.variant.featureBits = profile.featureBits;
-                    item.variant.composite = profile.composite;
-                    item.variant.depthTest = profile.depthTest;
-                    item.variant.depthWrite = profile.depthWrite;
-                    item.variant.doubleSided = profile.doubleSided;
-                }
-            }
+            ApplyMaterialFxOverride(item);
 
             item.fxValues = {};
             item.fxFlags = 0;
@@ -341,6 +353,16 @@ namespace HIKARI::MESHRENDERER {
                 item.fxValues[i] = { value.x, value.y, value.z, value.w };
             }
             item.fxFlags = item.variant.featureBits;
+        }
+
+        VFX::VariantKey ResolvePrimitiveVariant(const DrawItem& item, const MaterialAsset* materialAsset) {
+            VFX::VariantKey variant = item.variant;
+            if (materialAsset != nullptr) {
+                variant.shaderId = materialAsset->shaderProfileId;
+                variant.featureBits = materialAsset->featureBits;
+                variant.doubleSided = materialAsset->doubleSided;
+            }
+            return variant;
         }
 
         bool EnsureInitialized() {
@@ -363,6 +385,89 @@ namespace HIKARI::MESHRENDERER {
 
             g.initialized = true;
             return true;
+        }
+
+        const MaterialAsset* GetPrimitiveMaterial(const ModelAsset& asset, uint32_t materialIndex) {
+            if (materialIndex >= asset.materials.size()) {
+                return nullptr;
+            }
+            return &asset.materials[materialIndex];
+        }
+
+        int ResolvePrimitiveTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+            if (materialAsset == nullptr) {
+                return g.fallbackTextureHandle;
+            }
+
+            const int textureIndex = materialAsset->baseColorTexture.textureIndex;
+            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
+                return g.fallbackTextureHandle;
+            }
+
+            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
+            if (texturePath.empty()) {
+                return g.fallbackTextureHandle;
+            }
+
+            auto found = g.materialTextureCache.find(texturePath);
+            if (found != g.materialTextureCache.end()) {
+                return found->second;
+            }
+
+            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/" + texturePath, texturePath);
+            g.materialTextureCache[texturePath] = handle;
+            return handle >= 0 ? handle : g.fallbackTextureHandle;
+        }
+
+        Mesh* GetOrCreatePrimitiveMesh(const MeshPrimitive& primitive) {
+            auto found = g.primitiveMeshCache.find(&primitive);
+            if (found != g.primitiveMeshCache.end()) {
+                return found->second.get();
+            }
+
+            if (primitive.layout != VertexLayoutKind::StaticPNTT || primitive.staticVertices.empty() || primitive.indices.empty()) {
+                return nullptr;
+            }
+
+            std::vector<VertexStatic3D> vertices;
+            vertices.reserve(primitive.staticVertices.size());
+            for (const Vertex3D& src : primitive.staticVertices) {
+                VertexStatic3D dst{};
+                dst.position = src.position;
+                dst.normal = src.normal;
+                dst.u = src.uv0.x;
+                dst.v = src.uv0.y;
+                vertices.push_back(dst);
+            }
+
+            auto mesh = std::make_unique<Mesh>();
+            if (!mesh->CreateStatic(SERVICES::gCtx.device, vertices, primitive.indices)) {
+                return nullptr;
+            }
+
+            Mesh* raw = mesh.get();
+            g.primitiveMeshCache.emplace(&primitive, std::move(mesh));
+            return raw;
+        }
+
+        MATH::Mat4 BuildNormalMatrix(const Transform3D& transform) {
+            MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::NormalizeQ(transform.rotation));
+            const MATH::Vec3 s = transform.scale;
+            const float invScaleX = (std::abs(s.x) > 1e-6f) ? (1.0f / s.x) : 0.0f;
+            const float invScaleY = (std::abs(s.y) > 1e-6f) ? (1.0f / s.y) : 0.0f;
+            const float invScaleZ = (std::abs(s.z) > 1e-6f) ? (1.0f / s.z) : 0.0f;
+            normalMatrix.m[0][0] *= invScaleX; normalMatrix.m[0][1] *= invScaleX; normalMatrix.m[0][2] *= invScaleX;
+            normalMatrix.m[1][0] *= invScaleY; normalMatrix.m[1][1] *= invScaleY; normalMatrix.m[1][2] *= invScaleY;
+            normalMatrix.m[2][0] *= invScaleZ; normalMatrix.m[2][1] *= invScaleZ; normalMatrix.m[2][2] *= invScaleZ;
+            return normalMatrix;
+        }
+
+        void FillFxValues(ObjectCB& obj, const DrawItem& item) {
+            obj.fxFlags = item.fxFlags;
+            obj.fxUser0 = item.fxValues[0];
+            obj.fxUser1 = item.fxValues[1];
+            obj.fxUser2 = item.fxValues[2];
+            obj.fxUser3 = item.fxValues[3];
         }
     }
 
@@ -436,7 +541,6 @@ namespace HIKARI::MESHRENDERER {
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
@@ -451,24 +555,79 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
 
-        const size_t drawCount = std::min(g.drawItems.size(), kMaxObjectCount);
-        for (size_t i = 0; i < drawCount; ++i) {
-            const DrawItem& item = g.drawItems[i];
-            if (!item.asset || !item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
+        size_t objectIndex = 0;
+        for (const DrawItem& item : g.drawItems) {
+            if (objectIndex >= kMaxObjectCount || item.asset == nullptr) {
+                break;
+            }
+
+            const bool hasStructuredGltfMeshes = !item.asset->meshes.empty();
+            if (hasStructuredGltfMeshes) {
+                const MATH::Mat4 world = item.transform.GetWorldMatrix();
+                const MATH::Mat4 normalMatrix = BuildNormalMatrix(item.transform);
+
+                for (const MeshAsset& meshAsset : item.asset->meshes) {
+                    for (const MeshPrimitive& primitive : meshAsset.primitives) {
+                        if (objectIndex >= kMaxObjectCount) {
+                            break;
+                        }
+
+                        Mesh* mesh = GetOrCreatePrimitiveMesh(primitive);
+                        if (mesh == nullptr || !mesh->IsValid()) {
+                            continue;
+                        }
+
+                        const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
+
+                        ObjectCB obj{};
+                        obj.world = world;
+                        obj.normalMatrix = normalMatrix;
+                        obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
+                        const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
+                        obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
+                        FillFxValues(obj, item);
+
+                        uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
+                        std::memcpy(dst, &obj, sizeof(ObjectCB));
+
+                        const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
+                        cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+
+                        const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
+                        auto foundPso = g.variantPsoCache.find(primitiveVariant);
+                        if (foundPso == g.variantPsoCache.end()) {
+                            ComPtr<ID3D12PipelineState> variantPso;
+                            if (!CreateVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
+                                variantPso = g.pso;
+                            }
+                            foundPso = g.variantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
+                        }
+                        cmd->SetPipelineState(foundPso->second.Get());
+
+                        const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+                        if (textureSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
+                        }
+
+                        D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
+                        D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
+                        cmd->IASetVertexBuffers(0, 1, &vb);
+                        cmd->IASetIndexBuffer(&ib);
+                        cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+
+                        ++objectIndex;
+                    }
+                }
+                continue;
+            }
+
+            if (!item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
                 continue;
             }
 
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
-            MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::NormalizeQ(item.transform.rotation));
-            const MATH::Vec3 s = item.transform.scale;
-            const float invScaleX = (std::abs(s.x) > 1e-6f) ? (1.0f / s.x) : 0.0f;
-            const float invScaleY = (std::abs(s.y) > 1e-6f) ? (1.0f / s.y) : 0.0f;
-            const float invScaleZ = (std::abs(s.z) > 1e-6f) ? (1.0f / s.z) : 0.0f;
-            normalMatrix.m[0][0] *= invScaleX; normalMatrix.m[0][1] *= invScaleX; normalMatrix.m[0][2] *= invScaleX;
-            normalMatrix.m[1][0] *= invScaleY; normalMatrix.m[1][1] *= invScaleY; normalMatrix.m[1][2] *= invScaleY;
-            normalMatrix.m[2][0] *= invScaleZ; normalMatrix.m[2][1] *= invScaleZ; normalMatrix.m[2][2] *= invScaleZ;
-            obj.normalMatrix = normalMatrix;
+            obj.normalMatrix = BuildNormalMatrix(item.transform);
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
@@ -476,16 +635,12 @@ namespace HIKARI::MESHRENDERER {
                 obj.baseColor = { 1,1,1,1 };
                 obj.hasBaseColorTexture = 0u;
             }
-            obj.fxFlags = item.fxFlags;
-            obj.fxUser0 = item.fxValues[0];
-            obj.fxUser1 = item.fxValues[1];
-            obj.fxUser2 = item.fxValues[2];
-            obj.fxUser3 = item.fxValues[3];
+            FillFxValues(obj, item);
 
-            uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * i;
+            uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
             std::memcpy(dst, &obj, sizeof(ObjectCB));
 
-            const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * i;
+            const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
             auto foundPso = g.variantPsoCache.find(item.variant);
@@ -514,6 +669,7 @@ namespace HIKARI::MESHRENDERER {
             cmd->IASetVertexBuffers(0, 1, &vb);
             cmd->IASetIndexBuffer(&ib);
             cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+            ++objectIndex;
         }
 
         g.drawItems.clear();
