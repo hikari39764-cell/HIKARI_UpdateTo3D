@@ -35,7 +35,59 @@ namespace HIKARI::MODELRENDERER {
             }
         };
 
-        std::unordered_map<ExpandedNodeMeshKey, std::unique_ptr<ModelAsset>, ExpandedNodeMeshKeyHash> gExpandedNodeMeshCache;
+        struct ExpandedNodeMeshCacheEntry {
+            std::unique_ptr<ModelAsset> asset;
+            size_t sourceSignature = 0;
+        };
+
+        std::unordered_map<ExpandedNodeMeshKey, ExpandedNodeMeshCacheEntry, ExpandedNodeMeshKeyHash> gExpandedNodeMeshCache;
+
+        size_t HashCombine(size_t seed, size_t value) {
+            return seed ^ (value + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+        }
+
+        size_t BuildMeshSignature(const ModelAsset& source, int meshIndex) {
+            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
+                return 0;
+            }
+
+            size_t seed = std::hash<const ModelAsset*>{}(&source);
+            seed = HashCombine(seed, static_cast<size_t>(meshIndex));
+            seed = HashCombine(seed, static_cast<size_t>(source.GetState()));
+            seed = HashCombine(seed, source.materials.size());
+            seed = HashCombine(seed, source.textures.size());
+
+            const MeshAsset& mesh = source.meshes[static_cast<size_t>(meshIndex)];
+            seed = HashCombine(seed, mesh.name.size());
+            seed = HashCombine(seed, mesh.primitives.size());
+
+            for (const MeshPrimitive& primitive : mesh.primitives) {
+                seed = HashCombine(seed, primitive.name.size());
+                seed = HashCombine(seed, static_cast<size_t>(primitive.layout));
+                seed = HashCombine(seed, primitive.staticVertices.size());
+                seed = HashCombine(seed, primitive.skinnedVertices.size());
+                seed = HashCombine(seed, primitive.indices.size());
+                seed = HashCombine(seed, static_cast<size_t>(primitive.materialIndex));
+            }
+            return seed;
+        }
+
+        std::unique_ptr<ModelAsset> BuildSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex) {
+            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
+                return nullptr;
+            }
+
+            auto expanded = std::make_unique<ModelAsset>();
+            expanded->id.value = source.GetName() + "#mesh" + std::to_string(meshIndex);
+            expanded->sourcePath = source.sourcePath;
+            expanded->state = source.state;
+            expanded->materials = source.materials;
+            expanded->textures = source.textures;
+            expanded->bounds = source.bounds;
+            expanded->defaultSceneRootNode = 0;
+            expanded->meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+            return expanded;
+        }
 
         MATH::Quat MulQuat(const MATH::Quat& a, const MATH::Quat& b) {
             return MATH::NormalizeQ({
@@ -185,23 +237,31 @@ namespace HIKARI::MODELRENDERER {
             }
 
             const ExpandedNodeMeshKey key{ &source, meshIndex };
+            const size_t sourceSignature = BuildMeshSignature(source, meshIndex);
             auto found = gExpandedNodeMeshCache.find(key);
             if (found != gExpandedNodeMeshCache.end()) {
-                return found->second.get();
+                if (found->second.sourceSignature == sourceSignature && found->second.asset != nullptr) {
+                    found->second.asset->state = source.state;
+                    found->second.asset->sourcePath = source.sourcePath;
+                    found->second.asset->materials = source.materials;
+                    found->second.asset->textures = source.textures;
+                    return found->second.asset.get();
+                }
+
+                found->second.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
+                found->second.sourceSignature = sourceSignature;
+                return found->second.asset.get();
             }
 
-            auto expanded = std::make_unique<ModelAsset>();
-            expanded->id.value = source.GetName() + "#mesh" + std::to_string(meshIndex);
-            expanded->sourcePath = source.sourcePath;
-            expanded->state = source.state;
-            expanded->materials = source.materials;
-            expanded->textures = source.textures;
-            expanded->bounds = source.bounds;
-            expanded->defaultSceneRootNode = 0;
-            expanded->meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+            ExpandedNodeMeshCacheEntry entry{};
+            entry.sourceSignature = sourceSignature;
+            entry.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
+            if (!entry.asset) {
+                return nullptr;
+            }
 
-            ModelAsset* raw = expanded.get();
-            gExpandedNodeMeshCache.emplace(key, std::move(expanded));
+            ModelAsset* raw = entry.asset.get();
+            gExpandedNodeMeshCache.emplace(key, std::move(entry));
             return raw;
         }
 
