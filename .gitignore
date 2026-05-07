@@ -364,3 +364,6 @@ FodyWeavers.xsd
 # Local UI layout cache
 imgui.ini
 Assets/Test/imgui.ini
+
+# 本地测试用 glTF / 模型资源
+Assets/

@@ -82,7 +82,7 @@ namespace HIKARI {
             POST::PostSystem::ClearGlobalProfile();
         }
 
-        if (DrawDebugHelpers()) {
+       /* if (DrawDebugHelpers()) {
             RENDERER3D::DEBUG::Grid3D grid{};
             grid.halfCount = 10;
             grid.spacing = 1.0f;
@@ -91,7 +91,7 @@ namespace HIKARI {
             RENDERER3D::DEBUG::Axis3D axis{};
             axis.length = 2.5f;
             RENDERER3D::DEBUG::SubmitAxis3D(axis);
-        }
+        }*/
 
         world_.Render();
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();

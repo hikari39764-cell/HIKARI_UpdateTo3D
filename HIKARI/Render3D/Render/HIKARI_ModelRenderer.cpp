@@ -10,6 +10,9 @@
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 
+#undef max
+#undef min
+
 namespace HIKARI::MODELRENDERER {
 
     namespace {

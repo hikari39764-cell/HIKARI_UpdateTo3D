@@ -67,7 +67,7 @@
     {
       "id": "Hero",
       "type": "Model",
-      "sourcePath": "./Assets/Characters/Hero/hero.gltf",
+      "sourcePath": "./Assets/TestModel/blockT2.gltf",
       "importer": "gltf",
       "preload": false,
       "importOptions": {
