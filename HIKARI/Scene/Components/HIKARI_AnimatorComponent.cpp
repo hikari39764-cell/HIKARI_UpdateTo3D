@@ -35,7 +35,7 @@ namespace HIKARI {
         speed_ = in.value("speed", speed_);
         loop_ = in.value("loop", loop_);
         autoPlay_ = in.value("autoPlay", autoPlay_);
-        playing_ = in.value("playing", playing_);
+        playing_ = in.value("playing", autoPlay_);
         finished_ = in.value("finished", finished_);
     }
 
@@ -65,7 +65,7 @@ namespace HIKARI {
         ImGui::Text("Finished: %s", finished_ ? "Yes" : "No");
 
         if (ImGui::Button("Play")) {
-            Play(clip_, loop_, false);
+            Play(clip_, loop_, true);
         }
         ImGui::SameLine();
         if (ImGui::Button("Pause")) {
@@ -119,7 +119,7 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::Advance(float deltaTimeSec, float clipDurationSec) {
-        if (!autoPlay_ || !playing_ || clip_.empty()) {
+        if (!playing_ || clip_.empty()) {
             return;
         }
 
