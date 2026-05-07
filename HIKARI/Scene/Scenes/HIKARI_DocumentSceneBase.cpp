@@ -10,6 +10,8 @@
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Scene/HIKARI_AnimationSystem.h"
+#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
@@ -256,6 +258,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneBase::RegisterDefaultSystems() {
+        systemScheduler_.AddSystem(std::make_unique<AnimationSystem>());
         systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
     }
 
@@ -265,9 +268,29 @@ namespace HIKARI {
                 "ModelComponent",
                 []() -> std::unique_ptr<IComponent> { return std::make_unique<ModelComponent>(); },
                 {},
-                {},
+                { "AnimatorComponent" },
                 {},
                 false
+            });
+        }
+
+        if (!componentRegistry_.Find("AnimatorComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "AnimatorComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<AnimatorComponent>(); },
+                { "ModelComponent" },
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["clip"] = "";
+                    properties["timeSec"] = 0.0f;
+                    properties["speed"] = 1.0f;
+                    properties["loop"] = true;
+                    properties["autoPlay"] = true;
+                    properties["playing"] = true;
+                    properties["finished"] = false;
+                }
             });
         }
 
