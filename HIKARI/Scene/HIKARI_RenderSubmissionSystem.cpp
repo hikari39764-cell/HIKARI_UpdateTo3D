@@ -1,10 +1,11 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
-#include "Core/HIKARI_FrameContext.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
+#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI {
@@ -16,10 +17,12 @@ namespace HIKARI {
     }
 
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
+        (void)frame;
+
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.fallbackWireCount = 0;
 
-        world.ForEachObjectWith<ModelComponent>([&frame](GameObject& object, ModelComponent& model) {
+        world.ForEachObjectWith<ModelComponent>([](GameObject& object, ModelComponent& model) {
             if (!model.IsVisible()) {
                 return;
             }
@@ -28,10 +31,6 @@ namespace HIKARI {
             const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
-                if (model.GetAnimationAutoPlay() && !model.GetAnimationClip().empty()) {
-                    model.SetAnimationTime(model.GetAnimationTime() + frame.gameDt);
-                }
-
                 ++sDebugStats_.submittedModelCount;
 
                 ModelRenderItem item{};
@@ -43,9 +42,13 @@ namespace HIKARI {
                 for (int i = 0; i < 4; ++i) {
                     item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
                 }
-                item.animationClipName = model.GetAnimationClip();
-                item.animationTimeSec = model.GetAnimationTime();
-                item.animationLoop = model.GetAnimationLoop();
+
+                if (const AnimatorComponent* animator = object.GetComponent<AnimatorComponent>()) {
+                    item.animationClipName = animator->GetClip();
+                    item.animationTimeSec = animator->GetTime();
+                    item.animationLoop = animator->GetLoop();
+                }
+
                 MODELRENDERER::SubmitModel(item);
             } else {
                 ++sDebugStats_.fallbackWireCount;
