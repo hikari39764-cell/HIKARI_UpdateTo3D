@@ -124,10 +124,10 @@ namespace HIKARI::MODELRENDERER {
         }
 
         template<typename T>
-        T Lerp(const T& a, const T& b, float t);
+        T LerpValue(const T& a, const T& b, float t);
 
         template<>
-        MATH::Vec3 Lerp(const MATH::Vec3& a, const MATH::Vec3& b, float t) {
+        MATH::Vec3 LerpValue(const MATH::Vec3& a, const MATH::Vec3& b, float t) {
             return {
                 a.x + (b.x - a.x) * t,
                 a.y + (b.y - a.y) * t,
@@ -136,70 +136,136 @@ namespace HIKARI::MODELRENDERER {
         }
 
         template<>
-        MATH::Quat Lerp(const MATH::Quat& a, const MATH::Quat& b, float t) {
+        MATH::Quat LerpValue(const MATH::Quat& a, const MATH::Quat& b, float t) {
+            MATH::Quat end = b;
+            const float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+            if (dot < 0.0f) {
+                end.x = -end.x;
+                end.y = -end.y;
+                end.z = -end.z;
+                end.w = -end.w;
+            }
+
             const MATH::Quat q{
-                a.x + (b.x - a.x) * t,
-                a.y + (b.y - a.y) * t,
-                a.z + (b.z - a.z) * t,
-                a.w + (b.w - a.w) * t
+                a.x + (end.x - a.x) * t,
+                a.y + (end.y - a.y) * t,
+                a.z + (end.z - a.z) * t,
+                a.w + (end.w - a.w) * t
             };
             return MATH::NormalizeQ(q);
         }
 
         template<typename TKey, typename TValue>
-        TValue SampleLinear(const std::vector<TKey>& keys, float timeSec, const TValue& fallback) {
-            if (keys.empty()) return fallback;
-            if (keys.size() == 1 || timeSec <= keys.front().timeSec) return keys.front().value;
-            if (timeSec >= keys.back().timeSec) return keys.back().value;
+        TValue SampleKeys(const std::vector<TKey>& keys, float timeSec, AnimationInterpolation interpolation, const TValue& fallback) {
+            if (keys.empty()) {
+                return fallback;
+            }
+            if (keys.size() == 1 || timeSec <= keys.front().timeSec) {
+                return keys.front().value;
+            }
+            if (timeSec >= keys.back().timeSec) {
+                return keys.back().value;
+            }
+
             for (size_t i = 0; i + 1 < keys.size(); ++i) {
                 const auto& a = keys[i];
                 const auto& b = keys[i + 1];
                 if (timeSec >= a.timeSec && timeSec <= b.timeSec) {
+                    if (interpolation == AnimationInterpolation::Step) {
+                        return a.value;
+                    }
                     const float span = std::max(1e-5f, b.timeSec - a.timeSec);
                     const float t = (timeSec - a.timeSec) / span;
-                    return Lerp<TValue>(a.value, b.value, t);
+                    return LerpValue<TValue>(a.value, b.value, t);
                 }
             }
             return keys.back().value;
         }
 
+        const AnimationClip* ResolveAnimationClip(const ModelRenderItem& item) {
+            if (!item.model || item.animationClipName.empty()) {
+                return nullptr;
+            }
+            return item.model->FindAnimationClip(item.animationClipName);
+        }
+
+        float ResolveAnimationSampleTime(const ModelRenderItem& item, const AnimationClip& clip) {
+            float sampleTime = item.animationTimeSec;
+            if (item.animationLoop && clip.durationSec > 0.0001f) {
+                sampleTime = std::fmod(sampleTime, clip.durationSec);
+                if (sampleTime < 0.0f) {
+                    sampleTime += clip.durationSec;
+                }
+            }
+            return sampleTime;
+        }
+
         Transform3D BuildAnimatedTransform(const ModelRenderItem& item) {
             Transform3D out = item.worldTransform;
-            if (!item.model || item.animationClipName.empty()) {
-                return out;
-            }
-            const AnimationClip* clip = item.model->FindAnimationClip(item.animationClipName);
+            const AnimationClip* clip = ResolveAnimationClip(item);
             if (!clip || clip->channels.empty()) {
                 return out;
             }
 
-            float sampleTime = item.animationTimeSec;
-            if (item.animationLoop && clip->durationSec > 0.0001f) {
-                sampleTime = std::fmod(sampleTime, clip->durationSec);
-                if (sampleTime < 0.0f) sampleTime += clip->durationSec;
-            }
-
+            const float sampleTime = ResolveAnimationSampleTime(item, *clip);
             for (const NodeAnimationChannel& channel : clip->channels) {
-                // Legacy path has a single combined mesh, so apply first node track as object animation.
+                // Legacy single-mesh path: keep previous behavior by applying the first node track to object transform.
                 if (channel.targetNode > 0) {
                     continue;
                 }
                 if (channel.path == AnimationTargetPath::Translation) {
-                    out.position = SampleLinear<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, out.position);
+                    out.position = SampleKeys<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, channel.interpolation, out.position);
                 } else if (channel.path == AnimationTargetPath::Scale) {
-                    out.scale = SampleLinear<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, out.scale);
+                    out.scale = SampleKeys<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, channel.interpolation, out.scale);
                 } else if (channel.path == AnimationTargetPath::Rotation) {
-                    out.rotation = SampleLinear<AnimationKeyframe<MATH::Quat>, MATH::Quat>(channel.quatKeys, sampleTime, out.rotation);
+                    out.rotation = SampleKeys<AnimationKeyframe<MATH::Quat>, MATH::Quat>(channel.quatKeys, sampleTime, channel.interpolation, out.rotation);
                 }
             }
             return out;
         }
 
-        MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node) {
+        std::vector<Transform3D> BuildAnimatedNodeLocals(const ModelRenderItem& item) {
+            std::vector<Transform3D> locals;
+            if (!item.model) {
+                return locals;
+            }
+
+            locals.reserve(item.model->nodes.size());
+            for (const ModelNode& node : item.model->nodes) {
+                locals.push_back(node.localTransform);
+            }
+
+            const AnimationClip* clip = ResolveAnimationClip(item);
+            if (!clip || clip->channels.empty()) {
+                return locals;
+            }
+
+            const float sampleTime = ResolveAnimationSampleTime(item, *clip);
+            for (const NodeAnimationChannel& channel : clip->channels) {
+                if (channel.targetNode < 0 || channel.targetNode >= static_cast<int>(locals.size())) {
+                    continue;
+                }
+
+                Transform3D& local = locals[static_cast<size_t>(channel.targetNode)];
+                if (channel.path == AnimationTargetPath::Translation) {
+                    local.position = SampleKeys<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, channel.interpolation, local.position);
+                } else if (channel.path == AnimationTargetPath::Scale) {
+                    local.scale = SampleKeys<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, channel.interpolation, local.scale);
+                } else if (channel.path == AnimationTargetPath::Rotation) {
+                    local.rotation = SampleKeys<AnimationKeyframe<MATH::Quat>, MATH::Quat>(channel.quatKeys, sampleTime, channel.interpolation, local.rotation);
+                }
+            }
+            return locals;
+        }
+
+        MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node, const std::vector<Transform3D>& animatedLocals, size_t nodeIndex) {
+            if (nodeIndex < animatedLocals.size()) {
+                return animatedLocals[nodeIndex].GetLocalMatrix();
+            }
             return node.hasLocalMatrix ? node.localMatrix : node.localTransform.GetLocalMatrix();
         }
 
-        void EvaluateNodeMatrixRecursive(const ModelAsset& asset, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<bool>& visited) {
+        void EvaluateNodeMatrixRecursive(const ModelAsset& asset, const std::vector<Transform3D>& animatedLocals, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<bool>& visited) {
             if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
                 return;
             }
@@ -208,30 +274,36 @@ namespace HIKARI::MODELRENDERER {
             }
 
             const ModelNode& node = asset.nodes[static_cast<size_t>(nodeIndex)];
-            outGlobals[static_cast<size_t>(nodeIndex)] = parentWorld * GetNodeLocalMatrix(node);
+            outGlobals[static_cast<size_t>(nodeIndex)] = parentWorld * GetNodeLocalMatrix(node, animatedLocals, static_cast<size_t>(nodeIndex));
             visited[static_cast<size_t>(nodeIndex)] = true;
 
             for (int childIndex : node.children) {
-                EvaluateNodeMatrixRecursive(asset, childIndex, outGlobals[static_cast<size_t>(nodeIndex)], outGlobals, visited);
+                EvaluateNodeMatrixRecursive(asset, animatedLocals, childIndex, outGlobals[static_cast<size_t>(nodeIndex)], outGlobals, visited);
             }
         }
 
-        void BuildNodeGlobalMatrices(const ModelAsset& asset, const Transform3D& objectTransform, std::vector<MATH::Mat4>& outGlobals) {
-            const MATH::Mat4 objectWorld = objectTransform.GetWorldMatrix();
-            outGlobals.assign(asset.nodes.size(), objectWorld);
-            std::vector<bool> visited(asset.nodes.size(), false);
+        void BuildNodeGlobalMatrices(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
+            if (!item.model) {
+                outGlobals.clear();
+                return;
+            }
 
-            for (size_t i = 0; i < asset.nodes.size(); ++i) {
-                if (asset.nodes[i].parent == -1) {
-                    EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), objectWorld, outGlobals, visited);
+            const MATH::Mat4 objectWorld = item.worldTransform.GetWorldMatrix();
+            outGlobals.assign(item.model->nodes.size(), objectWorld);
+            std::vector<bool> visited(item.model->nodes.size(), false);
+            const std::vector<Transform3D> animatedLocals = BuildAnimatedNodeLocals(item);
+
+            for (size_t i = 0; i < item.model->nodes.size(); ++i) {
+                if (item.model->nodes[i].parent == -1) {
+                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), objectWorld, outGlobals, visited);
                 }
             }
 
-            for (size_t i = 0; i < asset.nodes.size(); ++i) {
+            for (size_t i = 0; i < item.model->nodes.size(); ++i) {
                 if (!visited[i]) {
-                    const int parent = asset.nodes[i].parent;
+                    const int parent = item.model->nodes[i].parent;
                     const MATH::Mat4 parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : objectWorld;
-                    EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), parentWorld, outGlobals, visited);
+                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), parentWorld, outGlobals, visited);
                 }
             }
         }
@@ -242,7 +314,7 @@ namespace HIKARI::MODELRENDERER {
             }
 
             std::vector<MATH::Mat4> nodeGlobals;
-            BuildNodeGlobalMatrices(*item.model, item.worldTransform, nodeGlobals);
+            BuildNodeGlobalMatrices(item, nodeGlobals);
 
             bool submitted = false;
             for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
