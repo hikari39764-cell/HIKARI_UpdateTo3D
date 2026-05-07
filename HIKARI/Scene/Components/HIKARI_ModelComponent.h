@@ -47,15 +47,6 @@ namespace HIKARI {
         bool GetMaterialFxFloat(const std::string& key, float& out) const;
         void ResetMaterialFxToProfileDefaults();
 
-        void SetAnimationClip(std::string clip);
-        const std::string& GetAnimationClip() const;
-        void SetAnimationTime(float timeSec);
-        float GetAnimationTime() const;
-        void SetAnimationLoop(bool loop);
-        bool GetAnimationLoop() const;
-        void SetAnimationAutoPlay(bool autoPlay);
-        bool GetAnimationAutoPlay() const;
-
     private:
         ModelAsset* asset_ = nullptr;
         std::string assetId_{};
@@ -64,11 +55,6 @@ namespace HIKARI {
         std::string materialFxProfileId_{};
         DirectX::XMFLOAT4 materialFxParamValues_[4]{};
         bool materialFxValuesInitialized_ = false;
-
-        std::string animationClip_{};
-        float animationTimeSec_ = 0.0f;
-        bool animationLoop_ = true;
-        bool animationAutoPlay_ = true;
     };
 
 } // namespace HIKARI
