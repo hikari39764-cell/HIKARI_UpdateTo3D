@@ -89,38 +89,38 @@ namespace HIKARI::MODELRENDERER {
             return expanded;
         }
 
-        MATH::Quat MulQuat(const MATH::Quat& a, const MATH::Quat& b) {
-            return MATH::NormalizeQ({
-                a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-                a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-                a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
-                a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
-            });
-        }
+        ModelAsset* GetOrCreateSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex) {
+            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
+                return nullptr;
+            }
 
-        MATH::Vec3 RotateVector(const MATH::Quat& q, const MATH::Vec3& v) {
-            const MATH::Quat nq = MATH::NormalizeQ(q);
-            const MATH::Vec3 u{ nq.x, nq.y, nq.z };
-            const float s = nq.w;
-            return u * (2.0f * MATH::Dot(u, v)) + v * (s * s - MATH::Dot(u, u)) + MATH::Cross(u, v) * (2.0f * s);
-        }
+            const ExpandedNodeMeshKey key{ &source, meshIndex };
+            const size_t sourceSignature = BuildMeshSignature(source, meshIndex);
+            auto found = gExpandedNodeMeshCache.find(key);
+            if (found != gExpandedNodeMeshCache.end()) {
+                if (found->second.sourceSignature == sourceSignature && found->second.asset != nullptr) {
+                    found->second.asset->state = source.state;
+                    found->second.asset->sourcePath = source.sourcePath;
+                    found->second.asset->materials = source.materials;
+                    found->second.asset->textures = source.textures;
+                    return found->second.asset.get();
+                }
 
-        Transform3D ComposeTransform(const Transform3D& parent, const Transform3D& local) {
-            Transform3D out{};
-            out.scale = {
-                parent.scale.x * local.scale.x,
-                parent.scale.y * local.scale.y,
-                parent.scale.z * local.scale.z
-            };
-            out.rotation = MulQuat(parent.rotation, local.rotation);
+                found->second.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
+                found->second.sourceSignature = sourceSignature;
+                return found->second.asset.get();
+            }
 
-            const MATH::Vec3 scaledLocalPosition{
-                local.position.x * parent.scale.x,
-                local.position.y * parent.scale.y,
-                local.position.z * parent.scale.z
-            };
-            out.position = parent.position + RotateVector(parent.rotation, scaledLocalPosition);
-            return out;
+            ExpandedNodeMeshCacheEntry entry{};
+            entry.sourceSignature = sourceSignature;
+            entry.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
+            if (!entry.asset) {
+                return nullptr;
+            }
+
+            ModelAsset* raw = entry.asset.get();
+            gExpandedNodeMeshCache.emplace(key, std::move(entry));
+            return raw;
         }
 
         template<typename T>
@@ -195,7 +195,11 @@ namespace HIKARI::MODELRENDERER {
             return out;
         }
 
-        void EvaluateNodeRecursive(const ModelAsset& asset, int nodeIndex, const Transform3D& parentWorld, std::vector<Transform3D>& outGlobals, std::vector<bool>& visited) {
+        MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node) {
+            return node.hasLocalMatrix ? node.localMatrix : node.localTransform.GetLocalMatrix();
+        }
+
+        void EvaluateNodeMatrixRecursive(const ModelAsset& asset, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<bool>& visited) {
             if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
                 return;
             }
@@ -204,65 +208,32 @@ namespace HIKARI::MODELRENDERER {
             }
 
             const ModelNode& node = asset.nodes[static_cast<size_t>(nodeIndex)];
-            outGlobals[static_cast<size_t>(nodeIndex)] = ComposeTransform(parentWorld, node.localTransform);
+            outGlobals[static_cast<size_t>(nodeIndex)] = parentWorld * GetNodeLocalMatrix(node);
             visited[static_cast<size_t>(nodeIndex)] = true;
 
             for (int childIndex : node.children) {
-                EvaluateNodeRecursive(asset, childIndex, outGlobals[static_cast<size_t>(nodeIndex)], outGlobals, visited);
+                EvaluateNodeMatrixRecursive(asset, childIndex, outGlobals[static_cast<size_t>(nodeIndex)], outGlobals, visited);
             }
         }
 
-        void BuildNodeGlobalTransforms(const ModelAsset& asset, const Transform3D& objectTransform, std::vector<Transform3D>& outGlobals) {
-            outGlobals.assign(asset.nodes.size(), objectTransform);
+        void BuildNodeGlobalMatrices(const ModelAsset& asset, const Transform3D& objectTransform, std::vector<MATH::Mat4>& outGlobals) {
+            const MATH::Mat4 objectWorld = objectTransform.GetWorldMatrix();
+            outGlobals.assign(asset.nodes.size(), objectWorld);
             std::vector<bool> visited(asset.nodes.size(), false);
 
             for (size_t i = 0; i < asset.nodes.size(); ++i) {
                 if (asset.nodes[i].parent == -1) {
-                    EvaluateNodeRecursive(asset, static_cast<int>(i), objectTransform, outGlobals, visited);
+                    EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), objectWorld, outGlobals, visited);
                 }
             }
 
             for (size_t i = 0; i < asset.nodes.size(); ++i) {
                 if (!visited[i]) {
                     const int parent = asset.nodes[i].parent;
-                    const Transform3D parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : objectTransform;
-                    EvaluateNodeRecursive(asset, static_cast<int>(i), parentWorld, outGlobals, visited);
+                    const MATH::Mat4 parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : objectWorld;
+                    EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), parentWorld, outGlobals, visited);
                 }
             }
-        }
-
-        ModelAsset* GetOrCreateSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex) {
-            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
-                return nullptr;
-            }
-
-            const ExpandedNodeMeshKey key{ &source, meshIndex };
-            const size_t sourceSignature = BuildMeshSignature(source, meshIndex);
-            auto found = gExpandedNodeMeshCache.find(key);
-            if (found != gExpandedNodeMeshCache.end()) {
-                if (found->second.sourceSignature == sourceSignature && found->second.asset != nullptr) {
-                    found->second.asset->state = source.state;
-                    found->second.asset->sourcePath = source.sourcePath;
-                    found->second.asset->materials = source.materials;
-                    found->second.asset->textures = source.textures;
-                    return found->second.asset.get();
-                }
-
-                found->second.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
-                found->second.sourceSignature = sourceSignature;
-                return found->second.asset.get();
-            }
-
-            ExpandedNodeMeshCacheEntry entry{};
-            entry.sourceSignature = sourceSignature;
-            entry.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
-            if (!entry.asset) {
-                return nullptr;
-            }
-
-            ModelAsset* raw = entry.asset.get();
-            gExpandedNodeMeshCache.emplace(key, std::move(entry));
-            return raw;
         }
 
         bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
@@ -270,8 +241,8 @@ namespace HIKARI::MODELRENDERER {
                 return false;
             }
 
-            std::vector<Transform3D> nodeGlobals;
-            BuildNodeGlobalTransforms(*item.model, item.worldTransform, nodeGlobals);
+            std::vector<MATH::Mat4> nodeGlobals;
+            BuildNodeGlobalMatrices(*item.model, item.worldTransform, nodeGlobals);
 
             bool submitted = false;
             for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
@@ -285,9 +256,13 @@ namespace HIKARI::MODELRENDERER {
                     continue;
                 }
 
+                Transform3D nodeTransform{};
+                nodeTransform.useExplicitMatrix = true;
+                nodeTransform.explicitMatrix = nodeGlobals[nodeIndex];
+
                 MESHRENDERER::SubmitStaticMesh(
                     *expandedAsset,
-                    nodeGlobals[nodeIndex],
+                    nodeTransform,
                     item.materialFxProfileId,
                     item.postGroupMask,
                     item.materialFxParamValues,
