@@ -340,12 +340,6 @@ namespace HIKARI {
         for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
             out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
         }
-        out["animation"] = {
-            {"clip", animationClip_},
-            {"timeSec", animationTimeSec_},
-            {"loop", animationLoop_},
-            {"autoPlay", animationAutoPlay_}
-        };
     }
 
     void ModelComponent::Deserialize(const nlohmann::json& in) {
@@ -374,14 +368,6 @@ namespace HIKARI {
         materialFxValuesInitialized_ = in.value("materialFxValuesInitialized", hasParamValues);
         if (!materialFxValuesInitialized_) {
             ResetMaterialFxToProfileDefaults();
-        }
-
-        if (in.contains("animation") && in["animation"].is_object()) {
-            const auto& animationNode = in["animation"];
-            animationClip_ = animationNode.value("clip", animationClip_);
-            animationTimeSec_ = animationNode.value("timeSec", animationTimeSec_);
-            animationLoop_ = animationNode.value("loop", animationLoop_);
-            animationAutoPlay_ = animationNode.value("autoPlay", animationAutoPlay_);
         }
     }
 
@@ -465,6 +451,10 @@ namespace HIKARI {
         ImGui::Text("State: %s", ToStateText(asset_->GetState()));
         ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
         ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
+        ImGui::Text("Animation clips: %zu", asset_->animations.size());
+        for (const AnimationClip& clip : asset_->animations) {
+            ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);
+        }
         if (const Material* material = asset_->GetMaterial()) {
             const MATH::Vec4& color = material->GetBaseColor();
             ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
@@ -475,39 +465,6 @@ namespace HIKARI {
                 material->HasBaseColorTexture() ? "Valid" : "Invalid");
         }
 #endif
-    }
-
-
-    void ModelComponent::SetAnimationClip(std::string clip) {
-        animationClip_ = std::move(clip);
-    }
-
-    const std::string& ModelComponent::GetAnimationClip() const {
-        return animationClip_;
-    }
-
-    void ModelComponent::SetAnimationTime(float timeSec) {
-        animationTimeSec_ = timeSec;
-    }
-
-    float ModelComponent::GetAnimationTime() const {
-        return animationTimeSec_;
-    }
-
-    void ModelComponent::SetAnimationLoop(bool loop) {
-        animationLoop_ = loop;
-    }
-
-    bool ModelComponent::GetAnimationLoop() const {
-        return animationLoop_;
-    }
-
-    void ModelComponent::SetAnimationAutoPlay(bool autoPlay) {
-        animationAutoPlay_ = autoPlay;
-    }
-
-    bool ModelComponent::GetAnimationAutoPlay() const {
-        return animationAutoPlay_;
     }
 
 } // namespace HIKARI
