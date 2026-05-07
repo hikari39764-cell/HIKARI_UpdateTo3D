@@ -102,6 +102,7 @@ namespace HIKARI {
         int parent = -1;
         std::vector<int> children;
         Transform3D localTransform;
+        bool hasLocalMatrix = false;
         MATH::Mat4 localMatrix;
         MATH::Mat4 globalBindMatrix;
         int meshIndex = -1;
