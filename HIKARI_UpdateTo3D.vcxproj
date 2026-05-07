@@ -119,6 +119,8 @@
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
     <ClCompile Include="HIKARI\HIKARI_PhysicsWorld.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostEffect.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.cpp" />
@@ -319,6 +321,8 @@
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h" />
