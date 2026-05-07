@@ -1,5 +1,6 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
+#include "Core/HIKARI_FrameContext.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
@@ -15,12 +16,10 @@ namespace HIKARI {
     }
 
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
-        (void)frame;
-
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.fallbackWireCount = 0;
 
-        world.ForEachObjectWith<ModelComponent>([](GameObject& object, ModelComponent& model) {
+        world.ForEachObjectWith<ModelComponent>([&frame](GameObject& object, ModelComponent& model) {
             if (!model.IsVisible()) {
                 return;
             }
@@ -29,6 +28,10 @@ namespace HIKARI {
             const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
+                if (model.GetAnimationAutoPlay() && !model.GetAnimationClip().empty()) {
+                    model.SetAnimationTime(model.GetAnimationTime() + frame.gameDt);
+                }
+
                 ++sDebugStats_.submittedModelCount;
 
                 ModelRenderItem item{};
