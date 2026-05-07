@@ -10,6 +10,12 @@ namespace HIKARI {
 
         const Transform3D* parent = nullptr;
 
+        // For glTF node hierarchy and future animation/skinning paths.
+        // When this flag is true, explicitMatrix is treated as this transform's final world matrix.
+        // The TRS fields are still kept for legacy paths and simple editor display.
+        bool useExplicitMatrix = false;
+        MATH::Mat4 explicitMatrix{};
+
         MATH::Mat4 GetLocalMatrix() const;
         MATH::Mat4 GetWorldMatrix() const;
     };
