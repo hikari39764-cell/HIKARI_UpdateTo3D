@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <utility>
 
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
