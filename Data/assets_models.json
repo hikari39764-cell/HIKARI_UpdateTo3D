@@ -67,7 +67,7 @@
     {
       "id": "Hero",
       "type": "Model",
-      "sourcePath": "./Assets/TestModel/ces.gltf",
+      "sourcePath": "./Assets/TestModel/wi.gltf",
       "importer": "gltf",
       "preload": false,
       "importOptions": {
@@ -94,7 +94,7 @@
     {
       "id": "Tee",
       "type": "Model",
-      "sourcePath": "./Assets/TestModel/wi.gltf",
+      "sourcePath": "./Assets/TestModel/Female_Peasant_Arms.gltf",
       "importer": "gltf",
       "preload": false,
       "importOptions": {

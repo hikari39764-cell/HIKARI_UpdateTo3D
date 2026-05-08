@@ -950,7 +950,7 @@ namespace HIKARI {
                     Vertex3D out{};
                     out.position = { positions[p + 0], positions[p + 1], positions[p + 2] };
                     out.normal = { normals[p + 0], normals[p + 1], normals[p + 2] };
-                    out.uv0 = { texcoords[t + 0], 1.0f - texcoords[t + 1] };
+                    out.uv0 = { texcoords[t + 0], texcoords[t + 1] };
                     if (!tangents.empty()) {
                         const size_t tg = static_cast<size_t>(i) * 4u;
                         out.tangent = { tangents[tg + 0], tangents[tg + 1], tangents[tg + 2], tangents[tg + 3] };
@@ -1227,7 +1227,7 @@ namespace HIKARI {
                         }
                         if (key.uv >= 0 && key.uv < static_cast<int>(uvs.size())) {
                             v.u = uvs[static_cast<size_t>(key.uv)][0];
-                            v.v = 1.0f - uvs[static_cast<size_t>(key.uv)][1];
+                            v.v = uvs[static_cast<size_t>(key.uv)][1];
                         }
 
                         const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
@@ -1293,7 +1293,7 @@ namespace HIKARI {
                         v.normal = faceNormal;
                         if (tri[j].uv >= 0 && tri[j].uv < static_cast<int>(uvs.size())) {
                             v.u = uvs[static_cast<size_t>(tri[j].uv)][0];
-                            v.v = 1.0f - uvs[static_cast<size_t>(tri[j].uv)][1];
+                            v.v = uvs[static_cast<size_t>(tri[j].uv)][1];
                         }
                         const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
                         vertices.push_back(v);
