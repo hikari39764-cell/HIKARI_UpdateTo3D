@@ -751,6 +751,66 @@ namespace HIKARI::MESHRENDERER {
                 materialAsset->emissiveStrength
             };
         }
+
+        void FillLightCB(const SceneEnvironment& environment, LightCB& out) {
+            out = {};
+
+            MATH::Vec3 dir = MATH::Normalize(environment.directional.direction);
+            if (MATH::Length(dir) <= 1e-6f) {
+                dir = { 0.0f, -1.0f, 0.0f };
+            }
+
+            out.directionalDir = { dir.x, dir.y, dir.z, 0.0f };
+            out.directionalColor = { environment.directional.color.x, environment.directional.color.y, environment.directional.color.z, 1.0f };
+            out.directionalIntensity = environment.directional.enabled ? std::max(0.0f, environment.directional.intensity) : 0.0f;
+
+            out.ambientColor = { environment.ambient.color.x, environment.ambient.color.y, environment.ambient.color.z, 1.0f };
+            out.ambientIntensity = std::max(0.0f, environment.ambient.intensity);
+            out.specularParams = {
+                std::max(0.0f, environment.specularIntensity),
+                std::max(1.0f, environment.specularPower),
+                0.0f,
+                0.0f
+            };
+
+            constexpr uint32_t kMaxPointLights = 8;
+            uint32_t uploadedCount = 0;
+            uint32_t uploadableCount = 0;
+            for (const PointLight& pointLight : environment.pointLights) {
+                if (!pointLight.enabled || pointLight.range <= 0.0f) {
+                    continue;
+                }
+
+                ++uploadableCount;
+                if (uploadedCount >= kMaxPointLights) {
+                    continue;
+                }
+
+                out.pointLightPosRange[uploadedCount] = {
+                    pointLight.position.x,
+                    pointLight.position.y,
+                    pointLight.position.z,
+                    pointLight.range
+                };
+                out.pointLightColorIntensity[uploadedCount] = {
+                    pointLight.color.x,
+                    pointLight.color.y,
+                    pointLight.color.z,
+                    std::max(0.0f, pointLight.intensity)
+                };
+                ++uploadedCount;
+            }
+            out.pointLightCount = uploadedCount;
+
+            g.debugStats.directionalEnabled = environment.directional.enabled;
+            g.debugStats.directionalIntensity = out.directionalIntensity;
+            g.debugStats.ambientIntensity = out.ambientIntensity;
+            g.debugStats.pointLightTotalCount = environment.pointLights.size();
+            g.debugStats.pointLightUploadedCount = uploadedCount;
+            g.debugStats.pointLightClampedCount = (uploadableCount > uploadedCount) ? (uploadableCount - uploadedCount) : 0u;
+            g.debugStats.specularIntensity = out.specularParams.x;
+            g.debugStats.specularPower = out.specularParams.y;
+        }
     }
 
     void Reset() {
@@ -806,37 +866,7 @@ namespace HIKARI::MESHRENDERER {
         const MATH::Vec3 cameraPos = camera.GetPosition();
         g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
 
-        const MATH::Vec3 normalizedDir = MATH::Normalize(environment.directional.direction);
-        g.lightMapped->directionalDir = { normalizedDir.x, normalizedDir.y, normalizedDir.z, 0.0f };
-        g.lightMapped->directionalColor = { environment.directional.color.x, environment.directional.color.y, environment.directional.color.z, 1.0f };
-        g.lightMapped->ambientColor = { environment.ambient.color.x, environment.ambient.color.y, environment.ambient.color.z, 1.0f };
-        g.lightMapped->specularParams = { std::max(0.0f, environment.specularIntensity), std::max(1.0f, environment.specularPower), 0.0f, 0.0f };
-        g.lightMapped->directionalIntensity = environment.directional.enabled ? std::max(0.0f, environment.directional.intensity) : 0.0f;
-        g.lightMapped->ambientIntensity = std::max(0.0f, environment.ambient.intensity);
-        g.lightMapped->pointLightCount = 0;
-        for (size_t i = 0; i < std::size(g.lightMapped->pointLightPosRange); ++i) {
-            g.lightMapped->pointLightPosRange[i] = {};
-            g.lightMapped->pointLightColorIntensity[i] = {};
-        }
-        constexpr uint32_t kMaxPointLights = 8;
-        for (const PointLight& pointLight : environment.pointLights) {
-            if (!pointLight.enabled || g.lightMapped->pointLightCount >= kMaxPointLights) {
-                continue;
-            }
-            const uint32_t index = g.lightMapped->pointLightCount++;
-            g.lightMapped->pointLightPosRange[index] = {
-                pointLight.position.x,
-                pointLight.position.y,
-                pointLight.position.z,
-                std::max(0.001f, pointLight.range)
-            };
-            g.lightMapped->pointLightColorIntensity[index] = {
-                pointLight.color.x,
-                pointLight.color.y,
-                pointLight.color.z,
-                std::max(0.0f, pointLight.intensity)
-            };
-        }
+        FillLightCB(environment, *g.lightMapped);
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

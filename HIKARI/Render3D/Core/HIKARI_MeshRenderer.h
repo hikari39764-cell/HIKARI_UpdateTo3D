@@ -28,6 +28,14 @@ namespace HIKARI::MESHRENDERER {
         size_t materialTextureCacheMissCount = 0;
         size_t psoCacheHitCount = 0;
         size_t psoCacheMissCount = 0;
+        bool directionalEnabled = false;
+        float directionalIntensity = 0.0f;
+        float ambientIntensity = 0.0f;
+        size_t pointLightTotalCount = 0;
+        size_t pointLightUploadedCount = 0;
+        size_t pointLightClampedCount = 0;
+        float specularIntensity = 0.0f;
+        float specularPower = 0.0f;
     };
 
     void Reset();

@@ -106,7 +106,12 @@ float4 main(PSInput input) : SV_TARGET
     }
     if ((gMaterialFlags & MATERIAL_UNLIT) != 0)
     {
-        return albedo;
+        float3 unlitColor = albedo.rgb;
+        if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
+        {
+            unlitColor += gEmissiveFactor.rgb * gEmissiveFactor.a;
+        }
+        return float4(unlitColor, albedo.a);
     }
 
     float3 lit = ambient + diffuse + specular + pointLightContribution;

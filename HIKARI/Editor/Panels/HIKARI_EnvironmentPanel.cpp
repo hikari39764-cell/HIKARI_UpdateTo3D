@@ -1,4 +1,5 @@
 #include "HIKARI_EnvironmentPanel.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -8,6 +9,7 @@
 
 #if defined(_DEBUG)
 #include "imgui.h"
+#include <algorithm>
 #include <cstring>
 #include <utility>
 #endif
@@ -59,6 +61,23 @@ namespace HIKARI {
             }
             return changed;
         }
+
+        void NormalizeDirectionalLight(DirectionalLight& light) {
+            light.direction = MATH::Normalize(light.direction);
+            if (MATH::Length(light.direction) <= 1e-6f) {
+                light.direction = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
+            }
+        }
+
+        size_t CountUploadablePointLights(const SceneEnvironment& environment) {
+            size_t count = 0;
+            for (const PointLight& pointLight : environment.pointLights) {
+                if (pointLight.enabled && pointLight.range > 0.0f) {
+                    ++count;
+                }
+            }
+            return count;
+        }
     }
 
     void EnvironmentPanel::Draw(SceneEnvironment& environment, const SKYRENDERER::SkyRendererDebugState* skyDebugState) const {
@@ -67,50 +86,74 @@ namespace HIKARI {
             return;
         }
 
-        if (ImGui::BeginTabBar("EnvironmentTabs")) {
-            if (ImGui::BeginTabItem("Lighting")) {
-                ImGui::ColorEdit3("Ambient Color", &environment.ambient.color.x);
-                ImGui::DragFloat("Ambient Intensity", &environment.ambient.intensity, 0.01f, 0.0f, 10.0f);
+        ImGui::SeparatorText("Scene Environment");
 
-                ImGui::SeparatorText("Directional");
-                ImGui::Checkbox("Directional Enabled", &environment.directional.enabled);
-                ImGui::DragFloat3("Directional Direction", &environment.directional.direction.x, 0.01f);
-                environment.directional.direction = MATH::Normalize(environment.directional.direction);
-                ImGui::ColorEdit3("Directional Color", &environment.directional.color.x);
-                ImGui::DragFloat("Directional Intensity", &environment.directional.intensity, 0.01f, 0.0f, 20.0f);
+        if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::ColorEdit3("Ambient Color", &environment.ambient.color.x);
+            ImGui::DragFloat("Ambient Intensity", &environment.ambient.intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::TreePop();
+        }
 
-                ImGui::SeparatorText("Specular");
-                ImGui::DragFloat("Specular Intensity", &environment.specularIntensity, 0.01f, 0.0f, 10.0f);
-                ImGui::DragFloat("Specular Power", &environment.specularPower, 1.0f, 1.0f, 256.0f);
-
-                ImGui::SeparatorText("Point Lights");
-                if (environment.pointLights.size() < 8 && ImGui::Button("Add Point Light")) {
-                    environment.pointLights.push_back(PointLight{});
-                }
-                for (size_t i = 0; i < environment.pointLights.size(); ++i) {
-                    ImGui::PushID(static_cast<int>(i));
-                    PointLight& pointLight = environment.pointLights[i];
-                    if (ImGui::TreeNode("PointLight", "Point Light %zu", i)) {
-                        ImGui::Checkbox("Enabled", &pointLight.enabled);
-                        ImGui::DragFloat3("Position", &pointLight.position.x, 0.02f);
-                        ImGui::DragFloat("Range", &pointLight.range, 0.05f, 0.05f, 100.0f);
-                        ImGui::ColorEdit3("Color", &pointLight.color.x);
-                        ImGui::DragFloat("Intensity", &pointLight.intensity, 0.01f, 0.0f, 20.0f);
-                        if (ImGui::Button("Remove")) {
-                            environment.pointLights.erase(environment.pointLights.begin() + static_cast<long long>(i));
-                            ImGui::TreePop();
-                            ImGui::PopID();
-                            break;
-                        }
-                        ImGui::TreePop();
-                    }
-                    ImGui::PopID();
-                }
-                ImGui::EndTabItem();
+        if (ImGui::TreeNodeEx("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Directional Enabled", &environment.directional.enabled);
+            if (ImGui::DragFloat3("Direction", &environment.directional.direction.x, 0.01f, -1.0f, 1.0f)) {
+                NormalizeDirectionalLight(environment.directional);
             }
+            NormalizeDirectionalLight(environment.directional);
+            ImGui::ColorEdit3("Color", &environment.directional.color.x);
+            ImGui::DragFloat("Intensity", &environment.directional.intensity, 0.01f, 0.0f, 20.0f);
+            ImGui::TreePop();
+        }
 
-            if (ImGui::BeginTabItem("Sky")) {
-                ImGui::Checkbox("Sky Enabled", &environment.sky.enabled);
+        if (ImGui::TreeNodeEx("Point Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+            constexpr size_t kMaxUploadedPointLights = 8u;
+            const size_t uploadableCount = CountUploadablePointLights(environment);
+            const size_t uploadedPreviewCount = uploadableCount < kMaxUploadedPointLights ? uploadableCount : kMaxUploadedPointLights;
+            ImGui::Text("Total: %zu  Uploadable: %zu / %zu", environment.pointLights.size(), uploadedPreviewCount, kMaxUploadedPointLights);
+            if (uploadableCount > kMaxUploadedPointLights) {
+                ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Only first 8 enabled point lights are uploaded.");
+            }
+            if (ImGui::Button("Add Point Light")) {
+                environment.pointLights.push_back(PointLight{});
+            }
+            for (size_t i = 0; i < environment.pointLights.size(); ++i) {
+                ImGui::PushID(static_cast<int>(i));
+                PointLight& pointLight = environment.pointLights[i];
+                if (ImGui::TreeNode("PointLight", "Point Light %zu", i)) {
+                    ImGui::Checkbox("Enabled", &pointLight.enabled);
+                    ImGui::DragFloat3("Position", &pointLight.position.x, 0.02f);
+                    ImGui::DragFloat("Range", &pointLight.range, 0.05f, 0.0f, 100.0f);
+                    ImGui::ColorEdit3("Color", &pointLight.color.x);
+                    ImGui::DragFloat("Intensity", &pointLight.intensity, 0.01f, 0.0f, 20.0f);
+
+                    if (ImGui::Button("Duplicate")) {
+                        environment.pointLights.insert(environment.pointLights.begin() + static_cast<long long>(i + 1), pointLight);
+                        ImGui::TreePop();
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Remove")) {
+                        environment.pointLights.erase(environment.pointLights.begin() + static_cast<long long>(i));
+                        ImGui::TreePop();
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Specular")) {
+            ImGui::DragFloat("Specular Intensity", &environment.specularIntensity, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat("Specular Power", &environment.specularPower, 1.0f, 1.0f, 256.0f);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Sky")) {
+            ImGui::Checkbox("Sky Enabled", &environment.sky.enabled);
                 char skyAssetBuffer[256]{};
                 std::strncpy(skyAssetBuffer, environment.sky.skyAsset.c_str(), sizeof(skyAssetBuffer) - 1);
                 if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
@@ -121,10 +164,40 @@ namespace HIKARI {
                 ImGui::DragFloat("Sky Exposure", &environment.sky.exposure, 0.01f, 0.0f, 16.0f);
                 ImGui::ColorEdit3("Sky Tint", &environment.sky.tint.x);
                 ImGui::Checkbox("Follow Camera", &environment.sky.followCamera);
-                ImGui::EndTabItem();
-            }
+            ImGui::TreePop();
+        }
 
-            if (ImGui::BeginTabItem("Post")) {
+        if (ImGui::TreeNode("Debug")) {
+            ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
+            ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
+            ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
+
+            const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
+            ImGui::SeparatorText("Light Upload Stats");
+            ImGui::Text("Directional Enabled: %s", lightStats.directionalEnabled ? "Yes" : "No");
+            ImGui::Text("Directional Intensity: %.3f", lightStats.directionalIntensity);
+            ImGui::Text("Ambient Intensity: %.3f", lightStats.ambientIntensity);
+            ImGui::Text("Point Lights Total / Uploaded / Clamped: %zu / %zu / %zu",
+                lightStats.pointLightTotalCount,
+                lightStats.pointLightUploadedCount,
+                lightStats.pointLightClampedCount);
+            ImGui::Text("Specular Intensity / Power: %.3f / %.3f", lightStats.specularIntensity, lightStats.specularPower);
+
+            if (skyDebugState && environment.showSkyDebugInfo) {
+                ImGui::SeparatorText("Sky Renderer State");
+                ImGui::Text("Initialized: %s", skyDebugState->initialized ? "true" : "false");
+                ImGui::Text("Render Submitted: %s", skyDebugState->lastRenderSubmitted ? "true" : "false");
+                ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
+                ImGui::Text("Sky Mesh Loaded: %s", skyDebugState->skyMeshLoaded ? "true" : "false");
+                ImGui::Text("Sky Mesh Valid: %s", skyDebugState->skyMeshValid ? "true" : "false");
+                ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
+                ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
+                ImGui::Text("Active Texture: %s", skyDebugState->activeTexturePath.c_str());
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Global Post")) {
                 ImGui::Checkbox("Post Enabled", &environment.post.enabled);
                 const std::string previousProfileId = environment.post.globalPostProfileId;
                 char profileBuffer[256]{};
@@ -182,10 +255,10 @@ namespace HIKARI {
                     }
                     ImGui::TreePop();
                 }
-                ImGui::EndTabItem();
-            }
+            ImGui::TreePop();
+        }
 
-            if (ImGui::BeginTabItem("Transition")) {
+        if (ImGui::TreeNode("Transition Debug")) {
                 const SceneTransitionBus* transitionBus = RuntimeSceneContext::GetTransitionBus();
                 if (!transitionBus) {
                     ImGui::TextDisabled("Transition bus unavailable.");
@@ -208,34 +281,12 @@ namespace HIKARI {
                     ImGui::Text("Out Duration: %.3f", visualState.outDuration);
                     ImGui::Text("In Duration: %.3f", visualState.inDuration);
                 }
-                ImGui::EndTabItem();
-            }
-
-            if (ImGui::BeginTabItem("Debug")) {
-                ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
-                ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
-                ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
-
-                if (skyDebugState && environment.showSkyDebugInfo) {
-                    ImGui::SeparatorText("Sky Renderer State");
-                    ImGui::Text("Initialized: %s", skyDebugState->initialized ? "true" : "false");
-                    ImGui::Text("Render Submitted: %s", skyDebugState->lastRenderSubmitted ? "true" : "false");
-                    ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
-                    ImGui::Text("Sky Mesh Loaded: %s", skyDebugState->skyMeshLoaded ? "true" : "false");
-                    ImGui::Text("Sky Mesh Valid: %s", skyDebugState->skyMeshValid ? "true" : "false");
-                    ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
-                    ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
-                    ImGui::Text("Active Texture: %s", skyDebugState->activeTexturePath.c_str());
-                }
-                ImGui::EndTabItem();
-            }
-
-            ImGui::EndTabBar();
+            ImGui::TreePop();
         }
 
         if (ImGui::Button("Reset Environment Defaults")) {
             environment = SceneEnvironment{};
-            environment.directional.direction = MATH::Normalize(environment.directional.direction);
+            NormalizeDirectionalLight(environment.directional);
         }
 
         ImGui::End();

@@ -50,13 +50,13 @@ namespace HIKARI::LIGHTDEBUGDRAW {
     }
 
     void SubmitPointLightDebug(const SceneEnvironment& environment) {
-        if (!environment.showPointLightMarkers) {
+        if (!environment.showLightDebug || !environment.showPointLightMarkers) {
             return;
         }
 
         constexpr unsigned int kPointLightColor = 0xFFC18BFF;
         for (const PointLight& light : environment.pointLights) {
-            if (!light.enabled) {
+            if (!light.enabled || light.range <= 0.0f) {
                 continue;
             }
 

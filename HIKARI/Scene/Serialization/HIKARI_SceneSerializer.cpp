@@ -74,6 +74,9 @@ namespace HIKARI {
 
             out["specularIntensity"] = environment.specularIntensity;
             out["specularPower"] = environment.specularPower;
+            out["showLightDebug"] = environment.showLightDebug;
+            out["showPointLightMarkers"] = environment.showPointLightMarkers;
+            out["showSkyDebugInfo"] = environment.showSkyDebugInfo;
 
             out["post"]["enabled"] = environment.post.enabled;
             out["post"]["globalPostProfileId"] = environment.post.globalPostProfileId;
@@ -125,6 +128,9 @@ namespace HIKARI {
 
             environment.specularIntensity = in.value("specularIntensity", environment.specularIntensity);
             environment.specularPower = in.value("specularPower", environment.specularPower);
+            environment.showLightDebug = in.value("showLightDebug", environment.showLightDebug);
+            environment.showPointLightMarkers = in.value("showPointLightMarkers", environment.showPointLightMarkers);
+            environment.showSkyDebugInfo = in.value("showSkyDebugInfo", environment.showSkyDebugInfo);
 
             if (in.contains("post") && in["post"].is_object()) {
                 const json& post = in["post"];
