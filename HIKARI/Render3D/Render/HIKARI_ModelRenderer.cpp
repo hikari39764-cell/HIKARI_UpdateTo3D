@@ -17,6 +17,7 @@ namespace HIKARI::MODELRENDERER {
 
     namespace {
         std::vector<ModelRenderItem> gQueue;
+        ModelRendererDebugStats gDebugStats;
 
         struct ExpandedNodeMeshKey {
             const ModelAsset* source = nullptr;
@@ -311,6 +312,38 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
+        bool BuildJointPalette(const ModelAsset& model, int skinIndex, const std::vector<MATH::Mat4>& nodeGlobals, std::vector<MATH::Mat4>& outPalette) {
+            outPalette.clear();
+            const SkeletonAsset* skin = model.FindSkin(skinIndex);
+            if (skin == nullptr) {
+                return false;
+            }
+
+            outPalette.resize(skin->joints.size(), MATH::Mat4::Identity());
+            for (size_t jointIndex = 0; jointIndex < skin->joints.size(); ++jointIndex) {
+                const SkeletonJoint& joint = skin->joints[jointIndex];
+                if (joint.nodeIndex < 0 || joint.nodeIndex >= static_cast<int>(nodeGlobals.size())) {
+                    outPalette[jointIndex] = MATH::Mat4::Identity();
+                    continue;
+                }
+
+                const MATH::Mat4& jointGlobal = nodeGlobals[static_cast<size_t>(joint.nodeIndex)];
+                outPalette[jointIndex] = jointGlobal * joint.inverseBindMatrix;
+            }
+            return true;
+        }
+
+        void RecordBuiltJointPalette(int skinIndex, const std::vector<MATH::Mat4>& palette) {
+            ++gDebugStats.builtPaletteCount;
+            gDebugStats.totalJointMatrixCount += palette.size();
+            gDebugStats.lastSkinIndex = skinIndex;
+            gDebugStats.lastPaletteJointCount = palette.size();
+            if (!palette.empty()) {
+                gDebugStats.firstJointMatrix = palette.front();
+                gDebugStats.hasFirstJointMatrix = true;
+            }
+        }
+
         bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
             if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
                 return false;
@@ -324,6 +357,14 @@ namespace HIKARI::MODELRENDERER {
                 const ModelNode& node = item.model->nodes[nodeIndex];
                 if (node.meshIndex < 0 || node.meshIndex >= static_cast<int>(item.model->meshes.size())) {
                     continue;
+                }
+
+                if (node.skinIndex >= 0) {
+                    ++gDebugStats.skinnedNodeCount;
+                    std::vector<MATH::Mat4> jointPalette;
+                    if (BuildJointPalette(*item.model, node.skinIndex, nodeGlobals, jointPalette)) {
+                        RecordBuiltJointPalette(node.skinIndex, jointPalette);
+                    }
                 }
 
                 ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
@@ -361,6 +402,7 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
+        gDebugStats = {};
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
@@ -381,6 +423,10 @@ namespace HIKARI::MODELRENDERER {
 
         MESHRENDERER::RenderAll(camera, environment);
         gQueue.clear();
+    }
+
+    const ModelRendererDebugStats& GetDebugStats() {
+        return gDebugStats;
     }
 
 }

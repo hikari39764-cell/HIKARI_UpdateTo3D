@@ -4,6 +4,7 @@
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include <cstring>
@@ -513,6 +514,21 @@ namespace HIKARI {
                 firstSkinnedVertex->weights[3]);
         }
         ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
+        const MODELRENDERER::ModelRendererDebugStats& rendererStats = MODELRENDERER::GetDebugStats();
+        ImGui::Text("Joint Palette Built: %s", rendererStats.builtPaletteCount > 0 ? "Yes" : "No");
+        ImGui::Text("Skinned Nodes Rendered: %zu", rendererStats.skinnedNodeCount);
+        ImGui::Text("Built Palettes: %zu", rendererStats.builtPaletteCount);
+        ImGui::Text("Total Joint Matrices: %zu", rendererStats.totalJointMatrixCount);
+        ImGui::Text("Last Skin Index: %d", rendererStats.lastSkinIndex);
+        ImGui::Text("Last Palette Joint Count: %zu", rendererStats.lastPaletteJointCount);
+        if (rendererStats.hasFirstJointMatrix) {
+            const MATH::Mat4& m = rendererStats.firstJointMatrix;
+            ImGui::Text("First Joint Matrix:");
+            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0]);
+            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1]);
+            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][2], m.m[1][2], m.m[2][2], m.m[3][2]);
+            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][3], m.m[1][3], m.m[2][3], m.m[3][3]);
+        }
         ImGui::Text("Animation clips: %zu", asset_->animations.size());
         for (const AnimationClip& clip : asset_->animations) {
             ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);

@@ -1,13 +1,27 @@
 #pragma once
 
+#include <cstddef>
+
 #include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "HIKARI_ModelRenderItem.h"
 
 namespace HIKARI::MODELRENDERER {
 
+    struct ModelRendererDebugStats {
+        size_t skinnedNodeCount = 0;
+        size_t builtPaletteCount = 0;
+        size_t totalJointMatrixCount = 0;
+        int lastSkinIndex = -1;
+        size_t lastPaletteJointCount = 0;
+        bool hasFirstJointMatrix = false;
+        MATH::Mat4 firstJointMatrix{};
+    };
+
     void Reset();
     void SubmitModel(const ModelRenderItem& item);
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
+    const ModelRendererDebugStats& GetDebugStats();
 
 }
