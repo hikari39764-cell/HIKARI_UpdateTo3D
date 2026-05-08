@@ -1227,7 +1227,7 @@ namespace HIKARI {
                         }
                         if (key.uv >= 0 && key.uv < static_cast<int>(uvs.size())) {
                             v.u = uvs[static_cast<size_t>(key.uv)][0];
-                            v.v = uvs[static_cast<size_t>(key.uv)][1];
+                            v.v = 1.0f - uvs[static_cast<size_t>(key.uv)][1];
                         }
 
                         const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
@@ -1293,7 +1293,7 @@ namespace HIKARI {
                         v.normal = faceNormal;
                         if (tri[j].uv >= 0 && tri[j].uv < static_cast<int>(uvs.size())) {
                             v.u = uvs[static_cast<size_t>(tri[j].uv)][0];
-                            v.v = uvs[static_cast<size_t>(tri[j].uv)][1];
+                            v.v = 1.0f - uvs[static_cast<size_t>(tri[j].uv)][1];
                         }
                         const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
                         vertices.push_back(v);
