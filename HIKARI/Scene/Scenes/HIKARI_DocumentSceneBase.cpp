@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "HIKARI_3D.h"
+#include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
@@ -129,7 +130,9 @@ namespace HIKARI {
     }
 
     void DocumentSceneBase::RenderImGui() {
-        world_.RenderImGui();
+        if (!SERVICES::IsEditorUIEnabled()) {
+            world_.RenderImGui();
+        }
         componentGizmoRenderer_.DrawScreenSpaceGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
     }
 
