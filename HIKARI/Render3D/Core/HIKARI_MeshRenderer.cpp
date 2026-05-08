@@ -55,9 +55,16 @@ namespace HIKARI::MESHRENDERER {
             float padding[2]{};
         };
 
+        constexpr size_t kMaxJointPaletteMatrices = 128u;
+
+        struct JointPaletteCB {
+            MATH::Mat4 jointMatrices[kMaxJointPaletteMatrices]{};
+        };
+
         struct DrawItem {
             const ModelAsset* asset = nullptr;
             Transform3D transform{};
+            std::vector<MATH::Mat4> jointPalette{};
             std::string materialFxProfileId{};
             uint32_t postGroupMask = 0;
             VFX::VariantKey variant{};
@@ -82,20 +89,28 @@ namespace HIKARI::MESHRENDERER {
         struct State {
             bool initialized = false;
             ComPtr<ID3D12RootSignature> rootSig;
+            ComPtr<ID3D12RootSignature> skinnedRootSig;
             ComPtr<ID3D12PipelineState> pso;
+            ComPtr<ID3D12PipelineState> skinnedPso;
             ComPtr<ID3DBlob> vsBlob;
+            ComPtr<ID3DBlob> skinnedVsBlob;
             ComPtr<ID3DBlob> psBlob;
             ComPtr<ID3D12Resource> cameraCB;
             ComPtr<ID3D12Resource> objectCB;
             ComPtr<ID3D12Resource> lightCB;
+            ComPtr<ID3D12Resource> jointPaletteCB;
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
+            JointPaletteCB* jointPaletteMapped = nullptr;
             std::vector<DrawItem> drawItems;
+            MeshRendererDebugStats debugStats;
             int fallbackTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
+            std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
+            std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, int> materialTextureCache;
         };
 
@@ -105,6 +120,8 @@ namespace HIKARI::MESHRENDERER {
             const UINT cameraBytes = (sizeof(CameraCB) + 255u) & ~255u;
             const UINT objectBytes = (sizeof(ObjectCB) * 2048u + 255u) & ~255u;
             const UINT lightBytes = (sizeof(LightCB) + 255u) & ~255u;
+            const UINT jointPaletteStride = (sizeof(JointPaletteCB) + 255u) & ~255u;
+            const UINT jointPaletteBytes = jointPaletteStride * 2048u;
 
             auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             auto cameraDesc = CD3DX12_RESOURCE_DESC::Buffer(cameraBytes);
@@ -129,6 +146,13 @@ namespace HIKARI::MESHRENDERER {
             if (FAILED(g.lightCB->Map(0, nullptr, reinterpret_cast<void**>(&g.lightMapped)))) {
                 return false;
             }
+            auto jointPaletteDesc = CD3DX12_RESOURCE_DESC::Buffer(jointPaletteBytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &jointPaletteDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.jointPaletteCB.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(g.jointPaletteCB->Map(0, nullptr, reinterpret_cast<void**>(&g.jointPaletteMapped)))) {
+                return false;
+            }
             return true;
         }
 
@@ -139,6 +163,11 @@ namespace HIKARI::MESHRENDERER {
 #endif
             ComPtr<ID3DBlob> err;
             if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_StaticVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, g.vsBlob.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                return false;
+            }
+            err.Reset();
+            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_SkinnedVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, g.skinnedVsBlob.GetAddressOf(), err.GetAddressOf()))) {
                 if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
                 return false;
             }
@@ -204,6 +233,29 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
+            D3D12_ROOT_PARAMETER skinnedParams[5]{};
+            for (size_t i = 0; i < std::size(params); ++i) {
+                skinnedParams[i] = params[i];
+            }
+            skinnedParams[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[4].Descriptor.ShaderRegister = 3;
+            skinnedParams[4].Descriptor.RegisterSpace = 0;
+
+            D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
+            skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
+            skinnedRsDesc.pParameters = skinnedParams;
+
+            sigBlob.Reset();
+            errBlob.Reset();
+            if (FAILED(D3D12SerializeRootSignature(&skinnedRsDesc, D3D_ROOT_SIGNATURE_VERSION_1, sigBlob.GetAddressOf(), errBlob.GetAddressOf()))) {
+                if (errBlob) OutputDebugStringA(static_cast<const char*>(errBlob->GetBufferPointer()));
+                return false;
+            }
+            if (FAILED(device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(g.skinnedRootSig.GetAddressOf())))) {
+                return false;
+            }
+
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -230,7 +282,26 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
-            return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.pso.GetAddressOf())));
+            if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.pso.GetAddressOf())))) {
+                return false;
+            }
+
+            const D3D12_INPUT_ELEMENT_DESC skinnedInputElements[] = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, uv0)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,       0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, uv1)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, color0)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "JOINTS",   0, DXGI_FORMAT_R16G16B16A16_UINT,  0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, joints)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "WEIGHTS",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, weights)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            };
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedPsoDesc = psoDesc;
+            skinnedPsoDesc.pRootSignature = g.skinnedRootSig.Get();
+            skinnedPsoDesc.VS = { g.skinnedVsBlob->GetBufferPointer(), g.skinnedVsBlob->GetBufferSize() };
+            skinnedPsoDesc.InputLayout = { skinnedInputElements, static_cast<UINT>(std::size(skinnedInputElements)) };
+            return SUCCEEDED(device->CreateGraphicsPipelineState(&skinnedPsoDesc, IID_PPV_ARGS(g.skinnedPso.GetAddressOf())));
         }
 
         const wchar_t* ResolvePixelShaderPath(const std::string& shaderProfileId) {
@@ -278,6 +349,55 @@ namespace HIKARI::MESHRENDERER {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
             psoDesc.pRootSignature = g.rootSig.Get();
             psoDesc.VS = { g.vsBlob->GetBufferPointer(), g.vsBlob->GetBufferSize() };
+            psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
+            psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+            if (key.composite == VFX::CompositeMode::Additive) {
+                D3D12_RENDER_TARGET_BLEND_DESC& rt0 = psoDesc.BlendState.RenderTarget[0];
+                rt0.BlendEnable = TRUE;
+                rt0.SrcBlend = D3D12_BLEND_ONE;
+                rt0.DestBlend = D3D12_BLEND_ONE;
+                rt0.BlendOp = D3D12_BLEND_OP_ADD;
+                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+                rt0.DestBlendAlpha = D3D12_BLEND_ONE;
+                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            }
+            psoDesc.SampleMask = UINT_MAX;
+            psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+            psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
+            psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+            psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
+            psoDesc.DepthStencilState.DepthWriteMask = key.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+            psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+            psoDesc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
+            psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+            psoDesc.NumRenderTargets = 1;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+            psoDesc.SampleDesc.Count = 1;
+            return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
+        }
+
+        bool CreateSkinnedVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
+            ID3DBlob* psBlob = nullptr;
+            if (!LoadPixelShaderBlob(key.shaderId, &psBlob) || psBlob == nullptr || g.skinnedVsBlob == nullptr) {
+                return false;
+            }
+
+            const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, uv0)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,       0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, uv1)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, color0)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "JOINTS",   0, DXGI_FORMAT_R16G16B16A16_UINT,  0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, joints)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "WEIGHTS",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, weights)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            };
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+            psoDesc.pRootSignature = g.skinnedRootSig.Get();
+            psoDesc.VS = { g.skinnedVsBlob->GetBufferPointer(), g.skinnedVsBlob->GetBufferSize() };
             psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
             psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
             if (key.composite == VFX::CompositeMode::Additive) {
@@ -450,6 +570,63 @@ namespace HIKARI::MESHRENDERER {
             return raw;
         }
 
+        Mesh* GetOrCreateSkinnedPrimitiveMesh(const MeshPrimitive& primitive) {
+            auto found = g.primitiveSkinnedMeshCache.find(&primitive);
+            if (found != g.primitiveSkinnedMeshCache.end()) {
+                return found->second.get();
+            }
+
+            if (primitive.skinnedVertices.empty() || primitive.indices.empty()) {
+                return nullptr;
+            }
+
+            std::vector<VertexSkinnedGpu3D> vertices;
+            vertices.reserve(primitive.skinnedVertices.size());
+            for (const SkinnedVertex3D& src : primitive.skinnedVertices) {
+                VertexSkinnedGpu3D dst{};
+                dst.position = src.position;
+                dst.normal = src.normal;
+                dst.tangent = src.tangent;
+                dst.uv0 = src.uv0;
+                dst.uv1 = src.uv1;
+                dst.color0 = src.color0;
+                for (size_t i = 0; i < 4; ++i) {
+                    dst.joints[i] = src.joints[i];
+                    dst.weights[i] = src.weights[i];
+                }
+                vertices.push_back(dst);
+            }
+
+            auto mesh = std::make_unique<Mesh>();
+            if (!mesh->CreateSkinned(SERVICES::gCtx.device, vertices, primitive.indices)) {
+                return nullptr;
+            }
+
+            Mesh* raw = mesh.get();
+            g.primitiveSkinnedMeshCache.emplace(&primitive, std::move(mesh));
+            return raw;
+        }
+
+        size_t UploadJointPalette(size_t objectIndex, const std::vector<MATH::Mat4>& jointPalette) {
+            if (g.jointPaletteMapped == nullptr || g.jointPaletteCB == nullptr) {
+                return 0;
+            }
+
+            constexpr UINT kJointPaletteStride = (sizeof(JointPaletteCB) + 255u) & ~255u;
+            uint8_t* dst = reinterpret_cast<uint8_t*>(g.jointPaletteMapped) + static_cast<size_t>(kJointPaletteStride) * objectIndex;
+            JointPaletteCB paletteCb{};
+            for (MATH::Mat4& jointMatrix : paletteCb.jointMatrices) {
+                jointMatrix = MATH::Mat4::Identity();
+            }
+
+            const size_t uploadedCount = std::min(jointPalette.size(), kMaxJointPaletteMatrices);
+            for (size_t i = 0; i < uploadedCount; ++i) {
+                paletteCb.jointMatrices[i] = jointPalette[i];
+            }
+            std::memcpy(dst, &paletteCb, sizeof(JointPaletteCB));
+            return uploadedCount;
+        }
+
         MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
             const float a00 = world.m[0][0];
             const float a01 = world.m[1][0];
@@ -536,6 +713,21 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
+        DrawItem item{};
+        item.asset = &asset;
+        item.transform = transform;
+        item.jointPalette = jointPalette;
+        item.materialFxProfileId = materialFxProfileId;
+        item.postGroupMask = postGroupMask;
+        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
+            item.materialFxParamValues[i] = materialFxParamValues[i];
+        }
+        item.materialFxValuesInitialized = materialFxValuesInitialized;
+        ResolveDrawVariant(item);
+        g.drawItems.push_back(std::move(item));
+    }
+
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
         if (g.drawItems.empty()) {
             return;
@@ -548,6 +740,7 @@ namespace HIKARI::MESHRENDERER {
         if (!cmd) {
             return;
         }
+        g.debugStats = {};
 
         g.cameraMapped->viewProj = camera.GetViewProj();
         const MATH::Vec3 cameraPos = camera.GetPosition();
@@ -619,9 +812,18 @@ namespace HIKARI::MESHRENDERER {
                             break;
                         }
 
-                        Mesh* mesh = GetOrCreatePrimitiveMesh(primitive);
+                        const bool shouldDrawSkinned = !item.jointPalette.empty() && !primitive.skinnedVertices.empty();
+                        bool drawingSkinned = false;
+                        Mesh* mesh = shouldDrawSkinned ? GetOrCreateSkinnedPrimitiveMesh(primitive) : GetOrCreatePrimitiveMesh(primitive);
+                        drawingSkinned = shouldDrawSkinned && mesh != nullptr && mesh->IsValid();
                         if (mesh == nullptr || !mesh->IsValid()) {
-                            continue;
+                            if (shouldDrawSkinned) {
+                                ++g.debugStats.skinnedFallbackCount;
+                                mesh = GetOrCreatePrimitiveMesh(primitive);
+                            }
+                            if (mesh == nullptr || !mesh->IsValid()) {
+                                continue;
+                            }
                         }
 
                         const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
@@ -638,18 +840,41 @@ namespace HIKARI::MESHRENDERER {
                         std::memcpy(dst, &obj, sizeof(ObjectCB));
 
                         const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
+                        cmd->SetGraphicsRootSignature(drawingSkinned ? g.skinnedRootSig.Get() : g.rootSig.Get());
+                        cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
+                        cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
                         const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
-                        auto foundPso = g.variantPsoCache.find(primitiveVariant);
-                        if (foundPso == g.variantPsoCache.end()) {
-                            ComPtr<ID3D12PipelineState> variantPso;
-                            if (!CreateVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
-                                variantPso = g.pso;
+                        if (drawingSkinned) {
+                            const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
+                            const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(((sizeof(JointPaletteCB) + 255u) & ~255u)) * objectIndex;
+                            cmd->SetGraphicsRootConstantBufferView(4, paletteAddress);
+                            g.debugStats.uploadedJointCount += uploadedJointCount;
+                            g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
+                            g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
+
+                            auto foundPso = g.skinnedVariantPsoCache.find(primitiveVariant);
+                            if (foundPso == g.skinnedVariantPsoCache.end()) {
+                                ComPtr<ID3D12PipelineState> variantPso;
+                                if (!CreateSkinnedVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
+                                    variantPso = g.skinnedPso ? g.skinnedPso : g.pso;
+                                }
+                                foundPso = g.skinnedVariantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
                             }
-                            foundPso = g.variantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
+                            cmd->SetPipelineState(foundPso->second.Get());
+                            ++g.debugStats.skinnedGpuDrawCount;
+                        } else {
+                            auto foundPso = g.variantPsoCache.find(primitiveVariant);
+                            if (foundPso == g.variantPsoCache.end()) {
+                                ComPtr<ID3D12PipelineState> variantPso;
+                                if (!CreateVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
+                                    variantPso = g.pso;
+                                }
+                                foundPso = g.variantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
+                            }
+                            cmd->SetPipelineState(foundPso->second.Get());
                         }
-                        cmd->SetPipelineState(foundPso->second.Get());
 
                         const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
                         if (textureSrv.ptr != 0) {
@@ -688,6 +913,9 @@ namespace HIKARI::MESHRENDERER {
             std::memcpy(dst, &obj, sizeof(ObjectCB));
 
             const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
+            cmd->SetGraphicsRootSignature(g.rootSig.Get());
+            cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
+            cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
             auto foundPso = g.variantPsoCache.find(item.variant);
@@ -720,6 +948,10 @@ namespace HIKARI::MESHRENDERER {
         }
 
         g.drawItems.clear();
+    }
+
+    const MeshRendererDebugStats& GetDebugStats() {
+        return g.debugStats;
     }
 
 } // namespace HIKARI::MESHRENDERER

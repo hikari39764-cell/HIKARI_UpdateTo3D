@@ -3,6 +3,7 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -521,6 +522,12 @@ namespace HIKARI {
         ImGui::Text("Total Joint Matrices: %zu", rendererStats.totalJointMatrixCount);
         ImGui::Text("Last Skin Index: %d", rendererStats.lastSkinIndex);
         ImGui::Text("Last Palette Joint Count: %zu", rendererStats.lastPaletteJointCount);
+        const MESHRENDERER::MeshRendererDebugStats& meshRendererStats = MESHRENDERER::GetDebugStats();
+        ImGui::Text("Skinned GPU Draws: %zu", meshRendererStats.skinnedGpuDrawCount);
+        ImGui::Text("Skinned Fallbacks: %zu", meshRendererStats.skinnedFallbackCount);
+        ImGui::Text("Uploaded Joints: %zu", meshRendererStats.uploadedJointCount);
+        ImGui::Text("Max Joint Count: %zu", meshRendererStats.maxJointCount);
+        ImGui::Text("Last Skinned Vertex Count: %zu", meshRendererStats.lastSkinnedVertexCount);
         if (rendererStats.hasFirstJointMatrix) {
             const MATH::Mat4& m = rendererStats.firstJointMatrix;
             ImGui::Text("First Joint Matrix:");

@@ -4,62 +4,81 @@
 
 namespace HIKARI {
 
+    namespace {
+        template<class TVertex>
+        bool CreateMeshBuffers(
+            ID3D12Device* device,
+            const std::vector<TVertex>& vertices,
+            const std::vector<uint32_t>& indices,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& vertexBuffer,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& indexBuffer,
+            D3D12_VERTEX_BUFFER_VIEW& vbView,
+            D3D12_INDEX_BUFFER_VIEW& ibView,
+            uint32_t& indexCount) {
+            if (!device || vertices.empty() || indices.empty()) {
+                return false;
+            }
+
+            const UINT vertexBufferBytes = static_cast<UINT>(sizeof(TVertex) * vertices.size());
+            const UINT indexBufferBytes = static_cast<UINT>(sizeof(uint32_t) * indices.size());
+
+            auto vbDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferBytes);
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+            if (FAILED(device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &vbDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(vertexBuffer.GetAddressOf())))) {
+                return false;
+            }
+
+            void* vbMapped = nullptr;
+            if (FAILED(vertexBuffer->Map(0, nullptr, &vbMapped))) {
+                return false;
+            }
+            std::memcpy(vbMapped, vertices.data(), vertexBufferBytes);
+            vertexBuffer->Unmap(0, nullptr);
+
+            auto ibDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferBytes);
+            if (FAILED(device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &ibDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(indexBuffer.GetAddressOf())))) {
+                return false;
+            }
+
+            void* ibMapped = nullptr;
+            if (FAILED(indexBuffer->Map(0, nullptr, &ibMapped))) {
+                return false;
+            }
+            std::memcpy(ibMapped, indices.data(), indexBufferBytes);
+            indexBuffer->Unmap(0, nullptr);
+
+            vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+            vbView.StrideInBytes = sizeof(TVertex);
+            vbView.SizeInBytes = vertexBufferBytes;
+
+            ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+            ibView.Format = DXGI_FORMAT_R32_UINT;
+            ibView.SizeInBytes = indexBufferBytes;
+
+            indexCount = static_cast<uint32_t>(indices.size());
+            return true;
+        }
+    }
+
     bool Mesh::CreateStatic(ID3D12Device* device, const std::vector<VertexStatic3D>& vertices, const std::vector<uint32_t>& indices) {
-        if (!device || vertices.empty() || indices.empty()) {
-            return false;
-        }
+        return CreateMeshBuffers(device, vertices, indices, vertexBuffer_, indexBuffer_, vbView_, ibView_, indexCount_);
+    }
 
-        const UINT vertexBufferBytes = static_cast<UINT>(sizeof(VertexStatic3D) * vertices.size());
-        const UINT indexBufferBytes = static_cast<UINT>(sizeof(uint32_t) * indices.size());
-
-        auto vbDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferBytes);
-        auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
-        if (FAILED(device->CreateCommittedResource(
-            &uploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &vbDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(vertexBuffer_.GetAddressOf())))) {
-            return false;
-        }
-
-        void* vbMapped = nullptr;
-        if (FAILED(vertexBuffer_->Map(0, nullptr, &vbMapped))) {
-            return false;
-        }
-        std::memcpy(vbMapped, vertices.data(), vertexBufferBytes);
-        vertexBuffer_->Unmap(0, nullptr);
-
-        auto ibDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &uploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &ibDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(indexBuffer_.GetAddressOf())))) {
-            return false;
-        }
-
-        void* ibMapped = nullptr;
-        if (FAILED(indexBuffer_->Map(0, nullptr, &ibMapped))) {
-            return false;
-        }
-        std::memcpy(ibMapped, indices.data(), indexBufferBytes);
-        indexBuffer_->Unmap(0, nullptr);
-
-        vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
-        vbView_.StrideInBytes = sizeof(VertexStatic3D);
-        vbView_.SizeInBytes = vertexBufferBytes;
-
-        ibView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
-        ibView_.Format = DXGI_FORMAT_R32_UINT;
-        ibView_.SizeInBytes = indexBufferBytes;
-
-        indexCount_ = static_cast<uint32_t>(indices.size());
-        return true;
+    bool Mesh::CreateSkinned(ID3D12Device* device, const std::vector<VertexSkinnedGpu3D>& vertices, const std::vector<uint32_t>& indices) {
+        return CreateMeshBuffers(device, vertices, indices, vertexBuffer_, indexBuffer_, vbView_, ibView_, indexCount_);
     }
 
     bool Mesh::IsValid() const {

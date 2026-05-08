@@ -124,6 +124,19 @@ namespace HIKARI::MODELRENDERER {
             return raw;
         }
 
+        bool MeshHasSkinnedPrimitives(const ModelAsset& source, int meshIndex) {
+            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
+                return false;
+            }
+            const MeshAsset& mesh = source.meshes[static_cast<size_t>(meshIndex)];
+            for (const MeshPrimitive& primitive : mesh.primitives) {
+                if (!primitive.skinnedVertices.empty()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         template<typename T>
         T LerpValue(const T& a, const T& b, float t);
 
@@ -286,30 +299,37 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        void BuildNodeGlobalMatrices(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
+        void BuildNodeGlobalMatricesWithRoot(const ModelRenderItem& item, const MATH::Mat4& rootWorld, std::vector<MATH::Mat4>& outGlobals) {
             if (!item.model) {
                 outGlobals.clear();
                 return;
             }
 
-            const MATH::Mat4 objectWorld = item.worldTransform.GetWorldMatrix();
-            outGlobals.assign(item.model->nodes.size(), objectWorld);
+            outGlobals.assign(item.model->nodes.size(), rootWorld);
             std::vector<bool> visited(item.model->nodes.size(), false);
             const std::vector<Transform3D> animatedLocals = BuildAnimatedNodeLocals(item);
 
             for (size_t i = 0; i < item.model->nodes.size(); ++i) {
                 if (item.model->nodes[i].parent == -1) {
-                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), objectWorld, outGlobals, visited);
+                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), rootWorld, outGlobals, visited);
                 }
             }
 
             for (size_t i = 0; i < item.model->nodes.size(); ++i) {
                 if (!visited[i]) {
                     const int parent = item.model->nodes[i].parent;
-                    const MATH::Mat4 parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : objectWorld;
+                    const MATH::Mat4 parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : rootWorld;
                     EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), parentWorld, outGlobals, visited);
                 }
             }
+        }
+
+        void BuildNodeGlobalMatrices(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
+            BuildNodeGlobalMatricesWithRoot(item, item.worldTransform.GetWorldMatrix(), outGlobals);
+        }
+
+        void BuildNodeGlobalMatricesLocal(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
+            BuildNodeGlobalMatricesWithRoot(item, MATH::Mat4::Identity(), outGlobals);
         }
 
         bool BuildJointPalette(const ModelAsset& model, int skinIndex, const std::vector<MATH::Mat4>& nodeGlobals, std::vector<MATH::Mat4>& outPalette) {
@@ -351,6 +371,8 @@ namespace HIKARI::MODELRENDERER {
 
             std::vector<MATH::Mat4> nodeGlobals;
             BuildNodeGlobalMatrices(item, nodeGlobals);
+            std::vector<MATH::Mat4> localNodeGlobals;
+            BuildNodeGlobalMatricesLocal(item, localNodeGlobals);
 
             bool submitted = false;
             for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
@@ -359,12 +381,31 @@ namespace HIKARI::MODELRENDERER {
                     continue;
                 }
 
+                bool submittedSkinned = false;
                 if (node.skinIndex >= 0) {
                     ++gDebugStats.skinnedNodeCount;
                     std::vector<MATH::Mat4> jointPalette;
-                    if (BuildJointPalette(*item.model, node.skinIndex, nodeGlobals, jointPalette)) {
+                    // Palette is built from model-local node globals. The skinned VS then applies object world once.
+                    if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, jointPalette)) {
                         RecordBuiltJointPalette(node.skinIndex, jointPalette);
+                        ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
+                        if (expandedAsset != nullptr && !expandedAsset->meshes.empty() && MeshHasSkinnedPrimitives(*item.model, node.meshIndex)) {
+                            Transform3D skinnedTransform = item.worldTransform;
+                            MESHRENDERER::SubmitSkinnedMesh(
+                                *expandedAsset,
+                                skinnedTransform,
+                                jointPalette,
+                                item.materialFxProfileId,
+                                item.postGroupMask,
+                                item.materialFxParamValues,
+                                item.materialFxValuesInitialized);
+                            submittedSkinned = true;
+                            submitted = true;
+                        }
                     }
+                }
+                if (submittedSkinned) {
+                    continue;
                 }
 
                 ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
