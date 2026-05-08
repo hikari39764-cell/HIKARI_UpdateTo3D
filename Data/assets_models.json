@@ -67,7 +67,7 @@
     {
       "id": "Hero",
       "type": "Model",
-      "sourcePath": "./Assets/TestModel/blockT2.gltf",
+      "sourcePath": "./Assets/TestModel/ces.gltf",
       "importer": "gltf",
       "preload": false,
       "importOptions": {
