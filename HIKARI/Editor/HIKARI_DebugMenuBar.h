@@ -7,7 +7,11 @@ namespace HIKARI {
 
     class DebugMenuBar {
     public:
-        void Draw(DebugWindowState& windows, DebugCameraController3D& debugCamera, bool& environmentLightingEnabled) const;
+        void Draw(
+            DebugWindowState& windows,
+            DebugCameraController3D& debugCamera,
+            bool& environmentLightingEnabled,
+            bool& resetDockingLayoutRequested) const;
     };
 
 } // namespace HIKARI

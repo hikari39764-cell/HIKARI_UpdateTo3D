@@ -27,7 +27,7 @@ namespace HIKARI {
         }
 
 #if defined(_DEBUG)
-        void DrawEditorDockSpace() {
+        void DrawEditorDockSpace(bool resetDefaultDockLayout) {
             ImGuiIO& io = ImGui::GetIO();
             if ((io.ConfigFlags & ImGuiConfigFlags_DockingEnable) == 0) {
                 return;
@@ -40,10 +40,10 @@ namespace HIKARI {
                 ImGuiDockNodeFlags_NoDockingOverCentralNode;
 
             static bool initializedDefaultDockLayout = false;
-            if (!initializedDefaultDockLayout) {
+            if (!initializedDefaultDockLayout || resetDefaultDockLayout) {
                 const bool needsDefaultLayout = ImGui::DockBuilderGetNode(dockspaceId) == nullptr;
                 initializedDefaultDockLayout = true;
-                if (!needsDefaultLayout) {
+                if (!needsDefaultLayout && !resetDefaultDockLayout) {
                     ImGui::DockSpaceOverViewport(dockspaceId, viewport, dockspaceFlags);
                     return;
                 }
@@ -65,6 +65,14 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Environment", rightNode);
                 ImGui::DockBuilderDockWindow("Data Monitor", bottomNode);
                 ImGui::DockBuilderDockWindow("Asset Browser", bottomNode);
+
+                // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
+                ImGui::DockBuilderDockWindow("Debug Camera", bottomNode);
+                ImGui::DockBuilderDockWindow("Scene Document", leftNode);
+                ImGui::DockBuilderDockWindow("Scene Hierarchy", leftNode);
+                ImGui::DockBuilderDockWindow("Scene Object Authoring", leftNode);
+                ImGui::DockBuilderDockWindow("Inspector", bottomNode);
+
                 ImGui::DockBuilderFinish(dockspaceId);
             }
 
@@ -89,9 +97,14 @@ namespace HIKARI {
         scene.SetComponentGizmoState(context_.gizmos);
         scene.SetViewportOverlayState(context_.overlays);
 
-        debugMenuBar_.Draw(context_.windows, scene.GetDebugCamera(), scene.GetEnvironmentLightingEnabled());
+        bool resetDockingLayoutRequested = false;
+        debugMenuBar_.Draw(
+            context_.windows,
+            scene.GetDebugCamera(),
+            scene.GetEnvironmentLightingEnabled(),
+            resetDockingLayoutRequested);
 #if defined(_DEBUG)
-        DrawEditorDockSpace();
+        DrawEditorDockSpace(resetDockingLayoutRequested);
 #endif
 
         if (context_.windows.authoring.showSceneWorkspace) {

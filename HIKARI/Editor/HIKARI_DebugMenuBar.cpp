@@ -9,7 +9,11 @@
 namespace HIKARI {
 
 #if defined(_DEBUG)
-    void DebugMenuBar::Draw(DebugWindowState& windows, DebugCameraController3D& debugCamera, bool& environmentLightingEnabled) const {
+    void DebugMenuBar::Draw(
+        DebugWindowState& windows,
+        DebugCameraController3D& debugCamera,
+        bool& environmentLightingEnabled,
+        bool& resetDockingLayoutRequested) const {
         if (!ImGui::BeginMainMenuBar()) {
             return;
         }
@@ -29,6 +33,11 @@ namespace HIKARI {
             if (ImGui::BeginMenu("Runtime & Debug")) {
                 ImGui::MenuItem("Data Monitor", nullptr, &windows.runtime.showDebugWorkspace);
                 ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reset Docking Layout")) {
+                resetDockingLayoutRequested = true;
             }
 
             ImGui::EndMenu();
@@ -54,7 +63,7 @@ namespace HIKARI {
         ImGui::EndMainMenuBar();
     }
 #else
-    void DebugMenuBar::Draw(DebugWindowState&, DebugCameraController3D&, bool&) const {}
+    void DebugMenuBar::Draw(DebugWindowState&, DebugCameraController3D&, bool&, bool&) const {}
 #endif
 
 } // namespace HIKARI
