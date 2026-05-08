@@ -37,10 +37,25 @@
           0.0
         ],
         "range": 5.0
+      },
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "enabled": true,
+        "intensity": 2.8299999237060547,
+        "position": [
+          0.0,
+          2.4200000762939453,
+          3.200000047683716
+        ],
+        "range": 11.100000381469727
       }
     ],
     "post": {
-      "enabled": true,
+      "enabled": false,
       "globalPostProfileId": "test",
       "paramValues": [
         [
@@ -163,7 +178,36 @@
       "components": [
         {
           "properties": {
-            "assetId": "Block",
+            "assetId": "Hero",
+            "materialFxParamValues": [
+              [
+                1.2000000476837158,
+                4.349999904632568,
+                0.0,
+                0.07999999821186066
+              ],
+              [
+                2.0,
+                2.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "materialFxProfileId": "test",
+            "materialFxValuesInitialized": true,
+            "postGroupMask": 0,
             "visible": true
           },
           "type": "ModelComponent"

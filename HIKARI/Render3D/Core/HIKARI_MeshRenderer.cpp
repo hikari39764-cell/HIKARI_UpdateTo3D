@@ -477,11 +477,29 @@ namespace HIKARI::MESHRENDERER {
 
         VFX::VariantKey ResolvePrimitiveVariant(const DrawItem& item, const MaterialAsset* materialAsset) {
             VFX::VariantKey variant = item.variant;
+
             if (materialAsset != nullptr) {
+                // glTF material provides the primitive default.
                 variant.shaderId = materialAsset->shaderProfileId;
                 variant.featureBits = materialAsset->featureBits;
                 variant.doubleSided = materialAsset->doubleSided;
             }
+
+            // Object-level MaterialFx should override primitive material defaults.
+            if (!item.materialFxProfileId.empty()) {
+                MaterialFxProfile profile{};
+                if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
+                    if (!profile.shaderProfileId.empty()) {
+                        variant.shaderId = profile.shaderProfileId;
+                    }
+                    variant.featureBits = profile.featureBits;
+                    variant.composite = profile.composite;
+                    variant.depthTest = profile.depthTest;
+                    variant.depthWrite = profile.depthWrite;
+                    variant.doubleSided = profile.doubleSided;
+                }
+            }
+
             return variant;
         }
 
