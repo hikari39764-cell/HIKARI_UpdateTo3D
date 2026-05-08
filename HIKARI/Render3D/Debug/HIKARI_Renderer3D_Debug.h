@@ -10,16 +10,23 @@ namespace HIKARI::RENDERER3D::DEBUG {
     // このモジュールはワイヤーフレーム/補助図元を描画するための一時的なデバッグ層。
     // 将来の Mesh/Material/Model ベースの正式 3D レンダラ責務は持たない。
 
+    enum class DebugDepthMode {
+        DepthTest,
+        XRay
+    };
+
     struct WireCube {
         Transform3D transform{};
         float size = 1.0f;
         unsigned int rgba = 0xFFFFFFFF;
+        DebugDepthMode depthMode = DebugDepthMode::DepthTest;
     };
 
     struct Line3D {
         MATH::Vec3 from{};
         MATH::Vec3 to{};
         unsigned int rgba = 0xFFFFFFFF;
+        DebugDepthMode depthMode = DebugDepthMode::DepthTest;
     };
 
     struct Axis3D {
@@ -28,12 +35,14 @@ namespace HIKARI::RENDERER3D::DEBUG {
         unsigned int xColor = 0xFF4C4CFF;
         unsigned int yColor = 0x4CFF4CFF;
         unsigned int zColor = 0x4C4CFFFF;
+        DebugDepthMode depthMode = DebugDepthMode::DepthTest;
     };
 
     struct Grid3D {
         int halfCount = 10;
         float spacing = 1.0f;
         unsigned int rgba = 0x888888FF;
+        DebugDepthMode depthMode = DebugDepthMode::DepthTest;
     };
 
     void Reset();

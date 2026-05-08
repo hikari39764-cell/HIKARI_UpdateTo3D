@@ -23,6 +23,10 @@ namespace HIKARI {
 
         void SetVisible(bool visible);
         bool IsVisible() const;
+        void SetSkeletonDebugVisible(bool visible);
+        bool IsSkeletonDebugVisible() const;
+        void SetSkeletonDebugXRay(bool enabled);
+        bool IsSkeletonDebugXRay() const;
 
         void RenderImGui() override;
         void Serialize(nlohmann::json& out) const override;
@@ -51,6 +55,8 @@ namespace HIKARI {
         ModelAsset* asset_ = nullptr;
         std::string assetId_{};
         bool visible_ = true;
+        bool showSkeletonDebug_ = false;
+        bool skeletonDebugXRay_ = false;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
         DirectX::XMFLOAT4 materialFxParamValues_[4]{};

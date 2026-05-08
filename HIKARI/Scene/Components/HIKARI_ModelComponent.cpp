@@ -143,6 +143,22 @@ namespace HIKARI {
         return visible_;
     }
 
+    void ModelComponent::SetSkeletonDebugVisible(bool visible) {
+        showSkeletonDebug_ = visible;
+    }
+
+    bool ModelComponent::IsSkeletonDebugVisible() const {
+        return showSkeletonDebug_;
+    }
+
+    void ModelComponent::SetSkeletonDebugXRay(bool enabled) {
+        skeletonDebugXRay_ = enabled;
+    }
+
+    bool ModelComponent::IsSkeletonDebugXRay() const {
+        return skeletonDebugXRay_;
+    }
+
     const std::string& ModelComponent::GetAssetId() const {
         return assetId_;
     }
@@ -335,6 +351,8 @@ namespace HIKARI {
     void ModelComponent::Serialize(nlohmann::json& out) const {
         out["assetId"] = assetId_;
         out["visible"] = visible_;
+        out["showSkeletonDebug"] = showSkeletonDebug_;
+        out["skeletonDebugXRay"] = skeletonDebugXRay_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
         out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
@@ -347,6 +365,8 @@ namespace HIKARI {
     void ModelComponent::Deserialize(const nlohmann::json& in) {
         assetId_ = in.value("assetId", assetId_);
         visible_ = in.value("visible", visible_);
+        showSkeletonDebug_ = in.value("showSkeletonDebug", showSkeletonDebug_);
+        skeletonDebugXRay_ = in.value("skeletonDebugXRay", skeletonDebugXRay_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
         bool hasParamValues = false;
@@ -506,6 +526,8 @@ namespace HIKARI {
 
         if (ImGui::TreeNodeEx("Skinning", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Skin Nodes: %zu", skinNodeCount);
+            ImGui::Checkbox("Show Skeleton Debug", &showSkeletonDebug_);
+            ImGui::Checkbox("Skeleton Debug XRay", &skeletonDebugXRay_);
             ImGui::Text("Skins: %zu", asset_->GetSkinCount());
             ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
             ImGui::Text("Skinned Primitive Count: %zu", skinnedPrimitiveCount);

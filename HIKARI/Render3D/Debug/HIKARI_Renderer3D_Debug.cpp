@@ -1,38 +1,282 @@
 #include "HIKARI_Renderer3D_Debug.h"
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cstring>
 #include <vector>
-#include "Render2D/HIKARI_Renderer.h"
+
+#include <d3dcompiler.h>
+#include <d3dx12.h>
+#include <wrl/client.h>
+
+#include "HIKARI_D3DBlobCompat.h"
+#include "HIKARI_Services.h"
+
+#pragma comment(lib, "d3dcompiler.lib")
 
 namespace HIKARI::RENDERER3D::DEBUG {
 
+    using Microsoft::WRL::ComPtr;
+
     namespace {
+        struct DebugLineVertex3D {
+            MATH::Vec3 position{};
+            MATH::Vec4 color{};
+        };
+
+        struct CameraCB {
+            MATH::Mat4 viewProj{};
+        };
+
+        struct State {
+            bool initialized = false;
+            ComPtr<ID3D12RootSignature> rootSig;
+            ComPtr<ID3D12PipelineState> depthTestPso;
+            ComPtr<ID3D12PipelineState> xrayPso;
+            ComPtr<ID3D12Resource> cameraCB;
+            ComPtr<ID3D12Resource> vertexBuffer;
+            CameraCB* cameraMapped = nullptr;
+            DebugLineVertex3D* vertexMapped = nullptr;
+            size_t vertexCapacity = 0;
+        };
+
         std::vector<WireCube> g_cubes;
         std::vector<Line3D> g_lines;
         std::vector<Axis3D> g_axes;
         std::vector<Grid3D> g_grids;
+        State g_state;
 
-        bool ProjectToScreen(const MATH::Vec4& clip, float screenW, float screenH, Vector2& out) {
-            if (clip.w <= 1e-5f) {
+        MATH::Vec4 DecodeRgba(uint32_t rgba) {
+            constexpr float inv255 = 1.0f / 255.0f;
+            return {
+                static_cast<float>((rgba >> 24) & 0xFFu) * inv255,
+                static_cast<float>((rgba >> 16) & 0xFFu) * inv255,
+                static_cast<float>((rgba >> 8) & 0xFFu) * inv255,
+                static_cast<float>(rgba & 0xFFu) * inv255
+            };
+        }
+
+        void PushLine(std::vector<Line3D>& lines, const MATH::Vec3& from, const MATH::Vec3& to, uint32_t rgba, DebugDepthMode depthMode) {
+            Line3D line{};
+            line.from = from;
+            line.to = to;
+            line.rgba = rgba;
+            line.depthMode = depthMode;
+            lines.push_back(line);
+        }
+
+        MATH::Vec3 TransformPoint3(const MATH::Mat4& m, const MATH::Vec3& p) {
+            const MATH::Vec4 out = m.TransformPoint({ p.x, p.y, p.z, 1.0f });
+            return { out.x, out.y, out.z };
+        }
+
+        void ExpandSubmittedLines(std::vector<Line3D>& outLines) {
+            outLines = g_lines;
+
+            for (const Axis3D& axis : g_axes) {
+                const MATH::Mat4 world = axis.transform.GetWorldMatrix();
+                const MATH::Vec3 origin = TransformPoint3(world, { 0.0f, 0.0f, 0.0f });
+                PushLine(outLines, origin, TransformPoint3(world, { axis.length, 0.0f, 0.0f }), axis.xColor, axis.depthMode);
+                PushLine(outLines, origin, TransformPoint3(world, { 0.0f, axis.length, 0.0f }), axis.yColor, axis.depthMode);
+                PushLine(outLines, origin, TransformPoint3(world, { 0.0f, 0.0f, axis.length }), axis.zColor, axis.depthMode);
+            }
+
+            for (const Grid3D& grid : g_grids) {
+                const int n = (grid.halfCount < 1) ? 1 : grid.halfCount;
+                const float step = (grid.spacing <= 0.0f) ? 1.0f : grid.spacing;
+                const float extent = static_cast<float>(n) * step;
+                for (int i = -n; i <= n; ++i) {
+                    const float pos = static_cast<float>(i) * step;
+                    PushLine(outLines, { -extent, 0.0f, pos }, { extent, 0.0f, pos }, grid.rgba, grid.depthMode);
+                    PushLine(outLines, { pos, 0.0f, -extent }, { pos, 0.0f, extent }, grid.rgba, grid.depthMode);
+                }
+            }
+
+            static constexpr int kEdges[12][2] = {
+                {0,1},{1,2},{2,3},{3,0},
+                {4,5},{5,6},{6,7},{7,4},
+                {0,4},{1,5},{2,6},{3,7}
+            };
+
+            for (const WireCube& cube : g_cubes) {
+                const float hs = cube.size * 0.5f;
+                const std::array<MATH::Vec3, 8> local = {{
+                    {-hs,-hs,-hs}, {hs,-hs,-hs}, {hs,hs,-hs}, {-hs,hs,-hs},
+                    {-hs,-hs, hs}, {hs,-hs, hs}, {hs,hs, hs}, {-hs,hs, hs}
+                }};
+
+                const MATH::Mat4 world = cube.transform.GetWorldMatrix();
+                std::array<MATH::Vec3, 8> worldPoints{};
+                for (size_t i = 0; i < local.size(); ++i) {
+                    worldPoints[i] = TransformPoint3(world, local[i]);
+                }
+
+                for (const auto& edge : kEdges) {
+                    PushLine(outLines, worldPoints[edge[0]], worldPoints[edge[1]], cube.rgba, cube.depthMode);
+                }
+            }
+        }
+
+        bool CreateRootSignature(ID3D12Device* device) {
+            D3D12_ROOT_PARAMETER param{};
+            param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            param.Descriptor.ShaderRegister = 0;
+            param.Descriptor.RegisterSpace = 0;
+
+            D3D12_ROOT_SIGNATURE_DESC desc{};
+            desc.NumParameters = 1;
+            desc.pParameters = &param;
+            desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+            ComPtr<ID3DBlob> blob;
+            ComPtr<ID3DBlob> err;
+            if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, blob.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
                 return false;
             }
-            const float ndcX = clip.x / clip.w;
-            const float ndcY = clip.y / clip.w;
-            out.x = (ndcX * 0.5f + 0.5f) * screenW;
-            out.y = (1.0f - (ndcY * 0.5f + 0.5f)) * screenH;
+            return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(g_state.rootSig.GetAddressOf())));
+        }
+
+        bool CreatePipeline(ID3D12Device* device, bool xray, ID3D12PipelineState** outPso) {
+            UINT flags = 0;
+#if defined(_DEBUG)
+            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+            ComPtr<ID3DBlob> vs;
+            ComPtr<ID3DBlob> ps;
+            ComPtr<ID3DBlob> err;
+            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_DebugLineVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, vs.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                return false;
+            }
+            err.Reset();
+            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_DebugLinePS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, ps.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                return false;
+            }
+
+            const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, static_cast<UINT>(offsetof(DebugLineVertex3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(DebugLineVertex3D, color)),    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            };
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+            desc.pRootSignature = g_state.rootSig.Get();
+            desc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+            desc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+            desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+            desc.BlendState.RenderTarget[0].BlendEnable = TRUE;
+            desc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+            desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+            desc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+            desc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+            desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+            desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            desc.SampleMask = UINT_MAX;
+            desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+            desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+            desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+            desc.DepthStencilState.DepthEnable = xray ? FALSE : TRUE;
+            desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+            desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+            desc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
+            desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+            desc.NumRenderTargets = 1;
+            desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+            desc.SampleDesc.Count = 1;
+            return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(outPso)));
+        }
+
+        bool CreateCameraBuffer(ID3D12Device* device) {
+            const UINT bytes = (sizeof(CameraCB) + 255u) & ~255u;
+            const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(bytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g_state.cameraCB.GetAddressOf())))) {
+                return false;
+            }
+            return SUCCEEDED(g_state.cameraCB->Map(0, nullptr, reinterpret_cast<void**>(&g_state.cameraMapped)));
+        }
+
+        bool EnsureVertexCapacity(ID3D12Device* device, size_t requiredVertices) {
+            if (requiredVertices == 0) {
+                return true;
+            }
+            if (g_state.vertexBuffer != nullptr && g_state.vertexMapped != nullptr && g_state.vertexCapacity >= requiredVertices) {
+                return true;
+            }
+
+            if (g_state.vertexBuffer != nullptr) {
+                g_state.vertexBuffer->Unmap(0, nullptr);
+            }
+            g_state.vertexBuffer.Reset();
+            g_state.vertexMapped = nullptr;
+            g_state.vertexCapacity = std::max<size_t>(requiredVertices, 1024u);
+
+            const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(g_state.vertexCapacity * sizeof(DebugLineVertex3D)));
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g_state.vertexBuffer.GetAddressOf())))) {
+                return false;
+            }
+            return SUCCEEDED(g_state.vertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g_state.vertexMapped)));
+        }
+
+        bool EnsureInitialized() {
+            if (g_state.initialized) {
+                return true;
+            }
+
+            ID3D12Device* device = SERVICES::gCtx.device;
+            if (device == nullptr) {
+                return false;
+            }
+
+            if (!CreateRootSignature(device) ||
+                !CreatePipeline(device, false, g_state.depthTestPso.GetAddressOf()) ||
+                !CreatePipeline(device, true, g_state.xrayPso.GetAddressOf()) ||
+                !CreateCameraBuffer(device)) {
+                return false;
+            }
+
+            g_state.initialized = true;
             return true;
         }
 
-        bool ProjectWorldPoint(const MATH::Mat4& vp, const MATH::Vec3& p, float screenW, float screenH, Vector2& out) {
-            const MATH::Vec4 clip = vp.TransformPoint({ p.x, p.y, p.z, 1.0f });
-            return ProjectToScreen(clip, screenW, screenH, out);
-        }
-
-        void DrawProjectedLine(const MATH::Mat4& vp, const MATH::Vec3& a, const MATH::Vec3& b, float screenW, float screenH, unsigned int rgba) {
-            Vector2 sa{};
-            Vector2 sb{};
-            if (!ProjectWorldPoint(vp, a, screenW, screenH, sa) || !ProjectWorldPoint(vp, b, screenW, screenH, sb)) {
+        void RenderLineBatch(const Camera3D& camera, const std::vector<Line3D>& lines, ID3D12PipelineState* pso) {
+            if (lines.empty() || pso == nullptr || SERVICES::gCtx.cmdList == nullptr || !EnsureInitialized()) {
                 return;
             }
-            RENDERER::DrawLine(sa, sb, RENDERER::CameraMode::Ignore, rgba);
+
+            ID3D12Device* device = SERVICES::gCtx.device;
+            if (device == nullptr || !EnsureVertexCapacity(device, lines.size() * 2u)) {
+                return;
+            }
+
+            if (g_state.cameraMapped != nullptr) {
+                g_state.cameraMapped->viewProj = camera.GetViewProj();
+            }
+
+            size_t vertexIndex = 0;
+            for (const Line3D& line : lines) {
+                const MATH::Vec4 color = DecodeRgba(line.rgba);
+                g_state.vertexMapped[vertexIndex++] = { line.from, color };
+                g_state.vertexMapped[vertexIndex++] = { line.to, color };
+            }
+
+            D3D12_VERTEX_BUFFER_VIEW vb{};
+            vb.BufferLocation = g_state.vertexBuffer->GetGPUVirtualAddress();
+            vb.SizeInBytes = static_cast<UINT>(vertexIndex * sizeof(DebugLineVertex3D));
+            vb.StrideInBytes = sizeof(DebugLineVertex3D);
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            cmd->SetGraphicsRootSignature(g_state.rootSig.Get());
+            cmd->SetPipelineState(pso);
+            cmd->SetGraphicsRootConstantBufferView(0, g_state.cameraCB->GetGPUVirtualAddress());
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+            cmd->IASetVertexBuffers(0, 1, &vb);
+            cmd->DrawInstanced(static_cast<UINT>(vertexIndex), 1, 0, 0);
         }
     }
 
@@ -60,64 +304,32 @@ namespace HIKARI::RENDERER3D::DEBUG {
     }
 
     void RenderAll(const Camera3D& camera, float screenW, float screenH) {
-        const MATH::Mat4 vp = camera.GetViewProj();
+        (void)screenW;
+        (void)screenH;
 
-        for (const auto& line : g_lines) {
-            DrawProjectedLine(vp, line.from, line.to, screenW, screenH, line.rgba);
+        std::vector<Line3D> expandedLines;
+        ExpandSubmittedLines(expandedLines);
+        if (expandedLines.empty()) {
+            return;
         }
 
-        for (const auto& axis : g_axes) {
-            const MATH::Mat4 world = axis.transform.GetWorldMatrix();
-            const MATH::Vec4 origin4 = world.TransformPoint({ 0.0f, 0.0f, 0.0f, 1.0f });
-            const MATH::Vec4 x4 = world.TransformPoint({ axis.length, 0.0f, 0.0f, 1.0f });
-            const MATH::Vec4 y4 = world.TransformPoint({ 0.0f, axis.length, 0.0f, 1.0f });
-            const MATH::Vec4 z4 = world.TransformPoint({ 0.0f, 0.0f, axis.length, 1.0f });
-            const MATH::Vec3 origin{ origin4.x, origin4.y, origin4.z };
-            DrawProjectedLine(vp, origin, { x4.x, x4.y, x4.z }, screenW, screenH, axis.xColor);
-            DrawProjectedLine(vp, origin, { y4.x, y4.y, y4.z }, screenW, screenH, axis.yColor);
-            DrawProjectedLine(vp, origin, { z4.x, z4.y, z4.z }, screenW, screenH, axis.zColor);
-        }
-
-        for (const auto& grid : g_grids) {
-            const int n = (grid.halfCount < 1) ? 1 : grid.halfCount;
-            const float step = (grid.spacing <= 0.0f) ? 1.0f : grid.spacing;
-            const float extent = static_cast<float>(n) * step;
-            for (int i = -n; i <= n; ++i) {
-                const float pos = static_cast<float>(i) * step;
-                DrawProjectedLine(vp, { -extent, 0.0f, pos }, { extent, 0.0f, pos }, screenW, screenH, grid.rgba);
-                DrawProjectedLine(vp, { pos, 0.0f, -extent }, { pos, 0.0f, extent }, screenW, screenH, grid.rgba);
+        std::vector<Line3D> depthTestLines;
+        std::vector<Line3D> xrayLines;
+        depthTestLines.reserve(expandedLines.size());
+        xrayLines.reserve(expandedLines.size());
+        for (const Line3D& line : expandedLines) {
+            if (line.depthMode == DebugDepthMode::XRay) {
+                xrayLines.push_back(line);
+            } else {
+                depthTestLines.push_back(line);
             }
         }
 
-        static const int kEdges[12][2] = {
-            {0,1},{1,2},{2,3},{3,0},
-            {4,5},{5,6},{6,7},{7,4},
-            {0,4},{1,5},{2,6},{3,7}
-        };
-
-        for (const auto& c : g_cubes) {
-            const float hs = c.size * 0.5f;
-            const std::array<MATH::Vec4, 8> local = {{
-                {-hs,-hs,-hs,1.0f}, {hs,-hs,-hs,1.0f}, {hs,hs,-hs,1.0f}, {-hs,hs,-hs,1.0f},
-                {-hs,-hs,hs,1.0f},  {hs,-hs,hs,1.0f},  {hs,hs,hs,1.0f},  {-hs,hs,hs,1.0f}
-            }};
-
-            const MATH::Mat4 mvp = vp * c.transform.GetWorldMatrix();
-            std::array<Vector2, 8> screen{};
-            std::array<bool, 8> valid{};
-
-            for (int i = 0; i < 8; ++i) {
-                const MATH::Vec4 clip = mvp.TransformPoint(local[i]);
-                valid[i] = ProjectToScreen(clip, screenW, screenH, screen[i]);
-            }
-
-            for (const auto& e : kEdges) {
-                if (!valid[e[0]] || !valid[e[1]]) {
-                    continue;
-                }
-                RENDERER::DrawLine(screen[e[0]], screen[e[1]], RENDERER::CameraMode::Ignore, c.rgba);
-            }
+        if (!EnsureInitialized()) {
+            return;
         }
+        RenderLineBatch(camera, depthTestLines, g_state.depthTestPso.Get());
+        RenderLineBatch(camera, xrayLines, g_state.xrayPso.Get());
     }
 
 } // namespace HIKARI::RENDERER3D::DEBUG

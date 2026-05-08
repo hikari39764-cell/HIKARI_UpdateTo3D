@@ -38,6 +38,8 @@ namespace HIKARI {
                 item.worldTransform = object.Transform();
                 item.materialFxProfileId = model.GetMaterialFxProfileId();
                 item.postGroupMask = model.GetPostGroupMask();
+                item.showSkeletonDebug = model.IsSkeletonDebugVisible();
+                item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
                 item.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
                 for (int i = 0; i < 4; ++i) {
                     item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];

@@ -5,9 +5,11 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 
 #undef max
@@ -364,6 +366,37 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
+        MATH::Vec3 ExtractTranslation(const MATH::Mat4& m) {
+            return { m.m[3][0], m.m[3][1], m.m[3][2] };
+        }
+
+        void SubmitSkeletonDebugLines(const SkeletonAsset& skin, const std::vector<MATH::Mat4>& nodeGlobals, bool xray, uint32_t color) {
+            const auto mode = xray
+                ? RENDERER3D::DEBUG::DebugDepthMode::XRay
+                : RENDERER3D::DEBUG::DebugDepthMode::DepthTest;
+
+            for (size_t jointIndex = 0; jointIndex < skin.joints.size(); ++jointIndex) {
+                const SkeletonJoint& joint = skin.joints[jointIndex];
+                if (joint.parentJoint < 0 || joint.parentJoint >= static_cast<int>(skin.joints.size())) {
+                    continue;
+                }
+
+                const SkeletonJoint& parent = skin.joints[static_cast<size_t>(joint.parentJoint)];
+                if (joint.nodeIndex < 0 || parent.nodeIndex < 0 ||
+                    joint.nodeIndex >= static_cast<int>(nodeGlobals.size()) ||
+                    parent.nodeIndex >= static_cast<int>(nodeGlobals.size())) {
+                    continue;
+                }
+
+                RENDERER3D::DEBUG::SubmitLine3D({
+                    ExtractTranslation(nodeGlobals[static_cast<size_t>(parent.nodeIndex)]),
+                    ExtractTranslation(nodeGlobals[static_cast<size_t>(joint.nodeIndex)]),
+                    color,
+                    mode
+                });
+            }
+        }
+
         bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
             if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
                 return false;
@@ -375,6 +408,7 @@ namespace HIKARI::MODELRENDERER {
             BuildNodeGlobalMatricesLocal(item, localNodeGlobals);
 
             bool submitted = false;
+            std::unordered_set<int> submittedDebugSkins;
             for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
                 const ModelNode& node = item.model->nodes[nodeIndex];
                 if (node.meshIndex < 0 || node.meshIndex >= static_cast<int>(item.model->meshes.size())) {
@@ -383,6 +417,12 @@ namespace HIKARI::MODELRENDERER {
 
                 bool submittedSkinned = false;
                 if (node.skinIndex >= 0) {
+                    if (item.showSkeletonDebug && submittedDebugSkins.insert(node.skinIndex).second) {
+                        if (const SkeletonAsset* skin = item.model->FindSkin(node.skinIndex)) {
+                            SubmitSkeletonDebugLines(*skin, nodeGlobals, item.skeletonDebugXRay, item.skeletonDebugColor);
+                        }
+                    }
+
                     ++gDebugStats.skinnedNodeCount;
                     std::vector<MATH::Mat4> jointPalette;
                     // Palette is built from model-local node globals. The skinned VS then applies object world once.

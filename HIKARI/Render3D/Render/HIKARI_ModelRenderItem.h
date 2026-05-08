@@ -22,5 +22,9 @@ namespace HIKARI {
         std::string animationClipName;
         float animationTimeSec = 0.0f;
         bool animationLoop = true;
+
+        bool showSkeletonDebug = false;
+        bool skeletonDebugXRay = false;
+        uint32_t skeletonDebugColor = 0x00FFAAFF;
     };
 }

@@ -84,7 +84,7 @@ namespace HIKARI {
             POST::PostSystem::ClearGlobalProfile();
         }
 
-       /* if (DrawDebugHelpers()) {
+        if (DrawDebugHelpers()) {
             RENDERER3D::DEBUG::Grid3D grid{};
             grid.halfCount = 10;
             grid.spacing = 1.0f;
@@ -93,7 +93,7 @@ namespace HIKARI {
             RENDERER3D::DEBUG::Axis3D axis{};
             axis.length = 2.5f;
             RENDERER3D::DEBUG::SubmitAxis3D(axis);
-        }*/
+        }
 
         world_.Render();
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
@@ -121,8 +121,9 @@ namespace HIKARI {
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
 
         MODELRENDERER::RenderAll(camera_, activeEnvironment);
-        VFX::Render(camera_);
+        // DebugLine3D draws after models so DepthTest mode can use the model depth buffer.
         RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
+        VFX::Render(camera_);
     }
 
     void DocumentSceneBase::RenderImGui() {
