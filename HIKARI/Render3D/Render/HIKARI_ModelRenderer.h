@@ -25,6 +25,16 @@ namespace HIKARI::MODELRENDERER {
         size_t expandedMeshCacheHitCount = 0;
         size_t expandedMeshCacheMissCount = 0;
         size_t skeletonDebugLineCount = 0;
+        size_t poseCacheHitCount = 0;
+        size_t poseCacheMissCount = 0;
+        size_t poseUpdatedCount = 0;
+        size_t poseReusedCount = 0;
+        size_t lodNearCount = 0;
+        size_t lodMidCount = 0;
+        size_t lodFarCount = 0;
+        size_t lodVeryFarCount = 0;
+        size_t jointPaletteCacheHitCount = 0;
+        size_t jointPaletteCacheMissCount = 0;
         int lastSkinIndex = -1;
         size_t lastPaletteJointCount = 0;
         bool hasFirstJointMatrix = false;

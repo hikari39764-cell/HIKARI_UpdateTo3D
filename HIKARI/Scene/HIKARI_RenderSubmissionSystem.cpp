@@ -35,6 +35,10 @@ namespace HIKARI {
 
                 ModelRenderItem item{};
                 item.model = asset;
+                item.instanceKey = object.GetDocumentId().value;
+                if (item.instanceKey == 0) {
+                    item.instanceKey = reinterpret_cast<uint64_t>(&object);
+                }
                 item.worldTransform = object.Transform();
                 item.materialFxProfileId = model.GetMaterialFxProfileId();
                 item.postGroupMask = model.GetPostGroupMask();

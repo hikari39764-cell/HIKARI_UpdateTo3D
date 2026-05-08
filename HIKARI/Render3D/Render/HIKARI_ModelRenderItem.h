@@ -11,6 +11,7 @@ namespace HIKARI {
 
     struct ModelRenderItem {
         const ModelAsset* model = nullptr;
+        uint64_t instanceKey = 0;
         Transform3D worldTransform;
 
         std::string materialFxProfileId;

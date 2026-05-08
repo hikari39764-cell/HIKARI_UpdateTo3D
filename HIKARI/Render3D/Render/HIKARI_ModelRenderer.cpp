@@ -20,6 +20,42 @@ namespace HIKARI::MODELRENDERER {
     namespace {
         std::vector<ModelRenderItem> gQueue;
         ModelRendererDebugStats gDebugStats;
+        uint64_t gFrameIndex = 0;
+
+        struct AnimationLodSettings {
+            bool enabled = true;
+            float nearDistance = 8.0f;
+            float midDistance = 18.0f;
+            float farDistance = 35.0f;
+            uint32_t nearUpdateInterval = 1;
+            uint32_t midUpdateInterval = 2;
+            uint32_t farUpdateInterval = 4;
+            uint32_t veryFarUpdateInterval = 8;
+        };
+
+        struct CachedSkinPose {
+            const ModelAsset* model = nullptr;
+            std::string clipName;
+            bool loop = true;
+            float lastSampleTimeSec = -1.0f;
+            uint64_t lastFrameUpdated = 0;
+            uint64_t lastSubmittedFrame = 0;
+            std::vector<Transform3D> animatedLocals;
+            std::vector<MATH::Mat4> nodeGlobals;
+            std::vector<MATH::Mat4> localNodeGlobals;
+            std::unordered_map<int, std::vector<MATH::Mat4>> jointPalettes;
+            bool valid = false;
+        };
+
+        enum class AnimationLodTier {
+            Near,
+            Mid,
+            Far,
+            VeryFar
+        };
+
+        AnimationLodSettings gAnimationLodSettings;
+        std::unordered_map<uint64_t, CachedSkinPose> gPoseCache;
 
         struct ExpandedNodeMeshKey {
             const ModelAsset* source = nullptr;
@@ -112,6 +148,51 @@ namespace HIKARI::MODELRENDERER {
                 }
             }
             return false;
+        }
+
+        bool ShouldUsePoseCache(const ModelRenderItem& item) {
+            return item.model != nullptr && item.model->HasSkinnedMesh() && !item.animationClipName.empty();
+        }
+
+        float DistanceToCamera(const ModelRenderItem& item, const Camera3D& camera) {
+            const MATH::Vec3 cameraPos = camera.GetPosition();
+            const MATH::Vec3 objectPos = item.worldTransform.position;
+            const float dx = objectPos.x - cameraPos.x;
+            const float dy = objectPos.y - cameraPos.y;
+            const float dz = objectPos.z - cameraPos.z;
+            return std::sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        AnimationLodTier ResolveAnimationLodTier(const ModelRenderItem& item, const Camera3D& camera) {
+            const float distance = DistanceToCamera(item, camera);
+            if (distance < gAnimationLodSettings.nearDistance) {
+                return AnimationLodTier::Near;
+            }
+            if (distance < gAnimationLodSettings.midDistance) {
+                return AnimationLodTier::Mid;
+            }
+            if (distance < gAnimationLodSettings.farDistance) {
+                return AnimationLodTier::Far;
+            }
+            return AnimationLodTier::VeryFar;
+        }
+
+        uint32_t ResolveAnimationUpdateInterval(AnimationLodTier tier) {
+            switch (tier) {
+            case AnimationLodTier::Near:
+                ++gDebugStats.lodNearCount;
+                return std::max<uint32_t>(1, gAnimationLodSettings.nearUpdateInterval);
+            case AnimationLodTier::Mid:
+                ++gDebugStats.lodMidCount;
+                return std::max<uint32_t>(1, gAnimationLodSettings.midUpdateInterval);
+            case AnimationLodTier::Far:
+                ++gDebugStats.lodFarCount;
+                return std::max<uint32_t>(1, gAnimationLodSettings.farUpdateInterval);
+            case AnimationLodTier::VeryFar:
+            default:
+                ++gDebugStats.lodVeryFarCount;
+                return std::max<uint32_t>(1, gAnimationLodSettings.veryFarUpdateInterval);
+            }
         }
 
         template<typename T>
@@ -366,6 +447,73 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
+        bool ShouldUpdatePoseThisFrame(const ModelRenderItem& item, const Camera3D& camera, const CachedSkinPose& cache) {
+            if (!gAnimationLodSettings.enabled) {
+                return true;
+            }
+
+            const AnimationLodTier tier = ResolveAnimationLodTier(item, camera);
+            const uint32_t interval = ResolveAnimationUpdateInterval(tier);
+            if (item.showSkeletonDebug || !cache.valid) {
+                return true;
+            }
+            return ((gFrameIndex + item.instanceKey) % interval) == 0;
+        }
+
+        CachedSkinPose& ResolveOrUpdatePose(const ModelRenderItem& item, const Camera3D& camera, ModelPoseEvaluationScratch& scratch) {
+            const uint64_t cacheKey = item.instanceKey != 0 ? item.instanceKey : reinterpret_cast<uint64_t>(item.model);
+            auto found = gPoseCache.find(cacheKey);
+            if (found == gPoseCache.end()) {
+                ++gDebugStats.poseCacheMissCount;
+                found = gPoseCache.emplace(cacheKey, CachedSkinPose{}).first;
+            } else {
+                ++gDebugStats.poseCacheHitCount;
+            }
+
+            CachedSkinPose& cache = found->second;
+            cache.lastSubmittedFrame = gFrameIndex;
+
+            const bool mustRebuild =
+                !cache.valid ||
+                cache.model != item.model ||
+                cache.clipName != item.animationClipName ||
+                cache.loop != item.animationLoop;
+            const bool dueThisFrame = ShouldUpdatePoseThisFrame(item, camera, cache);
+            const bool updatePose = mustRebuild || dueThisFrame;
+
+            if (updatePose) {
+                cache.model = item.model;
+                cache.clipName = item.animationClipName;
+                cache.loop = item.animationLoop;
+                cache.lastSampleTimeSec = item.animationTimeSec;
+                cache.lastFrameUpdated = gFrameIndex;
+
+                BuildAnimatedNodeLocals(item, cache.animatedLocals);
+                BuildNodeGlobalMatricesWithRoot(*item.model, cache.animatedLocals, MATH::Mat4::Identity(), cache.localNodeGlobals, scratch.visited);
+                cache.jointPalettes.clear();
+                cache.valid = true;
+                ++gDebugStats.poseUpdatedCount;
+            } else {
+                ++gDebugStats.poseReusedCount;
+            }
+
+            // World globals depend on the object transform, so rebuild them each frame even when the pose is reused.
+            BuildNodeGlobalMatricesWithRoot(*item.model, cache.animatedLocals, item.worldTransform.GetWorldMatrix(), cache.nodeGlobals, scratch.visited);
+            return cache;
+        }
+
+        void PrunePoseCache() {
+            constexpr uint64_t kCacheKeepFrames = 300;
+            for (auto it = gPoseCache.begin(); it != gPoseCache.end();) {
+                if (gFrameIndex > it->second.lastSubmittedFrame &&
+                    gFrameIndex - it->second.lastSubmittedFrame > kCacheKeepFrames) {
+                    it = gPoseCache.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
         MATH::Vec3 ExtractTranslation(const MATH::Mat4& m) {
             return { m.m[3][0], m.m[3][1], m.m[3][2] };
         }
@@ -398,7 +546,7 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        bool SubmitStructuredModelNodes(const ModelRenderItem& item) {
+        bool SubmitStructuredModelNodes(const ModelRenderItem& item, const Camera3D& camera) {
             if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
                 return false;
             }
@@ -411,9 +559,18 @@ namespace HIKARI::MODELRENDERER {
             scratch.jointPalette.reserve(128u);
             scratch.visited.reserve(item.model->nodes.size());
 
-            BuildAnimatedNodeLocals(item, scratch.animatedLocals);
-            BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, item.worldTransform.GetWorldMatrix(), scratch.nodeGlobals, scratch.visited);
-            BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, MATH::Mat4::Identity(), scratch.localNodeGlobals, scratch.visited);
+            const bool usePoseCache = ShouldUsePoseCache(item);
+            CachedSkinPose* poseCache = nullptr;
+            if (usePoseCache) {
+                poseCache = &ResolveOrUpdatePose(item, camera, scratch);
+            } else {
+                BuildAnimatedNodeLocals(item, scratch.animatedLocals);
+                BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, item.worldTransform.GetWorldMatrix(), scratch.nodeGlobals, scratch.visited);
+                BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, MATH::Mat4::Identity(), scratch.localNodeGlobals, scratch.visited);
+            }
+
+            const std::vector<MATH::Mat4>& nodeGlobals = poseCache ? poseCache->nodeGlobals : scratch.nodeGlobals;
+            const std::vector<MATH::Mat4>& localNodeGlobals = poseCache ? poseCache->localNodeGlobals : scratch.localNodeGlobals;
 
             bool submitted = false;
             std::unordered_set<int> submittedDebugSkins;
@@ -427,22 +584,42 @@ namespace HIKARI::MODELRENDERER {
                 if (node.skinIndex >= 0) {
                     if (item.showSkeletonDebug && submittedDebugSkins.insert(node.skinIndex).second) {
                         if (const SkeletonAsset* skin = item.model->FindSkin(node.skinIndex)) {
-                            SubmitSkeletonDebugLines(*skin, scratch.nodeGlobals, item.skeletonDebugXRay, item.skeletonDebugColor);
+                            SubmitSkeletonDebugLines(*skin, nodeGlobals, item.skeletonDebugXRay, item.skeletonDebugColor);
                         }
                     }
 
                     ++gDebugStats.skinnedNodeCount;
-                    scratch.jointPalette.clear();
-                    // Palette is built from model-local node globals. The skinned VS then applies object world once.
-                    if (BuildJointPalette(*item.model, node.skinIndex, scratch.localNodeGlobals, scratch.jointPalette)) {
-                        RecordBuiltJointPalette(node.skinIndex, scratch.jointPalette);
+                    const std::vector<MATH::Mat4>* jointPalette = nullptr;
+                    if (poseCache != nullptr) {
+                        auto paletteIt = poseCache->jointPalettes.find(node.skinIndex);
+                        if (paletteIt != poseCache->jointPalettes.end() && !paletteIt->second.empty()) {
+                            ++gDebugStats.jointPaletteCacheHitCount;
+                            jointPalette = &paletteIt->second;
+                        } else {
+                            ++gDebugStats.jointPaletteCacheMissCount;
+                            std::vector<MATH::Mat4>& cachedPalette = poseCache->jointPalettes[node.skinIndex];
+                            // Palette is built from model-local node globals. The skinned VS then applies object world once.
+                            if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, cachedPalette)) {
+                                jointPalette = &cachedPalette;
+                            }
+                        }
+                    } else {
+                        scratch.jointPalette.clear();
+                        // Palette is built from model-local node globals. The skinned VS then applies object world once.
+                        if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, scratch.jointPalette)) {
+                            jointPalette = &scratch.jointPalette;
+                        }
+                    }
+
+                    if (jointPalette != nullptr) {
+                        RecordBuiltJointPalette(node.skinIndex, *jointPalette);
                         ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
                         if (expandedAsset != nullptr && !expandedAsset->meshes.empty() && MeshHasSkinnedPrimitives(*item.model, node.meshIndex)) {
                             Transform3D skinnedTransform = item.worldTransform;
                             MESHRENDERER::SubmitSkinnedMesh(
                                 *expandedAsset,
                                 skinnedTransform,
-                                scratch.jointPalette,
+                                *jointPalette,
                                 item.materialFxProfileId,
                                 item.postGroupMask,
                                 item.materialFxParamValues,
@@ -463,7 +640,7 @@ namespace HIKARI::MODELRENDERER {
 
                 Transform3D nodeTransform{};
                 nodeTransform.useExplicitMatrix = true;
-                nodeTransform.explicitMatrix = scratch.nodeGlobals[nodeIndex];
+                nodeTransform.explicitMatrix = nodeGlobals[nodeIndex];
 
                 MESHRENDERER::SubmitStaticMesh(
                     *expandedAsset,
@@ -493,12 +670,14 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
+        ++gFrameIndex;
+
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
             }
 
-            if (SubmitStructuredModelNodes(item)) {
+            if (SubmitStructuredModelNodes(item, camera)) {
                 continue;
             }
 
@@ -513,6 +692,7 @@ namespace HIKARI::MODELRENDERER {
 
         MESHRENDERER::RenderAll(camera, environment);
         gQueue.clear();
+        PrunePoseCache();
     }
 
     const ModelRendererDebugStats& GetDebugStats() {

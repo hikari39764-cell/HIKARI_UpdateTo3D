@@ -606,6 +606,20 @@ namespace HIKARI {
                 rendererStats.expandedMeshCacheHitCount,
                 rendererStats.expandedMeshCacheMissCount);
             ImGui::Text("Skeleton Debug Lines: %zu", rendererStats.skeletonDebugLineCount);
+            ImGui::Text("Pose Cache Hit / Miss: %zu / %zu",
+                rendererStats.poseCacheHitCount,
+                rendererStats.poseCacheMissCount);
+            ImGui::Text("Pose Updated / Reused: %zu / %zu",
+                rendererStats.poseUpdatedCount,
+                rendererStats.poseReusedCount);
+            ImGui::Text("Animation LOD Near / Mid / Far / Very Far: %zu / %zu / %zu / %zu",
+                rendererStats.lodNearCount,
+                rendererStats.lodMidCount,
+                rendererStats.lodFarCount,
+                rendererStats.lodVeryFarCount);
+            ImGui::Text("Joint Palette Cache Hit / Miss: %zu / %zu",
+                rendererStats.jointPaletteCacheHitCount,
+                rendererStats.jointPaletteCacheMissCount);
 
             ImGui::Separator();
             ImGui::TextUnformatted("MeshRenderer:");
