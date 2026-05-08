@@ -35,7 +35,9 @@ namespace HIKARI::MESHRENDERER {
             MATH::Vec4 baseColor{};
             uint32_t hasBaseColorTexture = 0;
             uint32_t fxFlags = 0;
-            float padding[2]{};
+            uint32_t materialFlags = 0;
+            float alphaCutoff = 0.5f;
+            MATH::Vec4 emissiveFactor{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -56,6 +58,11 @@ namespace HIKARI::MESHRENDERER {
         };
 
         constexpr size_t kMaxJointPaletteMatrices = 128u;
+        constexpr UINT kMaxObjectCount = 2048u;
+
+        constexpr UINT AlignConstantBufferSize(size_t size) {
+            return static_cast<UINT>((size + 255u) & ~255u);
+        }
 
         struct JointPaletteCB {
             MATH::Mat4 jointMatrices[kMaxJointPaletteMatrices]{};
@@ -117,11 +124,11 @@ namespace HIKARI::MESHRENDERER {
         State g;
 
         bool CreateBuffers(ID3D12Device* device) {
-            const UINT cameraBytes = (sizeof(CameraCB) + 255u) & ~255u;
-            const UINT objectBytes = (sizeof(ObjectCB) * 2048u + 255u) & ~255u;
-            const UINT lightBytes = (sizeof(LightCB) + 255u) & ~255u;
-            const UINT jointPaletteStride = (sizeof(JointPaletteCB) + 255u) & ~255u;
-            const UINT jointPaletteBytes = jointPaletteStride * 2048u;
+            const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
+            const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
+            const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
+            const UINT jointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
+            const UINT jointPaletteBytes = jointPaletteStride * kMaxObjectCount;
 
             auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             auto cameraDesc = CD3DX12_RESOURCE_DESC::Buffer(cameraBytes);
@@ -636,7 +643,7 @@ namespace HIKARI::MESHRENDERER {
                 return 0;
             }
 
-            constexpr UINT kJointPaletteStride = (sizeof(JointPaletteCB) + 255u) & ~255u;
+            constexpr UINT kJointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.jointPaletteMapped) + static_cast<size_t>(kJointPaletteStride) * objectIndex;
             JointPaletteCB paletteCb{};
             for (MATH::Mat4& jointMatrix : paletteCb.jointMatrices) {
@@ -716,6 +723,33 @@ namespace HIKARI::MESHRENDERER {
             obj.fxUser1 = item.fxValues[1];
             obj.fxUser2 = item.fxValues[2];
             obj.fxUser3 = item.fxValues[3];
+        }
+
+        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset) {
+            obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
+            obj.materialFlags = 0;
+            obj.alphaCutoff = materialAsset ? materialAsset->alphaCutoff : 0.5f;
+            obj.emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+            if (materialAsset == nullptr) {
+                return;
+            }
+
+            if (materialAsset->alphaMode == AlphaMode::Mask) {
+                obj.materialFlags |= MATERIAL_FEATURES::AlphaMask;
+            }
+            if ((materialAsset->featureBits & MATERIAL_FEATURES::Unlit) != 0) {
+                obj.materialFlags |= MATERIAL_FEATURES::Unlit;
+            }
+            if ((materialAsset->featureBits & MATERIAL_FEATURES::Emissive) != 0) {
+                obj.materialFlags |= MATERIAL_FEATURES::Emissive;
+            }
+            obj.emissiveFactor = {
+                materialAsset->emissiveFactor.x,
+                materialAsset->emissiveFactor.y,
+                materialAsset->emissiveFactor.z,
+                materialAsset->emissiveStrength
+            };
         }
     }
 
@@ -815,8 +849,7 @@ namespace HIKARI::MESHRENDERER {
             cmd->SetDescriptorHeaps(1, heaps);
         }
 
-        constexpr UINT kObjectStride = (sizeof(ObjectCB) + 255u) & ~255u;
-        constexpr size_t kMaxObjectCount = 2048u;
+        constexpr UINT kObjectStride = AlignConstantBufferSize(sizeof(ObjectCB));
         if (g.objectMapped == nullptr || g.objectCB == nullptr) {
             return;
         }
@@ -857,7 +890,7 @@ namespace HIKARI::MESHRENDERER {
                         ObjectCB obj{};
                         obj.world = world;
                         obj.normalMatrix = normalMatrix;
-                        obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
+                        FillMaterialValues(obj, materialAsset);
                         const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
                         obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
                         FillFxValues(obj, item);
@@ -874,7 +907,7 @@ namespace HIKARI::MESHRENDERER {
                         const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
-                            const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(((sizeof(JointPaletteCB) + 255u) & ~255u)) * objectIndex;
+                            const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
                             cmd->SetGraphicsRootConstantBufferView(4, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
@@ -932,6 +965,7 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
             obj.normalMatrix = BuildNormalMatrix(item.transform);
+            FillMaterialValues(obj, nullptr);
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;

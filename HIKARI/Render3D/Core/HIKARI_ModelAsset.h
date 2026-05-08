@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -23,6 +24,12 @@ namespace HIKARI {
         Mask,
         Blend,
     };
+
+    namespace MATERIAL_FEATURES {
+        constexpr uint32_t Unlit = 1u << 0;
+        constexpr uint32_t AlphaMask = 1u << 1;
+        constexpr uint32_t Emissive = 1u << 2;
+    }
 
     struct Bounds {
         MATH::Vec3 min{ 0.0f, 0.0f, 0.0f };

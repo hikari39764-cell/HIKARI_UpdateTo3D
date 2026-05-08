@@ -11,13 +11,19 @@ cbuffer ObjectCB : register(b1)
     float4 gBaseColor;
     uint gHasBaseColorTexture;
     uint gFxFlags;
-    float2 gObjectPadding;
+    uint gMaterialFlags;
+    float gAlphaCutoff;
+    float4 gEmissiveFactor;
 
     float4 gFxUser0;
     float4 gFxUser1;
     float4 gFxUser2;
     float4 gFxUser3;
 };
+
+static const uint MATERIAL_UNLIT = 1u << 0;
+static const uint MATERIAL_ALPHA_MASK = 1u << 1;
+static const uint MATERIAL_EMISSIVE = 1u << 2;
 
 cbuffer LightCB : register(b2)
 {
@@ -127,8 +133,18 @@ float4 main(PSInput input) : SV_TARGET
     {
         albedo *= gBaseColorTex.Sample(gLinearWrap, input.uv);
     }
+    if ((gMaterialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < gAlphaCutoff)
+    {
+        discard;
+    }
 
-    float3 lit = albedo.rgb * (ambient + diffuse + specular + pointLightContribution);
+    float3 lit = ((gMaterialFlags & MATERIAL_UNLIT) != 0)
+        ? albedo.rgb
+        : albedo.rgb * (ambient + diffuse + specular + pointLightContribution);
+    if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
+    {
+        lit += gEmissiveFactor.rgb * gEmissiveFactor.a;
+    }
 
     float rimStrength = gFxUser0.x;
     float rimPower    = max(gFxUser0.y, 0.01);
@@ -156,5 +172,5 @@ float4 main(PSInput input) : SV_TARGET
     float3 edgeColor = float3(0.4, 0.5, 1.0) * edgeBand * edgeBoost;
     float3 finalColor = lit * edge + rimColor + edgeColor;
 
-    return float4(saturate(finalColor), albedo.a);
+    return float4(finalColor, albedo.a);
 }

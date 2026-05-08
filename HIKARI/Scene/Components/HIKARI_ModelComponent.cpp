@@ -49,6 +49,23 @@ namespace HIKARI {
         }
 
 #if defined(_DEBUG)
+        const char* ToAlphaModeText(AlphaMode mode) {
+            switch (mode) {
+            case AlphaMode::Opaque: return "Opaque";
+            case AlphaMode::Mask: return "Mask";
+            case AlphaMode::Blend: return "Blend";
+            default: return "Unknown";
+            }
+        }
+
+        const char* ResolveTexturePathDebug(const ModelAsset& asset, const TextureSlot& slot) {
+            if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
+                return "<none>";
+            }
+            const std::string& path = asset.textures[static_cast<size_t>(slot.textureIndex)].sourcePath;
+            return path.empty() ? "<empty>" : path.c_str();
+        }
+
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
             bool changed = false;
@@ -521,6 +538,57 @@ namespace HIKARI {
             ImGui::Text("Primitive Count: %zu", primitiveCount);
             ImGui::Text("Materials: %zu", asset_->materials.size());
             ImGui::Text("Textures: %zu", asset_->textures.size());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Materials")) {
+            for (size_t materialIndex = 0; materialIndex < asset_->materials.size(); ++materialIndex) {
+                const MaterialAsset& material = asset_->materials[materialIndex];
+                ImGui::PushID(static_cast<int>(materialIndex));
+                const char* materialName = material.name.empty() ? "<unnamed>" : material.name.c_str();
+                if (ImGui::TreeNode("Material", "Material[%zu] %s", materialIndex, materialName)) {
+                    ImGui::Text("Base Color Factor: %.3f %.3f %.3f %.3f",
+                        material.baseColorFactor.x,
+                        material.baseColorFactor.y,
+                        material.baseColorFactor.z,
+                        material.baseColorFactor.w);
+                    ImGui::Text("Base Color Texture: index=%d texCoord=%d path=%s",
+                        material.baseColorTexture.textureIndex,
+                        material.baseColorTexture.texCoord,
+                        ResolveTexturePathDebug(*asset_, material.baseColorTexture));
+                    ImGui::Text("Metallic / Roughness: %.3f / %.3f", material.metallicFactor, material.roughnessFactor);
+                    ImGui::Text("Metallic Roughness Texture: index=%d texCoord=%d path=%s",
+                        material.metallicRoughnessTexture.textureIndex,
+                        material.metallicRoughnessTexture.texCoord,
+                        ResolveTexturePathDebug(*asset_, material.metallicRoughnessTexture));
+                    ImGui::Text("Normal Texture: index=%d texCoord=%d scale=%.3f path=%s",
+                        material.normalTexture.textureIndex,
+                        material.normalTexture.texCoord,
+                        material.normalTexture.scale,
+                        ResolveTexturePathDebug(*asset_, material.normalTexture));
+                    ImGui::Text("Occlusion Texture: index=%d texCoord=%d strength=%.3f path=%s",
+                        material.occlusionTexture.textureIndex,
+                        material.occlusionTexture.texCoord,
+                        material.occlusionTexture.strength,
+                        ResolveTexturePathDebug(*asset_, material.occlusionTexture));
+                    ImGui::Text("Emissive Factor: %.3f %.3f %.3f",
+                        material.emissiveFactor.x,
+                        material.emissiveFactor.y,
+                        material.emissiveFactor.z);
+                    ImGui::Text("Emissive Strength: %.3f", material.emissiveStrength);
+                    ImGui::Text("Emissive Texture: index=%d texCoord=%d path=%s",
+                        material.emissiveTexture.textureIndex,
+                        material.emissiveTexture.texCoord,
+                        ResolveTexturePathDebug(*asset_, material.emissiveTexture));
+                    ImGui::Text("Alpha Mode: %s", ToAlphaModeText(material.alphaMode));
+                    ImGui::Text("Alpha Cutoff: %.3f", material.alphaCutoff);
+                    ImGui::Text("Double Sided: %s", material.doubleSided ? "Yes" : "No");
+                    ImGui::Text("Feature Bits: 0x%08X", material.featureBits);
+                    ImGui::Text("Unlit: %s", (material.featureBits & MATERIAL_FEATURES::Unlit) != 0 ? "Yes" : "No");
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
             ImGui::TreePop();
         }
 

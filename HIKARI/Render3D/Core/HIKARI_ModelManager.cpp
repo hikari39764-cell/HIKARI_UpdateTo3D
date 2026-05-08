@@ -1,6 +1,7 @@
 #include "Render3D/HIKARI_ModelManager.h"
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -856,6 +857,16 @@ namespace HIKARI {
         }
 
         if (root.contains("materials") && root["materials"].is_array()) {
+            auto readTextureSlot = [&](const json& textureInfo, TextureSlot& slot) {
+                const int textureIndex = textureInfo.value("index", -1);
+                if (textureIndex >= 0 && root.contains("textures") && root["textures"].is_array() &&
+                    textureIndex < static_cast<int>(root["textures"].size())) {
+                    const int imageIndex = root["textures"][static_cast<size_t>(textureIndex)].value("source", -1);
+                    slot.textureIndex = imageIndex;
+                }
+                slot.texCoord = textureInfo.value("texCoord", 0);
+            };
+
             for (const auto& matNode : root["materials"]) {
                 MaterialAsset mat{};
                 mat.name = matNode.value("name", "");
@@ -870,15 +881,62 @@ namespace HIKARI {
                         };
                     }
                     if (pbr.contains("baseColorTexture") && pbr["baseColorTexture"].is_object()) {
-                        const int textureIndex = pbr["baseColorTexture"].value("index", -1);
-                        if (textureIndex >= 0 && root.contains("textures") && root["textures"].is_array() &&
-                            textureIndex < static_cast<int>(root["textures"].size())) {
-                            const int imageIndex = root["textures"][static_cast<size_t>(textureIndex)].value("source", -1);
-                            mat.baseColorTexture.textureIndex = imageIndex;
-                        }
+                        readTextureSlot(pbr["baseColorTexture"], mat.baseColorTexture);
+                    }
+                    mat.metallicFactor = pbr.value("metallicFactor", mat.metallicFactor);
+                    mat.roughnessFactor = pbr.value("roughnessFactor", mat.roughnessFactor);
+                    if (pbr.contains("metallicRoughnessTexture") && pbr["metallicRoughnessTexture"].is_object()) {
+                        readTextureSlot(pbr["metallicRoughnessTexture"], mat.metallicRoughnessTexture);
                     }
                 }
-                mat.alphaMode = AlphaMode::Opaque;
+                if (matNode.contains("normalTexture") && matNode["normalTexture"].is_object()) {
+                    readTextureSlot(matNode["normalTexture"], mat.normalTexture);
+                    mat.normalTexture.scale = matNode["normalTexture"].value("scale", mat.normalTexture.scale);
+                }
+                if (matNode.contains("occlusionTexture") && matNode["occlusionTexture"].is_object()) {
+                    readTextureSlot(matNode["occlusionTexture"], mat.occlusionTexture);
+                    mat.occlusionTexture.strength = matNode["occlusionTexture"].value("strength", mat.occlusionTexture.strength);
+                }
+                if (matNode.contains("emissiveFactor") && matNode["emissiveFactor"].is_array() && matNode["emissiveFactor"].size() >= 3) {
+                    mat.emissiveFactor = {
+                        matNode["emissiveFactor"][0].get<float>(),
+                        matNode["emissiveFactor"][1].get<float>(),
+                        matNode["emissiveFactor"][2].get<float>()
+                    };
+                }
+                if (matNode.contains("emissiveTexture") && matNode["emissiveTexture"].is_object()) {
+                    readTextureSlot(matNode["emissiveTexture"], mat.emissiveTexture);
+                }
+
+                const std::string alphaMode = matNode.value("alphaMode", "OPAQUE");
+                if (alphaMode == "MASK") {
+                    mat.alphaMode = AlphaMode::Mask;
+                    mat.featureBits |= MATERIAL_FEATURES::AlphaMask;
+                } else if (alphaMode == "BLEND") {
+                    mat.alphaMode = AlphaMode::Blend;
+                } else {
+                    mat.alphaMode = AlphaMode::Opaque;
+                }
+                mat.alphaCutoff = matNode.value("alphaCutoff", mat.alphaCutoff);
+                mat.doubleSided = matNode.value("doubleSided", false);
+
+                if (matNode.contains("extensions") && matNode["extensions"].is_object()) {
+                    const json& extensions = matNode["extensions"];
+                    if (extensions.contains("KHR_materials_unlit")) {
+                        mat.featureBits |= MATERIAL_FEATURES::Unlit;
+                    }
+                    if (extensions.contains("KHR_materials_emissive_strength") && extensions["KHR_materials_emissive_strength"].is_object()) {
+                        mat.emissiveStrength = extensions["KHR_materials_emissive_strength"].value("emissiveStrength", mat.emissiveStrength);
+                    }
+                }
+
+                const bool hasEmissiveFactor =
+                    std::abs(mat.emissiveFactor.x) > 1e-6f ||
+                    std::abs(mat.emissiveFactor.y) > 1e-6f ||
+                    std::abs(mat.emissiveFactor.z) > 1e-6f;
+                if (hasEmissiveFactor || mat.emissiveTexture.textureIndex >= 0) {
+                    mat.featureBits |= MATERIAL_FEATURES::Emissive;
+                }
                 asset.materials.push_back(std::move(mat));
             }
         }

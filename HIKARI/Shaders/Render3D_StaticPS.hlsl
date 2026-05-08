@@ -11,12 +11,18 @@ cbuffer ObjectCB : register(b1)
     float4 gBaseColor;
     uint gHasBaseColorTexture;
     uint gFxFlags;
-    float2 gObjectPadding;
+    uint gMaterialFlags;
+    float gAlphaCutoff;
+    float4 gEmissiveFactor;
     float4 gFxUser0;
     float4 gFxUser1;
     float4 gFxUser2;
     float4 gFxUser3;
 };
+
+static const uint MATERIAL_UNLIT = 1u << 0;
+static const uint MATERIAL_ALPHA_MASK = 1u << 1;
+static const uint MATERIAL_EMISSIVE = 1u << 2;
 
 cbuffer LightCB : register(b2)
 {
@@ -94,7 +100,20 @@ float4 main(PSInput input) : SV_TARGET
     {
         albedo *= gBaseColorTex.Sample(gLinearWrap, input.uv);
     }
+    if ((gMaterialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < gAlphaCutoff)
+    {
+        discard;
+    }
+    if ((gMaterialFlags & MATERIAL_UNLIT) != 0)
+    {
+        return albedo;
+    }
 
     float3 lit = ambient + diffuse + specular + pointLightContribution;
-    return float4(albedo.rgb * lit, 1.0f);
+    float3 finalColor = albedo.rgb * lit;
+    if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
+    {
+        finalColor += gEmissiveFactor.rgb * gEmissiveFactor.a;
+    }
+    return float4(finalColor, albedo.a);
 }
