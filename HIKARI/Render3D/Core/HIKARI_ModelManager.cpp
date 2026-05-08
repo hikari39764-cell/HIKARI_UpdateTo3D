@@ -218,6 +218,159 @@ namespace HIKARI {
             return true;
         }
 
+        bool ReadAccessorJointVec4(
+            int accessorIndex,
+            const json& accessors,
+            const json& bufferViews,
+            const std::vector<std::vector<uint8_t>>& loadedBuffers,
+            std::vector<std::array<uint16_t, 4>>& out) {
+            out.clear();
+            if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) {
+                return false;
+            }
+
+            const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
+            if (accessor.value("type", "") != "VEC4") {
+                return false;
+            }
+
+            const int componentType = accessor.value("componentType", 0);
+            const size_t componentSize = (componentType == 5121) ? 1u : ((componentType == 5123) ? 2u : 0u);
+            if (componentSize == 0u) {
+                return false;
+            }
+
+            const int count = accessor.value("count", 0);
+            if (count <= 0) {
+                return false;
+            }
+
+            const int bufferViewIndex = accessor.value("bufferView", -1);
+            if (bufferViewIndex < 0 || bufferViewIndex >= static_cast<int>(bufferViews.size())) {
+                return false;
+            }
+
+            const json& view = bufferViews[static_cast<size_t>(bufferViewIndex)];
+            const int bufferIndex = view.value("buffer", -1);
+            if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) {
+                return false;
+            }
+
+            const size_t elementSize = componentSize * 4u;
+            const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
+            const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
+            const size_t stride = static_cast<size_t>(view.value("byteStride", static_cast<int>(elementSize)));
+            if (stride < elementSize) {
+                return false;
+            }
+
+            const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
+            out.resize(static_cast<size_t>(count));
+            for (int i = 0; i < count; ++i) {
+                const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
+                if (srcOffset + elementSize > bufferData.size()) {
+                    out.clear();
+                    return false;
+                }
+
+                std::array<uint16_t, 4> joints{};
+                for (size_t c = 0; c < joints.size(); ++c) {
+                    const size_t componentOffset = srcOffset + componentSize * c;
+                    if (componentType == 5121) {
+                        joints[c] = static_cast<uint16_t>(bufferData[componentOffset]);
+                    } else {
+                        uint16_t value = 0;
+                        std::memcpy(&value, bufferData.data() + componentOffset, sizeof(uint16_t));
+                        joints[c] = value;
+                    }
+                }
+                out[static_cast<size_t>(i)] = joints;
+            }
+            return true;
+        }
+
+        bool ReadAccessorWeightVec4(
+            int accessorIndex,
+            const json& accessors,
+            const json& bufferViews,
+            const std::vector<std::vector<uint8_t>>& loadedBuffers,
+            std::vector<std::array<float, 4>>& out) {
+            out.clear();
+            if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) {
+                return false;
+            }
+
+            const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
+            if (accessor.value("type", "") != "VEC4") {
+                return false;
+            }
+
+            const int componentType = accessor.value("componentType", 0);
+            const size_t componentSize = (componentType == 5126) ? 4u : ((componentType == 5121) ? 1u : ((componentType == 5123) ? 2u : 0u));
+            if (componentSize == 0u) {
+                return false;
+            }
+
+            const int count = accessor.value("count", 0);
+            if (count <= 0) {
+                return false;
+            }
+
+            const int bufferViewIndex = accessor.value("bufferView", -1);
+            if (bufferViewIndex < 0 || bufferViewIndex >= static_cast<int>(bufferViews.size())) {
+                return false;
+            }
+
+            const json& view = bufferViews[static_cast<size_t>(bufferViewIndex)];
+            const int bufferIndex = view.value("buffer", -1);
+            if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) {
+                return false;
+            }
+
+            const size_t elementSize = componentSize * 4u;
+            const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
+            const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
+            const size_t stride = static_cast<size_t>(view.value("byteStride", static_cast<int>(elementSize)));
+            if (stride < elementSize) {
+                return false;
+            }
+
+            const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
+            out.resize(static_cast<size_t>(count));
+            for (int i = 0; i < count; ++i) {
+                const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
+                if (srcOffset + elementSize > bufferData.size()) {
+                    out.clear();
+                    return false;
+                }
+
+                std::array<float, 4> weights{};
+                for (size_t c = 0; c < weights.size(); ++c) {
+                    const size_t componentOffset = srcOffset + componentSize * c;
+                    if (componentType == 5126) {
+                        std::memcpy(&weights[c], bufferData.data() + componentOffset, sizeof(float));
+                    } else if (componentType == 5121) {
+                        weights[c] = static_cast<float>(bufferData[componentOffset]) / 255.0f;
+                    } else {
+                        uint16_t value = 0;
+                        std::memcpy(&value, bufferData.data() + componentOffset, sizeof(uint16_t));
+                        weights[c] = static_cast<float>(value) / 65535.0f;
+                    }
+                }
+
+                const float sum = weights[0] + weights[1] + weights[2] + weights[3];
+                if (sum > 0.00001f) {
+                    for (float& weight : weights) {
+                        weight /= sum;
+                    }
+                } else {
+                    weights = { 1.0f, 0.0f, 0.0f, 0.0f };
+                }
+                out[static_cast<size_t>(i)] = weights;
+            }
+            return true;
+        }
+
         void ReadGltfSkins(
             const json& root,
             const json& accessors,
@@ -815,6 +968,33 @@ namespace HIKARI {
                 }
                 for (uint32_t index : indices) {
                     legacyIndices.push_back(legacyBaseVertex + index);
+                }
+
+                if (attributes.contains("JOINTS_0") && attributes.contains("WEIGHTS_0")) {
+                    std::vector<std::array<uint16_t, 4>> joints;
+                    std::vector<std::array<float, 4>> weights;
+                    const bool hasJoints = ReadAccessorJointVec4(attributes.value("JOINTS_0", -1), accessors, bufferViews, loadedBuffers, joints);
+                    const bool hasWeights = ReadAccessorWeightVec4(attributes.value("WEIGHTS_0", -1), accessors, bufferViews, loadedBuffers, weights);
+                    if (hasJoints && hasWeights &&
+                        joints.size() == static_cast<size_t>(vertexCount) &&
+                        weights.size() == static_cast<size_t>(vertexCount)) {
+                        primitiveAsset.skinnedVertices.resize(static_cast<size_t>(vertexCount));
+                        for (int i = 0; i < vertexCount; ++i) {
+                            const Vertex3D& staticVertex = primitiveAsset.staticVertices[static_cast<size_t>(i)];
+                            SkinnedVertex3D skinned{};
+                            skinned.position = staticVertex.position;
+                            skinned.normal = staticVertex.normal;
+                            skinned.tangent = staticVertex.tangent;
+                            skinned.uv0 = staticVertex.uv0;
+                            skinned.uv1 = staticVertex.uv1;
+                            skinned.color0 = staticVertex.color0;
+                            for (size_t c = 0; c < 4; ++c) {
+                                skinned.joints[c] = joints[static_cast<size_t>(i)][c];
+                                skinned.weights[c] = weights[static_cast<size_t>(i)][c];
+                            }
+                            primitiveAsset.skinnedVertices[static_cast<size_t>(i)] = skinned;
+                        }
+                    }
                 }
 
                 meshAsset.primitives.push_back(std::move(primitiveAsset));

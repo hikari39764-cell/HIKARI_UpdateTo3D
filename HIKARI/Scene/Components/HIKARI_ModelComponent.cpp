@@ -479,6 +479,39 @@ namespace HIKARI {
             }
             ImGui::PopID();
         }
+        size_t meshCount = asset_->meshes.size();
+        size_t primitiveCount = 0;
+        size_t skinnedPrimitiveCount = 0;
+        size_t skinnedVertexCount = 0;
+        const SkinnedVertex3D* firstSkinnedVertex = nullptr;
+        for (const MeshAsset& mesh : asset_->meshes) {
+            primitiveCount += mesh.primitives.size();
+            for (const MeshPrimitive& primitive : mesh.primitives) {
+                if (!primitive.skinnedVertices.empty()) {
+                    ++skinnedPrimitiveCount;
+                    skinnedVertexCount += primitive.skinnedVertices.size();
+                    if (firstSkinnedVertex == nullptr) {
+                        firstSkinnedVertex = &primitive.skinnedVertices.front();
+                    }
+                }
+            }
+        }
+        ImGui::Text("Mesh Count: %zu", meshCount);
+        ImGui::Text("Primitive Count: %zu", primitiveCount);
+        ImGui::Text("Skinned Primitive Count: %zu", skinnedPrimitiveCount);
+        ImGui::Text("Skinned Vertex Count: %zu", skinnedVertexCount);
+        if (firstSkinnedVertex != nullptr) {
+            ImGui::Text("First Joints: %u %u %u %u",
+                static_cast<unsigned>(firstSkinnedVertex->joints[0]),
+                static_cast<unsigned>(firstSkinnedVertex->joints[1]),
+                static_cast<unsigned>(firstSkinnedVertex->joints[2]),
+                static_cast<unsigned>(firstSkinnedVertex->joints[3]));
+            ImGui::Text("First Weights: %.3f %.3f %.3f %.3f",
+                firstSkinnedVertex->weights[0],
+                firstSkinnedVertex->weights[1],
+                firstSkinnedVertex->weights[2],
+                firstSkinnedVertex->weights[3]);
+        }
         ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
         ImGui::Text("Animation clips: %zu", asset_->animations.size());
         for (const AnimationClip& clip : asset_->animations) {
