@@ -549,9 +549,11 @@ namespace HIKARI::MESHRENDERER {
 
             auto found = g.materialTextureCache.find(texturePath);
             if (found != g.materialTextureCache.end()) {
+                ++g.debugStats.materialTextureCacheHitCount;
                 return found->second;
             }
 
+            ++g.debugStats.materialTextureCacheMissCount;
             const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/" + texturePath, texturePath);
             g.materialTextureCache[texturePath] = handle;
             return handle >= 0 ? handle : g.fallbackTextureHandle;
@@ -560,6 +562,7 @@ namespace HIKARI::MESHRENDERER {
         Mesh* GetOrCreatePrimitiveMesh(const MeshPrimitive& primitive) {
             auto found = g.primitiveMeshCache.find(&primitive);
             if (found != g.primitiveMeshCache.end()) {
+                ++g.debugStats.primitiveMeshCacheHitCount;
                 return found->second.get();
             }
 
@@ -567,6 +570,7 @@ namespace HIKARI::MESHRENDERER {
                 return nullptr;
             }
 
+            ++g.debugStats.primitiveMeshCacheMissCount;
             std::vector<VertexStatic3D> vertices;
             vertices.reserve(primitive.staticVertices.size());
             for (const Vertex3D& src : primitive.staticVertices) {
@@ -591,6 +595,7 @@ namespace HIKARI::MESHRENDERER {
         Mesh* GetOrCreateSkinnedPrimitiveMesh(const MeshPrimitive& primitive) {
             auto found = g.primitiveSkinnedMeshCache.find(&primitive);
             if (found != g.primitiveSkinnedMeshCache.end()) {
+                ++g.debugStats.primitiveSkinnedMeshCacheHitCount;
                 return found->second.get();
             }
 
@@ -598,6 +603,7 @@ namespace HIKARI::MESHRENDERER {
                 return nullptr;
             }
 
+            ++g.debugStats.primitiveSkinnedMeshCacheMissCount;
             std::vector<VertexSkinnedGpu3D> vertices;
             vertices.reserve(primitive.skinnedVertices.size());
             for (const SkinnedVertex3D& src : primitive.skinnedVertices) {
@@ -715,6 +721,7 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
+        g.debugStats = {};
     }
 
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
@@ -728,6 +735,7 @@ namespace HIKARI::MESHRENDERER {
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
         ResolveDrawVariant(item);
+        ++g.debugStats.staticDrawItemCount;
         g.drawItems.push_back(std::move(item));
     }
 
@@ -743,6 +751,7 @@ namespace HIKARI::MESHRENDERER {
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
         ResolveDrawVariant(item);
+        ++g.debugStats.skinnedDrawItemCount;
         g.drawItems.push_back(std::move(item));
     }
 
@@ -758,7 +767,6 @@ namespace HIKARI::MESHRENDERER {
         if (!cmd) {
             return;
         }
-        g.debugStats = {};
 
         g.cameraMapped->viewProj = camera.GetViewProj();
         const MATH::Vec3 cameraPos = camera.GetPosition();
@@ -874,22 +882,28 @@ namespace HIKARI::MESHRENDERER {
 
                             auto foundPso = g.skinnedVariantPsoCache.find(primitiveVariant);
                             if (foundPso == g.skinnedVariantPsoCache.end()) {
+                                ++g.debugStats.psoCacheMissCount;
                                 ComPtr<ID3D12PipelineState> variantPso;
                                 if (!CreateSkinnedVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
                                     variantPso = g.skinnedPso ? g.skinnedPso : g.pso;
                                 }
                                 foundPso = g.skinnedVariantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
+                            } else {
+                                ++g.debugStats.psoCacheHitCount;
                             }
                             cmd->SetPipelineState(foundPso->second.Get());
                             ++g.debugStats.skinnedGpuDrawCount;
                         } else {
                             auto foundPso = g.variantPsoCache.find(primitiveVariant);
                             if (foundPso == g.variantPsoCache.end()) {
+                                ++g.debugStats.psoCacheMissCount;
                                 ComPtr<ID3D12PipelineState> variantPso;
                                 if (!CreateVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
                                     variantPso = g.pso;
                                 }
                                 foundPso = g.variantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
+                            } else {
+                                ++g.debugStats.psoCacheHitCount;
                             }
                             cmd->SetPipelineState(foundPso->second.Get());
                         }
@@ -938,11 +952,14 @@ namespace HIKARI::MESHRENDERER {
 
             auto foundPso = g.variantPsoCache.find(item.variant);
             if (foundPso == g.variantPsoCache.end()) {
+                ++g.debugStats.psoCacheMissCount;
                 ComPtr<ID3D12PipelineState> variantPso;
                 if (!CreateVariantPipeline(SERVICES::gCtx.device, item.variant, variantPso.GetAddressOf())) {
                     variantPso = g.pso;
                 }
                 foundPso = g.variantPsoCache.emplace(item.variant, std::move(variantPso)).first;
+            } else {
+                ++g.debugStats.psoCacheHitCount;
             }
             cmd->SetPipelineState(foundPso->second.Get());
             int textureHandle = g.fallbackTextureHandle;

@@ -40,40 +40,17 @@ namespace HIKARI::MODELRENDERER {
 
         struct ExpandedNodeMeshCacheEntry {
             std::unique_ptr<ModelAsset> asset;
-            size_t sourceSignature = 0;
+        };
+
+        struct ModelPoseEvaluationScratch {
+            std::vector<Transform3D> animatedLocals;
+            std::vector<MATH::Mat4> nodeGlobals;
+            std::vector<MATH::Mat4> localNodeGlobals;
+            std::vector<MATH::Mat4> jointPalette;
+            std::vector<uint8_t> visited;
         };
 
         std::unordered_map<ExpandedNodeMeshKey, ExpandedNodeMeshCacheEntry, ExpandedNodeMeshKeyHash> gExpandedNodeMeshCache;
-
-        size_t HashCombine(size_t seed, size_t value) {
-            return seed ^ (value + 0x9e3779b9 + (seed << 6) + (seed >> 2));
-        }
-
-        size_t BuildMeshSignature(const ModelAsset& source, int meshIndex) {
-            if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
-                return 0;
-            }
-
-            size_t seed = std::hash<const ModelAsset*>{}(&source);
-            seed = HashCombine(seed, static_cast<size_t>(meshIndex));
-            seed = HashCombine(seed, static_cast<size_t>(source.GetState()));
-            seed = HashCombine(seed, source.materials.size());
-            seed = HashCombine(seed, source.textures.size());
-
-            const MeshAsset& mesh = source.meshes[static_cast<size_t>(meshIndex)];
-            seed = HashCombine(seed, mesh.name.size());
-            seed = HashCombine(seed, mesh.primitives.size());
-
-            for (const MeshPrimitive& primitive : mesh.primitives) {
-                seed = HashCombine(seed, primitive.name.size());
-                seed = HashCombine(seed, static_cast<size_t>(primitive.layout));
-                seed = HashCombine(seed, primitive.staticVertices.size());
-                seed = HashCombine(seed, primitive.skinnedVertices.size());
-                seed = HashCombine(seed, primitive.indices.size());
-                seed = HashCombine(seed, static_cast<size_t>(primitive.materialIndex));
-            }
-            return seed;
-        }
 
         std::unique_ptr<ModelAsset> BuildSingleMeshExpandedAsset(const ModelAsset& source, int meshIndex) {
             if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size())) {
@@ -98,24 +75,22 @@ namespace HIKARI::MODELRENDERER {
             }
 
             const ExpandedNodeMeshKey key{ &source, meshIndex };
-            const size_t sourceSignature = BuildMeshSignature(source, meshIndex);
             auto found = gExpandedNodeMeshCache.find(key);
             if (found != gExpandedNodeMeshCache.end()) {
-                if (found->second.sourceSignature == sourceSignature && found->second.asset != nullptr) {
-                    found->second.asset->state = source.state;
-                    found->second.asset->sourcePath = source.sourcePath;
-                    found->second.asset->materials = source.materials;
-                    found->second.asset->textures = source.textures;
+                if (found->second.asset != nullptr) {
+                    ++gDebugStats.expandedMeshCacheHitCount;
                     return found->second.asset.get();
                 }
 
+                ++gDebugStats.expandedMeshCacheMissCount;
                 found->second.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
-                found->second.sourceSignature = sourceSignature;
                 return found->second.asset.get();
             }
 
+            // Expanded node mesh assets are treated as immutable after model load.
+            // If runtime asset hot-reload is added later, invalidate this cache explicitly.
+            ++gDebugStats.expandedMeshCacheMissCount;
             ExpandedNodeMeshCacheEntry entry{};
-            entry.sourceSignature = sourceSignature;
             entry.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
             if (!entry.asset) {
                 return nullptr;
@@ -183,19 +158,26 @@ namespace HIKARI::MODELRENDERER {
                 return keys.back().value;
             }
 
-            for (size_t i = 0; i + 1 < keys.size(); ++i) {
-                const auto& a = keys[i];
-                const auto& b = keys[i + 1];
-                if (timeSec >= a.timeSec && timeSec <= b.timeSec) {
-                    if (interpolation == AnimationInterpolation::Step) {
-                        return a.value;
-                    }
-                    const float span = std::max(1e-5f, b.timeSec - a.timeSec);
-                    const float t = (timeSec - a.timeSec) / span;
-                    return LerpValue<TValue>(a.value, b.value, t);
-                }
+            ++gDebugStats.sampledKeySearchCount;
+            const auto it = std::lower_bound(
+                keys.begin(),
+                keys.end(),
+                timeSec,
+                [](const TKey& key, float t) {
+                    return key.timeSec < t;
+                });
+            if (it == keys.begin()) {
+                return it->value;
             }
-            return keys.back().value;
+            const auto& a = *(it - 1);
+            const auto& b = *it;
+            if (interpolation == AnimationInterpolation::Step) {
+                return a.value;
+            }
+
+            const float span = std::max(1e-5f, b.timeSec - a.timeSec);
+            const float t = (timeSec - a.timeSec) / span;
+            return LerpValue<TValue>(a.value, b.value, t);
         }
 
         const AnimationClip* ResolveAnimationClip(const ModelRenderItem& item) {
@@ -240,29 +222,31 @@ namespace HIKARI::MODELRENDERER {
             return out;
         }
 
-        std::vector<Transform3D> BuildAnimatedNodeLocals(const ModelRenderItem& item) {
-            std::vector<Transform3D> locals;
+        void BuildAnimatedNodeLocals(const ModelRenderItem& item, std::vector<Transform3D>& outLocals) {
+            outLocals.clear();
             if (!item.model) {
-                return locals;
+                return;
             }
 
-            locals.reserve(item.model->nodes.size());
+            ++gDebugStats.animatedLocalBuildCount;
+            outLocals.reserve(item.model->nodes.size());
             for (const ModelNode& node : item.model->nodes) {
-                locals.push_back(node.localTransform);
+                outLocals.push_back(node.localTransform);
             }
 
             const AnimationClip* clip = ResolveAnimationClip(item);
             if (!clip || clip->channels.empty()) {
-                return locals;
+                return;
             }
 
             const float sampleTime = ResolveAnimationSampleTime(item, *clip);
             for (const NodeAnimationChannel& channel : clip->channels) {
-                if (channel.targetNode < 0 || channel.targetNode >= static_cast<int>(locals.size())) {
+                ++gDebugStats.sampledChannelCount;
+                if (channel.targetNode < 0 || channel.targetNode >= static_cast<int>(outLocals.size())) {
                     continue;
                 }
 
-                Transform3D& local = locals[static_cast<size_t>(channel.targetNode)];
+                Transform3D& local = outLocals[static_cast<size_t>(channel.targetNode)];
                 if (channel.path == AnimationTargetPath::Translation) {
                     local.position = SampleKeys<AnimationKeyframe<MATH::Vec3>, MATH::Vec3>(channel.vec3Keys, sampleTime, channel.interpolation, local.position);
                 } else if (channel.path == AnimationTargetPath::Scale) {
@@ -271,7 +255,6 @@ namespace HIKARI::MODELRENDERER {
                     local.rotation = SampleKeys<AnimationKeyframe<MATH::Quat>, MATH::Quat>(channel.quatKeys, sampleTime, channel.interpolation, local.rotation);
                 }
             }
-            return locals;
         }
 
         MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node, const std::vector<Transform3D>& animatedLocals, size_t nodeIndex) {
@@ -284,7 +267,7 @@ namespace HIKARI::MODELRENDERER {
             return node.localTransform.GetLocalMatrix();
         }
 
-        void EvaluateNodeMatrixRecursive(const ModelAsset& asset, const std::vector<Transform3D>& animatedLocals, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<bool>& visited) {
+        void EvaluateNodeMatrixRecursive(const ModelAsset& asset, const std::vector<Transform3D>& animatedLocals, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<uint8_t>& visited) {
             if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
                 return;
             }
@@ -301,37 +284,52 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        void BuildNodeGlobalMatricesWithRoot(const ModelRenderItem& item, const MATH::Mat4& rootWorld, std::vector<MATH::Mat4>& outGlobals) {
-            if (!item.model) {
+        void BuildNodeGlobalMatricesWithRoot(const ModelAsset& model, const std::vector<Transform3D>& animatedLocals, const MATH::Mat4& rootWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<uint8_t>& visited) {
+            if (model.nodes.empty()) {
                 outGlobals.clear();
                 return;
             }
 
-            outGlobals.assign(item.model->nodes.size(), rootWorld);
-            std::vector<bool> visited(item.model->nodes.size(), false);
-            const std::vector<Transform3D> animatedLocals = BuildAnimatedNodeLocals(item);
+            ++gDebugStats.nodeGlobalMatrixBuildCount;
+            gDebugStats.nodeGlobalMatrixCount += model.nodes.size();
+            outGlobals.assign(model.nodes.size(), rootWorld);
+            visited.assign(model.nodes.size(), 0);
 
-            for (size_t i = 0; i < item.model->nodes.size(); ++i) {
-                if (item.model->nodes[i].parent == -1) {
-                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), rootWorld, outGlobals, visited);
+            for (size_t i = 0; i < model.nodes.size(); ++i) {
+                if (model.nodes[i].parent == -1) {
+                    EvaluateNodeMatrixRecursive(model, animatedLocals, static_cast<int>(i), rootWorld, outGlobals, visited);
                 }
             }
 
-            for (size_t i = 0; i < item.model->nodes.size(); ++i) {
+            for (size_t i = 0; i < model.nodes.size(); ++i) {
                 if (!visited[i]) {
-                    const int parent = item.model->nodes[i].parent;
+                    const int parent = model.nodes[i].parent;
                     const MATH::Mat4 parentWorld = (parent >= 0 && parent < static_cast<int>(outGlobals.size())) ? outGlobals[static_cast<size_t>(parent)] : rootWorld;
-                    EvaluateNodeMatrixRecursive(*item.model, animatedLocals, static_cast<int>(i), parentWorld, outGlobals, visited);
+                    EvaluateNodeMatrixRecursive(model, animatedLocals, static_cast<int>(i), parentWorld, outGlobals, visited);
                 }
             }
         }
 
         void BuildNodeGlobalMatrices(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
-            BuildNodeGlobalMatricesWithRoot(item, item.worldTransform.GetWorldMatrix(), outGlobals);
+            if (!item.model) {
+                outGlobals.clear();
+                return;
+            }
+            std::vector<Transform3D> animatedLocals;
+            std::vector<uint8_t> visited;
+            BuildAnimatedNodeLocals(item, animatedLocals);
+            BuildNodeGlobalMatricesWithRoot(*item.model, animatedLocals, item.worldTransform.GetWorldMatrix(), outGlobals, visited);
         }
 
         void BuildNodeGlobalMatricesLocal(const ModelRenderItem& item, std::vector<MATH::Mat4>& outGlobals) {
-            BuildNodeGlobalMatricesWithRoot(item, MATH::Mat4::Identity(), outGlobals);
+            if (!item.model) {
+                outGlobals.clear();
+                return;
+            }
+            std::vector<Transform3D> animatedLocals;
+            std::vector<uint8_t> visited;
+            BuildAnimatedNodeLocals(item, animatedLocals);
+            BuildNodeGlobalMatricesWithRoot(*item.model, animatedLocals, MATH::Mat4::Identity(), outGlobals, visited);
         }
 
         bool BuildJointPalette(const ModelAsset& model, int skinIndex, const std::vector<MATH::Mat4>& nodeGlobals, std::vector<MATH::Mat4>& outPalette) {
@@ -341,6 +339,8 @@ namespace HIKARI::MODELRENDERER {
                 return false;
             }
 
+            ++gDebugStats.jointPaletteBuildCount;
+            gDebugStats.jointPaletteMatrixCount += skin->joints.size();
             outPalette.resize(skin->joints.size(), MATH::Mat4::Identity());
             for (size_t jointIndex = 0; jointIndex < skin->joints.size(); ++jointIndex) {
                 const SkeletonJoint& joint = skin->joints[jointIndex];
@@ -394,6 +394,7 @@ namespace HIKARI::MODELRENDERER {
                     color,
                     mode
                 });
+                ++gDebugStats.skeletonDebugLineCount;
             }
         }
 
@@ -402,10 +403,17 @@ namespace HIKARI::MODELRENDERER {
                 return false;
             }
 
-            std::vector<MATH::Mat4> nodeGlobals;
-            BuildNodeGlobalMatrices(item, nodeGlobals);
-            std::vector<MATH::Mat4> localNodeGlobals;
-            BuildNodeGlobalMatricesLocal(item, localNodeGlobals);
+            ++gDebugStats.structuredModelCount;
+            ModelPoseEvaluationScratch scratch;
+            scratch.animatedLocals.reserve(item.model->nodes.size());
+            scratch.nodeGlobals.reserve(item.model->nodes.size());
+            scratch.localNodeGlobals.reserve(item.model->nodes.size());
+            scratch.jointPalette.reserve(128u);
+            scratch.visited.reserve(item.model->nodes.size());
+
+            BuildAnimatedNodeLocals(item, scratch.animatedLocals);
+            BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, item.worldTransform.GetWorldMatrix(), scratch.nodeGlobals, scratch.visited);
+            BuildNodeGlobalMatricesWithRoot(*item.model, scratch.animatedLocals, MATH::Mat4::Identity(), scratch.localNodeGlobals, scratch.visited);
 
             bool submitted = false;
             std::unordered_set<int> submittedDebugSkins;
@@ -419,22 +427,22 @@ namespace HIKARI::MODELRENDERER {
                 if (node.skinIndex >= 0) {
                     if (item.showSkeletonDebug && submittedDebugSkins.insert(node.skinIndex).second) {
                         if (const SkeletonAsset* skin = item.model->FindSkin(node.skinIndex)) {
-                            SubmitSkeletonDebugLines(*skin, nodeGlobals, item.skeletonDebugXRay, item.skeletonDebugColor);
+                            SubmitSkeletonDebugLines(*skin, scratch.nodeGlobals, item.skeletonDebugXRay, item.skeletonDebugColor);
                         }
                     }
 
                     ++gDebugStats.skinnedNodeCount;
-                    std::vector<MATH::Mat4> jointPalette;
+                    scratch.jointPalette.clear();
                     // Palette is built from model-local node globals. The skinned VS then applies object world once.
-                    if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, jointPalette)) {
-                        RecordBuiltJointPalette(node.skinIndex, jointPalette);
+                    if (BuildJointPalette(*item.model, node.skinIndex, scratch.localNodeGlobals, scratch.jointPalette)) {
+                        RecordBuiltJointPalette(node.skinIndex, scratch.jointPalette);
                         ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
                         if (expandedAsset != nullptr && !expandedAsset->meshes.empty() && MeshHasSkinnedPrimitives(*item.model, node.meshIndex)) {
                             Transform3D skinnedTransform = item.worldTransform;
                             MESHRENDERER::SubmitSkinnedMesh(
                                 *expandedAsset,
                                 skinnedTransform,
-                                jointPalette,
+                                scratch.jointPalette,
                                 item.materialFxProfileId,
                                 item.postGroupMask,
                                 item.materialFxParamValues,
@@ -455,7 +463,7 @@ namespace HIKARI::MODELRENDERER {
 
                 Transform3D nodeTransform{};
                 nodeTransform.useExplicitMatrix = true;
-                nodeTransform.explicitMatrix = nodeGlobals[nodeIndex];
+                nodeTransform.explicitMatrix = scratch.nodeGlobals[nodeIndex];
 
                 MESHRENDERER::SubmitStaticMesh(
                     *expandedAsset,
@@ -472,6 +480,7 @@ namespace HIKARI::MODELRENDERER {
 
     void Reset() {
         gQueue.clear();
+        gDebugStats = {};
         MESHRENDERER::Reset();
     }
 
@@ -479,11 +488,11 @@ namespace HIKARI::MODELRENDERER {
         if (!item.model) {
             return;
         }
+        ++gDebugStats.submittedModelItemCount;
         gQueue.push_back(item);
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
-        gDebugStats = {};
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;

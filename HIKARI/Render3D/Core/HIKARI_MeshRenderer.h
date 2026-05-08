@@ -18,6 +18,16 @@ namespace HIKARI::MESHRENDERER {
         size_t uploadedJointCount = 0;
         size_t maxJointCount = 0;
         size_t lastSkinnedVertexCount = 0;
+        size_t staticDrawItemCount = 0;
+        size_t skinnedDrawItemCount = 0;
+        size_t primitiveMeshCacheHitCount = 0;
+        size_t primitiveMeshCacheMissCount = 0;
+        size_t primitiveSkinnedMeshCacheHitCount = 0;
+        size_t primitiveSkinnedMeshCacheMissCount = 0;
+        size_t materialTextureCacheHitCount = 0;
+        size_t materialTextureCacheMissCount = 0;
+        size_t psoCacheHitCount = 0;
+        size_t psoCacheMissCount = 0;
     };
 
     void Reset();

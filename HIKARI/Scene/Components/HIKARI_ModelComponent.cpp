@@ -591,6 +591,41 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNode("Performance Stats")) {
+            ImGui::TextUnformatted("ModelRenderer:");
+            ImGui::Text("Submitted Model Items: %zu", rendererStats.submittedModelItemCount);
+            ImGui::Text("Structured Models: %zu", rendererStats.structuredModelCount);
+            ImGui::Text("Animated Local Builds: %zu", rendererStats.animatedLocalBuildCount);
+            ImGui::Text("Sampled Channels: %zu", rendererStats.sampledChannelCount);
+            ImGui::Text("Sampled Key Searches: %zu", rendererStats.sampledKeySearchCount);
+            ImGui::Text("Node Global Matrix Builds: %zu", rendererStats.nodeGlobalMatrixBuildCount);
+            ImGui::Text("Node Global Matrix Count: %zu", rendererStats.nodeGlobalMatrixCount);
+            ImGui::Text("Joint Palette Builds: %zu", rendererStats.jointPaletteBuildCount);
+            ImGui::Text("Joint Palette Matrix Count: %zu", rendererStats.jointPaletteMatrixCount);
+            ImGui::Text("Expanded Mesh Cache Hit / Miss: %zu / %zu",
+                rendererStats.expandedMeshCacheHitCount,
+                rendererStats.expandedMeshCacheMissCount);
+            ImGui::Text("Skeleton Debug Lines: %zu", rendererStats.skeletonDebugLineCount);
+
+            ImGui::Separator();
+            ImGui::TextUnformatted("MeshRenderer:");
+            ImGui::Text("Static Draw Items: %zu", meshRendererStats.staticDrawItemCount);
+            ImGui::Text("Skinned Draw Items: %zu", meshRendererStats.skinnedDrawItemCount);
+            ImGui::Text("Primitive Mesh Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.primitiveMeshCacheHitCount,
+                meshRendererStats.primitiveMeshCacheMissCount);
+            ImGui::Text("Skinned Primitive Mesh Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.primitiveSkinnedMeshCacheHitCount,
+                meshRendererStats.primitiveSkinnedMeshCacheMissCount);
+            ImGui::Text("Texture Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.materialTextureCacheHitCount,
+                meshRendererStats.materialTextureCacheMissCount);
+            ImGui::Text("PSO Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.psoCacheHitCount,
+                meshRendererStats.psoCacheMissCount);
+            ImGui::TreePop();
+        }
+
         if (ImGui::TreeNodeEx("Animation Clips", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Animation clips: %zu", asset_->animations.size());
             for (const AnimationClip& clip : asset_->animations) {
