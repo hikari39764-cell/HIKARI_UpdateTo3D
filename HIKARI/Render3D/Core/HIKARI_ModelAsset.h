@@ -174,8 +174,14 @@ namespace HIKARI {
         void SetState(State state);
 
         bool HasSkeleton() const;
+        bool HasSkinnedMesh() const;
         bool HasAnimations() const;
+        size_t GetSkinCount() const;
+        size_t GetAnimationCount() const;
+        const SkeletonAsset* FindSkin(int skinIndex) const;
         const AnimationClip* FindAnimationClip(std::string_view name) const;
+        const AnimationClip* GetAnimationClip(size_t index) const;
+        float GetAnimationDuration(std::string_view name) const;
 
         // Legacy bridge API used by old call sites during migration.
         Mesh* GetMesh();
