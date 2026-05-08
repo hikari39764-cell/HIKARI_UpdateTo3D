@@ -82,6 +82,78 @@ namespace HIKARI {
             return path.lexically_normal().generic_string();
         }
 
+        MATH::Mat4 ReadGltfNodeMatrix(const json& matrixNode) {
+            MATH::Mat4 out = MATH::Mat4::Identity();
+            // glTF stores node.matrix in column-major order.
+            // Convert it into HIKARI Mat4 layout here.
+            for (int col = 0; col < 4; ++col) {
+                for (int row = 0; row < 4; ++row) {
+                    out.m[col][row] = matrixNode[static_cast<size_t>(col * 4 + row)].get<float>();
+                }
+            }
+            return out;
+        }
+
+        void ReadGltfNodes(const json& root, ModelAsset& asset) {
+            if (!root.contains("nodes") || !root["nodes"].is_array()) {
+                return;
+            }
+
+            const json& nodes = root["nodes"];
+            asset.nodes.resize(nodes.size());
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                const json& node = nodes[i];
+                ModelNode modelNode{};
+                modelNode.name = node.value("name", "");
+                modelNode.localMatrix = MATH::Mat4::Identity();
+
+                if (node.contains("matrix") && node["matrix"].is_array() && node["matrix"].size() >= 16) {
+                    modelNode.hasLocalMatrix = true;
+                    modelNode.localMatrix = ReadGltfNodeMatrix(node["matrix"]);
+                } else {
+                    if (node.contains("translation") && node["translation"].is_array() && node["translation"].size() >= 3) {
+                        modelNode.localTransform.position = {
+                            node["translation"][0].get<float>(),
+                            node["translation"][1].get<float>(),
+                            node["translation"][2].get<float>()
+                        };
+                    }
+                    if (node.contains("scale") && node["scale"].is_array() && node["scale"].size() >= 3) {
+                        modelNode.localTransform.scale = {
+                            node["scale"][0].get<float>(),
+                            node["scale"][1].get<float>(),
+                            node["scale"][2].get<float>()
+                        };
+                    }
+                    if (node.contains("rotation") && node["rotation"].is_array() && node["rotation"].size() >= 4) {
+                        modelNode.localTransform.rotation = {
+                            node["rotation"][0].get<float>(),
+                            node["rotation"][1].get<float>(),
+                            node["rotation"][2].get<float>(),
+                            node["rotation"][3].get<float>()
+                        };
+                    }
+                }
+
+                modelNode.meshIndex = node.value("mesh", -1);
+                asset.nodes[i] = std::move(modelNode);
+            }
+
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                const json& node = nodes[i];
+                if (!node.contains("children") || !node["children"].is_array()) {
+                    continue;
+                }
+                for (const auto& child : node["children"]) {
+                    const int childIndex = child.get<int>();
+                    if (childIndex >= 0 && childIndex < static_cast<int>(asset.nodes.size())) {
+                        asset.nodes[i].children.push_back(childIndex);
+                        asset.nodes[static_cast<size_t>(childIndex)].parent = static_cast<int>(i);
+                    }
+                }
+            }
+        }
+
         bool ReadBinaryFile(const std::filesystem::path& path, std::vector<uint8_t>& out) {
             std::ifstream ifs(path, std::ios::binary | std::ios::ate);
             if (!ifs.is_open()) {
@@ -534,52 +606,7 @@ namespace HIKARI {
             asset.materials.push_back(MaterialAsset{});
         }
 
-        if (root.contains("nodes") && root["nodes"].is_array()) {
-            const json& nodes = root["nodes"];
-            asset.nodes.resize(nodes.size());
-            for (size_t i = 0; i < nodes.size(); ++i) {
-                const json& node = nodes[i];
-                ModelNode modelNode{};
-                modelNode.name = node.value("name", "");
-                if (node.contains("translation") && node["translation"].is_array() && node["translation"].size() >= 3) {
-                    modelNode.localTransform.position = {
-                        node["translation"][0].get<float>(),
-                        node["translation"][1].get<float>(),
-                        node["translation"][2].get<float>()
-                    };
-                }
-                if (node.contains("scale") && node["scale"].is_array() && node["scale"].size() >= 3) {
-                    modelNode.localTransform.scale = {
-                        node["scale"][0].get<float>(),
-                        node["scale"][1].get<float>(),
-                        node["scale"][2].get<float>()
-                    };
-                }
-                if (node.contains("rotation") && node["rotation"].is_array() && node["rotation"].size() >= 4) {
-                    modelNode.localTransform.rotation = {
-                        node["rotation"][0].get<float>(),
-                        node["rotation"][1].get<float>(),
-                        node["rotation"][2].get<float>(),
-                        node["rotation"][3].get<float>()
-                    };
-                }
-                modelNode.meshIndex = node.value("mesh", -1);
-                asset.nodes[i] = std::move(modelNode);
-            }
-            for (size_t i = 0; i < nodes.size(); ++i) {
-                const json& node = nodes[i];
-                if (!node.contains("children") || !node["children"].is_array()) {
-                    continue;
-                }
-                for (const auto& child : node["children"]) {
-                    const int childIndex = child.get<int>();
-                    if (childIndex >= 0 && childIndex < static_cast<int>(asset.nodes.size())) {
-                        asset.nodes[i].children.push_back(childIndex);
-                        asset.nodes[static_cast<size_t>(childIndex)].parent = static_cast<int>(i);
-                    }
-                }
-            }
-        }
+        ReadGltfNodes(root, asset);
 
         std::vector<VertexStatic3D> legacyVertices;
         std::vector<uint32_t> legacyIndices;

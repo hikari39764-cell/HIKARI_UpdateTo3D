@@ -259,10 +259,13 @@ namespace HIKARI::MODELRENDERER {
         }
 
         MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node, const std::vector<Transform3D>& animatedLocals, size_t nodeIndex) {
+            if (node.hasLocalMatrix) {
+                return node.localMatrix;
+            }
             if (nodeIndex < animatedLocals.size()) {
                 return animatedLocals[nodeIndex].GetLocalMatrix();
             }
-            return node.hasLocalMatrix ? node.localMatrix : node.localTransform.GetLocalMatrix();
+            return node.localTransform.GetLocalMatrix();
         }
 
         void EvaluateNodeMatrixRecursive(const ModelAsset& asset, const std::vector<Transform3D>& animatedLocals, int nodeIndex, const MATH::Mat4& parentWorld, std::vector<MATH::Mat4>& outGlobals, std::vector<bool>& visited) {

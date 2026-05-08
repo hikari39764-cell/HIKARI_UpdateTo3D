@@ -450,7 +450,54 @@ namespace HIKARI::MESHRENDERER {
             return raw;
         }
 
+        MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
+            const float a00 = world.m[0][0];
+            const float a01 = world.m[1][0];
+            const float a02 = world.m[2][0];
+            const float a10 = world.m[0][1];
+            const float a11 = world.m[1][1];
+            const float a12 = world.m[2][1];
+            const float a20 = world.m[0][2];
+            const float a21 = world.m[1][2];
+            const float a22 = world.m[2][2];
+
+            const float det =
+                a00 * (a11 * a22 - a12 * a21) -
+                a01 * (a10 * a22 - a12 * a20) +
+                a02 * (a10 * a21 - a11 * a20);
+            if (std::abs(det) <= 1e-6f) {
+                return MATH::Mat4::Identity();
+            }
+
+            const float invDet = 1.0f / det;
+            const float inv00 = (a11 * a22 - a12 * a21) * invDet;
+            const float inv01 = (a02 * a21 - a01 * a22) * invDet;
+            const float inv02 = (a01 * a12 - a02 * a11) * invDet;
+            const float inv10 = (a12 * a20 - a10 * a22) * invDet;
+            const float inv11 = (a00 * a22 - a02 * a20) * invDet;
+            const float inv12 = (a02 * a10 - a00 * a12) * invDet;
+            const float inv20 = (a10 * a21 - a11 * a20) * invDet;
+            const float inv21 = (a01 * a20 - a00 * a21) * invDet;
+            const float inv22 = (a00 * a11 - a01 * a10) * invDet;
+
+            MATH::Mat4 normalMatrix = MATH::Mat4::Identity();
+            normalMatrix.m[0][0] = inv00;
+            normalMatrix.m[0][1] = inv01;
+            normalMatrix.m[0][2] = inv02;
+            normalMatrix.m[1][0] = inv10;
+            normalMatrix.m[1][1] = inv11;
+            normalMatrix.m[1][2] = inv12;
+            normalMatrix.m[2][0] = inv20;
+            normalMatrix.m[2][1] = inv21;
+            normalMatrix.m[2][2] = inv22;
+            return normalMatrix;
+        }
+
         MATH::Mat4 BuildNormalMatrix(const Transform3D& transform) {
+            if (transform.useExplicitMatrix) {
+                return BuildNormalMatrixFromWorld(transform.GetWorldMatrix());
+            }
+
             MATH::Mat4 normalMatrix = MATH::Mat4::Rotate(MATH::NormalizeQ(transform.rotation));
             const MATH::Vec3 s = transform.scale;
             const float invScaleX = (std::abs(s.x) > 1e-6f) ? (1.0f / s.x) : 0.0f;

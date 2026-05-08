@@ -451,6 +451,13 @@ namespace HIKARI {
         ImGui::Text("State: %s", ToStateText(asset_->GetState()));
         ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
         ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
+        const size_t matrixNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {
+            return node.hasLocalMatrix;
+        }));
+        ImGui::Text("Nodes: %zu", asset_->nodes.size());
+        ImGui::Text("Matrix Nodes: %zu", matrixNodeCount);
+        ImGui::Text("Skins: %zu", asset_->GetSkinCount());
+        ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
         ImGui::Text("Animation clips: %zu", asset_->animations.size());
         for (const AnimationClip& clip : asset_->animations) {
             ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);
