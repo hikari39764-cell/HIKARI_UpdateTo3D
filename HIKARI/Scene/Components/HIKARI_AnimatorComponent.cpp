@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <string>
 #include <utility>
 
@@ -86,7 +85,7 @@ namespace HIKARI {
 
         const char* preview = clip_.empty() ? "<none>" : clip_.c_str();
         if (modelAsset != nullptr && !modelAsset->animations.empty()) {
-            if (ImGui::BeginCombo("Animation Clip", preview)) {
+            if (ImGui::BeginCombo("Clip From Model", preview)) {
                 for (size_t i = 0; i < modelAsset->animations.size(); ++i) {
                     const AnimationClip& clip = modelAsset->animations[i];
                     const bool selected = static_cast<int>(i) == currentIndex;
@@ -104,17 +103,6 @@ namespace HIKARI {
             ImGui::TextUnformatted("Animation Clip: <no clips on current model>");
         }
 
-        char clipBuffer[256]{};
-        std::strncpy(clipBuffer, clip_.c_str(), sizeof(clipBuffer) - 1);
-        if (ImGui::InputText("Manual Clip Name", clipBuffer, sizeof(clipBuffer))) {
-            SetClip(clipBuffer);
-        }
-        ImGui::DragFloat("Time Sec", &timeSec_, 0.01f, 0.0f, 100000.0f);
-        ImGui::DragFloat("Speed", &speed_, 0.01f, -10.0f, 10.0f);
-        ImGui::Checkbox("Loop", &loop_);
-        ImGui::Checkbox("Auto Play", &autoPlay_);
-        ImGui::Checkbox("Playing", &playing_);
-        ImGui::Text("Finished: %s", finished_ ? "Yes" : "No");
         if (currentClip != nullptr) {
             const float duration = currentClip->durationSec;
             const float normalized = duration > 0.0f ? std::clamp(timeSec_ / duration, 0.0f, 1.0f) : 0.0f;
