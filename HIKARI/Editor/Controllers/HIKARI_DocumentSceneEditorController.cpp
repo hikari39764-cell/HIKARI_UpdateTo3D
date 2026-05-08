@@ -7,6 +7,7 @@
 
 #if defined(_DEBUG)
 #include "imgui.h"
+#include "imgui_internal.h"
 #endif
 
 namespace HIKARI {
@@ -24,6 +25,52 @@ namespace HIKARI {
             }
             return false;
         }
+
+#if defined(_DEBUG)
+        void DrawEditorDockSpace() {
+            ImGuiIO& io = ImGui::GetIO();
+            if ((io.ConfigFlags & ImGuiConfigFlags_DockingEnable) == 0) {
+                return;
+            }
+
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            const ImGuiID dockspaceId = ImGui::GetID("HIKARI_EditorDockSpace");
+            const ImGuiDockNodeFlags dockspaceFlags =
+                ImGuiDockNodeFlags_PassthruCentralNode |
+                ImGuiDockNodeFlags_NoDockingOverCentralNode;
+
+            static bool initializedDefaultDockLayout = false;
+            if (!initializedDefaultDockLayout) {
+                const bool needsDefaultLayout = ImGui::DockBuilderGetNode(dockspaceId) == nullptr;
+                initializedDefaultDockLayout = true;
+                if (!needsDefaultLayout) {
+                    ImGui::DockSpaceOverViewport(dockspaceId, viewport, dockspaceFlags);
+                    return;
+                }
+
+                ImGui::DockBuilderRemoveNode(dockspaceId);
+                ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace | dockspaceFlags);
+                ImGui::DockBuilderSetNodePos(dockspaceId, viewport->WorkPos);
+                ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->WorkSize);
+
+                ImGuiID mainNode = dockspaceId;
+                ImGuiID leftNode = 0;
+                ImGuiID rightNode = 0;
+                ImGuiID bottomNode = 0;
+                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Left, 0.24f, &leftNode, &mainNode);
+                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Right, 0.26f, &rightNode, &mainNode);
+                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Down, 0.28f, &bottomNode, &mainNode);
+
+                ImGui::DockBuilderDockWindow("Scene Workspace", leftNode);
+                ImGui::DockBuilderDockWindow("Environment", rightNode);
+                ImGui::DockBuilderDockWindow("Data Monitor", bottomNode);
+                ImGui::DockBuilderDockWindow("Asset Browser", bottomNode);
+                ImGui::DockBuilderFinish(dockspaceId);
+            }
+
+            ImGui::DockSpaceOverViewport(dockspaceId, viewport, dockspaceFlags);
+        }
+#endif
     }
 
     void DocumentSceneEditorController::Draw(DocumentSceneBase& scene) {
@@ -43,6 +90,9 @@ namespace HIKARI {
         scene.SetViewportOverlayState(context_.overlays);
 
         debugMenuBar_.Draw(context_.windows, scene.GetDebugCamera(), scene.GetEnvironmentLightingEnabled());
+#if defined(_DEBUG)
+        DrawEditorDockSpace();
+#endif
 
         if (context_.windows.authoring.showSceneWorkspace) {
             DrawSceneWorkspaceWindow(scene);

@@ -173,6 +173,7 @@ namespace HIKARI {
                 ImGui::StyleColorsDark();
 
                 ImGuiIO& io = ImGui::GetIO();
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
                     io.Fonts->AddFontDefault();
                     io.Fonts->Build();
@@ -254,6 +255,7 @@ namespace HIKARI {
                 }
 
                 ImGuiIO& io = ImGui::GetIO();
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
                 io.DisplaySize = ImVec2(static_cast<float>(gWindow.Width()), static_cast<float>(gWindow.Height()));
                 io.DeltaTime = (frame.unscaledDt > 0.0f) ? frame.unscaledDt : (1.0f / 60.0f);
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
