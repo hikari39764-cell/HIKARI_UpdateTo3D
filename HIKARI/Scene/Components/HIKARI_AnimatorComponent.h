@@ -17,6 +17,8 @@ namespace HIKARI {
         void RenderImGui() override;
 
         void Play(std::string clip, bool loop = true, bool restart = true);
+        void PlayCurrent(bool restart = true);
+        void PlayOnce(std::string clip, bool restart = true);
         void Pause();
         void Resume();
         void Stop();

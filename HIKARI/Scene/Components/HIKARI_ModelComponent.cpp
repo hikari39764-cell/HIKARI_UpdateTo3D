@@ -385,102 +385,79 @@ namespace HIKARI {
 
     void ModelComponent::RenderImGui() {
 #if defined(_DEBUG)
-        ImGui::Checkbox("Visible", &visible_);
-        int postMask = static_cast<int>(postGroupMask_);
-        if (ImGui::InputInt("Post Group Mask", &postMask)) {
-            postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
-        }
-        char profileBuffer[256]{};
-        const std::string previousProfileId = materialFxProfileId_;
-        std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
-        if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
-            SetMaterialFxProfileId(profileBuffer);
-        }
-
-        if (!materialFxProfileId_.empty()) {
-            MaterialFxProfile profile{};
-            if (MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
-                const bool profileChanged = (materialFxProfileId_ != previousProfileId);
-                if (profileChanged || !materialFxValuesInitialized_) {
-                    profile.CopyValuesTo(materialFxParamValues_);
-                    materialFxValuesInitialized_ = true;
-                }
-
-                if (ImGui::Button("Reset Material FX Defaults")) {
-                    profile.CopyValuesTo(materialFxParamValues_);
-                    materialFxValuesInitialized_ = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Reload Material FX Profile")) {
-                    MaterialFxProfile reloadedProfile{};
-                    if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
-                        profile = std::move(reloadedProfile);
-                    }
-                }
-
-                if (ImGui::TreeNode("Material FX Parameters")) {
-                    for (const VFX::ParamDesc& param : profile.params) {
-                        const int slot = static_cast<int>(param.ref.slot);
-                        if (slot < 0 || slot >= static_cast<int>(std::size(materialFxParamValues_)) || param.ref.channel >= 4) {
-                            continue;
-                        }
-                        ImGui::PushID(param.key.c_str());
-                        DrawParamControl(param, materialFxParamValues_[slot]);
-                        ImGui::PopID();
-                    }
-                    ImGui::TreePop();
-                }
-            } else {
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Material FX profile not found: %s", materialFxProfileId_.c_str());
+        if (ImGui::TreeNodeEx("Material FX / Post", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Visible", &visible_);
+            int postMask = static_cast<int>(postGroupMask_);
+            if (ImGui::InputInt("Post Group Mask", &postMask)) {
+                postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
             }
-        }
+            char profileBuffer[256]{};
+            const std::string previousProfileId = materialFxProfileId_;
+            std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
+            if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
+                SetMaterialFxProfileId(profileBuffer);
+            }
 
-        if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)")) {
-            for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
-                ImGui::PushID(static_cast<int>(i));
-                ImGui::InputFloat4("Param", &materialFxParamValues_[i].x);
-                ImGui::PopID();
+            if (!materialFxProfileId_.empty()) {
+                MaterialFxProfile profile{};
+                if (MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+                    const bool profileChanged = (materialFxProfileId_ != previousProfileId);
+                    if (profileChanged || !materialFxValuesInitialized_) {
+                        profile.CopyValuesTo(materialFxParamValues_);
+                        materialFxValuesInitialized_ = true;
+                    }
+
+                    if (ImGui::Button("Reset Material FX Defaults")) {
+                        profile.CopyValuesTo(materialFxParamValues_);
+                        materialFxValuesInitialized_ = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reload Material FX Profile")) {
+                        MaterialFxProfile reloadedProfile{};
+                        if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
+                            profile = std::move(reloadedProfile);
+                        }
+                    }
+
+                    if (ImGui::TreeNode("Material FX Parameters")) {
+                        for (const VFX::ParamDesc& param : profile.params) {
+                            const int slot = static_cast<int>(param.ref.slot);
+                            if (slot < 0 || slot >= static_cast<int>(std::size(materialFxParamValues_)) || param.ref.channel >= 4) {
+                                continue;
+                            }
+                            ImGui::PushID(param.key.c_str());
+                            DrawParamControl(param, materialFxParamValues_[slot]);
+                            ImGui::PopID();
+                        }
+                        ImGui::TreePop();
+                    }
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Material FX profile not found: %s", materialFxProfileId_.c_str());
+                }
+            }
+
+            if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)")) {
+                for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                    ImGui::PushID(static_cast<int>(i));
+                    ImGui::InputFloat4("Param", &materialFxParamValues_[i].x);
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
             }
             ImGui::TreePop();
         }
+
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Asset: <none>");
             return;
         }
 
-        ImGui::Text("Asset: %s", asset_->GetName().c_str());
-        ImGui::Text("Source: %s", asset_->GetSourcePath().c_str());
-        ImGui::Text("State: %s", ToStateText(asset_->GetState()));
-        ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
-        ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
         const size_t matrixNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {
             return node.hasLocalMatrix;
         }));
         const size_t skinNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {
             return node.skinIndex >= 0;
         }));
-        ImGui::Text("Nodes: %zu", asset_->nodes.size());
-        ImGui::Text("Matrix Nodes: %zu", matrixNodeCount);
-        ImGui::Text("Skin Nodes: %zu", skinNodeCount);
-        ImGui::Text("Skins: %zu", asset_->GetSkinCount());
-        for (size_t skinIndex = 0; skinIndex < asset_->skins.size(); ++skinIndex) {
-            const SkeletonAsset& skin = asset_->skins[skinIndex];
-            ImGui::PushID(static_cast<int>(skinIndex));
-            if (ImGui::TreeNode("Skin", "Skin[%zu] %s", skinIndex, skin.name.c_str())) {
-                ImGui::Text("Skeleton Root Node: %d", skin.skeletonRootNode);
-                ImGui::Text("Joint Count: %zu", skin.joints.size());
-                const size_t maxDebugJoints = std::min<size_t>(skin.joints.size(), 32u);
-                for (size_t jointIndex = 0; jointIndex < maxDebugJoints; ++jointIndex) {
-                    const SkeletonJoint& joint = skin.joints[jointIndex];
-                    ImGui::BulletText("[%zu] %s node=%d parentJoint=%d", jointIndex, joint.name.c_str(), joint.nodeIndex, joint.parentJoint);
-                }
-                if (skin.joints.size() > maxDebugJoints) {
-                    ImGui::Text("... %zu more joints", skin.joints.size() - maxDebugJoints);
-                }
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-        }
         size_t meshCount = asset_->meshes.size();
         size_t primitiveCount = 0;
         size_t skinnedPrimitiveCount = 0;
@@ -498,56 +475,106 @@ namespace HIKARI {
                 }
             }
         }
-        ImGui::Text("Mesh Count: %zu", meshCount);
-        ImGui::Text("Primitive Count: %zu", primitiveCount);
-        ImGui::Text("Skinned Primitive Count: %zu", skinnedPrimitiveCount);
-        ImGui::Text("Skinned Vertex Count: %zu", skinnedVertexCount);
-        if (firstSkinnedVertex != nullptr) {
-            ImGui::Text("First Joints: %u %u %u %u",
-                static_cast<unsigned>(firstSkinnedVertex->joints[0]),
-                static_cast<unsigned>(firstSkinnedVertex->joints[1]),
-                static_cast<unsigned>(firstSkinnedVertex->joints[2]),
-                static_cast<unsigned>(firstSkinnedVertex->joints[3]));
-            ImGui::Text("First Weights: %.3f %.3f %.3f %.3f",
-                firstSkinnedVertex->weights[0],
-                firstSkinnedVertex->weights[1],
-                firstSkinnedVertex->weights[2],
-                firstSkinnedVertex->weights[3]);
+
+        if (ImGui::TreeNodeEx("Model Basic", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Asset: %s", asset_->GetName().c_str());
+            ImGui::Text("Source: %s", asset_->GetSourcePath().c_str());
+            ImGui::Text("State: %s", ToStateText(asset_->GetState()));
+            ImGui::Text("Has Mesh: %s", asset_->GetMesh() ? "Yes" : "No");
+            ImGui::Text("Has Material: %s", asset_->GetMaterial() ? "Yes" : "No");
+            if (const Material* material = asset_->GetMaterial()) {
+                const MATH::Vec4& color = material->GetBaseColor();
+                ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
+                const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
+                ImGui::Text("TexturePath: %s", texturePath);
+                ImGui::Text("TextureHandle: %d (%s)",
+                    material->GetBaseColorTextureHandle(),
+                    material->HasBaseColorTexture() ? "Valid" : "Invalid");
+            }
+            ImGui::TreePop();
         }
-        ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
+
+        if (ImGui::TreeNodeEx("Model Structure", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Nodes: %zu", asset_->nodes.size());
+            ImGui::Text("Matrix Nodes: %zu", matrixNodeCount);
+            ImGui::Text("Mesh Count: %zu", meshCount);
+            ImGui::Text("Primitive Count: %zu", primitiveCount);
+            ImGui::Text("Materials: %zu", asset_->materials.size());
+            ImGui::Text("Textures: %zu", asset_->textures.size());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("Skinning", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Skin Nodes: %zu", skinNodeCount);
+            ImGui::Text("Skins: %zu", asset_->GetSkinCount());
+            ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
+            ImGui::Text("Skinned Primitive Count: %zu", skinnedPrimitiveCount);
+            ImGui::Text("Skinned Vertex Count: %zu", skinnedVertexCount);
+            if (firstSkinnedVertex != nullptr) {
+                ImGui::Text("First Joints: %u %u %u %u",
+                    static_cast<unsigned>(firstSkinnedVertex->joints[0]),
+                    static_cast<unsigned>(firstSkinnedVertex->joints[1]),
+                    static_cast<unsigned>(firstSkinnedVertex->joints[2]),
+                    static_cast<unsigned>(firstSkinnedVertex->joints[3]));
+                ImGui::Text("First Weights: %.3f %.3f %.3f %.3f",
+                    firstSkinnedVertex->weights[0],
+                    firstSkinnedVertex->weights[1],
+                    firstSkinnedVertex->weights[2],
+                    firstSkinnedVertex->weights[3]);
+            }
+            for (size_t skinIndex = 0; skinIndex < asset_->skins.size(); ++skinIndex) {
+                const SkeletonAsset& skin = asset_->skins[skinIndex];
+                ImGui::PushID(static_cast<int>(skinIndex));
+                if (ImGui::TreeNode("Skin", "Skin[%zu] %s", skinIndex, skin.name.c_str())) {
+                    ImGui::Text("Skeleton Root Node: %d", skin.skeletonRootNode);
+                    ImGui::Text("Joint Count: %zu", skin.joints.size());
+                    const size_t maxDebugJoints = std::min<size_t>(skin.joints.size(), 32u);
+                    for (size_t jointIndex = 0; jointIndex < maxDebugJoints; ++jointIndex) {
+                        const SkeletonJoint& joint = skin.joints[jointIndex];
+                        ImGui::BulletText("[%zu] %s node=%d parentJoint=%d", jointIndex, joint.name.c_str(), joint.nodeIndex, joint.parentJoint);
+                    }
+                    if (skin.joints.size() > maxDebugJoints) {
+                        ImGui::Text("... %zu more joints", skin.joints.size() - maxDebugJoints);
+                    }
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+
         const MODELRENDERER::ModelRendererDebugStats& rendererStats = MODELRENDERER::GetDebugStats();
-        ImGui::Text("Joint Palette Built: %s", rendererStats.builtPaletteCount > 0 ? "Yes" : "No");
-        ImGui::Text("Skinned Nodes Rendered: %zu", rendererStats.skinnedNodeCount);
-        ImGui::Text("Built Palettes: %zu", rendererStats.builtPaletteCount);
-        ImGui::Text("Total Joint Matrices: %zu", rendererStats.totalJointMatrixCount);
-        ImGui::Text("Last Skin Index: %d", rendererStats.lastSkinIndex);
-        ImGui::Text("Last Palette Joint Count: %zu", rendererStats.lastPaletteJointCount);
         const MESHRENDERER::MeshRendererDebugStats& meshRendererStats = MESHRENDERER::GetDebugStats();
-        ImGui::Text("Skinned GPU Draws: %zu", meshRendererStats.skinnedGpuDrawCount);
-        ImGui::Text("Skinned Fallbacks: %zu", meshRendererStats.skinnedFallbackCount);
-        ImGui::Text("Uploaded Joints: %zu", meshRendererStats.uploadedJointCount);
-        ImGui::Text("Max Joint Count: %zu", meshRendererStats.maxJointCount);
-        ImGui::Text("Last Skinned Vertex Count: %zu", meshRendererStats.lastSkinnedVertexCount);
-        if (rendererStats.hasFirstJointMatrix) {
-            const MATH::Mat4& m = rendererStats.firstJointMatrix;
-            ImGui::Text("First Joint Matrix:");
-            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0]);
-            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1]);
-            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][2], m.m[1][2], m.m[2][2], m.m[3][2]);
-            ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][3], m.m[1][3], m.m[2][3], m.m[3][3]);
+
+        if (ImGui::TreeNodeEx("Runtime Skinning", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Joint Palette Built: %s", rendererStats.builtPaletteCount > 0 ? "Yes" : "No");
+            ImGui::Text("Skinned Nodes Rendered: %zu", rendererStats.skinnedNodeCount);
+            ImGui::Text("Built Palettes: %zu", rendererStats.builtPaletteCount);
+            ImGui::Text("Total Joint Matrices: %zu", rendererStats.totalJointMatrixCount);
+            ImGui::Text("Last Skin Index: %d", rendererStats.lastSkinIndex);
+            ImGui::Text("Last Palette Joint Count: %zu", rendererStats.lastPaletteJointCount);
+            ImGui::Text("Skinned GPU Draws: %zu", meshRendererStats.skinnedGpuDrawCount);
+            ImGui::Text("Skinned Fallbacks: %zu", meshRendererStats.skinnedFallbackCount);
+            ImGui::Text("Uploaded Joints: %zu", meshRendererStats.uploadedJointCount);
+            ImGui::Text("Max Joint Count: %zu", meshRendererStats.maxJointCount);
+            ImGui::Text("Last Skinned Vertex Count: %zu", meshRendererStats.lastSkinnedVertexCount);
+            if (rendererStats.hasFirstJointMatrix) {
+                const MATH::Mat4& m = rendererStats.firstJointMatrix;
+                ImGui::Text("First Joint Matrix:");
+                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0]);
+                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1]);
+                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][2], m.m[1][2], m.m[2][2], m.m[3][2]);
+                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][3], m.m[1][3], m.m[2][3], m.m[3][3]);
+            }
+            ImGui::TreePop();
         }
-        ImGui::Text("Animation clips: %zu", asset_->animations.size());
-        for (const AnimationClip& clip : asset_->animations) {
-            ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);
-        }
-        if (const Material* material = asset_->GetMaterial()) {
-            const MATH::Vec4& color = material->GetBaseColor();
-            ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
-            const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
-            ImGui::Text("TexturePath: %s", texturePath);
-            ImGui::Text("TextureHandle: %d (%s)",
-                material->GetBaseColorTextureHandle(),
-                material->HasBaseColorTexture() ? "Valid" : "Invalid");
+
+        if (ImGui::TreeNodeEx("Animation Clips", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Animation clips: %zu", asset_->animations.size());
+            for (const AnimationClip& clip : asset_->animations) {
+                ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);
+            }
+            ImGui::TreePop();
         }
 #endif
     }

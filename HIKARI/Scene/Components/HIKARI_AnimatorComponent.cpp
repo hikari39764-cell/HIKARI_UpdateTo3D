@@ -3,9 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <string>
 #include <utility>
 
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/HIKARI_GameObject.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -15,8 +19,23 @@ namespace HIKARI {
 
     namespace {
         float ClampTime(float value) {
-            return std::max(0.0f, value);
+            return (std::max)(0.0f, value);
         }
+
+        const ModelAsset* FindOwnerModelAsset(const AnimatorComponent& animator) {
+            const GameObject* owner = animator.GetOwner();
+            if (owner == nullptr) {
+                return nullptr;
+            }
+            const ModelComponent* model = owner->GetComponent<ModelComponent>();
+            return model != nullptr ? model->GetModelAsset() : nullptr;
+        }
+
+#if defined(_DEBUG)
+        const AnimationClip* FindClip(const ModelAsset* asset, const std::string& clipName) {
+            return asset != nullptr ? asset->FindAnimationClip(clipName) : nullptr;
+        }
+#endif
     }
 
     void AnimatorComponent::Serialize(nlohmann::json& out) const {
@@ -52,9 +71,42 @@ namespace HIKARI {
 
     void AnimatorComponent::RenderImGui() {
 #if defined(_DEBUG)
+        const ModelAsset* modelAsset = FindOwnerModelAsset(*this);
+        const AnimationClip* currentClip = FindClip(modelAsset, clip_);
+        int currentIndex = -1;
+        if (modelAsset != nullptr) {
+            for (size_t i = 0; i < modelAsset->animations.size(); ++i) {
+                if (modelAsset->animations[i].name == clip_) {
+                    currentIndex = static_cast<int>(i);
+                    currentClip = &modelAsset->animations[i];
+                    break;
+                }
+            }
+        }
+
+        const char* preview = clip_.empty() ? "<none>" : clip_.c_str();
+        if (modelAsset != nullptr && !modelAsset->animations.empty()) {
+            if (ImGui::BeginCombo("Animation Clip", preview)) {
+                for (size_t i = 0; i < modelAsset->animations.size(); ++i) {
+                    const AnimationClip& clip = modelAsset->animations[i];
+                    const bool selected = static_cast<int>(i) == currentIndex;
+                    std::string label = clip.name + " (" + std::to_string(clip.durationSec) + "s)";
+                    if (ImGui::Selectable(label.c_str(), selected)) {
+                        Play(clip.name, loop_, true);
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        } else {
+            ImGui::TextUnformatted("Animation Clip: <no clips on current model>");
+        }
+
         char clipBuffer[256]{};
         std::strncpy(clipBuffer, clip_.c_str(), sizeof(clipBuffer) - 1);
-        if (ImGui::InputText("Animation Clip", clipBuffer, sizeof(clipBuffer))) {
+        if (ImGui::InputText("Manual Clip Name", clipBuffer, sizeof(clipBuffer))) {
             SetClip(clipBuffer);
         }
         ImGui::DragFloat("Time Sec", &timeSec_, 0.01f, 0.0f, 100000.0f);
@@ -63,9 +115,19 @@ namespace HIKARI {
         ImGui::Checkbox("Auto Play", &autoPlay_);
         ImGui::Checkbox("Playing", &playing_);
         ImGui::Text("Finished: %s", finished_ ? "Yes" : "No");
+        if (currentClip != nullptr) {
+            const float duration = currentClip->durationSec;
+            const float normalized = duration > 0.0f ? std::clamp(timeSec_ / duration, 0.0f, 1.0f) : 0.0f;
+            ImGui::Text("Current Clip Duration: %.2f", duration);
+            ImGui::Text("Progress: %.2f / %.2f", timeSec_, duration);
+            ImGui::Text("Normalized Time: %.3f", normalized);
+            ImGui::ProgressBar(normalized);
+        } else if (!clip_.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Clip not found in current model");
+        }
 
         if (ImGui::Button("Play")) {
-            Play(clip_, loop_, true);
+            PlayCurrent(true);
         }
         ImGui::SameLine();
         if (ImGui::Button("Pause")) {
@@ -83,6 +145,10 @@ namespace HIKARI {
         if (ImGui::Button("Reset Time")) {
             ResetTime();
         }
+        ImGui::SameLine();
+        if (ImGui::Button("Play Once")) {
+            PlayOnce(clip_, true);
+        }
 #endif
     }
 
@@ -94,6 +160,14 @@ namespace HIKARI {
         if (restart) {
             timeSec_ = 0.0f;
         }
+    }
+
+    void AnimatorComponent::PlayCurrent(bool restart) {
+        Play(clip_, loop_, restart);
+    }
+
+    void AnimatorComponent::PlayOnce(std::string clip, bool restart) {
+        Play(std::move(clip), false, restart);
     }
 
     void AnimatorComponent::Pause() {
