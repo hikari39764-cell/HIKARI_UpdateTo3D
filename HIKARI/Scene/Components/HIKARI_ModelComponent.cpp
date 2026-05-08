@@ -454,9 +454,31 @@ namespace HIKARI {
         const size_t matrixNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {
             return node.hasLocalMatrix;
         }));
+        const size_t skinNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {
+            return node.skinIndex >= 0;
+        }));
         ImGui::Text("Nodes: %zu", asset_->nodes.size());
         ImGui::Text("Matrix Nodes: %zu", matrixNodeCount);
+        ImGui::Text("Skin Nodes: %zu", skinNodeCount);
         ImGui::Text("Skins: %zu", asset_->GetSkinCount());
+        for (size_t skinIndex = 0; skinIndex < asset_->skins.size(); ++skinIndex) {
+            const SkeletonAsset& skin = asset_->skins[skinIndex];
+            ImGui::PushID(static_cast<int>(skinIndex));
+            if (ImGui::TreeNode("Skin", "Skin[%zu] %s", skinIndex, skin.name.c_str())) {
+                ImGui::Text("Skeleton Root Node: %d", skin.skeletonRootNode);
+                ImGui::Text("Joint Count: %zu", skin.joints.size());
+                const size_t maxDebugJoints = std::min<size_t>(skin.joints.size(), 32u);
+                for (size_t jointIndex = 0; jointIndex < maxDebugJoints; ++jointIndex) {
+                    const SkeletonJoint& joint = skin.joints[jointIndex];
+                    ImGui::BulletText("[%zu] %s node=%d parentJoint=%d", jointIndex, joint.name.c_str(), joint.nodeIndex, joint.parentJoint);
+                }
+                if (skin.joints.size() > maxDebugJoints) {
+                    ImGui::Text("... %zu more joints", skin.joints.size() - maxDebugJoints);
+                }
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
         ImGui::Text("Skinned Mesh: %s", asset_->HasSkinnedMesh() ? "Yes" : "No");
         ImGui::Text("Animation clips: %zu", asset_->animations.size());
         for (const AnimationClip& clip : asset_->animations) {

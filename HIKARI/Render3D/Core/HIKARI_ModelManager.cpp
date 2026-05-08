@@ -6,6 +6,7 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 #include <json.hpp>
 #include "HIKARI_DxTexture.h"
@@ -136,6 +137,7 @@ namespace HIKARI {
                 }
 
                 modelNode.meshIndex = node.value("mesh", -1);
+                modelNode.skinIndex = node.value("skin", -1);
                 asset.nodes[i] = std::move(modelNode);
             }
 
@@ -151,6 +153,131 @@ namespace HIKARI {
                         asset.nodes[static_cast<size_t>(childIndex)].parent = static_cast<int>(i);
                     }
                 }
+            }
+        }
+
+        bool ReadAccessorMat4Array(
+            int accessorIndex,
+            const json& accessors,
+            const json& bufferViews,
+            const std::vector<std::vector<uint8_t>>& loadedBuffers,
+            std::vector<MATH::Mat4>& out) {
+            out.clear();
+            if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) {
+                return false;
+            }
+
+            const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
+            if (accessor.value("componentType", 0) != 5126 || accessor.value("type", "") != "MAT4") {
+                return false;
+            }
+
+            const int count = accessor.value("count", 0);
+            if (count <= 0) {
+                return false;
+            }
+
+            const int bufferViewIndex = accessor.value("bufferView", -1);
+            if (bufferViewIndex < 0 || bufferViewIndex >= static_cast<int>(bufferViews.size())) {
+                return false;
+            }
+
+            const json& view = bufferViews[static_cast<size_t>(bufferViewIndex)];
+            const int bufferIndex = view.value("buffer", -1);
+            if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) {
+                return false;
+            }
+
+            constexpr size_t kMat4ByteSize = sizeof(float) * 16u;
+            const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
+            const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
+            const size_t stride = static_cast<size_t>(view.value("byteStride", static_cast<int>(kMat4ByteSize)));
+            if (stride < kMat4ByteSize) {
+                return false;
+            }
+
+            const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
+            out.resize(static_cast<size_t>(count), MATH::Mat4::Identity());
+            for (int i = 0; i < count; ++i) {
+                const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
+                if (srcOffset + kMat4ByteSize > bufferData.size()) {
+                    out.clear();
+                    return false;
+                }
+
+                float values[16]{};
+                std::memcpy(values, bufferData.data() + srcOffset, kMat4ByteSize);
+                MATH::Mat4 mat = MATH::Mat4::Identity();
+                for (int col = 0; col < 4; ++col) {
+                    for (int row = 0; row < 4; ++row) {
+                        mat.m[col][row] = values[col * 4 + row];
+                    }
+                }
+                out[static_cast<size_t>(i)] = mat;
+            }
+            return true;
+        }
+
+        void ReadGltfSkins(
+            const json& root,
+            const json& accessors,
+            const json& bufferViews,
+            const std::vector<std::vector<uint8_t>>& loadedBuffers,
+            ModelAsset& asset) {
+            if (!root.contains("skins") || !root["skins"].is_array()) {
+                return;
+            }
+
+            for (const auto& skinNode : root["skins"]) {
+                if (!skinNode.is_object() || !skinNode.contains("joints") || !skinNode["joints"].is_array()) {
+                    continue;
+                }
+
+                std::vector<MATH::Mat4> inverseBindMatrices;
+                const int inverseBindAccessor = skinNode.value("inverseBindMatrices", -1);
+                if (inverseBindAccessor >= 0) {
+                    ReadAccessorMat4Array(inverseBindAccessor, accessors, bufferViews, loadedBuffers, inverseBindMatrices);
+                }
+
+                SkeletonAsset skeleton{};
+                skeleton.name = skinNode.value("name", "");
+                skeleton.skeletonRootNode = skinNode.value("skeleton", -1);
+
+                std::unordered_map<int, int> nodeToJoint;
+                const json& joints = skinNode["joints"];
+                for (size_t jointIndex = 0; jointIndex < joints.size(); ++jointIndex) {
+                    if (!joints[jointIndex].is_number_integer()) {
+                        continue;
+                    }
+
+                    const int nodeIndex = joints[jointIndex].get<int>();
+                    if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
+                        continue;
+                    }
+
+                    SkeletonJoint joint{};
+                    joint.name = asset.nodes[static_cast<size_t>(nodeIndex)].name;
+                    joint.nodeIndex = nodeIndex;
+                    joint.inverseBindMatrix = (jointIndex < inverseBindMatrices.size())
+                        ? inverseBindMatrices[jointIndex]
+                        : MATH::Mat4::Identity();
+
+                    const int compactJointIndex = static_cast<int>(skeleton.joints.size());
+                    nodeToJoint[nodeIndex] = compactJointIndex;
+                    skeleton.joints.push_back(std::move(joint));
+                }
+
+                for (SkeletonJoint& joint : skeleton.joints) {
+                    if (joint.nodeIndex < 0 || joint.nodeIndex >= static_cast<int>(asset.nodes.size())) {
+                        continue;
+                    }
+
+                    const int parentNode = asset.nodes[static_cast<size_t>(joint.nodeIndex)].parent;
+                    const auto foundParentJoint = nodeToJoint.find(parentNode);
+                    joint.parentJoint = (foundParentJoint != nodeToJoint.end()) ? foundParentJoint->second : -1;
+                }
+
+                asset.skins.push_back(std::move(skeleton));
             }
         }
 
@@ -607,6 +734,7 @@ namespace HIKARI {
         }
 
         ReadGltfNodes(root, asset);
+        ReadGltfSkins(root, accessors, bufferViews, loadedBuffers, asset);
 
         std::vector<VertexStatic3D> legacyVertices;
         std::vector<uint32_t> legacyIndices;
