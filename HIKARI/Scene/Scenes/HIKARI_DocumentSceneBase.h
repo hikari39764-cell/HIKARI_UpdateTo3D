@@ -61,6 +61,7 @@ namespace HIKARI {
         bool RebuildRuntimeWorld();
 
         void SetComponentGizmoState(const ComponentGizmoState& state);
+        void SetViewportOverlayState(const ViewportOverlayState& state);
         void SetSelectedGizmoObjectId(SceneObjectId id);
 
     protected:
@@ -94,6 +95,7 @@ namespace HIKARI {
         SceneDocument sceneDocument_{};
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
+        ViewportOverlayState viewportOverlayState_{};
         SceneObjectId selectedGizmoObjectId_{};
     };
 

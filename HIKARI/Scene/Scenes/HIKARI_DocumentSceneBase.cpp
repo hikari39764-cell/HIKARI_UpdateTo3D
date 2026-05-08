@@ -84,12 +84,14 @@ namespace HIKARI {
             POST::PostSystem::ClearGlobalProfile();
         }
 
-        if (DrawDebugHelpers()) {
+        if (DrawDebugHelpers() && viewportOverlayState_.showGrid) {
             RENDERER3D::DEBUG::Grid3D grid{};
             grid.halfCount = 10;
             grid.spacing = 1.0f;
             RENDERER3D::DEBUG::SubmitGrid3D(grid);
+        }
 
+        if (DrawDebugHelpers() && viewportOverlayState_.showAxis) {
             RENDERER3D::DEBUG::Axis3D axis{};
             axis.length = 2.5f;
             RENDERER3D::DEBUG::SubmitAxis3D(axis);
@@ -214,6 +216,10 @@ namespace HIKARI {
 
     void DocumentSceneBase::SetComponentGizmoState(const ComponentGizmoState& state) {
         componentGizmoState_ = state;
+    }
+
+    void DocumentSceneBase::SetViewportOverlayState(const ViewportOverlayState& state) {
+        viewportOverlayState_ = state;
     }
 
     void DocumentSceneBase::SetSelectedGizmoObjectId(SceneObjectId id) {

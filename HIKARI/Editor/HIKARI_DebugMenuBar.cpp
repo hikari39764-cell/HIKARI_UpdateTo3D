@@ -27,7 +27,7 @@ namespace HIKARI {
             }
 
             if (ImGui::BeginMenu("Runtime & Debug")) {
-                ImGui::MenuItem("Debug Workspace", nullptr, &windows.runtime.showDebugWorkspace);
+                ImGui::MenuItem("Data Monitor", nullptr, &windows.runtime.showDebugWorkspace);
                 ImGui::EndMenu();
             }
 

@@ -15,11 +15,16 @@ namespace HIKARI {
 
     struct ComponentGizmoState {
         bool showComponentGizmos = true;
-        bool showTriggerVolumes = true;
-        bool showSpawnPoints = true;
-        bool showDoorTransitions = true;
-        bool showUIScreenRects = true;
+        bool showTriggerVolumes = false;
+        bool showSpawnPoints = false;
+        bool showDoorTransitions = false;
+        bool showUIScreenRects = false;
         bool showOnlySelectedObject = false;
+    };
+
+    struct ViewportOverlayState {
+        bool showGrid = true;
+        bool showAxis = true;
     };
 
     struct AuthoringWindowState {
@@ -44,6 +49,7 @@ namespace HIKARI {
     struct EditorContext {
         DebugWindowState windows{};
         ComponentGizmoState gizmos{};
+        ViewportOverlayState overlays{};
         EditorSelection selection{};
 
         std::string sceneNameEditBuffer{ "Untitled" };

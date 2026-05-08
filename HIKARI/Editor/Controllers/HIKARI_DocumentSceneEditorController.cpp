@@ -40,6 +40,7 @@ namespace HIKARI {
             scene.SetSelectedGizmoObjectId(SceneObjectId{});
         }
         scene.SetComponentGizmoState(context_.gizmos);
+        scene.SetViewportOverlayState(context_.overlays);
 
         debugMenuBar_.Draw(context_.windows, scene.GetDebugCamera(), scene.GetEnvironmentLightingEnabled());
 
@@ -92,36 +93,39 @@ namespace HIKARI {
 
     void DocumentSceneEditorController::DrawDebugWorkspaceWindow(DocumentSceneBase& scene) {
 #if defined(_DEBUG)
-        if (!ImGui::Begin("Debug Workspace")) {
+        if (!ImGui::Begin("Data Monitor")) {
             ImGui::End();
             return;
         }
 
         if (ImGui::BeginTabBar("DebugWorkspaceTabs")) {
-            if (ImGui::BeginTabItem("Tools")) {
-                if (ImGui::CollapsingHeader("Debug Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    debugCameraPanel_.DrawContents(scene.GetDebugCamera());
-                }
-                if (ImGui::CollapsingHeader("Gizmo Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::Checkbox("Show Component Gizmos", &context_.gizmos.showComponentGizmos);
-                    ImGui::Checkbox("Show Trigger Volumes", &context_.gizmos.showTriggerVolumes);
-                    ImGui::Checkbox("Show Spawn Points", &context_.gizmos.showSpawnPoints);
-                    ImGui::Checkbox("Show Door Transitions", &context_.gizmos.showDoorTransitions);
-                    ImGui::Checkbox("Show UI Screen Rects", &context_.gizmos.showUIScreenRects);
-                    ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
-                }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Stats")) {
+            if (ImGui::BeginTabItem("Overview")) {
                 statsPanel_.DrawContents(scene.GetSceneName(), scene.GetWorld(), scene.GetModelManager(), context_.selection, scene.GetCamera());
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Debug")) {
+            if (ImGui::BeginTabItem("Object")) {
                 inspectorPanel_.DrawContents(context_.selection);
                 selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Time")){
+            if (ImGui::BeginTabItem("Viewport")) {
+                if (ImGui::CollapsingHeader("Viewport Overlays", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Grid", &context_.overlays.showGrid);
+                    ImGui::Checkbox("Axis", &context_.overlays.showAxis);
+                    ImGui::Separator();
+                    ImGui::Checkbox("Component Gizmos", &context_.gizmos.showComponentGizmos);
+                    ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
+                    ImGui::Checkbox("Trigger Volumes", &context_.gizmos.showTriggerVolumes);
+                    ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
+                    ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
+                    ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
+                }
+                if (ImGui::CollapsingHeader("Debug Camera")) {
+                    debugCameraPanel_.DrawContents(scene.GetDebugCamera());
+                }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Time")) {
                 timePanel_.DrawContents();
                 ImGui::EndTabItem();
             }
