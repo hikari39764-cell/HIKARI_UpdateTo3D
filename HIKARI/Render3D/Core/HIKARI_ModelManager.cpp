@@ -660,9 +660,24 @@ namespace HIKARI {
 
         auto pushTri = [&](int i0, int i1, int i2, const MATH::Vec3& n) {
             const uint32_t base = static_cast<uint32_t>(vertices.size());
-            vertices.push_back({ p[i0], n, 0.0f, 0.0f });
-            vertices.push_back({ p[i1], n, 1.0f, 0.0f });
-            vertices.push_back({ p[i2], n, 1.0f, 1.0f });
+            VertexStatic3D v0{};
+            v0.position = p[i0];
+            v0.normal = n;
+            v0.u = 0.0f;
+            v0.v = 0.0f;
+            VertexStatic3D v1{};
+            v1.position = p[i1];
+            v1.normal = n;
+            v1.u = 1.0f;
+            v1.v = 0.0f;
+            VertexStatic3D v2{};
+            v2.position = p[i2];
+            v2.normal = n;
+            v2.u = 1.0f;
+            v2.v = 1.0f;
+            vertices.push_back(v0);
+            vertices.push_back(v1);
+            vertices.push_back(v2);
             indices.push_back(base + 0);
             indices.push_back(base + 1);
             indices.push_back(base + 2);
@@ -1020,6 +1035,7 @@ namespace HIKARI {
                     VertexStatic3D legacy{};
                     legacy.position = out.position;
                     legacy.normal = out.normal;
+                    legacy.tangent = out.tangent;
                     legacy.u = out.uv0.x;
                     legacy.v = out.uv0.y;
                     legacyVertices.push_back(legacy);

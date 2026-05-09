@@ -10,6 +10,7 @@ namespace HIKARI {
     struct VertexStatic3D {
         MATH::Vec3 position{};
         MATH::Vec3 normal{};
+        MATH::Vec4 tangent{ 1.0f, 0.0f, 0.0f, 1.0f };
         float u = 0.0f;
         float v = 0.0f;
     };

@@ -14,6 +14,9 @@ cbuffer ObjectCB : register(b1)
     uint gMaterialFlags;
     float gAlphaCutoff;
     float4 gEmissiveFactor;
+    uint gHasNormalTexture;
+    float gNormalScale;
+    float2 gNormalPadding;
 
     float4 gFxUser0;
     float4 gFxUser1;
@@ -40,6 +43,7 @@ cbuffer LightCB : register(b2)
 };
 
 Texture2D gBaseColorTex : register(t0);
+Texture2D gNormalTex : register(t1);
 SamplerState gLinearWrap : register(s0);
 
 struct PSInput
@@ -47,8 +51,38 @@ struct PSInput
     float4 position   : SV_POSITION;
     float3 worldPosWS : TEXCOORD1;
     float3 normalWS   : NORMAL;
+    float4 tangentWS  : TANGENT;
     float2 uv         : TEXCOORD0;
 };
+
+float3 ResolveShadingNormal(float3 normalWS, float4 tangentWS, float2 uv)
+{
+    float3 n = normalize(normalWS);
+    if (gHasNormalTexture == 0)
+    {
+        return n;
+    }
+
+    float3 t = tangentWS.xyz;
+    if (dot(t, t) < 1e-5f)
+    {
+        return n;
+    }
+
+    t = normalize(t);
+    t = t - n * dot(n, t);
+    if (dot(t, t) < 1e-5f)
+    {
+        return n;
+    }
+    t = normalize(t);
+    float3 b = normalize(cross(n, t) * tangentWS.w);
+
+    float3 normalTS = gNormalTex.Sample(gLinearWrap, uv).xyz * 2.0f - 1.0f;
+    normalTS.xy *= gNormalScale;
+    normalTS = normalize(normalTS);
+    return normalize(normalTS.x * t + normalTS.y * b + normalTS.z * n);
+}
 
 float Hash31(float3 p)
 {
@@ -115,7 +149,7 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float3 n = normalize(input.normalWS);
+    float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
     float3 l = normalize(gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);

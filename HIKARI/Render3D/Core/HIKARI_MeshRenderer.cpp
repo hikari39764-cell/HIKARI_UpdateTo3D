@@ -38,6 +38,9 @@ namespace HIKARI::MESHRENDERER {
             uint32_t materialFlags = 0;
             float alphaCutoff = 0.5f;
             MATH::Vec4 emissiveFactor{};
+            uint32_t hasNormalTexture = 0;
+            float normalScale = 1.0f;
+            float normalPadding[2]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -115,6 +118,7 @@ namespace HIKARI::MESHRENDERER {
             std::vector<DrawItem> drawItems;
             MeshRendererDebugStats debugStats;
             int fallbackTextureHandle = -1;
+            int fallbackNormalTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
@@ -193,7 +197,14 @@ namespace HIKARI::MESHRENDERER {
             textureRange.RegisterSpace = 0;
             textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[4]{};
+            D3D12_DESCRIPTOR_RANGE normalTextureRange{};
+            normalTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            normalTextureRange.NumDescriptors = 1;
+            normalTextureRange.BaseShaderRegister = 1;
+            normalTextureRange.RegisterSpace = 0;
+            normalTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[5]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -213,6 +224,11 @@ namespace HIKARI::MESHRENDERER {
             params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             params[3].DescriptorTable.NumDescriptorRanges = 1;
             params[3].DescriptorTable.pDescriptorRanges = &textureRange;
+
+            params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[4].DescriptorTable.NumDescriptorRanges = 1;
+            params[4].DescriptorTable.pDescriptorRanges = &normalTextureRange;
 
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -242,14 +258,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[5]{};
+            D3D12_ROOT_PARAMETER skinnedParams[6]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[4].Descriptor.ShaderRegister = 3;
-            skinnedParams[4].Descriptor.RegisterSpace = 0;
+            skinnedParams[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[5].Descriptor.ShaderRegister = 3;
+            skinnedParams[5].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -268,6 +284,7 @@ namespace HIKARI::MESHRENDERER {
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
 
@@ -352,6 +369,7 @@ namespace HIKARI::MESHRENDERER {
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
 
@@ -527,6 +545,10 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.fallbackNormalTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_normal", "HIKARI/normal_flat_1x1.png");
+            if (g.fallbackNormalTextureHandle < 0) {
+                g.fallbackNormalTextureHandle = g.fallbackTextureHandle;
+            }
             g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
@@ -567,6 +589,47 @@ namespace HIKARI::MESHRENDERER {
             return handle >= 0 ? handle : g.fallbackTextureHandle;
         }
 
+        int ResolvePrimitiveNormalTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+            if (materialAsset == nullptr) {
+                return g.fallbackNormalTextureHandle;
+            }
+
+            const int textureIndex = materialAsset->normalTexture.textureIndex;
+            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
+                ++g.debugStats.normalMapFallbackCount;
+                return g.fallbackNormalTextureHandle;
+            }
+
+            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
+            if (texturePath.empty()) {
+                ++g.debugStats.normalMapFallbackCount;
+                return g.fallbackNormalTextureHandle;
+            }
+
+            const std::string cacheKey = "normal:" + texturePath;
+            auto found = g.materialTextureCache.find(cacheKey);
+            if (found != g.materialTextureCache.end()) {
+                ++g.debugStats.normalTextureCacheHitCount;
+                return found->second >= 0 ? found->second : g.fallbackNormalTextureHandle;
+            }
+
+            ++g.debugStats.normalTextureCacheMissCount;
+            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/normal/" + texturePath, texturePath);
+            g.materialTextureCache[cacheKey] = handle;
+            return handle >= 0 ? handle : g.fallbackNormalTextureHandle;
+        }
+
+        MATH::Vec4 SanitizeTangent(const MATH::Vec4& tangent) {
+            const float lenSq =
+                tangent.x * tangent.x +
+                tangent.y * tangent.y +
+                tangent.z * tangent.z;
+            if (lenSq <= 1e-8f) {
+                return { 1.0f, 0.0f, 0.0f, 1.0f };
+            }
+            return tangent;
+        }
+
         Mesh* GetOrCreatePrimitiveMesh(const MeshPrimitive& primitive) {
             auto found = g.primitiveMeshCache.find(&primitive);
             if (found != g.primitiveMeshCache.end()) {
@@ -585,6 +648,7 @@ namespace HIKARI::MESHRENDERER {
                 VertexStatic3D dst{};
                 dst.position = src.position;
                 dst.normal = src.normal;
+                dst.tangent = SanitizeTangent(src.tangent);
                 dst.u = src.uv0.x;
                 dst.v = src.uv0.y;
                 vertices.push_back(dst);
@@ -726,14 +790,21 @@ namespace HIKARI::MESHRENDERER {
             obj.fxUser3 = item.fxValues[3];
         }
 
-        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset) {
+        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle) {
             obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
             obj.materialFlags = 0;
             obj.alphaCutoff = materialAsset ? materialAsset->alphaCutoff : 0.5f;
             obj.emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+            obj.hasNormalTexture = 0;
+            obj.normalScale = materialAsset ? materialAsset->normalTexture.scale : 1.0f;
 
             if (materialAsset == nullptr) {
                 return;
+            }
+
+            if (normalTextureHandle >= 0 && normalTextureHandle != g.fallbackNormalTextureHandle) {
+                obj.hasNormalTexture = 1;
+                ++g.debugStats.normalMappedPrimitiveCount;
             }
 
             if (materialAsset->alphaMode == AlphaMode::Mask) {
@@ -921,8 +992,9 @@ namespace HIKARI::MESHRENDERER {
                         ObjectCB obj{};
                         obj.world = world;
                         obj.normalMatrix = normalMatrix;
-                        FillMaterialValues(obj, materialAsset);
                         const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
+                        const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
+                        FillMaterialValues(obj, materialAsset, normalTextureHandle);
                         obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
                         FillFxValues(obj, item);
 
@@ -939,7 +1011,7 @@ namespace HIKARI::MESHRENDERER {
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(4, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(5, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -976,6 +1048,13 @@ namespace HIKARI::MESHRENDERER {
                         if (textureSrv.ptr != 0) {
                             cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
                         }
+                        D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(normalTextureHandle);
+                        if (normalSrv.ptr == 0) {
+                            normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                        }
+                        if (normalSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
+                        }
 
                         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -996,7 +1075,7 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
             obj.normalMatrix = BuildNormalMatrix(item.transform);
-            FillMaterialValues(obj, nullptr);
+            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle);
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
@@ -1036,6 +1115,13 @@ namespace HIKARI::MESHRENDERER {
             const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
             if (textureSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
+            }
+            D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackNormalTextureHandle);
+            if (normalSrv.ptr == 0) {
+                normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+            }
+            if (normalSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
             }
 
             const Mesh* mesh = item.asset->GetMesh();

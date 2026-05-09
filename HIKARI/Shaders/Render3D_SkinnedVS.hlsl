@@ -11,7 +11,12 @@ cbuffer ObjectCB : register(b1)
     float4 gBaseColor;
     uint gHasBaseColorTexture;
     uint gFxFlags;
-    float2 gObjectPadding;
+    uint gMaterialFlags;
+    float gAlphaCutoff;
+    float4 gEmissiveFactor;
+    uint gHasNormalTexture;
+    float gNormalScale;
+    float2 gNormalPadding;
     float4 gFxUser0;
     float4 gFxUser1;
     float4 gFxUser2;
@@ -42,6 +47,7 @@ struct VSOutput
     float4 position : SV_POSITION;
     float3 worldPosWS : TEXCOORD1;
     float3 normalWS : NORMAL;
+    float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
 };
 
@@ -66,10 +72,17 @@ VSOutput main(VSInput input)
         mul((float3x3)ResolveJointMatrix(input.joints.z), input.normal) * input.weights.z +
         mul((float3x3)ResolveJointMatrix(input.joints.w), input.normal) * input.weights.w;
 
+    float3 localTangent =
+        mul((float3x3)ResolveJointMatrix(input.joints.x), input.tangent.xyz) * input.weights.x +
+        mul((float3x3)ResolveJointMatrix(input.joints.y), input.tangent.xyz) * input.weights.y +
+        mul((float3x3)ResolveJointMatrix(input.joints.z), input.tangent.xyz) * input.weights.z +
+        mul((float3x3)ResolveJointMatrix(input.joints.w), input.tangent.xyz) * input.weights.w;
+
     float4 worldPos = mul(gWorld, float4(localPos.xyz, 1.0f));
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
     output.normalWS = normalize(mul((float3x3)gNormalMatrix, normalize(localNormal)));
+    output.tangentWS = float4(normalize(mul((float3x3)gNormalMatrix, normalize(localTangent))), input.tangent.w);
     output.uv = input.uv0;
     return output;
 }

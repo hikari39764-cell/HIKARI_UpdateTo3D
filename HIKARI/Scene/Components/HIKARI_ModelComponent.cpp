@@ -710,6 +710,11 @@ namespace HIKARI {
                 meshRendererStats.materialFxProfileCacheHitCount,
                 meshRendererStats.materialFxProfileCacheMissCount,
                 meshRendererStats.materialFxProfileCacheFailCount);
+            ImGui::Text("NormalMapped Primitives: %zu", meshRendererStats.normalMappedPrimitiveCount);
+            ImGui::Text("NormalMap Fallbacks: %zu", meshRendererStats.normalMapFallbackCount);
+            ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.normalTextureCacheHitCount,
+                meshRendererStats.normalTextureCacheMissCount);
             ImGui::TreePop();
         }
 
