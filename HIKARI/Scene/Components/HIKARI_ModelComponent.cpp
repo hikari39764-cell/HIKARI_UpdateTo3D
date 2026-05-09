@@ -450,6 +450,7 @@ namespace HIKARI {
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Reload Material FX Profile")) {
+                        MaterialFxProfile::ClearCache();
                         MaterialFxProfile reloadedProfile{};
                         if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
                             profile = std::move(reloadedProfile);
@@ -705,6 +706,10 @@ namespace HIKARI {
             ImGui::Text("PSO Cache Hit / Miss: %zu / %zu",
                 meshRendererStats.psoCacheHitCount,
                 meshRendererStats.psoCacheMissCount);
+            ImGui::Text("MaterialFx Profile Cache Hit / Miss / Fail: %zu / %zu / %zu",
+                meshRendererStats.materialFxProfileCacheHitCount,
+                meshRendererStats.materialFxProfileCacheMissCount,
+                meshRendererStats.materialFxProfileCacheFailCount);
             ImGui::TreePop();
         }
 

@@ -28,6 +28,9 @@ namespace HIKARI::MESHRENDERER {
         size_t materialTextureCacheMissCount = 0;
         size_t psoCacheHitCount = 0;
         size_t psoCacheMissCount = 0;
+        size_t materialFxProfileCacheHitCount = 0;
+        size_t materialFxProfileCacheMissCount = 0;
+        size_t materialFxProfileCacheFailCount = 0;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;

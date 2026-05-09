@@ -2,12 +2,16 @@
 
 #include <algorithm>
 #include <fstream>
+#include <unordered_map>
 
 #include <json.hpp>
 
 namespace HIKARI {
 
 namespace {
+    std::unordered_map<std::string, MaterialFxProfile> gProfileCache;
+    MaterialFxProfileCacheStats gProfileCacheStats{};
+
     VFX::CompositeMode ParseComposite(const nlohmann::json& in, VFX::CompositeMode fallback) {
         const std::string value = in.is_string() ? in.get<std::string>() : std::string{};
         if (value == "Alpha") return VFX::CompositeMode::Alpha;
@@ -130,8 +134,35 @@ bool MaterialFxProfile::LoadById(const std::string& profileId, MaterialFxProfile
     if (profileId.empty()) {
         return false;
     }
-    out.id = profileId;
-    return out.LoadFromJson("Data/material_fx_profiles.json");
+
+    const auto found = gProfileCache.find(profileId);
+    if (found != gProfileCache.end()) {
+        ++gProfileCacheStats.hitCount;
+        out = found->second;
+        return true;
+    }
+
+    ++gProfileCacheStats.missCount;
+
+    MaterialFxProfile loaded{};
+    loaded.id = profileId;
+    if (!loaded.LoadFromJson("Data/material_fx_profiles.json")) {
+        ++gProfileCacheStats.failCount;
+        return false;
+    }
+
+    const auto inserted = gProfileCache.emplace(profileId, std::move(loaded));
+    out = inserted.first->second;
+    return true;
+}
+
+void MaterialFxProfile::ClearCache() {
+    gProfileCache.clear();
+    gProfileCacheStats = {};
+}
+
+MaterialFxProfileCacheStats MaterialFxProfile::GetCacheStats() {
+    return gProfileCacheStats;
 }
 
 void MaterialFxProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[4]) const {

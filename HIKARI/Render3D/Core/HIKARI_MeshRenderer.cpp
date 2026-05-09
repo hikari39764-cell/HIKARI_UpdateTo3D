@@ -79,6 +79,8 @@ namespace HIKARI::MESHRENDERER {
             uint32_t fxFlags = 0;
             std::array<DirectX::XMFLOAT4, 4> materialFxParamValues{};
             bool materialFxValuesInitialized = false;
+            bool hasResolvedMaterialFxProfile = false;
+            MaterialFxProfile resolvedMaterialFxProfile{};
         };
 
         struct VariantKeyHasher {
@@ -434,7 +436,21 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
         }
 
+        void ApplyProfileToVariant(const MaterialFxProfile& profile, VFX::VariantKey& variant) {
+            if (!profile.shaderProfileId.empty()) {
+                variant.shaderId = profile.shaderProfileId;
+            }
+            variant.featureBits = profile.featureBits;
+            variant.composite = profile.composite;
+            variant.depthTest = profile.depthTest;
+            variant.depthWrite = profile.depthWrite;
+            variant.doubleSided = profile.doubleSided;
+        }
+
         void ApplyMaterialFxOverride(DrawItem& item) {
+            item.hasResolvedMaterialFxProfile = false;
+            item.resolvedMaterialFxProfile = {};
+
             if (item.materialFxProfileId.empty()) {
                 return;
             }
@@ -444,14 +460,9 @@ namespace HIKARI::MESHRENDERER {
                 return;
             }
 
-            if (!profile.shaderProfileId.empty()) {
-                item.variant.shaderId = profile.shaderProfileId;
-            }
-            item.variant.featureBits = profile.featureBits;
-            item.variant.composite = profile.composite;
-            item.variant.depthTest = profile.depthTest;
-            item.variant.depthWrite = profile.depthWrite;
-            item.variant.doubleSided = profile.doubleSided;
+            item.hasResolvedMaterialFxProfile = true;
+            item.resolvedMaterialFxProfile = std::move(profile);
+            ApplyProfileToVariant(item.resolvedMaterialFxProfile, item.variant);
         }
 
         void ResolveDrawVariant(DrawItem& item) {
@@ -493,18 +504,8 @@ namespace HIKARI::MESHRENDERER {
             }
 
             // Object-level MaterialFx should override primitive material defaults.
-            if (!item.materialFxProfileId.empty()) {
-                MaterialFxProfile profile{};
-                if (MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
-                    if (!profile.shaderProfileId.empty()) {
-                        variant.shaderId = profile.shaderProfileId;
-                    }
-                    variant.featureBits = profile.featureBits;
-                    variant.composite = profile.composite;
-                    variant.depthTest = profile.depthTest;
-                    variant.depthWrite = profile.depthWrite;
-                    variant.doubleSided = profile.doubleSided;
-                }
+            if (item.hasResolvedMaterialFxProfile) {
+                ApplyProfileToVariant(item.resolvedMaterialFxProfile, variant);
             }
 
             return variant;
@@ -1050,6 +1051,10 @@ namespace HIKARI::MESHRENDERER {
     }
 
     const MeshRendererDebugStats& GetDebugStats() {
+        const MaterialFxProfileCacheStats fxCacheStats = MaterialFxProfile::GetCacheStats();
+        g.debugStats.materialFxProfileCacheHitCount = fxCacheStats.hitCount;
+        g.debugStats.materialFxProfileCacheMissCount = fxCacheStats.missCount;
+        g.debugStats.materialFxProfileCacheFailCount = fxCacheStats.failCount;
         return g.debugStats;
     }
 
