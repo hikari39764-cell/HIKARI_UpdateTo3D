@@ -94,7 +94,7 @@
     {
       "id": "Tee",
       "type": "Model",
-      "sourcePath": "./Assets/TestModel/Female_Peasant_Arms.gltf",
+      "sourcePath": "./Assets/TestModel/blockT2.gltf",
       "importer": "gltf",
       "preload": false,
       "importOptions": {
