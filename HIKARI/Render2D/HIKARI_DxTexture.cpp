@@ -202,6 +202,14 @@ namespace HIKARI {
 
         int DxTextureManager::RegisterFromResource(ID3D12Resource* resource)
         {
+            if (!resource) {
+                return -1;
+            }
+            return RegisterFromResourceAs(resource, resource->GetDesc().Format);
+        }
+
+        int DxTextureManager::RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat)
+        {
             EnsureInit();
             if (!resource) {
                 return -1;
@@ -220,7 +228,7 @@ namespace HIKARI {
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             auto desc = resource->GetDesc();
-            srvDesc.Format = desc.Format;
+            srvDesc.Format = srvFormat;
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Texture2D.MipLevels = 1;

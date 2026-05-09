@@ -11,6 +11,7 @@
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #undef max
 #undef min
@@ -623,7 +624,9 @@ namespace HIKARI::MODELRENDERER {
                                 item.materialFxProfileId,
                                 item.postGroupMask,
                                 item.materialFxParamValues,
-                                item.materialFxValuesInitialized);
+                                item.materialFxValuesInitialized,
+                                item.receiveShadow);
+                            SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             submittedSkinned = true;
                             submitted = true;
                         }
@@ -648,7 +651,9 @@ namespace HIKARI::MODELRENDERER {
                     item.materialFxProfileId,
                     item.postGroupMask,
                     item.materialFxParamValues,
-                    item.materialFxValuesInitialized);
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow);
+                SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
                 submitted = true;
             }
             return submitted;
@@ -659,6 +664,7 @@ namespace HIKARI::MODELRENDERER {
         gQueue.clear();
         gDebugStats = {};
         MESHRENDERER::Reset();
+        SHADOW::Reset();
     }
 
     void SubmitModel(const ModelRenderItem& item) {
@@ -671,6 +677,7 @@ namespace HIKARI::MODELRENDERER {
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
         ++gFrameIndex;
+        SHADOW::BeginFrame(environment, camera);
 
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
@@ -681,15 +688,19 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
+            const Transform3D animatedTransform = BuildAnimatedTransform(item);
             MESHRENDERER::SubmitStaticMesh(
                 *item.model,
-                BuildAnimatedTransform(item),
+                animatedTransform,
                 item.materialFxProfileId,
                 item.postGroupMask,
                 item.materialFxParamValues,
-                item.materialFxValuesInitialized);
+                item.materialFxValuesInitialized,
+                item.receiveShadow);
+            SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
         }
 
+        SHADOW::RenderDirectionalShadowMap();
         MESHRENDERER::RenderAll(camera, environment);
         gQueue.clear();
         PrunePoseCache();

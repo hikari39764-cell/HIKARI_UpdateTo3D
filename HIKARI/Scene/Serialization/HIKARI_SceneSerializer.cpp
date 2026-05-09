@@ -53,6 +53,16 @@ namespace HIKARI {
             out["directional"]["intensity"] = environment.directional.intensity;
             out["directional"]["color"] = ToVec3(environment.directional.color);
 
+            out["directionalShadow"]["enabled"] = environment.directionalShadow.enabled;
+            out["directionalShadow"]["resolution"] = environment.directionalShadow.resolution;
+            out["directionalShadow"]["orthoSize"] = environment.directionalShadow.orthoSize;
+            out["directionalShadow"]["nearPlane"] = environment.directionalShadow.nearPlane;
+            out["directionalShadow"]["farPlane"] = environment.directionalShadow.farPlane;
+            out["directionalShadow"]["depthBias"] = environment.directionalShadow.depthBias;
+            out["directionalShadow"]["normalBias"] = environment.directionalShadow.normalBias;
+            out["directionalShadow"]["strength"] = environment.directionalShadow.strength;
+            out["directionalShadow"]["showDebugFrustum"] = environment.directionalShadow.showDebugFrustum;
+
             out["pointLights"] = json::array();
             for (const PointLight& pointLight : environment.pointLights) {
                 json p;
@@ -100,6 +110,19 @@ namespace HIKARI {
                 environment.directional.direction = FromVec3(directional.value("direction", json::array()), environment.directional.direction);
                 environment.directional.intensity = directional.value("intensity", environment.directional.intensity);
                 environment.directional.color = FromVec3(directional.value("color", json::array()), environment.directional.color);
+            }
+
+            if (in.contains("directionalShadow") && in["directionalShadow"].is_object()) {
+                const json& shadow = in["directionalShadow"];
+                environment.directionalShadow.enabled = shadow.value("enabled", environment.directionalShadow.enabled);
+                environment.directionalShadow.resolution = shadow.value("resolution", environment.directionalShadow.resolution);
+                environment.directionalShadow.orthoSize = shadow.value("orthoSize", environment.directionalShadow.orthoSize);
+                environment.directionalShadow.nearPlane = shadow.value("nearPlane", environment.directionalShadow.nearPlane);
+                environment.directionalShadow.farPlane = shadow.value("farPlane", environment.directionalShadow.farPlane);
+                environment.directionalShadow.depthBias = shadow.value("depthBias", environment.directionalShadow.depthBias);
+                environment.directionalShadow.normalBias = shadow.value("normalBias", environment.directionalShadow.normalBias);
+                environment.directionalShadow.strength = shadow.value("strength", environment.directionalShadow.strength);
+                environment.directionalShadow.showDebugFrustum = shadow.value("showDebugFrustum", environment.directionalShadow.showDebugFrustum);
             }
 
             if (in.contains("pointLights") && in["pointLights"].is_array()) {

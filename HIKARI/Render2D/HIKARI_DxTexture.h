@@ -19,6 +19,7 @@ namespace HIKARI {
 
             static int LoadTexture(const std::string& name, const std::string& path);
             static int RegisterFromResource(ID3D12Resource* resource);
+            static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
             static ID3D12DescriptorHeap* GetSrvHeap();
             static void GetTextureSize(int handle, UINT& outWidth, UINT& outHeight);

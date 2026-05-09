@@ -17,6 +17,8 @@ cbuffer ObjectCB : register(b1)
     uint gHasNormalTexture;
     float gNormalScale;
     float2 gNormalPadding;
+    uint gReceiveShadow;
+    float3 gShadowObjectPadding;
 
     float4 gFxUser0;
     float4 gFxUser1;
@@ -42,8 +44,18 @@ cbuffer LightCB : register(b2)
     float gLightPadding;
 };
 
+cbuffer ShadowCB : register(b4)
+{
+    float4x4 gShadowLightViewProj;
+    uint gShadowEnabled;
+    float gShadowDepthBias;
+    float gShadowNormalBias;
+    float gShadowStrength;
+};
+
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
+Texture2D gShadowMap : register(t2);
 SamplerState gLinearWrap : register(s0);
 
 struct PSInput
@@ -147,6 +159,32 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
     return sum;
 }
 
+float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS)
+{
+    if (gShadowEnabled == 0 || gReceiveShadow == 0)
+    {
+        return 1.0f;
+    }
+
+    float3 biasedWorldPos = worldPosWS + normalWS * gShadowNormalBias;
+    float4 lightClip = mul(gShadowLightViewProj, float4(biasedWorldPos, 1.0f));
+    if (abs(lightClip.w) < 1e-5f)
+    {
+        return 1.0f;
+    }
+
+    float3 proj = lightClip.xyz / lightClip.w;
+    float2 uv = float2(proj.x * 0.5f + 0.5f, -proj.y * 0.5f + 0.5f);
+    if (uv.x < 0.0f || uv.x > 1.0f || uv.y < 0.0f || uv.y > 1.0f || proj.z < 0.0f || proj.z > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    float currentDepth = proj.z - gShadowDepthBias;
+    float shadowDepth = gShadowMap.Sample(gLinearWrap, uv).r;
+    return currentDepth <= shadowDepth ? 1.0f : (1.0f - gShadowStrength);
+}
+
 float4 main(PSInput input) : SV_TARGET
 {
     float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
@@ -172,9 +210,11 @@ float4 main(PSInput input) : SV_TARGET
         discard;
     }
 
-    float3 lit = ((gMaterialFlags & MATERIAL_UNLIT) != 0)
-        ? albedo.rgb
-        : albedo.rgb * (ambient + diffuse + specular + pointLightContribution);
+    float3 lit = albedo.rgb;
+    if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
+    {
+        lit = albedo.rgb * (ambient + (diffuse + specular + pointLightContribution) * SampleDirectionalShadow(input.worldPosWS, n));
+    }
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
     {
         lit += gEmissiveFactor.rgb * gEmissiveFactor.a;

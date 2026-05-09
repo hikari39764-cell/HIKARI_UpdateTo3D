@@ -44,6 +44,8 @@ namespace HIKARI {
                 item.postGroupMask = model.GetPostGroupMask();
                 item.showSkeletonDebug = model.IsSkeletonDebugVisible();
                 item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
+                item.castShadow = model.GetCastShadow();
+                item.receiveShadow = model.GetReceiveShadow();
                 item.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
                 for (int i = 0; i < 4; ++i) {
                     item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];

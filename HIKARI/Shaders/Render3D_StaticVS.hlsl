@@ -17,6 +17,8 @@ cbuffer ObjectCB : register(b1)
     uint gHasNormalTexture;
     float gNormalScale;
     float2 gNormalPadding;
+    uint gReceiveShadow;
+    float3 gShadowObjectPadding;
     float4 gFxUser0;
     float4 gFxUser1;
     float4 gFxUser2;

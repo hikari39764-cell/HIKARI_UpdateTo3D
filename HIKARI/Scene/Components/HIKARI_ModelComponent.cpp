@@ -176,6 +176,22 @@ namespace HIKARI {
         return skeletonDebugXRay_;
     }
 
+    void ModelComponent::SetCastShadow(bool enabled) {
+        castShadow_ = enabled;
+    }
+
+    bool ModelComponent::GetCastShadow() const {
+        return castShadow_;
+    }
+
+    void ModelComponent::SetReceiveShadow(bool enabled) {
+        receiveShadow_ = enabled;
+    }
+
+    bool ModelComponent::GetReceiveShadow() const {
+        return receiveShadow_;
+    }
+
     const std::string& ModelComponent::GetAssetId() const {
         return assetId_;
     }
@@ -370,6 +386,8 @@ namespace HIKARI {
         out["visible"] = visible_;
         out["showSkeletonDebug"] = showSkeletonDebug_;
         out["skeletonDebugXRay"] = skeletonDebugXRay_;
+        out["castShadow"] = castShadow_;
+        out["receiveShadow"] = receiveShadow_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
         out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
@@ -384,6 +402,8 @@ namespace HIKARI {
         visible_ = in.value("visible", visible_);
         showSkeletonDebug_ = in.value("showSkeletonDebug", showSkeletonDebug_);
         skeletonDebugXRay_ = in.value("skeletonDebugXRay", skeletonDebugXRay_);
+        castShadow_ = in.value("castShadow", castShadow_);
+        receiveShadow_ = in.value("receiveShadow", receiveShadow_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
         bool hasParamValues = false;
@@ -412,6 +432,8 @@ namespace HIKARI {
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Visible", visible_);
+        builder.Bool("Cast Shadow", castShadow_);
+        builder.Bool("Receive Shadow", receiveShadow_);
         int postMask = static_cast<int>(postGroupMask_);
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
@@ -488,6 +510,12 @@ namespace HIKARI {
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Asset: <none>");
             return;
+        }
+
+        if (ImGui::TreeNodeEx("Shadow", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Cast Shadow", &castShadow_);
+            ImGui::Checkbox("Receive Shadow", &receiveShadow_);
+            ImGui::TreePop();
         }
 
         const size_t matrixNodeCount = static_cast<size_t>(std::count_if(asset_->nodes.begin(), asset_->nodes.end(), [](const ModelNode& node) {

@@ -46,8 +46,8 @@ namespace HIKARI::MESHRENDERER {
     };
 
     void Reset();
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized);
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized);
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true);
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true);
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
     const MeshRendererDebugStats& GetDebugStats();
 

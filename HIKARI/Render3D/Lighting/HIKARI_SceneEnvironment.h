@@ -19,6 +19,18 @@ namespace HIKARI {
         MATH::Vec3 color{ 1.0f, 1.0f, 1.0f };
     };
 
+    struct DirectionalShadowSettings {
+        bool enabled = true;
+        uint32_t resolution = 2048;
+        float orthoSize = 30.0f;
+        float nearPlane = 0.1f;
+        float farPlane = 80.0f;
+        float depthBias = 0.001f;
+        float normalBias = 0.02f;
+        float strength = 0.75f;
+        bool showDebugFrustum = false;
+    };
+
     struct PointLight {
         bool enabled = true;
         MATH::Vec3 position{ 0.0f, 2.0f, 0.0f };
@@ -48,6 +60,7 @@ namespace HIKARI {
     struct SceneEnvironment {
         AmbientLight ambient{};
         DirectionalLight directional{};
+        DirectionalShadowSettings directionalShadow{};
         std::vector<PointLight> pointLights{};
         SkySettings sky{};
         float specularIntensity = 0.2f;

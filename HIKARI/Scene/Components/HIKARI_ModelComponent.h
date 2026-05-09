@@ -27,6 +27,10 @@ namespace HIKARI {
         bool IsSkeletonDebugVisible() const;
         void SetSkeletonDebugXRay(bool enabled);
         bool IsSkeletonDebugXRay() const;
+        void SetCastShadow(bool enabled);
+        bool GetCastShadow() const;
+        void SetReceiveShadow(bool enabled);
+        bool GetReceiveShadow() const;
 
         void RenderImGui() override;
         void Serialize(nlohmann::json& out) const override;
@@ -57,6 +61,8 @@ namespace HIKARI {
         bool visible_ = true;
         bool showSkeletonDebug_ = false;
         bool skeletonDebugXRay_ = false;
+        bool castShadow_ = true;
+        bool receiveShadow_ = true;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
         DirectX::XMFLOAT4 materialFxParamValues_[4]{};

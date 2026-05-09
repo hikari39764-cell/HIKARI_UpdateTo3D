@@ -27,5 +27,8 @@ namespace HIKARI {
         bool showSkeletonDebug = false;
         bool skeletonDebugXRay = false;
         uint32_t skeletonDebugColor = 0x00FFAAFF;
+
+        bool castShadow = true;
+        bool receiveShadow = true;
     };
 }

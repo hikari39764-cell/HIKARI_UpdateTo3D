@@ -146,6 +146,7 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Material.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
@@ -319,6 +320,7 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />
@@ -446,6 +448,9 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Shaders\Render3D_ShadowAlphaPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Post_TransitionNoiseWipePS.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

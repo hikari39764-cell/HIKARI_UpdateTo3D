@@ -3,6 +3,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
@@ -105,6 +106,35 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNodeEx("Directional Shadow", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Shadow Enabled", &environment.directionalShadow.enabled);
+            const int resolutions[] = { 1024, 2048, 4096 };
+            int currentResolution = static_cast<int>(environment.directionalShadow.resolution);
+            if (currentResolution != 1024 && currentResolution != 2048 && currentResolution != 4096) {
+                currentResolution = 2048;
+            }
+            if (ImGui::BeginCombo("Resolution", std::to_string(currentResolution).c_str())) {
+                for (int resolution : resolutions) {
+                    const bool selected = currentResolution == resolution;
+                    if (ImGui::Selectable(std::to_string(resolution).c_str(), selected)) {
+                        environment.directionalShadow.resolution = static_cast<uint32_t>(resolution);
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::DragFloat("Ortho Size", &environment.directionalShadow.orthoSize, 0.1f, 1.0f, 200.0f);
+            ImGui::DragFloat("Near Plane", &environment.directionalShadow.nearPlane, 0.01f, 0.001f, 50.0f);
+            ImGui::DragFloat("Far Plane", &environment.directionalShadow.farPlane, 0.1f, 1.0f, 500.0f);
+            ImGui::DragFloat("Depth Bias", &environment.directionalShadow.depthBias, 0.0001f, 0.0f, 0.05f, "%.5f");
+            ImGui::DragFloat("Normal Bias", &environment.directionalShadow.normalBias, 0.001f, 0.0f, 1.0f, "%.4f");
+            ImGui::DragFloat("Strength", &environment.directionalShadow.strength, 0.01f, 0.0f, 1.0f);
+            ImGui::Checkbox("Show Debug Frustum", &environment.directionalShadow.showDebugFrustum);
+            ImGui::TreePop();
+        }
+
         if (ImGui::TreeNodeEx("Point Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
             constexpr size_t kMaxUploadedPointLights = 8u;
             const size_t uploadableCount = CountUploadablePointLights(environment);
@@ -182,6 +212,15 @@ namespace HIKARI {
                 lightStats.pointLightUploadedCount,
                 lightStats.pointLightClampedCount);
             ImGui::Text("Specular Intensity / Power: %.3f / %.3f", lightStats.specularIntensity, lightStats.specularPower);
+
+            const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
+            ImGui::SeparatorText("Shadow Map Stats");
+            ImGui::Text("Shadow Enabled: %s", shadowStats.enabled ? "Yes" : "No");
+            ImGui::Text("Resolution: %u", shadowStats.resolution);
+            ImGui::Text("Casters Submitted: %zu", shadowStats.submittedCasterCount);
+            ImGui::Text("Static / Skinned Draws: %zu / %zu", shadowStats.staticCasterDrawCount, shadowStats.skinnedCasterDrawCount);
+            ImGui::Text("AlphaMask Draws: %zu", shadowStats.alphaMaskCasterDrawCount);
+            ImGui::Text("Skipped No Cast Shadow: %zu", shadowStats.skippedNoCastShadowCount);
 
             if (skyDebugState && environment.showSkyDebugInfo) {
                 ImGui::SeparatorText("Sky Renderer State");

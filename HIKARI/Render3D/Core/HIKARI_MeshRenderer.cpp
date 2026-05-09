@@ -14,6 +14,7 @@
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
 #include "HIKARI_D3DBlobCompat.h"
+#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
@@ -41,6 +42,8 @@ namespace HIKARI::MESHRENDERER {
             uint32_t hasNormalTexture = 0;
             float normalScale = 1.0f;
             float normalPadding[2]{};
+            uint32_t receiveShadow = 1;
+            float shadowObjectPadding[3]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -58,6 +61,14 @@ namespace HIKARI::MESHRENDERER {
             float ambientIntensity = 0.25f;
             uint32_t pointLightCount = 0;
             float padding[2]{};
+        };
+
+        struct ShadowCB {
+            MATH::Mat4 lightViewProj{};
+            uint32_t enabled = 0;
+            float depthBias = 0.001f;
+            float normalBias = 0.02f;
+            float strength = 0.75f;
         };
 
         constexpr size_t kMaxJointPaletteMatrices = 128u;
@@ -84,6 +95,7 @@ namespace HIKARI::MESHRENDERER {
             bool materialFxValuesInitialized = false;
             bool hasResolvedMaterialFxProfile = false;
             MaterialFxProfile resolvedMaterialFxProfile{};
+            bool receiveShadow = true;
         };
 
         struct VariantKeyHasher {
@@ -110,10 +122,12 @@ namespace HIKARI::MESHRENDERER {
             ComPtr<ID3D12Resource> cameraCB;
             ComPtr<ID3D12Resource> objectCB;
             ComPtr<ID3D12Resource> lightCB;
+            ComPtr<ID3D12Resource> shadowCB;
             ComPtr<ID3D12Resource> jointPaletteCB;
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
+            ShadowCB* shadowMapped = nullptr;
             JointPaletteCB* jointPaletteMapped = nullptr;
             std::vector<DrawItem> drawItems;
             MeshRendererDebugStats debugStats;
@@ -133,6 +147,7 @@ namespace HIKARI::MESHRENDERER {
             const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
             const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
             const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
+            const UINT shadowBytes = AlignConstantBufferSize(sizeof(ShadowCB));
             const UINT jointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
             const UINT jointPaletteBytes = jointPaletteStride * kMaxObjectCount;
 
@@ -157,6 +172,13 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             if (FAILED(g.lightCB->Map(0, nullptr, reinterpret_cast<void**>(&g.lightMapped)))) {
+                return false;
+            }
+            auto shadowDesc = CD3DX12_RESOURCE_DESC::Buffer(shadowBytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &shadowDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.shadowCB.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(g.shadowCB->Map(0, nullptr, reinterpret_cast<void**>(&g.shadowMapped)))) {
                 return false;
             }
             auto jointPaletteDesc = CD3DX12_RESOURCE_DESC::Buffer(jointPaletteBytes);
@@ -204,7 +226,14 @@ namespace HIKARI::MESHRENDERER {
             normalTextureRange.RegisterSpace = 0;
             normalTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[5]{};
+            D3D12_DESCRIPTOR_RANGE shadowTextureRange{};
+            shadowTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            shadowTextureRange.NumDescriptors = 1;
+            shadowTextureRange.BaseShaderRegister = 2;
+            shadowTextureRange.RegisterSpace = 0;
+            shadowTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[7]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -229,6 +258,16 @@ namespace HIKARI::MESHRENDERER {
             params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             params[4].DescriptorTable.NumDescriptorRanges = 1;
             params[4].DescriptorTable.pDescriptorRanges = &normalTextureRange;
+
+            params[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[5].DescriptorTable.NumDescriptorRanges = 1;
+            params[5].DescriptorTable.pDescriptorRanges = &shadowTextureRange;
+
+            params[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[6].Descriptor.ShaderRegister = 4;
+            params[6].Descriptor.RegisterSpace = 0;
 
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -258,14 +297,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[6]{};
+            D3D12_ROOT_PARAMETER skinnedParams[8]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[5].Descriptor.ShaderRegister = 3;
-            skinnedParams[5].Descriptor.RegisterSpace = 0;
+            skinnedParams[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[7].Descriptor.ShaderRegister = 3;
+            skinnedParams[7].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -883,6 +922,15 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.specularIntensity = out.specularParams.x;
             g.debugStats.specularPower = out.specularParams.y;
         }
+
+        void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out) {
+            out = {};
+            out.lightViewProj = SHADOW::GetDirectionalLightViewProj();
+            out.enabled = (SHADOW::IsDirectionalShadowEnabled() && environment.directionalShadow.enabled) ? 1u : 0u;
+            out.depthBias = std::max(0.0f, environment.directionalShadow.depthBias);
+            out.normalBias = std::max(0.0f, environment.directionalShadow.normalBias);
+            out.strength = std::clamp(environment.directionalShadow.strength, 0.0f, 1.0f);
+        }
     }
 
     void Reset() {
@@ -890,7 +938,7 @@ namespace HIKARI::MESHRENDERER {
         g.debugStats = {};
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
@@ -900,12 +948,13 @@ namespace HIKARI::MESHRENDERER {
             item.materialFxParamValues[i] = materialFxParamValues[i];
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
+        item.receiveShadow = receiveShadow;
         ResolveDrawVariant(item);
         ++g.debugStats.staticDrawItemCount;
         g.drawItems.push_back(std::move(item));
     }
 
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized) {
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
@@ -916,6 +965,7 @@ namespace HIKARI::MESHRENDERER {
             item.materialFxParamValues[i] = materialFxParamValues[i];
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
+        item.receiveShadow = receiveShadow;
         ResolveDrawVariant(item);
         ++g.debugStats.skinnedDrawItemCount;
         g.drawItems.push_back(std::move(item));
@@ -939,12 +989,14 @@ namespace HIKARI::MESHRENDERER {
         g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
 
         FillLightCB(environment, *g.lightMapped);
+        FillShadowCB(environment, *g.shadowMapped);
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
+        cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
@@ -996,6 +1048,7 @@ namespace HIKARI::MESHRENDERER {
                         const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
                         FillMaterialValues(obj, materialAsset, normalTextureHandle);
                         obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
+                        obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                         FillFxValues(obj, item);
 
                         uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
@@ -1005,13 +1058,14 @@ namespace HIKARI::MESHRENDERER {
                         cmd->SetGraphicsRootSignature(drawingSkinned ? g.skinnedRootSig.Get() : g.rootSig.Get());
                         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
+                        cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
                         const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(5, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(7, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1055,6 +1109,13 @@ namespace HIKARI::MESHRENDERER {
                         if (normalSrv.ptr != 0) {
                             cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
                         }
+                        D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
+                        if (shadowSrv.ptr == 0) {
+                            shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                        }
+                        if (shadowSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
+                        }
 
                         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -1076,6 +1137,7 @@ namespace HIKARI::MESHRENDERER {
             obj.world = item.transform.GetWorldMatrix();
             obj.normalMatrix = BuildNormalMatrix(item.transform);
             FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle);
+            obj.receiveShadow = item.receiveShadow ? 1u : 0u;
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
@@ -1092,6 +1154,7 @@ namespace HIKARI::MESHRENDERER {
             cmd->SetGraphicsRootSignature(g.rootSig.Get());
             cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
+            cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
             auto foundPso = g.variantPsoCache.find(item.variant);
@@ -1122,6 +1185,13 @@ namespace HIKARI::MESHRENDERER {
             }
             if (normalSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
+            }
+            D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
+            if (shadowSrv.ptr == 0) {
+                shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+            }
+            if (shadowSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
             }
 
             const Mesh* mesh = item.asset->GetMesh();
