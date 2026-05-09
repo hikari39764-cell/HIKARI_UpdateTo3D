@@ -294,6 +294,16 @@ namespace HIKARI {
             sceneRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
         }
 
+        bool PostSystem::RebindCurrentRenderTarget()
+        {
+            if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                return false;
+            }
+
+            rtStack_.top().rt->Rebind();
+            return true;
+        }
+
 
         void PostSystem::BeginLightCapture()
         {

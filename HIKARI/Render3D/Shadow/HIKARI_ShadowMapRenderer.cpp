@@ -17,6 +17,7 @@
 #include "HIKARI_Services.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -516,6 +517,10 @@ namespace HIKARI::SHADOW {
         }
 
         void RestoreMainRenderTarget() {
+            if (POST::PostSystem::RebindCurrentRenderTarget()) {
+                return;
+            }
+
             auto* cmd = SERVICES::gCtx.cmdList;
             if (cmd == nullptr) {
                 return;

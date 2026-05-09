@@ -38,6 +38,7 @@ namespace HIKARI {
 
             // --- 场景捕获 ---
             static void BeginSceneCapture();
+            static bool RebindCurrentRenderTarget();
             static void EndSceneCaptureAndPresent(); // 这里会自动应用光照合成
 
             // --- 光照系统  ---
