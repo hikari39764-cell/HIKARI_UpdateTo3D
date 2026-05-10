@@ -35,6 +35,10 @@ namespace HIKARI::MESHRENDERER {
         size_t normalTextureCacheMissCount = 0;
         size_t normalMappedPrimitiveCount = 0;
         size_t normalMapFallbackCount = 0;
+        size_t emissiveTextureCacheHitCount = 0;
+        size_t emissiveTextureCacheMissCount = 0;
+        size_t emissiveMappedPrimitiveCount = 0;
+        size_t emissiveMapFallbackCount = 0;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;

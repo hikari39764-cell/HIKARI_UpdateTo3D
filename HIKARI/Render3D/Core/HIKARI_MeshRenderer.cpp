@@ -44,6 +44,8 @@ namespace HIKARI::MESHRENDERER {
             float normalPadding[2]{};
             uint32_t receiveShadow = 1;
             float shadowObjectPadding[3]{};
+            uint32_t hasEmissiveTexture = 0;
+            float emissivePadding[3]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -60,7 +62,9 @@ namespace HIKARI::MESHRENDERER {
             float directionalIntensity = 1.0f;
             float ambientIntensity = 0.25f;
             uint32_t pointLightCount = 0;
-            float padding[2]{};
+            float lightPadding = 0.0f;
+            MATH::Vec4 fogColorDensity{};
+            MATH::Vec4 fogParams{};
         };
 
         struct ShadowCB {
@@ -137,6 +141,7 @@ namespace HIKARI::MESHRENDERER {
             MeshRendererDebugStats debugStats;
             int fallbackTextureHandle = -1;
             int fallbackNormalTextureHandle = -1;
+            int fallbackBlackTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
@@ -237,7 +242,14 @@ namespace HIKARI::MESHRENDERER {
             shadowTextureRange.RegisterSpace = 0;
             shadowTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[7]{};
+            D3D12_DESCRIPTOR_RANGE emissiveTextureRange{};
+            emissiveTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            emissiveTextureRange.NumDescriptors = 1;
+            emissiveTextureRange.BaseShaderRegister = 3;
+            emissiveTextureRange.RegisterSpace = 0;
+            emissiveTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[8]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -272,6 +284,11 @@ namespace HIKARI::MESHRENDERER {
             params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             params[6].Descriptor.ShaderRegister = 4;
             params[6].Descriptor.RegisterSpace = 0;
+
+            params[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[7].DescriptorTable.NumDescriptorRanges = 1;
+            params[7].DescriptorTable.pDescriptorRanges = &emissiveTextureRange;
 
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -317,14 +334,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[8]{};
+            D3D12_ROOT_PARAMETER skinnedParams[9]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[7].Descriptor.ShaderRegister = 3;
-            skinnedParams[7].Descriptor.RegisterSpace = 0;
+            skinnedParams[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[8].Descriptor.ShaderRegister = 3;
+            skinnedParams[8].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -608,6 +625,7 @@ namespace HIKARI::MESHRENDERER {
             if (g.fallbackNormalTextureHandle < 0) {
                 g.fallbackNormalTextureHandle = g.fallbackTextureHandle;
             }
+            g.fallbackBlackTextureHandle = g.fallbackTextureHandle;
             g.psBlobCache["StaticLit"] = g.psBlob;
 
             g.initialized = true;
@@ -676,6 +694,36 @@ namespace HIKARI::MESHRENDERER {
             const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/normal/" + texturePath, texturePath);
             g.materialTextureCache[cacheKey] = handle;
             return handle >= 0 ? handle : g.fallbackNormalTextureHandle;
+        }
+
+        int ResolvePrimitiveEmissiveTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+            if (materialAsset == nullptr) {
+                return g.fallbackBlackTextureHandle;
+            }
+
+            const int textureIndex = materialAsset->emissiveTexture.textureIndex;
+            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
+                ++g.debugStats.emissiveMapFallbackCount;
+                return g.fallbackBlackTextureHandle;
+            }
+
+            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
+            if (texturePath.empty()) {
+                ++g.debugStats.emissiveMapFallbackCount;
+                return g.fallbackBlackTextureHandle;
+            }
+
+            const std::string cacheKey = "emissive:" + texturePath;
+            auto found = g.materialTextureCache.find(cacheKey);
+            if (found != g.materialTextureCache.end()) {
+                ++g.debugStats.emissiveTextureCacheHitCount;
+                return found->second >= 0 ? found->second : g.fallbackBlackTextureHandle;
+            }
+
+            ++g.debugStats.emissiveTextureCacheMissCount;
+            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/emissive/" + texturePath, texturePath);
+            g.materialTextureCache[cacheKey] = handle;
+            return handle >= 0 ? handle : g.fallbackBlackTextureHandle;
         }
 
         MATH::Vec4 SanitizeTangent(const MATH::Vec4& tangent) {
@@ -849,12 +897,13 @@ namespace HIKARI::MESHRENDERER {
             obj.fxUser3 = item.fxValues[3];
         }
 
-        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle) {
+        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle, int emissiveTextureHandle) {
             obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
             obj.materialFlags = 0;
             obj.alphaCutoff = materialAsset ? materialAsset->alphaCutoff : 0.5f;
             obj.emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
             obj.hasNormalTexture = 0;
+            obj.hasEmissiveTexture = 0;
             obj.normalScale = materialAsset ? materialAsset->normalTexture.scale : 1.0f;
 
             if (materialAsset == nullptr) {
@@ -864,6 +913,10 @@ namespace HIKARI::MESHRENDERER {
             if (normalTextureHandle >= 0 && normalTextureHandle != g.fallbackNormalTextureHandle) {
                 obj.hasNormalTexture = 1;
                 ++g.debugStats.normalMappedPrimitiveCount;
+            }
+            if (emissiveTextureHandle >= 0 && emissiveTextureHandle != g.fallbackBlackTextureHandle) {
+                obj.hasEmissiveTexture = 1;
+                ++g.debugStats.emissiveMappedPrimitiveCount;
             }
 
             if (materialAsset->alphaMode == AlphaMode::Mask) {
@@ -902,6 +955,18 @@ namespace HIKARI::MESHRENDERER {
                 std::max(1.0f, environment.specularPower),
                 0.0f,
                 0.0f
+            };
+            out.fogColorDensity = {
+                environment.fog.color.x,
+                environment.fog.color.y,
+                environment.fog.color.z,
+                std::max(0.0f, environment.fog.density)
+            };
+            out.fogParams = {
+                environment.fog.enabled ? 1.0f : 0.0f,
+                std::max(0.0f, environment.fog.startDistance),
+                std::max(0.1f, environment.fog.endDistance),
+                std::max(0.0f, environment.fog.heightFalloff)
             };
 
             constexpr uint32_t kMaxPointLights = 8;
@@ -1071,7 +1136,8 @@ namespace HIKARI::MESHRENDERER {
                         obj.normalMatrix = normalMatrix;
                         const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
                         const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
-                        FillMaterialValues(obj, materialAsset, normalTextureHandle);
+                        const int emissiveTextureHandle = ResolvePrimitiveEmissiveTextureHandle(*item.asset, materialAsset);
+                        FillMaterialValues(obj, materialAsset, normalTextureHandle, emissiveTextureHandle);
                         obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
                         obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                         FillFxValues(obj, item);
@@ -1090,7 +1156,7 @@ namespace HIKARI::MESHRENDERER {
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(7, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(8, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1141,6 +1207,13 @@ namespace HIKARI::MESHRENDERER {
                         if (shadowSrv.ptr != 0) {
                             cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
                         }
+                        D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(emissiveTextureHandle);
+                        if (emissiveSrv.ptr == 0) {
+                            emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                        }
+                        if (emissiveSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
+                        }
 
                         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -1161,7 +1234,7 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
             obj.normalMatrix = BuildNormalMatrix(item.transform);
-            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle);
+            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle, g.fallbackBlackTextureHandle);
             obj.receiveShadow = item.receiveShadow ? 1u : 0u;
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
@@ -1217,6 +1290,10 @@ namespace HIKARI::MESHRENDERER {
             }
             if (shadowSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
+            }
+            D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+            if (emissiveSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
             }
 
             const Mesh* mesh = item.asset->GetMesh();

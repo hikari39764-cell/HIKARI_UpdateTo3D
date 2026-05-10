@@ -54,6 +54,22 @@ namespace HIKARI {
         bool followCamera = true;
     };
 
+    struct BloomSettings {
+        bool enabled = true;
+        float threshold = 1.0f;
+        float intensity = 0.6f;
+        float radius = 1.0f;
+        uint32_t downsampleCount = 3;
+    };
+
+    struct FogSettings {
+        bool enabled = false;
+        MATH::Vec3 color{ 0.55f, 0.65f, 0.75f };
+        float density = 0.02f;
+        float startDistance = 10.0f;
+        float endDistance = 80.0f;
+        float heightFalloff = 0.0f;
+    };
 
     struct ScenePostSettings {
         bool enabled = false;
@@ -68,6 +84,8 @@ namespace HIKARI {
         DirectionalShadowSettings directionalShadow{};
         std::vector<PointLight> pointLights{};
         SkySettings sky{};
+        BloomSettings bloom{};
+        FogSettings fog{};
         float specularIntensity = 0.2f;
         float specularPower = 32.0f;
         bool showLightDebug = true;

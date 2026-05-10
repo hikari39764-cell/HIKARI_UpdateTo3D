@@ -84,6 +84,7 @@ namespace HIKARI {
         } else {
             POST::PostSystem::ClearGlobalProfile();
         }
+        POST::PostSystem::SetBloomSettings(environment_.bloom);
 
         if (DrawDebugHelpers() && viewportOverlayState_.showGrid) {
             RENDERER3D::DEBUG::Grid3D grid{};

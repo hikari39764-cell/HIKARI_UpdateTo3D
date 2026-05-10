@@ -12,6 +12,7 @@
 #include "Scene/HIKARI_SceneTransitionBus.h"
 #include "Vfx/Transition/HIKARI_TransitionProfile.h"
 #include "Gfx/HIKARI_GfxContext.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI {
     namespace POST {
@@ -21,6 +22,19 @@ namespace HIKARI {
         class PostSystem
         {
         public:
+            struct BloomDebugStats {
+                bool enabled = false;
+                bool initialized = false;
+                bool failed = false;
+                uint32_t passCount = 0;
+                int textureWidth = 0;
+                int textureHeight = 0;
+                float threshold = 0.0f;
+                float intensity = 0.0f;
+                float radius = 0.0f;
+                uint32_t downsampleCount = 0;
+            };
+
             static void Initialize(const GFX::Context& ctx);
             static void UpdateContext(const GFX::Context& ctx);
             static void Shutdown();
@@ -33,6 +47,8 @@ namespace HIKARI {
             static void AddEffect(PostEffect* effect);
             static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&paramValues)[16]);
             static void ClearGlobalProfile();
+            static void SetBloomSettings(const BloomSettings& settings);
+            static const BloomDebugStats& GetBloomDebugStats();
             static void SetTransitionState(const TransitionVisualState& state);
             static void ClearTransitionState();
 
@@ -58,6 +74,8 @@ namespace HIKARI {
 
         private:
             static void EnsureSceneRTSize();
+            static RenderTarget2D* ApplyBloom(RenderTarget2D& source);
+            static bool EnsureBloomEffects(uint32_t blurPairCount);
 
         private:
             static bool initialized_;
@@ -71,12 +89,17 @@ namespace HIKARI {
             static bool useLighting_;
 
             static PostChain globalChain_;
+            static PostChain bloomChain_;
             static QuadDrawer quad_;
             static CommonParams commonParams_;
             static float elapsedTime_;
             static std::string activeGlobalProfileId_;
             static PostProfile activeGlobalProfile_;
             static std::vector<std::unique_ptr<PostEffect>> activeGlobalEffects_;
+            static std::vector<std::unique_ptr<PostEffect>> activeBloomEffects_;
+            static BloomSettings bloomSettings_;
+            static BloomDebugStats bloomDebugStats_;
+            static uint32_t activeBloomBlurPairCount_;
             static bool transitionActive_;
             static std::string activeTransitionProfileId_;
             static TransitionProfile activeTransitionProfile_;

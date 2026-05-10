@@ -19,6 +19,8 @@ cbuffer ObjectCB : register(b1)
     float2 gNormalPadding;
     uint gReceiveShadow;
     float3 gShadowObjectPadding;
+    uint gHasEmissiveTexture;
+    float3 gEmissivePadding;
     float4 gFxUser0;
     float4 gFxUser1;
     float4 gFxUser2;
@@ -41,6 +43,8 @@ cbuffer LightCB : register(b2)
     float gAmbientIntensity;
     uint gPointLightCount;
     float gLightPadding;
+    float4 gFogColorDensity;
+    float4 gFogParams;
 };
 
 cbuffer ShadowCB : register(b4)
@@ -59,6 +63,7 @@ cbuffer ShadowCB : register(b4)
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
 Texture2D gShadowMap : register(t2);
+Texture2D gEmissiveTex : register(t3);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -129,6 +134,30 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
         sum += color * (atten * intensity) * (ndotl + gSpecularParams.x * spec);
     }
     return sum;
+}
+
+float3 ResolveEmissive(float2 uv)
+{
+    float3 emissive = gEmissiveFactor.rgb;
+    if (gHasEmissiveTexture != 0)
+    {
+        emissive *= gEmissiveTex.Sample(gLinearWrap, uv).rgb;
+    }
+    return emissive * gEmissiveFactor.a;
+}
+
+float3 ApplyFog(float3 color, float3 worldPosWS)
+{
+    if (gFogParams.x < 0.5f)
+    {
+        return color;
+    }
+
+    float dist = length(gCameraPos.xyz - worldPosWS);
+    float fogRange = max(0.001f, gFogParams.z - gFogParams.y);
+    float fogFactor = saturate((dist - gFogParams.y) / fogRange);
+    fogFactor = saturate(fogFactor * max(0.0f, gFogColorDensity.a) * dist);
+    return lerp(color, gFogColorDensity.rgb, fogFactor);
 }
 
 float CompareShadowDepth(float2 uv, float currentDepth)
@@ -216,9 +245,9 @@ float4 main(PSInput input) : SV_TARGET
         float3 unlitColor = albedo.rgb;
         if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
         {
-            unlitColor += gEmissiveFactor.rgb * gEmissiveFactor.a;
+            unlitColor += ResolveEmissive(input.uv);
         }
-        return float4(unlitColor, albedo.a);
+        return float4(ApplyFog(unlitColor, input.worldPosWS), albedo.a);
     }
 
     float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
@@ -226,7 +255,8 @@ float4 main(PSInput input) : SV_TARGET
     float3 finalColor = albedo.rgb * lit;
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
     {
-        finalColor += gEmissiveFactor.rgb * gEmissiveFactor.a;
+        finalColor += ResolveEmissive(input.uv);
     }
+    finalColor = ApplyFog(finalColor, input.worldPosWS);
     return float4(finalColor, albedo.a);
 }

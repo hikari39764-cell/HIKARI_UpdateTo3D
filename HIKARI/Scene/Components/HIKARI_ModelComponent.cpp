@@ -743,6 +743,11 @@ namespace HIKARI {
             ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu",
                 meshRendererStats.normalTextureCacheHitCount,
                 meshRendererStats.normalTextureCacheMissCount);
+            ImGui::Text("Emissive Mapped Primitives: %zu", meshRendererStats.emissiveMappedPrimitiveCount);
+            ImGui::Text("EmissiveMap Fallbacks: %zu", meshRendererStats.emissiveMapFallbackCount);
+            ImGui::Text("EmissiveTexture Cache Hit / Miss: %zu / %zu",
+                meshRendererStats.emissiveTextureCacheHitCount,
+                meshRendererStats.emissiveTextureCacheMissCount);
             ImGui::TreePop();
         }
 

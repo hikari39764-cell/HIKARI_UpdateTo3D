@@ -87,6 +87,19 @@ namespace HIKARI {
             out["sky"]["tint"] = ToVec3(environment.sky.tint);
             out["sky"]["followCamera"] = environment.sky.followCamera;
 
+            out["bloom"]["enabled"] = environment.bloom.enabled;
+            out["bloom"]["threshold"] = environment.bloom.threshold;
+            out["bloom"]["intensity"] = environment.bloom.intensity;
+            out["bloom"]["radius"] = environment.bloom.radius;
+            out["bloom"]["downsampleCount"] = environment.bloom.downsampleCount;
+
+            out["fog"]["enabled"] = environment.fog.enabled;
+            out["fog"]["color"] = ToVec3(environment.fog.color);
+            out["fog"]["density"] = environment.fog.density;
+            out["fog"]["startDistance"] = environment.fog.startDistance;
+            out["fog"]["endDistance"] = environment.fog.endDistance;
+            out["fog"]["heightFalloff"] = environment.fog.heightFalloff;
+
             out["specularIntensity"] = environment.specularIntensity;
             out["specularPower"] = environment.specularPower;
             out["showLightDebug"] = environment.showLightDebug;
@@ -157,6 +170,25 @@ namespace HIKARI {
                 environment.sky.exposure = sky.value("exposure", environment.sky.exposure);
                 environment.sky.tint = FromVec3(sky.value("tint", json::array()), environment.sky.tint);
                 environment.sky.followCamera = sky.value("followCamera", environment.sky.followCamera);
+            }
+
+            if (in.contains("bloom") && in["bloom"].is_object()) {
+                const json& bloom = in["bloom"];
+                environment.bloom.enabled = bloom.value("enabled", environment.bloom.enabled);
+                environment.bloom.threshold = bloom.value("threshold", environment.bloom.threshold);
+                environment.bloom.intensity = bloom.value("intensity", environment.bloom.intensity);
+                environment.bloom.radius = bloom.value("radius", environment.bloom.radius);
+                environment.bloom.downsampleCount = bloom.value("downsampleCount", environment.bloom.downsampleCount);
+            }
+
+            if (in.contains("fog") && in["fog"].is_object()) {
+                const json& fog = in["fog"];
+                environment.fog.enabled = fog.value("enabled", environment.fog.enabled);
+                environment.fog.color = FromVec3(fog.value("color", json::array()), environment.fog.color);
+                environment.fog.density = fog.value("density", environment.fog.density);
+                environment.fog.startDistance = fog.value("startDistance", environment.fog.startDistance);
+                environment.fog.endDistance = fog.value("endDistance", environment.fog.endDistance);
+                environment.fog.heightFalloff = fog.value("heightFalloff", environment.fog.heightFalloff);
             }
 
             environment.specularIntensity = in.value("specularIntensity", environment.specularIntensity);

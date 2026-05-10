@@ -5,6 +5,7 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
 
@@ -202,6 +203,28 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNode("Bloom")) {
+            ImGui::Checkbox("Bloom Enabled", &environment.bloom.enabled);
+            ImGui::DragFloat("Threshold", &environment.bloom.threshold, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat("Intensity", &environment.bloom.intensity, 0.01f, 0.0f, 5.0f);
+            ImGui::DragFloat("Radius", &environment.bloom.radius, 0.01f, 0.0f, 8.0f);
+            int downsampleCount = static_cast<int>(environment.bloom.downsampleCount);
+            if (ImGui::SliderInt("Downsample Count", &downsampleCount, 1, 5)) {
+                environment.bloom.downsampleCount = static_cast<uint32_t>(std::clamp(downsampleCount, 1, 5));
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Fog")) {
+            ImGui::Checkbox("Fog Enabled", &environment.fog.enabled);
+            ImGui::ColorEdit3("Fog Color", &environment.fog.color.x);
+            ImGui::DragFloat("Density", &environment.fog.density, 0.001f, 0.0f, 1.0f);
+            ImGui::DragFloat("Start Distance", &environment.fog.startDistance, 0.1f, 0.0f, 500.0f);
+            ImGui::DragFloat("End Distance", &environment.fog.endDistance, 0.1f, 0.1f, 1000.0f);
+            ImGui::DragFloat("Height Falloff", &environment.fog.heightFalloff, 0.001f, 0.0f, 2.0f);
+            ImGui::TreePop();
+        }
+
         if (ImGui::TreeNode("Debug")) {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
@@ -217,6 +240,12 @@ namespace HIKARI {
                 lightStats.pointLightUploadedCount,
                 lightStats.pointLightClampedCount);
             ImGui::Text("Specular Intensity / Power: %.3f / %.3f", lightStats.specularIntensity, lightStats.specularPower);
+            ImGui::Text("Emissive Texture Cache Hit / Miss: %zu / %zu",
+                lightStats.emissiveTextureCacheHitCount,
+                lightStats.emissiveTextureCacheMissCount);
+            ImGui::Text("Emissive Mapped / Fallback Primitives: %zu / %zu",
+                lightStats.emissiveMappedPrimitiveCount,
+                lightStats.emissiveMapFallbackCount);
 
             const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
             ImGui::SeparatorText("Shadow Map Stats");
@@ -239,6 +268,20 @@ namespace HIKARI {
                     ImGui::Image(reinterpret_cast<ImTextureID>(shadowSrv.ptr), ImVec2(256.0f, 256.0f));
                 }
             }
+
+            const POST::PostSystem::BloomDebugStats& bloomStats = POST::PostSystem::GetBloomDebugStats();
+            ImGui::SeparatorText("Bloom Stats");
+            ImGui::Text("Enabled / Initialized / Failed: %s / %s / %s",
+                bloomStats.enabled ? "Yes" : "No",
+                bloomStats.initialized ? "Yes" : "No",
+                bloomStats.failed ? "Yes" : "No");
+            ImGui::Text("Pass Count: %u", bloomStats.passCount);
+            ImGui::Text("Texture Size: %d x %d", bloomStats.textureWidth, bloomStats.textureHeight);
+            ImGui::Text("Threshold / Intensity / Radius: %.2f / %.2f / %.2f",
+                bloomStats.threshold,
+                bloomStats.intensity,
+                bloomStats.radius);
+            ImGui::Text("Downsample Count: %u", bloomStats.downsampleCount);
 
             if (skyDebugState && environment.showSkyDebugInfo) {
                 ImGui::SeparatorText("Sky Renderer State");

@@ -1,6 +1,7 @@
 ﻿#include "HIKARI_PostSystem.h"
 #include "Vfx/Post/HIKARI_PostEffect.h"
 #include "HIKARI_Utility.h"
+#include <algorithm>
 #include <cassert>
 
 namespace HIKARI {
@@ -52,6 +53,7 @@ namespace HIKARI {
         RenderTarget2D PostSystem::lightRT_{};
         QuadDrawer PostSystem::quad_{};
         PostChain PostSystem::globalChain_{};
+        PostChain PostSystem::bloomChain_{};
         CommonParams PostSystem::commonParams_{};
         float PostSystem::elapsedTime_ = 0.0f;
         std::stack<PostSystem::LayerInfo> PostSystem::rtStack_{};
@@ -60,6 +62,10 @@ namespace HIKARI {
         std::string PostSystem::activeGlobalProfileId_{};
         PostProfile PostSystem::activeGlobalProfile_{};
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
+        std::vector<std::unique_ptr<PostEffect>> PostSystem::activeBloomEffects_{};
+        BloomSettings PostSystem::bloomSettings_{};
+        PostSystem::BloomDebugStats PostSystem::bloomDebugStats_{};
+        uint32_t PostSystem::activeBloomBlurPairCount_ = 0;
         bool PostSystem::transitionActive_ = false;
         std::string PostSystem::activeTransitionProfileId_{};
         TransitionProfile PostSystem::activeTransitionProfile_{};
@@ -72,6 +78,7 @@ namespace HIKARI {
             context_ = ctx;
             PostEffect::UpdateContext(ctx);
             globalChain_.UpdateContext(ctx);
+            bloomChain_.UpdateContext(ctx);
             if (initialized_) return;
             quad_.Init(context_);
             initialized_ = true;
@@ -82,6 +89,7 @@ namespace HIKARI {
             context_ = ctx;
             PostEffect::UpdateContext(ctx);
             globalChain_.UpdateContext(ctx);
+            bloomChain_.UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
@@ -93,6 +101,8 @@ namespace HIKARI {
             ClearGlobalProfile();
             ClearTransitionState();
             globalChain_.Finalize();
+            bloomChain_.Finalize();
+            activeBloomEffects_.clear();
             sceneRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
@@ -175,6 +185,95 @@ namespace HIKARI {
             activeGlobalProfile_ = PostProfile{};
             activeGlobalEffects_.clear();
             globalChain_.Clear();
+        }
+
+        void PostSystem::SetBloomSettings(const BloomSettings& settings) {
+            bloomSettings_ = settings;
+        }
+
+        const PostSystem::BloomDebugStats& PostSystem::GetBloomDebugStats() {
+            return bloomDebugStats_;
+        }
+
+        bool PostSystem::EnsureBloomEffects(uint32_t blurPairCount) {
+            blurPairCount = std::clamp<uint32_t>(blurPairCount, 1u, 5u);
+            if (activeBloomBlurPairCount_ == blurPairCount && !activeBloomEffects_.empty() && bloomChain_.HasAny()) {
+                return true;
+            }
+
+            activeBloomEffects_.clear();
+            bloomChain_.Clear();
+            activeBloomBlurPairCount_ = 0;
+
+            auto addEffect = [](const wchar_t* shaderPath) -> std::unique_ptr<PostEffect> {
+                auto effect = std::make_unique<PostEffect>();
+                if (!effect->LoadPixelShader(shaderPath)) {
+                    return nullptr;
+                }
+                return effect;
+            };
+
+            if (auto extract = addEffect(L"HIKARI/Shaders/Post_BloomExtractPS.hlsl")) {
+                bloomChain_.Add(extract.get());
+                activeBloomEffects_.push_back(std::move(extract));
+            } else {
+                return false;
+            }
+
+            for (uint32_t i = 0; i < blurPairCount; ++i) {
+                auto blurH = addEffect(L"HIKARI/Shaders/Post_BloomBlurHPS.hlsl");
+                auto blurV = addEffect(L"HIKARI/Shaders/Post_BloomBlurVPS.hlsl");
+                if (!blurH || !blurV) {
+                    activeBloomEffects_.clear();
+                    bloomChain_.Clear();
+                    return false;
+                }
+                bloomChain_.Add(blurH.get());
+                activeBloomEffects_.push_back(std::move(blurH));
+                bloomChain_.Add(blurV.get());
+                activeBloomEffects_.push_back(std::move(blurV));
+            }
+
+            activeBloomBlurPairCount_ = blurPairCount;
+            return true;
+        }
+
+        RenderTarget2D* PostSystem::ApplyBloom(RenderTarget2D& source) {
+            bloomDebugStats_ = {};
+            bloomDebugStats_.enabled = bloomSettings_.enabled;
+            bloomDebugStats_.threshold = bloomSettings_.threshold;
+            bloomDebugStats_.intensity = bloomSettings_.intensity;
+            bloomDebugStats_.radius = bloomSettings_.radius;
+            bloomDebugStats_.downsampleCount = std::clamp<uint32_t>(bloomSettings_.downsampleCount, 1u, 5u);
+            bloomDebugStats_.textureWidth = source.GetWidth();
+            bloomDebugStats_.textureHeight = source.GetHeight();
+
+            if (!bloomSettings_.enabled || bloomSettings_.intensity <= 0.0f) {
+                return nullptr;
+            }
+
+            if (!EnsureBloomEffects(bloomDebugStats_.downsampleCount)) {
+                bloomDebugStats_.failed = true;
+                return nullptr;
+            }
+
+            CommonParams bloomParams = commonParams_;
+            bloomParams.user[0] = {
+                (std::max)(0.0f, bloomSettings_.threshold),
+                (std::max)(0.0f, bloomSettings_.intensity),
+                (std::max)(0.0f, bloomSettings_.radius),
+                static_cast<float>(bloomDebugStats_.downsampleCount)
+            };
+            bloomParams.user[1] = {
+                source.GetWidth() > 0 ? 1.0f / static_cast<float>(source.GetWidth()) : 1.0f,
+                source.GetHeight() > 0 ? 1.0f / static_cast<float>(source.GetHeight()) : 1.0f,
+                0.0f,
+                0.0f
+            };
+
+            bloomDebugStats_.initialized = true;
+            bloomDebugStats_.passCount = 1u + bloomDebugStats_.downsampleCount * 2u;
+            return bloomChain_.Execute(source, quad_, bloomParams);
         }
 
         void PostSystem::SetTransitionState(const TransitionVisualState& state) {
@@ -356,6 +455,8 @@ namespace HIKARI {
                 finalSceneRT = globalChain_.Execute(*currentRT, quad_, commonParams_);
             }
 
+            RenderTarget2D* bloomRT = ApplyBloom(*finalSceneRT);
+
 
             auto* cmd = context_.cmdList;
             cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, nullptr);
@@ -378,6 +479,9 @@ namespace HIKARI {
                 transitionEffect_->BindAndDraw(quad_);
             } else {
                 quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+            }
+            if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
+                quad_.DrawBlended(bloomRT->GetSrvHeap(), bloomRT->GetSrvGpu(), BlendOption::Additive);
             }
 
             if (useLighting_) {
