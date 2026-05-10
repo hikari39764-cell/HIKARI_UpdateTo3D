@@ -61,6 +61,11 @@ namespace HIKARI {
             out["directionalShadow"]["depthBias"] = environment.directionalShadow.depthBias;
             out["directionalShadow"]["normalBias"] = environment.directionalShadow.normalBias;
             out["directionalShadow"]["strength"] = environment.directionalShadow.strength;
+            out["directionalShadow"]["pcfEnabled"] = environment.directionalShadow.pcfEnabled;
+            out["directionalShadow"]["pcfRadius"] = environment.directionalShadow.pcfRadius;
+            out["directionalShadow"]["stabilize"] = environment.directionalShadow.stabilize;
+            out["directionalShadow"]["showDebugTexture"] = environment.directionalShadow.showDebugTexture;
+            out["directionalShadow"]["shadowDistance"] = environment.directionalShadow.shadowDistance;
             out["directionalShadow"]["showDebugFrustum"] = environment.directionalShadow.showDebugFrustum;
 
             out["pointLights"] = json::array();
@@ -122,6 +127,11 @@ namespace HIKARI {
                 environment.directionalShadow.depthBias = shadow.value("depthBias", environment.directionalShadow.depthBias);
                 environment.directionalShadow.normalBias = shadow.value("normalBias", environment.directionalShadow.normalBias);
                 environment.directionalShadow.strength = shadow.value("strength", environment.directionalShadow.strength);
+                environment.directionalShadow.pcfEnabled = shadow.value("pcfEnabled", environment.directionalShadow.pcfEnabled);
+                environment.directionalShadow.pcfRadius = shadow.value("pcfRadius", environment.directionalShadow.pcfRadius);
+                environment.directionalShadow.stabilize = shadow.value("stabilize", environment.directionalShadow.stabilize);
+                environment.directionalShadow.showDebugTexture = shadow.value("showDebugTexture", environment.directionalShadow.showDebugTexture);
+                environment.directionalShadow.shadowDistance = shadow.value("shadowDistance", environment.directionalShadow.shadowDistance);
                 environment.directionalShadow.showDebugFrustum = shadow.value("showDebugFrustum", environment.directionalShadow.showDebugFrustum);
             }
 

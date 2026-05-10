@@ -69,6 +69,10 @@ namespace HIKARI::MESHRENDERER {
             float depthBias = 0.001f;
             float normalBias = 0.02f;
             float strength = 0.75f;
+            uint32_t pcfEnabled = 1;
+            float pcfRadius = 1.0f;
+            float texelSizeX = 1.0f / 2048.0f;
+            float texelSizeY = 1.0f / 2048.0f;
         };
 
         constexpr size_t kMaxJointPaletteMatrices = 128u;
@@ -279,11 +283,27 @@ namespace HIKARI::MESHRENDERER {
             linearWrapSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             linearWrapSampler.MaxLOD = D3D12_FLOAT32_MAX;
 
+            D3D12_STATIC_SAMPLER_DESC shadowSampler{};
+            shadowSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+            shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+            shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+            shadowSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+            shadowSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+            shadowSampler.ShaderRegister = 1;
+            shadowSampler.RegisterSpace = 0;
+            shadowSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            shadowSampler.MaxLOD = D3D12_FLOAT32_MAX;
+
+            const D3D12_STATIC_SAMPLER_DESC staticSamplers[] = {
+                linearWrapSampler,
+                shadowSampler
+            };
+
             D3D12_ROOT_SIGNATURE_DESC rsDesc{};
             rsDesc.NumParameters = static_cast<UINT>(std::size(params));
             rsDesc.pParameters = params;
-            rsDesc.NumStaticSamplers = 1;
-            rsDesc.pStaticSamplers = &linearWrapSampler;
+            rsDesc.NumStaticSamplers = static_cast<UINT>(std::size(staticSamplers));
+            rsDesc.pStaticSamplers = staticSamplers;
             rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
             ComPtr<ID3DBlob> sigBlob;
@@ -930,6 +950,11 @@ namespace HIKARI::MESHRENDERER {
             out.depthBias = std::max(0.0f, environment.directionalShadow.depthBias);
             out.normalBias = std::max(0.0f, environment.directionalShadow.normalBias);
             out.strength = std::clamp(environment.directionalShadow.strength, 0.0f, 1.0f);
+            out.pcfEnabled = environment.directionalShadow.pcfEnabled ? 1u : 0u;
+            out.pcfRadius = std::clamp(environment.directionalShadow.pcfRadius, 0.0f, 4.0f);
+            const float resolution = static_cast<float>(std::max(1u, SHADOW::GetShadowResolution()));
+            out.texelSizeX = 1.0f / resolution;
+            out.texelSizeY = 1.0f / resolution;
         }
     }
 

@@ -28,6 +28,11 @@ namespace HIKARI {
         float depthBias = 0.001f;
         float normalBias = 0.02f;
         float strength = 0.75f;
+        bool pcfEnabled = true;
+        float pcfRadius = 1.0f;
+        bool stabilize = true;
+        bool showDebugTexture = false;
+        float shadowDistance = 30.0f;
         bool showDebugFrustum = false;
     };
 

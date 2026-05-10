@@ -131,6 +131,11 @@ namespace HIKARI {
             ImGui::DragFloat("Depth Bias", &environment.directionalShadow.depthBias, 0.0001f, 0.0f, 0.05f, "%.5f");
             ImGui::DragFloat("Normal Bias", &environment.directionalShadow.normalBias, 0.001f, 0.0f, 1.0f, "%.4f");
             ImGui::DragFloat("Strength", &environment.directionalShadow.strength, 0.01f, 0.0f, 1.0f);
+            ImGui::Checkbox("PCF Enabled", &environment.directionalShadow.pcfEnabled);
+            ImGui::DragFloat("PCF Radius", &environment.directionalShadow.pcfRadius, 0.05f, 0.0f, 4.0f);
+            ImGui::Checkbox("Stabilize", &environment.directionalShadow.stabilize);
+            ImGui::Checkbox("Show Debug Texture", &environment.directionalShadow.showDebugTexture);
+            ImGui::DragFloat("Shadow Distance", &environment.directionalShadow.shadowDistance, 0.1f, 1.0f, 200.0f);
             ImGui::Checkbox("Show Debug Frustum", &environment.directionalShadow.showDebugFrustum);
             ImGui::TreePop();
         }
@@ -221,6 +226,19 @@ namespace HIKARI {
             ImGui::Text("Static / Skinned Draws: %zu / %zu", shadowStats.staticCasterDrawCount, shadowStats.skinnedCasterDrawCount);
             ImGui::Text("AlphaMask Draws: %zu", shadowStats.alphaMaskCasterDrawCount);
             ImGui::Text("Skipped No Cast Shadow: %zu", shadowStats.skippedNoCastShadowCount);
+            ImGui::Text("Primitive Caster Draws: %zu", shadowStats.totalPrimitiveCasterDrawCount);
+            ImGui::Text("Shadow Map Recreates: %zu", shadowStats.shadowMapRecreateCount);
+            ImGui::Text("PCF: %s  Radius: %.2f", shadowStats.pcfEnabled != 0 ? "On" : "Off", shadowStats.pcfRadius);
+            ImGui::Text("Bias / NormalBias: %.5f / %.4f", shadowStats.depthBias, shadowStats.normalBias);
+            ImGui::Text("Ortho / Near / Far: %.2f / %.3f / %.2f", shadowStats.orthoSize, shadowStats.nearPlane, shadowStats.farPlane);
+            ImGui::Text("Strength: %.2f", shadowStats.strength);
+            if (environment.directionalShadow.showDebugTexture && SHADOW::IsDirectionalShadowEnabled()) {
+                const D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
+                if (shadowSrv.ptr != 0) {
+                    ImGui::SeparatorText("Shadow Map");
+                    ImGui::Image(reinterpret_cast<ImTextureID>(shadowSrv.ptr), ImVec2(256.0f, 256.0f));
+                }
+            }
 
             if (skyDebugState && environment.showSkyDebugInfo) {
                 ImGui::SeparatorText("Sky Renderer State");

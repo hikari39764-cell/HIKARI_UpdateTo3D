@@ -21,6 +21,16 @@ namespace HIKARI::SHADOW {
         size_t skinnedCasterDrawCount = 0;
         size_t alphaMaskCasterDrawCount = 0;
         size_t skippedNoCastShadowCount = 0;
+        size_t totalPrimitiveCasterDrawCount = 0;
+        size_t shadowMapRecreateCount = 0;
+        size_t pcfEnabled = 0;
+        float pcfRadius = 0.0f;
+        float orthoSize = 0.0f;
+        float nearPlane = 0.0f;
+        float farPlane = 0.0f;
+        float depthBias = 0.0f;
+        float normalBias = 0.0f;
+        float strength = 0.0f;
     };
 
     void Reset();

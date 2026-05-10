@@ -50,12 +50,17 @@ cbuffer ShadowCB : register(b4)
     float gShadowDepthBias;
     float gShadowNormalBias;
     float gShadowStrength;
+    uint gShadowPcfEnabled;
+    float gShadowPcfRadius;
+    float gShadowTexelSizeX;
+    float gShadowTexelSizeY;
 };
 
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
 Texture2D gShadowMap : register(t2);
 SamplerState gLinearWrap : register(s0);
+SamplerState gShadowSampler : register(s1);
 
 struct PSInput
 {
@@ -126,14 +131,43 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
     return sum;
 }
 
-float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS)
+float CompareShadowDepth(float2 uv, float currentDepth)
+{
+    float shadowDepth = gShadowMap.SampleLevel(gShadowSampler, uv, 0).r;
+    return currentDepth <= shadowDepth ? 1.0f : 0.0f;
+}
+
+float SampleShadowPcf(float2 uv, float currentDepth)
+{
+    float visibility = CompareShadowDepth(uv, currentDepth);
+    if (gShadowPcfEnabled == 0)
+    {
+        return visibility;
+    }
+
+    float2 texelSize = float2(gShadowTexelSizeX, gShadowTexelSizeY) * gShadowPcfRadius;
+    float sum = 0.0f;
+    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f, -1.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f, -1.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f, -1.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  0.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  0.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  0.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  1.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  1.0f), currentDepth);
+    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  1.0f), currentDepth);
+    visibility = sum / 9.0f;
+    return visibility;
+}
+
+float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS)
 {
     if (gShadowEnabled == 0 || gReceiveShadow == 0)
     {
         return 1.0f;
     }
 
-    float3 biasedWorldPos = worldPosWS + normalWS * gShadowNormalBias;
+    float3 biasedWorldPos = worldPosWS + geometricNormalWS * gShadowNormalBias;
     float4 lightClip = mul(gShadowLightViewProj, float4(biasedWorldPos, 1.0f));
     if (abs(lightClip.w) < 1e-5f)
     {
@@ -148,13 +182,14 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS)
     }
 
     float currentDepth = proj.z - gShadowDepthBias;
-    float shadowDepth = gShadowMap.Sample(gLinearWrap, uv).r;
-    return currentDepth <= shadowDepth ? 1.0f : (1.0f - gShadowStrength);
+    float visibility = SampleShadowPcf(uv, currentDepth);
+    return lerp(1.0f - gShadowStrength, 1.0f, visibility);
 }
 
 float4 main(PSInput input) : SV_TARGET
 {
     float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
+    float3 geometricNormal = normalize(input.normalWS);
     float3 l = normalize(gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);
@@ -186,7 +221,7 @@ float4 main(PSInput input) : SV_TARGET
         return float4(unlitColor, albedo.a);
     }
 
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n);
+    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
     float3 lit = ambient + (diffuse + specular + pointLightContribution) * shadowFactor;
     float3 finalColor = albedo.rgb * lit;
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)

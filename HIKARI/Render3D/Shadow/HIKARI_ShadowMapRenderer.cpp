@@ -84,6 +84,7 @@ namespace HIKARI::SHADOW {
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, int> materialTextureCache;
             ShadowMapDebugStats debugStats;
+            size_t shadowMapRecreateCount = 0;
         };
 
         State g;
@@ -287,6 +288,7 @@ namespace HIKARI::SHADOW {
             g.shadowSrvHandle = DXTEX::DxTextureManager::RegisterFromResourceAs(g.shadowMap.Get(), DXGI_FORMAT_R32_FLOAT);
             g.resolution = resolution;
             g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            ++g.shadowMapRecreateCount;
             return g.shadowSrvHandle >= 0;
         }
 
@@ -454,16 +456,24 @@ namespace HIKARI::SHADOW {
                 lightDir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
             }
             const MATH::Vec3 center = camera.GetPosition();
-            const float lightDistance = std::max(1.0f, environment.directionalShadow.farPlane * 0.5f);
+            const float lightDistance = std::max(1.0f, environment.directionalShadow.shadowDistance);
             const MATH::Vec3 lightPos = center - lightDir * lightDistance;
             MATH::Vec3 up{ 0.0f, 1.0f, 0.0f };
             if (std::abs(MATH::Dot(lightDir, up)) > 0.95f) {
                 up = { 1.0f, 0.0f, 0.0f };
             }
-            const MATH::Mat4 view = MATH::Mat4::LookAtRH(lightPos, center, up);
+            MATH::Mat4 view = MATH::Mat4::LookAtRH(lightPos, center, up);
             const float orthoSize = std::max(1.0f, environment.directionalShadow.orthoSize);
             const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
             const float farPlane = std::max(nearPlane + 0.01f, environment.directionalShadow.farPlane);
+            if (environment.directionalShadow.stabilize && g.resolution > 0) {
+                const float unitsPerTexel = orthoSize / static_cast<float>(g.resolution);
+                const MATH::Vec4 centerLS = view.TransformPoint({ center.x, center.y, center.z, 1.0f });
+                const float snappedX = std::floor(centerLS.x / unitsPerTexel) * unitsPerTexel;
+                const float snappedY = std::floor(centerLS.y / unitsPerTexel) * unitsPerTexel;
+                view.m[3][0] += snappedX - centerLS.x;
+                view.m[3][1] += snappedY - centerLS.y;
+            }
             return MATH::Mat4::OrthoRH_ZO(orthoSize, orthoSize, nearPlane, farPlane) * view;
         }
 
@@ -477,7 +487,7 @@ namespace HIKARI::SHADOW {
                 lightDir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
             }
             const MATH::Vec3 center = camera.GetPosition();
-            const float lightDistance = std::max(1.0f, environment.directionalShadow.farPlane * 0.5f);
+            const float lightDistance = std::max(1.0f, environment.directionalShadow.shadowDistance);
             const MATH::Vec3 lightPos = center - lightDir * lightDistance;
             MATH::Vec3 up{ 0.0f, 1.0f, 0.0f };
             if (std::abs(MATH::Dot(lightDir, up)) > 0.95f) {
@@ -547,6 +557,15 @@ namespace HIKARI::SHADOW {
         g.frameEnabled = environment.directional.enabled && environment.directionalShadow.enabled;
         g.debugStats.enabled = g.frameEnabled;
         g.debugStats.resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
+        g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
+        g.debugStats.pcfEnabled = environment.directionalShadow.pcfEnabled ? 1u : 0u;
+        g.debugStats.pcfRadius = environment.directionalShadow.pcfRadius;
+        g.debugStats.orthoSize = environment.directionalShadow.orthoSize;
+        g.debugStats.nearPlane = environment.directionalShadow.nearPlane;
+        g.debugStats.farPlane = environment.directionalShadow.farPlane;
+        g.debugStats.depthBias = environment.directionalShadow.depthBias;
+        g.debugStats.normalBias = environment.directionalShadow.normalBias;
+        g.debugStats.strength = environment.directionalShadow.strength;
         if (!g.frameEnabled) {
             return;
         }
@@ -563,6 +582,7 @@ namespace HIKARI::SHADOW {
                 g.debugStats.enabled = false;
                 return;
             }
+            g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
         }
         g.lightViewProj = BuildLightViewProj(environment, camera);
         SubmitDebugFrustum(environment, camera);
@@ -677,6 +697,7 @@ namespace HIKARI::SHADOW {
             cmd->IASetVertexBuffers(0, 1, &vb);
             cmd->IASetIndexBuffer(&ib);
             cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+            ++g.debugStats.totalPrimitiveCasterDrawCount;
             ++objectIndex;
         };
 
@@ -715,6 +736,7 @@ namespace HIKARI::SHADOW {
                 cmd->IASetIndexBuffer(&ib);
                 cmd->DrawIndexedInstanced(legacyMesh->GetIndexCount(), 1, 0, 0, 0);
                 ++g.debugStats.staticCasterDrawCount;
+                ++g.debugStats.totalPrimitiveCasterDrawCount;
                 ++objectIndex;
             }
         }
