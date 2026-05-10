@@ -6,7 +6,7 @@
         1.0,
         1.0
       ],
-      "intensity": 0.25
+      "intensity": 0.33000001311302185
     },
     "directional": {
       "color": [
@@ -15,12 +15,28 @@
         1.0
       ],
       "direction": [
-        0.32444286346435547,
-        -0.8111071586608887,
-        -0.4866642951965332
+        0.37249627709388733,
+        -0.1865609884262085,
+        -0.9090883135795593
       ],
       "enabled": true,
-      "intensity": 1.0
+      "intensity": 1.5399999618530273
+    },
+    "directionalShadow": {
+      "depthBias": 0.0010000000474974513,
+      "enabled": true,
+      "farPlane": 80.0,
+      "nearPlane": 0.25999999046325684,
+      "normalBias": 0.019999999552965164,
+      "orthoSize": 33.5,
+      "pcfEnabled": true,
+      "pcfRadius": 1.0,
+      "resolution": 4096,
+      "shadowDistance": 30.0,
+      "showDebugFrustum": false,
+      "showDebugTexture": false,
+      "stabilize": true,
+      "strength": 0.75
     },
     "pointLights": [
       {
@@ -30,13 +46,13 @@
           1.0
         ],
         "enabled": true,
-        "intensity": 1.0,
+        "intensity": 2.559999942779541,
         "position": [
-          0.0,
-          2.0,
-          0.0
+          1.059999942779541,
+          2.640000104904175,
+          -2.740000009536743
         ],
-        "range": 5.0
+        "range": 12.850000381469727
       },
       {
         "color": [
@@ -44,14 +60,14 @@
           1.0,
           1.0
         ],
-        "enabled": true,
-        "intensity": 2.8299999237060547,
+        "enabled": false,
+        "intensity": 1.0,
         "position": [
-          0.0,
-          2.4200000762939453,
-          3.200000047683716
+          3.380000114440918,
+          0.699999988079071,
+          -0.2800000011920929
         ],
-        "range": 11.100000381469727
+        "range": 5.0
       }
     ],
     "post": {
@@ -157,6 +173,9 @@
       ],
       "valuesInitialized": true
     },
+    "showLightDebug": true,
+    "showPointLightMarkers": true,
+    "showSkyDebugInfo": false,
     "sky": {
       "enabled": false,
       "exposure": 1.0,
@@ -179,69 +198,7 @@
         {
           "properties": {
             "assetId": "Hero",
-            "materialFxParamValues": [
-              [
-                1.2000000476837158,
-                4.349999904632568,
-                0.0,
-                0.07999999821186066
-              ],
-              [
-                2.0,
-                2.0,
-                1.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ]
-            ],
-            "materialFxProfileId": "test",
-            "materialFxValuesInitialized": true,
-            "postGroupMask": 0,
-            "visible": true
-          },
-          "type": "ModelComponent"
-        }
-      ],
-      "editorVisible": true,
-      "enabled": true,
-      "id": 1,
-      "name": "Block",
-      "parent": null,
-      "sourcePrefabId": "",
-      "transform": {
-        "position": [
-          0.0,
-          0.5,
-          0.0
-        ],
-        "rotationEulerDeg": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      }
-    },
-    {
-      "components": [
-        {
-          "properties": {
-            "assetId": "TestCube",
+            "castShadow": true,
             "materialFxParamValues": [
               [
                 0.0,
@@ -271,6 +228,88 @@
             "materialFxProfileId": "",
             "materialFxValuesInitialized": false,
             "postGroupMask": 0,
+            "receiveShadow": true,
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
+            "visible": true
+          },
+          "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "autoPlay": true,
+            "clip": "Run",
+            "finished": false,
+            "loop": true,
+            "playing": true,
+            "speed": 1.0,
+            "timeSec": 0.33633533120155334
+          },
+          "type": "AnimatorComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 1,
+      "name": "Block",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          1.600000023841858,
+          0.10000000149011612,
+          0.0
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "Tee",
+            "castShadow": false,
+            "materialFxParamValues": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "materialFxProfileId": "",
+            "materialFxValuesInitialized": false,
+            "postGroupMask": 0,
+            "receiveShadow": true,
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
             "visible": true
           },
           "type": "ModelComponent"
@@ -278,7 +317,7 @@
         {
           "properties": {
             "attachmentMode": 1,
-            "enabled": true,
+            "enabled": false,
             "localEulerOffset": {
               "x": 0.0,
               "y": 0.0,
@@ -294,6 +333,7 @@
               "y": 1.0,
               "z": 1.0
             },
+            "localScaleUniform": 1.0,
             "slots": [
               {
                 "autoPlay": false,
@@ -307,7 +347,7 @@
             "stopOnOwnerDestroy": true,
             "targetObjectId": 0,
             "targetSocketName": "",
-            "visible": true
+            "visible": false
           },
           "type": "VfxPlayerComponent"
         }
@@ -320,9 +360,9 @@
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          2.0,
-          1.0,
-          0.0
+          2.3299999237060547,
+          0.17000000178813934,
+          -2.559999942779541
         ],
         "rotationEulerDeg": [
           0.0,
