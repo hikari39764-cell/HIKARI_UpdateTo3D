@@ -1,5 +1,7 @@
 #include "HIKARI_VfxBackend_EffekseerDX12.h"
 
+#include <filesystem>
+#include <string>
 #include <unordered_map>
 
 #include "Effekseer.h"
@@ -137,8 +139,15 @@ bool LoadEffect(const std::string& assetId, const std::string& sourcePath) {
         return true;
     }
 
-    std::u16string path(sourcePath.begin(), sourcePath.end());
-    Effekseer::EffectRef effect = Effekseer::Effect::Create(gManager, reinterpret_cast<const char16_t*>(path.c_str()));
+    namespace fs = std::filesystem;
+    const std::u8string effectPathUtf8(reinterpret_cast<const char8_t*>(sourcePath.data()), sourcePath.size());
+    const fs::path effectPath(effectPathUtf8);
+    if (!fs::exists(effectPath)) {
+        return false;
+    }
+
+    const std::u16string path16 = effectPath.generic_u16string();
+    Effekseer::EffectRef effect = Effekseer::Effect::Create(gManager, reinterpret_cast<const char16_t*>(path16.c_str()));
     if (effect == nullptr) {
         return false;
     }

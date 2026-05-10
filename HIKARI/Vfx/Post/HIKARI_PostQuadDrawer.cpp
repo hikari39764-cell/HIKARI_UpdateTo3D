@@ -253,6 +253,10 @@ float4 main(PS_IN i) : SV_TARGET
                 OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: invalid SRV heap/handle.\n");
                 return;
             }
+            if (context_.srvHeap != nullptr && currentSrvHeap_ != context_.srvHeap) {
+                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: SRV heap mismatch.\n");
+                return;
+            }
             if (!rootSig_) {
                 OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: root signature is null.\n");
                 return;
@@ -286,10 +290,18 @@ float4 main(PS_IN i) : SV_TARGET
 
         void QuadDrawer::SetInputTexture(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu)
         {
-            currentSrvHeap_ = srvHeap;
+            if (context_.srvHeap != nullptr) {
+                currentSrvHeap_ = context_.srvHeap;
+            } else {
+                currentSrvHeap_ = srvHeap;
+            }
             currentSrvGpu_ = srvGpu;
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
                 OutputDebugStringA("[PostQuadDrawer] SetInputTexture received invalid SRV heap/handle.\n");
+                return;
+            }
+            if (context_.srvHeap != nullptr && currentSrvHeap_ != context_.srvHeap) {
+                OutputDebugStringA("[PostQuadDrawer] SetInputTexture detected mismatched SRV heap.\n");
             }
         }
 
@@ -315,6 +327,10 @@ float4 main(PS_IN i) : SV_TARGET
                 OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: invalid SRV heap/handle.\n");
                 return;
             }
+            if (context_.srvHeap != nullptr && currentSrvHeap_ != context_.srvHeap) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: SRV heap mismatch.\n");
+                return;
+            }
             if (!rootSig_ || !psoCopy_) {
                 OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: root signature/PSO is null.\n");
                 return;
@@ -334,6 +350,10 @@ float4 main(PS_IN i) : SV_TARGET
             if (!cmd) { return; }
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
                 OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: invalid SRV heap/handle.\n");
+                return;
+            }
+            if (context_.srvHeap != nullptr && currentSrvHeap_ != context_.srvHeap) {
+                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: SRV heap mismatch.\n");
                 return;
             }
             if (!rootSig_ || !psoPost_) {
