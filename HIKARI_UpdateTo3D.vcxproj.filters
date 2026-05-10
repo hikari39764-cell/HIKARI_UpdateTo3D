@@ -64,6 +64,12 @@
     <Filter Include="Header Files\Render3D\Lighting">
       <UniqueIdentifier>{A5284DF4-6862-505D-A7C1-5D4FD7F789E9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Render">
+      <UniqueIdentifier>{07B0E4B2-AC2D-54F3-9F48-9D4707B2F6E1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Shadow">
+      <UniqueIdentifier>{7B8DB028-C4E2-5EF6-9581-41E384A4F362}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
@@ -81,6 +87,9 @@
     </Filter>
     <Filter Include="Header Files\Scene\Serialization">
       <UniqueIdentifier>{77CB0B58-F53A-54E9-B326-C8CDB53D7982}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Systems">
+      <UniqueIdentifier>{E97E3424-93C4-5609-9AA9-CDB26446660B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\ThirdParty">
       <UniqueIdentifier>{0DB7CCE5-71FE-57DF-B834-2F53DA9C85CC}</UniqueIdentifier>
@@ -129,6 +138,27 @@
     </Filter>
     <Filter Include="Project\Shaders">
       <UniqueIdentifier>{0366C106-C884-59CB-BCE3-0A4E338EDD64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Render3D">
+      <UniqueIdentifier>{8CF77C93-5822-5B2E-AE7C-F44204A8C833}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Render3D\Shadow">
+      <UniqueIdentifier>{8EE6B49A-886A-5E19-883B-95800D4C8219}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Render3D\Debug">
+      <UniqueIdentifier>{A2C38146-2482-5F55-8950-460142371A7E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Render3D\Sky">
+      <UniqueIdentifier>{99334338-414B-59D5-8EC0-8C67764F67F1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Post">
+      <UniqueIdentifier>{272B7263-D894-5E92-B4F8-89A526D6420F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Post\Bloom">
+      <UniqueIdentifier>{687CC846-70BA-59CB-B56F-796E88709ECA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Shaders\Post\Transition">
+      <UniqueIdentifier>{4C09388F-1B11-5F86-B372-62F221C10B73}</UniqueIdentifier>
     </Filter>
     <Filter Include="Project\Shaders\Vfx">
       <UniqueIdentifier>{2225DDC9-7F9B-5AA7-9770-8C770E0119A2}</UniqueIdentifier>
@@ -196,6 +226,12 @@
     <Filter Include="Source Files\Render3D\Lighting">
       <UniqueIdentifier>{C1A3C0C6-B467-522C-9581-6B8444E82C66}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Render3D\Render">
+      <UniqueIdentifier>{A1841888-3554-5F96-862F-794EE5020D69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow">
+      <UniqueIdentifier>{92D6DF23-C71A-5E90-BCDE-2559131213D9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
     </Filter>
@@ -213,6 +249,9 @@
     </Filter>
     <Filter Include="Source Files\Scene\Serialization">
       <UniqueIdentifier>{D1BA8550-A781-5589-B985-1DA0CA6F48C0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Systems">
+      <UniqueIdentifier>{E560D4F1-8CA3-5F5B-BD6E-26E4A9BA2659}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\ThirdParty">
       <UniqueIdentifier>{9B81F76E-095D-5DA3-BAAA-BC8D214BCAA0}</UniqueIdentifier>
@@ -693,9 +732,27 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Source Files\ThirdParty\Spine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
-    <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
+    <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp">
+      <Filter>Source Files\Render3D\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp">
+      <Filter>Source Files\Render3D\Shadow</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1136,11 +1193,36 @@
     <ClInclude Include="HIKARI\Matrix3x3.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
-    <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
-    <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h">
+      <Filter>Header Files\Render3D\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h">
+      <Filter>Header Files\Render3D\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h">
+      <Filter>Header Files\Render3D\Shadow</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -1173,8 +1255,53 @@
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
     </None>
-    <None Include="HIKARI\Shaders\Post_TransitionNoiseWipePS.hlsl">
-      <Filter>Project\Shaders\Vfx\Transition</Filter>
+    <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_SkyVS.hlsl">
+      <Filter>Project\Shaders\Render3D\Sky</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_SkyPS.hlsl">
+      <Filter>Project\Shaders\Render3D\Sky</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_DebugLineVS.hlsl">
+      <Filter>Project\Shaders\Render3D\Debug</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_DebugLinePS.hlsl">
+      <Filter>Project\Shaders\Render3D\Debug</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ShadowAlphaPS.hlsl">
+      <Filter>Project\Shaders\Render3D\Shadow</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl">
+      <Filter>Project\Shaders\Render3D\Shadow</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl">
+      <Filter>Project\Shaders\Render3D\Shadow</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_TransitionLinearWipePS.hlsl">
+      <Filter>Project\Shaders\Post\Transition</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_BloomExtractPS.hlsl">
+      <Filter>Project\Shaders\Post\Bloom</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_BloomBlurHPS.hlsl">
+      <Filter>Project\Shaders\Post\Bloom</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_BloomBlurVPS.hlsl">
+      <Filter>Project\Shaders\Post\Bloom</Filter>
     </None>
   </ItemGroup>
 </Project>

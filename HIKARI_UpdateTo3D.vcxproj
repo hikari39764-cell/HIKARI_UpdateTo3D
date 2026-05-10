@@ -430,10 +430,22 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_SkyVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_SkyPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_DebugLineVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_DebugLinePS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowAlphaPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl" />
-    <None Include="HIKARI\Shaders\Post_TransitionNoiseWipePS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_TransitionLinearWipePS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_BloomExtractPS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_BloomBlurHPS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_BloomBlurVPS.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
