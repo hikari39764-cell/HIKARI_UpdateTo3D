@@ -100,6 +100,12 @@ namespace HIKARI {
             out["fog"]["endDistance"] = environment.fog.endDistance;
             out["fog"]["heightFalloff"] = environment.fog.heightFalloff;
 
+            out["toneMapping"]["enabled"] = environment.toneMapping.enabled;
+            out["toneMapping"]["exposure"] = environment.toneMapping.exposure;
+            out["toneMapping"]["gamma"] = environment.toneMapping.gamma;
+            out["toneMapping"]["mode"] = environment.toneMapping.mode;
+            out["debugView"] = static_cast<uint32_t>(environment.debugView);
+
             out["specularIntensity"] = environment.specularIntensity;
             out["specularPower"] = environment.specularPower;
             out["showLightDebug"] = environment.showLightDebug;
@@ -190,6 +196,15 @@ namespace HIKARI {
                 environment.fog.endDistance = fog.value("endDistance", environment.fog.endDistance);
                 environment.fog.heightFalloff = fog.value("heightFalloff", environment.fog.heightFalloff);
             }
+
+            if (in.contains("toneMapping") && in["toneMapping"].is_object()) {
+                const json& toneMapping = in["toneMapping"];
+                environment.toneMapping.enabled = toneMapping.value("enabled", environment.toneMapping.enabled);
+                environment.toneMapping.exposure = toneMapping.value("exposure", environment.toneMapping.exposure);
+                environment.toneMapping.gamma = toneMapping.value("gamma", environment.toneMapping.gamma);
+                environment.toneMapping.mode = toneMapping.value("mode", environment.toneMapping.mode);
+            }
+            environment.debugView = static_cast<RenderDebugView>(in.value("debugView", static_cast<uint32_t>(environment.debugView)));
 
             environment.specularIntensity = in.value("specularIntensity", environment.specularIntensity);
             environment.specularPower = in.value("specularPower", environment.specularPower);

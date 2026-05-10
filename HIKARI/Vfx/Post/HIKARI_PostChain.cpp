@@ -4,6 +4,9 @@
 
 namespace HIKARI {
     namespace POST {
+        namespace {
+            constexpr DXGI_FORMAT kPostChainFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        }
 
         void PostChain::Clear()
         {
@@ -44,14 +47,14 @@ namespace HIKARI {
                 pong_.UpdateContext(context_);
                 const bool okPing = ping_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
 
                 const bool okPong = pong_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -66,7 +69,7 @@ namespace HIKARI {
                 ping_.UpdateContext(context_);
                 ping_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -76,7 +79,7 @@ namespace HIKARI {
                 pong_.UpdateContext(context_);
                 pong_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -120,6 +123,7 @@ namespace HIKARI {
 
  
                 quad.SetInputTexture(cur->GetSrvHeap(), cur->GetSrvGpu());
+                quad.SetOutputFormat(dst->GetFormat());
 
 
                 effects_[i]->ApplyCommonParams(params);

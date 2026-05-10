@@ -1291,6 +1291,9 @@
     <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl">
       <Filter>Project\Shaders\Post</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Post_TransitionLinearWipePS.hlsl">
       <Filter>Project\Shaders\Post\Transition</Filter>
     </None>

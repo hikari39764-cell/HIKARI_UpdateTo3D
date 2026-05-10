@@ -12,7 +12,9 @@
 #if defined(_DEBUG)
 #include "imgui.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <iterator>
 #include <utility>
 #endif
 
@@ -71,6 +73,109 @@ namespace HIKARI {
             }
         }
 
+        constexpr float kPi = 3.14159265358979323846f;
+
+        MATH::Vec3 DirectionFromYawPitch(float yawDeg, float pitchDeg) {
+            const float yaw = yawDeg * kPi / 180.0f;
+            const float pitch = pitchDeg * kPi / 180.0f;
+            const float cp = std::cos(pitch);
+            return MATH::Normalize(MATH::Vec3{
+                std::sin(yaw) * cp,
+                -std::sin(pitch),
+                std::cos(yaw) * cp
+            });
+        }
+
+        void YawPitchFromDirection(const MATH::Vec3& direction, float& yawDeg, float& pitchDeg) {
+            MATH::Vec3 dir = MATH::Normalize(direction);
+            if (MATH::Length(dir) <= 1e-6f) {
+                dir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
+            }
+            yawDeg = std::atan2(dir.x, dir.z) * 180.0f / kPi;
+            pitchDeg = std::asin(std::clamp(-dir.y, -1.0f, 1.0f)) * 180.0f / kPi;
+        }
+
+        void ApplyEnvironmentPreset(SceneEnvironment& environment, int presetIndex) {
+            switch (presetIndex) {
+            case 1: // Bright Day
+                environment.directional.color = { 1.0f, 0.96f, 0.86f };
+                environment.directional.intensity = 2.0f;
+                environment.directional.direction = DirectionFromYawPitch(35.0f, 45.0f);
+                environment.ambient.color = { 0.78f, 0.86f, 1.0f };
+                environment.ambient.intensity = 0.35f;
+                environment.bloom.enabled = true;
+                environment.bloom.intensity = 0.35f;
+                environment.toneMapping.exposure = 1.05f;
+                break;
+            case 2: // Sunset
+                environment.directional.color = { 1.0f, 0.58f, 0.32f };
+                environment.directional.intensity = 1.2f;
+                environment.directional.direction = DirectionFromYawPitch(-35.0f, 12.0f);
+                environment.ambient.color = { 0.35f, 0.35f, 0.65f };
+                environment.ambient.intensity = 0.25f;
+                environment.fog.enabled = true;
+                environment.fog.color = { 0.9f, 0.5f, 0.35f };
+                environment.fog.density = 0.015f;
+                environment.bloom.enabled = true;
+                environment.bloom.intensity = 0.7f;
+                environment.toneMapping.exposure = 1.1f;
+                break;
+            case 3: // Night
+                environment.directional.color = { 0.45f, 0.55f, 1.0f };
+                environment.directional.intensity = 0.25f;
+                environment.directional.direction = DirectionFromYawPitch(20.0f, 25.0f);
+                environment.ambient.color = { 0.12f, 0.16f, 0.28f };
+                environment.ambient.intensity = 0.18f;
+                environment.bloom.enabled = true;
+                environment.bloom.intensity = 1.0f;
+                environment.toneMapping.exposure = 1.25f;
+                break;
+            case 4: // Overcast
+                environment.directional.color = { 0.85f, 0.9f, 1.0f };
+                environment.directional.intensity = 0.65f;
+                environment.ambient.color = { 0.72f, 0.76f, 0.82f };
+                environment.ambient.intensity = 0.55f;
+                environment.fog.enabled = true;
+                environment.fog.color = { 0.62f, 0.68f, 0.72f };
+                environment.fog.density = 0.01f;
+                environment.toneMapping.exposure = 1.0f;
+                break;
+            case 5: // Stylized Blue
+                environment.directional.color = { 0.55f, 0.78f, 1.0f };
+                environment.directional.intensity = 1.4f;
+                environment.ambient.color = { 0.18f, 0.28f, 0.58f };
+                environment.ambient.intensity = 0.45f;
+                environment.bloom.enabled = true;
+                environment.bloom.intensity = 0.85f;
+                environment.toneMapping.mode = 2;
+                environment.toneMapping.exposure = 1.2f;
+                break;
+            case 6: // Warm Indoor
+                environment.directional.enabled = false;
+                environment.ambient.color = { 1.0f, 0.72f, 0.45f };
+                environment.ambient.intensity = 0.45f;
+                environment.bloom.enabled = true;
+                environment.bloom.intensity = 0.45f;
+                environment.toneMapping.exposure = 1.0f;
+                break;
+            default:
+                environment = SceneEnvironment{};
+                NormalizeDirectionalLight(environment.directional);
+                break;
+            }
+        }
+
+        const char* DebugViewLabel(RenderDebugView view) {
+            switch (view) {
+            case RenderDebugView::Normal: return "Normal";
+            case RenderDebugView::Tangent: return "Tangent";
+            case RenderDebugView::Metallic: return "Metallic";
+            case RenderDebugView::Roughness: return "Roughness";
+            case RenderDebugView::LightingOnly: return "Lighting Only";
+            default: return "None";
+            }
+        }
+
         size_t CountUploadablePointLights(const SceneEnvironment& environment) {
             size_t count = 0;
             for (const PointLight& pointLight : environment.pointLights) {
@@ -89,6 +194,52 @@ namespace HIKARI {
         }
 
         ImGui::SeparatorText("Scene Environment");
+
+        if (ImGui::TreeNodeEx("Quick Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::DragFloat("Exposure", &environment.toneMapping.exposure, 0.01f, 0.0f, 8.0f);
+            ImGui::DragFloat("Sun Intensity", &environment.directional.intensity, 0.01f, 0.0f, 20.0f);
+            ImGui::DragFloat("Ambient Intensity", &environment.ambient.intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat("Bloom Intensity", &environment.bloom.intensity, 0.01f, 0.0f, 5.0f);
+            ImGui::DragFloat("Fog Amount", &environment.fog.density, 0.001f, 0.0f, 1.0f);
+            ImGui::DragFloat("Shadow Strength", &environment.directionalShadow.strength, 0.01f, 0.0f, 1.0f);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Presets")) {
+            const char* presets[] = {
+                "Default",
+                "Bright Day",
+                "Sunset",
+                "Night",
+                "Overcast",
+                "Stylized Blue",
+                "Warm Indoor"
+            };
+            for (int i = 0; i < static_cast<int>(std::size(presets)); ++i) {
+                if (ImGui::Button(presets[i])) {
+                    ApplyEnvironmentPreset(environment, i);
+                }
+                if ((i % 3) != 2) {
+                    ImGui::SameLine();
+                }
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("Sun", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Sun Enabled", &environment.directional.enabled);
+            float yawDeg = 0.0f;
+            float pitchDeg = 0.0f;
+            YawPitchFromDirection(environment.directional.direction, yawDeg, pitchDeg);
+            bool sunChanged = false;
+            sunChanged |= ImGui::DragFloat("Sun Yaw", &yawDeg, 0.5f, -180.0f, 180.0f);
+            sunChanged |= ImGui::DragFloat("Sun Pitch", &pitchDeg, 0.5f, -89.0f, 89.0f);
+            if (sunChanged) {
+                environment.directional.direction = DirectionFromYawPitch(yawDeg, pitchDeg);
+            }
+            ImGui::ColorEdit3("Sun Color", &environment.directional.color.x);
+            ImGui::TreePop();
+        }
 
         if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::ColorEdit3("Ambient Color", &environment.ambient.color.x);
@@ -215,6 +366,27 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNode("Tone Mapping")) {
+            ImGui::Checkbox("Tone Mapping Enabled", &environment.toneMapping.enabled);
+            ImGui::DragFloat("Exposure", &environment.toneMapping.exposure, 0.01f, 0.0f, 8.0f);
+            ImGui::DragFloat("Gamma", &environment.toneMapping.gamma, 0.01f, 0.5f, 4.0f);
+            const char* modeLabels[] = { "None", "Reinhard", "ACES Approx" };
+            int mode = std::clamp(environment.toneMapping.mode, 0, 2);
+            if (ImGui::BeginCombo("Mode", modeLabels[mode])) {
+                for (int i = 0; i < static_cast<int>(std::size(modeLabels)); ++i) {
+                    const bool selected = mode == i;
+                    if (ImGui::Selectable(modeLabels[i], selected)) {
+                        environment.toneMapping.mode = i;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::TreePop();
+        }
+
         if (ImGui::TreeNode("Fog")) {
             ImGui::Checkbox("Fog Enabled", &environment.fog.enabled);
             ImGui::ColorEdit3("Fog Color", &environment.fog.color.x);
@@ -229,6 +401,26 @@ namespace HIKARI {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
             ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
+            if (ImGui::BeginCombo("Render Debug View", DebugViewLabel(environment.debugView))) {
+                const RenderDebugView views[] = {
+                    RenderDebugView::None,
+                    RenderDebugView::Normal,
+                    RenderDebugView::Tangent,
+                    RenderDebugView::Metallic,
+                    RenderDebugView::Roughness,
+                    RenderDebugView::LightingOnly
+                };
+                for (RenderDebugView view : views) {
+                    const bool selected = environment.debugView == view;
+                    if (ImGui::Selectable(DebugViewLabel(view), selected)) {
+                        environment.debugView = view;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
 
             const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
             ImGui::SeparatorText("Light Upload Stats");
@@ -246,6 +438,21 @@ namespace HIKARI {
             ImGui::Text("Emissive Mapped / Fallback Primitives: %zu / %zu",
                 lightStats.emissiveMappedPrimitiveCount,
                 lightStats.emissiveMapFallbackCount);
+            ImGui::Text("PBR / Unlit Primitives: %zu / %zu",
+                lightStats.pbrPrimitiveCount,
+                lightStats.unlitPrimitiveCount);
+            ImGui::Text("MetallicRoughness Cache Hit / Miss: %zu / %zu",
+                lightStats.metallicRoughnessTextureCacheHitCount,
+                lightStats.metallicRoughnessTextureCacheMissCount);
+            ImGui::Text("MetallicRoughness Mapped / Fallback: %zu / %zu",
+                lightStats.metallicRoughnessMappedPrimitiveCount,
+                lightStats.metallicRoughnessFallbackCount);
+            ImGui::Text("Occlusion Cache Hit / Miss: %zu / %zu",
+                lightStats.occlusionTextureCacheHitCount,
+                lightStats.occlusionTextureCacheMissCount);
+            ImGui::Text("Occlusion Mapped / Fallback: %zu / %zu",
+                lightStats.occlusionMappedPrimitiveCount,
+                lightStats.occlusionFallbackCount);
 
             const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
             ImGui::SeparatorText("Shadow Map Stats");

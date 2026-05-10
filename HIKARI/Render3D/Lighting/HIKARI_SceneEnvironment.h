@@ -71,6 +71,22 @@ namespace HIKARI {
         float heightFalloff = 0.0f;
     };
 
+    struct ToneMappingSettings {
+        bool enabled = true;
+        float exposure = 1.0f;
+        float gamma = 2.2f;
+        int mode = 1; // 0=None, 1=Reinhard, 2=ACESApprox
+    };
+
+    enum class RenderDebugView : uint32_t {
+        None = 0,
+        Normal = 1,
+        Tangent = 2,
+        Metallic = 3,
+        Roughness = 4,
+        LightingOnly = 5,
+    };
+
     struct ScenePostSettings {
         bool enabled = false;
         std::string globalPostProfileId{};
@@ -86,6 +102,8 @@ namespace HIKARI {
         SkySettings sky{};
         BloomSettings bloom{};
         FogSettings fog{};
+        ToneMappingSettings toneMapping{};
+        RenderDebugView debugView = RenderDebugView::None;
         float specularIntensity = 0.2f;
         float specularPower = 32.0f;
         bool showLightDebug = true;

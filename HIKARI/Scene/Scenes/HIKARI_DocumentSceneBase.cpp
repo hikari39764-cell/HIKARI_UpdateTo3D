@@ -85,6 +85,7 @@ namespace HIKARI {
             POST::PostSystem::ClearGlobalProfile();
         }
         POST::PostSystem::SetBloomSettings(environment_.bloom);
+        POST::PostSystem::SetToneMappingSettings(environment_.toneMapping);
 
         if (DrawDebugHelpers() && viewportOverlayState_.showGrid) {
             RENDERER3D::DEBUG::Grid3D grid{};

@@ -48,6 +48,7 @@ namespace HIKARI {
             static bool SetGlobalProfile(const std::string& profileId, const DirectX::XMFLOAT4(&paramValues)[16]);
             static void ClearGlobalProfile();
             static void SetBloomSettings(const BloomSettings& settings);
+            static void SetToneMappingSettings(const ToneMappingSettings& settings);
             static const BloomDebugStats& GetBloomDebugStats();
             static void SetTransitionState(const TransitionVisualState& state);
             static void ClearTransitionState();
@@ -76,6 +77,7 @@ namespace HIKARI {
             static void EnsureSceneRTSize();
             static RenderTarget2D* ApplyBloom(RenderTarget2D& source);
             static bool EnsureBloomEffects(uint32_t blurPairCount);
+            static bool EnsureToneMappingEffect();
 
         private:
             static bool initialized_;
@@ -98,8 +100,11 @@ namespace HIKARI {
             static std::vector<std::unique_ptr<PostEffect>> activeGlobalEffects_;
             static std::vector<std::unique_ptr<PostEffect>> activeBloomEffects_;
             static BloomSettings bloomSettings_;
+            static ToneMappingSettings toneMappingSettings_;
             static BloomDebugStats bloomDebugStats_;
             static uint32_t activeBloomBlurPairCount_;
+            static std::unique_ptr<PostEffect> toneMappingEffect_;
+            static CommonParams toneMappingParams_;
             static bool transitionActive_;
             static std::string activeTransitionProfileId_;
             static TransitionProfile activeTransitionProfile_;

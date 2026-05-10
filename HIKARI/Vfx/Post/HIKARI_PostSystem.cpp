@@ -64,8 +64,11 @@ namespace HIKARI {
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeBloomEffects_{};
         BloomSettings PostSystem::bloomSettings_{};
+        ToneMappingSettings PostSystem::toneMappingSettings_{};
         PostSystem::BloomDebugStats PostSystem::bloomDebugStats_{};
         uint32_t PostSystem::activeBloomBlurPairCount_ = 0;
+        std::unique_ptr<PostEffect> PostSystem::toneMappingEffect_{};
+        CommonParams PostSystem::toneMappingParams_{};
         bool PostSystem::transitionActive_ = false;
         std::string PostSystem::activeTransitionProfileId_{};
         TransitionProfile PostSystem::activeTransitionProfile_{};
@@ -103,6 +106,7 @@ namespace HIKARI {
             globalChain_.Finalize();
             bloomChain_.Finalize();
             activeBloomEffects_.clear();
+            toneMappingEffect_.reset();
             sceneRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
@@ -191,8 +195,25 @@ namespace HIKARI {
             bloomSettings_ = settings;
         }
 
+        void PostSystem::SetToneMappingSettings(const ToneMappingSettings& settings) {
+            toneMappingSettings_ = settings;
+        }
+
         const PostSystem::BloomDebugStats& PostSystem::GetBloomDebugStats() {
             return bloomDebugStats_;
+        }
+
+        bool PostSystem::EnsureToneMappingEffect() {
+            if (toneMappingEffect_) {
+                return true;
+            }
+
+            auto effect = std::make_unique<PostEffect>();
+            if (!effect->LoadPixelShader(L"HIKARI/Shaders/Post_ToneMappingPS.hlsl")) {
+                return false;
+            }
+            toneMappingEffect_ = std::move(effect);
+            return true;
         }
 
         bool PostSystem::EnsureBloomEffects(uint32_t blurPairCount) {
@@ -356,7 +377,7 @@ namespace HIKARI {
                 sceneRT_.Finalize();
                 sceneRT_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DXGI_FORMAT_R16G16B16A16_FLOAT,
                     true,
                     { 0.0f, 0.0f, 0.0f, 1.0f }   // sceneRT 常用黑底不透明
                 );
@@ -456,6 +477,12 @@ namespace HIKARI {
             }
 
             RenderTarget2D* bloomRT = ApplyBloom(*finalSceneRT);
+            if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
+                finalSceneRT->Rebind();
+                quad_.SetOutputFormat(finalSceneRT->GetFormat());
+                quad_.DrawBlended(bloomRT->GetSrvHeap(), bloomRT->GetSrvGpu(), BlendOption::Additive);
+                finalSceneRT->EndCapture();
+            }
 
 
             auto* cmd = context_.cmdList;
@@ -473,18 +500,31 @@ namespace HIKARI {
             cmd->RSSetScissorRects(1, &sc);
 
 
+            RenderTarget2D* presentSourceRT = finalSceneRT;
+
+            quad_.SetOutputFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+
             if (transitionActive_ && transitionEffect_) {
-                quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+                quad_.SetInputTexture(presentSourceRT->GetSrvHeap(), presentSourceRT->GetSrvGpu());
                 transitionEffect_->ApplyCommonParams(transitionParams_);
                 transitionEffect_->BindAndDraw(quad_);
+            } else if (EnsureToneMappingEffect()) {
+                toneMappingParams_ = commonParams_;
+                toneMappingParams_.user[0] = {
+                    toneMappingSettings_.enabled ? 1.0f : 0.0f,
+                    (std::max)(0.0f, toneMappingSettings_.exposure),
+                    (std::max)(0.001f, toneMappingSettings_.gamma),
+                    static_cast<float>(toneMappingSettings_.mode)
+                };
+                quad_.SetInputTexture(presentSourceRT->GetSrvHeap(), presentSourceRT->GetSrvGpu());
+                toneMappingEffect_->ApplyCommonParams(toneMappingParams_);
+                toneMappingEffect_->BindAndDraw(quad_);
             } else {
-                quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
-            }
-            if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
-                quad_.DrawBlended(bloomRT->GetSrvHeap(), bloomRT->GetSrvGpu(), BlendOption::Additive);
+                quad_.DrawFullscreen(presentSourceRT->GetSrvHeap(), presentSourceRT->GetSrvGpu());
             }
 
             if (useLighting_) {
+                quad_.SetOutputFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
                 quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
             }
         }
@@ -530,6 +570,7 @@ namespace HIKARI {
             D3D12_CPU_DESCRIPTOR_HANDLE rtv = prevLayer.rt->GetRtvHandle();
             cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
+            quad_.SetOutputFormat(prevLayer.rt->GetFormat());
             quad_.DrawBlended(processedRT->GetSrvHeap(), processedRT->GetSrvGpu(), blendMode);
         }
 

@@ -21,6 +21,13 @@ cbuffer ObjectCB : register(b1)
     float3 gShadowObjectPadding;
     uint gHasEmissiveTexture;
     float3 gEmissivePadding;
+    float gMetallicFactor;
+    float gRoughnessFactor;
+    uint gHasMetallicRoughnessTexture;
+    uint gHasOcclusionTexture;
+    float gOcclusionStrength;
+    uint gDebugView;
+    float2 gPbrPadding;
 
     float4 gFxUser0;
     float4 gFxUser1;
@@ -65,6 +72,8 @@ Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
 Texture2D gShadowMap : register(t2);
 Texture2D gEmissiveTex : register(t3);
+Texture2D gMetallicRoughnessTex : register(t4);
+Texture2D gOcclusionTex : register(t5);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -179,6 +188,26 @@ float3 ResolveEmissive(float2 uv)
     return emissive * gEmissiveFactor.a;
 }
 
+void ResolvePbrInputs(float2 uv, out float metallic, out float roughness, out float occlusion)
+{
+    metallic = saturate(gMetallicFactor);
+    roughness = clamp(gRoughnessFactor, 0.04f, 1.0f);
+    occlusion = 1.0f;
+
+    if (gHasMetallicRoughnessTexture != 0)
+    {
+        float4 mr = gMetallicRoughnessTex.Sample(gLinearWrap, uv);
+        roughness = clamp(roughness * mr.g, 0.04f, 1.0f);
+        metallic = saturate(metallic * mr.b);
+    }
+
+    if (gHasOcclusionTexture != 0)
+    {
+        float ao = gOcclusionTex.Sample(gLinearWrap, uv).r;
+        occlusion = lerp(1.0f, ao, saturate(gOcclusionStrength));
+    }
+}
+
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
     if (gFogParams.x < 0.5f)
@@ -252,17 +281,20 @@ float4 main(PSInput input) : SV_TARGET
 {
     float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
     float3 geometricNormal = normalize(input.normalWS);
+    if (gDebugView == 1)
+    {
+        return float4(n * 0.5f + 0.5f, 1.0f);
+    }
+    if (gDebugView == 2)
+    {
+        return float4(normalize(input.tangentWS.xyz) * 0.5f + 0.5f, 1.0f);
+    }
+
     float3 l = normalize(gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);
 
     float ndotl = saturate(dot(n, l));
-    float spec = pow(saturate(dot(n, h)), gSpecularParams.y);
-
-    float3 ambient = gAmbientColor.rgb * gAmbientIntensity;
-    float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl);
-    float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec);
-    float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
 
     float4 albedo = gBaseColor;
     if (gHasBaseColorTexture != 0)
@@ -277,7 +309,33 @@ float4 main(PSInput input) : SV_TARGET
     float3 lit = albedo.rgb;
     if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
     {
-        lit = albedo.rgb * (ambient + (diffuse + specular + pointLightContribution) * SampleDirectionalShadow(input.worldPosWS, geometricNormal));
+        float metallic = 0.0f;
+        float roughness = 1.0f;
+        float occlusion = 1.0f;
+        ResolvePbrInputs(input.uv, metallic, roughness, occlusion);
+        if (gDebugView == 3)
+        {
+            return float4(metallic.xxx, 1.0f);
+        }
+        if (gDebugView == 4)
+        {
+            return float4(roughness.xxx, 1.0f);
+        }
+
+        float specPower = max(1.0f, lerp(128.0f, 4.0f, roughness) * max(gSpecularParams.y, 1.0f) / 32.0f);
+        float spec = pow(saturate(dot(n, h)), specPower);
+        float diffuseWeight = 1.0f - metallic;
+        float specularWeight = lerp(gSpecularParams.x, 1.0f, metallic);
+        float3 ambient = gAmbientColor.rgb * gAmbientIntensity * occlusion;
+        float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl * diffuseWeight);
+        float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * specularWeight * spec);
+        float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v) * lerp(1.0f, 1.2f, metallic);
+        float3 lightingOnly = ambient + (diffuse + specular + pointLightContribution) * SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+        if (gDebugView == 5)
+        {
+            return float4(ApplyFog(lightingOnly, input.worldPosWS), albedo.a);
+        }
+        lit = albedo.rgb * lightingOnly;
     }
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
     {

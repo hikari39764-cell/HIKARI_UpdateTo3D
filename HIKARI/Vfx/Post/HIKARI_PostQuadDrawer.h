@@ -24,6 +24,7 @@ namespace HIKARI {
             void UpdateContext(const GFX::Context& ctx);
             void Finalize();
 
+            void SetOutputFormat(DXGI_FORMAT format);
             void DrawFullscreen(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu);
             void SetInputTexture(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu);
             void SetPixelShader(ID3DBlob* psBlob);
@@ -53,6 +54,7 @@ namespace HIKARI {
             Microsoft::WRL::ComPtr<ID3D12PipelineState> psoBlendMultiply_; 
 
             ID3DBlob* currentPostPS_ = nullptr;
+            DXGI_FORMAT outputFormat_ = DXGI_FORMAT_R8G8B8A8_UNORM;
             ID3D12DescriptorHeap* currentSrvHeap_ = nullptr;
             D3D12_GPU_DESCRIPTOR_HANDLE currentSrvGpu_{};
             D3D12_GPU_VIRTUAL_ADDRESS currentCBV0_ = 0;

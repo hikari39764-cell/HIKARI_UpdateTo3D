@@ -442,6 +442,7 @@
     <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_TransitionLinearWipePS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomExtractPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomBlurHPS.hlsl" />
