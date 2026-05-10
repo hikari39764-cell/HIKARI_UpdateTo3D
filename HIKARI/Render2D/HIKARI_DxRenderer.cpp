@@ -2,7 +2,7 @@
 
 #include "HIKARI_DxRenderer.h"
 #include "HIKARI_DxTexture.h"
-#include "HIKARI_DynamicUploadBuffer.h"
+#include "Gfx/HIKARI_DynamicUploadBuffer.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>

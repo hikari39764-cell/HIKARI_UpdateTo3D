@@ -10,7 +10,7 @@
 #include <d3dx12.h>
 #include <wrl/client.h>
 
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "HIKARI_Services.h"
 
 #pragma comment(lib, "d3dcompiler.lib")

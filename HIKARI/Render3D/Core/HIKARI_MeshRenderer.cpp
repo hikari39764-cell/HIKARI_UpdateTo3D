@@ -13,7 +13,7 @@
 #include "HIKARI_DxTexture.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"

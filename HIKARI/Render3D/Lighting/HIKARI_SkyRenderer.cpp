@@ -6,7 +6,7 @@
 #include <d3dx12.h>
 #include <wrl/client.h>
 
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "HIKARI_DxTexture.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"

@@ -1,6 +1,6 @@
 #include "Vfx/Post/HIKARI_PostEffect.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include <Windows.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>

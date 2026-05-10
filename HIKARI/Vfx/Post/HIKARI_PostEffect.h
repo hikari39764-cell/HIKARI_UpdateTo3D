@@ -2,7 +2,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 #include <DirectXMath.h>
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Vfx/Post/HIKARI_PostCommon.h"
 #include "Gfx/HIKARI_GfxContext.h"
 

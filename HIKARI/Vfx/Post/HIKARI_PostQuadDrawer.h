@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <d3d12.h>
 #include <wrl.h>
-#include "HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
