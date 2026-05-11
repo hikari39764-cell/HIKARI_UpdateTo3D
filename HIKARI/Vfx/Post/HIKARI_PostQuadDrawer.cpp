@@ -103,7 +103,7 @@ float4 main(PS_IN i) : SV_TARGET
             pso.SampleMask = UINT_MAX;
             pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             pso.NumRenderTargets = 1;
-            pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            pso.RTVFormats[0] = outputFormat_;
             pso.DSVFormat = DXGI_FORMAT_UNKNOWN;
             pso.SampleDesc.Count = 1;
 
@@ -159,6 +159,45 @@ float4 main(PS_IN i) : SV_TARGET
         const char* QuadDrawer::GetOutputFormatName() const
         {
             return GFX::FormatToString(outputFormat_);
+        }
+
+        bool QuadDrawer::SetOutputFormat(DXGI_FORMAT format)
+        {
+            if (outputFormat_ == format) {
+                return true;
+            }
+
+            const DXGI_FORMAT oldFormat = outputFormat_;
+            outputFormat_ = format;
+            psoCopy_.Reset();
+            psoBlendAlpha_.Reset();
+            psoBlendAdd_.Reset();
+            psoBlendMultiply_.Reset();
+            psoPost_.Reset();
+
+            if (!CreateBlendPipelines() ||
+                !CreatePipeline(psCopyBlob_.Get(), psoCopy_, "PostQuadDrawer Copy PSO")) {
+                DEBUGLOG::PushRenderError(
+                    std::string("[PostQuadDrawer][ERROR] SetOutputFormat failed. oldFormat=") +
+                    GFX::FormatToString(oldFormat) +
+                    " newFormat=" +
+                    GFX::FormatToString(format) +
+                    " " + DumpState());
+                return false;
+            }
+
+            if (currentPostPS_ != nullptr &&
+                !CreatePipeline(currentPostPS_, psoPost_, "PostQuadDrawer Dynamic Post PSO")) {
+                DEBUGLOG::PushRenderError(
+                    std::string("[PostQuadDrawer][ERROR] Recreate post PSO after SetOutputFormat failed. oldFormat=") +
+                    GFX::FormatToString(oldFormat) +
+                    " newFormat=" +
+                    GFX::FormatToString(format) +
+                    " " + DumpState());
+                return false;
+            }
+
+            return true;
         }
 
         std::string QuadDrawer::DumpState() const
@@ -271,7 +310,7 @@ float4 main(PS_IN i) : SV_TARGET
             pso.SampleMask = UINT_MAX;
             pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             pso.NumRenderTargets = 1;
-            pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            pso.RTVFormats[0] = outputFormat_;
             pso.DSVFormat = DXGI_FORMAT_UNKNOWN;
             pso.SampleDesc.Count = 1;
             const HRESULT hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(outPso.GetAddressOf()));

@@ -25,7 +25,7 @@ namespace HIKARI {
             void SetTime(float t);
             void SetUser(int index, const DirectX::XMFLOAT4& v);
 
-            void BindAndDraw(QuadDrawer& drawer);
+            bool BindAndDraw(QuadDrawer& drawer);
 
         private:
             bool CreateConstantBuffer();

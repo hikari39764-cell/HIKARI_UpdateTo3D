@@ -456,6 +456,7 @@
     <None Include="HIKARI\Shaders\Post_BloomExtractPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomBlurHPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomBlurVPS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

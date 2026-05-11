@@ -25,6 +25,7 @@ namespace HIKARI {
             void Finalize();
             std::string DumpState() const;
             const char* GetOutputFormatName() const;
+            bool SetOutputFormat(DXGI_FORMAT format);
 
             void DrawFullscreen(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu);
             void SetInputTexture(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu);

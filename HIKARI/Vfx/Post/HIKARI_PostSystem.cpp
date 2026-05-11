@@ -5,7 +5,10 @@
 #include <cassert>
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
+#include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
+#include "HIKARI_Core.h"
 
 namespace HIKARI {
     namespace POST {
@@ -67,8 +70,11 @@ namespace HIKARI {
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeGlobalEffects_{};
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeBloomEffects_{};
         BloomSettings PostSystem::bloomSettings_{};
+        ToneMappingSettings PostSystem::toneMappingSettings_{};
         PostSystem::BloomDebugStats PostSystem::bloomDebugStats_{};
         uint32_t PostSystem::activeBloomBlurPairCount_ = 0;
+        std::unique_ptr<PostEffect> PostSystem::toneMappingEffect_{};
+        CommonParams PostSystem::toneMappingParams_{};
         bool PostSystem::dumpNextFrame_ = false;
         bool PostSystem::transitionActive_ = false;
         std::string PostSystem::activeTransitionProfileId_{};
@@ -109,6 +115,7 @@ namespace HIKARI {
             globalChain_.Finalize();
             bloomChain_.Finalize();
             activeBloomEffects_.clear();
+            toneMappingEffect_.reset();
             sceneRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
@@ -197,6 +204,10 @@ namespace HIKARI {
             bloomSettings_ = settings;
         }
 
+        void PostSystem::SetToneMappingSettings(const ToneMappingSettings& settings) {
+            toneMappingSettings_ = settings;
+        }
+
         const PostSystem::BloomDebugStats& PostSystem::GetBloomDebugStats() {
             return bloomDebugStats_;
         }
@@ -207,6 +218,8 @@ namespace HIKARI {
                 << " globalChainHasAny=" << globalChain_.HasAny()
                 << " bloomEnabled=" << bloomSettings_.enabled
                 << " bloomPassCount=" << bloomDebugStats_.passCount
+                << " toneMappingEnabled=" << toneMappingSettings_.enabled
+                << " toneMappingMode=" << toneMappingSettings_.mode
                 << " transitionActive=" << transitionActive_
                 << " useLighting=" << useLighting_
                 << "\n  " << sceneRT_.DumpState()
@@ -226,6 +239,22 @@ namespace HIKARI {
 
         void PostSystem::RequestFrameDump() {
             dumpNextFrame_ = true;
+        }
+
+        bool PostSystem::EnsureToneMappingEffect() {
+            if (toneMappingEffect_) {
+                return true;
+            }
+
+            auto effect = std::make_unique<PostEffect>();
+            if (!effect->LoadPixelShader(L"HIKARI/Shaders/Post_ToneMappingPS.hlsl")) {
+                DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] LoadPixelShader failed. shader=HIKARI/Shaders/Post_ToneMappingPS.hlsl");
+                LogFrameState("ToneMapping effect load failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping effect load failed");
+                return false;
+            }
+            toneMappingEffect_ = std::move(effect);
+            return true;
         }
 
         bool PostSystem::EnsureBloomEffects(uint32_t blurPairCount) {
@@ -386,27 +415,35 @@ namespace HIKARI {
                 (!sceneRT_.GetResource() ||
                     sceneRT_.GetWidth() != w ||
                     sceneRT_.GetHeight() != h ||
+                    sceneRT_.GetFormat() != DXGI_FORMAT_R16G16B16A16_FLOAT ||
                     !sceneRT_.HasDepth());
 
             if (sceneInvalid) {
                 sceneRT_.Finalize();
-                sceneRT_.SetDebugName("PostSystem.SceneRT");
-                sceneRT_.Init(
+                sceneRT_.SetDebugName("Post.SceneRT.HDR");
+                HIKARI_LOG_INFO("[PostSystem][HDR] Recreate SceneRT size=" + std::to_string(w) + "x" + std::to_string(h) + " format=R16G16B16A16_FLOAT withDepth=true");
+                const bool ok = sceneRT_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DXGI_FORMAT_R16G16B16A16_FLOAT,
                     true,
                     { 0.0f, 0.0f, 0.0f, 1.0f }   // sceneRT 常用黑底不透明
                 );
+                if (!ok) {
+                    DEBUGLOG::PushRenderError("[PostSystem][HDR][ERROR] SceneRT creation failed");
+                    LogFrameState("SceneRT HDR creation failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "SceneRT HDR creation failed");
+                }
             }
 
             if (!lightRT_.GetResource() ||
                 lightRT_.GetWidth() != w ||
-                lightRT_.GetHeight() != h) {
+                lightRT_.GetHeight() != h ||
+                lightRT_.GetFormat() != DXGI_FORMAT_R16G16B16A16_FLOAT) {
                 lightRT_.Finalize();
-                lightRT_.SetDebugName("PostSystem.LightRT");
+                lightRT_.SetDebugName("Post.LightRT.HDR");
                 lightRT_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DXGI_FORMAT_R16G16B16A16_FLOAT,
                     false,
                     { 1.0f, 1.0f, 1.0f, 1.0f }   // lightRT 默认 ambientColor 初始值就是白
                 );
@@ -499,6 +536,30 @@ namespace HIKARI {
             }
 
             RenderTarget2D* bloomRT = ApplyBloom(*finalSceneRT);
+            if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
+                finalSceneRT->Rebind();
+                if (!quad_.SetOutputFormat(finalSceneRT->GetFormat())) {
+                    DEBUGLOG::PushRenderError(std::string("[PostSystem][BloomComposite][ERROR] SetOutputFormat failed. dst=") +
+                        finalSceneRT->GetDebugName() +
+                        " dstFormat=" +
+                        GFX::FormatToString(finalSceneRT->GetFormat()) +
+                        "\n" + quad_.DumpState() +
+                        "\n" + DumpFrameState());
+                    GFX::DumpD3D12InfoQueue(context_.device, "Bloom composite SetOutputFormat failed");
+                } else {
+                    if (GFX::GetGfxDebugConfig().verbosePostLog) {
+                        HIKARI_LOG_INFO(std::string("[PostSystem][BloomComposite] dst=") +
+                            finalSceneRT->GetDebugName() +
+                            " dstFormat=" +
+                            GFX::FormatToString(finalSceneRT->GetFormat()) +
+                            " src=" +
+                            bloomRT->GetDebugName() +
+                            " blend=Additive");
+                    }
+                    quad_.DrawBlended(bloomRT->GetSrvHeap(), bloomRT->GetSrvGpu(), BlendOption::Additive);
+                }
+                finalSceneRT->EndCapture();
+            }
 
 
             auto* cmd = context_.cmdList;
@@ -519,16 +580,49 @@ namespace HIKARI {
             cmd->RSSetViewports(1, &vp);
             cmd->RSSetScissorRects(1, &sc);
 
+            if (!quad_.SetOutputFormat(DXGI_FORMAT_R8G8B8A8_UNORM)) {
+                LogFrameState("ToneMapping output format failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping output format failed");
+                return;
+            }
 
             if (transitionActive_ && transitionEffect_) {
                 quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
                 transitionEffect_->ApplyCommonParams(transitionParams_);
-                transitionEffect_->BindAndDraw(quad_);
+                if (!transitionEffect_->BindAndDraw(quad_)) {
+                    LogFrameState("Transition BindAndDraw failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "Transition BindAndDraw failed");
+                }
             } else {
-                quad_.DrawFullscreen(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
-            }
-            if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
-                quad_.DrawBlended(bloomRT->GetSrvHeap(), bloomRT->GetSrvGpu(), BlendOption::Additive);
+                if (!EnsureToneMappingEffect()) {
+                    return;
+                }
+                toneMappingParams_ = commonParams_;
+                toneMappingParams_.user[0] = {
+                    toneMappingSettings_.enabled ? 1.0f : 0.0f,
+                    (std::max)(0.0f, toneMappingSettings_.exposure),
+                    (std::max)(0.01f, toneMappingSettings_.gamma),
+                    static_cast<float>(toneMappingSettings_.mode)
+                };
+                if (GFX::GetGfxDebugConfig().verbosePostLog) {
+                    HIKARI_LOG_INFO(std::string("[PostSystem][ToneMapping] Begin input=") +
+                        finalSceneRT->GetDebugName() +
+                        " inputFormat=" +
+                        GFX::FormatToString(finalSceneRT->GetFormat()) +
+                        " outputFormat=R8G8B8A8_UNORM exposure=" +
+                        std::to_string(toneMappingParams_.user[0].y) +
+                        " gamma=" +
+                        std::to_string(toneMappingParams_.user[0].z) +
+                        " mode=" +
+                        std::to_string(toneMappingSettings_.mode));
+                }
+                quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
+                toneMappingEffect_->ApplyCommonParams(toneMappingParams_);
+                if (!toneMappingEffect_->BindAndDraw(quad_)) {
+                    DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] BindAndDraw failed.");
+                    LogFrameState("ToneMapping BindAndDraw failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping BindAndDraw failed");
+                }
             }
 
             if (useLighting_) {
@@ -582,6 +676,11 @@ namespace HIKARI {
             D3D12_CPU_DESCRIPTOR_HANDLE rtv = prevLayer.rt->GetRtvHandle();
             cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
+            if (!quad_.SetOutputFormat(prevLayer.rt->GetFormat())) {
+                LogFrameState("EndLayer SetOutputFormat failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "EndLayer SetOutputFormat failed");
+                return;
+            }
             quad_.DrawBlended(processedRT->GetSrvHeap(), processedRT->GetSrvGpu(), blendMode);
         }
 

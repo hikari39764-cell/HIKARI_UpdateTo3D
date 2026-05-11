@@ -51,7 +51,7 @@ bool Initialize(const GFX::Context& ctx) {
         return false;
     }
 
-    DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    DXGI_FORMAT colorFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
     gRenderer = EffekseerRendererDX12::Create(gGraphicsDevice, &colorFormat, 1, DXGI_FORMAT_D32_FLOAT, false, 8000);
     if (gRenderer == nullptr) {
         Shutdown();

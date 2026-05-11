@@ -11,6 +11,7 @@
 #include <d3dx12.h>
 #include <wrl/client.h>
 #include "HIKARI_DxTexture.h"
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
@@ -46,6 +47,12 @@ namespace HIKARI::MESHRENDERER {
             float shadowObjectPadding[3]{};
             uint32_t hasEmissiveTexture = 0;
             float emissivePadding[3]{};
+            float metallicFactor = 0.0f;
+            float roughnessFactor = 1.0f;
+            uint32_t hasMetallicRoughnessTexture = 0;
+            uint32_t hasOcclusionTexture = 0;
+            float occlusionStrength = 1.0f;
+            float pbrPadding[3]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -65,6 +72,8 @@ namespace HIKARI::MESHRENDERER {
             float lightPadding = 0.0f;
             MATH::Vec4 fogColorDensity{};
             MATH::Vec4 fogParams{};
+            uint32_t debugView = 0;
+            float debugPadding[3]{};
         };
 
         struct ShadowCB {
@@ -249,7 +258,21 @@ namespace HIKARI::MESHRENDERER {
             emissiveTextureRange.RegisterSpace = 0;
             emissiveTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[8]{};
+            D3D12_DESCRIPTOR_RANGE metallicRoughnessTextureRange{};
+            metallicRoughnessTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            metallicRoughnessTextureRange.NumDescriptors = 1;
+            metallicRoughnessTextureRange.BaseShaderRegister = 4;
+            metallicRoughnessTextureRange.RegisterSpace = 0;
+            metallicRoughnessTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_DESCRIPTOR_RANGE occlusionTextureRange{};
+            occlusionTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            occlusionTextureRange.NumDescriptors = 1;
+            occlusionTextureRange.BaseShaderRegister = 5;
+            occlusionTextureRange.RegisterSpace = 0;
+            occlusionTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[10]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -289,6 +312,16 @@ namespace HIKARI::MESHRENDERER {
             params[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             params[7].DescriptorTable.NumDescriptorRanges = 1;
             params[7].DescriptorTable.pDescriptorRanges = &emissiveTextureRange;
+
+            params[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[8].DescriptorTable.NumDescriptorRanges = 1;
+            params[8].DescriptorTable.pDescriptorRanges = &metallicRoughnessTextureRange;
+
+            params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[9].DescriptorTable.NumDescriptorRanges = 1;
+            params[9].DescriptorTable.pDescriptorRanges = &occlusionTextureRange;
 
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -334,14 +367,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[9]{};
+            D3D12_ROOT_PARAMETER skinnedParams[11]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[8].Descriptor.ShaderRegister = 3;
-            skinnedParams[8].Descriptor.RegisterSpace = 0;
+            skinnedParams[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[10].Descriptor.ShaderRegister = 3;
+            skinnedParams[10].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -380,7 +413,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
@@ -475,7 +508,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
@@ -524,7 +557,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
@@ -726,6 +759,76 @@ namespace HIKARI::MESHRENDERER {
             return handle >= 0 ? handle : g.fallbackBlackTextureHandle;
         }
 
+        int ResolvePrimitiveMetallicRoughnessTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+            if (materialAsset == nullptr) {
+                ++g.debugStats.metallicRoughnessFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const int textureIndex = materialAsset->metallicRoughnessTexture.textureIndex;
+            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
+                ++g.debugStats.metallicRoughnessFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
+            if (texturePath.empty()) {
+                ++g.debugStats.metallicRoughnessFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const std::string cacheKey = "metallicRoughness:" + texturePath;
+            auto found = g.materialTextureCache.find(cacheKey);
+            if (found != g.materialTextureCache.end()) {
+                ++g.debugStats.metallicRoughnessTextureCacheHitCount;
+                return found->second >= 0 ? found->second : g.fallbackTextureHandle;
+            }
+
+            ++g.debugStats.metallicRoughnessTextureCacheMissCount;
+            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/metallic_roughness/" + texturePath, texturePath);
+            g.materialTextureCache[cacheKey] = handle;
+            if (handle < 0) {
+                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] metallicRoughness texture failed. material=") +
+                    materialAsset->name + " sourcePath=" + texturePath + " fallback used");
+            }
+            return handle >= 0 ? handle : g.fallbackTextureHandle;
+        }
+
+        int ResolvePrimitiveOcclusionTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+            if (materialAsset == nullptr) {
+                ++g.debugStats.occlusionFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const int textureIndex = materialAsset->occlusionTexture.textureIndex;
+            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
+                ++g.debugStats.occlusionFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
+            if (texturePath.empty()) {
+                ++g.debugStats.occlusionFallbackCount;
+                return g.fallbackTextureHandle;
+            }
+
+            const std::string cacheKey = "occlusion:" + texturePath;
+            auto found = g.materialTextureCache.find(cacheKey);
+            if (found != g.materialTextureCache.end()) {
+                ++g.debugStats.occlusionTextureCacheHitCount;
+                return found->second >= 0 ? found->second : g.fallbackTextureHandle;
+            }
+
+            ++g.debugStats.occlusionTextureCacheMissCount;
+            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/occlusion/" + texturePath, texturePath);
+            g.materialTextureCache[cacheKey] = handle;
+            if (handle < 0) {
+                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] occlusion texture failed. material=") +
+                    materialAsset->name + " sourcePath=" + texturePath + " fallback used");
+            }
+            return handle >= 0 ? handle : g.fallbackTextureHandle;
+        }
+
         MATH::Vec4 SanitizeTangent(const MATH::Vec4& tangent) {
             const float lenSq =
                 tangent.x * tangent.x +
@@ -897,7 +1000,7 @@ namespace HIKARI::MESHRENDERER {
             obj.fxUser3 = item.fxValues[3];
         }
 
-        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle, int emissiveTextureHandle) {
+        void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle, int emissiveTextureHandle, int metallicRoughnessTextureHandle, int occlusionTextureHandle) {
             obj.baseColor = materialAsset ? materialAsset->baseColorFactor : MATH::Vec4{ 1, 1, 1, 1 };
             obj.materialFlags = 0;
             obj.alphaCutoff = materialAsset ? materialAsset->alphaCutoff : 0.5f;
@@ -905,11 +1008,17 @@ namespace HIKARI::MESHRENDERER {
             obj.hasNormalTexture = 0;
             obj.hasEmissiveTexture = 0;
             obj.normalScale = materialAsset ? materialAsset->normalTexture.scale : 1.0f;
+            obj.metallicFactor = materialAsset ? materialAsset->metallicFactor : 0.0f;
+            obj.roughnessFactor = materialAsset ? materialAsset->roughnessFactor : 1.0f;
+            obj.hasMetallicRoughnessTexture = 0;
+            obj.hasOcclusionTexture = 0;
+            obj.occlusionStrength = materialAsset ? materialAsset->occlusionTexture.strength : 1.0f;
 
             if (materialAsset == nullptr) {
                 return;
             }
 
+            ++g.debugStats.pbrPrimitiveCount;
             if (normalTextureHandle >= 0 && normalTextureHandle != g.fallbackNormalTextureHandle) {
                 obj.hasNormalTexture = 1;
                 ++g.debugStats.normalMappedPrimitiveCount;
@@ -918,12 +1027,21 @@ namespace HIKARI::MESHRENDERER {
                 obj.hasEmissiveTexture = 1;
                 ++g.debugStats.emissiveMappedPrimitiveCount;
             }
+            if (metallicRoughnessTextureHandle >= 0 && metallicRoughnessTextureHandle != g.fallbackTextureHandle) {
+                obj.hasMetallicRoughnessTexture = 1;
+                ++g.debugStats.metallicRoughnessMappedPrimitiveCount;
+            }
+            if (occlusionTextureHandle >= 0 && occlusionTextureHandle != g.fallbackTextureHandle) {
+                obj.hasOcclusionTexture = 1;
+                ++g.debugStats.occlusionMappedPrimitiveCount;
+            }
 
             if (materialAsset->alphaMode == AlphaMode::Mask) {
                 obj.materialFlags |= MATERIAL_FEATURES::AlphaMask;
             }
             if ((materialAsset->featureBits & MATERIAL_FEATURES::Unlit) != 0) {
                 obj.materialFlags |= MATERIAL_FEATURES::Unlit;
+                ++g.debugStats.unlitPrimitiveCount;
             }
             if ((materialAsset->featureBits & MATERIAL_FEATURES::Emissive) != 0) {
                 obj.materialFlags |= MATERIAL_FEATURES::Emissive;
@@ -968,6 +1086,7 @@ namespace HIKARI::MESHRENDERER {
                 std::max(0.1f, environment.fog.endDistance),
                 std::max(0.0f, environment.fog.heightFalloff)
             };
+            out.debugView = static_cast<uint32_t>(environment.debugView);
 
             constexpr uint32_t kMaxPointLights = 8;
             uint32_t uploadedCount = 0;
@@ -1137,7 +1256,9 @@ namespace HIKARI::MESHRENDERER {
                         const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
                         const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
                         const int emissiveTextureHandle = ResolvePrimitiveEmissiveTextureHandle(*item.asset, materialAsset);
-                        FillMaterialValues(obj, materialAsset, normalTextureHandle, emissiveTextureHandle);
+                        const int metallicRoughnessTextureHandle = ResolvePrimitiveMetallicRoughnessTextureHandle(*item.asset, materialAsset);
+                        const int occlusionTextureHandle = ResolvePrimitiveOcclusionTextureHandle(*item.asset, materialAsset);
+                        FillMaterialValues(obj, materialAsset, normalTextureHandle, emissiveTextureHandle, metallicRoughnessTextureHandle, occlusionTextureHandle);
                         obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
                         obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                         FillFxValues(obj, item);
@@ -1156,7 +1277,7 @@ namespace HIKARI::MESHRENDERER {
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(8, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(10, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1214,6 +1335,20 @@ namespace HIKARI::MESHRENDERER {
                         if (emissiveSrv.ptr != 0) {
                             cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
                         }
+                        D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(metallicRoughnessTextureHandle);
+                        if (metallicRoughnessSrv.ptr == 0) {
+                            metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                        }
+                        if (metallicRoughnessSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(8, metallicRoughnessSrv);
+                        }
+                        D3D12_GPU_DESCRIPTOR_HANDLE occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(occlusionTextureHandle);
+                        if (occlusionSrv.ptr == 0) {
+                            occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                        }
+                        if (occlusionSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(9, occlusionSrv);
+                        }
 
                         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -1234,7 +1369,7 @@ namespace HIKARI::MESHRENDERER {
             ObjectCB obj{};
             obj.world = item.transform.GetWorldMatrix();
             obj.normalMatrix = BuildNormalMatrix(item.transform);
-            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle, g.fallbackBlackTextureHandle);
+            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle, g.fallbackBlackTextureHandle, g.fallbackTextureHandle, g.fallbackTextureHandle);
             obj.receiveShadow = item.receiveShadow ? 1u : 0u;
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
@@ -1294,6 +1429,11 @@ namespace HIKARI::MESHRENDERER {
             D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
             if (emissiveSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
+            }
+            const D3D12_GPU_DESCRIPTOR_HANDLE pbrFallbackSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+            if (pbrFallbackSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(8, pbrFallbackSrv);
+                cmd->SetGraphicsRootDescriptorTable(9, pbrFallbackSrv);
             }
 
             const Mesh* mesh = item.asset->GetMesh();

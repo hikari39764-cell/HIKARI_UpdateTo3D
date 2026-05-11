@@ -59,19 +59,26 @@ namespace HIKARI {
                 return;
             }
 
-            if (!tempsInitialized_ || ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
+            constexpr DXGI_FORMAT kPostChainFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            if (!tempsInitialized_ ||
+                ping_.GetResource() == nullptr ||
+                pong_.GetResource() == nullptr ||
+                ping_.GetFormat() != kPostChainFormat ||
+                pong_.GetFormat() != kPostChainFormat) {
+                ping_.Finalize();
+                pong_.Finalize();
                 ping_.UpdateContext(context_);
                 pong_.UpdateContext(context_);
                 const bool okPing = ping_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
 
                 const bool okPong = pong_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -89,7 +96,7 @@ namespace HIKARI {
                 ping_.UpdateContext(context_);
                 ping_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -99,7 +106,7 @@ namespace HIKARI {
                 pong_.UpdateContext(context_);
                 pong_.Init(
                     w, h,
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    kPostChainFormat,
                     false,
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
@@ -148,10 +155,17 @@ namespace HIKARI {
 
  
                 quad.SetInputTexture(cur->GetSrvHeap(), cur->GetSrvGpu());
+                if (!quad.SetOutputFormat(dst->GetFormat())) {
+                    DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] Execute SetOutputFormat failed.\n") + DumpState());
+                    dst->EndCapture();
+                    return cur;
+                }
 
 
                 effects_[i]->ApplyCommonParams(params);
-                effects_[i]->BindAndDraw(quad);
+                if (!effects_[i]->BindAndDraw(quad)) {
+                    DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] Effect BindAndDraw failed.\n") + DumpState());
+                }
 
                 dst->EndCapture();
 

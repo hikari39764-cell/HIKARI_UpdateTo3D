@@ -398,7 +398,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                         desc.DepthStencilState.DepthEnable = FALSE;
                         desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
                         desc.NumRenderTargets = 1;
-                        desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+                        desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
                         desc.SampleDesc.Count = 1;
                     };
                 D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc{};
@@ -446,7 +446,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 d.DepthStencilState.DepthEnable = FALSE;
                 d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
                 d.NumRenderTargets = 1;
-                d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+                d.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
                 d.SampleDesc.Count = 1;
 
                 d.BlendState = MakeBlendDesc(BlendMode::StraightAlpha);

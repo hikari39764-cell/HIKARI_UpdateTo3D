@@ -21,6 +21,12 @@ cbuffer ObjectCB : register(b1)
     float3 gShadowObjectPadding;
     uint gHasEmissiveTexture;
     float3 gEmissivePadding;
+    float gMetallicFactor;
+    float gRoughnessFactor;
+    uint gHasMetallicRoughnessTexture;
+    uint gHasOcclusionTexture;
+    float gOcclusionStrength;
+    float3 gPbrPadding;
 
     float4 gFxUser0;
     float4 gFxUser1;
@@ -46,6 +52,8 @@ cbuffer LightCB : register(b2)
     float gLightPadding;
     float4 gFogColorDensity;
     float4 gFogParams;
+    uint gDebugView;
+    float3 gDebugPadding;
 };
 
 cbuffer ShadowCB : register(b4)
@@ -65,6 +73,8 @@ Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
 Texture2D gShadowMap : register(t2);
 Texture2D gEmissiveTex : register(t3);
+Texture2D gMetallicRoughnessTex : register(t4);
+Texture2D gOcclusionTex : register(t5);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -179,6 +189,26 @@ float3 ResolveEmissive(float2 uv)
     return emissive * gEmissiveFactor.a;
 }
 
+void ResolvePbrInputs(float2 uv, out float metallic, out float roughness, out float occlusion)
+{
+    metallic = saturate(gMetallicFactor);
+    roughness = clamp(gRoughnessFactor, 0.04f, 1.0f);
+    occlusion = 1.0f;
+
+    if (gHasMetallicRoughnessTexture != 0)
+    {
+        float4 mr = gMetallicRoughnessTex.Sample(gLinearWrap, uv);
+        roughness = clamp(roughness * mr.g, 0.04f, 1.0f);
+        metallic = saturate(metallic * mr.b);
+    }
+
+    if (gHasOcclusionTexture != 0)
+    {
+        float ao = gOcclusionTex.Sample(gLinearWrap, uv).r;
+        occlusion = lerp(1.0f, ao, saturate(gOcclusionStrength));
+    }
+}
+
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
     if (gFogParams.x < 0.5f)
@@ -257,12 +287,6 @@ float4 main(PSInput input) : SV_TARGET
     float3 h = normalize(l + v);
 
     float ndotl = saturate(dot(n, l));
-    float spec = pow(saturate(dot(n, h)), gSpecularParams.y);
-
-    float3 ambient = gAmbientColor.rgb * gAmbientIntensity;
-    float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl);
-    float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec);
-    float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
 
     float4 albedo = gBaseColor;
     if (gHasBaseColorTexture != 0)
@@ -277,6 +301,17 @@ float4 main(PSInput input) : SV_TARGET
     float3 lit = albedo.rgb;
     if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
     {
+        float metallic = 0.0f;
+        float roughness = 1.0f;
+        float occlusion = 1.0f;
+        ResolvePbrInputs(input.uv, metallic, roughness, occlusion);
+        float specPower = lerp(gSpecularParams.y, 8.0f, roughness);
+        float spec = pow(saturate(dot(n, h)), max(1.0f, specPower));
+
+        float3 ambient = gAmbientColor.rgb * gAmbientIntensity * occlusion;
+        float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl) * (1.0f - metallic * 0.65f);
+        float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec) * lerp(1.0f, 1.8f, metallic);
+        float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
         lit = albedo.rgb * (ambient + (diffuse + specular + pointLightContribution) * SampleDirectionalShadow(input.worldPosWS, geometricNormal));
     }
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
@@ -284,6 +319,18 @@ float4 main(PSInput input) : SV_TARGET
         lit += ResolveEmissive(input.uv);
     }
     lit = ApplyFog(lit, input.worldPosWS);
+    if (gDebugView == 1)
+    {
+        return float4(normalize(n) * 0.5f + 0.5f, albedo.a);
+    }
+    if (gDebugView == 2)
+    {
+        return float4(normalize(input.tangentWS.xyz) * 0.5f + 0.5f, albedo.a);
+    }
+    if (gDebugView == 3)
+    {
+        return float4(lit, albedo.a);
+    }
 
     float rimStrength = gFxUser0.x;
     float rimPower    = max(gFxUser0.y, 0.01);

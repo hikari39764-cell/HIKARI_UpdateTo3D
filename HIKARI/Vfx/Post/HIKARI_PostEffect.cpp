@@ -116,23 +116,24 @@ namespace HIKARI {
             params_.user[index] = v;
         }
 
-        void PostEffect::BindAndDraw(QuadDrawer& drawer)
+        bool PostEffect::BindAndDraw(QuadDrawer& drawer)
         {
-            if (!psBlob_) { return; }
+            if (!psBlob_) { return false; }
             if (!mappedPtr_ && !CreateConstantBuffer()) {
-                return;
+                return false;
             }
             if (!constantBuffer_) {
-                return;
+                return false;
             }
 
             memcpy(mappedPtr_, &params_, sizeof(params_));
 
             if (!drawer.SetPixelShader(psBlob_.Get())) {
-                return;
+                return false;
             }
             drawer.SetConstantBuffer(constantBuffer_->GetGPUVirtualAddress());
             drawer.DrawFullscreen();
+            return true;
         }
 
     } // POST

@@ -1339,5 +1339,8 @@
     <None Include="HIKARI\Shaders\Post_BloomBlurVPS.hlsl">
       <Filter>Project\Shaders\Post\Bloom</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
   </ItemGroup>
 </Project>
