@@ -184,7 +184,7 @@ namespace HIKARI::RENDERER3D::DEBUG {
             desc.InputLayout = { inputElements, static_cast<UINT>(std::size(inputElements)) };
             desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
             desc.NumRenderTargets = 1;
-            desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
             desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             desc.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(outPso)));
