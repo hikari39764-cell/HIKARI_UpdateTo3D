@@ -3,6 +3,9 @@
 #include "HIKARI_Utility.h"
 #include <algorithm>
 #include <cassert>
+#include <sstream>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_GfxDebugConfig.h"
 
 namespace HIKARI {
     namespace POST {
@@ -66,6 +69,7 @@ namespace HIKARI {
         BloomSettings PostSystem::bloomSettings_{};
         PostSystem::BloomDebugStats PostSystem::bloomDebugStats_{};
         uint32_t PostSystem::activeBloomBlurPairCount_ = 0;
+        bool PostSystem::dumpNextFrame_ = false;
         bool PostSystem::transitionActive_ = false;
         std::string PostSystem::activeTransitionProfileId_{};
         TransitionProfile PostSystem::activeTransitionProfile_{};
@@ -79,6 +83,8 @@ namespace HIKARI {
             PostEffect::UpdateContext(ctx);
             globalChain_.UpdateContext(ctx);
             bloomChain_.UpdateContext(ctx);
+            globalChain_.SetDebugName("PostSystem.GlobalChain");
+            bloomChain_.SetDebugName("PostSystem.BloomChain");
             if (initialized_) return;
             quad_.Init(context_);
             initialized_ = true;
@@ -195,6 +201,33 @@ namespace HIKARI {
             return bloomDebugStats_;
         }
 
+        std::string PostSystem::DumpFrameState() {
+            std::ostringstream oss;
+            oss << "[PostSystem] initialized=" << initialized_
+                << " globalChainHasAny=" << globalChain_.HasAny()
+                << " bloomEnabled=" << bloomSettings_.enabled
+                << " bloomPassCount=" << bloomDebugStats_.passCount
+                << " transitionActive=" << transitionActive_
+                << " useLighting=" << useLighting_
+                << "\n  " << sceneRT_.DumpState()
+                << "\n  " << lightRT_.DumpState()
+                << "\n  " << globalChain_.DumpState()
+                << "\n  " << bloomChain_.DumpState()
+                << "\n  " << quad_.DumpState();
+            return oss.str();
+        }
+
+        void PostSystem::LogFrameState(const char* reason) {
+            std::ostringstream oss;
+            oss << "[PostSystem][DUMP] reason=" << (reason ? reason : "") << "\n"
+                << DumpFrameState();
+            DEBUGLOG::PushRenderError(oss.str());
+        }
+
+        void PostSystem::RequestFrameDump() {
+            dumpNextFrame_ = true;
+        }
+
         bool PostSystem::EnsureBloomEffects(uint32_t blurPairCount) {
             blurPairCount = std::clamp<uint32_t>(blurPairCount, 1u, 5u);
             if (activeBloomBlurPairCount_ == blurPairCount && !activeBloomEffects_.empty() && bloomChain_.HasAny()) {
@@ -217,6 +250,7 @@ namespace HIKARI {
                 bloomChain_.Add(extract.get());
                 activeBloomEffects_.push_back(std::move(extract));
             } else {
+                LogFrameState("EnsureBloomEffects Extract failed");
                 return false;
             }
 
@@ -226,6 +260,7 @@ namespace HIKARI {
                 if (!blurH || !blurV) {
                     activeBloomEffects_.clear();
                     bloomChain_.Clear();
+                    LogFrameState("EnsureBloomEffects Blur failed");
                     return false;
                 }
                 bloomChain_.Add(blurH.get());
@@ -254,6 +289,7 @@ namespace HIKARI {
 
             if (!EnsureBloomEffects(bloomDebugStats_.downsampleCount)) {
                 bloomDebugStats_.failed = true;
+                LogFrameState("ApplyBloom EnsureBloomEffects failed");
                 return nullptr;
             }
 
@@ -354,6 +390,7 @@ namespace HIKARI {
 
             if (sceneInvalid) {
                 sceneRT_.Finalize();
+                sceneRT_.SetDebugName("PostSystem.SceneRT");
                 sceneRT_.Init(
                     w, h,
                     DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -366,6 +403,7 @@ namespace HIKARI {
                 lightRT_.GetWidth() != w ||
                 lightRT_.GetHeight() != h) {
                 lightRT_.Finalize();
+                lightRT_.SetDebugName("PostSystem.LightRT");
                 lightRT_.Init(
                     w, h,
                     DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -380,6 +418,10 @@ namespace HIKARI {
             if (!initialized_) Initialize(context_);
 
             EnsureSceneRTSize();
+            if (!sceneRT_.GetResource()) {
+                LogFrameState("BeginSceneCapture sceneRT invalid");
+                return;
+            }
             UpdateCommonParams(0.0f);
 
 
@@ -396,6 +438,7 @@ namespace HIKARI {
         bool PostSystem::RebindCurrentRenderTarget()
         {
             if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                LogFrameState("RebindCurrentRenderTarget failed");
                 return false;
             }
 
@@ -441,8 +484,8 @@ namespace HIKARI {
 
         void PostSystem::EndSceneCaptureAndPresent()
         {
-            if (!initialized_) return;
-            if (rtStack_.empty()) return;
+            if (!initialized_) { LogFrameState("EndSceneCaptureAndPresent not initialized"); return; }
+            if (rtStack_.empty()) { LogFrameState("EndSceneCaptureAndPresent empty stack"); return; }
 
 
             RenderTarget2D* currentRT = rtStack_.top().rt;
@@ -459,6 +502,10 @@ namespace HIKARI {
 
 
             auto* cmd = context_.cmdList;
+            if (!cmd) {
+                LogFrameState("EndSceneCaptureAndPresent cmd null");
+                return;
+            }
             cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, nullptr);
 
             const auto letterbox = ComputeLetterboxRect(context_.backBufferWidth, context_.backBufferHeight);
@@ -486,6 +533,11 @@ namespace HIKARI {
 
             if (useLighting_) {
                 quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
+            }
+
+            if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
+                LogFrameState(dumpNextFrame_ ? "Requested frame dump" : "Verbose post log");
+                dumpNextFrame_ = false;
             }
         }
 

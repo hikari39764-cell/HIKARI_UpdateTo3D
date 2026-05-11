@@ -1,6 +1,8 @@
 #include "Vfx/Post/HIKARI_PostChain.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
 #include "Vfx/Post/HIKARI_PostEffect.h"
+#include <sstream>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
 
 namespace HIKARI {
     namespace POST {
@@ -23,6 +25,24 @@ namespace HIKARI {
             context_ = ctx;
             ping_.UpdateContext(ctx);
             pong_.UpdateContext(ctx);
+        }
+
+        void PostChain::SetDebugName(std::string name)
+        {
+            debugName_ = std::move(name);
+            ping_.SetDebugName(debugName_ + ".Ping");
+            pong_.SetDebugName(debugName_ + ".Pong");
+        }
+
+        std::string PostChain::DumpState() const
+        {
+            std::ostringstream oss;
+            oss << "[PostChain] name=" << debugName_
+                << " effectCount=" << effects_.size()
+                << " tempsInitialized=" << tempsInitialized_
+                << "\n  " << ping_.DumpState()
+                << "\n  " << pong_.DumpState();
+            return oss.str();
         }
 
         void PostChain::Finalize()
@@ -56,6 +76,9 @@ namespace HIKARI {
                     { 0.0f, 0.0f, 0.0f, 0.0f }
                 );
                 tempsInitialized_ = okPing && okPong;
+                if (!tempsInitialized_) {
+                    DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] EnsureTempSize failed.\n") + DumpState());
+                }
                 return;
             }
 
@@ -98,12 +121,17 @@ namespace HIKARI {
             int h = src.GetHeight();
             EnsureTempSize(w, h);
             if (ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
+                DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] Execute skipped: temp buffers invalid.\n") + DumpState());
                 return &src;
             }
 
             RenderTarget2D* cur = &src;
 
             for (size_t i = 0; i < effects_.size(); i++) {
+                if (effects_[i] == nullptr) {
+                    DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] Execute skipped null effect.\n") + DumpState());
+                    continue;
+                }
                 RenderTarget2D* dst = nullptr;
 
 

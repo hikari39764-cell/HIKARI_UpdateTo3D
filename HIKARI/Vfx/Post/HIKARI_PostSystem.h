@@ -49,6 +49,9 @@ namespace HIKARI {
             static void ClearGlobalProfile();
             static void SetBloomSettings(const BloomSettings& settings);
             static const BloomDebugStats& GetBloomDebugStats();
+            static std::string DumpFrameState();
+            static void LogFrameState(const char* reason);
+            static void RequestFrameDump();
             static void SetTransitionState(const TransitionVisualState& state);
             static void ClearTransitionState();
 
@@ -100,6 +103,7 @@ namespace HIKARI {
             static BloomSettings bloomSettings_;
             static BloomDebugStats bloomDebugStats_;
             static uint32_t activeBloomBlurPairCount_;
+            static bool dumpNextFrame_;
             static bool transitionActive_;
             static std::string activeTransitionProfileId_;
             static TransitionProfile activeTransitionProfile_;

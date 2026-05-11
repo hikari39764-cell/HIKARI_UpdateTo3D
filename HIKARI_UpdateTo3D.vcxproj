@@ -109,7 +109,11 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Camera.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxRenderer.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
+    <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
@@ -391,8 +395,12 @@
     <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
+    <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3DBlobCompat.h" />

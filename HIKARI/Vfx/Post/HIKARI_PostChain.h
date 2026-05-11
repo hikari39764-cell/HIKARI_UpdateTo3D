@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <string>
 
 #include "HIKARI_RenderTarget2D.h"
 #include "Vfx/Post/HIKARI_PostCommon.h"
@@ -17,6 +18,8 @@ namespace HIKARI {
             void Clear();
             void Add(PostEffect* effect);
             void UpdateContext(const GFX::Context& ctx);
+            void SetDebugName(std::string name);
+            std::string DumpState() const;
 
             bool HasAny() const { return !effects_.empty(); }
             RenderTarget2D* Execute(RenderTarget2D& src, QuadDrawer& quad, const CommonParams& params);
@@ -34,6 +37,7 @@ namespace HIKARI {
             RenderTarget2D ping_{};
             RenderTarget2D pong_{};
             bool tempsInitialized_ = false;
+            std::string debugName_ = "PostChain";
             GFX::Context context_{};
         };
 

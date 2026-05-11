@@ -1,5 +1,9 @@
 #include "HIKARI_RenderTarget2D.h"
 #include <cassert>
+#include <sstream>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GfxDebugConfig.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -63,6 +67,50 @@ namespace HIKARI {
         hasDepth_ = false;
     }
 
+    void RenderTarget2D::SetDebugName(std::string name)
+    {
+        debugName_ = std::move(name);
+        if (colorTex_) {
+            const std::wstring colorName = GFX::Widen(debugName_ + ".Color");
+            GFX::SetD3D12Name(colorTex_.Get(), colorName.c_str());
+        }
+        if (depthTex_) {
+            const std::wstring depthName = GFX::Widen(debugName_ + ".Depth");
+            GFX::SetD3D12Name(depthTex_.Get(), depthName.c_str());
+        }
+        if (rtvHeap_) {
+            const std::wstring nameW = GFX::Widen(debugName_ + ".RTVHeap");
+            GFX::SetD3D12Name(rtvHeap_.Get(), nameW.c_str());
+        }
+        if (srvHeap_) {
+            const std::wstring nameW = GFX::Widen(debugName_ + ".SRVHeap");
+            GFX::SetD3D12Name(srvHeap_.Get(), nameW.c_str());
+        }
+        if (dsvHeap_) {
+            const std::wstring nameW = GFX::Widen(debugName_ + ".DSVHeap");
+            GFX::SetD3D12Name(dsvHeap_.Get(), nameW.c_str());
+        }
+    }
+
+    std::string RenderTarget2D::DumpState() const
+    {
+        std::ostringstream oss;
+        oss << "[RenderTarget2D] name=" << debugName_
+            << " initialized=" << initialized_
+            << " size=" << width_ << "x" << height_
+            << " format=" << GFX::FormatToString(format_)
+            << " hasDepth=" << hasDepth_
+            << " colorTex=" << (colorTex_ ? 1 : 0)
+            << " depthTex=" << (depthTex_ ? 1 : 0)
+            << " rtvHeap=" << (rtvHeap_ ? 1 : 0)
+            << " srvHeap=" << (srvHeap_ ? 1 : 0)
+            << " dsvHeap=" << (dsvHeap_ ? 1 : 0)
+            << " srvGpu=0x" << std::hex << srvGpuHandle_.ptr << std::dec
+            << " colorState=" << GFX::ResourceStateToString(colorState_)
+            << " depthState=" << GFX::ResourceStateToString(depthState_);
+        return oss.str();
+    }
+
 bool RenderTarget2D::CreateResources()
 {
     ID3D12Device* device = context_.device;
@@ -92,8 +140,12 @@ bool RenderTarget2D::CreateResources()
         &colorClearValue,
         IID_PPV_ARGS(&colorTex_)
     );
-    assert(SUCCEEDED(hr));
+    if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateCommittedResource color")) {
+        DEBUGLOG::PushRenderError(DumpState());
+        return false;
+    }
     colorState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    SetDebugName(debugName_);
 
     D3D12_DESCRIPTOR_HEAP_DESC rtvDesc{};
     rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -101,7 +153,10 @@ bool RenderTarget2D::CreateResources()
     rtvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
     hr = device->CreateDescriptorHeap(&rtvDesc, IID_PPV_ARGS(&rtvHeap_));
-    assert(SUCCEEDED(hr));
+    if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateDescriptorHeap RTV")) {
+        DEBUGLOG::PushRenderError(DumpState());
+        return false;
+    }
     rtvHandle_ = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     device->CreateRenderTargetView(colorTex_.Get(), nullptr, rtvHandle_);
 
@@ -111,7 +166,10 @@ bool RenderTarget2D::CreateResources()
     srvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
     hr = device->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(&srvHeap_));
-    assert(SUCCEEDED(hr));
+    if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateDescriptorHeap SRV")) {
+        DEBUGLOG::PushRenderError(DumpState());
+        return false;
+    }
 
     srvCpuHandle_ = srvHeap_->GetCPUDescriptorHandleForHeapStart();
     srvGpuHandle_ = srvHeap_->GetGPUDescriptorHandleForHeapStart();
@@ -146,7 +204,10 @@ bool RenderTarget2D::CreateResources()
             &depthClear,
             IID_PPV_ARGS(&depthTex_)
         );
-        assert(SUCCEEDED(hr));
+        if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateCommittedResource depth")) {
+            DEBUGLOG::PushRenderError(DumpState());
+            return false;
+        }
         depthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
         D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
@@ -154,7 +215,10 @@ bool RenderTarget2D::CreateResources()
         dsvDesc.NumDescriptors = 1;
         dsvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         hr = device->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
-        assert(SUCCEEDED(hr));
+        if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateDescriptorHeap DSV")) {
+            DEBUGLOG::PushRenderError(DumpState());
+            return false;
+        }
         dsvHandle_ = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvView{};
@@ -163,6 +227,7 @@ bool RenderTarget2D::CreateResources()
         dsvView.Flags = D3D12_DSV_FLAG_NONE;
         device->CreateDepthStencilView(depthTex_.Get(), &dsvView, dsvHandle_);
     }
+    SetDebugName(debugName_);
 
     return true;
 }
@@ -170,11 +235,15 @@ bool RenderTarget2D::CreateResources()
     void RenderTarget2D::BeginCapture(float r, float g, float b, float a, float depthClear)
     {
         if (!initialized_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] BeginCapture skipped: not initialized. ") + DumpState());
             return;
         }
 
         ID3D12GraphicsCommandList* cmd = context_.cmdList;
-        if (!cmd) { return; }
+        if (!cmd || !colorTex_ || !rtvHeap_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] BeginCapture skipped: invalid command list/resource. ") + DumpState());
+            return;
+        }
 
         if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -208,7 +277,10 @@ bool RenderTarget2D::CreateResources()
         if (!initialized_) return;
 
         ID3D12GraphicsCommandList* cmd = context_.cmdList;
-        if (!cmd) { return; }
+        if (!cmd || !colorTex_ || !rtvHeap_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] Rebind skipped: invalid command list/resource. ") + DumpState());
+            return;
+        }
 
         if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -232,11 +304,15 @@ bool RenderTarget2D::CreateResources()
     void RenderTarget2D::EndCapture()
     {
         if (!initialized_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] EndCapture skipped: not initialized. ") + DumpState());
             return;
         }
 
         ID3D12GraphicsCommandList* cmd = context_.cmdList;
-        if (!cmd) { return; }
+        if (!cmd || !colorTex_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] EndCapture skipped: invalid command list/resource. ") + DumpState());
+            return;
+        }
 
         if (colorState_ != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(

@@ -1,4 +1,4 @@
-#include "Vfx/Post/HIKARI_PostQuadDrawer.h"
+﻿#include "Vfx/Post/HIKARI_PostQuadDrawer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include <Windows.h>
 #include <d3dcommon.h>
@@ -6,6 +6,9 @@
 #include <d3dx12.h>
 #include <cassert>
 #include <cstring>
+#include <sstream>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DXCheck.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -58,7 +61,7 @@ float4 main(PS_IN i) : SV_TARGET
             context_ = ctx;
             if (initialized_) { return true; }
 
-            // 编译 Shader
+            // 郛冶ｯ・Shader
             {
                 ComPtr<ID3DBlob> err;
                 HRESULT hr = D3DCompile(kFullscreenVS, std::strlen(kFullscreenVS), nullptr, nullptr, nullptr, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, vsBlob_.GetAddressOf(), err.GetAddressOf());
@@ -72,10 +75,10 @@ float4 main(PS_IN i) : SV_TARGET
 
             if (!CreateRootSignature()) { return false; }
             if (!CreateBlendPipelines()) { return false; }
-            if (!CreatePipeline(psCopyBlob_.Get(), psoCopy_)) { return false; }
+            if (!CreatePipeline(psCopyBlob_.Get(), psoCopy_, "PostQuadDrawer Copy PSO")) { return false; }
 
             currentPostPS_ = psCopyBlob_.Get();
-            if (!CreatePipeline(currentPostPS_, psoPost_)) { return false; }
+            if (!CreatePipeline(currentPostPS_, psoPost_, "PostQuadDrawer Post PSO")) { return false; }
 
             initialized_ = true;
             return true;
@@ -84,7 +87,10 @@ float4 main(PS_IN i) : SV_TARGET
         bool QuadDrawer::CreateBlendPipelines()
         {
             auto* device = context_.device;
-            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreateBlendPipelines\n"); return false; }
+            if (!device) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] device is null in CreateBlendPipelines. ") + DumpState());
+                return false;
+            }
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
             pso.pRootSignature = rootSig_.Get();
@@ -114,24 +120,33 @@ float4 main(PS_IN i) : SV_TARGET
             blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
             blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             pso.BlendState.RenderTarget[0] = blendDesc;
-            if (FAILED(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendAlpha_.GetAddressOf())))) return false;
+            if (!HIKARI_DX_CHECK(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendAlpha_.GetAddressOf())), "Create Alpha Blend PSO")) {
+                DEBUGLOG::PushRenderError(DumpState());
+                return false;
+            }
 
             // 2. Additive Blend
             blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
             blendDesc.DestBlend = D3D12_BLEND_ONE;
             pso.BlendState.RenderTarget[0] = blendDesc;
-            if (FAILED(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendAdd_.GetAddressOf())))) return false;
+            if (!HIKARI_DX_CHECK(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendAdd_.GetAddressOf())), "Create Additive Blend PSO")) {
+                DEBUGLOG::PushRenderError(DumpState());
+                return false;
+            }
 
-            // 3. Multiply Blend (新增)
-            // 公式: Final = (SrcColor * DestColor) + (DestColor * 0)
-            // 效果: 背景色(Dest) 乘以 光照贴图色(Src)
+            // 3. Multiply Blend (譁ｰ蠅・
+            // 蜈ｬ蠑・ Final = (SrcColor * DestColor) + (DestColor * 0)
+            // 謨域棡: 閭梧勹濶ｲ(Dest) 荵倅ｻ･ 蜈臥・雍ｴ蝗ｾ濶ｲ(Src)
             blendDesc.SrcBlend = D3D12_BLEND_DEST_COLOR;
             blendDesc.DestBlend = D3D12_BLEND_ZERO;
-            // Alpha处理保持默认即可，或者 One/Zero
+            // Alpha螟・炊菫晄戟鮟倩ｮ､蜊ｳ蜿ｯ・梧・閠・One/Zero
             blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE; 
             blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
             pso.BlendState.RenderTarget[0] = blendDesc;
-            if (FAILED(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendMultiply_.GetAddressOf())))) return false;
+            if (!HIKARI_DX_CHECK(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(psoBlendMultiply_.GetAddressOf())), "Create Multiply Blend PSO")) {
+                DEBUGLOG::PushRenderError(DumpState());
+                return false;
+            }
 
             return true;
         }
@@ -141,13 +156,38 @@ float4 main(PS_IN i) : SV_TARGET
             context_ = ctx;
         }
 
+        const char* QuadDrawer::GetOutputFormatName() const
+        {
+            return GFX::FormatToString(outputFormat_);
+        }
+
+        std::string QuadDrawer::DumpState() const
+        {
+            std::ostringstream oss;
+            oss << "[PostQuadDrawer] initialized=" << initialized_
+                << " outputFormat=" << GetOutputFormatName()
+                << " rootSig=" << (rootSig_ ? 1 : 0)
+                << " vsBlob=" << (vsBlob_ ? 1 : 0)
+                << " psCopyBlob=" << (psCopyBlob_ ? 1 : 0)
+                << " psoCopy=" << (psoCopy_ ? 1 : 0)
+                << " psoPost=" << (psoPost_ ? 1 : 0)
+                << " psoBlendAlpha=" << (psoBlendAlpha_ ? 1 : 0)
+                << " psoBlendAdd=" << (psoBlendAdd_ ? 1 : 0)
+                << " psoBlendMultiply=" << (psoBlendMultiply_ ? 1 : 0)
+                << " currentPostPS=" << (currentPostPS_ ? 1 : 0)
+                << " currentSrvHeap=" << (currentSrvHeap_ ? 1 : 0)
+                << " currentSrvGpu=0x" << std::hex << currentSrvGpu_.ptr << std::dec
+                << " currentCBV0=0x" << std::hex << currentCBV0_ << std::dec;
+            return oss.str();
+        }
+
         void QuadDrawer::Finalize()
         {
             psoPost_.Reset();
             psoCopy_.Reset();
             psoBlendAlpha_.Reset();
             psoBlendAdd_.Reset();
-            psoBlendMultiply_.Reset(); // [新增]
+            psoBlendMultiply_.Reset(); // [譁ｰ蠅枉
             rootSig_.Reset();
             vsBlob_.Reset();
             psCopyBlob_.Reset();
@@ -157,11 +197,14 @@ float4 main(PS_IN i) : SV_TARGET
             initialized_ = false;
         }
 
-        // ... CreateRootSignature, CreatePipeline 保持不变 ...
+        // ... CreateRootSignature, CreatePipeline 菫晄戟荳榊序 ...
         bool QuadDrawer::CreateRootSignature()
         {
             auto* device = context_.device;
-            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreatePipeline\n"); return false; }
+            if (!device) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] device is null in CreateRootSignature. ") + DumpState());
+                return false;
+            }
             D3D12_DESCRIPTOR_RANGE range{};
             range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             range.NumDescriptors = 1;
@@ -195,15 +238,27 @@ float4 main(PS_IN i) : SV_TARGET
             rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
             ComPtr<ID3DBlob> sig, err;
             HRESULT hr = D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, sig.GetAddressOf(), err.GetAddressOf());
-            if (FAILED(hr)) { OutputError(err.Get()); return false; }
+            if (FAILED(hr)) {
+                OutputError(err.Get());
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] SerializeRootSignature failed. ") + DumpState());
+                return false;
+            }
             hr = device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(rootSig_.GetAddressOf()));
-            return SUCCEEDED(hr);
+            if (!HIKARI_DX_CHECK(hr, "CreateRootSignature: PostQuadDrawer")) {
+                DEBUGLOG::PushRenderError(DumpState());
+                return false;
+            }
+            GFX::SetD3D12Name(rootSig_.Get(), L"PostQuadDrawer RootSignature");
+            return true;
         }
 
-        bool QuadDrawer::CreatePipeline(ID3DBlob* psBlob, ComPtr<ID3D12PipelineState>& outPso)
+        bool QuadDrawer::CreatePipeline(ID3DBlob* psBlob, ComPtr<ID3D12PipelineState>& outPso, const char* debugName)
         {
             auto* device = context_.device;
-            if (!device) { OutputDebugStringA("[PostQuadDrawer] device is null in CreatePipeline\n"); return false; }
+            if (!device || !rootSig_ || !vsBlob_ || !psBlob) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] invalid input in CreatePipeline. name=") + (debugName ? debugName : "") + " " + DumpState());
+                return false;
+            }
             D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
             pso.pRootSignature = rootSig_.Get();
             pso.VS = { vsBlob_->GetBufferPointer(), vsBlob_->GetBufferSize() };
@@ -219,20 +274,29 @@ float4 main(PS_IN i) : SV_TARGET
             pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
             pso.DSVFormat = DXGI_FORMAT_UNKNOWN;
             pso.SampleDesc.Count = 1;
-            return SUCCEEDED(device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(outPso.GetAddressOf())));
+            const HRESULT hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(outPso.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, debugName ? debugName : "CreatePipeline: PostQuadDrawer")) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] CreatePipeline failed. name=") + (debugName ? debugName : "") + " " + DumpState());
+                return false;
+            }
+            if (outPso) {
+                const std::wstring name = GFX::Widen(debugName ? debugName : "PostQuadDrawer PSO");
+                GFX::SetD3D12Name(outPso.Get(), name.c_str());
+            }
+            return true;
         }
 
         void QuadDrawer::DrawBlended(ID3D12DescriptorHeap* srvHeap, D3D12_GPU_DESCRIPTOR_HANDLE srvGpu, BlendOption mode)
         {
             SetInputTexture(srvHeap, srvGpu);
             auto* cmd = context_.cmdList;
-            if (!cmd) { return; }
+            if (!cmd) { DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawBlended skipped: cmd null. ") + DumpState()); return; }
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
-                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: invalid SRV heap/handle.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawBlended skipped: invalid SRV heap/handle. ") + DumpState());
                 return;
             }
             if (!rootSig_) {
-                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: root signature is null.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawBlended skipped: root signature is null. ") + DumpState());
                 return;
             }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
@@ -252,7 +316,7 @@ float4 main(PS_IN i) : SV_TARGET
             if ((mode == BlendOption::Additive && !psoBlendAdd_) ||
                 (mode == BlendOption::Multiply && !psoBlendMultiply_) ||
                 (mode == BlendOption::Alpha && !psoBlendAlpha_)) {
-                OutputDebugStringA("[PostQuadDrawer] DrawBlended skipped: blend PSO is null.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawBlended skipped: blend PSO is null. ") + DumpState());
                 return;
             }
             cmd->SetPipelineState(selectedPso);
@@ -267,16 +331,19 @@ float4 main(PS_IN i) : SV_TARGET
             currentSrvHeap_ = srvHeap;
             currentSrvGpu_ = srvGpu;
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
-                OutputDebugStringA("[PostQuadDrawer] SetInputTexture received invalid SRV heap/handle.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] SetInputTexture received invalid SRV heap/handle. ") + DumpState());
             }
         }
 
-        void QuadDrawer::SetPixelShader(ID3DBlob* psBlob)
+        bool QuadDrawer::SetPixelShader(ID3DBlob* psBlob)
         {
-            if (!psBlob) { return; }
-            if (psBlob == currentPostPS_ && psoPost_) { return; }
+            if (!psBlob) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] SetPixelShader received null psBlob. ") + DumpState());
+                return false;
+            }
+            if (psBlob == currentPostPS_ && psoPost_) { return true; }
             currentPostPS_ = psBlob;
-            CreatePipeline(psBlob, psoPost_);
+            return CreatePipeline(psBlob, psoPost_, "PostQuadDrawer Dynamic Post PSO");
         }
 
         void QuadDrawer::SetConstantBuffer(D3D12_GPU_VIRTUAL_ADDRESS cbv0)
@@ -288,13 +355,13 @@ float4 main(PS_IN i) : SV_TARGET
         {
             SetInputTexture(srvHeap, srvGpu);
             auto* cmd = context_.cmdList;
-            if (!cmd) { return; }
+            if (!cmd) { DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(copy) skipped: cmd null. ") + DumpState()); return; }
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
-                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: invalid SRV heap/handle.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(copy) skipped: invalid SRV heap/handle. ") + DumpState());
                 return;
             }
             if (!rootSig_ || !psoCopy_) {
-                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(copy) skipped: root signature/PSO is null.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(copy) skipped: root signature/PSO is null. ") + DumpState());
                 return;
             }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
@@ -309,13 +376,13 @@ float4 main(PS_IN i) : SV_TARGET
         void QuadDrawer::DrawFullscreen()
         {
             auto* cmd = context_.cmdList;
-            if (!cmd) { return; }
+            if (!cmd) { DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(post) skipped: cmd null. ") + DumpState()); return; }
             if (!currentSrvHeap_ || currentSrvGpu_.ptr == 0) {
-                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: invalid SRV heap/handle.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(post) skipped: invalid SRV heap/handle. ") + DumpState());
                 return;
             }
             if (!rootSig_ || !psoPost_) {
-                OutputDebugStringA("[PostQuadDrawer] DrawFullscreen(post) skipped: root signature/PSO is null.\n");
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] DrawFullscreen(post) skipped: root signature/PSO is null. ") + DumpState());
                 return;
             }
             ID3D12DescriptorHeap* heaps[] = { currentSrvHeap_ };
@@ -332,3 +399,5 @@ float4 main(PS_IN i) : SV_TARGET
 
     } // POST
 } // HIKARI
+
+

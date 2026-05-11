@@ -15,6 +15,8 @@
 
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DXCheck.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -269,15 +271,17 @@ namespace HIKARI::SHADOW {
             clearValue.Format = DXGI_FORMAT_D32_FLOAT;
             clearValue.DepthStencil.Depth = 1.0f;
             clearValue.DepthStencil.Stencil = 0;
-            if (FAILED(device->CreateCommittedResource(
+            const HRESULT hr = device->CreateCommittedResource(
                 &heapProps,
                 D3D12_HEAP_FLAG_NONE,
                 &texDesc,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 &clearValue,
-                IID_PPV_ARGS(g.shadowMap.GetAddressOf())))) {
+                IID_PPV_ARGS(g.shadowMap.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, "ShadowMapRenderer::CreateShadowMapResource")) {
                 return false;
             }
+            GFX::SetD3D12Name(g.shadowMap.Get(), L"Directional Shadow Map");
 
             D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
             dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -303,17 +307,26 @@ namespace HIKARI::SHADOW {
             ComPtr<ID3DBlob> ps;
             ComPtr<ID3DBlob> err;
             if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowStaticVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, staticVs.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                if (err) {
+                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowStaticVS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
+                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                }
                 return false;
             }
             err.Reset();
             if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowSkinnedVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, skinnedVs.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                if (err) {
+                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowSkinnedVS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
+                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                }
                 return false;
             }
             err.Reset();
             if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowAlphaPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, ps.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                if (err) {
+                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowAlphaPS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
+                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                }
                 return false;
             }
 
@@ -357,9 +370,11 @@ namespace HIKARI::SHADOW {
                 if (errBlob) OutputDebugStringA(static_cast<const char*>(errBlob->GetBufferPointer()));
                 return false;
             }
-            if (FAILED(device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(g.rootSig.GetAddressOf())))) {
+            HRESULT hr = device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(g.rootSig.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, "CreateRootSignature: Shadow static")) {
                 return false;
             }
+            GFX::SetD3D12Name(g.rootSig.Get(), L"Shadow Static RootSignature");
 
             D3D12_ROOT_PARAMETER skinnedParams[4]{};
             for (size_t i = 0; i < std::size(params); ++i) {
@@ -378,9 +393,11 @@ namespace HIKARI::SHADOW {
                 if (errBlob) OutputDebugStringA(static_cast<const char*>(errBlob->GetBufferPointer()));
                 return false;
             }
-            if (FAILED(device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(g.skinnedRootSig.GetAddressOf())))) {
+            hr = device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(g.skinnedRootSig.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, "CreateRootSignature: Shadow skinned")) {
                 return false;
             }
+            GFX::SetD3D12Name(g.skinnedRootSig.Get(), L"Shadow Skinned RootSignature");
 
             const D3D12_INPUT_ELEMENT_DESC staticInput[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -416,15 +433,22 @@ namespace HIKARI::SHADOW {
             psoDesc.NumRenderTargets = 0;
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
-            if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.staticPso.GetAddressOf())))) {
+            hr = device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(g.staticPso.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, "Create PSO: Shadow static")) {
                 return false;
             }
+            GFX::SetD3D12Name(g.staticPso.Get(), L"Shadow Static PSO");
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedPsoDesc = psoDesc;
             skinnedPsoDesc.pRootSignature = g.skinnedRootSig.Get();
             skinnedPsoDesc.VS = { skinnedVs->GetBufferPointer(), skinnedVs->GetBufferSize() };
             skinnedPsoDesc.InputLayout = { skinnedInput, static_cast<UINT>(std::size(skinnedInput)) };
-            return SUCCEEDED(device->CreateGraphicsPipelineState(&skinnedPsoDesc, IID_PPV_ARGS(g.skinnedPso.GetAddressOf())));
+            hr = device->CreateGraphicsPipelineState(&skinnedPsoDesc, IID_PPV_ARGS(g.skinnedPso.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(hr, "Create PSO: Shadow skinned")) {
+                return false;
+            }
+            GFX::SetD3D12Name(g.skinnedPso.Get(), L"Shadow Skinned PSO");
+            return true;
         }
 
         bool EnsureInitialized() {

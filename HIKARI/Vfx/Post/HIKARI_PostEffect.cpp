@@ -6,6 +6,8 @@
 #include <d3dcompiler.h>
 #include <cstring>
 #include <d3dx12.h>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DXCheck.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -41,7 +43,7 @@ namespace HIKARI {
 
             auto* device = context_.device;
             if (!device) {
-                OutputDebugStringA("[PostEffect] context_.device is null; postpone constant buffer creation.\n");
+                DEBUGLOG::PushRenderError("[PostEffect][ERROR] context_.device is null; postpone constant buffer creation.");
                 return false;
             }
 
@@ -58,14 +60,12 @@ namespace HIKARI {
                 nullptr,
                 IID_PPV_ARGS(constantBuffer_.GetAddressOf())
             );
-            if (FAILED(hr)) {
-                OutputDebugStringA("[PostEffect] CreateCommittedResource failed.\n");
+            if (!HIKARI_DX_CHECK(hr, "PostEffect::CreateConstantBuffer")) {
                 return false;
             }
 
             hr = constantBuffer_->Map(0, nullptr, &mappedPtr_);
-            if (FAILED(hr)) {
-                OutputDebugStringA("[PostEffect] Constant buffer map failed.\n");
+            if (!HIKARI_DX_CHECK(hr, "PostEffect::Map constant buffer")) {
                 constantBuffer_.Reset();
                 mappedPtr_ = nullptr;
                 return false;
@@ -91,6 +91,7 @@ namespace HIKARI {
             if (FAILED(hr)) {
                 if (err) {
                     OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                    DEBUGLOG::PushRenderError(std::string("[PostEffect][ERROR] Shader compile failed: ") + static_cast<const char*>(err->GetBufferPointer()));
                 }
                 return false;
             }
@@ -127,7 +128,9 @@ namespace HIKARI {
 
             memcpy(mappedPtr_, &params_, sizeof(params_));
 
-            drawer.SetPixelShader(psBlob_.Get());
+            if (!drawer.SetPixelShader(psBlob_.Get())) {
+                return;
+            }
             drawer.SetConstantBuffer(constantBuffer_->GetGPUVirtualAddress());
             drawer.DrawFullscreen();
         }

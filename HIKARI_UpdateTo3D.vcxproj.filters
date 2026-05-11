@@ -40,6 +40,9 @@
     <Filter Include="Header Files\Gfx">
       <UniqueIdentifier>{3BEC404A-27B9-5B6E-8118-810A4F6651D8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Diagnostics">
+      <UniqueIdentifier>{5BF395A2-83BD-4B0F-A768-98DAAD58F560}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Legacy">
       <UniqueIdentifier>{5A7A5D37-44CE-5591-AF4A-8181CC96E22F}</UniqueIdentifier>
     </Filter>
@@ -205,6 +208,9 @@
     <Filter Include="Source Files\Gfx">
       <UniqueIdentifier>{4CEBA77A-19AA-5CBC-A6B0-8154FF48D343}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Diagnostics">
+      <UniqueIdentifier>{C3D0C898-A61C-4DBB-8F8A-B8E042730C1E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Legacy">
       <UniqueIdentifier>{F5DED7DD-3C33-54E0-AEED-D729A2828D55}</UniqueIdentifier>
     </Filter>
@@ -297,7 +303,19 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp">
+      <Filter>Source Files\Diagnostics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_Input.cpp">
@@ -1103,10 +1121,22 @@
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h">
       <Filter>Header Files\Audio</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h">
+      <Filter>Header Files\Diagnostics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h">

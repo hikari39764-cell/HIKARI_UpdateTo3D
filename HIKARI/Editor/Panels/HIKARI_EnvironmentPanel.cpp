@@ -8,6 +8,9 @@
 #include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
+#include "HIKARI_Services.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -282,6 +285,29 @@ namespace HIKARI {
                 bloomStats.intensity,
                 bloomStats.radius);
             ImGui::Text("Downsample Count: %u", bloomStats.downsampleCount);
+
+            ImGui::SeparatorText("Render Diagnostics");
+            if (ImGui::Button("Clear Render Errors")) {
+                DEBUGLOG::ClearRenderErrors();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Dump PostSystem")) {
+                POST::PostSystem::LogFrameState("EnvironmentPanel button");
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Dump InfoQueue")) {
+                GFX::DumpD3D12InfoQueue(SERVICES::gCtx.device, "EnvironmentPanel button");
+            }
+            const std::vector<std::string> recentErrors = DEBUGLOG::GetRecentRenderErrors(12);
+            if (recentErrors.empty()) {
+                ImGui::TextDisabled("No recent render errors.");
+            } else if (ImGui::TreeNode("Recent Render Errors")) {
+                for (const std::string& error : recentErrors) {
+                    ImGui::TextWrapped("%s", error.c_str());
+                    ImGui::Separator();
+                }
+                ImGui::TreePop();
+            }
 
             if (skyDebugState && environment.showSkyDebugInfo) {
                 ImGui::SeparatorText("Sky Renderer State");

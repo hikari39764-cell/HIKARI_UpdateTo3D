@@ -2,10 +2,16 @@
 #include "../HIKARI_Utility.h"
 
 #include <d3d12.h>
+#include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
 #include <d3dx12.h>
 #include <cassert>
 #include <cstdio>
+#include <string>
+#include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
+#include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GfxDebugConfig.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -55,6 +61,7 @@ void LogHr(const char* stage, HRESULT hr) {
     char buf[256]{};
     std::snprintf(buf, sizeof(buf), "[Dx12Core] %s failed. hr=0x%08lX\n", stage, static_cast<unsigned long>(hr));
     OutputDebugStringA(buf);
+    DEBUGLOG::PushRenderError(buf);
 }
 
 }
@@ -64,11 +71,24 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     width_ = w;
     height_ = h;
 
+    GfxDebugConfig debugConfig = GetGfxDebugConfig();
+    debugConfig.enableDebugLayer = enableDebugLayer && debugConfig.enableDebugLayer;
+    SetGfxDebugConfig(debugConfig);
+
 #ifdef _DEBUG
-    if (enableDebugLayer) {
+    if (debugConfig.enableDebugLayer) {
         ComPtr<ID3D12Debug> debug;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
             debug->EnableDebugLayer();
+            DEBUGLOG::WriteRenderLogLine("[D3D12] Debug Layer enabled.");
+
+            if (debugConfig.enableGpuBasedValidation) {
+                ComPtr<ID3D12Debug3> debug3;
+                if (SUCCEEDED(debug.As(&debug3))) {
+                    debug3->SetEnableGPUBasedValidation(TRUE);
+                    DEBUGLOG::WriteRenderLogLine("[D3D12] GPU-Based Validation enabled.");
+                }
+            }
         }
     }
 #endif
@@ -102,6 +122,8 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
             return false;
         }
     }
+    ConfigureD3D12InfoQueue(device_.Get());
+    SetD3D12Name(device_.Get(), L"HIKARI D3D12 Device");
 
     D3D12_COMMAND_QUEUE_DESC qDesc{};
     qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -110,6 +132,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("CreateCommandQueue", hr);
         return false;
     }
+    SetD3D12Name(queue_.Get(), L"HIKARI Direct Command Queue");
 
     DXGI_SWAP_CHAIN_DESC1 scDesc{};
     scDesc.Width = static_cast<UINT>(w);
@@ -142,6 +165,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("Create RTV Heap", hr);
         return false;
     }
+    SetD3D12Name(rtvHeap_.Get(), L"HIKARI SwapChain RTV Heap");
     rtvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
@@ -152,6 +176,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("Create DSV Heap", hr);
         return false;
     }
+    SetD3D12Name(dsvHeap_.Get(), L"HIKARI Main DSV Heap");
 
     D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
     srvDesc.NumDescriptors = 2048;
@@ -162,6 +187,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("Create SRV Heap", hr);
         return false;
     }
+    SetD3D12Name(srvHeap_.Get(), L"HIKARI Global SRV Heap");
 
     CreateSwapChainResources();
     CreateDepthBuffer();
@@ -178,6 +204,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("CreateCommandList", hr);
         return false;
     }
+    SetD3D12Name(cmdList_.Get(), L"HIKARI Main Command List");
     cmdList_->Close();
 
     hr = device_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
@@ -185,6 +212,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("CreateFence", hr);
         return false;
     }
+    SetD3D12Name(fence_.Get(), L"HIKARI Frame Fence");
     fenceValue_ = 1;
     fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!fenceEvent_) {
@@ -197,7 +225,12 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
 void Dx12Core::CreateSwapChainResources() {
     auto rtv = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     for (uint32_t i = 0; i < kFrameCount; ++i) {
-        swapChain_->GetBuffer(i, IID_PPV_ARGS(&backBuffers_[i]));
+        const HRESULT hr = swapChain_->GetBuffer(i, IID_PPV_ARGS(&backBuffers_[i]));
+        if (!HIKARI_DX_CHECK(hr, "Dx12Core::CreateSwapChainResources GetBuffer")) {
+            continue;
+        }
+        const std::wstring name = L"HIKARI SwapChain BackBuffer[" + std::to_wstring(i) + L"]";
+        SetD3D12Name(backBuffers_[i].Get(), name.c_str());
         device_->CreateRenderTargetView(backBuffers_[i].Get(), nullptr, rtv);
         rtv.ptr += rtvDescriptorSize_;
     }
@@ -211,8 +244,12 @@ void Dx12Core::CreateDepthBuffer() {
     clear.DepthStencil.Depth = 1.0f;
 
     auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    device_->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &depthDesc,
+    const HRESULT hr = device_->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &depthDesc,
         D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear, IID_PPV_ARGS(&depthBuffer_));
+    if (!HIKARI_DX_CHECK(hr, "Dx12Core::CreateDepthBuffer")) {
+        return;
+    }
+    SetD3D12Name(depthBuffer_.Get(), L"HIKARI Main Depth Buffer");
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsv{};
     dsv.Format = DXGI_FORMAT_D32_FLOAT;
@@ -273,6 +310,11 @@ void Dx12Core::EndFrame() {
     ID3D12CommandList* lists[] = { cmdList_.Get() };
     queue_->ExecuteCommandLists(1, lists);
     swapChain_->Present(1, 0);
+
+    if (GetGfxDebugConfig().dumpInfoQueueOnFrameEnd) {
+        DumpD3D12InfoQueue(device_.Get(), "EndFrame");
+        ClearD3D12InfoQueue(device_.Get());
+    }
 
     MoveToNextFrame();
 }

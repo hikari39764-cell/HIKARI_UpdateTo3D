@@ -3,6 +3,7 @@
 #include <wrl.h>
 #include <d3dx12.h>
 #include <array>
+#include <string>
 #include "Gfx/HIKARI_GfxContext.h"
 
 namespace HIKARI {
@@ -30,6 +31,9 @@ namespace HIKARI {
         void BeginCapture(float r = 0, float g = 0, float b = 0, float a = 0, float depthClear = 1.0f);
         void Rebind();
         void EndCapture();
+        void SetDebugName(std::string name);
+        const std::string& GetDebugName() const { return debugName_; }
+        std::string DumpState() const;
 
         int GetWidth() const { return width_; }
         int GetHeight() const { return height_; }
@@ -69,6 +73,7 @@ namespace HIKARI {
         DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM;
         bool initialized_ = false;
         bool hasDepth_ = false;
+        std::string debugName_ = "RenderTarget2D";
         HIKARI::GFX::Context context_{};
 
         std::array<float, 4> optimizedClearColor_ = { 0.0f, 0.0f, 0.0f, 0.0f };
