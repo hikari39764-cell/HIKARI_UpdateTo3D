@@ -1,6 +1,9 @@
 #include "HIKARI_Win32Window.h"
 
 #include <cstdio>
+#include <sstream>
+
+#include "Core/HIKARI_Logger.h"
 #if defined(_DEBUG)
 #include "../../ThirdParty/imgui/imgui_impl_win32.h"
 #include <imgui_impl_win32.cpp>
@@ -9,6 +12,8 @@
 namespace HIKARI::PLATFORM {
 
 bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool resizable) {
+    HIKARI_LOG_INFO("Win32Window initialization started.");
+
     hInstance_ = GetModuleHandleW(nullptr);
     width_ = width;
     height_ = height;
@@ -26,9 +31,13 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
             char msg[256]{};
             std::snprintf(msg, sizeof(msg), "[Win32Window] RegisterClassW failed. err=%lu\n", static_cast<unsigned long>(err));
             OutputDebugStringA(msg);
+            std::ostringstream oss;
+            oss << "RegisterClassW failed. err=" << static_cast<unsigned long>(err);
+            HIKARI_LOG_ERROR(oss.str());
             return false;
         }
     }
+    HIKARI_LOG_INFO("Window class registered.");
 
     DWORD style = WS_OVERLAPPEDWINDOW;
     if (!resizable) {
@@ -54,15 +63,22 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
         this);
 
     if (!hwnd_) {
+        const DWORD err = GetLastError();
         char msg[256]{};
-        std::snprintf(msg, sizeof(msg), "[Win32Window] CreateWindowExW failed. err=%lu\n", static_cast<unsigned long>(GetLastError()));
+        std::snprintf(msg, sizeof(msg), "[Win32Window] CreateWindowExW failed. err=%lu\n", static_cast<unsigned long>(err));
         OutputDebugStringA(msg);
+        std::ostringstream oss;
+        oss << "CreateWindowExW failed. err=" << static_cast<unsigned long>(err);
+        HIKARI_LOG_ERROR(oss.str());
         return false;
     }
+    HIKARI_LOG_INFO("Window created.");
 
     ShowWindow(hwnd_, SW_SHOW);
     UpdateWindow(hwnd_);
+    HIKARI_LOG_INFO("Window shown.");
     running_ = true;
+    HIKARI_LOG_INFO("Win32Window initialization completed.");
     return true;
 }
 

@@ -160,6 +160,7 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
+    <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
@@ -427,6 +428,7 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_Logger.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />

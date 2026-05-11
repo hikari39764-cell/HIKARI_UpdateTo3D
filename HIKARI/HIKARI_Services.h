@@ -22,6 +22,7 @@
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
 #endif
 #include <objbase.h>
+#include <sstream>
 
 namespace HIKARI {
     namespace SERVICES {
@@ -86,7 +87,7 @@ namespace HIKARI {
             gImGuiFontSrvGpu.ptr = gpuStart.ptr + static_cast<UINT64>(descriptorSize) * kImGuiFontSrvIndex;
 
             if (!ImGui_ImplWin32_Init(gWindow.GetHWND())) {
-                OutputDebugStringA("[ImGui] ImGui_ImplWin32_Init failed.\n");
+                HIKARI_LOG_ERROR("ImGui_ImplWin32_Init failed.");
                 return;
             }
 
@@ -97,31 +98,54 @@ namespace HIKARI {
                 srvHeap,
                 gImGuiFontSrvCpu,
                 gImGuiFontSrvGpu)) {
-                OutputDebugStringA("[ImGui] ImGui_ImplDX12_Init failed.\n");
+                HIKARI_LOG_ERROR("ImGui_ImplDX12_Init failed.");
                 ImGui_ImplWin32_Shutdown();
                 return;
             }
 
             gImGuiBackendInitialized = true;
+            HIKARI_LOG_INFO("ImGui backend initialized.");
 #endif
         }
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
+            CORE::InitializeLogger();
+            HIKARI_LOG_INFO("HIKARI boot started.");
+
             gEnableImGui = cfg.enableImGui;
             gEnableEditorUI = cfg.enableEditorUI;
 
             HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
             gComInitialized = SUCCEEDED(coHr);
+            if (gComInitialized) {
+                HIKARI_LOG_INFO("COM initialized.");
+            }
+            else {
+                std::ostringstream oss;
+                oss << "COM initialization failed. hr=0x" << std::hex << static_cast<unsigned long>(coHr);
+                HIKARI_LOG_ERROR(oss.str());
+            }
 
             wchar_t wTitle[256]{};
             mbstowcs_s(nullptr, wTitle, title, _TRUNCATE);
 
+            HIKARI_LOG_INFO("Window initialization started.");
             if (!gWindow.Initialize(wTitle, cfg.windowWidth, cfg.windowHeight, cfg.resizableWindow)) {
+                HIKARI_LOG_ERROR("Window initialization failed.");
                 return false;
             }
+            {
+                std::ostringstream oss;
+                oss << "Window initialized. size=" << cfg.windowWidth << "x" << cfg.windowHeight
+                    << " resizable=" << (cfg.resizableWindow ? "true" : "false");
+                HIKARI_LOG_INFO(oss.str());
+            }
+            HIKARI_LOG_INFO("D3D12 core initialization started.");
             if (!gCore.Initialize(gWindow.GetHWND(), cfg.windowWidth, cfg.windowHeight, cfg.enableDebugLayer)) {
+                HIKARI_LOG_ERROR("D3D12 core initialization failed.");
                 return false;
             }
+            HIKARI_LOG_INFO("D3D12 core initialized.");
 
             const int logicalScreenW = cfg.windowWidth;
             const int logicalScreenH = cfg.windowHeight;
@@ -141,16 +165,25 @@ namespace HIKARI {
             gCtx = gCore.BuildContext();
 
             DXTEX::DxTextureManager::Init(gCtx, 1024);
+            HIKARI_LOG_INFO("TextureManager initialized.");
             DX::DxRenderer::Init(gCtx);
+            HIKARI_LOG_INFO("DxRenderer initialized.");
             POST::PostSystem::Initialize(gCtx);
+            HIKARI_LOG_INFO("PostSystem initialized.");
             AUDIO::Initialize(AUDIO::BackendType::Kamata);
+            HIKARI_LOG_INFO("Audio initialized.");
             HIKARI::VFX::Initialize(gCtx);
+            HIKARI_LOG_INFO("VFX initialized.");
 
             if (cfg.inputConfigPath) {
                 HIKARI::HINPUT::Init(cfg.inputConfigPath);
+                std::ostringstream oss;
+                oss << "Input initialized. config=" << cfg.inputConfigPath;
+                HIKARI_LOG_INFO(oss.str());
             }
             else {
                 HIKARI::HINPUT::Init();
+                HIKARI_LOG_INFO("Input initialized. config=<default>");
             }
             HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
             HIKARI::HINPUT::SetBackend(HIKARI::HINPUT::BackendType::Win32);
@@ -158,6 +191,7 @@ namespace HIKARI {
             HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
             HIKARI::CAMERA::EnableDebugControl(cfg.enableDebugCamera);
+            HIKARI_LOG_INFO("Camera initialized.");
 
             if (gEnableImGui && !gImGuiInitialized) {
 #if defined(_DEBUG)
@@ -172,6 +206,7 @@ namespace HIKARI {
                     io.Fonts->Build();
                 }
                 gImGuiInitialized = true;
+                HIKARI_LOG_INFO("ImGui context initialized.");
 #else
                 gEnableImGui = false;
                 gEnableEditorUI = false;
@@ -180,33 +215,47 @@ namespace HIKARI {
             if (gEnableImGui) {
                 InitializeImGuiBackend();
             }
+            HIKARI_LOG_INFO("HIKARI boot completed.");
             return true;
         }
 
         inline void FinalizeAll() {
+            HIKARI_LOG_INFO("HIKARI shutdown started.");
             if (gImGuiInitialized) {
 #if defined(_DEBUG)
                 if (gImGuiBackendInitialized) {
                     ImGui_ImplDX12_Shutdown();
                     ImGui_ImplWin32_Shutdown();
                     gImGuiBackendInitialized = false;
+                    HIKARI_LOG_INFO("ImGui backend shutdown.");
                 }
                 ImGui::DestroyContext();
 #endif
                 gImGuiInitialized = false;
+                HIKARI_LOG_INFO("ImGui shutdown.");
             }
             gImGuiFrameBegun = false;
             HIKARI::POST::PostSystem::Shutdown();
+            HIKARI_LOG_INFO("PostSystem shutdown.");
             DX::DxRenderer::Finalize();
+            HIKARI_LOG_INFO("DxRenderer finalized.");
             DXTEX::DxTextureManager::Finalize();
+            HIKARI_LOG_INFO("TextureManager finalized.");
             HIKARI::VFX::Shutdown();
+            HIKARI_LOG_INFO("VFX shutdown.");
             AUDIO::Shutdown();
+            HIKARI_LOG_INFO("Audio shutdown.");
             gCore.Shutdown();
+            HIKARI_LOG_INFO("D3D12 core shutdown.");
             gWindow.Shutdown();
+            HIKARI_LOG_INFO("Window shutdown.");
             if (gComInitialized) {
                 CoUninitialize();
                 gComInitialized = false;
+                HIKARI_LOG_INFO("COM uninitialized.");
             }
+            HIKARI_LOG_INFO("HIKARI shutdown completed.");
+            CORE::ShutdownLogger();
         }
 
         inline bool PumpMessages() {

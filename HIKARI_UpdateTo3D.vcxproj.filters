@@ -753,6 +753,9 @@
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1224,6 +1227,9 @@
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_Logger.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h">
