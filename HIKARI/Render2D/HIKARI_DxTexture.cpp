@@ -1,5 +1,7 @@
 #include "HIKARI_DxTexture.h"
+#include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cstdio>
 #include "../External/WICTextureLoader.h"
 
@@ -7,6 +9,117 @@ using Microsoft::WRL::ComPtr;
 
 namespace HIKARI {
     namespace DXTEX {
+
+        namespace {
+            std::string ToLowerCopy(std::string value)
+            {
+                std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+                return value;
+            }
+
+            const char* ColorSpaceSuffix(TextureColorSpace colorSpace)
+            {
+                switch (colorSpace) {
+                case TextureColorSpace::Linear:
+                    return "|linear";
+                case TextureColorSpace::Srgb:
+                    return "|srgb";
+                case TextureColorSpace::Auto:
+                default:
+                    return "|auto";
+                }
+            }
+
+            std::string MakeTextureCacheKey(const std::string& name, TextureColorSpace colorSpace)
+            {
+                return name + ColorSpaceSuffix(colorSpace);
+            }
+
+            bool ContainsAny(const std::string& text, std::initializer_list<const char*> needles)
+            {
+                for (const char* needle : needles) {
+                    if (needle != nullptr && text.find(needle) != std::string::npos) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            TextureColorSpace ResolveAutoColorSpace(const std::string& name, const std::string& path)
+            {
+                const std::string key = ToLowerCopy(name + " " + path);
+
+                // Data textures must stay linear. Sampling these through an SRGB SRV would corrupt values.
+                if (ContainsAny(key, {
+                    "normal", "_n.", "_n_", "nrm",
+                    "roughness", "metallic", "metalness", "metal_rough", "metallicroughness",
+                    "occlusion", "ambientocclusion", "ao.", "_ao", "orm", "arm",
+                    "height", "displacement", "mask", "opacity", "alpha", "linear"
+                })) {
+                    return TextureColorSpace::Linear;
+                }
+
+                // Most artist-authored color textures, UI textures, albedo/baseColor and emissive maps are SRGB.
+                return TextureColorSpace::Srgb;
+            }
+
+            DXGI_FORMAT ToSrgbFormat(DXGI_FORMAT format)
+            {
+                switch (format) {
+                case DXGI_FORMAT_R8G8B8A8_UNORM:
+                    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+                case DXGI_FORMAT_B8G8R8A8_UNORM:
+                    return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+                case DXGI_FORMAT_B8G8R8X8_UNORM:
+                    return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+                case DXGI_FORMAT_BC1_UNORM:
+                    return DXGI_FORMAT_BC1_UNORM_SRGB;
+                case DXGI_FORMAT_BC2_UNORM:
+                    return DXGI_FORMAT_BC2_UNORM_SRGB;
+                case DXGI_FORMAT_BC3_UNORM:
+                    return DXGI_FORMAT_BC3_UNORM_SRGB;
+                case DXGI_FORMAT_BC7_UNORM:
+                    return DXGI_FORMAT_BC7_UNORM_SRGB;
+                default:
+                    return format;
+                }
+            }
+
+            DXGI_FORMAT ToLinearFormat(DXGI_FORMAT format)
+            {
+                switch (format) {
+                case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+                    return DXGI_FORMAT_R8G8B8A8_UNORM;
+                case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+                    return DXGI_FORMAT_B8G8R8A8_UNORM;
+                case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+                    return DXGI_FORMAT_B8G8R8X8_UNORM;
+                case DXGI_FORMAT_BC1_UNORM_SRGB:
+                    return DXGI_FORMAT_BC1_UNORM;
+                case DXGI_FORMAT_BC2_UNORM_SRGB:
+                    return DXGI_FORMAT_BC2_UNORM;
+                case DXGI_FORMAT_BC3_UNORM_SRGB:
+                    return DXGI_FORMAT_BC3_UNORM;
+                case DXGI_FORMAT_BC7_UNORM_SRGB:
+                    return DXGI_FORMAT_BC7_UNORM;
+                default:
+                    return format;
+                }
+            }
+
+            DXGI_FORMAT ResolveSrvFormat(DXGI_FORMAT resourceFormat, TextureColorSpace colorSpace)
+            {
+                if (colorSpace == TextureColorSpace::Srgb) {
+                    return ToSrgbFormat(resourceFormat);
+                }
+                if (colorSpace == TextureColorSpace::Linear) {
+                    return ToLinearFormat(resourceFormat);
+                }
+                return resourceFormat;
+            }
+        }
 
         bool  DxTextureManager::initialized_ = false;
         GFX::Context DxTextureManager::context_{};
@@ -119,20 +232,39 @@ namespace HIKARI {
 
         int DxTextureManager::LoadTexture(const std::string& name, const std::string& path)
         {
+            return LoadTextureWithColorSpace(name, path, TextureColorSpace::Auto);
+        }
+
+        int DxTextureManager::LoadTextureWithColorSpace(const std::string& name, const std::string& path, TextureColorSpace colorSpace)
+        {
             EnsureInit();
-            auto it = nameToHandle_.find(name);
+            const TextureColorSpace resolvedColorSpace = (colorSpace == TextureColorSpace::Auto)
+                ? ResolveAutoColorSpace(name, path)
+                : colorSpace;
+            const std::string cacheKey = MakeTextureCacheKey(name, resolvedColorSpace);
+            auto it = nameToHandle_.find(cacheKey);
             if (it != nameToHandle_.end()) {
                 return it->second;
             }
 
-            int handle = CreateTextureFromFile(path);
+            int handle = CreateTextureFromFile(path, resolvedColorSpace);
             if (handle >= 0) {
-                nameToHandle_[name] = handle;
+                nameToHandle_[cacheKey] = handle;
             }
             return handle;
         }
 
-        int DxTextureManager::CreateTextureFromFile(const std::string& path)
+        int DxTextureManager::LoadTextureSrgb(const std::string& name, const std::string& path)
+        {
+            return LoadTextureWithColorSpace(name, path, TextureColorSpace::Srgb);
+        }
+
+        int DxTextureManager::LoadTextureLinear(const std::string& name, const std::string& path)
+        {
+            return LoadTextureWithColorSpace(name, path, TextureColorSpace::Linear);
+        }
+
+        int DxTextureManager::CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace)
         {
             auto* device = context_.device;
             auto* queue = context_.queue;
@@ -187,8 +319,11 @@ namespace HIKARI {
 
             textures_[handle] = texResource;
 
+            const DXGI_FORMAT resourceFormat = texResource->GetDesc().Format;
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(resourceFormat, colorSpace);
+
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-            srvDesc.Format = texResource->GetDesc().Format;
+            srvDesc.Format = srvFormat;
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Texture2D.MipLevels = 1;
