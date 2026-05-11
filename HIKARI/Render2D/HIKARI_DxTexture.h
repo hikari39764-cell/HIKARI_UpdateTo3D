@@ -11,6 +11,12 @@
 namespace HIKARI {
     namespace DXTEX {
 
+        enum class TextureColorSpace {
+            Auto,
+            Linear,
+            Srgb
+        };
+
         class DxTextureManager {
         public:
             static void Init(const GFX::Context& ctx, int maxTextures = 128);
@@ -18,6 +24,9 @@ namespace HIKARI {
             static void UpdateContext(const GFX::Context& ctx);
 
             static int LoadTexture(const std::string& name, const std::string& path);
+            static int LoadTextureWithColorSpace(const std::string& name, const std::string& path, TextureColorSpace colorSpace);
+            static int LoadTextureSrgb(const std::string& name, const std::string& path);
+            static int LoadTextureLinear(const std::string& name, const std::string& path);
             static int RegisterFromResource(ID3D12Resource* resource);
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
@@ -26,7 +35,7 @@ namespace HIKARI {
 
         private:
             static void EnsureInit();
-            static int  CreateTextureFromFile(const std::string& path);
+            static int CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Auto);
 
             static bool initialized_;
             static GFX::Context context_;
