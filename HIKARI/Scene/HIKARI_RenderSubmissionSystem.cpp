@@ -1,6 +1,8 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
+#include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
@@ -21,17 +23,33 @@ namespace HIKARI {
 
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.fallbackWireCount = 0;
+        MESHWIREDEBUG::BeginFrame();
 
         world.ForEachObjectWith<ModelComponent>([](GameObject& object, ModelComponent& model) {
             if (!model.IsVisible()) {
                 return;
             }
 
-            const ModelAsset* asset = model.GetAsset();
+            const ModelAsset* asset = nullptr;
+            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
+                asset = PROCEDURAL::GetOrCreateModel(model.GetProceduralSettings());
+            } else {
+                asset = model.GetAsset();
+            }
             const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
                 ++sDebugStats_.submittedModelCount;
+
+                const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
+                if (debugMode == ModelRenderDebugMode::BoundsOnly) {
+                    MESHWIREDEBUG::SubmitModelBounds(*asset, object.Transform(), model.GetWireColor());
+                    return;
+                }
+                if (debugMode == ModelRenderDebugMode::WireOnly) {
+                    MESHWIREDEBUG::SubmitModelWire(*asset, object.Transform(), model.GetWireColor(), model.GetMaxWireLines(), model.GetWirePerPrimitiveColor());
+                    return;
+                }
 
                 ModelRenderItem item{};
                 item.model = asset;
@@ -58,6 +76,9 @@ namespace HIKARI {
                 }
 
                 MODELRENDERER::SubmitModel(item);
+                if (debugMode == ModelRenderDebugMode::WireOverlay) {
+                    MESHWIREDEBUG::SubmitModelWire(*asset, object.Transform(), model.GetWireColor(), model.GetMaxWireLines(), model.GetWirePerPrimitiveColor());
+                }
             } else {
                 ++sDebugStats_.fallbackWireCount;
 

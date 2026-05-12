@@ -26,6 +26,8 @@ enum class ParamType {
     Float3,
     Float4,
     Color,
+    Color3,
+    Color4,
     Toggle
 };
 
@@ -56,6 +58,8 @@ struct PassDescriptor {
 
 struct VariantKey {
     std::string shaderId;
+    std::string vertexShaderId;
+    std::string pixelShaderId;
     uint32_t featureBits = 0;
     CompositeMode composite = CompositeMode::Alpha;
     bool depthTest = false;

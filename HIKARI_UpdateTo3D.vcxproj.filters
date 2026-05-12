@@ -774,6 +774,12 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp">
+      <Filter>Source Files\Render3D\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -905,6 +911,9 @@
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h">
       <Filter>Header Files\Render3D\Debug</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.h">
+      <Filter>Header Files\Render3D\Debug</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
@@ -922,6 +931,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h">
       <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h">
+      <Filter>Header Files\Render3D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h">
       <Filter>Header Files\Scene</Filter>
@@ -1298,6 +1310,9 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl">

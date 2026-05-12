@@ -118,6 +118,8 @@ namespace HIKARI::MESHRENDERER {
         struct VariantKeyHasher {
             size_t operator()(const VFX::VariantKey& key) const noexcept {
                 size_t seed = std::hash<std::string>{}(key.shaderId);
+                seed ^= std::hash<std::string>{}(key.vertexShaderId) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= std::hash<std::string>{}(key.pixelShaderId) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
                 seed ^= static_cast<size_t>(key.featureBits) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
                 seed ^= static_cast<size_t>(key.composite) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
                 seed ^= static_cast<size_t>(key.depthTest) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -154,6 +156,7 @@ namespace HIKARI::MESHRENDERER {
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
+            std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> vsBlobCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, int> materialTextureCache;
@@ -439,11 +442,17 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&skinnedPsoDesc, IID_PPV_ARGS(g.skinnedPso.GetAddressOf())));
         }
 
-        const wchar_t* ResolvePixelShaderPath(const std::string& shaderProfileId) {
-            if (shaderProfileId == "StaticFx") {
+        std::wstring ResolveShaderPath(const std::string& shaderId, const wchar_t* defaultFile) {
+            if (shaderId.empty() || shaderId == "PBR" || shaderId == "StaticLit") {
+                return defaultFile;
+            }
+            if (shaderId == "StaticFx" || shaderId == "MaterialFx") {
                 return L"HIKARI/Shaders/Render3D_StaticFxPS.hlsl";
             }
-            return L"HIKARI/Shaders/Render3D_StaticPS.hlsl";
+            std::wstring path = L"HIKARI/Shaders/";
+            path += std::wstring(shaderId.begin(), shaderId.end());
+            path += L".hlsl";
+            return path;
         }
 
         bool LoadPixelShaderBlob(const std::string& shaderProfileId, ID3DBlob** outBlob) {
@@ -460,8 +469,10 @@ namespace HIKARI::MESHRENDERER {
 #endif
             ComPtr<ID3DBlob> blob;
             ComPtr<ID3DBlob> err;
-            if (FAILED(D3DCompileFromFile(ResolvePixelShaderPath(cacheKey), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
+            const std::wstring path = ResolveShaderPath(cacheKey, L"HIKARI/Shaders/Render3D_StaticPS.hlsl");
+            if (FAILED(D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
                 if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][MaterialFx][WARN] Pixel shader compile failed. shaderId=") + cacheKey + " fallback used");
                 return false;
             }
             auto [insertIt, _] = g.psBlobCache.emplace(cacheKey, blob);
@@ -469,9 +480,39 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
+        bool LoadVertexShaderBlob(const std::string& vertexShaderId, ID3DBlob** outBlob) {
+            const std::string cacheKey = vertexShaderId.empty() ? "Render3D_StaticVS" : vertexShaderId;
+            auto it = g.vsBlobCache.find(cacheKey);
+            if (it != g.vsBlobCache.end()) {
+                *outBlob = it->second.Get();
+                return true;
+            }
+
+            UINT flags = 0;
+#if defined(_DEBUG)
+            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+            ComPtr<ID3DBlob> blob;
+            ComPtr<ID3DBlob> err;
+            const std::wstring path = ResolveShaderPath(cacheKey, L"HIKARI/Shaders/Render3D_StaticVS.hlsl");
+            if (FAILED(D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
+                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][MaterialFx][WARN] Vertex shader compile failed. shaderId=") + cacheKey + " fallback used");
+                return false;
+            }
+            auto [insertIt, _] = g.vsBlobCache.emplace(cacheKey, blob);
+            *outBlob = insertIt->second.Get();
+            return true;
+        }
+
         bool CreateVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
+            ID3DBlob* vsBlob = nullptr;
+            if (!LoadVertexShaderBlob(key.vertexShaderId, &vsBlob) || vsBlob == nullptr) {
+                vsBlob = g.vsBlob.Get();
+            }
             ID3DBlob* psBlob = nullptr;
-            if (!LoadPixelShaderBlob(key.shaderId, &psBlob) || psBlob == nullptr) {
+            const std::string psId = !key.pixelShaderId.empty() ? key.pixelShaderId : key.shaderId;
+            if (!LoadPixelShaderBlob(psId, &psBlob) || psBlob == nullptr) {
                 return false;
             }
 
@@ -484,7 +525,7 @@ namespace HIKARI::MESHRENDERER {
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
             psoDesc.pRootSignature = g.rootSig.Get();
-            psoDesc.VS = { g.vsBlob->GetBufferPointer(), g.vsBlob->GetBufferSize() };
+            psoDesc.VS = { vsBlob->GetBufferPointer(), vsBlob->GetBufferSize() };
             psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
             psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
             if (key.composite == VFX::CompositeMode::Additive) {
@@ -516,8 +557,12 @@ namespace HIKARI::MESHRENDERER {
 
         bool CreateSkinnedVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
             ID3DBlob* psBlob = nullptr;
-            if (!LoadPixelShaderBlob(key.shaderId, &psBlob) || psBlob == nullptr || g.skinnedVsBlob == nullptr) {
+            const std::string psId = !key.pixelShaderId.empty() ? key.pixelShaderId : key.shaderId;
+            if (!LoadPixelShaderBlob(psId, &psBlob) || psBlob == nullptr || g.skinnedVsBlob == nullptr) {
                 return false;
+            }
+            if (!key.vertexShaderId.empty()) {
+                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][MaterialFx][WARN] Custom vertexShaderId is ignored for skinned mesh. vertexShaderId=") + key.vertexShaderId);
             }
 
             const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
@@ -566,6 +611,12 @@ namespace HIKARI::MESHRENDERER {
         void ApplyProfileToVariant(const MaterialFxProfile& profile, VFX::VariantKey& variant) {
             if (!profile.shaderProfileId.empty()) {
                 variant.shaderId = profile.shaderProfileId;
+            }
+            if (!profile.vertexShaderId.empty()) {
+                variant.vertexShaderId = profile.vertexShaderId;
+            }
+            if (!profile.pixelShaderId.empty()) {
+                variant.pixelShaderId = profile.pixelShaderId;
             }
             variant.featureBits = profile.featureBits;
             variant.composite = profile.composite;

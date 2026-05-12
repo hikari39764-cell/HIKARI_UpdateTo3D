@@ -132,6 +132,7 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_LightDebugDraw.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Camera3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Transform3D.cpp" />
@@ -146,6 +147,7 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
@@ -311,6 +313,7 @@
     <ClInclude Include="HIKARI\HIKARI_2D.h" />
     <ClInclude Include="HIKARI\HIKARI_3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h" />
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h" />
@@ -318,6 +321,7 @@
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
+    <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />
@@ -443,6 +447,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkyVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkyPS.hlsl" />

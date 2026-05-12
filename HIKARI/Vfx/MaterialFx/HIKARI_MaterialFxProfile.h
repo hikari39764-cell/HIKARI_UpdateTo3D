@@ -22,6 +22,8 @@ public:
     std::string id;
     std::string displayName;
     std::string shaderProfileId;
+    std::string vertexShaderId;
+    std::string pixelShaderId;
     uint32_t featureBits = 0;
     bool depthTest = true;
     bool depthWrite = true;

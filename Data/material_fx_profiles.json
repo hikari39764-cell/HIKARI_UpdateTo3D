@@ -81,6 +81,72 @@
           "speed": 0.01
         }
       ]
+    },
+    {
+      "id": "water_grid_test",
+      "displayName": "Water Grid Test",
+      "shaderProfileId": "MaterialFx",
+      "vertexShaderId": "Render3D_FxWaterVS",
+      "pixelShaderId": "Render3D_StaticFxPS",
+      "featureBits": 1,
+      "depthTest": true,
+      "depthWrite": false,
+      "doubleSided": true,
+      "composite": "Alpha",
+      "parameters": [
+        {
+          "key": "waveSpeed",
+          "displayName": "Wave Speed",
+          "type": "float",
+          "slot": 0,
+          "component": "x",
+          "default": 1.5,
+          "min": 0.0,
+          "max": 10.0,
+          "speed": 0.01
+        },
+        {
+          "key": "waveHeight",
+          "displayName": "Wave Height",
+          "type": "float",
+          "slot": 0,
+          "component": "y",
+          "default": 0.25,
+          "min": 0.0,
+          "max": 5.0,
+          "speed": 0.01
+        },
+        {
+          "key": "waveScale",
+          "displayName": "Wave Scale",
+          "type": "float",
+          "slot": 0,
+          "component": "z",
+          "default": 2.0,
+          "min": 0.1,
+          "max": 50.0,
+          "speed": 0.01
+        },
+        {
+          "key": "rimStrength",
+          "displayName": "Rim Strength",
+          "type": "float",
+          "slot": 0,
+          "component": "w",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 5.0,
+          "speed": 0.01
+        },
+        {
+          "key": "waterColor",
+          "displayName": "Water Color",
+          "type": "color3",
+          "slot": 1,
+          "component": "xyz",
+          "default": [0.05, 0.35, 0.75]
+        }
+      ]
     }
   ]
 }
