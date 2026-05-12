@@ -21,6 +21,7 @@ namespace HIKARI::MESHWIREDEBUG {
         struct CachedPrimitiveWire {
             std::vector<WireLine> lines;
             bool truncated = false;
+            uint32_t lineLimit = 0;
         };
 
         std::unordered_map<const MeshPrimitive*, CachedPrimitiveWire> gCache;
@@ -35,10 +36,10 @@ namespace HIKARI::MESHWIREDEBUG {
             return { out.x, out.y, out.z };
         }
 
-        uint32_t MakeEdge(uint32_t a, uint32_t b) {
+        uint64_t MakeEdge(uint32_t a, uint32_t b) {
             const uint32_t lo = (std::min)(a, b);
             const uint32_t hi = (std::max)(a, b);
-            return (lo << 16) ^ hi;
+            return (static_cast<uint64_t>(lo) << 32) | static_cast<uint64_t>(hi);
         }
 
         const std::vector<Vertex3D>* GetStaticVertices(const MeshPrimitive& primitive) {
@@ -50,6 +51,14 @@ namespace HIKARI::MESHWIREDEBUG {
 
         const CachedPrimitiveWire& GetOrCreateWire(const MeshPrimitive& primitive, uint32_t maxLines) {
             auto found = gCache.find(&primitive);
+            if (found != gCache.end()) {
+                if (!found->second.truncated || found->second.lineLimit >= maxLines) {
+                    ++gStats.cacheHitCount;
+                    return found->second;
+                }
+                gCache.erase(found);
+                found = gCache.end();
+            }
             if (found != gCache.end()) {
                 ++gStats.cacheHitCount;
                 return found->second;
@@ -63,7 +72,8 @@ namespace HIKARI::MESHWIREDEBUG {
                 return inserted.first->second;
             }
 
-            std::unordered_set<uint32_t> emittedEdges;
+            cached.lineLimit = maxLines;
+            std::unordered_set<uint64_t> emittedEdges;
             for (size_t i = 0; i + 2 < primitive.indices.size(); i += 3) {
                 const uint32_t tri[3] = { primitive.indices[i], primitive.indices[i + 1], primitive.indices[i + 2] };
                 for (int e = 0; e < 3; ++e) {
@@ -72,7 +82,7 @@ namespace HIKARI::MESHWIREDEBUG {
                     if (a >= vertices->size() || b >= vertices->size()) {
                         continue;
                     }
-                    const uint32_t edgeKey = MakeEdge(a, b);
+                    const uint64_t edgeKey = MakeEdge(a, b);
                     if (!emittedEdges.insert(edgeKey).second) {
                         continue;
                     }
@@ -138,7 +148,9 @@ namespace HIKARI::MESHWIREDEBUG {
     void SubmitModelWire(const ModelAsset& asset, const Transform3D& world, uint32_t color, uint32_t maxLines, bool perPrimitiveColor) {
         ++gStats.submittedModelCount;
         const MATH::Mat4 worldMatrix = world.GetWorldMatrix();
-        uint32_t remaining = maxLines;
+        constexpr uint32_t kHardWireLineCap = 200000;
+        const uint32_t effectiveMaxLines = (maxLines == 0 || maxLines > kHardWireLineCap) ? kHardWireLineCap : maxLines;
+        uint32_t remaining = effectiveMaxLines;
         for (const MeshAsset& mesh : asset.meshes) {
             for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
                 const MeshPrimitive& primitive = mesh.primitives[primitiveIndex];
@@ -149,7 +161,7 @@ namespace HIKARI::MESHWIREDEBUG {
                 const CachedPrimitiveWire& cached = GetOrCreateWire(primitive, remaining);
                 const uint32_t primitiveColor = PrimitiveColor(color, primitiveIndex, perPrimitiveColor);
                 for (const WireLine& line : cached.lines) {
-                    if (maxLines > 0 && remaining == 0) {
+                    if (remaining == 0) {
                         ++gStats.truncatedModelCount;
                         return;
                     }
@@ -160,9 +172,7 @@ namespace HIKARI::MESHWIREDEBUG {
                         RENDERER3D::DEBUG::DebugDepthMode::XRay
                     });
                     ++gStats.submittedLineCount;
-                    if (maxLines > 0) {
-                        --remaining;
-                    }
+                    --remaining;
                 }
                 if (cached.truncated) {
                     ++gStats.truncatedModelCount;

@@ -87,7 +87,7 @@
       "displayName": "Water Grid Test",
       "shaderProfileId": "MaterialFx",
       "vertexShaderId": "Render3D_FxWaterVS",
-      "pixelShaderId": "Render3D_StaticFxPS",
+      "pixelShaderId": "Render3D_FxWaterPS",
       "featureBits": 1,
       "depthTest": true,
       "depthWrite": false,

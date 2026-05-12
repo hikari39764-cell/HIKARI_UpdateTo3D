@@ -567,9 +567,9 @@ namespace HIKARI {
                 int sx = static_cast<int>(procedural_.segmentsX);
                 int sy = static_cast<int>(procedural_.segmentsY);
                 int sz = static_cast<int>(procedural_.segmentsZ);
-                if (ImGui::DragInt("Segments X", &sx, 1.0f, 1, 512)) procedural_.segmentsX = static_cast<uint32_t>((std::max)(1, sx));
-                if (ImGui::DragInt("Segments Y", &sy, 1.0f, 1, 512)) procedural_.segmentsY = static_cast<uint32_t>((std::max)(1, sy));
-                if (ImGui::DragInt("Segments Z", &sz, 1.0f, 1, 512)) procedural_.segmentsZ = static_cast<uint32_t>((std::max)(1, sz));
+                if (ImGui::DragInt("Segments X", &sx, 1.0f, 1, 256)) procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(sx, 1, 256));
+                if (ImGui::DragInt("Segments Y", &sy, 1.0f, 1, 256)) procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(sy, 1, 256));
+                if (ImGui::DragInt("Segments Z", &sz, 1.0f, 1, 64)) procedural_.segmentsZ = static_cast<uint32_t>((std::clamp)(sz, 1, 64));
                 ImGui::Checkbox("Double Sided", &procedural_.doubleSided);
                 ImGui::Checkbox("Generate Tangents", &procedural_.generateTangents);
                 if (procedural_.kind == ProceduralMeshKind::Sphere) {
