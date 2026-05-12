@@ -92,7 +92,21 @@ namespace HIKARI {
             globalChain_.SetDebugName("PostSystem.GlobalChain");
             bloomChain_.SetDebugName("PostSystem.BloomChain");
             if (initialized_) return;
-            quad_.Init(context_);
+
+            if (context_.device == nullptr || context_.cmdList == nullptr) {
+                DEBUGLOG::PushRenderError("[PostSystem][ERROR] Initialize received invalid GFX context.");
+                GFX::DumpD3D12InfoQueue(context_.device, "PostSystem Initialize invalid GFX context");
+                initialized_ = false;
+                return;
+            }
+
+            if (!quad_.Init(context_)) {
+                DEBUGLOG::PushRenderError("[PostSystem][ERROR] QuadDrawer initialization failed.");
+                GFX::DumpD3D12InfoQueue(context_.device, "PostSystem QuadDrawer initialization failed");
+                initialized_ = false;
+                return;
+            }
+
             initialized_ = true;
         }
 
@@ -453,10 +467,14 @@ namespace HIKARI {
         void PostSystem::BeginSceneCapture()
         {
             if (!initialized_) Initialize(context_);
+            if (!initialized_) {
+                LogFrameState("BeginSceneCapture initialization failed");
+                return;
+            }
 
             EnsureSceneRTSize();
-            if (!sceneRT_.GetResource()) {
-                LogFrameState("BeginSceneCapture sceneRT invalid");
+            if (!sceneRT_.GetResource() || !sceneRT_.IsInitialized()) {
+                LogFrameState("BeginSceneCapture sceneRT invalid after EnsureSceneRTSize");
                 return;
             }
             UpdateCommonParams(0.0f);
@@ -487,6 +505,11 @@ namespace HIKARI {
         void PostSystem::BeginLightCapture()
         {
             if (!initialized_) return;
+
+            if (!lightRT_.GetResource() || !lightRT_.IsInitialized()) {
+                LogFrameState("BeginLightCapture lightRT invalid");
+                return;
+            }
 
 
             if (!rtStack_.empty()) {
@@ -561,6 +584,20 @@ namespace HIKARI {
                 finalSceneRT->EndCapture();
             }
 
+            if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
+                HIKARI_LOG_INFO(std::string("[PostSystem][FramePath] globalPost=") +
+                    (globalChain_.HasAny() ? "on" : "off") +
+                    " bloom=" +
+                    ((bloomRT != nullptr && bloomRT->GetResource() != nullptr) ? "on" : "off") +
+                    " toneMapping=" +
+                    (toneMappingSettings_.enabled ? "on" : "off") +
+                    " transition=" +
+                    (transitionActive_ ? "on" : "off") +
+                    " useLighting=" +
+                    (useLighting_ ? "on" : "off") +
+                    " finalRT=" +
+                    (finalSceneRT ? finalSceneRT->GetDebugName() : "<null>"));
+            }
 
             auto* cmd = context_.cmdList;
             if (!cmd) {

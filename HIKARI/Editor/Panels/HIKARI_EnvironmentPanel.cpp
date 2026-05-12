@@ -422,6 +422,9 @@ namespace HIKARI {
                 environment.debugView = static_cast<RenderDebugView>(std::clamp(debugView, 0, 3));
             }
             ImGui::Text("Active Debug View: %s", DebugViewName(environment.debugView));
+            if (environment.debugView != RenderDebugView::None) {
+                ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Debug view overrides the final shaded output.");
+            }
 
             const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
             ImGui::SeparatorText("Light Upload Stats");

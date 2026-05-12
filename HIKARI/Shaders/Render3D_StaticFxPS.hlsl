@@ -1,3 +1,6 @@
+// IMPORTANT:
+// This cbuffer/register layout must stay in sync with Render3D_StaticPS.hlsl
+// and MeshRenderer::ObjectCB / LightCB / ShadowCB.
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;

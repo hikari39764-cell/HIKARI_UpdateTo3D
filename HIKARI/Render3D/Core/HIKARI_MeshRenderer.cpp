@@ -1018,7 +1018,6 @@ namespace HIKARI::MESHRENDERER {
                 return;
             }
 
-            ++g.debugStats.pbrPrimitiveCount;
             if (normalTextureHandle >= 0 && normalTextureHandle != g.fallbackNormalTextureHandle) {
                 obj.hasNormalTexture = 1;
                 ++g.debugStats.normalMappedPrimitiveCount;
@@ -1039,9 +1038,13 @@ namespace HIKARI::MESHRENDERER {
             if (materialAsset->alphaMode == AlphaMode::Mask) {
                 obj.materialFlags |= MATERIAL_FEATURES::AlphaMask;
             }
-            if ((materialAsset->featureBits & MATERIAL_FEATURES::Unlit) != 0) {
+            const bool isUnlit = (materialAsset->featureBits & MATERIAL_FEATURES::Unlit) != 0;
+            if (isUnlit) {
                 obj.materialFlags |= MATERIAL_FEATURES::Unlit;
                 ++g.debugStats.unlitPrimitiveCount;
+            }
+            else {
+                ++g.debugStats.pbrPrimitiveCount;
             }
             if ((materialAsset->featureBits & MATERIAL_FEATURES::Emissive) != 0) {
                 obj.materialFlags |= MATERIAL_FEATURES::Emissive;

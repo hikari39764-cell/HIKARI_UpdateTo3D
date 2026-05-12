@@ -66,22 +66,44 @@ float4 main(PS_IN i) : SV_TARGET
             context_ = ctx;
             if (initialized_) { return true; }
 
+            if (context_.device == nullptr || context_.cmdList == nullptr) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] Init received invalid GFX context. ") + DumpState());
+                return false;
+            }
+
             {
                 ComPtr<ID3DBlob> err;
                 HRESULT hr = D3DCompile(kFullscreenVS, std::strlen(kFullscreenVS), nullptr, nullptr, nullptr, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, vsBlob_.GetAddressOf(), err.GetAddressOf());
-                if (FAILED(hr)) { OutputError(err.Get()); return false; }
+                if (FAILED(hr)) {
+                    OutputError(err.Get());
+                    DEBUGLOG::PushRenderError("[PostQuadDrawer][ERROR] FullscreenVS compile failed.");
+                    return false;
+                }
             }
             {
                 ComPtr<ID3DBlob> err;
                 HRESULT hr = D3DCompile(kCopyPS, std::strlen(kCopyPS), nullptr, nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, psCopyBlob_.GetAddressOf(), err.GetAddressOf());
-                if (FAILED(hr)) { OutputError(err.Get()); return false; }
+                if (FAILED(hr)) {
+                    OutputError(err.Get());
+                    DEBUGLOG::PushRenderError("[PostQuadDrawer][ERROR] CopyPS compile failed.");
+                    return false;
+                }
             }
 
-            if (!CreateRootSignature()) { return false; }
+            if (!CreateRootSignature()) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] CreateRootSignature failed during Init. ") + DumpState());
+                return false;
+            }
 
             currentPostPS_ = psCopyBlob_.Get();
-            if (!EnsurePipelineSet(outputFormat_)) { return false; }
-            SetPixelShader(currentPostPS_);
+            if (!EnsurePipelineSet(outputFormat_)) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] EnsurePipelineSet failed during Init. ") + DumpState());
+                return false;
+            }
+            if (!SetPixelShader(currentPostPS_)) {
+                DEBUGLOG::PushRenderError(std::string("[PostQuadDrawer][ERROR] SetPixelShader failed during Init. ") + DumpState());
+                return false;
+            }
 
             initialized_ = true;
             return true;
