@@ -62,6 +62,7 @@ namespace HIKARI {
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Submitted Model Items: %zu", modelStats.submittedModelItemCount);
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
+            ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu", meshStats.wireDrawItemCount, meshStats.wireGpuDrawCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
             ImGui::Text("PSO Cache Hit / Miss: %zu / %zu", meshStats.psoCacheHitCount, meshStats.psoCacheMissCount);
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);

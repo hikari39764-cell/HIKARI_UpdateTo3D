@@ -9,6 +9,12 @@
 namespace HIKARI {
     class ModelAsset;
 
+    enum class ModelGeometryDebugMode {
+        Normal,
+        WireOverlay,
+        WireOnly,
+    };
+
     struct ModelRenderItem {
         const ModelAsset* model = nullptr;
         uint64_t instanceKey = 0;
@@ -30,5 +36,6 @@ namespace HIKARI {
 
         bool castShadow = true;
         bool receiveShadow = true;
+        ModelGeometryDebugMode geometryDebugMode = ModelGeometryDebugMode::Normal;
     };
 }

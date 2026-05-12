@@ -14,6 +14,7 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
+#include "Core/HIKARI_TimeService.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
@@ -29,6 +30,7 @@ namespace HIKARI::MESHRENDERER {
         struct CameraCB {
             MATH::Mat4 viewProj{};
             MATH::Vec4 cameraPos{};
+            MATH::Vec4 timeParams{};
         };
 
         struct ObjectCB {
@@ -113,6 +115,7 @@ namespace HIKARI::MESHRENDERER {
             bool hasResolvedMaterialFxProfile = false;
             MaterialFxProfile resolvedMaterialFxProfile{};
             bool receiveShadow = true;
+            MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal;
         };
 
         struct VariantKeyHasher {
@@ -155,11 +158,14 @@ namespace HIKARI::MESHRENDERER {
             int fallbackBlackTextureHandle = -1;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
             std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
+            std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> wireVariantPsoCache;
+            std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedWireVariantPsoCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> psBlobCache;
             std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> vsBlobCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, int> materialTextureCache;
+            float elapsedTimeSec = 0.0f;
         };
 
         State g;
@@ -505,7 +511,7 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool CreateVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
+        bool CreateVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, bool wireframe, ID3D12PipelineState** outPso) {
             ID3DBlob* vsBlob = nullptr;
             if (!LoadVertexShaderBlob(key.vertexShaderId, &vsBlob) || vsBlob == nullptr) {
                 vsBlob = g.vsBlob.Get();
@@ -540,7 +546,7 @@ namespace HIKARI::MESHRENDERER {
             }
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-            psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+            psoDesc.RasterizerState.FillMode = wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
             psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
@@ -555,7 +561,7 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
         }
 
-        bool CreateSkinnedVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, ID3D12PipelineState** outPso) {
+        bool CreateSkinnedVariantPipeline(ID3D12Device* device, const VFX::VariantKey& key, bool wireframe, ID3D12PipelineState** outPso) {
             ID3DBlob* psBlob = nullptr;
             const std::string psId = !key.pixelShaderId.empty() ? key.pixelShaderId : key.shaderId;
             if (!LoadPixelShaderBlob(psId, &psBlob) || psBlob == nullptr || g.skinnedVsBlob == nullptr) {
@@ -593,7 +599,7 @@ namespace HIKARI::MESHRENDERER {
             }
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-            psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+            psoDesc.RasterizerState.FillMode = wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
             psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
@@ -606,6 +612,29 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
+        }
+
+        ID3D12PipelineState* GetOrCreateVariantPso(const VFX::VariantKey& key, bool skinned, bool wireframe) {
+            auto& cache = skinned
+                ? (wireframe ? g.skinnedWireVariantPsoCache : g.skinnedVariantPsoCache)
+                : (wireframe ? g.wireVariantPsoCache : g.variantPsoCache);
+
+            auto found = cache.find(key);
+            if (found == cache.end()) {
+                ++g.debugStats.psoCacheMissCount;
+                ComPtr<ID3D12PipelineState> variantPso;
+                const bool created = skinned
+                    ? CreateSkinnedVariantPipeline(SERVICES::gCtx.device, key, wireframe, variantPso.GetAddressOf())
+                    : CreateVariantPipeline(SERVICES::gCtx.device, key, wireframe, variantPso.GetAddressOf());
+                if (!created) {
+                    variantPso = skinned ? (g.skinnedPso ? g.skinnedPso : g.pso) : g.pso;
+                }
+                found = cache.emplace(key, std::move(variantPso)).first;
+            } else {
+                ++g.debugStats.psoCacheHitCount;
+            }
+
+            return found->second.Get();
         }
 
         void ApplyProfileToVariant(const MaterialFxProfile& profile, VFX::VariantKey& variant) {
@@ -1201,7 +1230,7 @@ namespace HIKARI::MESHRENDERER {
         g.debugStats = {};
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow) {
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
@@ -1212,12 +1241,16 @@ namespace HIKARI::MESHRENDERER {
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
         item.receiveShadow = receiveShadow;
+        item.renderDebugMode = renderDebugMode;
         ResolveDrawVariant(item);
         ++g.debugStats.staticDrawItemCount;
+        if (renderDebugMode != MeshRenderDebugMode::Normal) {
+            ++g.debugStats.wireDrawItemCount;
+        }
         g.drawItems.push_back(std::move(item));
     }
 
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow) {
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
@@ -1229,8 +1262,12 @@ namespace HIKARI::MESHRENDERER {
         }
         item.materialFxValuesInitialized = materialFxValuesInitialized;
         item.receiveShadow = receiveShadow;
+        item.renderDebugMode = renderDebugMode;
         ResolveDrawVariant(item);
         ++g.debugStats.skinnedDrawItemCount;
+        if (renderDebugMode != MeshRenderDebugMode::Normal) {
+            ++g.debugStats.wireDrawItemCount;
+        }
         g.drawItems.push_back(std::move(item));
     }
 
@@ -1250,6 +1287,9 @@ namespace HIKARI::MESHRENDERER {
         g.cameraMapped->viewProj = camera.GetViewProj();
         const MATH::Vec3 cameraPos = camera.GetPosition();
         g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
+        const FrameContext& frame = TIME::GetFrameContext();
+        g.elapsedTimeSec += std::max(0.0f, frame.unscaledDt);
+        g.cameraMapped->timeParams = { g.elapsedTimeSec, frame.unscaledDt, frame.gameDt, static_cast<float>(frame.frameIndex) };
 
         FillLightCB(environment, *g.lightMapped);
         FillShadowCB(environment, *g.shadowMapped);
@@ -1335,33 +1375,6 @@ namespace HIKARI::MESHRENDERER {
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
-
-                            auto foundPso = g.skinnedVariantPsoCache.find(primitiveVariant);
-                            if (foundPso == g.skinnedVariantPsoCache.end()) {
-                                ++g.debugStats.psoCacheMissCount;
-                                ComPtr<ID3D12PipelineState> variantPso;
-                                if (!CreateSkinnedVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
-                                    variantPso = g.skinnedPso ? g.skinnedPso : g.pso;
-                                }
-                                foundPso = g.skinnedVariantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
-                            } else {
-                                ++g.debugStats.psoCacheHitCount;
-                            }
-                            cmd->SetPipelineState(foundPso->second.Get());
-                            ++g.debugStats.skinnedGpuDrawCount;
-                        } else {
-                            auto foundPso = g.variantPsoCache.find(primitiveVariant);
-                            if (foundPso == g.variantPsoCache.end()) {
-                                ++g.debugStats.psoCacheMissCount;
-                                ComPtr<ID3D12PipelineState> variantPso;
-                                if (!CreateVariantPipeline(SERVICES::gCtx.device, primitiveVariant, variantPso.GetAddressOf())) {
-                                    variantPso = g.pso;
-                                }
-                                foundPso = g.variantPsoCache.emplace(primitiveVariant, std::move(variantPso)).first;
-                            } else {
-                                ++g.debugStats.psoCacheHitCount;
-                            }
-                            cmd->SetPipelineState(foundPso->second.Get());
                         }
 
                         const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
@@ -1408,7 +1421,31 @@ namespace HIKARI::MESHRENDERER {
                         D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
                         cmd->IASetVertexBuffers(0, 1, &vb);
                         cmd->IASetIndexBuffer(&ib);
-                        cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+
+                        const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
+                        const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
+                            item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
+                        auto drawPrimitive = [&](bool wireframe) {
+                            ID3D12PipelineState* pso = GetOrCreateVariantPso(primitiveVariant, drawingSkinned, wireframe);
+                            if (pso == nullptr) {
+                                return;
+                            }
+                            cmd->SetPipelineState(pso);
+                            cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                            if (drawingSkinned) {
+                                ++g.debugStats.skinnedGpuDrawCount;
+                            }
+                            if (wireframe) {
+                                ++g.debugStats.wireGpuDrawCount;
+                            }
+                        };
+
+                        if (drawSolid) {
+                            drawPrimitive(false);
+                        }
+                        if (drawWire) {
+                            drawPrimitive(true);
+                        }
 
                         ++objectIndex;
                     }
@@ -1444,18 +1481,6 @@ namespace HIKARI::MESHRENDERER {
             cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
-            auto foundPso = g.variantPsoCache.find(item.variant);
-            if (foundPso == g.variantPsoCache.end()) {
-                ++g.debugStats.psoCacheMissCount;
-                ComPtr<ID3D12PipelineState> variantPso;
-                if (!CreateVariantPipeline(SERVICES::gCtx.device, item.variant, variantPso.GetAddressOf())) {
-                    variantPso = g.pso;
-                }
-                foundPso = g.variantPsoCache.emplace(item.variant, std::move(variantPso)).first;
-            } else {
-                ++g.debugStats.psoCacheHitCount;
-            }
-            cmd->SetPipelineState(foundPso->second.Get());
             int textureHandle = g.fallbackTextureHandle;
             if (const Material* material = item.asset->GetMaterial()) {
                 if (material->HasBaseColorTexture()) {
@@ -1495,7 +1520,26 @@ namespace HIKARI::MESHRENDERER {
             D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
             cmd->IASetVertexBuffers(0, 1, &vb);
             cmd->IASetIndexBuffer(&ib);
-            cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+            const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
+            const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
+                item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
+            auto drawLegacyMesh = [&](bool wireframe) {
+                ID3D12PipelineState* pso = GetOrCreateVariantPso(item.variant, false, wireframe);
+                if (pso == nullptr) {
+                    return;
+                }
+                cmd->SetPipelineState(pso);
+                cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                if (wireframe) {
+                    ++g.debugStats.wireGpuDrawCount;
+                }
+            };
+            if (drawSolid) {
+                drawLegacyMesh(false);
+            }
+            if (drawWire) {
+                drawLegacyMesh(true);
+            }
             ++objectIndex;
         }
 

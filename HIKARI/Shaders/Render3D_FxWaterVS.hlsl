@@ -2,6 +2,8 @@ cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
     float4 gCameraPos;
+    // x=time seconds, y=unscaled dt, z=game dt, w=frame index.
+    float4 gTimeParams;
 };
 
 // Keep this layout in sync with MeshRenderer::ObjectCB. The water VS uses
@@ -57,7 +59,7 @@ VSOutput main(VSInput input)
     const float waveSpeed = gFxUser0.x;
     const float waveHeight = gFxUser0.y;
     const float waveScale = max(gFxUser0.z, 0.001f);
-    const float phase = waveSpeed;
+    const float phase = gTimeParams.x * waveSpeed;
 
     float3 localPos = input.position;
     const float wave =

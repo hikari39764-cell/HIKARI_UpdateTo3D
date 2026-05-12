@@ -873,6 +873,9 @@ namespace HIKARI {
             ImGui::TextUnformatted("MeshRenderer:");
             ImGui::Text("Static Draw Items: %zu", meshRendererStats.staticDrawItemCount);
             ImGui::Text("Skinned Draw Items: %zu", meshRendererStats.skinnedDrawItemCount);
+            ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu",
+                meshRendererStats.wireDrawItemCount,
+                meshRendererStats.wireGpuDrawCount);
             ImGui::Text("Primitive Mesh Cache Hit / Miss: %zu / %zu",
                 meshRendererStats.primitiveMeshCacheHitCount,
                 meshRendererStats.primitiveMeshCacheMissCount);

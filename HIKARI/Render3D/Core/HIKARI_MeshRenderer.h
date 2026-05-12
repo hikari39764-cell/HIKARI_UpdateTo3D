@@ -12,6 +12,12 @@
 
 namespace HIKARI::MESHRENDERER {
 
+    enum class MeshRenderDebugMode {
+        Normal,
+        WireOverlay,
+        WireOnly,
+    };
+
     struct MeshRendererDebugStats {
         size_t skinnedGpuDrawCount = 0;
         size_t skinnedFallbackCount = 0;
@@ -20,6 +26,8 @@ namespace HIKARI::MESHRENDERER {
         size_t lastSkinnedVertexCount = 0;
         size_t staticDrawItemCount = 0;
         size_t skinnedDrawItemCount = 0;
+        size_t wireDrawItemCount = 0;
+        size_t wireGpuDrawCount = 0;
         size_t primitiveMeshCacheHitCount = 0;
         size_t primitiveMeshCacheMissCount = 0;
         size_t primitiveSkinnedMeshCacheHitCount = 0;
@@ -60,8 +68,8 @@ namespace HIKARI::MESHRENDERER {
     };
 
     void Reset();
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true);
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true);
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal);
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal);
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
     const MeshRendererDebugStats& GetDebugStats();
 

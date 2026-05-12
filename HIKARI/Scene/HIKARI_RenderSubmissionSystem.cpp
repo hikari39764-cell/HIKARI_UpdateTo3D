@@ -46,10 +46,6 @@ namespace HIKARI {
                     MESHWIREDEBUG::SubmitModelBounds(*asset, object.Transform(), model.GetWireColor());
                     return;
                 }
-                if (debugMode == ModelRenderDebugMode::WireOnly) {
-                    MESHWIREDEBUG::SubmitModelWire(*asset, object.Transform(), model.GetWireColor(), model.GetMaxWireLines(), model.GetWirePerPrimitiveColor());
-                    return;
-                }
 
                 ModelRenderItem item{};
                 item.model = asset;
@@ -64,6 +60,12 @@ namespace HIKARI {
                 item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
+                if (debugMode == ModelRenderDebugMode::WireOnly) {
+                    item.geometryDebugMode = ModelGeometryDebugMode::WireOnly;
+                    item.castShadow = false;
+                } else if (debugMode == ModelRenderDebugMode::WireOverlay) {
+                    item.geometryDebugMode = ModelGeometryDebugMode::WireOverlay;
+                }
                 item.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
                 for (int i = 0; i < 4; ++i) {
                     item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
@@ -76,9 +78,6 @@ namespace HIKARI {
                 }
 
                 MODELRENDERER::SubmitModel(item);
-                if (debugMode == ModelRenderDebugMode::WireOverlay) {
-                    MESHWIREDEBUG::SubmitModelWire(*asset, object.Transform(), model.GetWireColor(), model.GetMaxWireLines(), model.GetWirePerPrimitiveColor());
-                }
             } else {
                 ++sDebugStats_.fallbackWireCount;
 

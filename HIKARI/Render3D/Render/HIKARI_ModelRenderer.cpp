@@ -23,6 +23,18 @@ namespace HIKARI::MODELRENDERER {
         ModelRendererDebugStats gDebugStats;
         uint64_t gFrameIndex = 0;
 
+        MESHRENDERER::MeshRenderDebugMode ToMeshRenderDebugMode(ModelGeometryDebugMode mode) {
+            switch (mode) {
+            case ModelGeometryDebugMode::WireOverlay:
+                return MESHRENDERER::MeshRenderDebugMode::WireOverlay;
+            case ModelGeometryDebugMode::WireOnly:
+                return MESHRENDERER::MeshRenderDebugMode::WireOnly;
+            case ModelGeometryDebugMode::Normal:
+            default:
+                return MESHRENDERER::MeshRenderDebugMode::Normal;
+            }
+        }
+
         struct AnimationLodSettings {
             bool enabled = true;
             float nearDistance = 8.0f;
@@ -625,7 +637,8 @@ namespace HIKARI::MODELRENDERER {
                                 item.postGroupMask,
                                 item.materialFxParamValues,
                                 item.materialFxValuesInitialized,
-                                item.receiveShadow);
+                                item.receiveShadow,
+                                ToMeshRenderDebugMode(item.geometryDebugMode));
                             SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             submittedSkinned = true;
                             submitted = true;
@@ -652,7 +665,8 @@ namespace HIKARI::MODELRENDERER {
                     item.postGroupMask,
                     item.materialFxParamValues,
                     item.materialFxValuesInitialized,
-                    item.receiveShadow);
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode));
                 SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
                 submitted = true;
             }
@@ -696,7 +710,8 @@ namespace HIKARI::MODELRENDERER {
                 item.postGroupMask,
                 item.materialFxParamValues,
                 item.materialFxValuesInitialized,
-                item.receiveShadow);
+                item.receiveShadow,
+                ToMeshRenderDebugMode(item.geometryDebugMode));
             SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
         }
 
