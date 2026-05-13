@@ -3,7 +3,11 @@
 #include <cassert>
 #include <cctype>
 #include <cstdio>
+#include <sstream>
+#include <DirectXTex.h>
+#include <d3dx12.h>
 #include "../External/WICTextureLoader.h"
+#include "Core/HIKARI_Logger.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -133,6 +137,7 @@ namespace HIKARI {
         uint64_t DxTextureManager::uploadFenceValue_ = 1;
 
         std::vector<ComPtr<ID3D12Resource>>       DxTextureManager::textures_;
+        std::vector<TextureDimension>             DxTextureManager::dimensions_;
         std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvCpu_;
         std::vector<D3D12_GPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvGpu_;
         std::unordered_map<std::string, int>      DxTextureManager::nameToHandle_;
@@ -184,6 +189,7 @@ namespace HIKARI {
             srvCpu_.resize(maxTextures);
             srvGpu_.resize(maxTextures);
             textures_.resize(maxTextures);
+            dimensions_.resize(maxTextures, TextureDimension::Texture2D);
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
             D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
@@ -204,6 +210,7 @@ namespace HIKARI {
         void DxTextureManager::Finalize()
         {
             textures_.clear();
+            dimensions_.clear();
             srvCpu_.clear();
             srvGpu_.clear();
             if (!context_.srvHeap) {
@@ -264,6 +271,22 @@ namespace HIKARI {
             return LoadTextureWithColorSpace(name, path, TextureColorSpace::Linear);
         }
 
+        int DxTextureManager::LoadCubemap(const std::string& name, const std::string& path, TextureColorSpace colorSpace)
+        {
+            EnsureInit();
+            const std::string cacheKey = MakeTextureCacheKey("cube:" + name, colorSpace);
+            auto it = nameToHandle_.find(cacheKey);
+            if (it != nameToHandle_.end()) {
+                return it->second;
+            }
+
+            int handle = CreateCubemapFromFile(path, colorSpace);
+            if (handle >= 0) {
+                nameToHandle_[cacheKey] = handle;
+            }
+            return handle;
+        }
+
         int DxTextureManager::CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace)
         {
             auto* device = context_.device;
@@ -318,6 +341,7 @@ namespace HIKARI {
             }
 
             textures_[handle] = texResource;
+            dimensions_[handle] = TextureDimension::Texture2D;
 
             const DXGI_FORMAT resourceFormat = texResource->GetDesc().Format;
             const DXGI_FORMAT srvFormat = ResolveSrvFormat(resourceFormat, colorSpace);
@@ -332,6 +356,103 @@ namespace HIKARI {
                 texResource.Get(), &srvDesc, srvCpu_[handle]);
 
             return handle;
+        }
+
+        int DxTextureManager::CreateCubemapFromFile(const std::string& path, TextureColorSpace colorSpace)
+        {
+            auto* device = context_.device;
+            auto* queue = context_.queue;
+            if (!device || !queue || !uploadAllocator_ || !uploadCmdList_ || !uploadFence_ || !uploadFenceEvent_) {
+                HIKARI_LOG_ERROR("[DxTextureManager][Cubemap][ERROR] LoadCubemap received invalid D3D12 context.");
+                return -1;
+            }
+
+            wchar_t wpath[260]{};
+            mbstowcs_s(nullptr, wpath, path.c_str(), _TRUNCATE);
+
+            DirectX::TexMetadata metadata{};
+            DirectX::ScratchImage image{};
+            HRESULT hr = DirectX::LoadFromDDSFile(wpath, DirectX::DDS_FLAGS_NONE, &metadata, image);
+            if (FAILED(hr)) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][Cubemap][ERROR] LoadCubemap failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            if (!metadata.IsCubemap()) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][Cubemap][ERROR] Resource is not a cubemap texture. path=" << path
+                    << " arraySize=" << metadata.arraySize;
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
+            hr = DirectX::CreateTexture(device, metadata, texResource.GetAddressOf());
+            if (FAILED(hr) || !texResource) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][Cubemap][ERROR] CreateTexture failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+            DirectX::PrepareUpload(device, image.GetImages(), image.GetImageCount(), metadata, subresources);
+            if (subresources.empty()) {
+                HIKARI_LOG_ERROR("[DxTextureManager][Cubemap][ERROR] PrepareUpload returned no subresources.");
+                return -1;
+            }
+
+            const UINT64 uploadSize = GetRequiredIntermediateSize(texResource.Get(), 0, static_cast<UINT>(subresources.size()));
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+            hr = device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(uploadResource.GetAddressOf()));
+            if (FAILED(hr)) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][Cubemap][ERROR] Create upload resource failed. hr=0x"
+                    << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
+
+            UpdateSubresources(uploadCmdList_.Get(), texResource.Get(), uploadResource.Get(), 0, 0, static_cast<UINT>(subresources.size()), subresources.data());
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                texResource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            uploadCmdList_->ResourceBarrier(1, &barrier);
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(texResource->GetDesc().Format, colorSpace);
+            return RegisterCubeFromResourceAs(texResource.Get(), srvFormat);
         }
 
 
@@ -360,6 +481,7 @@ namespace HIKARI {
             }
 
             textures_[handle] = resource;
+            dimensions_[handle] = TextureDimension::Texture2D;
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             auto desc = resource->GetDesc();
@@ -376,6 +498,44 @@ namespace HIKARI {
                 srvCpu_[handle]
             );
 
+            return handle;
+        }
+
+        int DxTextureManager::RegisterCubeFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat)
+        {
+            EnsureInit();
+            if (!resource) {
+                return -1;
+            }
+
+            auto desc = resource->GetDesc();
+            if (desc.DepthOrArraySize < 6) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][Cubemap][ERROR] Resource is not a cubemap texture. depthOrArraySize="
+                    << desc.DepthOrArraySize;
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            auto* device = context_.device;
+            int handle = nextIndex_++;
+            if (handle >= static_cast<int>(textures_.size())) {
+                OutputDebugStringA("DxTextureManager::RegisterCubeFromResourceAs - out of texture slots.\n");
+                return -1;
+            }
+
+            textures_[handle] = resource;
+            dimensions_[handle] = TextureDimension::TextureCube;
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+            srvDesc.Format = srvFormat;
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.TextureCube.MostDetailedMip = 0;
+            srvDesc.TextureCube.MipLevels = desc.MipLevels;
+            srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+            device->CreateShaderResourceView(resource, &srvDesc, srvCpu_[handle]);
             return handle;
         }
 
@@ -404,6 +564,13 @@ namespace HIKARI {
             auto desc = textures_[handle]->GetDesc();
             outWidth = static_cast<UINT>(desc.Width);
             outHeight = static_cast<UINT>(desc.Height);
+        }
+
+        TextureDimension DxTextureManager::GetTextureDimension(int handle) {
+            if (!initialized_ || handle < 0 || handle >= static_cast<int>(dimensions_.size())) {
+                return TextureDimension::Texture2D;
+            }
+            return dimensions_[handle];
         }
 
 

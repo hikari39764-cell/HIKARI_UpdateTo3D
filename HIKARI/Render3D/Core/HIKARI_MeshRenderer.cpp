@@ -76,6 +76,10 @@ namespace HIKARI::MESHRENDERER {
             MATH::Vec4 fogParams{};
             uint32_t debugView = 0;
             float debugPadding[3]{};
+            MATH::Vec4 skyZenithExposure{};
+            MATH::Vec4 skyHorizonReflection{};
+            MATH::Vec4 skyGroundAmbient{};
+            MATH::Vec4 skyParams{};
         };
 
         struct ShadowCB {
@@ -1170,6 +1174,30 @@ namespace HIKARI::MESHRENDERER {
                 std::max(0.0f, environment.fog.heightFalloff)
             };
             out.debugView = static_cast<uint32_t>(environment.debugView);
+            out.skyZenithExposure = {
+                environment.sky.zenithColor.x,
+                environment.sky.zenithColor.y,
+                environment.sky.zenithColor.z,
+                std::max(0.0f, environment.sky.exposure)
+            };
+            out.skyHorizonReflection = {
+                environment.sky.horizonColor.x,
+                environment.sky.horizonColor.y,
+                environment.sky.horizonColor.z,
+                std::max(0.0f, environment.sky.reflectionIntensity)
+            };
+            out.skyGroundAmbient = {
+                environment.sky.groundColor.x,
+                environment.sky.groundColor.y,
+                environment.sky.groundColor.z,
+                std::max(0.0f, environment.sky.ambientFromSky)
+            };
+            out.skyParams = {
+                environment.sky.yaw,
+                std::max(0.01f, environment.sky.horizonPower),
+                static_cast<float>(environment.sky.mode),
+                0.0f
+            };
 
             constexpr uint32_t kMaxPointLights = 8;
             uint32_t uploadedCount = 0;

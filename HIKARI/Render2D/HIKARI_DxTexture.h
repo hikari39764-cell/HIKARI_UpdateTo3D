@@ -17,6 +17,11 @@ namespace HIKARI {
             Srgb
         };
 
+        enum class TextureDimension {
+            Texture2D,
+            TextureCube
+        };
+
         class DxTextureManager {
         public:
             static void Init(const GFX::Context& ctx, int maxTextures = 128);
@@ -27,15 +32,19 @@ namespace HIKARI {
             static int LoadTextureWithColorSpace(const std::string& name, const std::string& path, TextureColorSpace colorSpace);
             static int LoadTextureSrgb(const std::string& name, const std::string& path);
             static int LoadTextureLinear(const std::string& name, const std::string& path);
+            static int LoadCubemap(const std::string& name, const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);
             static int RegisterFromResource(ID3D12Resource* resource);
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
+            static int RegisterCubeFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
             static ID3D12DescriptorHeap* GetSrvHeap();
             static void GetTextureSize(int handle, UINT& outWidth, UINT& outHeight);
+            static TextureDimension GetTextureDimension(int handle);
 
         private:
             static void EnsureInit();
             static int CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Auto);
+            static int CreateCubemapFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);
 
             static bool initialized_;
             static GFX::Context context_;
@@ -48,6 +57,7 @@ namespace HIKARI {
             static HANDLE uploadFenceEvent_;
             static uint64_t uploadFenceValue_;
             static std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures_;
+            static std::vector<TextureDimension> dimensions_;
             static std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvCpu_;
             static std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvGpu_;
             static std::unordered_map<std::string, int> nameToHandle_;

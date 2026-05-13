@@ -122,6 +122,16 @@ namespace HIKARI {
             }
         }
 
+        const char* SkyModeName(SkyMode mode) {
+            switch (mode) {
+            case SkyMode::None: return "None";
+            case SkyMode::Cubemap: return "Cubemap";
+            case SkyMode::Texture2D: return "Texture2D";
+            case SkyMode::Gradient:
+            default: return "Gradient";
+            }
+        }
+
         void ApplyEnvironmentPreset(SceneEnvironment& environment, int presetIndex) {
             switch (presetIndex) {
             case 1: // Bright Day
@@ -228,12 +238,13 @@ namespace HIKARI {
                 "Stylized Blue",
                 "Warm Indoor",
             };
-            for (int i = 0; i < static_cast<int>(sizeof(presets) / sizeof(presets[0])); ++i) {
+            const int presetCount = static_cast<int>(sizeof(presets) / sizeof(presets[0]));
+            for (int i = 0; i < presetCount; ++i) {
                 ImGui::PushID(i);
                 if (ImGui::Button(presets[i])) {
                     ApplyEnvironmentPreset(environment, i);
                 }
-                if ((i % 3) != 2) {
+                if ((i % 3) != 2 && (i + 1) < presetCount) {
                     ImGui::SameLine();
                 }
                 ImGui::PopID();
@@ -365,16 +376,52 @@ namespace HIKARI {
 
         if (ImGui::TreeNode("Sky")) {
             ImGui::Checkbox("Sky Enabled", &environment.sky.enabled);
-                char skyAssetBuffer[256]{};
-                std::strncpy(skyAssetBuffer, environment.sky.skyAsset.c_str(), sizeof(skyAssetBuffer) - 1);
-                if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
-                    environment.sky.skyAsset = skyAssetBuffer;
+            int skyMode = static_cast<int>(environment.sky.mode);
+            const char* skyModeNames[] = { "None", "Gradient", "Cubemap", "Texture2D" };
+            if (ImGui::Combo("Sky Mode", &skyMode, skyModeNames, static_cast<int>(std::size(skyModeNames)))) {
+                environment.sky.mode = static_cast<SkyMode>(std::clamp(skyMode, 0, 3));
+            }
+            char skyAssetBuffer[256]{};
+            std::strncpy(skyAssetBuffer, environment.sky.skyAsset.c_str(), sizeof(skyAssetBuffer) - 1);
+            if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
+                environment.sky.skyAsset = skyAssetBuffer;
+            }
+            ImGui::DragFloat("Sky Scale", &environment.sky.scale, 0.01f, 0.0001f, 1000.0f);
+            ImGui::DragFloat("Sky Yaw", &environment.sky.yaw, 0.01f);
+            ImGui::DragFloat("Sky Exposure", &environment.sky.exposure, 0.01f, 0.0f, 16.0f);
+            ImGui::ColorEdit3("Sky Tint", &environment.sky.tint.x);
+            ImGui::Checkbox("Follow Camera", &environment.sky.followCamera);
+
+            if (environment.sky.mode == SkyMode::Gradient || environment.sky.mode == SkyMode::Cubemap) {
+                if (ImGui::TreeNode("Gradient Fallback")) {
+                    ImGui::ColorEdit3("Zenith Color", &environment.sky.zenithColor.x);
+                    ImGui::ColorEdit3("Horizon Color", &environment.sky.horizonColor.x);
+                    ImGui::ColorEdit3("Ground Color", &environment.sky.groundColor.x);
+                    ImGui::DragFloat("Horizon Power", &environment.sky.horizonPower, 0.01f, 0.01f, 8.0f);
+                    ImGui::TreePop();
                 }
-                ImGui::DragFloat("Sky Scale", &environment.sky.scale, 0.01f, 0.0001f, 1000.0f);
-                ImGui::DragFloat("Sky Yaw", &environment.sky.yaw, 0.01f);
-                ImGui::DragFloat("Sky Exposure", &environment.sky.exposure, 0.01f, 0.0f, 16.0f);
-                ImGui::ColorEdit3("Sky Tint", &environment.sky.tint.x);
-                ImGui::Checkbox("Follow Camera", &environment.sky.followCamera);
+            }
+            if (ImGui::TreeNode("Sun Disk")) {
+                ImGui::Checkbox("Show Sun Disk", &environment.sky.showSunDisk);
+                ImGui::DragFloat("Sun Disk Intensity", &environment.sky.sunDiskIntensity, 0.01f, 0.0f, 32.0f);
+                ImGui::DragFloat("Sun Disk Size", &environment.sky.sunDiskSize, 0.001f, 0.001f, 0.5f);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Environment Output")) {
+                ImGui::DragFloat("Ambient From Sky", &environment.sky.ambientFromSky, 0.01f, 0.0f, 8.0f);
+                ImGui::DragFloat("Reflection Intensity", &environment.sky.reflectionIntensity, 0.01f, 0.0f, 8.0f);
+                if (ImGui::Button("Apply Horizon To Fog")) {
+                    environment.fog.color = environment.sky.horizonColor;
+                }
+                ImGui::TreePop();
+            }
+            ImGui::Checkbox("Show Sky Debug Texture", &environment.sky.showDebugTexture);
+            if (skyDebugState != nullptr) {
+                ImGui::Text("Sky Debug Mode: %s", SkyModeName(skyDebugState->mode));
+                ImGui::Text("Cubemap Handle: %d", skyDebugState->cubemapHandle);
+                ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
+                ImGui::Text("Sky Draws: %zu", skyDebugState->drawCount);
+            }
             ImGui::TreePop();
         }
 
@@ -522,9 +569,12 @@ namespace HIKARI {
                 ImGui::Text("Initialized: %s", skyDebugState->initialized ? "true" : "false");
                 ImGui::Text("Render Submitted: %s", skyDebugState->lastRenderSubmitted ? "true" : "false");
                 ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
-                ImGui::Text("Sky Mesh Loaded: %s", skyDebugState->skyMeshLoaded ? "true" : "false");
-                ImGui::Text("Sky Mesh Valid: %s", skyDebugState->skyMeshValid ? "true" : "false");
+                ImGui::Text("Mode: %s", SkyModeName(skyDebugState->mode));
+                ImGui::Text("Cubemap Loaded: %s", skyDebugState->cubemapLoaded ? "true" : "false");
+                ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
                 ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
+                ImGui::Text("Texture Handle / Cubemap Handle: %d / %d", skyDebugState->textureHandle, skyDebugState->cubemapHandle);
+                ImGui::Text("PSO Creates / Draws: %zu / %zu", skyDebugState->psoCreateCount, skyDebugState->drawCount);
                 ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
                 ImGui::Text("Active Texture: %s", skyDebugState->activeTexturePath.c_str());
             }

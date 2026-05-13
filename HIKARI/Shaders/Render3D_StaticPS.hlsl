@@ -56,6 +56,10 @@ cbuffer LightCB : register(b2)
     float4 gFogParams;
     uint gDebugView;
     float3 gDebugPadding;
+    float4 gSkyZenithExposure;
+    float4 gSkyHorizonReflection;
+    float4 gSkyGroundAmbient;
+    float4 gSkyParams;
 };
 
 cbuffer ShadowCB : register(b4)

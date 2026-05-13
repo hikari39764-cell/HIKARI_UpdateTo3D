@@ -539,12 +539,36 @@ namespace HIKARI {
         builder.Bool("Visible", visible_);
         builder.Bool("Cast Shadow", castShadow_);
         builder.Bool("Receive Shadow", receiveShadow_);
+        int sourceKind = static_cast<int>(sourceKind_);
+        if (builder.Int("Source Kind (0=Asset, 1=Procedural)", sourceKind)) {
+            sourceKind_ = static_cast<ModelSourceKind>((std::clamp)(sourceKind, 0, 1));
+        }
+        if (sourceKind_ == ModelSourceKind::Procedural) {
+            int proceduralKind = static_cast<int>(procedural_.kind);
+            if (builder.Int("Procedural Kind (0=Plane, 1=Grid, 2=Box, 3=Sphere)", proceduralKind)) {
+                procedural_.kind = static_cast<ProceduralMeshKind>((std::clamp)(proceduralKind, 0, 3));
+            }
+            builder.Float("Procedural Width", procedural_.width);
+            builder.Float("Procedural Height", procedural_.height);
+            builder.Float("Procedural Depth", procedural_.depth);
+            int segmentsX = static_cast<int>(procedural_.segmentsX);
+            int segmentsY = static_cast<int>(procedural_.segmentsY);
+            if (builder.Int("Segments X", segmentsX)) {
+                procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(segmentsX, 1, 256));
+            }
+            if (builder.Int("Segments Y", segmentsY)) {
+                procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(segmentsY, 1, 256));
+            }
+            builder.Bool("Procedural Double Sided", procedural_.doubleSided);
+            builder.Bool("Generate Tangents", procedural_.generateTangents);
+        } else {
+            builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
+        }
         int postMask = static_cast<int>(postGroupMask_);
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
         builder.String("Material FX Profile", materialFxProfileId_);
-        builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
     }
 
     void ModelComponent::RenderImGui() {

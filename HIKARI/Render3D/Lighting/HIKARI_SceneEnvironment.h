@@ -44,14 +44,32 @@ namespace HIKARI {
         float intensity = 1.0f;
     };
 
+    enum class SkyMode {
+        None = 0,
+        Gradient,
+        Cubemap,
+        Texture2D,
+    };
+
     struct SkySettings {
         bool enabled = true;
+        SkyMode mode = SkyMode::Gradient;
         std::string skyAsset = "DefaultSky";
         float scale = 1.0f;
         float yaw = 0.0f;
         float exposure = 1.0f;
         MATH::Vec3 tint{ 1.0f, 1.0f, 1.0f };
         bool followCamera = true;
+        MATH::Vec3 zenithColor{ 0.08f, 0.22f, 0.55f };
+        MATH::Vec3 horizonColor{ 0.65f, 0.78f, 0.95f };
+        MATH::Vec3 groundColor{ 0.08f, 0.08f, 0.10f };
+        float horizonPower = 1.5f;
+        bool showSunDisk = true;
+        float sunDiskIntensity = 0.0f;
+        float sunDiskSize = 0.04f;
+        float ambientFromSky = 1.0f;
+        float reflectionIntensity = 1.0f;
+        bool showDebugTexture = false;
     };
 
     struct BloomSettings {

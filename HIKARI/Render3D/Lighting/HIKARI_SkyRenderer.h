@@ -13,9 +13,14 @@ namespace HIKARI::SKYRENDERER {
         bool initialized = false;
         bool lastRenderSubmitted = false;
         bool skyAssetFound = false;
-        bool skyMeshLoaded = false;
-        bool skyMeshValid = false;
+        bool cubemapLoaded = false;
+        bool usingFallback = false;
         bool textureValid = false;
+        SkyMode mode = SkyMode::None;
+        int cubemapHandle = -1;
+        int textureHandle = -1;
+        size_t psoCreateCount = 0;
+        size_t drawCount = 0;
         std::string activeSkyAsset{};
         std::string activeTexturePath{};
     };

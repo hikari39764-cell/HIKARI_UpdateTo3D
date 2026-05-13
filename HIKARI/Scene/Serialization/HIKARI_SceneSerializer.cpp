@@ -44,6 +44,35 @@ namespace HIKARI {
             };
         }
 
+        const char* ToString(SkyMode mode) {
+            switch (mode) {
+            case SkyMode::None: return "None";
+            case SkyMode::Cubemap: return "Cubemap";
+            case SkyMode::Texture2D: return "Texture2D";
+            case SkyMode::Gradient:
+            default: return "Gradient";
+            }
+        }
+
+        SkyMode ParseSkyMode(const json& in, SkyMode fallback) {
+            if (in.is_number_integer()) {
+                const int value = in.get<int>();
+                if (value >= static_cast<int>(SkyMode::None) && value <= static_cast<int>(SkyMode::Texture2D)) {
+                    return static_cast<SkyMode>(value);
+                }
+                return fallback;
+            }
+            if (!in.is_string()) {
+                return fallback;
+            }
+            const std::string value = in.get<std::string>();
+            if (value == "None") return SkyMode::None;
+            if (value == "Gradient") return SkyMode::Gradient;
+            if (value == "Cubemap") return SkyMode::Cubemap;
+            if (value == "Texture2D") return SkyMode::Texture2D;
+            return fallback;
+        }
+
         void SerializeEnvironment(const SceneEnvironment& environment, json& out) {
             out["ambient"]["color"] = ToVec3(environment.ambient.color);
             out["ambient"]["intensity"] = environment.ambient.intensity;
@@ -80,12 +109,23 @@ namespace HIKARI {
             }
 
             out["sky"]["enabled"] = environment.sky.enabled;
+            out["sky"]["mode"] = ToString(environment.sky.mode);
             out["sky"]["skyAsset"] = environment.sky.skyAsset;
             out["sky"]["scale"] = environment.sky.scale;
             out["sky"]["yaw"] = environment.sky.yaw;
             out["sky"]["exposure"] = environment.sky.exposure;
             out["sky"]["tint"] = ToVec3(environment.sky.tint);
             out["sky"]["followCamera"] = environment.sky.followCamera;
+            out["sky"]["zenithColor"] = ToVec3(environment.sky.zenithColor);
+            out["sky"]["horizonColor"] = ToVec3(environment.sky.horizonColor);
+            out["sky"]["groundColor"] = ToVec3(environment.sky.groundColor);
+            out["sky"]["horizonPower"] = environment.sky.horizonPower;
+            out["sky"]["showSunDisk"] = environment.sky.showSunDisk;
+            out["sky"]["sunDiskIntensity"] = environment.sky.sunDiskIntensity;
+            out["sky"]["sunDiskSize"] = environment.sky.sunDiskSize;
+            out["sky"]["ambientFromSky"] = environment.sky.ambientFromSky;
+            out["sky"]["reflectionIntensity"] = environment.sky.reflectionIntensity;
+            out["sky"]["showDebugTexture"] = environment.sky.showDebugTexture;
 
             out["bloom"]["enabled"] = environment.bloom.enabled;
             out["bloom"]["threshold"] = environment.bloom.threshold;
@@ -170,12 +210,23 @@ namespace HIKARI {
             if (in.contains("sky")) {
                 const json& sky = in["sky"];
                 environment.sky.enabled = sky.value("enabled", environment.sky.enabled);
+                environment.sky.mode = ParseSkyMode(sky.value("mode", json{}), environment.sky.mode);
                 environment.sky.skyAsset = sky.value("skyAsset", environment.sky.skyAsset);
                 environment.sky.scale = sky.value("scale", environment.sky.scale);
                 environment.sky.yaw = sky.value("yaw", environment.sky.yaw);
                 environment.sky.exposure = sky.value("exposure", environment.sky.exposure);
                 environment.sky.tint = FromVec3(sky.value("tint", json::array()), environment.sky.tint);
                 environment.sky.followCamera = sky.value("followCamera", environment.sky.followCamera);
+                environment.sky.zenithColor = FromVec3(sky.value("zenithColor", json::array()), environment.sky.zenithColor);
+                environment.sky.horizonColor = FromVec3(sky.value("horizonColor", json::array()), environment.sky.horizonColor);
+                environment.sky.groundColor = FromVec3(sky.value("groundColor", json::array()), environment.sky.groundColor);
+                environment.sky.horizonPower = sky.value("horizonPower", environment.sky.horizonPower);
+                environment.sky.showSunDisk = sky.value("showSunDisk", environment.sky.showSunDisk);
+                environment.sky.sunDiskIntensity = sky.value("sunDiskIntensity", environment.sky.sunDiskIntensity);
+                environment.sky.sunDiskSize = sky.value("sunDiskSize", environment.sky.sunDiskSize);
+                environment.sky.ambientFromSky = sky.value("ambientFromSky", environment.sky.ambientFromSky);
+                environment.sky.reflectionIntensity = sky.value("reflectionIntensity", environment.sky.reflectionIntensity);
+                environment.sky.showDebugTexture = sky.value("showDebugTexture", environment.sky.showDebugTexture);
             }
 
             if (in.contains("bloom") && in["bloom"].is_object()) {
