@@ -83,7 +83,7 @@
       ]
     },
     {
-      "id": "water_grid_test",
+      "id": "water",
       "displayName": "Water Grid Test",
       "shaderProfileId": "MaterialFx",
       "vertexShaderId": "Render3D_FxWaterVS",
