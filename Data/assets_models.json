@@ -138,6 +138,27 @@
         "loadAnimations": false,
         "loadSkins": false
       }
+    },
+    {
+      "id": "Sky2",
+      "type": "Model",
+      "sourcePath": "./Assets/TestModel/SkyDome.obj",
+      "importer": "assimp",
+      "preload": true,
+      "importOptions": {
+        "unitScale": 1.0,
+        "coordinateSystem": "RightHanded_YUp",
+        "generateNormals": "IfMissing",
+        "generateTangents": "IfMissing",
+        "triangulate": true,
+        "flipUV": false,
+        "mergeMeshes": false,
+        "keepNodeHierarchy": true,
+        "loadMaterials": true,
+        "loadTextures": true,
+        "loadAnimations": false,
+        "loadSkins": false
+      }
     }
   ]
 }

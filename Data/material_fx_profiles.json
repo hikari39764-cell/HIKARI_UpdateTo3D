@@ -83,70 +83,122 @@
       ]
     },
     {
-      "id": "water",
-      "displayName": "Water Grid Test",
-      "shaderProfileId": "MaterialFx",
-      "vertexShaderId": "Render3D_FxWaterVS",
-      "pixelShaderId": "Render3D_FxWaterPS",
-      "featureBits": 1,
-      "depthTest": true,
-      "depthWrite": false,
-      "doubleSided": true,
-      "composite": "Alpha",
-      "parameters": [
-        {
-          "key": "waveSpeed",
-          "displayName": "Wave Speed",
-          "type": "float",
-          "slot": 0,
-          "component": "x",
-          "default": 1.5,
-          "min": 0.0,
-          "max": 10.0,
-          "speed": 0.01
-        },
-        {
-          "key": "waveHeight",
-          "displayName": "Wave Height",
-          "type": "float",
-          "slot": 0,
-          "component": "y",
-          "default": 0.25,
-          "min": 0.0,
-          "max": 5.0,
-          "speed": 0.01
-        },
-        {
-          "key": "waveScale",
-          "displayName": "Wave Scale",
-          "type": "float",
-          "slot": 0,
-          "component": "z",
-          "default": 2.0,
-          "min": 0.1,
-          "max": 50.0,
-          "speed": 0.01
-        },
-        {
-          "key": "rimStrength",
-          "displayName": "Rim Strength",
-          "type": "float",
-          "slot": 0,
-          "component": "w",
-          "default": 0.5,
-          "min": 0.0,
-          "max": 5.0,
-          "speed": 0.01
-        },
-        {
-          "key": "waterColor",
-          "displayName": "Water Color",
-          "type": "color3",
-          "slot": 1,
-          "component": "xyz",
-          "default": [0.05, 0.35, 0.75]
-        }
-      ]
+  "id": "water",
+  "displayName": "Procedural Water",
+  "shaderProfileId": "MaterialFx",
+  "vertexShaderId": "Render3D_FxWaterVS",
+  "pixelShaderId": "Render3D_FxWaterPS",
+  "featureBits": 1,
+  "depthTest": true,
+  "depthWrite": false,
+  "doubleSided": true,
+  "composite": "Alpha",
+  "parameters": [
+    {
+      "key": "waveSpeed",
+      "displayName": "Wave Speed",
+      "type": "float",
+      "slot": 0,
+      "component": "x",
+      "default": 1.5,
+      "min": 0.0,
+      "max": 10.0,
+      "speed": 0.01
+    },
+    {
+      "key": "waveHeight",
+      "displayName": "Wave Height",
+      "type": "float",
+      "slot": 0,
+      "component": "y",
+      "default": 0.25,
+      "min": 0.0,
+      "max": 5.0,
+      "speed": 0.01
+    },
+    {
+      "key": "waveScale",
+      "displayName": "Wave Scale",
+      "type": "float",
+      "slot": 0,
+      "component": "z",
+      "default": 2.0,
+      "min": 0.1,
+      "max": 50.0,
+      "speed": 0.01
+    },
+    {
+      "key": "rimStrength",
+      "displayName": "Rim Strength",
+      "type": "float",
+      "slot": 0,
+      "component": "w",
+      "default": 0.35,
+      "min": 0.0,
+      "max": 5.0,
+      "speed": 0.01
+    },
+    {
+      "key": "waterColor",
+      "displayName": "Water Color",
+      "type": "color3",
+      "slot": 1,
+      "component": "xyz",
+      "default": [0.02, 0.22, 0.45]
+    },
+    {
+      "key": "drag",
+      "displayName": "Drag / Choppiness",
+      "type": "float",
+      "slot": 1,
+      "component": "w",
+      "default": 0.38,
+      "min": 0.0,
+      "max": 2.0,
+      "speed": 0.01
+    },
+    {
+      "key": "fresnelPower",
+      "displayName": "Fresnel Power",
+      "type": "float",
+      "slot": 2,
+      "component": "x",
+      "default": 5.0,
+      "min": 0.1,
+      "max": 12.0,
+      "speed": 0.05
+    },
+    {
+      "key": "reflectionStrength",
+      "displayName": "Reflection Strength",
+      "type": "float",
+      "slot": 2,
+      "component": "y",
+      "default": 0.85,
+      "min": 0.0,
+      "max": 3.0,
+      "speed": 0.01
+    },
+    {
+      "key": "specularStrength",
+      "displayName": "Specular Strength",
+      "type": "float",
+      "slot": 2,
+      "component": "z",
+      "default": 1.2,
+      "min": 0.0,
+      "max": 8.0,
+      "speed": 0.01
+    },
+    {
+      "key": "shallowColor",
+      "displayName": "Shallow Color",
+      "type": "color3",
+      "slot": 3,
+      "component": "xyz",
+      "default": [0.08, 0.55, 0.68]
     }
+  ]
+}
   ]
 }

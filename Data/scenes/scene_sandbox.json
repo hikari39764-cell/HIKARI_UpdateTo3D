@@ -2,41 +2,61 @@
   "environment": {
     "ambient": {
       "color": [
-        1.0,
-        1.0,
-        1.0
+        0.18000000715255737,
+        0.2800000011920929,
+        0.550000011920929
       ],
-      "intensity": 0.33000001311302185
+      "intensity": 0.3499999940395355
     },
+    "bloom": {
+      "downsampleCount": 3,
+      "enabled": true,
+      "intensity": 0.800000011920929,
+      "radius": 1.0,
+      "threshold": 1.0
+    },
+    "debugView": 0,
     "directional": {
       "color": [
-        1.0,
-        1.0,
+        0.6499999761581421,
+        0.8500000238418579,
         1.0
       ],
       "direction": [
-        0.37249627709388733,
-        -0.1865609884262085,
-        -0.9090883135795593
+        0.5650264024734497,
+        -0.06975656002759933,
+        -0.8221187591552734
       ],
       "enabled": true,
-      "intensity": 1.5399999618530273
+      "intensity": 1.7899999618530273
     },
     "directionalShadow": {
       "depthBias": 0.0010000000474974513,
       "enabled": true,
       "farPlane": 80.0,
-      "nearPlane": 0.25999999046325684,
+      "nearPlane": 0.10000000149011612,
       "normalBias": 0.019999999552965164,
-      "orthoSize": 33.5,
+      "orthoSize": 30.0,
       "pcfEnabled": true,
       "pcfRadius": 1.0,
-      "resolution": 4096,
+      "resolution": 2048,
       "shadowDistance": 30.0,
       "showDebugFrustum": false,
       "showDebugTexture": false,
       "stabilize": true,
-      "strength": 0.75
+      "strength": 0.8799999952316284
+    },
+    "fog": {
+      "color": [
+        0.6499999761581421,
+        0.699999988079071,
+        0.75
+      ],
+      "density": 0.012000000104308128,
+      "enabled": true,
+      "endDistance": 80.0,
+      "heightFalloff": 0.0,
+      "startDistance": 10.0
     },
     "pointLights": [
       {
@@ -46,45 +66,30 @@
           1.0
         ],
         "enabled": true,
-        "intensity": 2.559999942779541,
-        "position": [
-          1.059999942779541,
-          2.640000104904175,
-          -2.740000009536743
-        ],
-        "range": 12.850000381469727
-      },
-      {
-        "color": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "enabled": false,
         "intensity": 1.0,
         "position": [
-          3.380000114440918,
-          0.699999988079071,
-          -0.2800000011920929
+          0.0,
+          2.0,
+          0.0
         ],
         "range": 5.0
       }
     ],
     "post": {
       "enabled": false,
-      "globalPostProfileId": "test",
+      "globalPostProfileId": "",
       "paramValues": [
         [
-          0.3499999940395355,
-          0.004999999888241291,
-          1.4600000381469727,
-          1.409999966621399
+          0.0,
+          0.0,
+          0.0,
+          0.0
         ],
         [
-          1.0700000524520874,
-          0.041999999433755875,
-          0.04699999839067459,
-          732.0
+          0.0,
+          0.0,
+          0.0,
+          0.0
         ],
         [
           0.0,
@@ -171,7 +176,7 @@
           0.0
         ]
       ],
-      "valuesInitialized": true
+      "valuesInitialized": false
     },
     "showLightDebug": true,
     "showPointLightMarkers": true,
@@ -190,7 +195,13 @@
       "yaw": 0.0
     },
     "specularIntensity": 0.20000000298023224,
-    "specularPower": 32.0
+    "specularPower": 32.0,
+    "toneMapping": {
+      "enabled": true,
+      "exposure": 1.149999976158142,
+      "gamma": 2.200000047683716,
+      "mode": 1
+    }
   },
   "objects": [
     {
@@ -278,39 +289,57 @@
           "properties": {
             "assetId": "Tee",
             "castShadow": false,
+            "debugRenderMode": "Normal",
             "materialFxParamValues": [
               [
-                0.0,
-                0.0,
-                0.0,
+                1.5,
+                0.25,
+                2.0,
+                0.3499999940395355
+              ],
+              [
+                0.019999999552965164,
+                0.2199999988079071,
+                0.44999998807907104,
+                0.3799999952316284
+              ],
+              [
+                5.0,
+                0.8500000238418579,
+                1.2000000476837158,
                 0.0
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
+                0.07999999821186066,
+                0.550000011920929,
+                0.6800000071525574,
                 0.0
               ]
             ],
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
+            "materialFxProfileId": "water",
+            "materialFxValuesInitialized": true,
+            "maxWireLines": 20000,
             "postGroupMask": 0,
+            "procedural": {
+              "depth": 27.799999237060547,
+              "doubleSided": true,
+              "generateTangents": true,
+              "height": 60.79999923706055,
+              "kind": "GridPlane",
+              "segmentsX": 256,
+              "segmentsY": 256,
+              "segmentsZ": 42,
+              "sphereSlices": 32,
+              "sphereStacks": 16,
+              "width": 41.599998474121094
+            },
             "receiveShadow": true,
             "showSkeletonDebug": false,
             "skeletonDebugXRay": false,
-            "visible": true
+            "sourceKind": "Procedural",
+            "visible": true,
+            "wireColor": 16755455,
+            "wirePerPrimitiveColor": true
           },
           "type": "ModelComponent"
         },
