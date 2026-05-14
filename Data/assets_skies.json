@@ -1,8 +1,8 @@
 {
   "version": 1,
   "skies": [
-    { "id": "DefaultSky", "type": "Sky", "meshAssetId": "SkySphere", "textureAssetId": "Sky_Default" },
-    { "id": "sky2", "type": "Sky", "meshAssetId": "SkySphere", "textureAssetId": "Sky_Default" }
+    { "id": "DefaultSky", "type": "Sky", "meshAssetId": "SkySphere", "textureAssetId": "sky23" },
+    { "id": "sky", "type": "Sky", "meshAssetId": "SkySphere", "textureAssetId": "sky23" }
 
   ]
 }

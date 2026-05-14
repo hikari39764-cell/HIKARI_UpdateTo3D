@@ -274,7 +274,7 @@ namespace HIKARI::SKYRENDERER {
 
             if (g.loadedCubemapPath != path) {
                 g.loadedCubemapPath = path;
-                g.cubemapHandle = DXTEX::DxTextureManager::LoadCubemap("sky_renderer/scene_sky_cube", path, DXTEX::TextureColorSpace::Linear);
+                g.cubemapHandle = DXTEX::DxTextureManager::LoadCubemap("sky_renderer/scene_sky_cube", path, DXTEX::TextureColorSpace::Srgb);
                 if (g.cubemapHandle < 0) {
                     std::ostringstream oss;
                     oss << "[SkyRenderer][WARN] Cubemap load failed. Falling back to Gradient sky. skyAsset="

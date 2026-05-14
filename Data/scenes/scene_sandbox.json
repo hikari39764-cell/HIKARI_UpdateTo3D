@@ -182,22 +182,45 @@
     "showPointLightMarkers": true,
     "showSkyDebugInfo": false,
     "sky": {
-      "enabled": false,
+      "ambientFromSky": 1.0,
+      "enabled": true,
       "exposure": 1.0,
       "followCamera": true,
-      "scale": 0.05000000074505806,
+      "groundColor": [
+        0.07999999821186066,
+        0.07999999821186066,
+        0.10000000149011612
+      ],
+      "horizonColor": [
+        0.6499999761581421,
+        0.7799999713897705,
+        0.949999988079071
+      ],
+      "horizonPower": 1.5,
+      "mode": "Cubemap",
+      "reflectionIntensity": 1.0,
+      "scale": 0.3499999940395355,
+      "showDebugTexture": false,
+      "showSunDisk": true,
       "skyAsset": "DefaultSky",
+      "sunDiskIntensity": 0.0,
+      "sunDiskSize": 0.03999999910593033,
       "tint": [
         1.0,
         1.0,
         1.0
       ],
-      "yaw": 0.0
+      "yaw": 0.0,
+      "zenithColor": [
+        0.07999999821186066,
+        0.2199999988079071,
+        0.550000011920929
+      ]
     },
     "specularIntensity": 0.20000000298023224,
     "specularPower": 32.0,
     "toneMapping": {
-      "enabled": true,
+      "enabled": false,
       "exposure": 1.149999976158142,
       "gamma": 2.200000047683716,
       "mode": 1

@@ -70,7 +70,13 @@ bool Initialize(const GFX::Context& ctx) {
     gManager->SetRingRenderer(gRenderer->CreateRingRenderer());
     gManager->SetTrackRenderer(gRenderer->CreateTrackRenderer());
     gManager->SetModelRenderer(gRenderer->CreateModelRenderer());
-    gManager->SetTextureLoader(gRenderer->CreateTextureLoader());
+    gManager->SetTextureLoader(
+        EffekseerRenderer::CreateTextureLoader(
+            gGraphicsDevice,
+            nullptr,
+            Effekseer::ColorSpaceType::Linear
+        )
+    );
     gManager->SetModelLoader(gRenderer->CreateModelLoader());
     gManager->SetMaterialLoader(gRenderer->CreateMaterialLoader());
     gManager->SetCurveLoader(Effekseer::MakeRefPtr<Effekseer::CurveLoader>());
