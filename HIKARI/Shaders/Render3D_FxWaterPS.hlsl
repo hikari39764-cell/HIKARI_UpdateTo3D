@@ -183,6 +183,43 @@ float3 CheapSkyColor(float3 dir)
     return lerp(horizonColor, skyColor, up);
 }
 
+float3 RotateSkyYaw(float3 dir, float yaw)
+{
+    float s = sin(yaw);
+    float c = cos(yaw);
+
+    return float3(
+        dir.x * c - dir.z * s,
+        dir.y,
+        dir.x * s + dir.z * c
+    );
+
+}
+
+float3 EvaluateSkyApprox(float3 dir)
+{
+    dir = normalize(RotateSkyYaw(dir, gSkyYaw));
+
+    float y = saturate(dir.y * 0.5f + 0.5f);
+
+    float3 upper = lerp(gSkyHorizonColor, gSkyZenithColor, y);
+    float3 lower = lerp(gSkyGroundColor, gSkyHorizonColor, y);
+    float3 color = (dir.y >= 0.0f) ? upper : lower;
+
+    float horizon = pow(
+        saturate(1.0f  - abs(dir.y)),
+        max(0.01f,gSkyHorizonPower)
+    );
+
+    color = lerp(color, gSkyHorizonColor, horizon * 0.25f);
+
+    float exposure = max(0.0f, gSkyExposure);
+    color *= exposure;
+
+    return color;
+
+}
+
 float4 main(PSInput input) : SV_TARGET
 {
     float3 n = normalize(input.normalWS);
@@ -246,9 +283,11 @@ float4 main(PSInput input) : SV_TARGET
     float3 specularColor = gDirectionalColor.rgb * gDirectionalIntensity * specular * shadowFactor;
 
     float reflectionShadow = lerp(0.05f, 1.0f, shadowFactor);
-    float3 reflection = CheapSkyColor(reflectDir) * reflectionShadow;
 
-
+    float3 reflection = EvaluateSkyApprox(reflectDir);
+    reflection *= max(0.0f, gSkyReflectionIntensity);
+    reflection *= reflectionShadow;
+    
     float3 color = baseWater * (ambient + sun * 0.55f);
     color = lerp(color, reflection, fresnel);
     color += specularColor;

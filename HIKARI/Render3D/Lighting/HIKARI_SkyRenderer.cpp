@@ -385,6 +385,8 @@ namespace HIKARI::SKYRENDERER {
         g.debug.textureHandle = texture2DHandle;
         g.debug.mode = renderMode;
 
+
+
         g.environmentData.valid = true;
         g.environmentData.hasCubemap = g.debug.cubemapLoaded;
         g.environmentData.usingFallback = g.debug.usingFallback;
@@ -392,9 +394,23 @@ namespace HIKARI::SKYRENDERER {
         g.environmentData.cubemapHandle = cubemapHandle;
         g.environmentData.textureHandle = texture2DHandle;
         g.environmentData.cubemapSrv = cubeSrv;
-        g.environmentData.zenithColor = settings.zenithColor;
-        g.environmentData.horizonColor = settings.horizonColor;
-        g.environmentData.groundColor = settings.groundColor;
+        g.environmentData.zenithColor = {
+            settings.zenithColor.x * settings.tint.x,
+            settings.zenithColor.y * settings.tint.y,
+            settings.zenithColor.z * settings.tint.z
+        };
+
+        g.environmentData.horizonColor = {
+            settings.horizonColor.x * settings.tint.x,
+            settings.horizonColor.y * settings.tint.y,
+            settings.horizonColor.z * settings.tint.z
+        };
+
+        g.environmentData.groundColor = {
+            settings.groundColor.x * settings.tint.x,
+            settings.groundColor.y * settings.tint.y,
+            settings.groundColor.z * settings.tint.z
+        };
         g.environmentData.exposure = std::max(0.0f, settings.exposure);
         g.environmentData.ambientFromSky = std::max(0.0f, settings.ambientFromSky);
         g.environmentData.reflectionIntensity = std::max(0.0f, settings.reflectionIntensity);
