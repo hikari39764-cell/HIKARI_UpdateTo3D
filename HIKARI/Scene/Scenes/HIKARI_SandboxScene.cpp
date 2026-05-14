@@ -14,16 +14,16 @@ namespace HIKARI {
     void SandboxScene::OnEnter()
     {
         DocumentSceneBase::OnEnter();
-        VFX::LoadEffect("sword");
+       /* VFX::LoadEffect("sword");*/
     }
 
     void SandboxScene::Update(float dt)
     {
         DocumentSceneBase::Update(dt);
 
-        if (HINPUT::IsPressed("PlayTestVfx")) {
+    /*    if (HINPUT::IsPressed("PlayTestVfx")) {
             VFX::Play("sword");
-        }
+        }*/
     }
 
     void SandboxScene::Render()
