@@ -85,7 +85,9 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSkyYaw gSkyParams.w
 
 Texture2D gShadowMap : register(t2) ;
+TextureCube gSkyCube : register(t6);
 SamplerState gShadowSampler : register(s1);
+SamplerState gSkySampler : register(s0);
 
 struct PSInput
 {
@@ -173,15 +175,6 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS)
     return lerp(1.0f - gShadowStrength, 1.0f, visibility);
 }
 
-float3 CheapSkyColor(float3 dir)
-{
-    float up = saturate(dir.y * 0.5f + 0.5f);
-
-    float3 horizonColor = float3(0.35f, 0.55f, 0.75f);
-    float3 skyColor = float3(0.04f, 0.16f, 0.35f);
-
-    return lerp(horizonColor, skyColor, up);
-}
 
 float3 RotateSkyYaw(float3 dir, float yaw)
 {
@@ -217,6 +210,23 @@ float3 EvaluateSkyApprox(float3 dir)
     color *= exposure;
 
     return color;
+
+}
+
+float3 SampleSkyEnvironment(float3 dir)
+{
+    float3 sky = EvaluateSkyApprox(dir);
+
+    uint mode = (uint)(gSkyMode + 0.5f);
+
+    if(mode == 2u && gSkyHasCubemap > 0.5f)
+    {
+        float3 cubeDir = normalize(RotateSkyYaw(dir, gSkyYaw));
+        sky = gSkyCube.Sample(gSkySampler, cubeDir).rgb;
+        sky *= max(0.0f, gSkyExposure);
+    }
+
+    return sky;
 
 }
 
@@ -284,7 +294,7 @@ float4 main(PSInput input) : SV_TARGET
 
     float reflectionShadow = lerp(0.05f, 1.0f, shadowFactor);
 
-    float3 reflection = EvaluateSkyApprox(reflectDir);
+    float3 reflection = SampleSkyEnvironment(reflectDir);
     reflection *= max(0.0f, gSkyReflectionIntensity);
     reflection *= reflectionShadow;
     

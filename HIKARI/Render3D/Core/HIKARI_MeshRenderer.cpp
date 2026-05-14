@@ -260,46 +260,53 @@ namespace HIKARI::MESHRENDERER {
             D3D12_DESCRIPTOR_RANGE textureRange{};
             textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             textureRange.NumDescriptors = 1;
-            textureRange.BaseShaderRegister = 0;
+            textureRange.BaseShaderRegister = 0;//t0
             textureRange.RegisterSpace = 0;
             textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
             D3D12_DESCRIPTOR_RANGE normalTextureRange{};
             normalTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             normalTextureRange.NumDescriptors = 1;
-            normalTextureRange.BaseShaderRegister = 1;
+            normalTextureRange.BaseShaderRegister = 1;//t1
             normalTextureRange.RegisterSpace = 0;
             normalTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
             D3D12_DESCRIPTOR_RANGE shadowTextureRange{};
             shadowTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             shadowTextureRange.NumDescriptors = 1;
-            shadowTextureRange.BaseShaderRegister = 2;
+            shadowTextureRange.BaseShaderRegister = 2;//t2
             shadowTextureRange.RegisterSpace = 0;
             shadowTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
             D3D12_DESCRIPTOR_RANGE emissiveTextureRange{};
             emissiveTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             emissiveTextureRange.NumDescriptors = 1;
-            emissiveTextureRange.BaseShaderRegister = 3;
+            emissiveTextureRange.BaseShaderRegister = 3;//t3
             emissiveTextureRange.RegisterSpace = 0;
             emissiveTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
             D3D12_DESCRIPTOR_RANGE metallicRoughnessTextureRange{};
             metallicRoughnessTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             metallicRoughnessTextureRange.NumDescriptors = 1;
-            metallicRoughnessTextureRange.BaseShaderRegister = 4;
+            metallicRoughnessTextureRange.BaseShaderRegister = 4;//t4
             metallicRoughnessTextureRange.RegisterSpace = 0;
             metallicRoughnessTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
             D3D12_DESCRIPTOR_RANGE occlusionTextureRange{};
             occlusionTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             occlusionTextureRange.NumDescriptors = 1;
-            occlusionTextureRange.BaseShaderRegister = 5;
+            occlusionTextureRange.BaseShaderRegister = 5;//t5
             occlusionTextureRange.RegisterSpace = 0;
             occlusionTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[11]{};
+			D3D12_DESCRIPTOR_RANGE skyCubeTextureRange{};
+			skyCubeTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            skyCubeTextureRange.NumDescriptors = 1;
+			skyCubeTextureRange.BaseShaderRegister = 6;//t6
+			skyCubeTextureRange.RegisterSpace = 0;
+			skyCubeTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[12]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -355,6 +362,11 @@ namespace HIKARI::MESHRENDERER {
             params[10].Descriptor.ShaderRegister = 5;
             params[10].Descriptor.RegisterSpace = 0;
 
+            params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[11].DescriptorTable.NumDescriptorRanges = 1;
+            params[11].DescriptorTable.pDescriptorRanges = &skyCubeTextureRange;
+
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -399,14 +411,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[12]{};
+            D3D12_ROOT_PARAMETER skinnedParams[13]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[11].Descriptor.ShaderRegister = 3;
-            skinnedParams[11].Descriptor.RegisterSpace = 0;
+            skinnedParams[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[12].Descriptor.ShaderRegister = 3;
+            skinnedParams[12].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -1291,6 +1303,15 @@ namespace HIKARI::MESHRENDERER {
             };
         }
 
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv() {
+            const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
+            if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
+                return skyData.cubemapSrv;
+            }
+
+            return DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+        }
+
         void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out) {
             out = {};
             out.lightViewProj = SHADOW::GetDirectionalLightViewProj();
@@ -1455,7 +1476,7 @@ namespace HIKARI::MESHRENDERER {
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(11, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(12, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1499,6 +1520,10 @@ namespace HIKARI::MESHRENDERER {
                         }
                         if (occlusionSrv.ptr != 0) {
                             cmd->SetGraphicsRootDescriptorTable(9, occlusionSrv);
+                        }
+                        const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
+                        if (skyCubeSrv.ptr != 0) {
+                            cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
                         }
 
                         D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
@@ -1598,6 +1623,10 @@ namespace HIKARI::MESHRENDERER {
             if (pbrFallbackSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(8, pbrFallbackSrv);
                 cmd->SetGraphicsRootDescriptorTable(9, pbrFallbackSrv);
+            }
+            const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
+            if (skyCubeSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
             }
 
             const Mesh* mesh = item.asset->GetMesh();
