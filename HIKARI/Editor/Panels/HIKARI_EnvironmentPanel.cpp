@@ -255,6 +255,8 @@ namespace HIKARI {
         if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::ColorEdit3("Ambient Color", &environment.ambient.color.x);
             ImGui::DragFloat("Ambient Intensity", &environment.ambient.intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::Checkbox("Use Sky Color", &environment.ambient.useSkyColor);
+            ImGui::DragFloat("Sky Ambient Blend", &environment.ambient.skyBlend, 0.01f, 0.0f, 1.0f);
             ImGui::TreePop();
         }
 
@@ -410,15 +412,27 @@ namespace HIKARI {
             if (ImGui::TreeNode("Environment Output")) {
                 ImGui::DragFloat("Ambient From Sky", &environment.sky.ambientFromSky, 0.01f, 0.0f, 8.0f);
                 ImGui::DragFloat("Reflection Intensity", &environment.sky.reflectionIntensity, 0.01f, 0.0f, 8.0f);
+                ImGui::Checkbox("Use Sky Color For Ambient", &environment.ambient.useSkyColor);
+                ImGui::DragFloat("Sky Ambient Blend", &environment.ambient.skyBlend, 0.01f, 0.0f, 1.0f);
+                ImGui::Checkbox("Use Sky Horizon For Fog", &environment.fog.useSkyHorizonColor);
                 if (ImGui::Button("Apply Horizon To Fog")) {
                     environment.fog.color = environment.sky.horizonColor;
                 }
                 ImGui::TreePop();
             }
+            if (environment.sky.mode == SkyMode::Cubemap) {
+                ImGui::TextColored(ImVec4(0.75f, 0.85f, 1.0f, 1.0f), "Cubemap mode requires DDS cubemap texture.");
+                ImGui::TextColored(ImVec4(0.75f, 0.85f, 1.0f, 1.0f), "PNG/JPG panorama should use Texture2D mode.");
+            }
             ImGui::Checkbox("Show Sky Debug Texture", &environment.sky.showDebugTexture);
             if (skyDebugState != nullptr) {
+                ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
+                ImGui::Text("Active Texture Path: %s", skyDebugState->activeTexturePath.c_str());
                 ImGui::Text("Sky Debug Mode: %s", SkyModeName(skyDebugState->mode));
+                ImGui::Text("Cubemap Loaded: %s", skyDebugState->cubemapLoaded ? "true" : "false");
+                ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
                 ImGui::Text("Cubemap Handle: %d", skyDebugState->cubemapHandle);
+                ImGui::Text("Texture Handle: %d", skyDebugState->textureHandle);
                 ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
                 ImGui::Text("Sky Draws: %zu", skyDebugState->drawCount);
             }
@@ -456,6 +470,10 @@ namespace HIKARI {
             ImGui::DragFloat("Start Distance", &environment.fog.startDistance, 0.1f, 0.0f, 500.0f);
             ImGui::DragFloat("End Distance", &environment.fog.endDistance, 0.1f, 0.1f, 1000.0f);
             ImGui::DragFloat("Height Falloff", &environment.fog.heightFalloff, 0.001f, 0.0f, 2.0f);
+            ImGui::Checkbox("Use Sky Horizon Color", &environment.fog.useSkyHorizonColor);
+            if (ImGui::Button("Set Fog Color From Sky Horizon")) {
+                environment.fog.color = environment.sky.horizonColor;
+            }
             ImGui::TreePop();
         }
 

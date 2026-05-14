@@ -10,6 +10,8 @@ namespace HIKARI {
     struct AmbientLight {
         MATH::Vec3 color{ 1.0f, 1.0f, 1.0f };
         float intensity = 0.25f;
+        bool useSkyColor = false;
+        float skyBlend = 1.0f;
     };
 
     struct DirectionalLight {
@@ -87,6 +89,7 @@ namespace HIKARI {
         float startDistance = 10.0f;
         float endDistance = 80.0f;
         float heightFalloff = 0.0f;
+        bool useSkyHorizonColor = false;
     };
 
     struct ToneMappingSettings {

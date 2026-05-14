@@ -54,6 +54,7 @@ namespace HIKARI::SKYRENDERER {
             int cubemapHandle = -1;
             int fallbackTextureHandle = -1;
             SkyRendererDebugState debug{};
+            SkyEnvironmentData environmentData{};
         };
 
         State g;
@@ -287,6 +288,7 @@ namespace HIKARI::SKYRENDERER {
     }
 
     void Reset() {
+        g.environmentData = {};
         g.debug.lastRenderSubmitted = false;
         g.debug.skyAssetFound = false;
         g.debug.cubemapLoaded = false;
@@ -298,7 +300,9 @@ namespace HIKARI::SKYRENDERER {
         g.debug.textureHandle = -1;
     }
 
-    void Render(const Camera3D& camera, const SkySettings& settings, ModelManager&, SkyManager& skyManager) {
+    void Render(const Camera3D& camera, const SceneEnvironment& environment, ModelManager&, SkyManager& skyManager) {
+        const SkySettings& settings = environment.sky;
+        const DirectionalLight& sun = environment.directional;
         g.debug.initialized = g.initialized;
         g.debug.activeSkyAsset = settings.skyAsset;
         g.debug.activeTexturePath.clear();
@@ -337,13 +341,19 @@ namespace HIKARI::SKYRENDERER {
         const MATH::Quat yawRot = MATH::Quat::FromEulerXYZ(0.0f, settings.yaw, 0.0f);
         const float s = std::max(0.0001f, settings.scale);
         const MATH::Mat4 world = MATH::Mat4::TRS(cameraPos, yawRot, { s, s, s });
+        MATH::Vec3 sunDir = sun.direction;
+        if (MATH::Length(sunDir) < 1e-5f) {
+            sunDir = { 0.4f, -1.0f, -0.6f };
+        }
+        sunDir = MATH::Normalize(sunDir);
+        const float sunIntensity = sun.enabled ? std::max(0.0f, sun.intensity) : 0.0f;
+
         g.mapped->worldViewProj = camera.GetViewProj() * world;
         g.mapped->zenithExposure = { settings.zenithColor.x, settings.zenithColor.y, settings.zenithColor.z, std::max(0.0f, settings.exposure) };
         g.mapped->horizonPower = { settings.horizonColor.x, settings.horizonColor.y, settings.horizonColor.z, std::max(0.01f, settings.horizonPower) };
         g.mapped->groundYaw = { settings.groundColor.x, settings.groundColor.y, settings.groundColor.z, settings.yaw };
         g.mapped->tintMode = { settings.tint.x, settings.tint.y, settings.tint.z, static_cast<float>(renderMode) };
-        const MATH::Vec3 sunDir = MATH::Normalize({ 0.4f, -1.0f, -0.6f });
-        g.mapped->sunDirectionIntensity = { sunDir.x, sunDir.y, sunDir.z, settings.showSunDisk ? settings.sunDiskIntensity : 0.0f };
+        g.mapped->sunDirectionIntensity = { sunDir.x, sunDir.y, sunDir.z, settings.showSunDisk ? settings.sunDiskIntensity * sunIntensity : 0.0f };
         g.mapped->sunSizeParams = { std::max(0.0001f, settings.sunDiskSize), settings.ambientFromSky, settings.reflectionIntensity, 0.0f };
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
@@ -364,6 +374,9 @@ namespace HIKARI::SKYRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE cubeSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(cubemapHandle);
         if (cubeSrv.ptr != 0) {
             cmd->SetGraphicsRootDescriptorTable(2, cubeSrv);
+        } else if (textureSrv.ptr != 0) {
+            // Keep every root descriptor table initialized for Gradient/Texture2D fallback paths.
+            cmd->SetGraphicsRootDescriptorTable(2, textureSrv);
         }
 
         g.debug.textureValid = (textureSrv.ptr != 0) || (cubeSrv.ptr != 0) || renderMode == SkyMode::Gradient;
@@ -371,6 +384,24 @@ namespace HIKARI::SKYRENDERER {
         g.debug.cubemapHandle = cubemapHandle;
         g.debug.textureHandle = texture2DHandle;
         g.debug.mode = renderMode;
+
+        g.environmentData.valid = true;
+        g.environmentData.hasCubemap = g.debug.cubemapLoaded;
+        g.environmentData.usingFallback = g.debug.usingFallback;
+        g.environmentData.mode = renderMode;
+        g.environmentData.cubemapHandle = cubemapHandle;
+        g.environmentData.textureHandle = texture2DHandle;
+        g.environmentData.cubemapSrv = cubeSrv;
+        g.environmentData.zenithColor = settings.zenithColor;
+        g.environmentData.horizonColor = settings.horizonColor;
+        g.environmentData.groundColor = settings.groundColor;
+        g.environmentData.exposure = std::max(0.0f, settings.exposure);
+        g.environmentData.ambientFromSky = std::max(0.0f, settings.ambientFromSky);
+        g.environmentData.reflectionIntensity = std::max(0.0f, settings.reflectionIntensity);
+        g.environmentData.horizonPower = std::max(0.01f, settings.horizonPower);
+        g.environmentData.yaw = settings.yaw;
+        g.environmentData.activeSkyAsset = settings.skyAsset;
+        g.environmentData.activeTexturePath = g.debug.activeTexturePath;
 
         cmd->IASetVertexBuffers(0, 1, &g.vbView);
         cmd->IASetIndexBuffer(&g.ibView);
@@ -381,6 +412,22 @@ namespace HIKARI::SKYRENDERER {
 
     const SkyRendererDebugState& GetDebugState() {
         return g.debug;
+    }
+
+    const SkyEnvironmentData& GetEnvironmentData() {
+        return g.environmentData;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE GetActiveCubemapSrv() {
+        return g.environmentData.cubemapSrv;
+    }
+
+    int GetActiveCubemapHandle() {
+        return g.environmentData.cubemapHandle;
+    }
+
+    bool HasActiveCubemap() {
+        return g.environmentData.valid && g.environmentData.hasCubemap;
     }
 
 } // namespace HIKARI::SKYRENDERER

@@ -80,7 +80,7 @@ namespace HIKARI {
 
             const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(AssetId{ descriptor->textureAssetId });
             const std::string texturePath = texture ? texture->sourcePath : std::string{};
-            skyManager.RegisterAsset(SkyAsset{ descriptor->id.value, descriptor->meshAssetId, texturePath });
+            skyManager.RegisterAsset(SkyAsset{ descriptor->id.value, descriptor->meshAssetId, texturePath, descriptor->preferredMode });
         }
 
         return true;

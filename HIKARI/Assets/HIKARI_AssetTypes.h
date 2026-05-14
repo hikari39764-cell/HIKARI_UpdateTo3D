@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+
 namespace HIKARI {
 
     enum class AssetType {
@@ -107,9 +109,23 @@ namespace HIKARI {
     struct SkyAssetDescriptor final : AssetDescriptor {
         std::string meshAssetId{};
         std::string textureAssetId{};
+        SkyMode preferredMode = SkyMode::Gradient;
+    };
+
+    enum class TextureAssetDimension {
+        Texture2D,
+        TextureCube,
+    };
+
+    enum class TextureAssetColorSpace {
+        Auto,
+        Linear,
+        Srgb,
     };
 
     struct TextureAssetDescriptor final : AssetDescriptor {
+        TextureAssetDimension dimension = TextureAssetDimension::Texture2D;
+        TextureAssetColorSpace colorSpace = TextureAssetColorSpace::Auto;
     };
 
     struct VfxAssetDescriptor final : AssetDescriptor {

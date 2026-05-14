@@ -16,6 +16,7 @@
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -76,6 +77,9 @@ namespace HIKARI::MESHRENDERER {
             MATH::Vec4 fogParams{};
             uint32_t debugView = 0;
             float debugPadding[3]{};
+        };
+
+        struct SkyEnvironmentCB {
             MATH::Vec4 skyZenithExposure{};
             MATH::Vec4 skyHorizonReflection{};
             MATH::Vec4 skyGroundAmbient{};
@@ -149,11 +153,13 @@ namespace HIKARI::MESHRENDERER {
             ComPtr<ID3D12Resource> objectCB;
             ComPtr<ID3D12Resource> lightCB;
             ComPtr<ID3D12Resource> shadowCB;
+            ComPtr<ID3D12Resource> skyEnvironmentCB;
             ComPtr<ID3D12Resource> jointPaletteCB;
             CameraCB* cameraMapped = nullptr;
             ObjectCB* objectMapped = nullptr;
             LightCB* lightMapped = nullptr;
             ShadowCB* shadowMapped = nullptr;
+            SkyEnvironmentCB* skyEnvironmentMapped = nullptr;
             JointPaletteCB* jointPaletteMapped = nullptr;
             std::vector<DrawItem> drawItems;
             MeshRendererDebugStats debugStats;
@@ -179,6 +185,7 @@ namespace HIKARI::MESHRENDERER {
             const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
             const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
             const UINT shadowBytes = AlignConstantBufferSize(sizeof(ShadowCB));
+            const UINT skyEnvironmentBytes = AlignConstantBufferSize(sizeof(SkyEnvironmentCB));
             const UINT jointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
             const UINT jointPaletteBytes = jointPaletteStride * kMaxObjectCount;
 
@@ -210,6 +217,13 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             if (FAILED(g.shadowCB->Map(0, nullptr, reinterpret_cast<void**>(&g.shadowMapped)))) {
+                return false;
+            }
+            auto skyEnvironmentDesc = CD3DX12_RESOURCE_DESC::Buffer(skyEnvironmentBytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &skyEnvironmentDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.skyEnvironmentCB.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(g.skyEnvironmentCB->Map(0, nullptr, reinterpret_cast<void**>(&g.skyEnvironmentMapped)))) {
                 return false;
             }
             auto jointPaletteDesc = CD3DX12_RESOURCE_DESC::Buffer(jointPaletteBytes);
@@ -285,7 +299,7 @@ namespace HIKARI::MESHRENDERER {
             occlusionTextureRange.RegisterSpace = 0;
             occlusionTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[10]{};
+            D3D12_ROOT_PARAMETER params[11]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -336,6 +350,11 @@ namespace HIKARI::MESHRENDERER {
             params[9].DescriptorTable.NumDescriptorRanges = 1;
             params[9].DescriptorTable.pDescriptorRanges = &occlusionTextureRange;
 
+            params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[10].Descriptor.ShaderRegister = 5;
+            params[10].Descriptor.RegisterSpace = 0;
+
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -380,14 +399,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[11]{};
+            D3D12_ROOT_PARAMETER skinnedParams[12]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[10].Descriptor.ShaderRegister = 3;
-            skinnedParams[10].Descriptor.RegisterSpace = 0;
+            skinnedParams[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[11].Descriptor.ShaderRegister = 3;
+            skinnedParams[11].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -1143,6 +1162,7 @@ namespace HIKARI::MESHRENDERER {
 
         void FillLightCB(const SceneEnvironment& environment, LightCB& out) {
             out = {};
+            const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
 
             MATH::Vec3 dir = MATH::Normalize(environment.directional.direction);
             if (MATH::Length(dir) <= 1e-6f) {
@@ -1153,7 +1173,31 @@ namespace HIKARI::MESHRENDERER {
             out.directionalColor = { environment.directional.color.x, environment.directional.color.y, environment.directional.color.z, 1.0f };
             out.directionalIntensity = environment.directional.enabled ? std::max(0.0f, environment.directional.intensity) : 0.0f;
 
-            out.ambientColor = { environment.ambient.color.x, environment.ambient.color.y, environment.ambient.color.z, 1.0f };
+            MATH::Vec3 ambientColor = environment.ambient.color;
+            if (environment.ambient.useSkyColor && skyData.valid) {
+                const MATH::Vec3 skyAmbient = {
+                    (skyData.horizonColor.x * 0.65f + skyData.groundColor.x * 0.35f) * skyData.exposure * skyData.ambientFromSky,
+                    (skyData.horizonColor.y * 0.65f + skyData.groundColor.y * 0.35f) * skyData.exposure * skyData.ambientFromSky,
+                    (skyData.horizonColor.z * 0.65f + skyData.groundColor.z * 0.35f) * skyData.exposure * skyData.ambientFromSky
+                };
+                const float blend = std::clamp(environment.ambient.skyBlend, 0.0f, 1.0f);
+                ambientColor = {
+                    ambientColor.x * (1.0f - blend) + skyAmbient.x * blend,
+                    ambientColor.y * (1.0f - blend) + skyAmbient.y * blend,
+                    ambientColor.z * (1.0f - blend) + skyAmbient.z * blend
+                };
+            }
+
+            MATH::Vec3 fogColor = environment.fog.color;
+            if (environment.fog.useSkyHorizonColor && skyData.valid) {
+                fogColor = {
+                    skyData.horizonColor.x * skyData.exposure,
+                    skyData.horizonColor.y * skyData.exposure,
+                    skyData.horizonColor.z * skyData.exposure
+                };
+            }
+
+            out.ambientColor = { ambientColor.x, ambientColor.y, ambientColor.z, 1.0f };
             out.ambientIntensity = std::max(0.0f, environment.ambient.intensity);
             out.specularParams = {
                 std::max(0.0f, environment.specularIntensity),
@@ -1162,9 +1206,9 @@ namespace HIKARI::MESHRENDERER {
                 0.0f
             };
             out.fogColorDensity = {
-                environment.fog.color.x,
-                environment.fog.color.y,
-                environment.fog.color.z,
+                fogColor.x,
+                fogColor.y,
+                fogColor.z,
                 std::max(0.0f, environment.fog.density)
             };
             out.fogParams = {
@@ -1174,30 +1218,6 @@ namespace HIKARI::MESHRENDERER {
                 std::max(0.0f, environment.fog.heightFalloff)
             };
             out.debugView = static_cast<uint32_t>(environment.debugView);
-            out.skyZenithExposure = {
-                environment.sky.zenithColor.x,
-                environment.sky.zenithColor.y,
-                environment.sky.zenithColor.z,
-                std::max(0.0f, environment.sky.exposure)
-            };
-            out.skyHorizonReflection = {
-                environment.sky.horizonColor.x,
-                environment.sky.horizonColor.y,
-                environment.sky.horizonColor.z,
-                std::max(0.0f, environment.sky.reflectionIntensity)
-            };
-            out.skyGroundAmbient = {
-                environment.sky.groundColor.x,
-                environment.sky.groundColor.y,
-                environment.sky.groundColor.z,
-                std::max(0.0f, environment.sky.ambientFromSky)
-            };
-            out.skyParams = {
-                environment.sky.yaw,
-                std::max(0.01f, environment.sky.horizonPower),
-                static_cast<float>(environment.sky.mode),
-                0.0f
-            };
 
             constexpr uint32_t kMaxPointLights = 8;
             uint32_t uploadedCount = 0;
@@ -1236,6 +1256,39 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.pointLightClampedCount = (uploadableCount > uploadedCount) ? (uploadableCount - uploadedCount) : 0u;
             g.debugStats.specularIntensity = out.specularParams.x;
             g.debugStats.specularPower = out.specularParams.y;
+        }
+
+        void FillSkyEnvironmentCB(SkyEnvironmentCB& out) {
+            out = {};
+            const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
+            if (!skyData.valid) {
+                return;
+            }
+
+            out.skyZenithExposure = {
+                skyData.zenithColor.x,
+                skyData.zenithColor.y,
+                skyData.zenithColor.z,
+                skyData.exposure
+            };
+            out.skyHorizonReflection = {
+                skyData.horizonColor.x,
+                skyData.horizonColor.y,
+                skyData.horizonColor.z,
+                skyData.reflectionIntensity
+            };
+            out.skyGroundAmbient = {
+                skyData.groundColor.x,
+                skyData.groundColor.y,
+                skyData.groundColor.z,
+                skyData.ambientFromSky
+            };
+            out.skyParams = {
+                static_cast<float>(skyData.mode),
+                skyData.hasCubemap ? 1.0f : 0.0f,
+                skyData.horizonPower,
+                skyData.yaw
+            };
         }
 
         void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out) {
@@ -1321,6 +1374,7 @@ namespace HIKARI::MESHRENDERER {
 
         FillLightCB(environment, *g.lightMapped);
         FillShadowCB(environment, *g.shadowMapped);
+        FillSkyEnvironmentCB(*g.skyEnvironmentMapped);
 
         cmd->SetGraphicsRootSignature(g.rootSig.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1328,6 +1382,7 @@ namespace HIKARI::MESHRENDERER {
         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
         cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
+        cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
@@ -1393,13 +1448,14 @@ namespace HIKARI::MESHRENDERER {
                         cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
+                        cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
                         cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
                         const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
                         if (drawingSkinned) {
                             const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                             const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(10, paletteAddress);
+                            cmd->SetGraphicsRootConstantBufferView(11, paletteAddress);
                             g.debugStats.uploadedJointCount += uploadedJointCount;
                             g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                             g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1507,6 +1563,7 @@ namespace HIKARI::MESHRENDERER {
             cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
+            cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
             int textureHandle = g.fallbackTextureHandle;

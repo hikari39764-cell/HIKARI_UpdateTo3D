@@ -117,7 +117,7 @@ namespace HIKARI {
             }
         }
 
-        SKYRENDERER::Render(camera_, activeEnvironment.sky, modelManager_, skyManager_);
+        SKYRENDERER::Render(camera_, activeEnvironment, modelManager_, skyManager_);
         if (DrawDebugHelpers()) {
             LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
             LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);

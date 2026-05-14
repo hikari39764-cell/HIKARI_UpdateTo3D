@@ -76,6 +76,8 @@ namespace HIKARI {
         void SerializeEnvironment(const SceneEnvironment& environment, json& out) {
             out["ambient"]["color"] = ToVec3(environment.ambient.color);
             out["ambient"]["intensity"] = environment.ambient.intensity;
+            out["ambient"]["useSkyColor"] = environment.ambient.useSkyColor;
+            out["ambient"]["skyBlend"] = environment.ambient.skyBlend;
 
             out["directional"]["enabled"] = environment.directional.enabled;
             out["directional"]["direction"] = ToVec3(environment.directional.direction);
@@ -139,6 +141,7 @@ namespace HIKARI {
             out["fog"]["startDistance"] = environment.fog.startDistance;
             out["fog"]["endDistance"] = environment.fog.endDistance;
             out["fog"]["heightFalloff"] = environment.fog.heightFalloff;
+            out["fog"]["useSkyHorizonColor"] = environment.fog.useSkyHorizonColor;
 
             out["toneMapping"]["enabled"] = environment.toneMapping.enabled;
             out["toneMapping"]["exposure"] = environment.toneMapping.exposure;
@@ -166,6 +169,8 @@ namespace HIKARI {
                 const json& ambient = in["ambient"];
                 environment.ambient.color = FromVec3(ambient.value("color", json::array()), environment.ambient.color);
                 environment.ambient.intensity = ambient.value("intensity", environment.ambient.intensity);
+                environment.ambient.useSkyColor = ambient.value("useSkyColor", environment.ambient.useSkyColor);
+                environment.ambient.skyBlend = ambient.value("skyBlend", environment.ambient.skyBlend);
             }
 
             if (in.contains("directional")) {
@@ -246,6 +251,7 @@ namespace HIKARI {
                 environment.fog.startDistance = fog.value("startDistance", environment.fog.startDistance);
                 environment.fog.endDistance = fog.value("endDistance", environment.fog.endDistance);
                 environment.fog.heightFalloff = fog.value("heightFalloff", environment.fog.heightFalloff);
+                environment.fog.useSkyHorizonColor = fog.value("useSkyHorizonColor", environment.fog.useSkyHorizonColor);
             }
 
             if (in.contains("toneMapping") && in["toneMapping"].is_object()) {

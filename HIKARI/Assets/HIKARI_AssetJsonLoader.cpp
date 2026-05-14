@@ -62,6 +62,25 @@ namespace HIKARI {
             if (value == "Always") return TangentImportPolicy::Always;
             return TangentImportPolicy::IfMissing;
         }
+
+        SkyMode ParseSkyMode(const std::string& value, SkyMode fallback) {
+            if (value == "None") return SkyMode::None;
+            if (value == "Gradient") return SkyMode::Gradient;
+            if (value == "Cubemap") return SkyMode::Cubemap;
+            if (value == "Texture2D") return SkyMode::Texture2D;
+            return fallback;
+        }
+
+        TextureAssetDimension ParseTextureDimension(const std::string& value) {
+            if (value == "TextureCube") return TextureAssetDimension::TextureCube;
+            return TextureAssetDimension::Texture2D;
+        }
+
+        TextureAssetColorSpace ParseTextureColorSpace(const std::string& value) {
+            if (value == "Linear") return TextureAssetColorSpace::Linear;
+            if (value == "Srgb") return TextureAssetColorSpace::Srgb;
+            return TextureAssetColorSpace::Auto;
+        }
     }
 
     bool AssetJsonLoader::LoadModelDescriptors(const std::string& path, AssetRegistry& registry) const {
@@ -184,6 +203,7 @@ namespace HIKARI {
             descriptor->version = node.value("version", 1u);
             descriptor->meshAssetId = node.value("meshAssetId", "");
             descriptor->textureAssetId = node.value("textureAssetId", "");
+            descriptor->preferredMode = ParseSkyMode(node.value("preferredMode", ""), descriptor->preferredMode);
             registry.RegisterDescriptor(std::move(descriptor));
         }
 
@@ -210,6 +230,8 @@ namespace HIKARI {
             descriptor->type = ParseAssetType(node.value("type", "Texture"));
             descriptor->sourcePath = node.value("sourcePath", "");
             descriptor->version = node.value("version", 1u);
+            descriptor->dimension = ParseTextureDimension(node.value("dimension", ""));
+            descriptor->colorSpace = ParseTextureColorSpace(node.value("colorSpace", ""));
             registry.RegisterDescriptor(std::move(descriptor));
         }
 

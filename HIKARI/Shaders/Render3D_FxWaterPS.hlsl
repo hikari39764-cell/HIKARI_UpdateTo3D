@@ -50,10 +50,6 @@ cbuffer LightCB : register(b2)
     float4 gFogParams;
     uint gDebugView;
     float3 gDebugPadding;
-    float4 gSkyZenithExposure;
-    float4 gSkyHorizonReflection;
-    float4 gSkyGroundAmbient;
-    float4 gSkyParams;
 };
 
 cbuffer ShadowCB : register(b4)
@@ -68,6 +64,25 @@ cbuffer ShadowCB : register(b4)
     float gShadowTexelSizeX;
     float gShadowTexelSizeY;
 };
+
+cbuffer SkyEnvironmentCB : register(b5)
+{
+    float4 gSkyZenithExposure;
+    float4 gSkyHorizonReflection;
+    float4 gSkyGroundAmbient;
+    float4 gSkyParams;
+};
+
+#define gSkyZenithColor gSkyZenithExposure.rgb
+#define gSkyExposure gSkyZenithExposure.a
+#define gSkyHorizonColor gSkyHorizonReflection.rgb
+#define gSkyReflectionIntensity gSkyHorizonReflection.a
+#define gSkyGroundColor gSkyGroundAmbient.rgb
+#define gSkyAmbientFromSky gSkyGroundAmbient.a
+#define gSkyMode gSkyParams.x
+#define gSkyHasCubemap gSkyParams.y
+#define gSkyHorizonPower gSkyParams.z
+#define gSkyYaw gSkyParams.w
 
 Texture2D gShadowMap : register(t2) ;
 SamplerState gShadowSampler : register(s1);
