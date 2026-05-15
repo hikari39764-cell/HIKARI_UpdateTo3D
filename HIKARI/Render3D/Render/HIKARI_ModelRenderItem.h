@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include <DirectXMath.h>
+#include <Vfx/Common/HIKARI_FxTypes.h>
 
 #include "Render3D/HIKARI_Transform3D.h"
 
@@ -21,7 +22,7 @@ namespace HIKARI {
         Transform3D worldTransform;
 
         std::string materialFxProfileId;
-        DirectX::XMFLOAT4 materialFxParamValues[4]{};
+        DirectX::XMFLOAT4 materialFxParamValues[VFX::kMaterialFxUserCount]{};
         bool materialFxValuesInitialized = false;
 
         uint32_t postGroupMask = 0;

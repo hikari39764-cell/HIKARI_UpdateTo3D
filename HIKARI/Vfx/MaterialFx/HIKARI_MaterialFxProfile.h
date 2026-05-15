@@ -30,13 +30,13 @@ public:
     bool doubleSided = false;
     VFX::CompositeMode composite = VFX::CompositeMode::Alpha;
     std::vector<VFX::ParamDesc> params;
-    std::array<DirectX::XMFLOAT4, 4> values{};
+    std::array<DirectX::XMFLOAT4, VFX::kMaterialFxUserCount> values{};
 
     static bool LoadById(const std::string& profileId, MaterialFxProfile& out);
     static void ClearCache();
     static MaterialFxProfileCacheStats GetCacheStats();
     bool LoadFromJson(const std::string& path);
-    void CopyValuesTo(DirectX::XMFLOAT4 (&dst)[4]) const;
+    void CopyValuesTo(DirectX::XMFLOAT4 (&dst)[VFX::kMaterialFxUserCount]) const;
 };
 
 } // namespace HIKARI

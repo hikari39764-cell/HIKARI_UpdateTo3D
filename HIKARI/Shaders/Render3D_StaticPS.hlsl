@@ -1,6 +1,17 @@
 // IMPORTANT:
 // This cbuffer/register layout must stay in sync with Render3D_StaticFxPS.hlsl
 // and MeshRenderer::ObjectCB / LightCB / ShadowCB / SkyEnvironmentCB.
+
+#define gFxUser0 gFxUser[0]
+#define gFxUser1 gFxUser[1]
+#define gFxUser2 gFxUser[2]
+#define gFxUser3 gFxUser[3]
+#define gFxUser4 gFxUser[4]
+#define gFxUser5 gFxUser[5]
+#define gFxUser6 gFxUser[6]
+#define gFxUser7 gFxUser[7]
+
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -30,10 +41,7 @@ cbuffer ObjectCB : register(b1)
     uint gHasOcclusionTexture;
     float gOcclusionStrength;
     float3 gPbrPadding;
-    float4 gFxUser0;
-    float4 gFxUser1;
-    float4 gFxUser2;
-    float4 gFxUser3;
+    float4 gFxUser[8];
 };
 
 static const uint MATERIAL_UNLIT = 1u << 0;

@@ -16,7 +16,7 @@ namespace HIKARI::DEBUGLOG {
         constexpr size_t kMaxRecentErrors = 128;
 
         std::filesystem::path GetLogPath() {
-            std::filesystem::path dir = std::filesystem::current_path() / "log";
+            std::filesystem::path dir = std::filesystem::current_path() / "RendererLog";
             std::error_code ec;
             std::filesystem::create_directories(dir, ec);
             return dir / "render_diagnostics.log";

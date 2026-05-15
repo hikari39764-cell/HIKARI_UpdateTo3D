@@ -56,6 +56,7 @@ namespace HIKARI::MESHRENDERER {
             uint32_t hasOcclusionTexture = 0;
             float occlusionStrength = 1.0f;
             float pbrPadding[3]{};
+            MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
             MATH::Vec4 fxUser0{};
             MATH::Vec4 fxUser1{};
             MATH::Vec4 fxUser2{};
@@ -116,9 +117,9 @@ namespace HIKARI::MESHRENDERER {
             std::string materialFxProfileId{};
             uint32_t postGroupMask = 0;
             VFX::VariantKey variant{};
-            std::array<MATH::Vec4, 4> fxValues{};
+            std::array<MATH::Vec4, VFX::kMaterialFxUserCount> fxValues{};
             uint32_t fxFlags = 0;
-            std::array<DirectX::XMFLOAT4, 4> materialFxParamValues{};
+            std::array<DirectX::XMFLOAT4, VFX::kMaterialFxUserCount> materialFxParamValues{};
             bool materialFxValuesInitialized = false;
             bool hasResolvedMaterialFxProfile = false;
             MaterialFxProfile resolvedMaterialFxProfile{};
@@ -1109,10 +1110,10 @@ namespace HIKARI::MESHRENDERER {
 
         void FillFxValues(ObjectCB& obj, const DrawItem& item) {
             obj.fxFlags = item.fxFlags;
-            obj.fxUser0 = item.fxValues[0];
-            obj.fxUser1 = item.fxValues[1];
-            obj.fxUser2 = item.fxValues[2];
-            obj.fxUser3 = item.fxValues[3];
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; i++)
+            {
+                obj.fxUser[i] = item.fxValues[i];
+            }
         }
 
         void FillMaterialValues(ObjectCB& obj, const MaterialAsset* materialAsset, int normalTextureHandle, int emissiveTextureHandle, int metallicRoughnessTextureHandle, int occlusionTextureHandle) {
@@ -1332,7 +1333,7 @@ namespace HIKARI::MESHRENDERER {
         g.debugStats = {};
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
@@ -1352,7 +1353,7 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[4], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;

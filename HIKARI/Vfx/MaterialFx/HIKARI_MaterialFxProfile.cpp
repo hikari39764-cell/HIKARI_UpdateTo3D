@@ -206,7 +206,7 @@ MaterialFxProfileCacheStats MaterialFxProfile::GetCacheStats() {
     return gProfileCacheStats;
 }
 
-void MaterialFxProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[4]) const {
+void MaterialFxProfile::CopyValuesTo(DirectX::XMFLOAT4(&dst)[VFX::kMaterialFxUserCount]) const {
     const size_t count = std::min(values.size(), std::size(dst));
     for (size_t i = 0; i < count; ++i) {
         dst[i] = values[i];

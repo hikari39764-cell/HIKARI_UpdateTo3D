@@ -1,3 +1,13 @@
+
+#define gFxUser0 gFxUser[0]
+#define gFxUser1 gFxUser[1]
+#define gFxUser2 gFxUser[2]
+#define gFxUser3 gFxUser[3]
+#define gFxUser4 gFxUser[4]
+#define gFxUser5 gFxUser[5]
+#define gFxUser6 gFxUser[6]
+#define gFxUser7 gFxUser[7]
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -28,10 +38,7 @@ cbuffer ObjectCB : register(b1)
     uint gHasOcclusionTexture;
     float gOcclusionStrength;
     float3 gPbrPadding;
-    float4 gFxUser0;
-    float4 gFxUser1;
-    float4 gFxUser2;
-    float4 gFxUser3;
+    float4 gFxUser[8];
 };
 
 cbuffer LightCB : register(b2)
@@ -233,6 +240,15 @@ float3 SampleSkyEnvironment(float3 dir)
 float4 main(PSInput input) : SV_TARGET
 {
     float3 n = normalize(input.normalWS);
+
+    float distToCamera = length(gCameraPos.xyz - input.worldPosWS);
+
+    float farNormalFade = saturate((distToCamera - 40.0f) / 140.0f);
+
+    float3 flatNormal = float3(0.0f, 1.0f, 0.0f);
+
+    n = normalize(lerp(n, flatNormal, farNormalFade * 0.85f));
+
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
 
     // Keep same direction convention as Render3D_StaticPS.
@@ -295,6 +311,11 @@ float4 main(PSInput input) : SV_TARGET
     float reflectionShadow = lerp(0.05f, 1.0f, shadowFactor);
 
     float3 reflection = SampleSkyEnvironment(reflectDir);
+
+    float3 horizonDir = normalize(float3(v.x,0.05f,v.z));
+    float3 horizonSky = EvaluateSkyApprox(horizonDir);
+
+    reflection = lerp(reflection, horizonSky, horizonDir * 0.65f);
     reflection *= max(0.0f, gSkyReflectionIntensity);
     reflection *= reflectionShadow;
     

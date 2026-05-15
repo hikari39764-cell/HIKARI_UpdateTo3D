@@ -4,6 +4,8 @@
 #include <string>
 
 namespace HIKARI::VFX {
+        
+static constexpr size_t kMaterialFxUserCount = 8;
 
 enum class FxDomain {
     GlobalPost,

@@ -9,6 +9,7 @@
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
+#include <Vfx/Common/HIKARI_FxTypes.h>
 
 namespace HIKARI {
 
@@ -67,7 +68,7 @@ namespace HIKARI {
                     item.geometryDebugMode = ModelGeometryDebugMode::WireOverlay;
                 }
                 item.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
-                for (int i = 0; i < 4; ++i) {
+                for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                     item.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
                 }
 

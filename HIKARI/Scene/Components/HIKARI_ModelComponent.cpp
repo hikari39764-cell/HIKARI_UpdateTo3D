@@ -83,7 +83,7 @@ namespace HIKARI {
             return fallback;
         }
 
-        bool EnsureMaterialFxValuesReady(const std::string& profileId, DirectX::XMFLOAT4(&values)[4], bool& initialized) {
+        bool EnsureMaterialFxValuesReady(const std::string& profileId, DirectX::XMFLOAT4(&values)[VFX::kMaterialFxUserCount], bool& initialized) {
             if (initialized) {
                 return true;
             }
@@ -285,11 +285,11 @@ namespace HIKARI {
         return materialFxProfileId_;
     }
 
-    DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues())[4] {
+    DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues())[VFX::kMaterialFxUserCount] {
         return materialFxParamValues_;
     }
 
-    const DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues() const)[4] {
+    const DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues() const)[VFX::kMaterialFxUserCount] {
         return materialFxParamValues_;
     }
 
@@ -423,7 +423,7 @@ namespace HIKARI {
         }
 
         const DirectX::XMFLOAT4* sourceValues = materialFxParamValues_;
-        DirectX::XMFLOAT4 defaultValues[4]{};
+        DirectX::XMFLOAT4 defaultValues[VFX::kMaterialFxUserCount]{};
         if (!materialFxValuesInitialized_) {
             profile.CopyValuesTo(defaultValues);
             sourceValues = defaultValues;

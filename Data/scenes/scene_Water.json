@@ -46,7 +46,7 @@
       "showDebugFrustum": false,
       "showDebugTexture": false,
       "stabilize": true,
-      "strength": 0.8799999952316284
+      "strength": 0.6600000262260437
     },
     "fog": {
       "color": [
@@ -223,10 +223,10 @@
     "specularIntensity": 0.20000000298023224,
     "specularPower": 32.0,
     "toneMapping": {
-      "enabled": false,
-      "exposure": 1.149999976158142,
+      "enabled": true,
+      "exposure": 0.8899999856948853,
       "gamma": 2.200000047683716,
-      "mode": 1
+      "mode": 2
     }
   },
   "objects": [
@@ -318,10 +318,10 @@
             "debugRenderMode": "Normal",
             "materialFxParamValues": [
               [
-                0.6000000238418579,
-                0.3100000023841858,
-                2.3499999046325684,
-                0.3199999928474426
+                0.6499999761581421,
+                0.23999999463558197,
+                2.7300000190734863,
+                0.18000000715255737
               ],
               [
                 0.019607843831181526,
@@ -339,6 +339,30 @@
                 0.07999999821186066,
                 0.550000011920929,
                 0.6800000071525574,
+                8.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
                 0.0
               ]
             ],
@@ -347,13 +371,13 @@
             "maxWireLines": 33500,
             "postGroupMask": 0,
             "procedural": {
-              "depth": 160.5,
+              "depth": 91.01000213623047,
               "doubleSided": true,
               "generateTangents": true,
               "height": 113.80000305175781,
               "kind": "GridPlane",
-              "segmentsX": 256,
-              "segmentsY": 256,
+              "segmentsX": 512,
+              "segmentsY": 512,
               "segmentsZ": 64,
               "sphereSlices": 32,
               "sphereStacks": 16,

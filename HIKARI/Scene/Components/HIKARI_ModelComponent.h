@@ -2,8 +2,10 @@
 #include <string>
 #include <cstdint>
 #include <DirectXMath.h>
+#include <Vfx/Common/HIKARI_FxTypes.h>
 
 #include "HIKARI_IComponent.h"
+
 
 namespace HIKARI {
 
@@ -89,8 +91,8 @@ namespace HIKARI {
 
         void SetMaterialFxProfileId(std::string profileId);
         const std::string& GetMaterialFxProfileId() const;
-        DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[4];
-        const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[4];
+        DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[VFX::kMaterialFxUserCount];
+        const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[VFX::kMaterialFxUserCount];
         bool AreMaterialFxValuesInitialized() const;
         bool SetMaterialFxFloat(const std::string& key, float value);
         bool SetMaterialFxFloat2(const std::string& key, const DirectX::XMFLOAT2& value);
@@ -115,7 +117,7 @@ namespace HIKARI {
         bool wirePerPrimitiveColor_ = true;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
-        DirectX::XMFLOAT4 materialFxParamValues_[4]{};
+        DirectX::XMFLOAT4 materialFxParamValues_[VFX::kMaterialFxUserCount]{};
         bool materialFxValuesInitialized_ = false;
     };
 
