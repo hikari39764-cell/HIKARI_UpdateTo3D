@@ -4,6 +4,7 @@
       "id": "test",
       "displayName": "Rim Dissolve Energy",
       "shaderProfileId": "StaticFx",
+       "pixelShaderId": "Render3D_StaticFxPS",
       "featureBits": 1,
       "depthTest": true,
       "depthWrite": true,
@@ -197,6 +198,14 @@
       "slot": 3,
       "component": "xyz",
       "default": [0.08, 0.55, 0.68]
+    },
+     {
+      "key": "iterations",
+      "displayName": "water iterations",
+      "type": "float",
+      "slot": 3,
+      "component": "w",
+      "default": [ 30.0 ]
     }
   ]
 }

@@ -1,7 +1,8 @@
 {
   "version": 1,
   "textures": [
-    { "id": "sky33", "type": "Texture", "sourcePath": "./Assets/Sky/sky3.dds" },
-    { "id": "sky23", "type": "Texture", "sourcePath": "./Assets/Sky/sky2.dds" }
+    { "id": "sky3", "type": "Texture", "sourcePath": "./Assets/Sky/sky3.dds" },
+    { "id": "sky2", "type": "Texture", "sourcePath": "./Assets/Sky/sky2.dds" },
+    { "id": "sky4", "type": "Texture", "sourcePath": "./Assets/Sky/sky4.dds" }
   ]
 }

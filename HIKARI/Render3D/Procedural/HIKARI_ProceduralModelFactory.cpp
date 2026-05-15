@@ -55,8 +55,8 @@ namespace HIKARI::PROCEDURAL {
             key.width = (std::max)(0.01f, settings.width);
             key.height = (std::max)(0.01f, settings.height);
             key.depth = (std::max)(0.01f, settings.depth);
-            key.segmentsX = (std::clamp)(settings.segmentsX, 1u, 256u);
-            key.segmentsY = (std::clamp)(settings.segmentsY, 1u, 256u);
+            key.segmentsX = (std::clamp)(settings.segmentsX, 1u, 512u);
+            key.segmentsY = (std::clamp)(settings.segmentsY, 1u, 512u);
             key.segmentsZ = (std::clamp)(settings.segmentsZ, 1u, 64u);
             key.sphereSlices = (std::max)(3u, settings.sphereSlices);
             key.sphereStacks = (std::max)(2u, settings.sphereStacks);

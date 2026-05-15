@@ -35,6 +35,7 @@ cbuffer ObjectCB : register(b1)
     float4 gFxUser3;
 };
 
+
 struct VSInput
 {
     float3 position : POSITION;
@@ -57,7 +58,7 @@ float2 WaveDx(float2 position, float2 direction, float frequency, float timeShif
     direction = normalize(direction);
 
     float phase = dot(direction, position) * frequency + timeShift;
-    float wave = exp(sin(phase) - 1.0f);
+    float wave = exp(cos(phase) - 1.0f);
     float dx = wave * cos(phase);
 
     return float2(wave, -dx);
@@ -97,7 +98,7 @@ float GetWaves(float2 position, float time, float drag, int iterations)
 float WaterHeight(float2 localXZ, float time, float waveSpeed, float waveHeight, float waveScale, float drag)
 {
     float2 p = localXZ * waveScale;
-    float h = GetWaves(p, time * waveSpeed, drag, 8);
+    float h = GetWaves(p, time * waveSpeed, drag, gFxUser3.w);
     return (h - 0.5f) * waveHeight;
 }
 
