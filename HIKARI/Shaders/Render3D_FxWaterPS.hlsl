@@ -312,15 +312,17 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 reflection = SampleSkyEnvironment(reflectDir);
 
+    float horizonFade = saturate((distToCamera - 80.0f) / 160.0f);
     float3 horizonDir = normalize(float3(v.x,0.05f,v.z));
     float3 horizonSky = EvaluateSkyApprox(horizonDir);
 
-    reflection = lerp(reflection, horizonSky, horizonDir * 0.65f);
+    reflection = lerp(reflection, horizonSky, horizonFade * 0.65f);
     reflection *= max(0.0f, gSkyReflectionIntensity);
     reflection *= reflectionShadow;
     
     float3 color = baseWater * (ambient + sun * 0.55f);
-    color = lerp(color, reflection, fresnel);
+    float reflectionMix = saturate(fresnel * 0.75f);
+    color = lerp(color, reflection, reflectionMix);
     color += specularColor;
 
     float rim = pow(1.0f - saturate(dot(n, v)), 2.0f) * rimStrength;
@@ -333,5 +335,5 @@ float4 main(PSInput input) : SV_TARGET
 
     color = ApplyFog(color, input.worldPosWS);
 
-    return float4(color, 0.72f);
+    return float4(color, 1.0f);
 }

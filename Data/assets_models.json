@@ -91,6 +91,33 @@
         ]
       }
     },
+     {
+      "id": "Action",
+      "type": "Model",
+      "sourcePath": "./Assets/TestModel/action.gltf",
+      "importer": "gltf",
+      "preload": false,
+      "importOptions": {
+        "unitScale": 1.0,
+        "coordinateSystem": "RightHanded_YUp",
+        "generateNormals": "IfMissing",
+        "generateTangents": "IfMissing",
+        "triangulate": true,
+        "flipUV": false,
+        "mergeMeshes": false,
+        "keepNodeHierarchy": true,
+        "loadMaterials": true,
+        "loadTextures": true,
+        "loadAnimations": true,
+        "loadSkins": true
+      },
+      "animation": {
+        "defaultClip": "Idle",
+        "clips": [
+          { "name": "Idle", "sourceName": "Idle" }
+        ]
+      }
+    },
        {
       "id": "Wi",
       "type": "Model",
