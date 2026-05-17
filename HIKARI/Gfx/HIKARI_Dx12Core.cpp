@@ -19,6 +19,8 @@ using Microsoft::WRL::ComPtr;
 namespace HIKARI::GFX {
 
 namespace {
+    constexpr UINT kSceneDepthSrvIndex = 2046;
+
     struct LetterboxRect {
         float x;
         float y;
@@ -201,6 +203,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         return false;
     }
     SetD3D12Name(srvHeap_.Get(), L"HIKARI Global SRV Heap");
+    srvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     HIKARI_LOG_D3D12("SRV heap created. descriptors=2048.");
 
     CreateSwapChainResources();
@@ -258,7 +261,7 @@ void Dx12Core::CreateSwapChainResources() {
 
 void Dx12Core::CreateDepthBuffer() {
     D3D12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-        DXGI_FORMAT_D32_FLOAT, static_cast<UINT64>(width_), static_cast<UINT>(height_), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+        DXGI_FORMAT_R32_TYPELESS, static_cast<UINT64>(width_), static_cast<UINT>(height_), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
     D3D12_CLEAR_VALUE clear{};
     clear.Format = DXGI_FORMAT_D32_FLOAT;
     clear.DepthStencil.Depth = 1.0f;
@@ -275,6 +278,25 @@ void Dx12Core::CreateDepthBuffer() {
     dsv.Format = DXGI_FORMAT_D32_FLOAT;
     dsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     device_->CreateDepthStencilView(depthBuffer_.Get(), &dsv, dsvHeap_->GetCPUDescriptorHandleForHeapStart());
+
+    const auto cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
+    const auto gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+
+    sceneDepthSrvCpu_.ptr =
+        cpuStart.ptr + static_cast<SIZE_T>(srvDescriptorSize_) * kSceneDepthSrvIndex;
+    sceneDepthSrvGpu_.ptr =
+        gpuStart.ptr + static_cast<UINT64>(srvDescriptorSize_) * kSceneDepthSrvIndex;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+    srv.Format = DXGI_FORMAT_R32_FLOAT;
+    srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srv.Texture2D.MostDetailedMip = 0;
+    srv.Texture2D.MipLevels = 1;
+    srv.Texture2D.PlaneSlice = 0;
+    srv.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    device_->CreateShaderResourceView(depthBuffer_.Get(), &srv, sceneDepthSrvCpu_);
 }
 
 void Dx12Core::Shutdown() {
@@ -387,6 +409,14 @@ D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::DSV() const {
     return dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE Dx12Core::SceneDepthSrv() const {
+    return sceneDepthSrvGpu_;
+}
+
+ID3D12Resource* Dx12Core::SceneDepthResource() const {
+    return depthBuffer_.Get();
+}
+
 ID3D12Resource* Dx12Core::CurrentBackBuffer() {
     return backBuffers_[frameIndex_].Get();
 }
@@ -399,6 +429,8 @@ Context Dx12Core::BuildContext() const {
     ctx.srvHeap = srvHeap_.Get();
     ctx.rtv = CurrentRTV();
     ctx.dsv = DSV();
+    ctx.sceneDepthSrv = SceneDepthSrv();
+    ctx.sceneDepthResource = SceneDepthResource();
     ctx.frameIndex = frameIndex_;
     ctx.backBufferWidth = width_;
     ctx.backBufferHeight = height_;
