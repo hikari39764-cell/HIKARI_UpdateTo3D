@@ -207,6 +207,50 @@
       "slot": 3,
       "component": "w",
       "default": 30.0 
+    },
+    {
+      "key": "depthScale",
+      "displayName": "Depth Scale",
+      "type": "float",
+      "slot": 4,
+      "component": "x",
+      "default": 80.0,
+      "min": 1.0,
+      "max": 500.0,
+      "speed": 1.0
+    },
+    {
+      "key": "depthBias",
+      "displayName": "Depth Bias",
+      "type": "float",
+      "slot": 4,
+      "component": "y",
+      "default": 0.0,
+      "min": -1.0,
+      "max": 1.0,
+      "speed": 0.01
+    },
+    {
+      "key": "depthPower",
+      "displayName": "Depth Power",
+      "type": "float",
+      "slot": 4,
+      "component": "z",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 8.0,
+      "speed": 0.05
+    },
+    {
+      "key": "depthBlend",
+      "displayName": "Depth Blend",
+      "type": "float",
+      "slot": 4,
+      "component": "w",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
     }
   ]
 }

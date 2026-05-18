@@ -8,6 +8,11 @@
 #define gFxUser6 gFxUser[6]
 #define gFxUser7 gFxUser[7]
 
+#define gWaterDepthScale gFxUser4.x
+#define gWaterDepthBias  gFxUser4.y
+#define gWaterDepthPower gFxUser4.z
+#define gWaterDepthBlend gFxUser4.w
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -98,7 +103,11 @@ SamplerState gShadowSampler : register(s1);
 SamplerState gSkySampler : register(s0);
 
 #ifndef WATER_DEBUG_SCENE_DEPTH
-#define WATER_DEBUG_SCENE_DEPTH 1
+#define WATER_DEBUG_SCENE_DEPTH 0
+#endif
+
+#ifndef WATER_DEBUG_DEPTH_DIFF
+#define WATER_DEBUG_DEPTH_DIFF 0
 #endif
 
 struct PSInput
@@ -114,6 +123,38 @@ float SampleSceneDepth(float4 svPosition)
 {
     int2 pixel = int2(svPosition.xy);
     return gSceneDepth.Load(int3(pixel, 0)).r;
+}
+
+float ComputeRawWaterDepthDiff(float4 svPosition)
+{
+    float sceneDepth = SampleSceneDepth(svPosition);
+    float waterDepth = svPosition.z;
+
+    return max(0.0f, sceneDepth - waterDepth);
+}
+
+float ComputeWaterDepthFactor(float4 svPosition)
+{
+    float rawDiff = ComputeRawWaterDepthDiff(svPosition);
+
+    float depthScale = gWaterDepthScale;
+    if (depthScale <= 0.0001f)
+    {
+        depthScale = 80.0f;
+    }
+
+    float depthBias = gWaterDepthBias;
+
+    float depthPower = gWaterDepthPower;
+    if (depthPower <= 0.0001f)
+    {
+        depthPower = 1.0f;
+    }
+
+    float depthFactor = saturate(rawDiff * depthScale + depthBias);
+    depthFactor = pow(depthFactor, depthPower);
+
+    return depthFactor;
 }
 
 float3 ApplyFog(float3 color, float3 worldPosWS)
@@ -256,6 +297,11 @@ float4 main(PSInput input) : SV_TARGET
     return float4(vi.xxx, 1.0f);
 #endif
 
+#if WATER_DEBUG_DEPTH_DIFF
+    float depthFactor = ComputeWaterDepthFactor(input.position);
+    return float4(depthFactor.xxx, 1.0f);
+#endif
+
     float3 n = normalize(input.normalWS);
 
     float distToCamera = length(gCameraPos.xyz - input.worldPosWS);
@@ -315,7 +361,19 @@ float4 main(PSInput input) : SV_TARGET
 
 
     float shallowMix = saturate(n.y);
-    float3 baseWater = lerp(waterColor, shallowColor, shallowMix * 0.35f);
+    float oldNormalShallow = shallowMix * 0.20f;
+
+    float depthFactor = ComputeWaterDepthFactor(input.position);
+
+    float depthBlend = gWaterDepthBlend;
+    if (depthBlend <= 0.0001f)
+    {
+        depthBlend = 1.0f;
+    }
+
+    float3 depthWaterColor = lerp(shallowColor, waterColor, depthFactor);
+    float3 normalWaterColor = lerp(waterColor, shallowColor, oldNormalShallow);
+    float3 baseWater = lerp(normalWaterColor, depthWaterColor, saturate(depthBlend));
 
     float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n);
 
