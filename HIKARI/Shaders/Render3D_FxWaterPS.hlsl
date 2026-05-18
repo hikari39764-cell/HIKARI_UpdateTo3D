@@ -13,6 +13,11 @@
 #define gWaterDepthPower gFxUser4.z
 #define gWaterDepthBlend gFxUser4.w
 
+#define gWaterAlphaShallow gFxUser5.x
+#define gWaterAlphaDeep    gFxUser5.y
+#define gWaterAlphaFresnel gFxUser5.z
+#define gWaterAlphaMin     gFxUser5.w
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -155,6 +160,35 @@ float ComputeWaterDepthFactor(float4 svPosition)
     depthFactor = pow(depthFactor, depthPower);
 
     return depthFactor;
+}
+
+float ComputeWaterAlpha(float depthFactor, float fresnel)
+{
+    float shallowAlpha = gWaterAlphaShallow;
+    if (shallowAlpha <= 0.0001f)
+    {
+        shallowAlpha = 0.35f;
+    }
+
+    float deepAlpha = gWaterAlphaDeep;
+    if (deepAlpha <= 0.0001f)
+    {
+        deepAlpha = 0.85f;
+    }
+
+    float alphaFresnel = gWaterAlphaFresnel;
+    if (alphaFresnel <= 0.0001f)
+    {
+        alphaFresnel = 0.25f;
+    }
+
+    float minAlpha = gWaterAlphaMin;
+
+    float waterAlpha = lerp(shallowAlpha, deepAlpha, depthFactor);
+    waterAlpha += fresnel * alphaFresnel;
+    waterAlpha = max(waterAlpha, minAlpha);
+
+    return saturate(waterAlpha);
 }
 
 float3 ApplyFog(float3 color, float3 worldPosWS)
@@ -411,5 +445,6 @@ float4 main(PSInput input) : SV_TARGET
 
     color = ApplyFog(color, input.worldPosWS);
 
-    return float4(color, 1.0f);
+    float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel);
+    return float4(color, waterAlpha);
 }

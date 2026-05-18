@@ -518,6 +518,36 @@ namespace HIKARI::MESHRENDERER {
             return path;
         }
 
+        void ApplyCompositeBlendState(D3D12_BLEND_DESC& blendState, VFX::CompositeMode composite)
+        {
+            blendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+            D3D12_RENDER_TARGET_BLEND_DESC& rt0 = blendState.RenderTarget[0];
+
+            if (composite == VFX::CompositeMode::Alpha)
+            {
+                rt0.BlendEnable = TRUE;
+                rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+                rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+                rt0.BlendOp = D3D12_BLEND_OP_ADD;
+                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+                rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+            }
+            else if (composite == VFX::CompositeMode::Additive)
+            {
+                rt0.BlendEnable = TRUE;
+                rt0.SrcBlend = D3D12_BLEND_ONE;
+                rt0.DestBlend = D3D12_BLEND_ONE;
+                rt0.BlendOp = D3D12_BLEND_OP_ADD;
+                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+                rt0.DestBlendAlpha = D3D12_BLEND_ONE;
+                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+                rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+            }
+        }
+
         bool LoadPixelShaderBlob(const std::string& shaderProfileId, ID3DBlob** outBlob) {
             const std::string cacheKey = shaderProfileId.empty() ? "StaticLit" : shaderProfileId;
             auto it = g.psBlobCache.find(cacheKey);
@@ -590,17 +620,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.pRootSignature = g.rootSig.Get();
             psoDesc.VS = { vsBlob->GetBufferPointer(), vsBlob->GetBufferSize() };
             psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
-            psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-            if (key.composite == VFX::CompositeMode::Additive) {
-                D3D12_RENDER_TARGET_BLEND_DESC& rt0 = psoDesc.BlendState.RenderTarget[0];
-                rt0.BlendEnable = TRUE;
-                rt0.SrcBlend = D3D12_BLEND_ONE;
-                rt0.DestBlend = D3D12_BLEND_ONE;
-                rt0.BlendOp = D3D12_BLEND_OP_ADD;
-                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
-                rt0.DestBlendAlpha = D3D12_BLEND_ONE;
-                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-            }
+            ApplyCompositeBlendState(psoDesc.BlendState, key.composite);
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
@@ -643,17 +663,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.pRootSignature = g.skinnedRootSig.Get();
             psoDesc.VS = { g.skinnedVsBlob->GetBufferPointer(), g.skinnedVsBlob->GetBufferSize() };
             psoDesc.PS = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
-            psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-            if (key.composite == VFX::CompositeMode::Additive) {
-                D3D12_RENDER_TARGET_BLEND_DESC& rt0 = psoDesc.BlendState.RenderTarget[0];
-                rt0.BlendEnable = TRUE;
-                rt0.SrcBlend = D3D12_BLEND_ONE;
-                rt0.DestBlend = D3D12_BLEND_ONE;
-                rt0.BlendOp = D3D12_BLEND_OP_ADD;
-                rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
-                rt0.DestBlendAlpha = D3D12_BLEND_ONE;
-                rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-            }
+            ApplyCompositeBlendState(psoDesc.BlendState, key.composite);
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;

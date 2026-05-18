@@ -251,6 +251,50 @@
       "min": 0.0,
       "max": 1.0,
       "speed": 0.01
+    },
+    {
+      "key": "alphaShallow",
+      "displayName": "Alpha Shallow",
+      "type": "float",
+      "slot": 5,
+      "component": "x",
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
+    },
+    {
+      "key": "alphaDeep",
+      "displayName": "Alpha Deep",
+      "type": "float",
+      "slot": 5,
+      "component": "y",
+      "default": 0.85,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
+    },
+    {
+      "key": "alphaFresnel",
+      "displayName": "Alpha Fresnel",
+      "type": "float",
+      "slot": 5,
+      "component": "z",
+      "default": 0.25,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
+    },
+    {
+      "key": "alphaMin",
+      "displayName": "Alpha Min",
+      "type": "float",
+      "slot": 5,
+      "component": "w",
+      "default": 0.15,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
     }
   ]
 }
