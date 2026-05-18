@@ -295,6 +295,94 @@
       "min": 0.0,
       "max": 1.0,
       "speed": 0.01
+    },
+    {
+      "key": "detailStrength",
+      "displayName": "Detail Strength",
+      "type": "float",
+      "slot": 6,
+      "component": "x",
+      "default": 0.08,
+      "min": 0.0,
+      "max": 0.5,
+      "speed": 0.005
+    },
+    {
+      "key": "detailScale",
+      "displayName": "Detail Scale",
+      "type": "float",
+      "slot": 6,
+      "component": "y",
+      "default": 4.0,
+      "min": 0.1,
+      "max": 20.0,
+      "speed": 0.05
+    },
+    {
+      "key": "detailSpeed",
+      "displayName": "Detail Speed",
+      "type": "float",
+      "slot": 6,
+      "component": "z",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "speed": 0.01
+    },
+    {
+      "key": "detailFadeDistance",
+      "displayName": "Detail Fade Distance",
+      "type": "float",
+      "slot": 6,
+      "component": "w",
+      "default": 120.0,
+      "min": 1.0,
+      "max": 500.0,
+      "speed": 1.0
+    },
+    {
+      "key": "foamWidth",
+      "displayName": "Foam Width",
+      "type": "float",
+      "slot": 7,
+      "component": "x",
+      "default": 0.003,
+      "min": 0.0001,
+      "max": 0.05,
+      "speed": 0.0001
+    },
+    {
+      "key": "foamStrength",
+      "displayName": "Foam Strength",
+      "type": "float",
+      "slot": 7,
+      "component": "y",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
+    },
+    {
+      "key": "foamPower",
+      "displayName": "Foam Power",
+      "type": "float",
+      "slot": 7,
+      "component": "z",
+      "default": 1.5,
+      "min": 0.1,
+      "max": 8.0,
+      "speed": 0.05
+    },
+    {
+      "key": "foamNoise",
+      "displayName": "Foam Noise",
+      "type": "float",
+      "slot": 7,
+      "component": "w",
+      "default": 0.3,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
     }
   ]
 }

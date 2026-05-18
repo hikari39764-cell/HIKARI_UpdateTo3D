@@ -18,6 +18,16 @@
 #define gWaterAlphaFresnel gFxUser5.z
 #define gWaterAlphaMin     gFxUser5.w
 
+#define gWaterDetailStrength gFxUser6.x
+#define gWaterDetailScale    gFxUser6.y
+#define gWaterDetailSpeed    gFxUser6.z
+#define gWaterDetailFadeDist gFxUser6.w
+
+#define gWaterFoamWidth      gFxUser7.x
+#define gWaterFoamStrength   gFxUser7.y
+#define gWaterFoamPower      gFxUser7.z
+#define gWaterFoamNoise      gFxUser7.w
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -191,6 +201,101 @@ float ComputeWaterAlpha(float depthFactor, float fresnel)
     return saturate(waterAlpha);
 }
 
+float DetailWave(float2 p, float time)
+{
+    float w1 = sin(p.x * 1.7f + time * 1.3f);
+    float w2 = cos(p.y * 2.1f - time * 1.1f);
+    float w3 = sin((p.x + p.y) * 1.4f + time * 0.8f);
+
+    return (w1 + w2 + w3) / 3.0f;
+}
+
+float2 DetailWaveGradient(float2 p, float time)
+{
+    const float e = 0.05f;
+
+    float h = DetailWave(p, time);
+    float hx = DetailWave(p + float2(e, 0.0f), time);
+    float hz = DetailWave(p + float2(0.0f, e), time);
+
+    return float2(h - hx, h - hz) / e;
+}
+
+float3 ApplyWaterDetailNormal(float3 n, float3 worldPosWS, float distToCamera)
+{
+    float detailStrength = gWaterDetailStrength;
+    if (detailStrength <= 0.0001f)
+    {
+        detailStrength = 0.08f;
+    }
+
+    float detailScale = gWaterDetailScale;
+    if (detailScale <= 0.0001f)
+    {
+        detailScale = 4.0f;
+    }
+
+    float detailSpeed = gWaterDetailSpeed;
+    if (detailSpeed <= 0.0001f)
+    {
+        detailSpeed = 1.0f;
+    }
+
+    float detailFadeDist = gWaterDetailFadeDist;
+    if (detailFadeDist <= 0.0001f)
+    {
+        detailFadeDist = 120.0f;
+    }
+
+    float detailFade = 1.0f - saturate(distToCamera / detailFadeDist);
+    float2 detailGrad = DetailWaveGradient(worldPosWS.xz * detailScale, gTimeParams.x * detailSpeed);
+
+    return normalize(n + float3(detailGrad.x, 0.0f, detailGrad.y) * detailStrength * detailFade);
+}
+
+float ComputeWaterFoam(float4 svPosition, float3 worldPosWS)
+{
+    float rawDiff = ComputeRawWaterDepthDiff(svPosition);
+
+    float foamWidth = gWaterFoamWidth;
+    if (foamWidth <= 0.00001f)
+    {
+        foamWidth = 0.003f;
+    }
+
+    float foamStrength = gWaterFoamStrength;
+    if (foamStrength <= 0.0001f)
+    {
+        foamStrength = 0.6f;
+    }
+
+    float foamPower = gWaterFoamPower;
+    if (foamPower <= 0.0001f)
+    {
+        foamPower = 1.5f;
+    }
+
+    float foamNoise = gWaterFoamNoise;
+    if (foamNoise < 0.0f)
+    {
+        foamNoise = 0.0f;
+    }
+
+    float foam = 1.0f - saturate(rawDiff / foamWidth);
+    foam = pow(saturate(foam), foamPower);
+
+    if (foamNoise > 0.0001f)
+    {
+        float noiseA = sin(worldPosWS.x * 8.0f + worldPosWS.z * 5.5f + gTimeParams.x * 1.7f);
+        float noiseB = cos(worldPosWS.x * 3.5f - worldPosWS.z * 7.0f + gTimeParams.x * 1.2f);
+        float noise = saturate((noiseA + noiseB) * 0.25f + 0.5f);
+
+        foam *= lerp(1.0f, noise, saturate(foamNoise));
+    }
+
+    return saturate(foam * foamStrength);
+}
+
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
     if (gFogParams.x < 0.5f)
@@ -340,6 +445,8 @@ float4 main(PSInput input) : SV_TARGET
 
     float distToCamera = length(gCameraPos.xyz - input.worldPosWS);
 
+    n = ApplyWaterDetailNormal(n, input.worldPosWS, distToCamera);
+
     float farNormalFade = saturate((distToCamera - 40.0f) / 140.0f);
 
     float3 flatNormal = float3(0.0f, 1.0f, 0.0f);
@@ -443,8 +550,15 @@ float4 main(PSInput input) : SV_TARGET
         return float4(n * 0.5f + 0.5f, 1.0f);
     }
 
-    color = ApplyFog(color, input.worldPosWS);
+    float foam = ComputeWaterFoam(input.position, input.worldPosWS);
+    float3 foamColor = float3(0.85f, 0.95f, 1.0f);
+
+    color = lerp(color, foamColor, foam);
 
     float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel);
+    waterAlpha = saturate(waterAlpha + foam * 0.35f);
+
+    color = ApplyFog(color, input.worldPosWS);
+
     return float4(color, waterAlpha);
 }

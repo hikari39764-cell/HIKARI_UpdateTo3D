@@ -104,7 +104,7 @@ float GetWaves(float2 position, float time, float drag, int iterations)
 float WaterHeight(float2 localXZ, float time, float waveSpeed, float waveHeight, float waveScale, float drag)
 {
     float2 p = localXZ * waveScale;
-    float h = GetWaves(p, time * waveSpeed, drag, 18);
+    float h = GetWaves(p, time * waveSpeed, drag, gFxUser3.w);
     return (h - 0.5f) * waveHeight;
 }
 
