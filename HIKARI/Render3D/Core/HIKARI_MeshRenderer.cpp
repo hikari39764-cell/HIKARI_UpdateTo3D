@@ -127,6 +127,14 @@ namespace HIKARI::MESHRENDERER {
             MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal;
         };
 
+        bool IsSceneDepthPhaseItem(const DrawItem& item) {
+            if (!item.hasResolvedMaterialFxProfile) {
+                return false;
+            }
+
+            return item.resolvedMaterialFxProfile.renderPhase == MaterialFxRenderPhase::SceneDepth;
+        }
+
         struct VariantKeyHasher {
             size_t operator()(const VFX::VariantKey& key) const noexcept {
                 size_t seed = std::hash<std::string>{}(key.shaderId);
@@ -1417,245 +1425,258 @@ namespace HIKARI::MESHRENDERER {
         }
 
         size_t objectIndex = 0;
-        for (const DrawItem& item : g.drawItems) {
-            if (objectIndex >= kMaxObjectCount || item.asset == nullptr) {
-                break;
-            }
+        auto drawItemsForPhase = [&](bool sceneDepthPhase) {
+            for (const DrawItem& item : g.drawItems) {
+                if (objectIndex >= kMaxObjectCount || item.asset == nullptr) {
+                    return false;
+                }
 
-            const bool hasStructuredGltfMeshes = !item.asset->meshes.empty();
-            if (hasStructuredGltfMeshes) {
-                const MATH::Mat4 world = item.transform.GetWorldMatrix();
-                const MATH::Mat4 normalMatrix = BuildNormalMatrix(item.transform);
+                const bool isSceneDepthPhase = IsSceneDepthPhaseItem(item);
+                if (isSceneDepthPhase != sceneDepthPhase) {
+                    continue;
+                }
 
-                for (const MeshAsset& meshAsset : item.asset->meshes) {
-                    for (const MeshPrimitive& primitive : meshAsset.primitives) {
-                        if (objectIndex >= kMaxObjectCount) {
-                            break;
-                        }
+                const bool hasStructuredGltfMeshes = !item.asset->meshes.empty();
+                if (hasStructuredGltfMeshes) {
+                    const MATH::Mat4 world = item.transform.GetWorldMatrix();
+                    const MATH::Mat4 normalMatrix = BuildNormalMatrix(item.transform);
 
-                        const bool shouldDrawSkinned = !item.jointPalette.empty() && !primitive.skinnedVertices.empty();
-                        bool drawingSkinned = false;
-                        Mesh* mesh = shouldDrawSkinned ? GetOrCreateSkinnedPrimitiveMesh(primitive) : GetOrCreatePrimitiveMesh(primitive);
-                        drawingSkinned = shouldDrawSkinned && mesh != nullptr && mesh->IsValid();
-                        if (mesh == nullptr || !mesh->IsValid()) {
-                            if (shouldDrawSkinned) {
-                                ++g.debugStats.skinnedFallbackCount;
-                                mesh = GetOrCreatePrimitiveMesh(primitive);
+                    for (const MeshAsset& meshAsset : item.asset->meshes) {
+                        for (const MeshPrimitive& primitive : meshAsset.primitives) {
+                            if (objectIndex >= kMaxObjectCount) {
+                                break;
                             }
+
+                            const bool shouldDrawSkinned = !item.jointPalette.empty() && !primitive.skinnedVertices.empty();
+                            bool drawingSkinned = false;
+                            Mesh* mesh = shouldDrawSkinned ? GetOrCreateSkinnedPrimitiveMesh(primitive) : GetOrCreatePrimitiveMesh(primitive);
+                            drawingSkinned = shouldDrawSkinned && mesh != nullptr && mesh->IsValid();
                             if (mesh == nullptr || !mesh->IsValid()) {
-                                continue;
+                                if (shouldDrawSkinned) {
+                                    ++g.debugStats.skinnedFallbackCount;
+                                    mesh = GetOrCreatePrimitiveMesh(primitive);
+                                }
+                                if (mesh == nullptr || !mesh->IsValid()) {
+                                    continue;
+                                }
                             }
-                        }
 
-                        const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
+                            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
 
-                        ObjectCB obj{};
-                        obj.world = world;
-                        obj.normalMatrix = normalMatrix;
-                        const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
-                        const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
-                        const int emissiveTextureHandle = ResolvePrimitiveEmissiveTextureHandle(*item.asset, materialAsset);
-                        const int metallicRoughnessTextureHandle = ResolvePrimitiveMetallicRoughnessTextureHandle(*item.asset, materialAsset);
-                        const int occlusionTextureHandle = ResolvePrimitiveOcclusionTextureHandle(*item.asset, materialAsset);
-                        FillMaterialValues(obj, materialAsset, normalTextureHandle, emissiveTextureHandle, metallicRoughnessTextureHandle, occlusionTextureHandle);
-                        obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
-                        obj.receiveShadow = item.receiveShadow ? 1u : 0u;
-                        FillFxValues(obj, item);
+                            ObjectCB obj{};
+                            obj.world = world;
+                            obj.normalMatrix = normalMatrix;
+                            const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
+                            const int normalTextureHandle = ResolvePrimitiveNormalTextureHandle(*item.asset, materialAsset);
+                            const int emissiveTextureHandle = ResolvePrimitiveEmissiveTextureHandle(*item.asset, materialAsset);
+                            const int metallicRoughnessTextureHandle = ResolvePrimitiveMetallicRoughnessTextureHandle(*item.asset, materialAsset);
+                            const int occlusionTextureHandle = ResolvePrimitiveOcclusionTextureHandle(*item.asset, materialAsset);
+                            FillMaterialValues(obj, materialAsset, normalTextureHandle, emissiveTextureHandle, metallicRoughnessTextureHandle, occlusionTextureHandle);
+                            obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != g.fallbackTextureHandle) ? 1u : 0u;
+                            obj.receiveShadow = item.receiveShadow ? 1u : 0u;
+                            FillFxValues(obj, item);
 
-                        uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
-                        std::memcpy(dst, &obj, sizeof(ObjectCB));
+                            uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
+                            std::memcpy(dst, &obj, sizeof(ObjectCB));
 
-                        const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
-                        cmd->SetGraphicsRootSignature(drawingSkinned ? g.skinnedRootSig.Get() : g.rootSig.Get());
-                        cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
-                        cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
-                        cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
-                        cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
-                        cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+                            const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
+                            cmd->SetGraphicsRootSignature(drawingSkinned ? g.skinnedRootSig.Get() : g.rootSig.Get());
+                            cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
+                            cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
+                            cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
+                            cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
+                            cmd->SetGraphicsRootConstantBufferView(1, objAddress);
 
-                        const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
-                        if (drawingSkinned) {
-                            const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
-                            const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                            cmd->SetGraphicsRootConstantBufferView(12, paletteAddress);
-                            g.debugStats.uploadedJointCount += uploadedJointCount;
-                            g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
-                            g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
-                        }
-
-                        const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
-                        if (textureSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
-                        }
-                        D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(normalTextureHandle);
-                        if (normalSrv.ptr == 0) {
-                            normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-                        }
-                        if (normalSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
-                        }
-                        D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
-                        if (shadowSrv.ptr == 0) {
-                            shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-                        }
-                        if (shadowSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
-                        }
-                        D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(emissiveTextureHandle);
-                        if (emissiveSrv.ptr == 0) {
-                            emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-                        }
-                        if (emissiveSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
-                        }
-                        D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(metallicRoughnessTextureHandle);
-                        if (metallicRoughnessSrv.ptr == 0) {
-                            metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-                        }
-                        if (metallicRoughnessSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(8, metallicRoughnessSrv);
-                        }
-                        D3D12_GPU_DESCRIPTOR_HANDLE occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(occlusionTextureHandle);
-                        if (occlusionSrv.ptr == 0) {
-                            occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-                        }
-                        if (occlusionSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(9, occlusionSrv);
-                        }
-                        const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
-                        if (skyCubeSrv.ptr != 0) {
-                            cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
-                        }
-
-                        D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
-                        D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
-                        cmd->IASetVertexBuffers(0, 1, &vb);
-                        cmd->IASetIndexBuffer(&ib);
-
-                        const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
-                        const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
-                            item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
-                        auto drawPrimitive = [&](bool wireframe) {
-                            ID3D12PipelineState* pso = GetOrCreateVariantPso(primitiveVariant, drawingSkinned, wireframe);
-                            if (pso == nullptr) {
-                                return;
-                            }
-                            cmd->SetPipelineState(pso);
-                            cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                            const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
                             if (drawingSkinned) {
-                                ++g.debugStats.skinnedGpuDrawCount;
+                                const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
+                                const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
+                                cmd->SetGraphicsRootConstantBufferView(12, paletteAddress);
+                                g.debugStats.uploadedJointCount += uploadedJointCount;
+                                g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
+                                g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
                             }
-                            if (wireframe) {
-                                ++g.debugStats.wireGpuDrawCount;
+
+                            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+                            if (textureSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
                             }
-                        };
+                            D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(normalTextureHandle);
+                            if (normalSrv.ptr == 0) {
+                                normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                            }
+                            if (normalSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
+                            }
+                            D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
+                            if (shadowSrv.ptr == 0) {
+                                shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                            }
+                            if (shadowSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
+                            }
+                            D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(emissiveTextureHandle);
+                            if (emissiveSrv.ptr == 0) {
+                                emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                            }
+                            if (emissiveSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
+                            }
+                            D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(metallicRoughnessTextureHandle);
+                            if (metallicRoughnessSrv.ptr == 0) {
+                                metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                            }
+                            if (metallicRoughnessSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(8, metallicRoughnessSrv);
+                            }
+                            D3D12_GPU_DESCRIPTOR_HANDLE occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(occlusionTextureHandle);
+                            if (occlusionSrv.ptr == 0) {
+                                occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                            }
+                            if (occlusionSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(9, occlusionSrv);
+                            }
+                            const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
+                            if (skyCubeSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
+                            }
 
-                        if (drawSolid) {
-                            drawPrimitive(false);
-                        }
-                        if (drawWire) {
-                            drawPrimitive(true);
-                        }
+                            D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
+                            D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
+                            cmd->IASetVertexBuffers(0, 1, &vb);
+                            cmd->IASetIndexBuffer(&ib);
 
-                        ++objectIndex;
+                            const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
+                            const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
+                                item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
+                            auto drawPrimitive = [&](bool wireframe) {
+                                ID3D12PipelineState* pso = GetOrCreateVariantPso(primitiveVariant, drawingSkinned, wireframe);
+                                if (pso == nullptr) {
+                                    return;
+                                }
+                                cmd->SetPipelineState(pso);
+                                cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                                if (drawingSkinned) {
+                                    ++g.debugStats.skinnedGpuDrawCount;
+                                }
+                                if (wireframe) {
+                                    ++g.debugStats.wireGpuDrawCount;
+                                }
+                            };
+
+                            if (drawSolid) {
+                                drawPrimitive(false);
+                            }
+                            if (drawWire) {
+                                drawPrimitive(true);
+                            }
+
+                            ++objectIndex;
+                        }
+                    }
+                    continue;
+                }
+
+                if (!item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
+                    continue;
+                }
+
+                ObjectCB obj{};
+                obj.world = item.transform.GetWorldMatrix();
+                obj.normalMatrix = BuildNormalMatrix(item.transform);
+                FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle, g.fallbackBlackTextureHandle, g.fallbackTextureHandle, g.fallbackTextureHandle);
+                obj.receiveShadow = item.receiveShadow ? 1u : 0u;
+                if (const Material* material = item.asset->GetMaterial()) {
+                    obj.baseColor = material->GetBaseColor();
+                    obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
+                } else {
+                    obj.baseColor = { 1,1,1,1 };
+                    obj.hasBaseColorTexture = 0u;
+                }
+                FillFxValues(obj, item);
+
+                uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
+                std::memcpy(dst, &obj, sizeof(ObjectCB));
+
+                const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
+                cmd->SetGraphicsRootSignature(g.rootSig.Get());
+                cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(1, objAddress);
+
+                int textureHandle = g.fallbackTextureHandle;
+                if (const Material* material = item.asset->GetMaterial()) {
+                    if (material->HasBaseColorTexture()) {
+                        textureHandle = material->GetBaseColorTextureHandle();
                     }
                 }
-                continue;
-            }
-
-            if (!item.asset->GetMesh() || !item.asset->GetMesh()->IsValid()) {
-                continue;
-            }
-
-            ObjectCB obj{};
-            obj.world = item.transform.GetWorldMatrix();
-            obj.normalMatrix = BuildNormalMatrix(item.transform);
-            FillMaterialValues(obj, nullptr, g.fallbackNormalTextureHandle, g.fallbackBlackTextureHandle, g.fallbackTextureHandle, g.fallbackTextureHandle);
-            obj.receiveShadow = item.receiveShadow ? 1u : 0u;
-            if (const Material* material = item.asset->GetMaterial()) {
-                obj.baseColor = material->GetBaseColor();
-                obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
-            } else {
-                obj.baseColor = { 1,1,1,1 };
-                obj.hasBaseColorTexture = 0u;
-            }
-            FillFxValues(obj, item);
-
-            uint8_t* dst = reinterpret_cast<uint8_t*>(g.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
-            std::memcpy(dst, &obj, sizeof(ObjectCB));
-
-            const D3D12_GPU_VIRTUAL_ADDRESS objAddress = g.objectCB->GetGPUVirtualAddress() + static_cast<UINT64>(kObjectStride) * objectIndex;
-            cmd->SetGraphicsRootSignature(g.rootSig.Get());
-            cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
-            cmd->SetGraphicsRootConstantBufferView(2, g.lightCB->GetGPUVirtualAddress());
-            cmd->SetGraphicsRootConstantBufferView(6, g.shadowCB->GetGPUVirtualAddress());
-            cmd->SetGraphicsRootConstantBufferView(10, g.skyEnvironmentCB->GetGPUVirtualAddress());
-            cmd->SetGraphicsRootConstantBufferView(1, objAddress);
-
-            int textureHandle = g.fallbackTextureHandle;
-            if (const Material* material = item.asset->GetMaterial()) {
-                if (material->HasBaseColorTexture()) {
-                    textureHandle = material->GetBaseColorTextureHandle();
+                const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+                if (textureSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
                 }
-            }
-            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
-            if (textureSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(3, textureSrv);
-            }
-            D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackNormalTextureHandle);
-            if (normalSrv.ptr == 0) {
-                normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
-            }
-            if (normalSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
-            }
-            D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
-            if (shadowSrv.ptr == 0) {
-                shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-            }
-            if (shadowSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
-            }
-            D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-            if (emissiveSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
-            }
-            const D3D12_GPU_DESCRIPTOR_HANDLE pbrFallbackSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
-            if (pbrFallbackSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(8, pbrFallbackSrv);
-                cmd->SetGraphicsRootDescriptorTable(9, pbrFallbackSrv);
-            }
-            const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
-            if (skyCubeSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
+                D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackNormalTextureHandle);
+                if (normalSrv.ptr == 0) {
+                    normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+                }
+                if (normalSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(4, normalSrv);
+                }
+                D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
+                if (shadowSrv.ptr == 0) {
+                    shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                }
+                if (shadowSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(5, shadowSrv);
+                }
+                D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                if (emissiveSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(7, emissiveSrv);
+                }
+                const D3D12_GPU_DESCRIPTOR_HANDLE pbrFallbackSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                if (pbrFallbackSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(8, pbrFallbackSrv);
+                    cmd->SetGraphicsRootDescriptorTable(9, pbrFallbackSrv);
+                }
+                const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
+                if (skyCubeSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
+                }
+
+                const Mesh* mesh = item.asset->GetMesh();
+                D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
+                D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
+                cmd->IASetVertexBuffers(0, 1, &vb);
+                cmd->IASetIndexBuffer(&ib);
+                const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
+                const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
+                    item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
+                auto drawLegacyMesh = [&](bool wireframe) {
+                    ID3D12PipelineState* pso = GetOrCreateVariantPso(item.variant, false, wireframe);
+                    if (pso == nullptr) {
+                        return;
+                    }
+                    cmd->SetPipelineState(pso);
+                    cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                    if (wireframe) {
+                        ++g.debugStats.wireGpuDrawCount;
+                    }
+                };
+                if (drawSolid) {
+                    drawLegacyMesh(false);
+                }
+                if (drawWire) {
+                    drawLegacyMesh(true);
+                }
+                ++objectIndex;
             }
 
-            const Mesh* mesh = item.asset->GetMesh();
-            D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
-            D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
-            cmd->IASetVertexBuffers(0, 1, &vb);
-            cmd->IASetIndexBuffer(&ib);
-            const bool drawSolid = item.renderDebugMode != MeshRenderDebugMode::WireOnly;
-            const bool drawWire = item.renderDebugMode == MeshRenderDebugMode::WireOnly ||
-                item.renderDebugMode == MeshRenderDebugMode::WireOverlay;
-            auto drawLegacyMesh = [&](bool wireframe) {
-                ID3D12PipelineState* pso = GetOrCreateVariantPso(item.variant, false, wireframe);
-                if (pso == nullptr) {
-                    return;
-                }
-                cmd->SetPipelineState(pso);
-                cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
-                if (wireframe) {
-                    ++g.debugStats.wireGpuDrawCount;
-                }
-            };
-            if (drawSolid) {
-                drawLegacyMesh(false);
-            }
-            if (drawWire) {
-                drawLegacyMesh(true);
-            }
-            ++objectIndex;
+            return true;
+        };
+
+        if (drawItemsForPhase(false)) {
+            drawItemsForPhase(true);
         }
 
         g.drawItems.clear();

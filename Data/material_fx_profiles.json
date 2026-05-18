@@ -94,6 +94,7 @@
   "depthWrite": false,
   "doubleSided": true,
   "composite": "Alpha",
+  "renderPhase": "SceneDepth",
   "parameters": [
     {
       "key": "waveSpeed",

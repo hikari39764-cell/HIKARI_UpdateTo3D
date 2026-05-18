@@ -17,6 +17,11 @@ struct MaterialFxProfileCacheStats {
     size_t failCount = 0;
 };
 
+enum class MaterialFxRenderPhase {
+    Opaque = 0,
+    SceneDepth,
+};
+
 class MaterialFxProfile {
 public:
     std::string id;
@@ -29,6 +34,7 @@ public:
     bool depthWrite = true;
     bool doubleSided = false;
     VFX::CompositeMode composite = VFX::CompositeMode::Alpha;
+    MaterialFxRenderPhase renderPhase = MaterialFxRenderPhase::Opaque;
     std::vector<VFX::ParamDesc> params;
     std::array<DirectX::XMFLOAT4, VFX::kMaterialFxUserCount> values{};
 

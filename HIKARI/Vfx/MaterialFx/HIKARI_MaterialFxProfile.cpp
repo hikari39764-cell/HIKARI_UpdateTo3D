@@ -22,6 +22,14 @@ namespace {
         return fallback;
     }
 
+    MaterialFxRenderPhase ParseRenderPhase(const std::string& value) {
+        if (value == "SceneDepth" || value == "sceneDepth" ||
+            value == "DepthAware" || value == "depthAware") {
+            return MaterialFxRenderPhase::SceneDepth;
+        }
+        return MaterialFxRenderPhase::Opaque;
+    }
+
     VFX::ParamType ParseParamType(const nlohmann::json& in, VFX::ParamType fallback) {
         const std::string value = in.is_string() ? in.get<std::string>() : std::string{};
         if (value == "Float" || value == "float") return VFX::ParamType::Float;
@@ -110,6 +118,7 @@ namespace {
         outProfile.depthWrite = node.value("depthWrite", outProfile.depthWrite);
         outProfile.doubleSided = node.value("doubleSided", outProfile.doubleSided);
         outProfile.composite = ParseComposite(node.value("composite", nlohmann::json{}), outProfile.composite);
+        outProfile.renderPhase = ParseRenderPhase(node.value("renderPhase", std::string{ "Opaque" }));
 
         outProfile.params.clear();
         const nlohmann::json* paramsNode = nullptr;
