@@ -30,6 +30,8 @@ namespace HIKARI {
 
         void BeginCapture(float r = 0, float g = 0, float b = 0, float a = 0, float depthClear = 1.0f);
         void Rebind();
+        bool BeginDepthRead();
+        void EndDepthRead();
         void EndCapture();
         void SetDebugName(std::string name);
         const std::string& GetDebugName() const { return debugName_; }
@@ -46,10 +48,14 @@ namespace HIKARI {
 
         ID3D12DescriptorHeap* GetSrvHeap() const { return srvHeap_.Get(); }
         D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpu() const { return srvGpuHandle_; }
+        D3D12_GPU_DESCRIPTOR_HANDLE GetDepthSrvGpu() const { return depthSrvGpuHandle_; }
         D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const { return rtvHandle_; }
+        D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const { return dsvHandle_; }
+        D3D12_CPU_DESCRIPTOR_HANDLE GetReadOnlyDsvHandle() const { return readOnlyDsvHandle_; }
 
     private:
         bool CreateResources();
+        void TransitionDepth(D3D12_RESOURCE_STATES nextState);
 
     private:
         Microsoft::WRL::ComPtr<ID3D12Resource> colorTex_;
@@ -65,6 +71,9 @@ namespace HIKARI {
         D3D12_CPU_DESCRIPTOR_HANDLE srvCpuHandle_{};
         D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle_{};
         D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_{};
+        D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsvHandle_{};
+        D3D12_GPU_DESCRIPTOR_HANDLE depthSrvGpuHandle_{};
+        UINT dsvDescriptorSize_{};
 
         D3D12_VIEWPORT viewport_{};
         D3D12_RECT scissorRect_{};

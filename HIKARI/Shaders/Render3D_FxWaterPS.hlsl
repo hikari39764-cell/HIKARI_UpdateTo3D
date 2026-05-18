@@ -93,8 +93,13 @@ cbuffer SkyEnvironmentCB : register(b5)
 
 Texture2D gShadowMap : register(t2) ;
 TextureCube gSkyCube : register(t6);
+Texture2D gSceneDepth : register(t7);
 SamplerState gShadowSampler : register(s1);
 SamplerState gSkySampler : register(s0);
+
+#ifndef WATER_DEBUG_SCENE_DEPTH
+#define WATER_DEBUG_SCENE_DEPTH 1
+#endif
 
 struct PSInput
 {
@@ -104,6 +109,12 @@ struct PSInput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
 };
+
+float SampleSceneDepth(float4 svPosition)
+{
+    int2 pixel = int2(svPosition.xy);
+    return gSceneDepth.Load(int3(pixel, 0)).r;
+}
 
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
@@ -239,6 +250,12 @@ float3 SampleSkyEnvironment(float3 dir)
 
 float4 main(PSInput input) : SV_TARGET
 {
+#if WATER_DEBUG_SCENE_DEPTH
+    float sceneDepth = SampleSceneDepth(input.position);
+    float vi = saturate((1.0f - sceneDepth) * 80.0f);
+    return float4(vi.xxx, 1.0f);
+#endif
+
     float3 n = normalize(input.normalWS);
 
     float distToCamera = length(gCameraPos.xyz - input.worldPosWS);

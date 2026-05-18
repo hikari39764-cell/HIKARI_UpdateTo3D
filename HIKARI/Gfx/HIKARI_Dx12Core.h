@@ -27,6 +27,7 @@ public:
 
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DSV() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE ReadOnlyDSV() const;
     D3D12_GPU_DESCRIPTOR_HANDLE SceneDepthSrv() const;
     ID3D12Resource* SceneDepthResource() const;
     ID3D12Resource* CurrentBackBuffer();
@@ -57,6 +58,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeap_;
     UINT rtvDescriptorSize_{};
+    UINT dsvDescriptorSize_{};
     UINT srvDescriptorSize_{};
     D3D12_CPU_DESCRIPTOR_HANDLE sceneDepthSrvCpu_{};
     D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrvGpu_{};

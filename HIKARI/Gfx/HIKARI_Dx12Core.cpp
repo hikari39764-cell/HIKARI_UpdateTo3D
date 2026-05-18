@@ -183,7 +183,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     HIKARI_LOG_D3D12("RTV heap created.");
 
     D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
-    dsvDesc.NumDescriptors = 1;
+    dsvDesc.NumDescriptors = 2;
     dsvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     hr = device_->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
     if (FAILED(hr)) {
@@ -191,6 +191,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         return false;
     }
     SetD3D12Name(dsvHeap_.Get(), L"HIKARI Main DSV Heap");
+    dsvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     HIKARI_LOG_D3D12("DSV heap created.");
 
     D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
@@ -278,6 +279,15 @@ void Dx12Core::CreateDepthBuffer() {
     dsv.Format = DXGI_FORMAT_D32_FLOAT;
     dsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     device_->CreateDepthStencilView(depthBuffer_.Get(), &dsv, dsvHeap_->GetCPUDescriptorHandleForHeapStart());
+
+    D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+    readOnlyDsvHandle.ptr += dsvDescriptorSize_;
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC readOnlyDsv{};
+    readOnlyDsv.Format = DXGI_FORMAT_D32_FLOAT;
+    readOnlyDsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    readOnlyDsv.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+    device_->CreateDepthStencilView(depthBuffer_.Get(), &readOnlyDsv, readOnlyDsvHandle);
 
     const auto cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
     const auto gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
@@ -409,6 +419,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::DSV() const {
     return dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::ReadOnlyDSV() const {
+    auto handle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+    handle.ptr += dsvDescriptorSize_;
+    return handle;
+}
+
 D3D12_GPU_DESCRIPTOR_HANDLE Dx12Core::SceneDepthSrv() const {
     return sceneDepthSrvGpu_;
 }
@@ -429,6 +445,8 @@ Context Dx12Core::BuildContext() const {
     ctx.srvHeap = srvHeap_.Get();
     ctx.rtv = CurrentRTV();
     ctx.dsv = DSV();
+    ctx.readOnlyDsv = ReadOnlyDSV();
+    ctx.sceneDepthSrvCpu = sceneDepthSrvCpu_;
     ctx.sceneDepthSrv = SceneDepthSrv();
     ctx.sceneDepthResource = SceneDepthResource();
     ctx.frameIndex = frameIndex_;

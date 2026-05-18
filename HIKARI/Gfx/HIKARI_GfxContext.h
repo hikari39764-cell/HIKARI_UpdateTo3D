@@ -13,7 +13,9 @@ struct Context {
     ID3D12DescriptorHeap* srvHeap{};
     D3D12_CPU_DESCRIPTOR_HANDLE rtv{};
     D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+    D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv{};
 
+    D3D12_CPU_DESCRIPTOR_HANDLE sceneDepthSrvCpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv{};
     ID3D12Resource* sceneDepthResource{};
 

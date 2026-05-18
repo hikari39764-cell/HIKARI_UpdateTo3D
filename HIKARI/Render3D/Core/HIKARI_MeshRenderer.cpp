@@ -20,6 +20,7 @@
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -311,11 +312,18 @@ namespace HIKARI::MESHRENDERER {
 			D3D12_DESCRIPTOR_RANGE skyCubeTextureRange{};
 			skyCubeTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             skyCubeTextureRange.NumDescriptors = 1;
-			skyCubeTextureRange.BaseShaderRegister = 6;//t6
+            skyCubeTextureRange.BaseShaderRegister = 6;//t6
 			skyCubeTextureRange.RegisterSpace = 0;
 			skyCubeTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[12]{};
+            D3D12_DESCRIPTOR_RANGE sceneDepthTextureRange{};
+            sceneDepthTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            sceneDepthTextureRange.NumDescriptors = 1;
+            sceneDepthTextureRange.BaseShaderRegister = 7;//t7
+            sceneDepthTextureRange.RegisterSpace = 0;
+            sceneDepthTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[13]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -376,6 +384,11 @@ namespace HIKARI::MESHRENDERER {
             params[11].DescriptorTable.NumDescriptorRanges = 1;
             params[11].DescriptorTable.pDescriptorRanges = &skyCubeTextureRange;
 
+            params[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            params[12].DescriptorTable.NumDescriptorRanges = 1;
+            params[12].DescriptorTable.pDescriptorRanges = &sceneDepthTextureRange;
+
             D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
             linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -420,14 +433,14 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_ROOT_PARAMETER skinnedParams[13]{};
+            D3D12_ROOT_PARAMETER skinnedParams[14]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[12].Descriptor.ShaderRegister = 3;
-            skinnedParams[12].Descriptor.RegisterSpace = 0;
+            skinnedParams[13].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            skinnedParams[13].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            skinnedParams[13].Descriptor.ShaderRegister = 3;
+            skinnedParams[13].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -1321,6 +1334,14 @@ namespace HIKARI::MESHRENDERER {
             return DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
         }
 
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool sceneDepthPhase) {
+            if (sceneDepthPhase && SERVICES::gCtx.sceneDepthSrv.ptr != 0) {
+                return SERVICES::gCtx.sceneDepthSrv;
+            }
+
+            return DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+        }
+
         void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out) {
             out = {};
             out.lightViewProj = SHADOW::GetDirectionalLightViewProj();
@@ -1491,7 +1512,7 @@ namespace HIKARI::MESHRENDERER {
                             if (drawingSkinned) {
                                 const size_t uploadedJointCount = UploadJointPalette(objectIndex, item.jointPalette);
                                 const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() + static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
-                                cmd->SetGraphicsRootConstantBufferView(12, paletteAddress);
+                                cmd->SetGraphicsRootConstantBufferView(13, paletteAddress);
                                 g.debugStats.uploadedJointCount += uploadedJointCount;
                                 g.debugStats.maxJointCount = std::max(g.debugStats.maxJointCount, item.jointPalette.size());
                                 g.debugStats.lastSkinnedVertexCount = primitive.skinnedVertices.size();
@@ -1539,6 +1560,10 @@ namespace HIKARI::MESHRENDERER {
                             const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv();
                             if (skyCubeSrv.ptr != 0) {
                                 cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
+                            }
+                            const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv = ResolveSceneDepthSrv(sceneDepthPhase);
+                            if (sceneDepthSrv.ptr != 0) {
+                                cmd->SetGraphicsRootDescriptorTable(12, sceneDepthSrv);
                             }
 
                             D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
@@ -1643,6 +1668,10 @@ namespace HIKARI::MESHRENDERER {
                 if (skyCubeSrv.ptr != 0) {
                     cmd->SetGraphicsRootDescriptorTable(11, skyCubeSrv);
                 }
+                const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv = ResolveSceneDepthSrv(sceneDepthPhase);
+                if (sceneDepthSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(12, sceneDepthSrv);
+                }
 
                 const Mesh* mesh = item.asset->GetMesh();
                 D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
@@ -1675,8 +1704,61 @@ namespace HIKARI::MESHRENDERER {
             return true;
         };
 
-        if (drawItemsForPhase(false)) {
-            drawItemsForPhase(true);
+        const bool hasSceneDepthPhaseItem = std::any_of(
+            g.drawItems.begin(),
+            g.drawItems.end(),
+            [](const DrawItem& item) {
+                return IsSceneDepthPhaseItem(item);
+            });
+
+        const bool opaqueOk = drawItemsForPhase(false);
+
+        if (opaqueOk && hasSceneDepthPhaseItem) {
+            if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
+                drawItemsForPhase(true);
+                const D3D12_GPU_DESCRIPTOR_HANDLE fallbackSceneDepthSrv = ResolveSceneDepthSrv(false);
+                if (fallbackSceneDepthSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(12, fallbackSceneDepthSrv);
+                }
+                POST::PostSystem::EndCurrentRenderTargetDepthRead();
+            } else {
+                ID3D12Resource* sceneDepthResource = SERVICES::gCtx.sceneDepthResource;
+
+                if (sceneDepthResource == nullptr) {
+                    g.drawItems.clear();
+                    return;
+                }
+
+                auto toDepthRead = CD3DX12_RESOURCE_BARRIER::Transition(
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+                cmd->ResourceBarrier(1, &toDepthRead);
+
+                D3D12_CPU_DESCRIPTOR_HANDLE rtv = SERVICES::gCtx.rtv;
+                D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv = SERVICES::gCtx.readOnlyDsv;
+
+                cmd->OMSetRenderTargets(1, &rtv, FALSE, &readOnlyDsv);
+
+                drawItemsForPhase(true);
+
+                const D3D12_GPU_DESCRIPTOR_HANDLE fallbackSceneDepthSrv = ResolveSceneDepthSrv(false);
+                if (fallbackSceneDepthSrv.ptr != 0) {
+                    cmd->SetGraphicsRootDescriptorTable(12, fallbackSceneDepthSrv);
+                }
+                cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+
+                auto toDepthWrite = CD3DX12_RESOURCE_BARRIER::Transition(
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+                cmd->ResourceBarrier(1, &toDepthWrite);
+
+                D3D12_CPU_DESCRIPTOR_HANDLE writableDsv = SERVICES::gCtx.dsv;
+                cmd->OMSetRenderTargets(1, &rtv, FALSE, &writableDsv);
+            }
         }
 
         g.drawItems.clear();

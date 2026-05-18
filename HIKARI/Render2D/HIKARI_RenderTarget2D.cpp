@@ -106,6 +106,7 @@ namespace HIKARI {
             << " srvHeap=" << (srvHeap_ ? 1 : 0)
             << " dsvHeap=" << (dsvHeap_ ? 1 : 0)
             << " srvGpu=0x" << std::hex << srvGpuHandle_.ptr << std::dec
+            << " depthSrvGpu=0x" << std::hex << depthSrvGpuHandle_.ptr << std::dec
             << " colorState=" << GFX::ResourceStateToString(colorState_)
             << " depthState=" << GFX::ResourceStateToString(depthState_);
         return oss.str();
@@ -189,7 +190,7 @@ bool RenderTarget2D::CreateResources()
         depthClear.DepthStencil.Stencil = 0;
 
         CD3DX12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-            DXGI_FORMAT_D32_FLOAT,
+            DXGI_FORMAT_R32_TYPELESS,
             static_cast<UINT64>(width_),
             static_cast<UINT>(height_),
             1, 1, 1, 0,
@@ -212,13 +213,14 @@ bool RenderTarget2D::CreateResources()
 
         D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
         dsvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-        dsvDesc.NumDescriptors = 1;
+        dsvDesc.NumDescriptors = 2;
         dsvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         hr = device->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&dsvHeap_));
         if (!HIKARI_DX_CHECK(hr, "RenderTarget2D::CreateDescriptorHeap DSV")) {
             DEBUGLOG::PushRenderError(DumpState());
             return false;
         }
+        dsvDescriptorSize_ = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         dsvHandle_ = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvView{};
@@ -226,11 +228,44 @@ bool RenderTarget2D::CreateResources()
         dsvView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvView.Flags = D3D12_DSV_FLAG_NONE;
         device->CreateDepthStencilView(depthTex_.Get(), &dsvView, dsvHandle_);
+
+        readOnlyDsvHandle_ = dsvHandle_;
+        readOnlyDsvHandle_.ptr += dsvDescriptorSize_;
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC readOnlyDsvView = dsvView;
+        readOnlyDsvView.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+        device->CreateDepthStencilView(depthTex_.Get(), &readOnlyDsvView, readOnlyDsvHandle_);
+
+        if (context_.sceneDepthSrvCpu.ptr != 0 && context_.sceneDepthSrv.ptr != 0) {
+            D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvView{};
+            depthSrvView.Format = DXGI_FORMAT_R32_FLOAT;
+            depthSrvView.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            depthSrvView.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            depthSrvView.Texture2D.MipLevels = 1;
+            device->CreateShaderResourceView(depthTex_.Get(), &depthSrvView, context_.sceneDepthSrvCpu);
+            depthSrvGpuHandle_ = context_.sceneDepthSrv;
+        }
     }
     SetDebugName(debugName_);
 
     return true;
 }
+
+    void RenderTarget2D::TransitionDepth(D3D12_RESOURCE_STATES nextState)
+    {
+        if (!hasDepth_ || !depthTex_ || depthState_ == nextState) {
+            return;
+        }
+
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd) {
+            return;
+        }
+
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(depthTex_.Get(), depthState_, nextState);
+        cmd->ResourceBarrier(1, &barrier);
+        depthState_ = nextState;
+    }
     
     void RenderTarget2D::BeginCapture(float r, float g, float b, float a, float depthClear)
     {
@@ -256,6 +291,7 @@ bool RenderTarget2D::CreateResources()
         }
 
         if (hasDepth_) {
+            TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
             cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &dsvHandle_);
         } else {
             cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
@@ -293,10 +329,59 @@ bool RenderTarget2D::CreateResources()
         }
 
         if (hasDepth_) {
+            TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
             cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &dsvHandle_);
         } else {
             cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
         }
+        cmd->RSSetViewports(1, &viewport_);
+        cmd->RSSetScissorRects(1, &scissorRect_);
+    }
+
+    bool RenderTarget2D::BeginDepthRead()
+    {
+        if (!initialized_ || !hasDepth_ || !depthTex_ || readOnlyDsvHandle_.ptr == 0) {
+            return false;
+        }
+
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd || !colorTex_ || !rtvHeap_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] BeginDepthRead skipped: invalid command list/resource. ") + DumpState());
+            return false;
+        }
+
+        if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                colorTex_.Get(),
+                colorState_,
+                D3D12_RESOURCE_STATE_RENDER_TARGET
+            );
+            cmd->ResourceBarrier(1, &barrier);
+            colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        }
+
+        TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &readOnlyDsvHandle_);
+        cmd->RSSetViewports(1, &viewport_);
+        cmd->RSSetScissorRects(1, &scissorRect_);
+        return true;
+    }
+
+    void RenderTarget2D::EndDepthRead()
+    {
+        if (!initialized_ || !hasDepth_ || !depthTex_) {
+            return;
+        }
+
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd || !colorTex_ || !rtvHeap_) {
+            DEBUGLOG::PushRenderError(std::string("[RenderTarget2D][ERROR] EndDepthRead skipped: invalid command list/resource. ") + DumpState());
+            return;
+        }
+
+        cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, nullptr);
+        TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &dsvHandle_);
         cmd->RSSetViewports(1, &viewport_);
         cmd->RSSetScissorRects(1, &scissorRect_);
     }

@@ -501,6 +501,24 @@ namespace HIKARI {
             return true;
         }
 
+        bool PostSystem::BeginCurrentRenderTargetDepthRead()
+        {
+            if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                return false;
+            }
+
+            return rtStack_.top().rt->BeginDepthRead();
+        }
+
+        void PostSystem::EndCurrentRenderTargetDepthRead()
+        {
+            if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                return;
+            }
+
+            rtStack_.top().rt->EndDepthRead();
+        }
+
 
         void PostSystem::BeginLightCapture()
         {
