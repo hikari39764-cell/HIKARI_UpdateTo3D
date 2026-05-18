@@ -311,7 +311,7 @@ float4 main(PSInput input) : SV_TARGET
 {
     float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
     float3 geometricNormal = normalize(input.normalWS);
-    float3 l = normalize(gDirectionalDir.xyz);
+    float3 l = normalize(-gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);
 
@@ -341,7 +341,8 @@ float4 main(PSInput input) : SV_TARGET
         float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl) * (1.0f - metallic * 0.65f);
         float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec) * lerp(1.0f, 1.8f, metallic);
         float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
-        lit = albedo.rgb * (ambient + (diffuse + specular + pointLightContribution) * SampleDirectionalShadow(input.worldPosWS, geometricNormal));
+        float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+        lit = albedo.rgb * (ambient + (diffuse + specular) * shadowFactor + pointLightContribution);
     }
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
     {

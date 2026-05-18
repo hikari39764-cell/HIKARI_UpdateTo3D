@@ -455,8 +455,7 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
 
-    // Keep same direction convention as Render3D_StaticPS.
-    float3 l = normalize(gDirectionalDir.xyz);
+    float3 l = normalize(-gDirectionalDir.xyz);
     float3 h = normalize(l + v);
 
     float3 waterColor = gFxUser1.xyz;

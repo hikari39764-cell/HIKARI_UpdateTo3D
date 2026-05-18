@@ -279,7 +279,7 @@ float4 main(PSInput input) : SV_TARGET
 {
     float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
     float3 geometricNormal = normalize(input.normalWS);
-    float3 l = normalize(gDirectionalDir.xyz);
+    float3 l = normalize(-gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
     float3 h = normalize(l + v);
 
@@ -316,7 +316,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec) * lerp(1.0f, 1.8f, metallic);
     float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
     float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
-    float3 lit = ambient + (diffuse + specular + pointLightContribution) * shadowFactor;
+    float3 lit = ambient + (diffuse + specular) * shadowFactor + pointLightContribution;
     if (gDebugView == 1)
     {
         return float4(normalize(n) * 0.5f + 0.5f, albedo.a);

@@ -136,7 +136,7 @@ namespace HIKARI::PROCEDURAL {
             primitive.staticVertices.push_back({ b, normal, tangent, { 1.0f, 1.0f }, {}, { 1, 1, 1, 1 } });
             primitive.staticVertices.push_back({ c, normal, tangent, { 0.0f, 0.0f }, {}, { 1, 1, 1, 1 } });
             primitive.staticVertices.push_back({ d, normal, tangent, { 1.0f, 0.0f }, {}, { 1, 1, 1, 1 } });
-            primitive.indices.insert(primitive.indices.end(), { base, base + 2u, base + 1u, base + 1u, base + 2u, base + 3u });
+            primitive.indices.insert(primitive.indices.end(), { base, base + 1u, base + 2u, base + 1u, base + 3u, base + 2u });
         }
 
         void BuildBox(const ProceduralModelKey& key, MeshPrimitive& primitive) {
