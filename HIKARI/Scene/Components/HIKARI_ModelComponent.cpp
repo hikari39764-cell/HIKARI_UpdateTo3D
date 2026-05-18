@@ -554,10 +554,10 @@ namespace HIKARI {
             int segmentsX = static_cast<int>(procedural_.segmentsX);
             int segmentsY = static_cast<int>(procedural_.segmentsY);
             if (builder.Int("Segments X", segmentsX)) {
-                procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(segmentsX, 1, 512));
+                procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(segmentsX, 1, 2048));
             }
             if (builder.Int("Segments Y", segmentsY)) {
-                procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(segmentsY, 1, 512));
+                procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(segmentsY, 1, 2048));
             }
             builder.Bool("Procedural Double Sided", procedural_.doubleSided);
             builder.Bool("Generate Tangents", procedural_.generateTangents);
@@ -591,9 +591,9 @@ namespace HIKARI {
                 int sx = static_cast<int>(procedural_.segmentsX);
                 int sy = static_cast<int>(procedural_.segmentsY);
                 int sz = static_cast<int>(procedural_.segmentsZ);
-                if (ImGui::DragInt("Segments X", &sx, 1.0f, 1, 512)) procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(sx, 1, 512));
-                if (ImGui::DragInt("Segments Y", &sy, 1.0f, 1, 512)) procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(sy, 1, 512));
-                if (ImGui::DragInt("Segments Z", &sz, 1.0f, 1, 64)) procedural_.segmentsZ = static_cast<uint32_t>((std::clamp)(sz, 1, 64));
+                if (ImGui::DragInt("Segments X", &sx, 1.0f, 1, 2048)) procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(sx, 1, 2048));
+                if (ImGui::DragInt("Segments Y", &sy, 1.0f, 1, 2048)) procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(sy, 1, 2048));
+                if (ImGui::DragInt("Segments Z", &sz, 1.0f, 1, 2048)) procedural_.segmentsZ = static_cast<uint32_t>((std::clamp)(sz, 1, 2048));
                 ImGui::Checkbox("Double Sided", &procedural_.doubleSided);
                 ImGui::Checkbox("Generate Tangents", &procedural_.generateTangents);
                 if (procedural_.kind == ProceduralMeshKind::Sphere) {

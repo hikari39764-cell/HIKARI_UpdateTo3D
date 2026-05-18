@@ -306,6 +306,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 sun = gDirectionalColor.rgb * gDirectionalIntensity * ndotl * shadowFactor;
 
     float specular = pow(saturate(dot(n, h)), 96.0f) * specularStrength;
+    specular *= (1.0f - farNormalFade * 0.75f);
     float3 specularColor = gDirectionalColor.rgb * gDirectionalIntensity * specular * shadowFactor;
 
     float reflectionShadow = lerp(0.05f, 1.0f, shadowFactor);
