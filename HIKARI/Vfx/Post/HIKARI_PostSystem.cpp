@@ -14,6 +14,10 @@ namespace HIKARI {
     namespace POST {
 
         namespace {
+            constexpr UINT kEditorViewportSrvIndex = 2045;
+            constexpr int kMinEditorViewportSize = 16;
+            constexpr int kMaxEditorViewportSize = 8192;
+
             struct LetterboxRect {
                 float x;
                 float y;
@@ -56,6 +60,7 @@ namespace HIKARI {
         bool PostSystem::initialized_ = false;
         GFX::Context PostSystem::context_{};
         RenderTarget2D PostSystem::sceneRT_{};
+        RenderTarget2D PostSystem::editorViewportRT_{};
         RenderTarget2D PostSystem::lightRT_{};
         QuadDrawer PostSystem::quad_{};
         PostChain PostSystem::globalChain_{};
@@ -81,6 +86,12 @@ namespace HIKARI {
         TransitionProfile PostSystem::activeTransitionProfile_{};
         std::unique_ptr<PostEffect> PostSystem::transitionEffect_{};
         CommonParams PostSystem::transitionParams_{};
+        bool PostSystem::sceneCaptureActive_ = false;
+        bool PostSystem::editorViewportReady_ = false;
+        int PostSystem::requestedSceneCaptureWidth_ = 0;
+        int PostSystem::requestedSceneCaptureHeight_ = 0;
+        D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::editorViewportSrvCpu_{};
+        D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::editorViewportSrvGpu_{};
 
 
         void PostSystem::Initialize(const GFX::Context& ctx)
@@ -118,6 +129,7 @@ namespace HIKARI {
             bloomChain_.UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
+            editorViewportRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
         }
 
@@ -131,10 +143,15 @@ namespace HIKARI {
             activeBloomEffects_.clear();
             toneMappingEffect_.reset();
             sceneRT_.Finalize();
+            editorViewportRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
 
             while (!rtStack_.empty()) rtStack_.pop();
+            sceneCaptureActive_ = false;
+            editorViewportReady_ = false;
+            editorViewportSrvCpu_ = {};
+            editorViewportSrvGpu_ = {};
             initialized_ = false;
         }
 
@@ -142,8 +159,11 @@ namespace HIKARI {
         {
             if (!initialized_) { Initialize(context_); }
 
-            commonParams_.resolutionX = static_cast<float>(kScreenW);
-            commonParams_.resolutionY = static_cast<float>(kScreenH);
+            int captureW = 0;
+            int captureH = 0;
+            GetSceneCaptureSize(captureW, captureH);
+            commonParams_.resolutionX = static_cast<float>(captureW);
+            commonParams_.resolutionY = static_cast<float>(captureH);
 
             commonParams_.deltaTime = deltaTime;
             elapsedTime_ += deltaTime;
@@ -416,10 +436,54 @@ namespace HIKARI {
             ambientColor_[2] = b;
         }
 
+        bool PostSystem::IsSceneCaptureActive()
+        {
+            return sceneCaptureActive_;
+        }
+
+        void PostSystem::SetSceneCaptureSize(int width, int height)
+        {
+            if (width <= 0 || height <= 0) {
+                requestedSceneCaptureWidth_ = 0;
+                requestedSceneCaptureHeight_ = 0;
+                return;
+            }
+
+            requestedSceneCaptureWidth_ = std::clamp(width, kMinEditorViewportSize, kMaxEditorViewportSize);
+            requestedSceneCaptureHeight_ = std::clamp(height, kMinEditorViewportSize, kMaxEditorViewportSize);
+        }
+
+        void PostSystem::GetSceneCaptureSize(int& outWidth, int& outHeight)
+        {
+            outWidth = (requestedSceneCaptureWidth_ > 0) ? requestedSceneCaptureWidth_ : kScreenW;
+            outHeight = (requestedSceneCaptureHeight_ > 0) ? requestedSceneCaptureHeight_ : kScreenH;
+        }
+
+        bool PostSystem::IsEditorViewportReady()
+        {
+            return editorViewportReady_ && editorViewportSrvGpu_.ptr != 0 && editorViewportRT_.GetResource() != nullptr;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::GetEditorViewportSrv()
+        {
+            return editorViewportSrvGpu_;
+        }
+
+        int PostSystem::GetEditorViewportWidth()
+        {
+            return editorViewportRT_.GetWidth();
+        }
+
+        int PostSystem::GetEditorViewportHeight()
+        {
+            return editorViewportRT_.GetHeight();
+        }
+
         void PostSystem::EnsureSceneRTSize()
         {
-            int w = kScreenW;
-            int h = kScreenH;
+            int w = 0;
+            int h = 0;
+            GetSceneCaptureSize(w, h);
             if (w <= 0 || h <= 0) return;
 
             sceneRT_.UpdateContext(context_);
@@ -464,17 +528,92 @@ namespace HIKARI {
             }
         }
 
+        void PostSystem::EnsureEditorViewportRTSize(int width, int height)
+        {
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+
+            editorViewportRT_.UpdateContext(context_);
+
+            const bool invalid =
+                !editorViewportRT_.GetResource() ||
+                editorViewportRT_.GetWidth() != width ||
+                editorViewportRT_.GetHeight() != height ||
+                editorViewportRT_.GetFormat() != DXGI_FORMAT_R8G8B8A8_UNORM ||
+                editorViewportRT_.HasDepth();
+
+            if (!invalid) {
+                return;
+            }
+
+            editorViewportRT_.Finalize();
+            editorViewportRT_.SetDebugName("Post.EditorGameView.LDR");
+            const bool ok = editorViewportRT_.Init(
+                width,
+                height,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                false,
+                { 0.0f, 0.0f, 0.0f, 1.0f });
+
+            if (!ok) {
+                editorViewportReady_ = false;
+                DEBUGLOG::PushRenderError("[PostSystem][EditorViewport][ERROR] Editor viewport RT creation failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "Editor viewport RT creation failed");
+                return;
+            }
+
+            RefreshEditorViewportSrvDescriptor();
+        }
+
+        void PostSystem::RefreshEditorViewportSrvDescriptor()
+        {
+            ID3D12Device* device = context_.device;
+            ID3D12DescriptorHeap* srvHeap = context_.srvHeap;
+            ID3D12Resource* resource = editorViewportRT_.GetResource();
+            if (!device || !srvHeap || !resource) {
+                editorViewportReady_ = false;
+                editorViewportSrvCpu_ = {};
+                editorViewportSrvGpu_ = {};
+                return;
+            }
+
+            const UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = srvHeap->GetCPUDescriptorHandleForHeapStart();
+            const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = srvHeap->GetGPUDescriptorHandleForHeapStart();
+
+            editorViewportSrvCpu_.ptr =
+                cpuStart.ptr + static_cast<SIZE_T>(descriptorSize) * kEditorViewportSrvIndex;
+            editorViewportSrvGpu_.ptr =
+                gpuStart.ptr + static_cast<UINT64>(descriptorSize) * kEditorViewportSrvIndex;
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+            srv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srv.Texture2D.MostDetailedMip = 0;
+            srv.Texture2D.MipLevels = 1;
+            srv.Texture2D.PlaneSlice = 0;
+            srv.Texture2D.ResourceMinLODClamp = 0.0f;
+
+            device->CreateShaderResourceView(resource, &srv, editorViewportSrvCpu_);
+            editorViewportReady_ = true;
+        }
+
         void PostSystem::BeginSceneCapture()
         {
             if (!initialized_) Initialize(context_);
             if (!initialized_) {
                 LogFrameState("BeginSceneCapture initialization failed");
+                sceneCaptureActive_ = false;
                 return;
             }
 
+            editorViewportReady_ = false;
             EnsureSceneRTSize();
             if (!sceneRT_.GetResource() || !sceneRT_.IsInitialized()) {
                 LogFrameState("BeginSceneCapture sceneRT invalid after EnsureSceneRTSize");
+                sceneCaptureActive_ = false;
                 return;
             }
             UpdateCommonParams(0.0f);
@@ -488,6 +627,7 @@ namespace HIKARI {
             rtStack_.push({ &sceneRT_, nullptr });
 
             sceneRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
+            sceneCaptureActive_ = true;
         }
 
         bool PostSystem::RebindCurrentRenderTarget()
@@ -560,16 +700,20 @@ namespace HIKARI {
             }
         }
 
-        void PostSystem::EndSceneCaptureAndPresent()
+        RenderTarget2D* PostSystem::EndSceneCaptureAndResolveFinal()
         {
-            if (!initialized_) { LogFrameState("EndSceneCaptureAndPresent not initialized"); return; }
-            if (rtStack_.empty()) { LogFrameState("EndSceneCaptureAndPresent empty stack"); return; }
-
+            if (!initialized_) {
+                LogFrameState("EndSceneCapture not initialized");
+                return nullptr;
+            }
+            if (rtStack_.empty()) {
+                LogFrameState("EndSceneCapture empty stack");
+                return nullptr;
+            }
 
             RenderTarget2D* currentRT = rtStack_.top().rt;
             currentRT->EndCapture();
             rtStack_.pop();
-
 
             RenderTarget2D* finalSceneRT = currentRT;
             if (globalChain_.HasAny()) {
@@ -617,6 +761,135 @@ namespace HIKARI {
                     (finalSceneRT ? finalSceneRT->GetDebugName() : "<null>"));
             }
 
+            return finalSceneRT;
+        }
+
+        bool PostSystem::DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat)
+        {
+            if (!quad_.SetOutputFormat(outputFormat)) {
+                LogFrameState("ToneMapping output format failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping output format failed");
+                return false;
+            }
+
+            if (transitionActive_ && transitionEffect_) {
+                quad_.SetInputTexture(finalSceneRT.GetSrvHeap(), finalSceneRT.GetSrvGpu());
+                transitionEffect_->ApplyCommonParams(transitionParams_);
+                if (!transitionEffect_->BindAndDraw(quad_)) {
+                    LogFrameState("Transition BindAndDraw failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "Transition BindAndDraw failed");
+                    return false;
+                }
+            } else {
+                if (!EnsureToneMappingEffect()) {
+                    return false;
+                }
+                toneMappingParams_ = commonParams_;
+                toneMappingParams_.user[0] = {
+                    toneMappingSettings_.enabled ? 1.0f : 0.0f,
+                    (std::max)(0.0f, toneMappingSettings_.exposure),
+                    (std::max)(0.01f, toneMappingSettings_.gamma),
+                    static_cast<float>(toneMappingSettings_.mode)
+                };
+                if (GFX::GetGfxDebugConfig().verbosePostLog) {
+                    HIKARI_LOG_INFO(std::string("[PostSystem][ToneMapping] Begin input=") +
+                        finalSceneRT.GetDebugName() +
+                        " inputFormat=" +
+                        GFX::FormatToString(finalSceneRT.GetFormat()) +
+                        " outputFormat=" +
+                        GFX::FormatToString(outputFormat) +
+                        " exposure=" +
+                        std::to_string(toneMappingParams_.user[0].y) +
+                        " gamma=" +
+                        std::to_string(toneMappingParams_.user[0].z) +
+                        " mode=" +
+                        std::to_string(toneMappingSettings_.mode));
+                }
+                quad_.SetInputTexture(finalSceneRT.GetSrvHeap(), finalSceneRT.GetSrvGpu());
+                toneMappingEffect_->ApplyCommonParams(toneMappingParams_);
+                if (!toneMappingEffect_->BindAndDraw(quad_)) {
+                    DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] BindAndDraw failed.");
+                    LogFrameState("ToneMapping BindAndDraw failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping BindAndDraw failed");
+                    return false;
+                }
+            }
+
+            if (useLighting_) {
+                quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
+            }
+
+            if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
+                LogFrameState(dumpNextFrame_ ? "Requested frame dump" : "Verbose post log");
+                dumpNextFrame_ = false;
+            }
+
+            return true;
+        }
+
+        void PostSystem::BindBackBufferFullViewport()
+        {
+            ID3D12GraphicsCommandList* cmd = context_.cmdList;
+            if (!cmd) {
+                return;
+            }
+
+            cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, nullptr);
+
+            const float width = static_cast<float>((std::max)(context_.backBufferWidth, 1));
+            const float height = static_cast<float>((std::max)(context_.backBufferHeight, 1));
+            D3D12_VIEWPORT vp{ 0.0f, 0.0f, width, height, 0.0f, 1.0f };
+            D3D12_RECT sc{ 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
+        }
+
+        bool PostSystem::EndSceneCaptureToEditorViewport()
+        {
+            if (!sceneCaptureActive_) {
+                return IsEditorViewportReady();
+            }
+
+            RenderTarget2D* finalSceneRT = EndSceneCaptureAndResolveFinal();
+            sceneCaptureActive_ = false;
+            if (finalSceneRT == nullptr || context_.cmdList == nullptr) {
+                BindBackBufferFullViewport();
+                editorViewportReady_ = false;
+                return false;
+            }
+
+            int captureW = 0;
+            int captureH = 0;
+            GetSceneCaptureSize(captureW, captureH);
+            EnsureEditorViewportRTSize(captureW, captureH);
+            if (!editorViewportRT_.GetResource() || !editorViewportRT_.IsInitialized()) {
+                BindBackBufferFullViewport();
+                editorViewportReady_ = false;
+                return false;
+            }
+
+            editorViewportRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
+            const bool drew = DrawFinalSceneToCurrentTarget(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
+            editorViewportRT_.EndCapture();
+            RefreshEditorViewportSrvDescriptor();
+            BindBackBufferFullViewport();
+            editorViewportReady_ = drew && editorViewportSrvGpu_.ptr != 0;
+            return editorViewportReady_;
+        }
+
+        void PostSystem::EndSceneCaptureAndPresent()
+        {
+            if (!sceneCaptureActive_) {
+                return;
+            }
+
+            RenderTarget2D* finalSceneRT = EndSceneCaptureAndResolveFinal();
+            sceneCaptureActive_ = false;
+            if (finalSceneRT == nullptr) {
+                BindBackBufferFullViewport();
+                return;
+            }
+
             auto* cmd = context_.cmdList;
             if (!cmd) {
                 LogFrameState("EndSceneCaptureAndPresent cmd null");
@@ -635,59 +908,7 @@ namespace HIKARI {
             cmd->RSSetViewports(1, &vp);
             cmd->RSSetScissorRects(1, &sc);
 
-            if (!quad_.SetOutputFormat(DXGI_FORMAT_R8G8B8A8_UNORM)) {
-                LogFrameState("ToneMapping output format failed");
-                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping output format failed");
-                return;
-            }
-
-            if (transitionActive_ && transitionEffect_) {
-                quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
-                transitionEffect_->ApplyCommonParams(transitionParams_);
-                if (!transitionEffect_->BindAndDraw(quad_)) {
-                    LogFrameState("Transition BindAndDraw failed");
-                    GFX::DumpD3D12InfoQueue(context_.device, "Transition BindAndDraw failed");
-                }
-            } else {
-                if (!EnsureToneMappingEffect()) {
-                    return;
-                }
-                toneMappingParams_ = commonParams_;
-                toneMappingParams_.user[0] = {
-                    toneMappingSettings_.enabled ? 1.0f : 0.0f,
-                    (std::max)(0.0f, toneMappingSettings_.exposure),
-                    (std::max)(0.01f, toneMappingSettings_.gamma),
-                    static_cast<float>(toneMappingSettings_.mode)
-                };
-                if (GFX::GetGfxDebugConfig().verbosePostLog) {
-                    HIKARI_LOG_INFO(std::string("[PostSystem][ToneMapping] Begin input=") +
-                        finalSceneRT->GetDebugName() +
-                        " inputFormat=" +
-                        GFX::FormatToString(finalSceneRT->GetFormat()) +
-                        " outputFormat=R8G8B8A8_UNORM exposure=" +
-                        std::to_string(toneMappingParams_.user[0].y) +
-                        " gamma=" +
-                        std::to_string(toneMappingParams_.user[0].z) +
-                        " mode=" +
-                        std::to_string(toneMappingSettings_.mode));
-                }
-                quad_.SetInputTexture(finalSceneRT->GetSrvHeap(), finalSceneRT->GetSrvGpu());
-                toneMappingEffect_->ApplyCommonParams(toneMappingParams_);
-                if (!toneMappingEffect_->BindAndDraw(quad_)) {
-                    DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] BindAndDraw failed.");
-                    LogFrameState("ToneMapping BindAndDraw failed");
-                    GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping BindAndDraw failed");
-                }
-            }
-
-            if (useLighting_) {
-                quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
-            }
-
-            if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
-                LogFrameState(dumpNextFrame_ ? "Requested frame dump" : "Verbose post log");
-                dumpNextFrame_ = false;
-            }
+            DrawFinalSceneToCurrentTarget(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
 
         void PostSystem::BeginLayer(PostChain& chain, float r, float g, float b, float a)

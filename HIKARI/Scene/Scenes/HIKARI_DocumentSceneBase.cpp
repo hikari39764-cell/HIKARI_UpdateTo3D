@@ -68,6 +68,17 @@ namespace HIKARI {
     }
 
     void DocumentSceneBase::Render() {
+        int captureW = 0;
+        int captureH = 0;
+        POST::PostSystem::GetSceneCaptureSize(captureW, captureH);
+        if (captureW > 0 && captureH > 0) {
+            camera_.SetPerspective(
+                60.0f * std::numbers::pi_v<float> / 180.0f,
+                static_cast<float>(captureW) / static_cast<float>(captureH),
+                0.1f,
+                100.0f);
+        }
+
         RENDERER3D::Reset();
         MODELRENDERER::Reset();
         SKYRENDERER::Reset();

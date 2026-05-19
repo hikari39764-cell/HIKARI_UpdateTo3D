@@ -17,6 +17,8 @@
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(_DEBUG)
+#include "Editor/HIKARI_EditorStyle.h"
+#include "Editor/HIKARI_EditorViewportInput.h"
 #include "imgui.h"
 #include "../ThirdParty/imgui/imgui_impl_dx12.h"
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
@@ -63,6 +65,19 @@ namespace HIKARI {
         inline bool IsImGuiEnabled() { return gEnableImGui; }
         inline bool IsEditorUIEnabled() { return gEnableImGui && gEnableEditorUI; }
         inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = enabled; }
+
+        inline void ConfigureEditorImGuiContext() {
+#if defined(_DEBUG)
+            ImGuiIO& io = ImGui::GetIO();
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            io.ConfigDockingWithShift = false;
+            io.ConfigDockingTransparentPayload = true;
+            io.ConfigViewportsNoAutoMerge = false;
+            io.ConfigViewportsNoTaskBarIcon = false;
+            EDITOR::ApplyEditorStyle();
+#endif
+        }
 
         inline void InitializeImGuiBackend() {
 #if !defined(_DEBUG)
@@ -197,10 +212,9 @@ namespace HIKARI {
 #if defined(_DEBUG)
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
-                ImGui::StyleColorsDark();
+                ConfigureEditorImGuiContext();
 
                 ImGuiIO& io = ImGui::GetIO();
-                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
                     io.Fonts->AddFontDefault();
                     io.Fonts->Build();
@@ -275,6 +289,12 @@ namespace HIKARI {
 
             HIKARI::RENDERER::BeginFrame();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
+#if defined(_DEBUG)
+            if (!IsEditorUIEnabled()) {
+                HIKARI::EDITOR::ClearGameViewportInputRect();
+                HIKARI::POST::PostSystem::SetSceneCaptureSize(0, 0);
+            }
+#endif
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
@@ -283,6 +303,13 @@ namespace HIKARI {
             HIKARI::VFX::BeginFrame(frame.gameDt);
             if (gEnableImGui && gImGuiInitialized) {
 #if defined(_DEBUG)
+                if (!ImGui::GetCurrentContext()) {
+                    ImGui::CreateContext();
+                    ConfigureEditorImGuiContext();
+                }
+
+                ConfigureEditorImGuiContext();
+
                 if (!gImGuiBackendInitialized) {
                     InitializeImGuiBackend();
                 }
@@ -292,12 +319,7 @@ namespace HIKARI {
                     ImGui_ImplWin32_NewFrame();
                 }
 
-                if (!ImGui::GetCurrentContext()) {
-                    ImGui::CreateContext();
-                }
-
                 ImGuiIO& io = ImGui::GetIO();
-                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
                 io.DisplaySize = ImVec2(static_cast<float>(gWindow.Width()), static_cast<float>(gWindow.Height()));
                 io.DeltaTime = (frame.unscaledDt > 0.0f) ? frame.unscaledDt : (1.0f / 60.0f);
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
@@ -329,6 +351,12 @@ namespace HIKARI {
                 ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
                 cmd->SetDescriptorHeaps(1, heaps);
                 ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+                ImGuiIO& io = ImGui::GetIO();
+                if ((io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+                    ImGui::UpdatePlatformWindows();
+                    ImGui::RenderPlatformWindowsDefault();
+                }
 #endif
             }
 

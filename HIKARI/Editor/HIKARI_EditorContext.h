@@ -27,6 +27,13 @@ namespace HIKARI {
         bool showAxis = true;
     };
 
+    struct ViewportWindowState {
+        bool showGameView = true;
+        bool showViewportHud = true;
+        bool gameOnlyMode = false;
+        float gameViewResolutionScale = 1.0f;
+    };
+
     struct AuthoringWindowState {
         bool showSceneWorkspace = true;
     };
@@ -41,6 +48,7 @@ namespace HIKARI {
     };
 
     struct DebugWindowState {
+        ViewportWindowState viewport{};
         AuthoringWindowState authoring{};
         ResourceWindowState resources{};
         RuntimeDebugWindowState runtime{};

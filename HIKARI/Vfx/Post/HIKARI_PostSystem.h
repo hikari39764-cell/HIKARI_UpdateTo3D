@@ -62,6 +62,14 @@ namespace HIKARI {
             static bool BeginCurrentRenderTargetDepthRead();
             static void EndCurrentRenderTargetDepthRead();
             static void EndSceneCaptureAndPresent(); // 这里会自动应用光照合成
+            static bool EndSceneCaptureToEditorViewport();
+            static bool IsSceneCaptureActive();
+            static void SetSceneCaptureSize(int width, int height);
+            static void GetSceneCaptureSize(int& outWidth, int& outHeight);
+            static bool IsEditorViewportReady();
+            static D3D12_GPU_DESCRIPTOR_HANDLE GetEditorViewportSrv();
+            static int GetEditorViewportWidth();
+            static int GetEditorViewportHeight();
 
             // --- 光照系统  ---
             // 设置环境光颜色 (R,G,B), 0.0=全黑, 1.0=全亮
@@ -80,6 +88,11 @@ namespace HIKARI {
 
         private:
             static void EnsureSceneRTSize();
+            static void EnsureEditorViewportRTSize(int width, int height);
+            static void RefreshEditorViewportSrvDescriptor();
+            static RenderTarget2D* EndSceneCaptureAndResolveFinal();
+            static bool DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
+            static void BindBackBufferFullViewport();
             static RenderTarget2D* ApplyBloom(RenderTarget2D& source);
             static bool EnsureBloomEffects(uint32_t blurPairCount);
             static bool EnsureToneMappingEffect();
@@ -89,6 +102,7 @@ namespace HIKARI {
             static GFX::Context context_;
 
             static RenderTarget2D sceneRT_;
+            static RenderTarget2D editorViewportRT_;
 
             // [新增] 专门用于画光的 RT
             static RenderTarget2D lightRT_;
@@ -116,6 +130,12 @@ namespace HIKARI {
             static TransitionProfile activeTransitionProfile_;
             static std::unique_ptr<PostEffect> transitionEffect_;
             static CommonParams transitionParams_;
+            static bool sceneCaptureActive_;
+            static bool editorViewportReady_;
+            static int requestedSceneCaptureWidth_;
+            static int requestedSceneCaptureHeight_;
+            static D3D12_CPU_DESCRIPTOR_HANDLE editorViewportSrvCpu_;
+            static D3D12_GPU_DESCRIPTOR_HANDLE editorViewportSrvGpu_;
 
             struct LayerInfo {
                 RenderTarget2D* rt;

@@ -19,6 +19,13 @@ namespace HIKARI {
         }
 
         if (ImGui::BeginMenu("Windows")) {
+            if (ImGui::BeginMenu("Viewport")) {
+                ImGui::MenuItem("Game View", nullptr, &windows.viewport.showGameView);
+                ImGui::MenuItem("Viewport HUD", nullptr, &windows.viewport.showViewportHud);
+                ImGui::MenuItem("Game Only", nullptr, &windows.viewport.gameOnlyMode);
+                ImGui::EndMenu();
+            }
+
             if (ImGui::BeginMenu("Scene Authoring")) {
                 ImGui::MenuItem("Scene Workspace", nullptr, &windows.authoring.showSceneWorkspace);
                 ImGui::EndMenu();

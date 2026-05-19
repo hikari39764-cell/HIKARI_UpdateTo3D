@@ -6,6 +6,7 @@
 #undef max
 #include "HIKARI_Input.h"
 #if defined(_DEBUG)
+#include "Editor/HIKARI_EditorViewportInput.h"
 #include "imgui.h"
 #endif
 
@@ -51,6 +52,14 @@ namespace HIKARI {
         ImGuiIO& io = ImGui::GetIO();
         wantMouse = io.WantCaptureMouse;
         wantKeyboard = io.WantCaptureKeyboard;
+
+        if (EDITOR::HasGameViewportInputRect()) {
+            const bool viewportMouseActive = EDITOR::IsGameViewportMouseInputActive();
+            const bool viewportKeyboardActive = EDITOR::IsGameViewportKeyboardInputActive();
+
+            wantMouse = !viewportMouseActive;
+            wantKeyboard = !viewportKeyboardActive;
+        }
 #endif
 
         if (!wantKeyboard && (::GetAsyncKeyState('R') & 0x8000) != 0) {

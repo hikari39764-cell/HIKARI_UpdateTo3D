@@ -408,6 +408,12 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1020,6 +1026,12 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h">

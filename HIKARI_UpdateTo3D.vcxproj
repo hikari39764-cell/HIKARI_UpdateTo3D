@@ -158,6 +158,8 @@
     <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
+    <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
@@ -369,6 +371,8 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_SandboxScene.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />
+    <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
