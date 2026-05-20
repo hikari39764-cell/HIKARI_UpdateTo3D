@@ -246,9 +246,13 @@ namespace HIKARI::SHADOW {
                 return false;
             }
 
+            if (g.shadowSrvHandle >= 0) {
+                DXTEX::DxTextureManager::ReleaseTexture(g.shadowSrvHandle);
+                g.shadowSrvHandle = -1;
+            }
+
             g.shadowMap.Reset();
             g.dsvHeap.Reset();
-            g.shadowSrvHandle = -1;
 
             D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
             dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;

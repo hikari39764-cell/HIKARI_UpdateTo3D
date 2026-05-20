@@ -219,6 +219,10 @@ namespace HIKARI {
 
         void DxTextureManager::Finalize()
         {
+            if (!initialized_) {
+                return;
+            }
+
             textures_.clear();
             dimensions_.clear();
             srvCpu_.clear();
@@ -573,11 +577,17 @@ namespace HIKARI {
                 return;
             }
 
-            if (!textures_[handle]) {
+            const GFX::DescriptorSlot slot{
+                GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
+            };
+
+            if (!descriptorAllocator_.IsAllocated(slot)) {
                 return;
             }
 
-            textures_[handle].Reset();
+            if (textures_[handle]) {
+                textures_[handle].Reset();
+            }
             dimensions_[handle] = TextureDimension::Texture2D;
 
             for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
@@ -589,9 +599,34 @@ namespace HIKARI {
                 }
             }
 
-            descriptorAllocator_.Free({
-                GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
-            });
+            descriptorAllocator_.Free(slot);
+        }
+
+        UINT DxTextureManager::GetUsedDescriptorCount()
+        {
+            if (!initialized_) {
+                return 0;
+            }
+
+            return descriptorAllocator_.GetUsedCount();
+        }
+
+        UINT DxTextureManager::GetFreeDescriptorCount()
+        {
+            if (!initialized_) {
+                return 0;
+            }
+
+            return descriptorAllocator_.GetFreeCount();
+        }
+
+        UINT DxTextureManager::GetMaxDescriptorCount()
+        {
+            if (!initialized_) {
+                return 0;
+            }
+
+            return descriptorAllocator_.GetCount();
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)

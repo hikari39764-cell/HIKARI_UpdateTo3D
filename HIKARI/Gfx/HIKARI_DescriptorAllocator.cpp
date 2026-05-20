@@ -23,7 +23,7 @@ namespace HIKARI::GFX {
             freeList_.pop_back();
 
             const UINT localIndex = index - begin_;
-            if (localIndex >= allocated_.size()) {
+            if (static_cast<size_t>(localIndex) >= allocated_.size()) {
                 return {};
             }
 
@@ -48,7 +48,7 @@ namespace HIKARI::GFX {
         }
 
         const UINT localIndex = slot.index - begin_;
-        if (localIndex >= allocated_.size()) {
+        if (static_cast<size_t>(localIndex) >= allocated_.size()) {
             return;
         }
 
@@ -70,6 +70,19 @@ namespace HIKARI::GFX {
         }
 
         return slot.index >= begin_ && slot.index < begin_ + count_;
+    }
+
+    bool DescriptorAllocator::IsAllocated(DescriptorSlot slot) const {
+        if (!Owns(slot)) {
+            return false;
+        }
+
+        const UINT localIndex = slot.index - begin_;
+        if (static_cast<size_t>(localIndex) >= allocated_.size()) {
+            return false;
+        }
+
+        return allocated_[localIndex];
     }
 
     UINT DescriptorAllocator::GetBegin() const {

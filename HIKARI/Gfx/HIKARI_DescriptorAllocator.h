@@ -24,6 +24,7 @@ namespace HIKARI::GFX {
         void Free(DescriptorSlot slot);
 
         bool Owns(DescriptorSlot slot) const;
+        bool IsAllocated(DescriptorSlot slot) const;
         UINT GetBegin() const;
         UINT GetCount() const;
         UINT GetUsedCount() const;
