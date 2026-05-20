@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
-#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include <d3dx12.h>
@@ -19,9 +17,10 @@
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
+#include "Render3D/Core/HIKARI_MeshRendererState.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
+#include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
-#include "Render3D/Resources/HIKARI_ResourceStateTracker.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -34,37 +33,8 @@
 
 namespace HIKARI::MESHRENDERER {
 
-    using Microsoft::WRL::ComPtr;
-
     namespace {
-        struct State {
-            bool initialized = false;
-            MeshPipelineStore pipelines;
-            RENDER3D::ResourceStateTracker resourceStates;
-            ComPtr<ID3D12Resource> cameraCB;
-            ComPtr<ID3D12Resource> objectCB;
-            ComPtr<ID3D12Resource> lightCB;
-            ComPtr<ID3D12Resource> shadowCB;
-            ComPtr<ID3D12Resource> skyEnvironmentCB;
-            ComPtr<ID3D12Resource> jointPaletteCB;
-            CameraCB* cameraMapped = nullptr;
-            ObjectCB* objectMapped = nullptr;
-            LightCB* lightMapped = nullptr;
-            ShadowCB* shadowMapped = nullptr;
-            SkyEnvironmentCB* skyEnvironmentMapped = nullptr;
-            JointPaletteCB* jointPaletteMapped = nullptr;
-            std::vector<DrawItem> drawItems;
-            MeshRendererDebugStats debugStats;
-            int fallbackTextureHandle = -1;
-            int fallbackNormalTextureHandle = -1;
-            int fallbackBlackTextureHandle = -1;
-            std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
-            std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
-            std::unordered_map<std::string, int> materialTextureCache;
-            float elapsedTimeSec = 0.0f;
-        };
-
-        State g;
+        MeshRendererState g;
 
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
@@ -127,85 +97,6 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        void ApplyProfileToVariant(const MaterialFxProfile& profile, VFX::VariantKey& variant) {
-            if (!profile.shaderProfileId.empty()) {
-                variant.shaderId = profile.shaderProfileId;
-            }
-            if (!profile.vertexShaderId.empty()) {
-                variant.vertexShaderId = profile.vertexShaderId;
-            }
-            if (!profile.pixelShaderId.empty()) {
-                variant.pixelShaderId = profile.pixelShaderId;
-            }
-            variant.featureBits = profile.featureBits;
-            variant.composite = profile.composite;
-            variant.depthTest = profile.depthTest;
-            variant.depthWrite = profile.depthWrite;
-            variant.doubleSided = profile.doubleSided;
-        }
-
-        void ApplyMaterialFxOverride(DrawItem& item) {
-            item.hasResolvedMaterialFxProfile = false;
-            item.resolvedMaterialFxProfile = {};
-
-            if (item.materialFxProfileId.empty()) {
-                return;
-            }
-
-            MaterialFxProfile profile{};
-            if (!MaterialFxProfile::LoadById(item.materialFxProfileId, profile)) {
-                return;
-            }
-
-            item.hasResolvedMaterialFxProfile = true;
-            item.resolvedMaterialFxProfile = std::move(profile);
-            ApplyProfileToVariant(item.resolvedMaterialFxProfile, item.variant);
-        }
-
-        void ResolveDrawVariant(DrawItem& item) {
-            if (!item.asset) {
-                return;
-            }
-            const Material* material = item.asset->GetMaterial();
-            if (material) {
-                item.variant.shaderId = material->GetShaderProfileId();
-                item.variant.featureBits = material->GetFeatureBits();
-            }
-            item.variant.composite = VFX::CompositeMode::Alpha;
-            item.variant.depthTest = true;
-            item.variant.depthWrite = true;
-            item.variant.doubleSided = false;
-
-            ApplyMaterialFxOverride(item);
-
-            item.fxValues = {};
-            item.fxFlags = 0;
-            if (!item.materialFxValuesInitialized) {
-                return;
-            }
-            for (size_t i = 0; i < item.fxValues.size(); ++i) {
-                const DirectX::XMFLOAT4& value = item.materialFxParamValues[i];
-                item.fxValues[i] = { value.x, value.y, value.z, value.w };
-            }
-            item.fxFlags = item.variant.featureBits;
-        }
-
-        VFX::VariantKey ResolvePrimitiveVariant(const DrawItem& item, const MaterialAsset* materialAsset) {
-            VFX::VariantKey variant = item.variant;
-
-            if (materialAsset != nullptr) {
-                variant.shaderId = materialAsset->shaderProfileId;
-                variant.featureBits = materialAsset->featureBits;
-                variant.doubleSided = materialAsset->doubleSided;
-            }
-
-            if (item.hasResolvedMaterialFxProfile) {
-                ApplyProfileToVariant(item.resolvedMaterialFxProfile, variant);
-            }
-
-            return variant;
-        }
-
         bool EnsureInitialized() {
             if (g.initialized) {
                 return true;
@@ -229,249 +120,14 @@ namespace HIKARI::MESHRENDERER {
             }
             g.fallbackBlackTextureHandle = g.fallbackTextureHandle;
 
+            MeshMaterialResolverFallbacks fallbacks{};
+            fallbacks.whiteTexture = g.fallbackTextureHandle;
+            fallbacks.normalTexture = g.fallbackNormalTextureHandle;
+            fallbacks.blackTexture = g.fallbackBlackTextureHandle;
+            g.materialResolver.SetFallbacks(fallbacks);
+
             g.initialized = true;
             return true;
-        }
-
-        int ResolvePrimitiveTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
-            if (materialAsset == nullptr) {
-                return g.fallbackTextureHandle;
-            }
-
-            const int textureIndex = materialAsset->baseColorTexture.textureIndex;
-            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
-                return g.fallbackTextureHandle;
-            }
-
-            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
-            if (texturePath.empty()) {
-                return g.fallbackTextureHandle;
-            }
-
-            auto found = g.materialTextureCache.find(texturePath);
-            if (found != g.materialTextureCache.end()) {
-                ++g.debugStats.materialTextureCacheHitCount;
-                return found->second;
-            }
-
-            ++g.debugStats.materialTextureCacheMissCount;
-            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/" + texturePath, texturePath);
-            g.materialTextureCache[texturePath] = handle;
-            return handle >= 0 ? handle : g.fallbackTextureHandle;
-        }
-
-        int ResolvePrimitiveNormalTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
-            if (materialAsset == nullptr) {
-                return g.fallbackNormalTextureHandle;
-            }
-
-            const int textureIndex = materialAsset->normalTexture.textureIndex;
-            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
-                ++g.debugStats.normalMapFallbackCount;
-                return g.fallbackNormalTextureHandle;
-            }
-
-            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
-            if (texturePath.empty()) {
-                ++g.debugStats.normalMapFallbackCount;
-                return g.fallbackNormalTextureHandle;
-            }
-
-            const std::string cacheKey = "normal:" + texturePath;
-            auto found = g.materialTextureCache.find(cacheKey);
-            if (found != g.materialTextureCache.end()) {
-                ++g.debugStats.normalTextureCacheHitCount;
-                return found->second >= 0 ? found->second : g.fallbackNormalTextureHandle;
-            }
-
-            ++g.debugStats.normalTextureCacheMissCount;
-            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/normal/" + texturePath, texturePath);
-            g.materialTextureCache[cacheKey] = handle;
-            return handle >= 0 ? handle : g.fallbackNormalTextureHandle;
-        }
-
-        int ResolvePrimitiveEmissiveTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
-            if (materialAsset == nullptr) {
-                return g.fallbackBlackTextureHandle;
-            }
-
-            const int textureIndex = materialAsset->emissiveTexture.textureIndex;
-            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
-                ++g.debugStats.emissiveMapFallbackCount;
-                return g.fallbackBlackTextureHandle;
-            }
-
-            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
-            if (texturePath.empty()) {
-                ++g.debugStats.emissiveMapFallbackCount;
-                return g.fallbackBlackTextureHandle;
-            }
-
-            const std::string cacheKey = "emissive:" + texturePath;
-            auto found = g.materialTextureCache.find(cacheKey);
-            if (found != g.materialTextureCache.end()) {
-                ++g.debugStats.emissiveTextureCacheHitCount;
-                return found->second >= 0 ? found->second : g.fallbackBlackTextureHandle;
-            }
-
-            ++g.debugStats.emissiveTextureCacheMissCount;
-            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/emissive/" + texturePath, texturePath);
-            g.materialTextureCache[cacheKey] = handle;
-            return handle >= 0 ? handle : g.fallbackBlackTextureHandle;
-        }
-
-        int ResolvePrimitiveMetallicRoughnessTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
-            if (materialAsset == nullptr) {
-                ++g.debugStats.metallicRoughnessFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const int textureIndex = materialAsset->metallicRoughnessTexture.textureIndex;
-            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
-                ++g.debugStats.metallicRoughnessFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
-            if (texturePath.empty()) {
-                ++g.debugStats.metallicRoughnessFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const std::string cacheKey = "metallicRoughness:" + texturePath;
-            auto found = g.materialTextureCache.find(cacheKey);
-            if (found != g.materialTextureCache.end()) {
-                ++g.debugStats.metallicRoughnessTextureCacheHitCount;
-                return found->second >= 0 ? found->second : g.fallbackTextureHandle;
-            }
-
-            ++g.debugStats.metallicRoughnessTextureCacheMissCount;
-            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/metallic_roughness/" + texturePath, texturePath);
-            g.materialTextureCache[cacheKey] = handle;
-            if (handle < 0) {
-                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] metallicRoughness texture failed. material=") +
-                    materialAsset->name + " sourcePath=" + texturePath + " fallback used");
-            }
-            return handle >= 0 ? handle : g.fallbackTextureHandle;
-        }
-
-        int ResolvePrimitiveOcclusionTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
-            if (materialAsset == nullptr) {
-                ++g.debugStats.occlusionFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const int textureIndex = materialAsset->occlusionTexture.textureIndex;
-            if (textureIndex < 0 || textureIndex >= static_cast<int>(asset.textures.size())) {
-                ++g.debugStats.occlusionFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const std::string& texturePath = asset.textures[static_cast<size_t>(textureIndex)].sourcePath;
-            if (texturePath.empty()) {
-                ++g.debugStats.occlusionFallbackCount;
-                return g.fallbackTextureHandle;
-            }
-
-            const std::string cacheKey = "occlusion:" + texturePath;
-            auto found = g.materialTextureCache.find(cacheKey);
-            if (found != g.materialTextureCache.end()) {
-                ++g.debugStats.occlusionTextureCacheHitCount;
-                return found->second >= 0 ? found->second : g.fallbackTextureHandle;
-            }
-
-            ++g.debugStats.occlusionTextureCacheMissCount;
-            const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/occlusion/" + texturePath, texturePath);
-            g.materialTextureCache[cacheKey] = handle;
-            if (handle < 0) {
-                DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] occlusion texture failed. material=") +
-                    materialAsset->name + " sourcePath=" + texturePath + " fallback used");
-            }
-            return handle >= 0 ? handle : g.fallbackTextureHandle;
-        }
-
-        MATH::Vec4 SanitizeTangent(const MATH::Vec4& tangent) {
-            const float lenSq =
-                tangent.x * tangent.x +
-                tangent.y * tangent.y +
-                tangent.z * tangent.z;
-            if (lenSq <= 1e-8f) {
-                return { 1.0f, 0.0f, 0.0f, 1.0f };
-            }
-            return tangent;
-        }
-
-        Mesh* GetOrCreatePrimitiveMesh(const MeshPrimitive& primitive) {
-            auto found = g.primitiveMeshCache.find(&primitive);
-            if (found != g.primitiveMeshCache.end()) {
-                ++g.debugStats.primitiveMeshCacheHitCount;
-                return found->second.get();
-            }
-
-            if (primitive.layout != VertexLayoutKind::StaticPNTT || primitive.staticVertices.empty() || primitive.indices.empty()) {
-                return nullptr;
-            }
-
-            ++g.debugStats.primitiveMeshCacheMissCount;
-            std::vector<VertexStatic3D> vertices;
-            vertices.reserve(primitive.staticVertices.size());
-            for (const Vertex3D& src : primitive.staticVertices) {
-                VertexStatic3D dst{};
-                dst.position = src.position;
-                dst.normal = src.normal;
-                dst.tangent = SanitizeTangent(src.tangent);
-                dst.u = src.uv0.x;
-                dst.v = src.uv0.y;
-                vertices.push_back(dst);
-            }
-
-            auto mesh = std::make_unique<Mesh>();
-            if (!mesh->CreateStatic(SERVICES::gCtx.device, vertices, primitive.indices)) {
-                return nullptr;
-            }
-
-            Mesh* raw = mesh.get();
-            g.primitiveMeshCache.emplace(&primitive, std::move(mesh));
-            return raw;
-        }
-
-        Mesh* GetOrCreateSkinnedPrimitiveMesh(const MeshPrimitive& primitive) {
-            auto found = g.primitiveSkinnedMeshCache.find(&primitive);
-            if (found != g.primitiveSkinnedMeshCache.end()) {
-                ++g.debugStats.primitiveSkinnedMeshCacheHitCount;
-                return found->second.get();
-            }
-
-            if (primitive.skinnedVertices.empty() || primitive.indices.empty()) {
-                return nullptr;
-            }
-
-            ++g.debugStats.primitiveSkinnedMeshCacheMissCount;
-            std::vector<VertexSkinnedGpu3D> vertices;
-            vertices.reserve(primitive.skinnedVertices.size());
-            for (const SkinnedVertex3D& src : primitive.skinnedVertices) {
-                VertexSkinnedGpu3D dst{};
-                dst.position = src.position;
-                dst.normal = src.normal;
-                dst.tangent = src.tangent;
-                dst.uv0 = src.uv0;
-                dst.uv1 = src.uv1;
-                dst.color0 = src.color0;
-                for (size_t i = 0; i < 4; ++i) {
-                    dst.joints[i] = src.joints[i];
-                    dst.weights[i] = src.weights[i];
-                }
-                vertices.push_back(dst);
-            }
-
-            auto mesh = std::make_unique<Mesh>();
-            if (!mesh->CreateSkinned(SERVICES::gCtx.device, vertices, primitive.indices)) {
-                return nullptr;
-            }
-
-            Mesh* raw = mesh.get();
-            g.primitiveSkinnedMeshCache.emplace(&primitive, std::move(mesh));
-            return raw;
         }
 
         bool PrepareMeshFrame(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -513,34 +169,11 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.materialFill.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
             ctx.materialFill.stats = &g.debugStats;
-            ctx.stats = &g.debugStats;
-            ctx.getPrimitiveMesh = [](const MeshPrimitive& primitive) {
-                return GetOrCreatePrimitiveMesh(primitive);
-            };
-            ctx.getSkinnedPrimitiveMesh = [](const MeshPrimitive& primitive) {
-                return GetOrCreateSkinnedPrimitiveMesh(primitive);
-            };
-            ctx.resolveBaseColorTexture = [](const ModelAsset& asset, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveTextureHandle(asset, materialAsset);
-            };
-            ctx.resolveNormalTexture = [](const ModelAsset& asset, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveNormalTextureHandle(asset, materialAsset);
-            };
-            ctx.resolveEmissiveTexture = [](const ModelAsset& asset, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveEmissiveTextureHandle(asset, materialAsset);
-            };
-            ctx.resolveMetallicRoughnessTexture = [](const ModelAsset& asset, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveMetallicRoughnessTextureHandle(asset, materialAsset);
-            };
-            ctx.resolveOcclusionTexture = [](const ModelAsset& asset, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveOcclusionTextureHandle(asset, materialAsset);
-            };
-            ctx.resolvePrimitiveVariant = [](const DrawItem& item, const MaterialAsset* materialAsset) {
-                return ResolvePrimitiveVariant(item, materialAsset);
-            };
-            ctx.getOrCreatePso = [](const VFX::VariantKey& key, bool skinned, bool wireframe) {
-                return GetOrCreateVariantPso(g.pipelines, SERVICES::gCtx.device, g.debugStats, key, skinned, wireframe);
-            };
+            ctx.services.device = SERVICES::gCtx.device;
+            ctx.services.primitiveCache = &g.primitiveCache;
+            ctx.services.materialResolver = &g.materialResolver;
+            ctx.services.pipelines = &g.pipelines;
+            ctx.services.stats = &g.debugStats;
             return ctx;
         }
 

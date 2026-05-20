@@ -143,8 +143,11 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Material.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
@@ -329,11 +332,15 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererState.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />

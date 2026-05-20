@@ -393,6 +393,15 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
@@ -930,6 +939,18 @@
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererState.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">

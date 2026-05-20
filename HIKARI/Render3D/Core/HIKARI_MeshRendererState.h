@@ -1,0 +1,49 @@
+#pragma once
+
+#include <vector>
+
+#include <d3d12.h>
+#include <wrl/client.h>
+
+#include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
+#include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
+#include "Render3D/Core/HIKARI_MeshRendererPso.h"
+#include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/Resources/HIKARI_ResourceStateTracker.h"
+
+namespace HIKARI::MESHRENDERER {
+
+    struct MeshRendererState {
+        bool initialized = false;
+
+        MeshPipelineStore pipelines;
+        RENDER3D::ResourceStateTracker resourceStates;
+
+        Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> objectCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> lightCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> shadowCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> skyEnvironmentCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> jointPaletteCB;
+
+        CameraCB* cameraMapped = nullptr;
+        ObjectCB* objectMapped = nullptr;
+        LightCB* lightMapped = nullptr;
+        ShadowCB* shadowMapped = nullptr;
+        SkyEnvironmentCB* skyEnvironmentMapped = nullptr;
+        JointPaletteCB* jointPaletteMapped = nullptr;
+
+        std::vector<DrawItem> drawItems;
+        MeshRendererDebugStats debugStats;
+
+        int fallbackTextureHandle = -1;
+        int fallbackNormalTextureHandle = -1;
+        int fallbackBlackTextureHandle = -1;
+
+        MeshPrimitiveCache primitiveCache;
+        MeshMaterialResolver materialResolver;
+
+        float elapsedTimeSec = 0.0f;
+    };
+
+} // namespace HIKARI::MESHRENDERER

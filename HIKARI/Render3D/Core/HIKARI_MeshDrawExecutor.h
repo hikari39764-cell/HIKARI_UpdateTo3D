@@ -1,13 +1,10 @@
 #pragma once
 
-#include <functional>
-
 #include <d3d12.h>
 
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
-#include "Vfx/Common/HIKARI_FxTypes.h"
 
 namespace HIKARI {
     class Mesh;
@@ -16,6 +13,18 @@ namespace HIKARI {
 }
 
 namespace HIKARI::MESHRENDERER {
+
+    class MeshMaterialResolver;
+    class MeshPrimitiveCache;
+    struct MeshPipelineStore;
+
+    struct MeshDrawServices {
+        ID3D12Device* device = nullptr;
+        MeshPrimitiveCache* primitiveCache = nullptr;
+        MeshMaterialResolver* materialResolver = nullptr;
+        MeshPipelineStore* pipelines = nullptr;
+        MeshRendererDebugStats* stats = nullptr;
+    };
 
     struct MeshDrawContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
@@ -31,17 +40,7 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress = 0;
         MeshBindingContext binding{};
         MeshMaterialFillContext materialFill{};
-        MeshRendererDebugStats* stats = nullptr;
-
-        std::function<Mesh*(const MeshPrimitive&)> getPrimitiveMesh;
-        std::function<Mesh*(const MeshPrimitive&)> getSkinnedPrimitiveMesh;
-        std::function<int(const ModelAsset&, const MaterialAsset*)> resolveBaseColorTexture;
-        std::function<int(const ModelAsset&, const MaterialAsset*)> resolveNormalTexture;
-        std::function<int(const ModelAsset&, const MaterialAsset*)> resolveEmissiveTexture;
-        std::function<int(const ModelAsset&, const MaterialAsset*)> resolveMetallicRoughnessTexture;
-        std::function<int(const ModelAsset&, const MaterialAsset*)> resolveOcclusionTexture;
-        std::function<VFX::VariantKey(const DrawItem&, const MaterialAsset*)> resolvePrimitiveVariant;
-        std::function<ID3D12PipelineState*(const VFX::VariantKey&, bool, bool)> getOrCreatePso;
+        MeshDrawServices services{};
     };
 
     bool DrawMeshItem(

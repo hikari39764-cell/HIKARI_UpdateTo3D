@@ -5,8 +5,12 @@
 
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
+#include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
+#include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
+#include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 
 #ifdef max
@@ -62,7 +66,10 @@ namespace HIKARI::MESHRENDERER {
             const VFX::VariantKey& variant,
             bool drawingSkinned,
             MeshRenderDebugMode mode) {
-            if (!ctx.getOrCreatePso || ctx.cmd == nullptr) {
+            if (ctx.cmd == nullptr ||
+                ctx.services.pipelines == nullptr ||
+                ctx.services.device == nullptr ||
+                ctx.services.stats == nullptr) {
                 return;
             }
 
@@ -71,19 +78,23 @@ namespace HIKARI::MESHRENDERER {
                 mode == MeshRenderDebugMode::WireOverlay;
 
             auto drawPrimitive = [&](bool wireframe) {
-                ID3D12PipelineState* pso = ctx.getOrCreatePso(variant, drawingSkinned, wireframe);
+                ID3D12PipelineState* pso = GetOrCreateVariantPso(
+                    *ctx.services.pipelines,
+                    ctx.services.device,
+                    *ctx.services.stats,
+                    variant,
+                    drawingSkinned,
+                    wireframe);
                 if (pso == nullptr) {
                     return;
                 }
                 ctx.cmd->SetPipelineState(pso);
                 ctx.cmd->DrawIndexedInstanced(mesh.GetIndexCount(), 1, 0, 0, 0);
-                if (ctx.stats != nullptr) {
-                    if (drawingSkinned) {
-                        ++ctx.stats->skinnedGpuDrawCount;
-                    }
-                    if (wireframe) {
-                        ++ctx.stats->wireGpuDrawCount;
-                    }
+                if (drawingSkinned) {
+                    ++ctx.services.stats->skinnedGpuDrawCount;
+                }
+                if (wireframe) {
+                    ++ctx.services.stats->wireGpuDrawCount;
                 }
             };
 
@@ -110,26 +121,34 @@ namespace HIKARI::MESHRENDERER {
 
                     const bool shouldDrawSkinned = !item.jointPalette.empty() && !primitive.skinnedVertices.empty();
                     bool drawingSkinned = false;
-                    Mesh* mesh = shouldDrawSkinned && ctx.getSkinnedPrimitiveMesh
-                        ? ctx.getSkinnedPrimitiveMesh(primitive)
-                        : (ctx.getPrimitiveMesh ? ctx.getPrimitiveMesh(primitive) : nullptr);
+                    MeshPrimitiveCache* primitiveCache = ctx.services.primitiveCache;
+                    Mesh* mesh = shouldDrawSkinned && primitiveCache != nullptr
+                        ? primitiveCache->GetOrCreateSkinned(ctx.services.device, primitive, ctx.services.stats)
+                        : (primitiveCache != nullptr ? primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats) : nullptr);
                     drawingSkinned = shouldDrawSkinned && mesh != nullptr && mesh->IsValid();
                     if (mesh == nullptr || !mesh->IsValid()) {
-                        if (shouldDrawSkinned && ctx.stats != nullptr) {
-                            ++ctx.stats->skinnedFallbackCount;
+                        if (shouldDrawSkinned && ctx.services.stats != nullptr) {
+                            ++ctx.services.stats->skinnedFallbackCount;
                         }
-                        mesh = ctx.getPrimitiveMesh ? ctx.getPrimitiveMesh(primitive) : nullptr;
+                        mesh = primitiveCache != nullptr
+                            ? primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats)
+                            : nullptr;
                         if (mesh == nullptr || !mesh->IsValid()) {
                             continue;
                         }
                     }
 
                     const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
-                    const int textureHandle = ctx.resolveBaseColorTexture ? ctx.resolveBaseColorTexture(*item.asset, materialAsset) : ctx.binding.fallbackTextureHandle;
-                    const int normalTextureHandle = ctx.resolveNormalTexture ? ctx.resolveNormalTexture(*item.asset, materialAsset) : ctx.binding.fallbackNormalTextureHandle;
-                    const int emissiveTextureHandle = ctx.resolveEmissiveTexture ? ctx.resolveEmissiveTexture(*item.asset, materialAsset) : ctx.materialFill.fallbackBlackTextureHandle;
-                    const int metallicRoughnessTextureHandle = ctx.resolveMetallicRoughnessTexture ? ctx.resolveMetallicRoughnessTexture(*item.asset, materialAsset) : ctx.binding.fallbackTextureHandle;
-                    const int occlusionTextureHandle = ctx.resolveOcclusionTexture ? ctx.resolveOcclusionTexture(*item.asset, materialAsset) : ctx.binding.fallbackTextureHandle;
+                    ResolvedMaterialTextures textures{};
+                    if (ctx.services.materialResolver != nullptr) {
+                        textures = ctx.services.materialResolver->Resolve(*item.asset, materialAsset, ctx.services.stats);
+                    } else {
+                        textures.baseColor = ctx.binding.fallbackTextureHandle;
+                        textures.normal = ctx.binding.fallbackNormalTextureHandle;
+                        textures.emissive = ctx.materialFill.fallbackBlackTextureHandle;
+                        textures.metallicRoughness = ctx.binding.fallbackTextureHandle;
+                        textures.occlusion = ctx.binding.fallbackTextureHandle;
+                    }
 
                     ObjectCB obj{};
                     obj.world = world;
@@ -137,12 +156,12 @@ namespace HIKARI::MESHRENDERER {
                     FillMaterialValues(
                         obj,
                         materialAsset,
-                        normalTextureHandle,
-                        emissiveTextureHandle,
-                        metallicRoughnessTextureHandle,
-                        occlusionTextureHandle,
+                        textures.normal,
+                        textures.emissive,
+                        textures.metallicRoughness,
+                        textures.occlusion,
                         ctx.materialFill);
-                    obj.hasBaseColorTexture = (textureHandle >= 0 && textureHandle != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
+                    obj.hasBaseColorTexture = (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
                     obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                     FillFxValues(obj, item);
                     CopyObjectCB(ctx, obj, objectIndex);
@@ -150,28 +169,26 @@ namespace HIKARI::MESHRENDERER {
                     const D3D12_GPU_VIRTUAL_ADDRESS objectAddress = ObjectAddress(ctx, objectIndex);
                     BindPerDrawCommon(ctx, drawingSkinned ? ctx.skinnedRootSig : ctx.staticRootSig, objectAddress);
 
-                    const VFX::VariantKey primitiveVariant = ctx.resolvePrimitiveVariant
-                        ? ctx.resolvePrimitiveVariant(item, materialAsset)
-                        : item.variant;
+                    const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
 
                     if (drawingSkinned) {
                         const size_t uploadedJointCount = UploadJointPalette(ctx.jointPaletteMapped, objectIndex, item.jointPalette);
                         if (ctx.cmd != nullptr && ctx.jointPaletteCB != nullptr) {
                             ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::JointPalette, JointPaletteAddress(ctx, objectIndex));
                         }
-                        if (ctx.stats != nullptr) {
-                            ctx.stats->uploadedJointCount += uploadedJointCount;
-                            ctx.stats->maxJointCount = std::max(ctx.stats->maxJointCount, item.jointPalette.size());
-                            ctx.stats->lastSkinnedVertexCount = primitive.skinnedVertices.size();
+                        if (ctx.services.stats != nullptr) {
+                            ctx.services.stats->uploadedJointCount += uploadedJointCount;
+                            ctx.services.stats->maxJointCount = std::max(ctx.services.stats->maxJointCount, item.jointPalette.size());
+                            ctx.services.stats->lastSkinnedVertexCount = primitive.skinnedVertices.size();
                         }
                     }
 
                     BindMaterialTextureSet(ctx.binding, {
-                        textureHandle,
-                        normalTextureHandle,
-                        emissiveTextureHandle,
-                        metallicRoughnessTextureHandle,
-                        occlusionTextureHandle
+                        textures.baseColor,
+                        textures.normal,
+                        textures.emissive,
+                        textures.metallicRoughness,
+                        textures.occlusion
                     });
                     BindSkyCube(ctx.binding);
                     BindSceneDepth(ctx.binding);
