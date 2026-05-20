@@ -89,27 +89,33 @@ namespace HIKARI::GFX {
             return;
         }
 
-        const auto found = knownStates_.find(resource);
-        if (found != knownStates_.end() && found->second != before) {
-            std::ostringstream oss;
-            oss << "[ResourceStateTracker][ERROR] before state mismatch. "
-                << DescribeResource(resource)
-                << " tracked=" << GFX::ResourceStateToString(found->second)
-                << " requestedBefore=" << GFX::ResourceStateToString(before)
-                << " requestedAfter=" << GFX::ResourceStateToString(after);
+        D3D12_RESOURCE_STATES actualBefore = before;
 
-            const std::string message = oss.str();
-            DEBUGLOG::PushRenderError(message);
-            HIKARI_LOG_ERROR(message);
-            assert(false && "ResourceStateTracker::Transition before state mismatch.");
+        const auto found = knownStates_.find(resource);
+        if (found != knownStates_.end()) {
+            if (found->second != before) {
+                std::ostringstream oss;
+                oss << "[ResourceStateTracker][ERROR] before state mismatch. "
+                    << DescribeResource(resource)
+                    << " tracked=" << GFX::ResourceStateToString(found->second)
+                    << " requestedBefore=" << GFX::ResourceStateToString(before)
+                    << " requestedAfter=" << GFX::ResourceStateToString(after);
+
+                const std::string message = oss.str();
+                DEBUGLOG::PushRenderError(message);
+                HIKARI_LOG_ERROR(message);
+                assert(false && "ResourceStateTracker::Transition before state mismatch.");
+            }
+
+            actualBefore = found->second;
         }
 
-        if (before == after) {
+        if (actualBefore == after) {
             knownStates_[resource] = after;
             return;
         }
 
-        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, actualBefore, after);
         cmd->ResourceBarrier(1, &barrier);
         knownStates_[resource] = after;
     }

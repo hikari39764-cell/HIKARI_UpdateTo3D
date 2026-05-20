@@ -631,11 +631,29 @@ namespace HIKARI {
 
         D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)
         {
-            if (handle < 0 || handle >= static_cast<int>(srvGpu_.size())) {
-                D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{};
-                nullHandle.ptr = 0;
+            D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{};
+            nullHandle.ptr = 0;
+
+            if (!initialized_) {
                 return nullHandle;
             }
+
+            if (handle < 0 || handle >= static_cast<int>(srvGpu_.size())) {
+                return nullHandle;
+            }
+
+            const GFX::DescriptorSlot slot{
+                GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
+            };
+
+            if (!descriptorAllocator_.IsAllocated(slot)) {
+                return nullHandle;
+            }
+
+            if (!textures_[handle]) {
+                return nullHandle;
+            }
+
             return srvGpu_[handle];
         }
 
