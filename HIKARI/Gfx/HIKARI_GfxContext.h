@@ -5,6 +5,8 @@
 
 namespace HIKARI::GFX {
 
+class ResourceStateTracker;
+
 struct Context {
     ID3D12Device* device{};
     ID3D12GraphicsCommandList* cmdList{};
@@ -18,6 +20,7 @@ struct Context {
     D3D12_CPU_DESCRIPTOR_HANDLE sceneDepthSrvCpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv{};
     ID3D12Resource* sceneDepthResource{};
+    ResourceStateTracker* resourceStates{};
 
     uint32_t frameIndex{};
     int backBufferWidth{};

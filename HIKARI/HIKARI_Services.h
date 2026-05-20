@@ -14,6 +14,7 @@
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_Dx12Core.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(_DEBUG)
@@ -94,12 +95,13 @@ namespace HIKARI {
             }
 
             const UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            auto cpuStart = srvHeap->GetCPUDescriptorHandleForHeapStart();
-            auto gpuStart = srvHeap->GetGPUDescriptorHandleForHeapStart();
 
-            constexpr UINT kImGuiFontSrvIndex = 2047;
-            gImGuiFontSrvCpu.ptr = cpuStart.ptr + static_cast<SIZE_T>(descriptorSize) * kImGuiFontSrvIndex;
-            gImGuiFontSrvGpu.ptr = gpuStart.ptr + static_cast<UINT64>(descriptorSize) * kImGuiFontSrvIndex;
+            const UINT imguiFontSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::ImGuiFont);
+            gImGuiFontSrvCpu =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, imguiFontSrvIndex);
+            gImGuiFontSrvGpu =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, imguiFontSrvIndex);
 
             if (!ImGui_ImplWin32_Init(gWindow.GetHWND())) {
                 HIKARI_LOG_ERROR("ImGui_ImplWin32_Init failed.");
@@ -179,7 +181,7 @@ namespace HIKARI {
 
             gCtx = gCore.BuildContext();
 
-            DXTEX::DxTextureManager::Init(gCtx, 1024);
+            DXTEX::DxTextureManager::Init(gCtx);
             HIKARI_LOG_INFO("TextureManager initialized.");
             DX::DxRenderer::Init(gCtx);
             HIKARI_LOG_INFO("DxRenderer initialized.");

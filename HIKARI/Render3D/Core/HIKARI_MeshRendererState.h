@@ -9,7 +9,6 @@
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
-#include "Render3D/Resources/HIKARI_ResourceStateTracker.h"
 
 namespace HIKARI::MESHRENDERER {
 
@@ -17,7 +16,6 @@ namespace HIKARI::MESHRENDERER {
         bool initialized = false;
 
         MeshPipelineStore pipelines;
-        RENDER3D::ResourceStateTracker resourceStates;
 
         Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> objectCB;

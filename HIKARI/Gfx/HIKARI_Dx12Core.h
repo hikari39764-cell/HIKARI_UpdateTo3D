@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HIKARI_GfxContext.h"
+#include "Gfx/HIKARI_ResourceStateTracker.h"
 
 #include <array>
 #include <wrl.h>
@@ -64,6 +65,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrvGpu_{};
 
     Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_;
+    ResourceStateTracker resourceStates_;
 
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
     uint64_t fenceValue_{};

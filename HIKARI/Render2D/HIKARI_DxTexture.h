@@ -1,4 +1,6 @@
 #pragma once
+#include "Gfx/HIKARI_DescriptorAllocator.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_GfxContext.h"
 #include <d3d12.h>
 #include <cstdint>
@@ -24,7 +26,7 @@ namespace HIKARI {
 
         class DxTextureManager {
         public:
-            static void Init(const GFX::Context& ctx, int maxTextures = 128);
+            static void Init(const GFX::Context& ctx, int maxTextures = GFX::DESCRIPTOR::kUserSrvCount);
             static void Finalize();
             static void UpdateContext(const GFX::Context& ctx);
 
@@ -36,6 +38,7 @@ namespace HIKARI {
             static int RegisterFromResource(ID3D12Resource* resource);
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static int RegisterCubeFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
+            static void ReleaseTexture(int handle);
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
             static ID3D12DescriptorHeap* GetSrvHeap();
             static void GetTextureSize(int handle, UINT& outWidth, UINT& outHeight);
@@ -61,7 +64,7 @@ namespace HIKARI {
             static std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvCpu_;
             static std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvGpu_;
             static std::unordered_map<std::string, int> nameToHandle_;
-            static int nextIndex_;
+            static GFX::DescriptorAllocator descriptorAllocator_;
         };
 
     } // namespace DXTEX

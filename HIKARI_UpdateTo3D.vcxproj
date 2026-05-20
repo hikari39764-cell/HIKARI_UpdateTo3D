@@ -111,9 +111,11 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
@@ -152,7 +154,6 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
@@ -319,6 +320,9 @@
     <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
     <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
     <ClInclude Include="External\WICTextureLoader.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorHeapLayout.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />
     <ClInclude Include="HIKARI\HIKARI_Core.h" />
@@ -394,7 +398,6 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
-    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ResourceStateTracker.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h" />

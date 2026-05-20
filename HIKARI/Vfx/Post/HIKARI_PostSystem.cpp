@@ -6,6 +6,7 @@
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
 #include "HIKARI_Core.h"
@@ -14,7 +15,6 @@ namespace HIKARI {
     namespace POST {
 
         namespace {
-            constexpr UINT kEditorViewportSrvIndex = 2045;
             constexpr int kMinEditorViewportSize = 16;
             constexpr int kMaxEditorViewportSize = 8192;
 
@@ -579,13 +579,13 @@ namespace HIKARI {
             }
 
             const UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = srvHeap->GetCPUDescriptorHandleForHeapStart();
-            const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = srvHeap->GetGPUDescriptorHandleForHeapStart();
 
-            editorViewportSrvCpu_.ptr =
-                cpuStart.ptr + static_cast<SIZE_T>(descriptorSize) * kEditorViewportSrvIndex;
-            editorViewportSrvGpu_.ptr =
-                gpuStart.ptr + static_cast<UINT64>(descriptorSize) * kEditorViewportSrvIndex;
+            const UINT editorViewportSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::EditorViewport);
+            editorViewportSrvCpu_ =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, editorViewportSrvIndex);
+            editorViewportSrvGpu_ =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, editorViewportSrvIndex);
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
             srv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;

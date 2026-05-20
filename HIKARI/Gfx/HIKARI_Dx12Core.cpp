@@ -10,6 +10,7 @@
 #include <string>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
 #include "Core/HIKARI_Logger.h"
@@ -19,8 +20,6 @@ using Microsoft::WRL::ComPtr;
 namespace HIKARI::GFX {
 
 namespace {
-    constexpr UINT kSceneDepthSrvIndex = 2046;
-
     struct LetterboxRect {
         float x;
         float y;
@@ -195,7 +194,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     HIKARI_LOG_D3D12("DSV heap created.");
 
     D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
-    srvDesc.NumDescriptors = 2048;
+    srvDesc.NumDescriptors = DESCRIPTOR::kSrvHeapCapacity;
     srvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     hr = device_->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(&srvHeap_));
@@ -205,7 +204,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     }
     SetD3D12Name(srvHeap_.Get(), L"HIKARI Global SRV Heap");
     srvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    HIKARI_LOG_D3D12("SRV heap created. descriptors=2048.");
+    HIKARI_LOG_D3D12("SRV heap created. descriptors=4096.");
 
     CreateSwapChainResources();
     HIKARI_LOG_D3D12("SwapChain resources created.");
@@ -256,6 +255,7 @@ void Dx12Core::CreateSwapChainResources() {
         const std::wstring name = L"HIKARI SwapChain BackBuffer[" + std::to_wstring(i) + L"]";
         SetD3D12Name(backBuffers_[i].Get(), name.c_str());
         device_->CreateRenderTargetView(backBuffers_[i].Get(), nullptr, rtv);
+        resourceStates_.Track(backBuffers_[i].Get(), D3D12_RESOURCE_STATE_PRESENT);
         rtv.ptr += rtvDescriptorSize_;
     }
 }
@@ -274,6 +274,7 @@ void Dx12Core::CreateDepthBuffer() {
         return;
     }
     SetD3D12Name(depthBuffer_.Get(), L"HIKARI Main Depth Buffer");
+    resourceStates_.Track(depthBuffer_.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsv{};
     dsv.Format = DXGI_FORMAT_D32_FLOAT;
@@ -289,13 +290,13 @@ void Dx12Core::CreateDepthBuffer() {
     readOnlyDsv.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
     device_->CreateDepthStencilView(depthBuffer_.Get(), &readOnlyDsv, readOnlyDsvHandle);
 
-    const auto cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
-    const auto gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+    const UINT sceneDepthSrvIndex =
+        DESCRIPTOR::ToIndex(DESCRIPTOR::SystemSrv::SceneDepth);
 
-    sceneDepthSrvCpu_.ptr =
-        cpuStart.ptr + static_cast<SIZE_T>(srvDescriptorSize_) * kSceneDepthSrvIndex;
-    sceneDepthSrvGpu_.ptr =
-        gpuStart.ptr + static_cast<UINT64>(srvDescriptorSize_) * kSceneDepthSrvIndex;
+    sceneDepthSrvCpu_ =
+        DESCRIPTOR::CpuAt(srvHeap_.Get(), srvDescriptorSize_, sceneDepthSrvIndex);
+    sceneDepthSrvGpu_ =
+        DESCRIPTOR::GpuAt(srvHeap_.Get(), srvDescriptorSize_, sceneDepthSrvIndex);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
     srv.Format = DXGI_FORMAT_R32_FLOAT;
@@ -319,8 +320,10 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
     allocators_[frameIndex_]->Reset();
     cmdList_->Reset(allocators_[frameIndex_].Get(), nullptr);
 
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    cmdList_->ResourceBarrier(1, &barrier);
+    resourceStates_.Transition(
+        cmdList_.Get(),
+        CurrentBackBuffer(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     auto rtv = CurrentRTV();
     auto dsv = DSV();
@@ -355,8 +358,10 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
 }
 
 void Dx12Core::EndFrame() {
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    cmdList_->ResourceBarrier(1, &barrier);
+    resourceStates_.Transition(
+        cmdList_.Get(),
+        CurrentBackBuffer(),
+        D3D12_RESOURCE_STATE_PRESENT);
 
     cmdList_->Close();
     ID3D12CommandList* lists[] = { cmdList_.Get() };
@@ -399,6 +404,8 @@ void Dx12Core::Resize(int w, int h) {
 
     width_ = w;
     height_ = h;
+
+    resourceStates_.Reset();
 
     for (auto& bb : backBuffers_) bb.Reset();
     depthBuffer_.Reset();
@@ -449,6 +456,7 @@ Context Dx12Core::BuildContext() const {
     ctx.sceneDepthSrvCpu = sceneDepthSrvCpu_;
     ctx.sceneDepthSrv = SceneDepthSrv();
     ctx.sceneDepthResource = SceneDepthResource();
+    ctx.resourceStates = const_cast<ResourceStateTracker*>(&resourceStates_);
     ctx.frameIndex = frameIndex_;
     ctx.backBufferWidth = width_;
     ctx.backBufferHeight = height_;

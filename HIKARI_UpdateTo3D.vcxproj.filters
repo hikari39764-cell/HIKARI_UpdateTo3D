@@ -309,6 +309,9 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
@@ -316,6 +319,9 @@
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_Input.cpp">
@@ -907,6 +913,15 @@
     </ClInclude>
     <ClInclude Include="External\WICTextureLoader.h">
       <Filter>Header Files\External\WIC</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorHeapLayout.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.h">
+      <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI.h">
       <Filter>Header Files\Core</Filter>

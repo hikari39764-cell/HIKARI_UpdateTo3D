@@ -10,6 +10,7 @@
 
 #include "HIKARI_DxTexture.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_ResourceStateTracker.h"
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/Core/HIKARI_Material.h"
@@ -113,7 +114,7 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_white", "HIKARI/black1x1.png");
             g.fallbackNormalTextureHandle = DXTEX::DxTextureManager::LoadTexture("mesh_renderer/fallback_normal", "HIKARI/normal_flat_1x1.png");
             if (g.fallbackNormalTextureHandle < 0) {
                 g.fallbackNormalTextureHandle = g.fallbackTextureHandle;
@@ -214,11 +215,19 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            g.resourceStates.Transition(
-                cmd,
-                sceneDepthResource,
-                D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            if (SERVICES::gCtx.resourceStates != nullptr) {
+                SERVICES::gCtx.resourceStates->Transition(
+                    cmd,
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            }
+            else {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                cmd->ResourceBarrier(1, &barrier);
+            }
 
             scope.rtv = SERVICES::gCtx.rtv;
             const D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv = SERVICES::gCtx.readOnlyDsv;
@@ -262,11 +271,19 @@ namespace HIKARI::MESHRENDERER {
             D3D12_CPU_DESCRIPTOR_HANDLE rtv = scope.rtv;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
-            g.resourceStates.Transition(
-                cmd,
-                sceneDepthResource,
-                D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-                D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            if (SERVICES::gCtx.resourceStates != nullptr) {
+                SERVICES::gCtx.resourceStates->Transition(
+                    cmd,
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            }
+            else {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    sceneDepthResource,
+                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
+                cmd->ResourceBarrier(1, &barrier);
+            }
 
             D3D12_CPU_DESCRIPTOR_HANDLE writableDsv = SERVICES::gCtx.dsv;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, &writableDsv);

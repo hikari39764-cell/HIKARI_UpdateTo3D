@@ -141,8 +141,7 @@ namespace HIKARI {
         std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvCpu_;
         std::vector<D3D12_GPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvGpu_;
         std::unordered_map<std::string, int>      DxTextureManager::nameToHandle_;
-
-        int DxTextureManager::nextIndex_ = 0;
+        GFX::DescriptorAllocator                  DxTextureManager::descriptorAllocator_;
 
         void DxTextureManager::Init(const GFX::Context& ctx, int maxTextures)
         {
@@ -150,6 +149,11 @@ namespace HIKARI {
             context_ = ctx;
             auto* device = context_.device;
             assert(device);
+
+            maxTextures = std::clamp(
+                maxTextures,
+                1,
+                static_cast<int>(GFX::DESCRIPTOR::kUserSrvCount));
 
             if (context_.srvHeap) {
                 srvHeap_ = context_.srvHeap;
@@ -159,7 +163,10 @@ namespace HIKARI {
                 desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
                 desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
                 HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvHeap_));
-                assert(SUCCEEDED(hr));
+                if (FAILED(hr)) {
+                    OutputDebugStringA("DxTextureManager::Init - CreateDescriptorHeap failed.\n");
+                    return;
+                }
             }
 
             descriptorSize_ =
@@ -190,16 +197,19 @@ namespace HIKARI {
             srvGpu_.resize(maxTextures);
             textures_.resize(maxTextures);
             dimensions_.resize(maxTextures, TextureDimension::Texture2D);
-
-            D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = srvHeap_->GetCPUDescriptorHandleForHeapStart();
-            D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+            descriptorAllocator_.Initialize(
+                GFX::DESCRIPTOR::kUserSrvBegin,
+                static_cast<UINT>(maxTextures));
 
             for (int i = 0; i < maxTextures; ++i) {
-                srvCpu_[i].ptr = cpuStart.ptr + UINT64(i) * descriptorSize_;
-                srvGpu_[i].ptr = gpuStart.ptr + UINT64(i) * descriptorSize_;
+                const UINT descriptorIndex =
+                    GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(i);
+                srvCpu_[i] =
+                    GFX::DESCRIPTOR::CpuAt(srvHeap_.Get(), descriptorSize_, descriptorIndex);
+                srvGpu_[i] =
+                    GFX::DESCRIPTOR::GpuAt(srvHeap_.Get(), descriptorSize_, descriptorIndex);
             }
 
-            nextIndex_ = 0;
             initialized_ = true;
         }
 
@@ -225,7 +235,7 @@ namespace HIKARI {
             }
             uploadFenceValue_ = 1;
             nameToHandle_.clear();
-            nextIndex_ = 0;
+            descriptorAllocator_.Reset();
             DXTEX::CleanupWICResources();
             initialized_ = false;
         }
@@ -335,8 +345,15 @@ namespace HIKARI {
                 return -1;
             }
 
-            int handle = nextIndex_++;
-            if (handle >= static_cast<int>(textures_.size())) {
+            const GFX::DescriptorSlot slot = descriptorAllocator_.Allocate();
+            if (!slot.IsValid()) {
+                OutputDebugStringA("DxTextureManager - out of user texture descriptor slots.\n");
+                return -1;
+            }
+
+            const int handle = static_cast<int>(slot.index - GFX::DESCRIPTOR::kUserSrvBegin);
+            if (handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                descriptorAllocator_.Free(slot);
                 return -1;
             }
 
@@ -473,10 +490,15 @@ namespace HIKARI {
 
             auto* device = context_.device;
 
-            int handle = nextIndex_++;
+            const GFX::DescriptorSlot slot = descriptorAllocator_.Allocate();
+            if (!slot.IsValid()) {
+                OutputDebugStringA("DxTextureManager - out of user texture descriptor slots.\n");
+                return -1;
+            }
 
-            if (handle >= static_cast<int>(textures_.size())) {
-                OutputDebugStringA("DxTextureManager::RegisterFromResource - out of texture slots.\n");
+            const int handle = static_cast<int>(slot.index - GFX::DESCRIPTOR::kUserSrvBegin);
+            if (handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                descriptorAllocator_.Free(slot);
                 return -1;
             }
 
@@ -518,9 +540,15 @@ namespace HIKARI {
             }
 
             auto* device = context_.device;
-            int handle = nextIndex_++;
-            if (handle >= static_cast<int>(textures_.size())) {
-                OutputDebugStringA("DxTextureManager::RegisterCubeFromResourceAs - out of texture slots.\n");
+            const GFX::DescriptorSlot slot = descriptorAllocator_.Allocate();
+            if (!slot.IsValid()) {
+                OutputDebugStringA("DxTextureManager - out of user texture descriptor slots.\n");
+                return -1;
+            }
+
+            const int handle = static_cast<int>(slot.index - GFX::DESCRIPTOR::kUserSrvBegin);
+            if (handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                descriptorAllocator_.Free(slot);
                 return -1;
             }
 
@@ -537,6 +565,33 @@ namespace HIKARI {
 
             device->CreateShaderResourceView(resource, &srvDesc, srvCpu_[handle]);
             return handle;
+        }
+
+        void DxTextureManager::ReleaseTexture(int handle)
+        {
+            if (!initialized_ || handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                return;
+            }
+
+            if (!textures_[handle]) {
+                return;
+            }
+
+            textures_[handle].Reset();
+            dimensions_[handle] = TextureDimension::Texture2D;
+
+            for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
+                if (it->second == handle) {
+                    it = nameToHandle_.erase(it);
+                }
+                else {
+                    ++it;
+                }
+            }
+
+            descriptorAllocator_.Free({
+                GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
+            });
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)

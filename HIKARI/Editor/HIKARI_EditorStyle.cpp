@@ -23,7 +23,7 @@ namespace HIKARI::EDITOR {
         style.ChildBorderSize = 1.0f;
         style.PopupBorderSize = 1.0f;
         style.FrameBorderSize = 0.0f;
-        style.TabBorderSize = 0.0f;
+        style.TabBorderSize = 2.0f;
 
         style.WindowRounding = 6.0f;
         style.ChildRounding = 6.0f;
