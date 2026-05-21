@@ -61,13 +61,23 @@ namespace HIKARI::MESHRENDERER {
         ApplyMaterialFxOverride(item);
 
         item.fxValues = {};
-        item.fxFlags = 0;
-        if (!item.materialFxValuesInitialized) {
-            return;
+        item.fxFlags = item.variant.featureBits;
+
+        // 先使用 profile 默认值
+        if (item.hasResolvedMaterialFxProfile) {
+            const auto& defaults = item.resolvedMaterialFxProfile.values;
+            for (size_t i = 0; i < item.fxValues.size() && i < defaults.size(); ++i) {
+                const DirectX::XMFLOAT4& value = defaults[i];
+                item.fxValues[i] = { value.x, value.y, value.z, value.w };
+            }
         }
-        for (size_t i = 0; i < item.fxValues.size(); ++i) {
-            const DirectX::XMFLOAT4& value = item.materialFxParamValues[i];
-            item.fxValues[i] = { value.x, value.y, value.z, value.w };
+
+        // 如果外部 / Editor 有自定义参数，再覆盖默认值
+        if (item.materialFxValuesInitialized) {
+            for (size_t i = 0; i < item.fxValues.size(); ++i) {
+                const DirectX::XMFLOAT4& value = item.materialFxParamValues[i];
+                item.fxValues[i] = { value.x, value.y, value.z, value.w };
+            }
         }
         item.fxFlags = item.variant.featureBits;
     }
