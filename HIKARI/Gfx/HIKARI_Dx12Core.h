@@ -1,9 +1,11 @@
 #pragma once
 
 #include "HIKARI_GfxContext.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Gfx/HIKARI_ResourceStateTracker.h"
 
 #include <array>
+#include <cstddef>
 #include <wrl.h>
 #include <dxgi1_6.h>
 
@@ -32,6 +34,7 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE SceneDepthSrv() const;
     ID3D12Resource* SceneDepthResource() const;
     ID3D12Resource* CurrentBackBuffer();
+    size_t GetPendingDeferredReleaseCount() const;
 
     Context BuildContext() const;
 
@@ -66,6 +69,7 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_;
     ResourceStateTracker resourceStates_;
+    GpuDeferredReleaseQueue deferredReleaseQueue_;
 
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
     uint64_t fenceValue_{};

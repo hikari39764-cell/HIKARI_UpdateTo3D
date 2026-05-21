@@ -247,7 +247,7 @@ namespace HIKARI::SHADOW {
             }
 
             if (g.shadowSrvHandle >= 0) {
-                DXTEX::DxTextureManager::ReleaseTexture(g.shadowSrvHandle);
+                DXTEX::DxTextureManager::ReleaseTextureDeferred(g.shadowSrvHandle);
                 g.shadowSrvHandle = -1;
             }
 

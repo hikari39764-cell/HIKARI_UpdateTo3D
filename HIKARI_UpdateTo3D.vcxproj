@@ -112,6 +112,7 @@
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
@@ -322,6 +323,7 @@
     <ClInclude Include="External\WICTextureLoader.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorHeapLayout.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h" />
     <ClInclude Include="HIKARI\HIKARI.h" />

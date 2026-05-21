@@ -312,6 +312,9 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
@@ -918,6 +921,9 @@
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorHeapLayout.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.h">

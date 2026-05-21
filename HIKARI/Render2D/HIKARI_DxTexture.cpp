@@ -8,6 +8,7 @@
 #include <d3dx12.h>
 #include "../External/WICTextureLoader.h"
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -123,6 +124,20 @@ namespace HIKARI {
                 }
                 return resourceFormat;
             }
+
+            void RemoveCacheEntriesForHandle(
+                std::unordered_map<std::string, int>& cache,
+                int handle) {
+
+                for (auto it = cache.begin(); it != cache.end();) {
+                    if (it->second == handle) {
+                        it = cache.erase(it);
+                    }
+                    else {
+                        ++it;
+                    }
+                }
+            }
         }
 
         bool  DxTextureManager::initialized_ = false;
@@ -140,6 +155,7 @@ namespace HIKARI {
         std::vector<TextureDimension>             DxTextureManager::dimensions_;
         std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvCpu_;
         std::vector<D3D12_GPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvGpu_;
+        std::vector<bool>                         DxTextureManager::pendingRelease_;
         std::unordered_map<std::string, int>      DxTextureManager::nameToHandle_;
         GFX::DescriptorAllocator                  DxTextureManager::descriptorAllocator_;
 
@@ -197,6 +213,7 @@ namespace HIKARI {
             srvGpu_.resize(maxTextures);
             textures_.resize(maxTextures);
             dimensions_.resize(maxTextures, TextureDimension::Texture2D);
+            pendingRelease_.resize(maxTextures, false);
             descriptorAllocator_.Initialize(
                 GFX::DESCRIPTOR::kUserSrvBegin,
                 static_cast<UINT>(maxTextures));
@@ -227,6 +244,7 @@ namespace HIKARI {
             dimensions_.clear();
             srvCpu_.clear();
             srvGpu_.clear();
+            pendingRelease_.clear();
             if (!context_.srvHeap) {
                 srvHeap_.Reset();
             }
@@ -577,6 +595,10 @@ namespace HIKARI {
                 return;
             }
 
+            if (handle < static_cast<int>(pendingRelease_.size()) && pendingRelease_[handle]) {
+                return;
+            }
+
             const GFX::DescriptorSlot slot{
                 GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
             };
@@ -590,13 +612,68 @@ namespace HIKARI {
             }
             dimensions_[handle] = TextureDimension::Texture2D;
 
-            for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
-                if (it->second == handle) {
-                    it = nameToHandle_.erase(it);
-                }
-                else {
-                    ++it;
-                }
+            RemoveCacheEntriesForHandle(nameToHandle_, handle);
+            descriptorAllocator_.Free(slot);
+        }
+
+        void DxTextureManager::ReleaseTextureDeferred(int handle)
+        {
+            if (!initialized_ || handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                return;
+            }
+
+            if (handle >= static_cast<int>(pendingRelease_.size())) {
+                return;
+            }
+
+            if (pendingRelease_[handle]) {
+                return;
+            }
+
+            const GFX::DescriptorSlot slot{
+                GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle)
+            };
+
+            if (!descriptorAllocator_.IsAllocated(slot)) {
+                return;
+            }
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> resourceToRelease = textures_[handle];
+            textures_[handle].Reset();
+            dimensions_[handle] = TextureDimension::Texture2D;
+            pendingRelease_[handle] = true;
+            RemoveCacheEntriesForHandle(nameToHandle_, handle);
+
+            GFX::GpuDeferredReleaseQueue* queue = context_.deferredReleaseQueue;
+            if (queue == nullptr) {
+                HIKARI_LOG_ERROR("[DxTextureManager][DeferredRelease][WARN] deferredReleaseQueue is null. Falling back to immediate descriptor free.");
+                pendingRelease_[handle] = false;
+                descriptorAllocator_.Free(slot);
+                return;
+            }
+
+            const uint64_t retireFenceValue = context_.currentFrameRetireFenceValue;
+            queue->Enqueue(
+                retireFenceValue,
+                [resourceToRelease, slot, handle]() mutable {
+                    (void)resourceToRelease;
+                    DxTextureManager::CompleteDeferredRelease(handle, slot);
+                },
+                "DxTextureManager::ReleaseTextureDeferred");
+        }
+
+        void DxTextureManager::CompleteDeferredRelease(int handle, GFX::DescriptorSlot slot)
+        {
+            if (handle >= 0 && handle < static_cast<int>(pendingRelease_.size())) {
+                pendingRelease_[handle] = false;
+            }
+
+            if (!initialized_) {
+                return;
+            }
+
+            if (!descriptorAllocator_.IsAllocated(slot)) {
+                return;
             }
 
             descriptorAllocator_.Free(slot);
@@ -639,6 +716,10 @@ namespace HIKARI {
             }
 
             if (handle < 0 || handle >= static_cast<int>(srvGpu_.size())) {
+                return nullHandle;
+            }
+
+            if (handle < static_cast<int>(pendingRelease_.size()) && pendingRelease_[handle]) {
                 return nullHandle;
             }
 

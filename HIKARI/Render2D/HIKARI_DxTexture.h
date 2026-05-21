@@ -45,6 +45,9 @@ namespace HIKARI {
             //   resource rebuild points guarded by synchronization.
             // TODO: Replace immediate release with deferred GPU-safe release.
             static void ReleaseTexture(int handle);
+            // Defers releasing the texture resource and descriptor slot until the GPU fence
+            // confirms the current frame no longer uses them.
+            static void ReleaseTextureDeferred(int handle);
             static UINT GetUsedDescriptorCount();
             static UINT GetFreeDescriptorCount();
             static UINT GetMaxDescriptorCount();
@@ -57,6 +60,7 @@ namespace HIKARI {
             static void EnsureInit();
             static int CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Auto);
             static int CreateCubemapFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);
+            static void CompleteDeferredRelease(int handle, GFX::DescriptorSlot slot);
 
             static bool initialized_;
             static GFX::Context context_;
@@ -72,6 +76,7 @@ namespace HIKARI {
             static std::vector<TextureDimension> dimensions_;
             static std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvCpu_;
             static std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvGpu_;
+            static std::vector<bool> pendingRelease_;
             static std::unordered_map<std::string, int> nameToHandle_;
             static GFX::DescriptorAllocator descriptorAllocator_;
         };

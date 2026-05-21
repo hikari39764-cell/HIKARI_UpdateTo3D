@@ -312,6 +312,7 @@ void Dx12Core::CreateDepthBuffer() {
 
 void Dx12Core::Shutdown() {
     WaitGPU();
+    deferredReleaseQueue_.FlushAll();
     if (fenceEvent_) CloseHandle(fenceEvent_);
     fenceEvent_ = nullptr;
 }
@@ -384,6 +385,7 @@ void Dx12Core::WaitGPU() {
         fence_->SetEventOnCompletion(signal, fenceEvent_);
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
+    deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
 }
 
 void Dx12Core::MoveToNextFrame() {
@@ -396,6 +398,7 @@ void Dx12Core::MoveToNextFrame() {
         fence_->SetEventOnCompletion(signal, fenceEvent_);
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
+    deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
 }
 
 void Dx12Core::Resize(int w, int h) {
@@ -444,6 +447,10 @@ ID3D12Resource* Dx12Core::CurrentBackBuffer() {
     return backBuffers_[frameIndex_].Get();
 }
 
+size_t Dx12Core::GetPendingDeferredReleaseCount() const {
+    return deferredReleaseQueue_.GetPendingCount();
+}
+
 Context Dx12Core::BuildContext() const {
     Context ctx{};
     ctx.device = device_.Get();
@@ -457,6 +464,8 @@ Context Dx12Core::BuildContext() const {
     ctx.sceneDepthSrv = SceneDepthSrv();
     ctx.sceneDepthResource = SceneDepthResource();
     ctx.resourceStates = const_cast<ResourceStateTracker*>(&resourceStates_);
+    ctx.deferredReleaseQueue = const_cast<GpuDeferredReleaseQueue*>(&deferredReleaseQueue_);
+    ctx.currentFrameRetireFenceValue = fenceValue_;
     ctx.frameIndex = frameIndex_;
     ctx.backBufferWidth = width_;
     ctx.backBufferHeight = height_;

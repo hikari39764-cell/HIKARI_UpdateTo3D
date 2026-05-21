@@ -1,5 +1,8 @@
 #include "HIKARI_StatsPanel.h"
 #include "HIKARI_EditorSelection.h"
+#include "HIKARI_DxTexture.h"
+#include "HIKARI_Services.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -68,6 +71,21 @@ namespace HIKARI {
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
             ImGui::Text("NormalMapped Primitives: %zu", meshStats.normalMappedPrimitiveCount);
             ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu", meshStats.normalTextureCacheHitCount, meshStats.normalTextureCacheMissCount);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("GPU Resources", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const UINT used = DXTEX::DxTextureManager::GetUsedDescriptorCount();
+            const UINT freeCount = DXTEX::DxTextureManager::GetFreeDescriptorCount();
+            const UINT maxCount = DXTEX::DxTextureManager::GetMaxDescriptorCount();
+
+            ImGui::Text("Texture Descriptors: %u / %u", used, maxCount);
+            ImGui::Text("Free Texture Descriptors: %u", freeCount);
+            ImGui::Text("SRV Heap Capacity: %u", GFX::DESCRIPTOR::kSrvHeapCapacity);
+            ImGui::Text("System SRV Reserved: %u", GFX::DESCRIPTOR::kSystemSrvReservedCount);
+            ImGui::Text(
+                "Deferred Releases Pending: %zu",
+                SERVICES::gCore.GetPendingDeferredReleaseCount());
             ImGui::TreePop();
         }
 
