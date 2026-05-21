@@ -224,12 +224,34 @@
       "speed": 0.01
     },
     {
+      "key": "refractionStrength",
+      "displayName": "Refraction Strength",
+      "type": "float",
+      "slot": 2,
+      "component": "w",
+      "default": 0.015,
+      "min": 0.0,
+      "max": 0.08,
+      "speed": 0.001
+    },
+    {
       "key": "shallowColor",
       "displayName": "Shallow Color",
       "type": "color3",
       "slot": 3,
       "component": "xyz",
       "default": [0.08, 0.55, 0.68]
+    },
+    {
+      "key": "sceneColorMix",
+      "displayName": "SceneColor Mix",
+      "type": "float",
+      "slot": 3,
+      "component": "w",
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "speed": 0.01
     },
     {
       "key": "depthScale",

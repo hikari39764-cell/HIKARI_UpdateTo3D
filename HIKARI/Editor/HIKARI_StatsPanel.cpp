@@ -91,6 +91,8 @@ namespace HIKARI {
             ImGui::Text("SceneColor Size: %d x %d",
                 POST::PostSystem::GetSceneColorWidth(),
                 POST::PostSystem::GetSceneColorHeight());
+            ImGui::Text("SceneColor For Water: %s", POST::PostSystem::IsSceneColorReady() ? "Available" : "Unavailable");
+            ImGui::Text("Water Refraction: SceneColor t8 when renderPhase=SceneDepth");
             ImGui::TreePop();
         }
 

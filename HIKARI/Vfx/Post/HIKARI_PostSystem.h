@@ -76,6 +76,8 @@ namespace HIKARI {
             static bool CaptureSceneColorSnapshot();
             static bool IsSceneColorReady();
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSceneColorSrv();
+            // Returns the current SceneColor snapshot size.
+            // May be 0 before the first successful CaptureSceneColorSnapshot().
             static int GetSceneColorWidth();
             static int GetSceneColorHeight();
 

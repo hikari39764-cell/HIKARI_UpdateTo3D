@@ -14,6 +14,7 @@ cbuffer CameraCB : register(b0)
     float4 gCameraPos;
     // x = elapsed time, y = unscaled dt, z = game dt, w = frame index
     float4 gTimeParams;
+    float4 gScreenParams;
 };
 
 cbuffer ObjectCB : register(b1)

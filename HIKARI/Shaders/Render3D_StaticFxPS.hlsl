@@ -399,6 +399,8 @@ float4 main(PSInput input) : SV_TARGET
 
     if (sceneColorMix > 0.0001f)
     {
+        // SceneColor is a snapshot captured before the DepthAware phase.
+        // Do not sample the currently bound render target directly.
         float2 screenUv = input.position.xy * gScreenParams.zw;
         float n0 = Noise3D(input.worldPosWS * sceneColorNoiseScale);
         float n1 = Noise3D(input.worldPosWS * sceneColorNoiseScale + float3(13.1f, 7.7f, 3.3f));

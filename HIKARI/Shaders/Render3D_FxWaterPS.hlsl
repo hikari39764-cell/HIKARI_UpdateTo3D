@@ -28,11 +28,15 @@
 #define gWaterFoamPower      gFxUser7.z
 #define gWaterFoamNoise      gFxUser7.w
 
+#define gWaterRefractionStrength gFxUser2.w
+#define gWaterSceneColorMix      gFxUser3.w
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
     float4 gCameraPos;
     float4 gTimeParams;
+    float4 gScreenParams;
 };
 
 cbuffer ObjectCB : register(b1)
@@ -114,6 +118,7 @@ cbuffer SkyEnvironmentCB : register(b5)
 Texture2D gShadowMap : register(t2) ;
 TextureCube gSkyCube : register(t6);
 Texture2D gSceneDepth : register(t7);
+Texture2D gSceneColorTex : register(t8);
 SamplerState gShadowSampler : register(s1);
 SamplerState gSkySampler : register(s0);
 
@@ -294,6 +299,105 @@ float ComputeWaterFoam(float4 svPosition, float3 worldPosWS)
     }
 
     return saturate(foam * foamStrength);
+}
+
+float2 ComputeWaterSceneColorDistortion(float3 normalWS, float3 worldPosWS)
+{
+    float refractionStrength = max(0.0f, gWaterRefractionStrength);
+
+    float detailScale = gWaterDetailScale;
+    if (detailScale <= 0.0001f)
+    {
+        detailScale = 4.0f;
+    }
+
+    float detailSpeed = gWaterDetailSpeed;
+    if (detailSpeed <= 0.0001f)
+    {
+        detailSpeed = 1.0f;
+    }
+
+    float2 waveGrad = DetailWaveGradient(
+        worldPosWS.xz * detailScale * 0.45f,
+        gTimeParams.x * detailSpeed);
+
+    float2 normalOffset = normalWS.xz * 0.6f + waveGrad * 0.4f;
+    return normalOffset * refractionStrength;
+}
+
+float ComputeWaterSceneColorCoverageMask(float4 svPosition)
+{
+    float sceneDepth = SampleSceneDepth(svPosition);
+    float rawDiff = max(0.0f, sceneDepth - svPosition.z);
+
+    if (sceneDepth >= 0.9999f || rawDiff <= 0.000001f)
+    {
+        return 0.0f;
+    }
+
+    float depthScale = gWaterDepthScale;
+    if (depthScale <= 0.0001f)
+    {
+        depthScale = 80.0f;
+    }
+
+    float behindWaterMask = saturate(rawDiff * depthScale * 12.0f);
+    return behindWaterMask;
+}
+
+float ComputeWaterSceneColorRefractionMask(float coverageMask, float depthFactor, float fresnel)
+{
+    float deepWaterFade = 1.0f - saturate(depthFactor * 0.7f);
+    float facingFade = 1.0f - saturate(fresnel);
+
+    return saturate(coverageMask * deepWaterFade * facingFade);
+}
+
+float3 ApplyWaterSceneColorRefraction(
+    float3 waterColor,
+    float4 svPosition,
+    float3 normalWS,
+    float3 worldPosWS,
+    float depthFactor,
+    float fresnel,
+    out float refractionCoverage)
+{
+    refractionCoverage = 0.0f;
+
+    float sceneColorMix = saturate(gWaterSceneColorMix);
+    if (sceneColorMix <= 0.0001f)
+    {
+        return waterColor;
+    }
+
+    float coverageMask = ComputeWaterSceneColorCoverageMask(svPosition);
+    if (coverageMask <= 0.0001f)
+    {
+        return waterColor;
+    }
+
+    // Alpha coverage is separate from visual refraction strength:
+    // if something is behind the water, the shader must cover the original
+    // undistorted framebuffer and provide the through-water result itself.
+    refractionCoverage = coverageMask;
+
+    float refractionMask = ComputeWaterSceneColorRefractionMask(coverageMask, depthFactor, fresnel);
+    if (refractionMask <= 0.0001f)
+    {
+        return waterColor;
+    }
+
+    // SceneColor is a snapshot captured before the DepthAware phase.
+    // Do not sample the currently bound render target directly.
+    float2 screenUv = svPosition.xy * gScreenParams.zw;
+    float2 distortion = ComputeWaterSceneColorDistortion(normalWS, worldPosWS);
+    float3 sceneColor = gSceneColorTex.Sample(gSkySampler, saturate(screenUv + distortion)).rgb;
+
+    float waterTint = saturate(depthFactor * 0.45f + fresnel * 0.65f);
+    float3 refracted = lerp(sceneColor, waterColor, waterTint);
+
+    float refractionWeight = sceneColorMix * refractionMask;
+    return lerp(waterColor, refracted, refractionWeight);
 }
 
 float3 ApplyFog(float3 color, float3 worldPosWS)
@@ -549,12 +653,23 @@ float4 main(PSInput input) : SV_TARGET
         return float4(n * 0.5f + 0.5f, 1.0f);
     }
 
+    float refractionCoverage = 0.0f;
+    color = ApplyWaterSceneColorRefraction(
+        color,
+        input.position,
+        n,
+        input.worldPosWS,
+        depthFactor,
+        fresnel,
+        refractionCoverage);
+
     float foam = ComputeWaterFoam(input.position, input.worldPosWS);
     float3 foamColor = float3(0.85f, 0.95f, 1.0f);
 
     color = lerp(color, foamColor, foam);
 
     float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel);
+    waterAlpha = lerp(waterAlpha, 1.0f, refractionCoverage);
     waterAlpha = saturate(waterAlpha + foam * 0.35f);
 
     color = ApplyFog(color, input.worldPosWS);

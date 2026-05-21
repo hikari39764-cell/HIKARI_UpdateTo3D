@@ -11,6 +11,8 @@ cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
     float4 gCameraPos;
+    float4 gTimeParams;
+    float4 gScreenParams;
 };
 
 cbuffer ObjectCB : register(b1)
