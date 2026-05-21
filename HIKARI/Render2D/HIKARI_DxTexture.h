@@ -38,12 +38,7 @@ namespace HIKARI {
             static int RegisterFromResource(ID3D12Resource* resource);
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static int RegisterCubeFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
-            // Releases the texture handle and returns its descriptor slot to the allocator.
-            // Current limitation:
-            //   Call this only when the GPU is guaranteed not to be using the texture
-            //   anymore, such as during shutdown, scene unload after GPU idle, or explicit
-            //   resource rebuild points guarded by synchronization.
-            // TODO: Replace immediate release with deferred GPU-safe release.
+
             static void ReleaseTexture(int handle);
             // Defers releasing the texture resource and descriptor slot until the GPU fence
             // confirms the current frame no longer uses them.

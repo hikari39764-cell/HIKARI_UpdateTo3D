@@ -9,6 +9,7 @@
       "depthTest": true,
       "depthWrite": true,
       "doubleSided": false,
+      "renderPhase": "SceneDepth",
       "composite": "Alpha",
       "params": [
         {
@@ -76,6 +77,36 @@
           "label": "Noise Scale",
           "type": "Float",
           "ref": { "slot": 1, "channel": 2 },
+          "defaultValues": [1.0, 0, 0, 0],
+          "minValues": [0.01, 0, 0, 0],
+          "maxValues": [10.0, 0, 0, 0],
+          "speed": 0.01
+        },
+        {
+          "key": "sceneColorDistortionStrength",
+          "label": "Scene Color Distortion",
+          "type": "Float",
+          "ref": { "slot": 2, "channel": 0 },
+          "defaultValues": [0.01, 0, 0, 0],
+          "minValues": [0.0, 0, 0, 0],
+          "maxValues": [0.1, 0, 0, 0],
+          "speed": 0.001
+        },
+        {
+          "key": "sceneColorMix",
+          "label": "Scene Color Mix",
+          "type": "Float",
+          "ref": { "slot": 2, "channel": 1 },
+          "defaultValues": [0.0, 0, 0, 0],
+          "minValues": [0.0, 0, 0, 0],
+          "maxValues": [1.0, 0, 0, 0],
+          "speed": 0.01
+        },
+        {
+          "key": "sceneColorNoiseScale",
+          "label": "Scene Color Noise Scale",
+          "type": "Float",
+          "ref": { "slot": 2, "channel": 2 },
           "defaultValues": [1.0, 0, 0, 0],
           "minValues": [0.01, 0, 0, 0],
           "maxValues": [10.0, 0, 0, 0],
@@ -199,14 +230,6 @@
       "slot": 3,
       "component": "xyz",
       "default": [0.08, 0.55, 0.68]
-    },
-     {
-      "key": "iterations",
-      "displayName": "water iterations",
-      "type": "float",
-      "slot": 3,
-      "component": "w",
-      "default": 30.0 
     },
     {
       "key": "depthScale",

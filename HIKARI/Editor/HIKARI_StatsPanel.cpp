@@ -9,6 +9,7 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_World.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif
@@ -86,6 +87,10 @@ namespace HIKARI {
             ImGui::Text(
                 "Deferred Releases Pending: %zu",
                 SERVICES::gCore.GetPendingDeferredReleaseCount());
+            ImGui::Text("SceneColor Ready: %s", POST::PostSystem::IsSceneColorReady() ? "Yes" : "No");
+            ImGui::Text("SceneColor Size: %d x %d",
+                POST::PostSystem::GetSceneColorWidth(),
+                POST::PostSystem::GetSceneColorHeight());
             ImGui::TreePop();
         }
 

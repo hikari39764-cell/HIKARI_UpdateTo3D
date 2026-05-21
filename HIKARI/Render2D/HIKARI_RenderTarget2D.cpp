@@ -266,6 +266,22 @@ bool RenderTarget2D::CreateResources()
         cmd->ResourceBarrier(1, &barrier);
         depthState_ = nextState;
     }
+
+    void RenderTarget2D::TransitionColor(D3D12_RESOURCE_STATES nextState)
+    {
+        if (!initialized_ || !colorTex_ || colorState_ == nextState) {
+            return;
+        }
+
+        ID3D12GraphicsCommandList* cmd = context_.cmdList;
+        if (!cmd) {
+            return;
+        }
+
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(colorTex_.Get(), colorState_, nextState);
+        cmd->ResourceBarrier(1, &barrier);
+        colorState_ = nextState;
+    }
     
     void RenderTarget2D::BeginCapture(float r, float g, float b, float a, float depthClear)
     {
@@ -280,15 +296,7 @@ bool RenderTarget2D::CreateResources()
             return;
         }
 
-        if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                colorTex_.Get(),
-                colorState_,
-                D3D12_RESOURCE_STATE_RENDER_TARGET
-            );
-            cmd->ResourceBarrier(1, &barrier);
-            colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        }
+        TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         if (hasDepth_) {
             TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -318,15 +326,7 @@ bool RenderTarget2D::CreateResources()
             return;
         }
 
-        if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                colorTex_.Get(),
-                colorState_,
-                D3D12_RESOURCE_STATE_RENDER_TARGET
-            );
-            cmd->ResourceBarrier(1, &barrier);
-            colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        }
+        TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         if (hasDepth_) {
             TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -350,15 +350,7 @@ bool RenderTarget2D::CreateResources()
             return false;
         }
 
-        if (colorState_ != D3D12_RESOURCE_STATE_RENDER_TARGET) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                colorTex_.Get(),
-                colorState_,
-                D3D12_RESOURCE_STATE_RENDER_TARGET
-            );
-            cmd->ResourceBarrier(1, &barrier);
-            colorState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        }
+        TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &readOnlyDsvHandle_);
@@ -399,15 +391,7 @@ bool RenderTarget2D::CreateResources()
             return;
         }
 
-        if (colorState_ != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                colorTex_.Get(),
-                colorState_,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-            );
-            cmd->ResourceBarrier(1, &barrier);
-            colorState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-        }
+        TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
 } // namespace HIKARI

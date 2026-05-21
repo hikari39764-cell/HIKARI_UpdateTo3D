@@ -142,6 +142,21 @@ namespace HIKARI::MESHRENDERER {
             const FrameContext& frame = TIME::GetFrameContext();
             g.elapsedTimeSec += std::max(0.0f, frame.unscaledDt);
             g.cameraMapped->timeParams = { g.elapsedTimeSec, frame.unscaledDt, frame.gameDt, static_cast<float>(frame.frameIndex) };
+            int screenW = POST::PostSystem::GetSceneColorWidth();
+            int screenH = POST::PostSystem::GetSceneColorHeight();
+            if (screenW <= 0 || screenH <= 0) {
+                POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
+            }
+            if (screenW <= 0 || screenH <= 0) {
+                screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
+                screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
+            }
+            g.cameraMapped->screenParams = {
+                static_cast<float>(screenW),
+                static_cast<float>(screenH),
+                1.0f / static_cast<float>(screenW),
+                1.0f / static_cast<float>(screenH)
+            };
 
             FillLightCB(environment, *g.lightMapped, g.debugStats);
             FillShadowCB(environment, *g.shadowMapped);
@@ -202,6 +217,8 @@ namespace HIKARI::MESHRENDERER {
 
         bool BeginDepthAwarePhase(DepthAwarePhaseScope& scope) {
             scope = {};
+
+            POST::PostSystem::CaptureSceneColorSnapshot();
 
             if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
                 scope.active = true;

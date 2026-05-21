@@ -30,7 +30,9 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT SkyCube = 11;
     // SceneDepth -> t7
     constexpr UINT SceneDepth = 12;
+    // SceneColor -> t8
+    constexpr UINT SceneColor = 13;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 13;
+    constexpr UINT JointPalette = 14;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

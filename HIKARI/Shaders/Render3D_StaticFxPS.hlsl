@@ -15,6 +15,8 @@ cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
     float4 gCameraPos;
+    float4 gTimeParams;
+    float4 gScreenParams;
 };
 
 cbuffer ObjectCB : register(b1)
@@ -104,6 +106,9 @@ Texture2D gShadowMap : register(t2);
 Texture2D gEmissiveTex : register(t3);
 Texture2D gMetallicRoughnessTex : register(t4);
 Texture2D gOcclusionTex : register(t5);
+TextureCube gSkyCube : register(t6);
+Texture2D gSceneDepthTex : register(t7);
+Texture2D gSceneColorTex : register(t8);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -387,6 +392,20 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 edgeColor = float3(0.4, 0.5, 1.0) * edgeBand * edgeBoost;
     float3 finalColor = lit * edge + rimColor + edgeColor;
+
+    float sceneColorDistortionStrength = gFxUser2.x;
+    float sceneColorMix = saturate(gFxUser2.y);
+    float sceneColorNoiseScale = max(gFxUser2.z, 0.0001f);
+
+    if (sceneColorMix > 0.0001f)
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        float n0 = Noise3D(input.worldPosWS * sceneColorNoiseScale);
+        float n1 = Noise3D(input.worldPosWS * sceneColorNoiseScale + float3(13.1f, 7.7f, 3.3f));
+        float2 distortion = (float2(n0, n1) * 2.0f - 1.0f) * sceneColorDistortionStrength;
+        float3 sceneColor = gSceneColorTex.Sample(gLinearWrap, saturate(screenUv + distortion)).rgb;
+        finalColor = lerp(finalColor, sceneColor, sceneColorMix);
+    }
 
     return float4(finalColor, albedo.a);
 }

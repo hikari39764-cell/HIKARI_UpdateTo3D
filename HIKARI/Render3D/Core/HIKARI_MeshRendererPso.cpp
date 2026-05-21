@@ -279,7 +279,14 @@ namespace HIKARI::MESHRENDERER {
         sceneDepthTextureRange.RegisterSpace = 0;
         sceneDepthTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[13]{};
+        D3D12_DESCRIPTOR_RANGE sceneColorTextureRange{};
+        sceneColorTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        sceneColorTextureRange.NumDescriptors = 1;
+        sceneColorTextureRange.BaseShaderRegister = 8;
+        sceneColorTextureRange.RegisterSpace = 0;
+        sceneColorTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[14]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -345,6 +352,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::SceneDepth].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::SceneDepth].DescriptorTable.pDescriptorRanges = &sceneDepthTextureRange;
 
+        params[ROOT_PARAM::SceneColor].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::SceneColor].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        params[ROOT_PARAM::SceneColor].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::SceneColor].DescriptorTable.pDescriptorRanges = &sceneColorTextureRange;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -389,7 +401,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[14]{};
+        D3D12_ROOT_PARAMETER skinnedParams[15]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

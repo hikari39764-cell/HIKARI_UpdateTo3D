@@ -16,6 +16,8 @@ cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
     float4 gCameraPos;
+    float4 gTimeParams;
+    float4 gScreenParams;
 };
 
 cbuffer ObjectCB : register(b1)
@@ -104,6 +106,9 @@ Texture2D gShadowMap : register(t2);
 Texture2D gEmissiveTex : register(t3);
 Texture2D gMetallicRoughnessTex : register(t4);
 Texture2D gOcclusionTex : register(t5);
+TextureCube gSkyCube : register(t6);
+Texture2D gSceneDepthTex : register(t7);
+Texture2D gSceneColorTex : register(t8);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 

@@ -40,8 +40,10 @@ namespace HIKARI {
         int GetWidth() const { return width_; }
         int GetHeight() const { return height_; }
         DXGI_FORMAT GetFormat() const { return format_; }
+        D3D12_RESOURCE_STATES GetColorState() const { return colorState_; }
         bool HasDepth() const { return hasDepth_; }
         bool IsInitialized() const { return initialized_; }
+        void TransitionColor(D3D12_RESOURCE_STATES nextState);
 
         ID3D12Resource* GetResource() const { return colorTex_.Get(); }
         ID3D12Resource* GetDepthResource() const { return depthTex_.Get(); }

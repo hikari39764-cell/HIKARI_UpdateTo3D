@@ -61,6 +61,10 @@ namespace HIKARI {
         GFX::Context PostSystem::context_{};
         RenderTarget2D PostSystem::sceneRT_{};
         RenderTarget2D PostSystem::editorViewportRT_{};
+        RenderTarget2D PostSystem::sceneColorSnapshotRT_{};
+        bool PostSystem::sceneColorReady_ = false;
+        D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvCpu_{};
+        D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvGpu_{};
         RenderTarget2D PostSystem::lightRT_{};
         QuadDrawer PostSystem::quad_{};
         PostChain PostSystem::globalChain_{};
@@ -130,6 +134,7 @@ namespace HIKARI {
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             editorViewportRT_.UpdateContext(ctx);
+            sceneColorSnapshotRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
         }
 
@@ -144,6 +149,7 @@ namespace HIKARI {
             toneMappingEffect_.reset();
             sceneRT_.Finalize();
             editorViewportRT_.Finalize();
+            sceneColorSnapshotRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
 
@@ -152,6 +158,9 @@ namespace HIKARI {
             editorViewportReady_ = false;
             editorViewportSrvCpu_ = {};
             editorViewportSrvGpu_ = {};
+            sceneColorReady_ = false;
+            sceneColorSrvCpu_ = {};
+            sceneColorSrvGpu_ = {};
             initialized_ = false;
         }
 
@@ -479,6 +488,32 @@ namespace HIKARI {
             return editorViewportRT_.GetHeight();
         }
 
+        bool PostSystem::IsSceneColorReady()
+        {
+            return sceneColorReady_ &&
+                sceneColorSnapshotRT_.GetResource() != nullptr &&
+                sceneColorSrvGpu_.ptr != 0;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::GetSceneColorSrv()
+        {
+            if (!IsSceneColorReady()) {
+                return {};
+            }
+
+            return sceneColorSrvGpu_;
+        }
+
+        int PostSystem::GetSceneColorWidth()
+        {
+            return sceneColorSnapshotRT_.GetWidth();
+        }
+
+        int PostSystem::GetSceneColorHeight()
+        {
+            return sceneColorSnapshotRT_.GetHeight();
+        }
+
         void PostSystem::EnsureSceneRTSize()
         {
             int w = 0;
@@ -600,6 +635,119 @@ namespace HIKARI {
             editorViewportReady_ = true;
         }
 
+        void PostSystem::EnsureSceneColorSnapshotRTSize()
+        {
+            if (!sceneRT_.GetResource() || !sceneRT_.IsInitialized()) {
+                sceneColorReady_ = false;
+                return;
+            }
+
+            sceneColorSnapshotRT_.UpdateContext(context_);
+
+            const int width = sceneRT_.GetWidth();
+            const int height = sceneRT_.GetHeight();
+            const DXGI_FORMAT format = sceneRT_.GetFormat();
+
+            const bool invalid =
+                !sceneColorSnapshotRT_.GetResource() ||
+                sceneColorSnapshotRT_.GetWidth() != width ||
+                sceneColorSnapshotRT_.GetHeight() != height ||
+                sceneColorSnapshotRT_.GetFormat() != format ||
+                sceneColorSnapshotRT_.HasDepth();
+
+            if (!invalid) {
+                return;
+            }
+
+            sceneColorSnapshotRT_.Finalize();
+            sceneColorSnapshotRT_.SetDebugName("Post.SceneColorSnapshot");
+            const bool ok = sceneColorSnapshotRT_.Init(
+                width,
+                height,
+                format,
+                false,
+                { 0.0f, 0.0f, 0.0f, 1.0f });
+
+            if (!ok) {
+                sceneColorReady_ = false;
+                DEBUGLOG::PushRenderError("[PostSystem][SceneColor][ERROR] SceneColor snapshot creation failed.");
+                GFX::DumpD3D12InfoQueue(context_.device, "SceneColor snapshot creation failed");
+                return;
+            }
+
+            RefreshSceneColorSrvDescriptor();
+        }
+
+        void PostSystem::RefreshSceneColorSrvDescriptor()
+        {
+            ID3D12Device* device = context_.device;
+            ID3D12DescriptorHeap* srvHeap = context_.srvHeap;
+            ID3D12Resource* resource = sceneColorSnapshotRT_.GetResource();
+
+            if (device == nullptr || srvHeap == nullptr || resource == nullptr) {
+                sceneColorReady_ = false;
+                sceneColorSrvCpu_ = {};
+                sceneColorSrvGpu_ = {};
+                return;
+            }
+
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+            const UINT sceneColorSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::SceneColor);
+
+            sceneColorSrvCpu_ =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, sceneColorSrvIndex);
+            sceneColorSrvGpu_ =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, sceneColorSrvIndex);
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+            srv.Format = sceneColorSnapshotRT_.GetFormat();
+            srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srv.Texture2D.MostDetailedMip = 0;
+            srv.Texture2D.MipLevels = 1;
+            srv.Texture2D.PlaneSlice = 0;
+            srv.Texture2D.ResourceMinLODClamp = 0.0f;
+
+            device->CreateShaderResourceView(resource, &srv, sceneColorSrvCpu_);
+        }
+
+        bool PostSystem::CaptureSceneColorSnapshot()
+        {
+            if (!initialized_ || !sceneCaptureActive_ || !sceneRT_.GetResource() || !sceneRT_.IsInitialized()) {
+                sceneColorReady_ = false;
+                return false;
+            }
+
+            ID3D12GraphicsCommandList* cmd = context_.cmdList;
+            if (cmd == nullptr) {
+                sceneColorReady_ = false;
+                return false;
+            }
+
+            EnsureSceneColorSnapshotRTSize();
+
+            ID3D12Resource* src = sceneRT_.GetResource();
+            ID3D12Resource* dst = sceneColorSnapshotRT_.GetResource();
+            if (src == nullptr || dst == nullptr) {
+                sceneColorReady_ = false;
+                return false;
+            }
+
+            sceneRT_.TransitionColor(D3D12_RESOURCE_STATE_COPY_SOURCE);
+            sceneColorSnapshotRT_.TransitionColor(D3D12_RESOURCE_STATE_COPY_DEST);
+
+            cmd->CopyResource(dst, src);
+
+            sceneColorSnapshotRT_.TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            sceneRT_.TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+            sceneColorReady_ = true;
+            return true;
+        }
+
         void PostSystem::BeginSceneCapture()
         {
             if (!initialized_) Initialize(context_);
@@ -610,6 +758,7 @@ namespace HIKARI {
             }
 
             editorViewportReady_ = false;
+            sceneColorReady_ = false;
             EnsureSceneRTSize();
             if (!sceneRT_.GetResource() || !sceneRT_.IsInitialized()) {
                 LogFrameState("BeginSceneCapture sceneRT invalid after EnsureSceneRTSize");

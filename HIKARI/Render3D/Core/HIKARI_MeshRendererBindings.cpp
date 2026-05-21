@@ -5,6 +5,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::MESHRENDERER {
 
@@ -112,6 +113,18 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindSceneColor(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv =
+            ResolveSceneColorSrv(ctx.fallbackTextureHandle);
+        if (sceneColorSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SceneColor, sceneColorSrv);
+        }
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle) {
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
@@ -124,6 +137,15 @@ namespace HIKARI::MESHRENDERER {
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool depthAwarePhase, int fallbackTextureHandle) {
         if (depthAwarePhase && SERVICES::gCtx.sceneDepthSrv.ptr != 0) {
             return SERVICES::gCtx.sceneDepthSrv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(int fallbackTextureHandle) {
+        const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv = POST::PostSystem::GetSceneColorSrv();
+        if (sceneColorSrv.ptr != 0) {
+            return sceneColorSrv;
         }
 
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);

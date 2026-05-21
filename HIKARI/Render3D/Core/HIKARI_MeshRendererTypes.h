@@ -27,6 +27,7 @@ namespace HIKARI::MESHRENDERER {
         MATH::Mat4 viewProj{};
         MATH::Vec4 cameraPos{};
         MATH::Vec4 timeParams{};
+        MATH::Vec4 screenParams{};
     };
 
     struct ObjectCB {

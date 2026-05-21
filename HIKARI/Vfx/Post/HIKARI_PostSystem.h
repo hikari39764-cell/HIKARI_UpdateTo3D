@@ -71,6 +71,14 @@ namespace HIKARI {
             static int GetEditorViewportWidth();
             static int GetEditorViewportHeight();
 
+            // Captures current sceneRT_ color into a stable snapshot texture
+            // so later depth-aware / transparent / distortion materials can sample it safely.
+            static bool CaptureSceneColorSnapshot();
+            static bool IsSceneColorReady();
+            static D3D12_GPU_DESCRIPTOR_HANDLE GetSceneColorSrv();
+            static int GetSceneColorWidth();
+            static int GetSceneColorHeight();
+
             // --- 光照系统  ---
             // 设置环境光颜色 (R,G,B), 0.0=全黑, 1.0=全亮
             static void SetAmbientColor(float r, float g, float b);
@@ -90,6 +98,8 @@ namespace HIKARI {
             static void EnsureSceneRTSize();
             static void EnsureEditorViewportRTSize(int width, int height);
             static void RefreshEditorViewportSrvDescriptor();
+            static void EnsureSceneColorSnapshotRTSize();
+            static void RefreshSceneColorSrvDescriptor();
             static RenderTarget2D* EndSceneCaptureAndResolveFinal();
             static bool DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
             static void BindBackBufferFullViewport();
@@ -103,6 +113,10 @@ namespace HIKARI {
 
             static RenderTarget2D sceneRT_;
             static RenderTarget2D editorViewportRT_;
+            static RenderTarget2D sceneColorSnapshotRT_;
+            static bool sceneColorReady_;
+            static D3D12_CPU_DESCRIPTOR_HANDLE sceneColorSrvCpu_;
+            static D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrvGpu_;
 
             // [新增] 专门用于画光的 RT
             static RenderTarget2D lightRT_;
