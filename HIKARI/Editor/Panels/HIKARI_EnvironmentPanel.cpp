@@ -131,6 +131,36 @@ namespace HIKARI {
             }
         }
 
+        struct DebugViewOption {
+            RenderDebugView view = RenderDebugView::None;
+            const char* label = "None";
+        };
+
+        constexpr DebugViewOption kDebugViewOptions[] = {
+            { RenderDebugView::None, "None" },
+            { RenderDebugView::Normal, "Normal" },
+            { RenderDebugView::Tangent, "Tangent" },
+            { RenderDebugView::LightingOnly, "Lighting Only" },
+            { RenderDebugView::BaseColor, "Base Color" },
+            { RenderDebugView::Roughness, "Roughness" },
+            { RenderDebugView::Metallic, "Metallic" },
+            { RenderDebugView::Occlusion, "Occlusion" },
+            { RenderDebugView::Shadow, "Shadow" },
+            { RenderDebugView::NdotL, "NdotL" },
+            { RenderDebugView::Emissive, "Emissive" },
+            { RenderDebugView::SceneDepth, "Scene Depth" },
+            { RenderDebugView::SceneColor, "Scene Color" },
+        };
+
+        int DebugViewOptionIndex(RenderDebugView view) {
+            for (int i = 0; i < static_cast<int>(std::size(kDebugViewOptions)); ++i) {
+                if (kDebugViewOptions[i].view == view) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
         const char* SkyModeName(SkyMode mode) {
             switch (mode) {
             case SkyMode::None: return "None";
@@ -512,25 +542,30 @@ namespace HIKARI {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
             ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
-            int debugView = static_cast<int>(environment.debugView);
-            const char* debugViews[] = {
-                "None",
-                "Normal",
-                "Tangent",
-                "Lighting Only",
-                "Base Color",
-                "Roughness",
-                "Metallic",
-                "Occlusion",
-                "Shadow",
-                "NdotL",
-                "Emissive",
-                "Scene Depth",
-                "Scene Color"
-            };
-            if (ImGui::Combo("Render Debug View", &debugView, debugViews, static_cast<int>(sizeof(debugViews) / sizeof(debugViews[0])))) {
-                environment.debugView = static_cast<RenderDebugView>(std::clamp(debugView, 0, 12));
+
+            int debugViewIndex = DebugViewOptionIndex(environment.debugView);
+            int selectedDebugViewIndex = debugViewIndex;
+            bool debugViewChanged = false;
+            const char* debugPreview = kDebugViewOptions[debugViewIndex].label;
+            if (ImGui::BeginCombo("Render Debug View", debugPreview)) {
+                for (int i = 0; i < static_cast<int>(std::size(kDebugViewOptions)); ++i) {
+                    const bool selected = (i == selectedDebugViewIndex);
+                    ImGui::PushID(i);
+                    if (ImGui::Selectable(kDebugViewOptions[i].label, selected)) {
+                        selectedDebugViewIndex = i;
+                        debugViewChanged = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
             }
+            if (debugViewChanged) {
+                environment.debugView = kDebugViewOptions[selectedDebugViewIndex].view;
+            }
+
             ImGui::Text("Active Debug View: %s", DebugViewName(environment.debugView));
             if (environment.debugView != RenderDebugView::None) {
                 ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Debug view overrides the final shaded output.");

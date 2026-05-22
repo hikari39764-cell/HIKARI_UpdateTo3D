@@ -54,8 +54,6 @@ static const uint MATERIAL_EMISSIVE = 1u << 2;
 #define HIKARI_USE_COOK_TORRANCE_PBR 1
 #endif
 
-static const float PI = 3.14159265359f;
-
 cbuffer LightCB : register(b2)
 {
     float4 gDirectionalDir;
@@ -117,6 +115,9 @@ Texture2D gSceneDepthTex : register(t7);
 Texture2D gSceneColorTex : register(t8);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
+
+#include "Include/HIKARI_PbrCommon.hlsli"
+#include "Include/HIKARI_SkyEnvironmentCommon.hlsli"
 
 struct PSInput
 {
@@ -187,83 +188,6 @@ float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
     return sum;
 }
 
-float Pow5(float x)
-{
-    float x2 = x * x;
-    return x2 * x2 * x;
-}
-
-float3 FresnelSchlick(float cosTheta, float3 F0)
-{
-    return F0 + (1.0f.xxx - F0) * Pow5(1.0f - saturate(cosTheta));
-}
-
-float DistributionGGX(float3 n, float3 h, float roughness)
-{
-    float a = roughness * roughness;
-    float a2 = a * a;
-    float ndoth = saturate(dot(n, h));
-    float ndoth2 = ndoth * ndoth;
-
-    float denom = ndoth2 * (a2 - 1.0f) + 1.0f;
-    denom = PI * denom * denom;
-
-    return a2 / max(denom, 0.00001f);
-}
-
-float GeometrySchlickGGX(float ndotv, float roughness)
-{
-    float r = roughness + 1.0f;
-    float k = (r * r) / 8.0f;
-
-    return ndotv / max(ndotv * (1.0f - k) + k, 0.00001f);
-}
-
-float GeometrySmith(float3 n, float3 v, float3 l, float roughness)
-{
-    float ndotv = saturate(dot(n, v));
-    float ndotl = saturate(dot(n, l));
-    float ggxV = GeometrySchlickGGX(ndotv, roughness);
-    float ggxL = GeometrySchlickGGX(ndotl, roughness);
-    return ggxV * ggxL;
-}
-
-float3 EvaluateDirectPbr(
-    float3 baseColor,
-    float metallic,
-    float roughness,
-    float3 n,
-    float3 v,
-    float3 l,
-    float3 lightColor,
-    float lightIntensity)
-{
-    float3 h = normalize(v + l);
-    float ndotv = max(saturate(dot(n, v)), 0.0001f);
-    float ndotl = saturate(dot(n, l));
-
-    if (ndotl <= 0.0f)
-    {
-        return 0.0f.xxx;
-    }
-
-    float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
-    float3 F = FresnelSchlick(saturate(dot(h, v)), F0);
-    float D = DistributionGGX(n, h, roughness);
-    float G = GeometrySmith(n, v, l, roughness);
-
-    float3 numerator = D * G * F;
-    float denominator = max(4.0f * ndotv * ndotl, 0.0001f);
-    float3 specular = numerator / denominator;
-
-    float3 kS = F;
-    float3 kD = (1.0f.xxx - kS) * (1.0f - metallic);
-
-    float3 diffuse = kD * baseColor / PI;
-
-    return (diffuse + specular) * lightColor * lightIntensity * ndotl;
-}
-
 float3 AccumulatePointLightPbr(
     float3 baseColor,
     float metallic,
@@ -294,7 +218,7 @@ float3 AccumulatePointLightPbr(
         float3 color = gPointLightColorIntensity[i].rgb;
         float intensity = gPointLightColorIntensity[i].w;
 
-        sum += EvaluateDirectPbr(
+        sum += HikariEvaluateDirectPbr(
             baseColor,
             metallic,
             roughness,
@@ -306,94 +230,6 @@ float3 AccumulatePointLightPbr(
     }
 
     return sum;
-}
-
-float3 RotateSkyYaw(float3 dir, float yaw)
-{
-    float s = sin(yaw);
-    float c = cos(yaw);
-
-    return float3(
-        dir.x * c - dir.z * s,
-        dir.y,
-        dir.x * s + dir.z * c
-    );
-}
-
-float3 EvaluateSkyApprox(float3 dir)
-{
-    dir = normalize(RotateSkyYaw(dir, gSkyYaw));
-
-    float y = saturate(dir.y * 0.5f + 0.5f);
-
-    float3 upper = lerp(gSkyHorizonColor, gSkyZenithColor, y);
-    float3 lower = lerp(gSkyGroundColor, gSkyHorizonColor, y);
-    float3 color = (dir.y >= 0.0f) ? upper : lower;
-
-    float horizon = pow(
-        saturate(1.0f - abs(dir.y)),
-        max(0.01f, gSkyHorizonPower)
-    );
-
-    color = lerp(color, gSkyHorizonColor, horizon * 0.25f);
-    color *= max(0.0f, gSkyExposure);
-
-    return color;
-}
-
-float3 SampleSkyEnvironment(float3 dir)
-{
-    float3 sky = EvaluateSkyApprox(dir);
-
-    uint mode = (uint)(gSkyMode + 0.5f);
-
-    if (mode == 2u && gSkyHasCubemap > 0.5f)
-    {
-        float3 cubeDir = normalize(RotateSkyYaw(dir, gSkyYaw));
-        sky = gSkyCube.Sample(gLinearWrap, cubeDir).rgb;
-        sky *= max(0.0f, gSkyExposure);
-    }
-
-    return sky;
-}
-
-float3 EvaluateAmbientIblApprox(
-    float3 baseColor,
-    float metallic,
-    float roughness,
-    float occlusion,
-    float3 n,
-    float3 v)
-{
-    float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
-    float ndotv = saturate(dot(n, v));
-    float3 F = FresnelSchlick(ndotv, F0);
-
-    float3 kS = F;
-    float3 kD = (1.0f.xxx - kS) * (1.0f - metallic);
-
-    float3 diffuseAmbient = gAmbientColor.rgb * gAmbientIntensity;
-
-    if (gSkyAmbientFromSky > 0.0001f)
-    {
-        float3 skyDiffuse =
-            lerp(gSkyGroundColor, gSkyHorizonColor, saturate(n.y * 0.5f + 0.5f));
-        skyDiffuse *= gSkyExposure * gSkyAmbientFromSky;
-        diffuseAmbient = lerp(diffuseAmbient, skyDiffuse, saturate(gSkyAmbientFromSky));
-    }
-
-    float3 diffuse = kD * baseColor * diffuseAmbient;
-
-    float3 r = reflect(-v, n);
-    r.y = abs(r.y);
-
-    float3 specEnv = SampleSkyEnvironment(r);
-    specEnv *= max(0.0f, gSkyReflectionIntensity);
-
-    float roughnessFade = 1.0f - saturate(roughness * 0.55f);
-    float3 specular = specEnv * F * roughnessFade;
-
-    return (diffuse + specular) * occlusion;
 }
 
 float3 ResolveEmissive(float2 uv)
@@ -529,7 +365,7 @@ float4 main(PSInput input) : SV_TARGET
     {
 #if HIKARI_USE_COOK_TORRANCE_PBR
         float3 direct =
-            EvaluateDirectPbr(
+            HikariEvaluateDirectPbr(
                 albedo.rgb,
                 metallic,
                 roughness,
@@ -548,7 +384,7 @@ float4 main(PSInput input) : SV_TARGET
             input.worldPosWS,
             v);
 
-        float3 ambient = EvaluateAmbientIblApprox(
+        float3 ambient = HikariEvaluateAmbientIblApprox(
             albedo.rgb,
             metallic,
             roughness,

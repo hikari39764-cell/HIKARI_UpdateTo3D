@@ -142,6 +142,9 @@
     <Filter Include="Project\Shaders">
       <UniqueIdentifier>{0366C106-C884-59CB-BCE3-0A4E338EDD64}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Project\Shaders\Include">
+      <UniqueIdentifier>{196BC6A1-C047-55CB-8F32-234B86A8AC4C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Project\Shaders\Render3D">
       <UniqueIdentifier>{8CF77C93-5822-5B2E-AE7C-F44204A8C833}</UniqueIdentifier>
     </Filter>
@@ -1356,6 +1359,12 @@
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>

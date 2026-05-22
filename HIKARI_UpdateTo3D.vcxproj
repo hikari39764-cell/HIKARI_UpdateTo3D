@@ -480,6 +480,8 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
