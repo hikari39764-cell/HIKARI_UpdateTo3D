@@ -130,6 +130,22 @@ SamplerState gSkySampler : register(s0);
 #define WATER_DEBUG_DEPTH_DIFF 0
 #endif
 
+#ifndef WATER_DEBUG_SCENE_COLOR
+#define WATER_DEBUG_SCENE_COLOR 0
+#endif
+
+#ifndef WATER_DEBUG_REFRACTION_COVERAGE
+#define WATER_DEBUG_REFRACTION_COVERAGE 0
+#endif
+
+#ifndef WATER_DEBUG_ALPHA
+#define WATER_DEBUG_ALPHA 0
+#endif
+
+#ifndef WATER_DEBUG_FOAM
+#define WATER_DEBUG_FOAM 0
+#endif
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -653,6 +669,41 @@ float4 main(PSInput input) : SV_TARGET
         return float4(n * 0.5f + 0.5f, 1.0f);
     }
 
+#if WATER_DEBUG_SCENE_COLOR
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        float2 distortion = ComputeWaterSceneColorDistortion(n, input.worldPosWS) * 4.0f;
+        float3 sceneColor = gSceneColorTex.Sample(gSkySampler, saturate(screenUv + distortion)).rgb;
+        return float4(sceneColor, 1.0f);
+    }
+#endif
+
+#if WATER_DEBUG_REFRACTION_COVERAGE
+    {
+        float coverage = ComputeWaterSceneColorCoverageMask(input.position);
+        return float4(coverage.xxx, 1.0f);
+    }
+#endif
+
+    if (gDebugView == 8)
+    {
+        return float4(shadowFactor.xxx, 1.0f);
+    }
+    if (gDebugView == 9)
+    {
+        return float4(ndotl.xxx, 1.0f);
+    }
+    if (gDebugView == 11)
+    {
+        float sceneDepth = SampleSceneDepth(input.position);
+        return float4(sceneDepth.xxx, 1.0f);
+    }
+    if (gDebugView == 12)
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        return float4(gSceneColorTex.Sample(gSkySampler, saturate(screenUv)).rgb, 1.0f);
+    }
+
     float refractionCoverage = 0.0f;
     color = ApplyWaterSceneColorRefraction(
         color,
@@ -666,11 +717,19 @@ float4 main(PSInput input) : SV_TARGET
     float foam = ComputeWaterFoam(input.position, input.worldPosWS);
     float3 foamColor = float3(0.85f, 0.95f, 1.0f);
 
+#if WATER_DEBUG_FOAM
+    return float4(foam.xxx, 1.0f);
+#endif
+
     color = lerp(color, foamColor, foam);
 
     float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel);
     waterAlpha = lerp(waterAlpha, 1.0f, refractionCoverage);
     waterAlpha = saturate(waterAlpha + foam * 0.35f);
+
+#if WATER_DEBUG_ALPHA
+    return float4(waterAlpha.xxx, 1.0f);
+#endif
 
     color = ApplyFog(color, input.worldPosWS);
 

@@ -6,8 +6,8 @@ namespace HIKARI::GFX {
         bool enableDebugLayer = true;
         bool enableGpuBasedValidation = false;
         bool enableInfoQueueBreakOnError = true;
-        bool enableInfoQueueBreakOnWarning = false;
-        bool dumpInfoQueueOnFrameEnd = false;
+        bool enableInfoQueueBreakOnWarning = true;
+        bool dumpInfoQueueOnFrameEnd = true;
         bool verboseRenderTargetLog = false;
         bool verbosePostLog = false;
     };

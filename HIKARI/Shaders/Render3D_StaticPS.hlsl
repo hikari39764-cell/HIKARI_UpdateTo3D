@@ -299,15 +299,6 @@ float4 main(PSInput input) : SV_TARGET
     {
         discard;
     }
-    if ((gMaterialFlags & MATERIAL_UNLIT) != 0)
-    {
-        float3 unlitColor = albedo.rgb;
-        if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
-        {
-            unlitColor += ResolveEmissive(input.uv);
-        }
-        return float4(ApplyFog(unlitColor, input.worldPosWS), albedo.a);
-    }
 
     float metallic = 0.0f;
     float roughness = 1.0f;
@@ -322,6 +313,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
     float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
     float3 lit = ambient + (diffuse + specular) * shadowFactor + pointLightContribution;
+    float3 emissive = ((gMaterialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(input.uv) : 0.0f.xxx;
     if (gDebugView == 1)
     {
         return float4(normalize(n) * 0.5f + 0.5f, albedo.a);
@@ -334,11 +326,51 @@ float4 main(PSInput input) : SV_TARGET
     {
         return float4(ApplyFog(lit, input.worldPosWS), albedo.a);
     }
-    float3 finalColor = albedo.rgb * lit;
-    if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
+    if (gDebugView == 4)
     {
-        finalColor += ResolveEmissive(input.uv);
+        return float4(albedo.rgb, albedo.a);
     }
+    if (gDebugView == 5)
+    {
+        return float4(roughness.xxx, albedo.a);
+    }
+    if (gDebugView == 6)
+    {
+        return float4(metallic.xxx, albedo.a);
+    }
+    if (gDebugView == 7)
+    {
+        return float4(occlusion.xxx, albedo.a);
+    }
+    if (gDebugView == 8)
+    {
+        return float4(shadowFactor.xxx, albedo.a);
+    }
+    if (gDebugView == 9)
+    {
+        return float4(ndotl.xxx, albedo.a);
+    }
+    if (gDebugView == 10)
+    {
+        return float4(emissive, albedo.a);
+    }
+    if (gDebugView == 11)
+    {
+        float sceneDepth = gSceneDepthTex.Load(int3(int2(input.position.xy), 0)).r;
+        return float4(sceneDepth.xxx, albedo.a);
+    }
+    if (gDebugView == 12)
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
+    }
+
+    if ((gMaterialFlags & MATERIAL_UNLIT) != 0)
+    {
+        return float4(ApplyFog(albedo.rgb + emissive, input.worldPosWS), albedo.a);
+    }
+
+    float3 finalColor = albedo.rgb * lit + emissive;
     finalColor = ApplyFog(finalColor, input.worldPosWS);
     return float4(finalColor, albedo.a);
 }

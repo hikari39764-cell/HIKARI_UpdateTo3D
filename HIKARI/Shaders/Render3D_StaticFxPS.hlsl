@@ -332,12 +332,14 @@ float4 main(PSInput input) : SV_TARGET
         discard;
     }
 
+    float metallic = 0.0f;
+    float roughness = 1.0f;
+    float occlusion = 1.0f;
+    float shadowFactor = 1.0f;
+    float3 emissive = ((gMaterialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(input.uv) : 0.0f.xxx;
     float3 lit = albedo.rgb;
     if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
     {
-        float metallic = 0.0f;
-        float roughness = 1.0f;
-        float occlusion = 1.0f;
         ResolvePbrInputs(input.uv, metallic, roughness, occlusion);
         float specPower = lerp(gSpecularParams.y, 8.0f, roughness);
         float spec = pow(saturate(dot(n, h)), max(1.0f, specPower));
@@ -346,12 +348,12 @@ float4 main(PSInput input) : SV_TARGET
         float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl) * (1.0f - metallic * 0.65f);
         float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec) * lerp(1.0f, 1.8f, metallic);
         float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
-        float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+        shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
         lit = albedo.rgb * (ambient + (diffuse + specular) * shadowFactor + pointLightContribution);
     }
     if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
     {
-        lit += ResolveEmissive(input.uv);
+        lit += emissive;
     }
     lit = ApplyFog(lit, input.worldPosWS);
     if (gDebugView == 1)
@@ -365,6 +367,44 @@ float4 main(PSInput input) : SV_TARGET
     if (gDebugView == 3)
     {
         return float4(lit, albedo.a);
+    }
+    if (gDebugView == 4)
+    {
+        return float4(albedo.rgb, albedo.a);
+    }
+    if (gDebugView == 5)
+    {
+        return float4(roughness.xxx, albedo.a);
+    }
+    if (gDebugView == 6)
+    {
+        return float4(metallic.xxx, albedo.a);
+    }
+    if (gDebugView == 7)
+    {
+        return float4(occlusion.xxx, albedo.a);
+    }
+    if (gDebugView == 8)
+    {
+        return float4(shadowFactor.xxx, albedo.a);
+    }
+    if (gDebugView == 9)
+    {
+        return float4(ndotl.xxx, albedo.a);
+    }
+    if (gDebugView == 10)
+    {
+        return float4(emissive, albedo.a);
+    }
+    if (gDebugView == 11)
+    {
+        float sceneDepth = gSceneDepthTex.Load(int3(int2(input.position.xy), 0)).r;
+        return float4(sceneDepth.xxx, albedo.a);
+    }
+    if (gDebugView == 12)
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
     }
 
     float rimStrength = gFxUser0.x;

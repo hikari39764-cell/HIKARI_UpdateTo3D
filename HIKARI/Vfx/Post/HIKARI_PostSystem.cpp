@@ -69,6 +69,7 @@ namespace HIKARI {
         QuadDrawer PostSystem::quad_{};
         PostChain PostSystem::globalChain_{};
         PostChain PostSystem::bloomChain_{};
+        PostChain PostSystem::fxaaChain_{};
         CommonParams PostSystem::commonParams_{};
         float PostSystem::elapsedTime_ = 0.0f;
         std::stack<PostSystem::LayerInfo> PostSystem::rtStack_{};
@@ -80,10 +81,13 @@ namespace HIKARI {
         std::vector<std::unique_ptr<PostEffect>> PostSystem::activeBloomEffects_{};
         BloomSettings PostSystem::bloomSettings_{};
         ToneMappingSettings PostSystem::toneMappingSettings_{};
+        PostSystem::FxaaSettings PostSystem::fxaaSettings_{};
         PostSystem::BloomDebugStats PostSystem::bloomDebugStats_{};
         uint32_t PostSystem::activeBloomBlurPairCount_ = 0;
         std::unique_ptr<PostEffect> PostSystem::toneMappingEffect_{};
         CommonParams PostSystem::toneMappingParams_{};
+        std::unique_ptr<PostEffect> PostSystem::fxaaEffect_{};
+        CommonParams PostSystem::fxaaParams_{};
         bool PostSystem::dumpNextFrame_ = false;
         bool PostSystem::transitionActive_ = false;
         std::string PostSystem::activeTransitionProfileId_{};
@@ -104,8 +108,10 @@ namespace HIKARI {
             PostEffect::UpdateContext(ctx);
             globalChain_.UpdateContext(ctx);
             bloomChain_.UpdateContext(ctx);
+            fxaaChain_.UpdateContext(ctx);
             globalChain_.SetDebugName("PostSystem.GlobalChain");
             bloomChain_.SetDebugName("PostSystem.BloomChain");
+            fxaaChain_.SetDebugName("PostSystem.FXAAChain");
             if (initialized_) return;
 
             if (context_.device == nullptr || context_.cmdList == nullptr) {
@@ -131,6 +137,7 @@ namespace HIKARI {
             PostEffect::UpdateContext(ctx);
             globalChain_.UpdateContext(ctx);
             bloomChain_.UpdateContext(ctx);
+            fxaaChain_.UpdateContext(ctx);
             quad_.UpdateContext(ctx);
             sceneRT_.UpdateContext(ctx);
             editorViewportRT_.UpdateContext(ctx);
@@ -145,8 +152,10 @@ namespace HIKARI {
             ClearTransitionState();
             globalChain_.Finalize();
             bloomChain_.Finalize();
+            fxaaChain_.Finalize();
             activeBloomEffects_.clear();
             toneMappingEffect_.reset();
+            fxaaEffect_.reset();
             sceneRT_.Finalize();
             editorViewportRT_.Finalize();
             sceneColorSnapshotRT_.Finalize();
@@ -251,6 +260,17 @@ namespace HIKARI {
             toneMappingSettings_ = settings;
         }
 
+        void PostSystem::SetFxaaSettings(const FxaaSettings& settings) {
+            fxaaSettings_ = settings;
+            fxaaSettings_.edgeThreshold = std::clamp(fxaaSettings_.edgeThreshold, 0.0312f, 0.333f);
+            fxaaSettings_.edgeThresholdMin = std::clamp(fxaaSettings_.edgeThresholdMin, 0.0f, 0.0833f);
+            fxaaSettings_.subpixelQuality = std::clamp(fxaaSettings_.subpixelQuality, 0.0f, 1.0f);
+        }
+
+        const PostSystem::FxaaSettings& PostSystem::GetFxaaSettings() {
+            return fxaaSettings_;
+        }
+
         const PostSystem::BloomDebugStats& PostSystem::GetBloomDebugStats() {
             return bloomDebugStats_;
         }
@@ -261,6 +281,7 @@ namespace HIKARI {
                 << " globalChainHasAny=" << globalChain_.HasAny()
                 << " bloomEnabled=" << bloomSettings_.enabled
                 << " bloomPassCount=" << bloomDebugStats_.passCount
+                << " fxaaEnabled=" << fxaaSettings_.enabled
                 << " toneMappingEnabled=" << toneMappingSettings_.enabled
                 << " toneMappingMode=" << toneMappingSettings_.mode
                 << " transitionActive=" << transitionActive_
@@ -269,6 +290,7 @@ namespace HIKARI {
                 << "\n  " << lightRT_.DumpState()
                 << "\n  " << globalChain_.DumpState()
                 << "\n  " << bloomChain_.DumpState()
+                << "\n  " << fxaaChain_.DumpState()
                 << "\n  " << quad_.DumpState();
             return oss.str();
         }
@@ -297,6 +319,27 @@ namespace HIKARI {
                 return false;
             }
             toneMappingEffect_ = std::move(effect);
+            return true;
+        }
+
+        bool PostSystem::EnsureFxaaEffect() {
+            if (fxaaEffect_ && fxaaChain_.HasAny()) {
+                return true;
+            }
+
+            if (!fxaaEffect_) {
+                auto effect = std::make_unique<PostEffect>();
+                if (!effect->LoadPixelShader(L"HIKARI/Shaders/Post_FXAA.hlsl")) {
+                    DEBUGLOG::PushRenderError("[PostSystem][FXAA][ERROR] LoadPixelShader failed. shader=HIKARI/Shaders/Post_FXAA.hlsl");
+                    LogFrameState("FXAA effect load failed");
+                    GFX::DumpD3D12InfoQueue(context_.device, "FXAA effect load failed");
+                    return false;
+                }
+                fxaaEffect_ = std::move(effect);
+            }
+
+            fxaaChain_.Clear();
+            fxaaChain_.Add(fxaaEffect_.get());
             return true;
         }
 
@@ -382,6 +425,36 @@ namespace HIKARI {
             bloomDebugStats_.initialized = true;
             bloomDebugStats_.passCount = 1u + bloomDebugStats_.downsampleCount * 2u;
             return bloomChain_.Execute(source, quad_, bloomParams);
+        }
+
+        RenderTarget2D* PostSystem::ApplyFxaa(RenderTarget2D& source) {
+            if (!fxaaSettings_.enabled || source.GetResource() == nullptr) {
+                return nullptr;
+            }
+
+            if (!EnsureFxaaEffect()) {
+                return nullptr;
+            }
+
+            const float width = static_cast<float>((std::max)(source.GetWidth(), 1));
+            const float height = static_cast<float>((std::max)(source.GetHeight(), 1));
+            fxaaParams_ = commonParams_;
+            fxaaParams_.resolutionX = width;
+            fxaaParams_.resolutionY = height;
+            fxaaParams_.user[0] = {
+                width,
+                height,
+                1.0f / width,
+                1.0f / height
+            };
+            fxaaParams_.user[1] = {
+                fxaaSettings_.enabled ? 1.0f : 0.0f,
+                fxaaSettings_.edgeThreshold,
+                fxaaSettings_.edgeThresholdMin,
+                fxaaSettings_.subpixelQuality
+            };
+
+            return fxaaChain_.Execute(source, quad_, fxaaParams_);
         }
 
         void PostSystem::SetTransitionState(const TransitionVisualState& state) {
@@ -895,11 +968,18 @@ namespace HIKARI {
                 finalSceneRT->EndCapture();
             }
 
+            RenderTarget2D* fxaaRT = ApplyFxaa(*finalSceneRT);
+            if (fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) {
+                finalSceneRT = fxaaRT;
+            }
+
             if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
                 HIKARI_LOG_INFO(std::string("[PostSystem][FramePath] globalPost=") +
                     (globalChain_.HasAny() ? "on" : "off") +
                     " bloom=" +
                     ((bloomRT != nullptr && bloomRT->GetResource() != nullptr) ? "on" : "off") +
+                    " fxaa=" +
+                    ((fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) ? "on" : "off") +
                     " toneMapping=" +
                     (toneMappingSettings_.enabled ? "on" : "off") +
                     " transition=" +

@@ -117,6 +117,15 @@ namespace HIKARI {
             case RenderDebugView::Normal: return "Normal";
             case RenderDebugView::Tangent: return "Tangent";
             case RenderDebugView::LightingOnly: return "Lighting Only";
+            case RenderDebugView::BaseColor: return "Base Color";
+            case RenderDebugView::Roughness: return "Roughness";
+            case RenderDebugView::Metallic: return "Metallic";
+            case RenderDebugView::Occlusion: return "Occlusion";
+            case RenderDebugView::Shadow: return "Shadow";
+            case RenderDebugView::NdotL: return "NdotL";
+            case RenderDebugView::Emissive: return "Emissive";
+            case RenderDebugView::SceneDepth: return "Scene Depth";
+            case RenderDebugView::SceneColor: return "Scene Color";
             case RenderDebugView::None:
             default: return "None";
             }
@@ -463,6 +472,19 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNode("FXAA")) {
+            POST::PostSystem::FxaaSettings fxaa = POST::PostSystem::GetFxaaSettings();
+            bool changed = false;
+            changed |= ImGui::Checkbox("FXAA Enabled", &fxaa.enabled);
+            changed |= ImGui::DragFloat("Edge Threshold", &fxaa.edgeThreshold, 0.001f, 0.0312f, 0.333f, "%.4f");
+            changed |= ImGui::DragFloat("Edge Threshold Min", &fxaa.edgeThresholdMin, 0.0005f, 0.0f, 0.0833f, "%.4f");
+            changed |= ImGui::DragFloat("Subpixel Quality", &fxaa.subpixelQuality, 0.01f, 0.0f, 1.0f);
+            if (changed) {
+                POST::PostSystem::SetFxaaSettings(fxaa);
+            }
+            ImGui::TreePop();
+        }
+
         if (ImGui::TreeNode("Fog")) {
             ImGui::Checkbox("Fog Enabled", &environment.fog.enabled);
             ImGui::ColorEdit3("Fog Color", &environment.fog.color.x);
@@ -482,9 +504,23 @@ namespace HIKARI {
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
             ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
             int debugView = static_cast<int>(environment.debugView);
-            const char* debugViews[] = { "None", "Normal", "Tangent", "Lighting Only" };
+            const char* debugViews[] = {
+                "None",
+                "Normal",
+                "Tangent",
+                "Lighting Only",
+                "Base Color",
+                "Roughness",
+                "Metallic",
+                "Occlusion",
+                "Shadow",
+                "NdotL",
+                "Emissive",
+                "Scene Depth",
+                "Scene Color"
+            };
             if (ImGui::Combo("Render Debug View", &debugView, debugViews, static_cast<int>(sizeof(debugViews) / sizeof(debugViews[0])))) {
-                environment.debugView = static_cast<RenderDebugView>(std::clamp(debugView, 0, 3));
+                environment.debugView = static_cast<RenderDebugView>(std::clamp(debugView, 0, 12));
             }
             ImGui::Text("Active Debug View: %s", DebugViewName(environment.debugView));
             if (environment.debugView != RenderDebugView::None) {

@@ -35,6 +35,13 @@ namespace HIKARI {
                 uint32_t downsampleCount = 0;
             };
 
+            struct FxaaSettings {
+                bool enabled = true;
+                float edgeThreshold = 0.125f;
+                float edgeThresholdMin = 0.0312f;
+                float subpixelQuality = 0.75f;
+            };
+
             static void Initialize(const GFX::Context& ctx);
             static void UpdateContext(const GFX::Context& ctx);
             static void Shutdown();
@@ -49,6 +56,8 @@ namespace HIKARI {
             static void ClearGlobalProfile();
             static void SetBloomSettings(const BloomSettings& settings);
             static void SetToneMappingSettings(const ToneMappingSettings& settings);
+            static void SetFxaaSettings(const FxaaSettings& settings);
+            static const FxaaSettings& GetFxaaSettings();
             static const BloomDebugStats& GetBloomDebugStats();
             static std::string DumpFrameState();
             static void LogFrameState(const char* reason);
@@ -106,8 +115,10 @@ namespace HIKARI {
             static bool DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
             static void BindBackBufferFullViewport();
             static RenderTarget2D* ApplyBloom(RenderTarget2D& source);
+            static RenderTarget2D* ApplyFxaa(RenderTarget2D& source);
             static bool EnsureBloomEffects(uint32_t blurPairCount);
             static bool EnsureToneMappingEffect();
+            static bool EnsureFxaaEffect();
 
         private:
             static bool initialized_;
@@ -127,6 +138,7 @@ namespace HIKARI {
 
             static PostChain globalChain_;
             static PostChain bloomChain_;
+            static PostChain fxaaChain_;
             static QuadDrawer quad_;
             static CommonParams commonParams_;
             static float elapsedTime_;
@@ -136,10 +148,13 @@ namespace HIKARI {
             static std::vector<std::unique_ptr<PostEffect>> activeBloomEffects_;
             static BloomSettings bloomSettings_;
             static ToneMappingSettings toneMappingSettings_;
+            static FxaaSettings fxaaSettings_;
             static BloomDebugStats bloomDebugStats_;
             static uint32_t activeBloomBlurPairCount_;
             static std::unique_ptr<PostEffect> toneMappingEffect_;
             static CommonParams toneMappingParams_;
+            static std::unique_ptr<PostEffect> fxaaEffect_;
+            static CommonParams fxaaParams_;
             static bool dumpNextFrame_;
             static bool transitionActive_;
             static std::string activeTransitionProfileId_;

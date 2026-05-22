@@ -104,6 +104,15 @@ namespace HIKARI {
         Normal,
         Tangent,
         LightingOnly,
+        BaseColor,
+        Roughness,
+        Metallic,
+        Occlusion,
+        Shadow,
+        NdotL,
+        Emissive,
+        SceneDepth,
+        SceneColor,
     };
 
     struct ScenePostSettings {
