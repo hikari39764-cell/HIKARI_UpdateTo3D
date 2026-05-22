@@ -302,7 +302,9 @@ namespace HIKARI {
             if (ImGui::BeginTabItem("Inspector")) {
                 ImGui::SeparatorText("Selection");
                 inspectorPanel_.DrawContents(context_.selection);
-                selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
+                if (!ImGui::IsAnyItemActive()) {
+                    selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
+                }
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Viewport")) {

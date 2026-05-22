@@ -91,6 +91,7 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gSkyHorizonReflection;
     float4 gSkyGroundAmbient;
     float4 gSkyParams;
+    float4 gIblParams;
 };
 
 #define gSkyZenithColor gSkyZenithExposure.rgb
@@ -103,6 +104,10 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSkyHasCubemap gSkyParams.y
 #define gSkyHorizonPower gSkyParams.z
 #define gSkyYaw gSkyParams.w
+#define gIblHasIrradiance gIblParams.x
+#define gIblHasPrefiltered gIblParams.y
+#define gIblHasBrdfLut gIblParams.z
+#define gIblPrefilteredMipCount gIblParams.w
 
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
@@ -113,6 +118,9 @@ Texture2D gOcclusionTex : register(t5);
 TextureCube gSkyCube : register(t6);
 Texture2D gSceneDepthTex : register(t7);
 Texture2D gSceneColorTex : register(t8);
+TextureCube gIblIrradianceTex : register(t9);
+TextureCube gIblPrefilteredTex : register(t10);
+Texture2D gIblBrdfLutTex : register(t11);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -417,7 +425,7 @@ float4 main(PSInput input) : SV_TARGET
             input.worldPosWS,
             v);
 
-        float3 ambient = HikariEvaluateAmbientIblApprox(
+        float3 ambient = HikariEvaluateAmbientIbl(
             albedo.rgb,
             metallic,
             roughness,

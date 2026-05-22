@@ -1,6 +1,7 @@
 #include "HIKARI_EnvironmentPanel.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
@@ -484,6 +485,16 @@ namespace HIKARI {
                 ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
                 ImGui::Text("Sky Draws: %zu", skyDebugState->drawCount);
             }
+            if (ImGui::TreeNode("IBL State")) {
+                const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
+                ImGui::Text("IBL Valid: %s", iblData.valid ? "Yes" : "No");
+                ImGui::Text("Irradiance: %s  Handle: %d", iblData.hasIrradiance ? "Yes" : "No", iblData.irradianceHandle);
+                ImGui::Text("Prefiltered: %s  Handle: %d", iblData.hasPrefiltered ? "Yes" : "No", iblData.prefilteredHandle);
+                ImGui::Text("BRDF LUT: %s  Handle: %d", iblData.hasBrdfLut ? "Yes" : "No", iblData.brdfLutHandle);
+                ImGui::Text("Prefiltered Mips: %u", iblData.prefilteredMipCount);
+                ImGui::TextDisabled("No IBL assets are generated automatically yet; missing resources fall back to sky approximation.");
+                ImGui::TreePop();
+            }
             ImGui::TreePop();
         }
 
@@ -586,6 +597,13 @@ namespace HIKARI {
                 fxaaState.edgeThresholdMin,
                 fxaaState.subpixelQuality);
             ImGui::Text("Texture Color Space: Auto / SRGB / Linear enabled");
+            const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
+            ImGui::Text("IBL: %s  Irr %s  Pref %s  BRDF %s  Mips %u",
+                iblData.valid ? "Ready" : "Fallback",
+                iblData.hasIrradiance ? "Yes" : "No",
+                iblData.hasPrefiltered ? "Yes" : "No",
+                iblData.hasBrdfLut ? "Yes" : "No",
+                iblData.prefilteredMipCount);
 
             const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
             ImGui::SeparatorText("Light Upload Stats");

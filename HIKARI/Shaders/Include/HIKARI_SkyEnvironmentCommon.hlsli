@@ -91,4 +91,76 @@ float3 HikariEvaluateAmbientIblApprox(
     return (diffuse + specular) * occlusion;
 }
 
+float3 HikariEvaluateAmbientIbl(
+    float3 baseColor,
+    float metallic,
+    float roughness,
+    float occlusion,
+    float3 n,
+    float3 v)
+{
+    float3 result = 0.0f.xxx;
+
+    if (gIblHasIrradiance < 0.5f && gIblHasPrefiltered < 0.5f)
+    {
+        result = HikariEvaluateAmbientIblApprox(
+            baseColor,
+            metallic,
+            roughness,
+            occlusion,
+            n,
+            v);
+    }
+    else
+    {
+        float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
+        float ndotv = saturate(dot(n, v));
+        float3 F = HikariFresnelSchlick(ndotv, F0);
+
+        float3 kS = F;
+        float3 kD = (1.0f.xxx - kS) * (1.0f - metallic);
+
+        float3 diffuseIbl = 0.0f.xxx;
+        if (gIblHasIrradiance > 0.5f)
+        {
+            diffuseIbl = gIblIrradianceTex.Sample(gLinearWrap, n).rgb;
+        }
+        else
+        {
+            diffuseIbl = gAmbientColor.rgb * gAmbientIntensity;
+        }
+
+        float3 diffuse = kD * baseColor * diffuseIbl;
+
+        float3 specular = 0.0f.xxx;
+        if (gIblHasPrefiltered > 0.5f)
+        {
+            float3 r = reflect(-v, n);
+            float mipCount = max(1.0f, gIblPrefilteredMipCount);
+            float mip = roughness * (mipCount - 1.0f);
+            float3 prefiltered = gIblPrefilteredTex.SampleLevel(gLinearWrap, r, mip).rgb;
+
+            if (gIblHasBrdfLut > 0.5f)
+            {
+                float2 brdf = gIblBrdfLutTex.Sample(gLinearWrap, float2(ndotv, roughness)).rg;
+                specular = prefiltered * (F * brdf.x + brdf.y);
+            }
+            else
+            {
+                specular = prefiltered * F;
+            }
+        }
+        else
+        {
+            float3 r = reflect(-v, n);
+            float roughnessFade = 1.0f - saturate(roughness * 0.85f);
+            specular = HikariSampleSkyEnvironment(r) * F * roughnessFade * max(0.0f, gSkyReflectionIntensity);
+        }
+
+        result = (diffuse + specular) * occlusion;
+    }
+
+    return result;
+}
+
 #endif

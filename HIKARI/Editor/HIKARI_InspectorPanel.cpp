@@ -42,6 +42,8 @@ namespace HIKARI {
         }
 
         GameObject& object = *selection.selectedObject;
+        const std::string objectIdScope = "Object:" + std::to_string(object.GetDocumentId().value);
+        ImGui::PushID(objectIdScope.c_str());
         ImGui::Text("Name: %s", object.GetName().c_str());
 
         Transform3D& transform = object.Transform();
@@ -62,12 +64,14 @@ namespace HIKARI {
 
         ImGui::SeparatorText("Components");
         ImGuiInspectorBuilder builder{};
-        for (const auto& component : object.GetComponents()) {
+        const auto& components = object.GetComponents();
+        for (size_t componentIndex = 0; componentIndex < components.size(); ++componentIndex) {
+            const auto& component = components[componentIndex];
             if (!component) {
                 continue;
             }
             const std::string label(component->GetTypeName());
-            ImGui::PushID(component.get());
+            ImGui::PushID(static_cast<int>(componentIndex));
             if (ImGui::TreeNodeEx("Component", ImGuiTreeNodeFlags_DefaultOpen, "%s", label.c_str())) {
                 component->BuildInspector(builder);
                 component->RenderImGui();
@@ -75,6 +79,7 @@ namespace HIKARI {
             }
             ImGui::PopID();
         }
+        ImGui::PopID();
 #else
         (void)selection;
 #endif

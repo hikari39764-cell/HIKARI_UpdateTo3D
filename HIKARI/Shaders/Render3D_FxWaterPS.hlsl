@@ -102,6 +102,7 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gSkyHorizonReflection;
     float4 gSkyGroundAmbient;
     float4 gSkyParams;
+    float4 gIblParams;
 };
 
 #define gSkyZenithColor gSkyZenithExposure.rgb
@@ -114,6 +115,10 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSkyHasCubemap gSkyParams.y
 #define gSkyHorizonPower gSkyParams.z
 #define gSkyYaw gSkyParams.w
+#define gIblHasIrradiance gIblParams.x
+#define gIblHasPrefiltered gIblParams.y
+#define gIblHasBrdfLut gIblParams.z
+#define gIblPrefilteredMipCount gIblParams.w
 
 Texture2D gShadowMap : register(t2) ;
 TextureCube gSkyCube : register(t6);

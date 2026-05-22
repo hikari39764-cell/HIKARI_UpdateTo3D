@@ -120,7 +120,8 @@ namespace HIKARI {
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
             bool changed = false;
-            const char* label = param.label.empty() ? param.key.c_str() : param.label.c_str();
+            const std::string labelText = param.label.empty() ? param.key : param.label;
+            const char* label = labelText.empty() ? "<unnamed>" : labelText.c_str();
             if (param.ref.channel >= 4) {
                 return false;
             }
@@ -572,7 +573,10 @@ namespace HIKARI {
         if (builder.Int("Post Group Mask", postMask)) {
             postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
         }
-        builder.String("Material FX Profile", materialFxProfileId_);
+        std::string materialFxProfileId = materialFxProfileId_;
+        if (builder.String("Material FX Profile##BuildInspector", materialFxProfileId)) {
+            SetMaterialFxProfileId(std::move(materialFxProfileId));
+        }
     }
 
     void ModelComponent::RenderImGui() {
@@ -631,8 +635,11 @@ namespace HIKARI {
             }
             char profileBuffer[256]{};
             std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
-            if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
-                SetMaterialFxProfileId(profileBuffer);
+            if (ImGui::InputText("Material FX Profile##RuntimeMaterialFxProfile", profileBuffer, sizeof(profileBuffer))) {
+                const std::string nextProfileId(profileBuffer);
+                if (nextProfileId != materialFxProfileId_) {
+                    SetMaterialFxProfileId(nextProfileId);
+                }
             }
 
             if (!materialFxProfileId_.empty()) {
@@ -648,13 +655,13 @@ namespace HIKARI {
                         ImGui::TextDisabled("Using profile defaults until a parameter is edited.");
                     }
 
-                    if (ImGui::Button("Reset Material FX Defaults")) {
+                    if (ImGui::Button("Reset Material FX Defaults##MaterialFx")) {
                         profile.CopyValuesTo(materialFxParamValues_);
                         profile.CopyValuesTo(visibleFxValues);
                         materialFxValuesInitialized_ = true;
                     }
                     ImGui::SameLine();
-                    if (ImGui::Button("Reload Material FX Profile")) {
+                    if (ImGui::Button("Reload Material FX Profile##MaterialFx")) {
                         MaterialFxProfile::ClearCache();
                         MaterialFxProfile reloadedProfile{};
                         if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
@@ -665,7 +672,7 @@ namespace HIKARI {
                         }
                     }
 
-                    if (ImGui::TreeNode("Material FX Parameters")) {
+                    if (ImGui::TreeNode("Material FX Parameters##MaterialFxParams")) {
                         const auto ensureWritableFxValues = [&]() {
                             if (materialFxValuesInitialized_) {
                                 return;
@@ -676,12 +683,13 @@ namespace HIKARI {
                             materialFxValuesInitialized_ = true;
                         };
 
-                        for (const VFX::ParamDesc& param : profile.params) {
+                        for (size_t paramIndex = 0; paramIndex < profile.params.size(); ++paramIndex) {
+                            const VFX::ParamDesc& param = profile.params[paramIndex];
                             const int slot = static_cast<int>(param.ref.slot);
                             if (slot < 0 || slot >= static_cast<int>(std::size(materialFxParamValues_)) || param.ref.channel >= 4) {
                                 continue;
                             }
-                            ImGui::PushID(param.key.c_str());
+                            ImGui::PushID(static_cast<int>(paramIndex));
                             DirectX::XMFLOAT4 slotValue = visibleFxValues[slot];
                             if (DrawParamControl(param, slotValue)) {
                                 visibleFxValues[slot] = slotValue;
@@ -697,7 +705,7 @@ namespace HIKARI {
                 }
             }
 
-            if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)")) {
+            if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)##MaterialFxRawBlock")) {
                 for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
                     ImGui::PushID(static_cast<int>(i));
                     ImGui::InputFloat4("Param", &materialFxParamValues_[i].x);

@@ -7,6 +7,7 @@
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_World.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -93,6 +94,13 @@ namespace HIKARI {
                 POST::PostSystem::GetSceneColorHeight());
             ImGui::Text("SceneColor For Water: %s", POST::PostSystem::IsSceneColorReady() ? "Available" : "Unavailable");
             ImGui::Text("Water Refraction: SceneColor t8 when renderPhase=SceneDepth");
+            const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
+            ImGui::Text("IBL Valid: %s", iblData.valid ? "Yes" : "No");
+            ImGui::Text("IBL Irradiance / Prefiltered / BRDF: %s / %s / %s",
+                iblData.hasIrradiance ? "Yes" : "No",
+                iblData.hasPrefiltered ? "Yes" : "No",
+                iblData.hasBrdfLut ? "Yes" : "No");
+            ImGui::Text("IBL Prefiltered Mips: %u", iblData.prefilteredMipCount);
             ImGui::TreePop();
         }
 

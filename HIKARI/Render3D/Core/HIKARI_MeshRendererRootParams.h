@@ -32,7 +32,13 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT SceneDepth = 12;
     // SceneColor -> t8
     constexpr UINT SceneColor = 13;
+    // IBL Irradiance Cubemap -> t9
+    constexpr UINT IblIrradiance = 14;
+    // IBL Prefiltered Cubemap -> t10
+    constexpr UINT IblPrefiltered = 15;
+    // IBL BRDF LUT -> t11
+    constexpr UINT IblBrdfLut = 16;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 14;
+    constexpr UINT JointPalette = 17;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

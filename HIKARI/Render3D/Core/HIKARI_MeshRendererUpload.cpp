@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
@@ -131,6 +132,14 @@ namespace HIKARI::MESHRENDERER {
 
     void FillSkyEnvironmentCB(SkyEnvironmentCB& out) {
         out = {};
+        const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
+        out.iblParams = {
+            iblData.hasIrradiance ? 1.0f : 0.0f,
+            iblData.hasPrefiltered ? 1.0f : 0.0f,
+            iblData.hasBrdfLut ? 1.0f : 0.0f,
+            static_cast<float>(std::max<uint32_t>(1u, iblData.prefilteredMipCount))
+        };
+
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (!skyData.valid) {
             return;

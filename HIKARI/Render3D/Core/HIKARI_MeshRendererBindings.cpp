@@ -3,6 +3,7 @@
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -125,6 +126,30 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindIblResources(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE irradianceSrv =
+            ResolveIblIrradianceSrv(ctx.fallbackTextureHandle);
+        if (irradianceSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblIrradiance, irradianceSrv);
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE prefilteredSrv =
+            ResolveIblPrefilteredSrv(ctx.fallbackTextureHandle);
+        if (prefilteredSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblPrefiltered, prefilteredSrv);
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE brdfLutSrv =
+            ResolveIblBrdfLutSrv(ctx.fallbackTextureHandle);
+        if (brdfLutSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblBrdfLut, brdfLutSrv);
+        }
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle) {
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
@@ -146,6 +171,38 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv = POST::PostSystem::GetSceneColorSrv();
         if (sceneColorSrv.ptr != 0) {
             return sceneColorSrv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblIrradianceSrv(int fallbackTextureHandle) {
+        const D3D12_GPU_DESCRIPTOR_HANDLE srv = IBL::GetIrradianceSrv();
+        if (srv.ptr != 0) {
+            return srv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblPrefilteredSrv(int fallbackTextureHandle) {
+        const D3D12_GPU_DESCRIPTOR_HANDLE srv = IBL::GetPrefilteredSrv();
+        if (srv.ptr != 0) {
+            return srv;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv(fallbackTextureHandle);
+        if (skyCubeSrv.ptr != 0) {
+            return skyCubeSrv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblBrdfLutSrv(int fallbackTextureHandle) {
+        const D3D12_GPU_DESCRIPTOR_HANDLE srv = IBL::GetBrdfLutSrv();
+        if (srv.ptr != 0) {
+            return srv;
         }
 
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);

@@ -414,6 +414,9 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
@@ -1087,6 +1090,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h">
       <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>

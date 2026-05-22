@@ -193,6 +193,7 @@ namespace HIKARI::MESHRENDERER {
                     BindSkyCube(ctx.binding);
                     BindSceneDepth(ctx.binding);
                     BindSceneColor(ctx.binding);
+                    BindIblResources(ctx.binding);
 
                     D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                     D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -258,6 +259,7 @@ namespace HIKARI::MESHRENDERER {
             BindSkyCube(ctx.binding);
             BindSceneDepth(ctx.binding);
             BindSceneColor(ctx.binding);
+            BindIblResources(ctx.binding);
 
             const Mesh* mesh = item.asset->GetMesh();
             D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
