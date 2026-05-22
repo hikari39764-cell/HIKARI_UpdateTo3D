@@ -968,6 +968,7 @@ namespace HIKARI {
                 finalSceneRT->EndCapture();
             }
 
+            // TODO: Consider moving FXAA after tone mapping once an LDR intermediate render target is introduced.
             RenderTarget2D* fxaaRT = ApplyFxaa(*finalSceneRT);
             if (fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) {
                 finalSceneRT = fxaaRT;

@@ -186,7 +186,7 @@ namespace HIKARI::SHADOW {
                 return found->second;
             }
 
-            const int handle = DXTEX::DxTextureManager::LoadTexture(cacheKey, texture.sourcePath);
+            const int handle = DXTEX::DxTextureManager::LoadTextureSrgb(cacheKey, texture.sourcePath);
             g.materialTextureCache.emplace(cacheKey, handle);
             return handle >= 0 ? handle : g.fallbackTextureHandle;
         }

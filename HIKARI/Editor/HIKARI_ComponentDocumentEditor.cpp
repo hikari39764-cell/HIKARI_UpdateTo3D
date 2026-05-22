@@ -4,6 +4,12 @@
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
+#include <exception>
+
+#if defined(_DEBUG)
+#include "imgui.h"
+#endif
+
 namespace HIKARI {
 
     bool ComponentDocumentEditor::DrawComponent(
@@ -21,12 +27,33 @@ namespace HIKARI {
             return false;
         }
 
-        temporaryComponent->Deserialize(componentData.properties);
-        inspectorBuilder.SetContext(context);
-        temporaryComponent->BuildInspector(inspectorBuilder);
-
         nlohmann::json serialized = nlohmann::json::object();
-        temporaryComponent->Serialize(serialized);
+        try {
+            temporaryComponent->Deserialize(componentData.properties);
+            inspectorBuilder.SetContext(context);
+            temporaryComponent->BuildInspector(inspectorBuilder);
+            temporaryComponent->Serialize(serialized);
+        } catch (const std::exception& e) {
+#if defined(_DEBUG)
+            ImGui::TextColored(
+                ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+                "Component inspector failed for %s: %s",
+                componentData.type.c_str(),
+                e.what());
+#else
+            (void)e;
+#endif
+            return false;
+        } catch (...) {
+#if defined(_DEBUG)
+            ImGui::TextColored(
+                ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+                "Component inspector failed for %s.",
+                componentData.type.c_str());
+#endif
+            return false;
+        }
+
         if (serialized == componentData.properties) {
             return false;
         }

@@ -1193,7 +1193,7 @@ namespace HIKARI {
             const std::string& texPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
             if (!texPath.empty()) {
                 material->SetBaseColorTexturePath(texPath);
-                const int handle = DXTEX::DxTextureManager::LoadTexture(asset.GetName() + "/gltf_baseColor", texPath);
+                const int handle = DXTEX::DxTextureManager::LoadTextureSrgb(asset.GetName() + "/gltf_baseColor", texPath);
                 if (handle >= 0) {
                     material->SetBaseColorTextureHandle(handle);
                 }
@@ -1400,7 +1400,7 @@ namespace HIKARI {
                 if (!materialInfo.baseColorMapPath.empty()) {
                     material->SetBaseColorTexturePath(materialInfo.baseColorMapPath);
                     const std::string textureName = asset.GetName() + "/baseColor";
-                    const int textureHandle = DXTEX::DxTextureManager::LoadTexture(textureName, materialInfo.baseColorMapPath);
+                    const int textureHandle = DXTEX::DxTextureManager::LoadTextureSrgb(textureName, materialInfo.baseColorMapPath);
                     if (textureHandle >= 0) {
                         material->SetBaseColorTextureHandle(textureHandle);
                     }

@@ -68,7 +68,7 @@ namespace HIKARI::MESHRENDERER {
         if (stats != nullptr) {
             ++stats->materialTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/" + texturePath, texturePath);
+        const int handle = DXTEX::DxTextureManager::LoadTextureSrgb("model_material/" + texturePath, texturePath);
         materialTextureCache_[texturePath] = handle;
         return handle >= 0 ? handle : fallbacks_.whiteTexture;
     }
@@ -109,7 +109,7 @@ namespace HIKARI::MESHRENDERER {
         if (stats != nullptr) {
             ++stats->normalTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/normal/" + texturePath, texturePath);
+        const int handle = DXTEX::DxTextureManager::LoadTextureLinear("model_material/normal/" + texturePath, texturePath);
         materialTextureCache_[cacheKey] = handle;
         return handle >= 0 ? handle : fallbacks_.normalTexture;
     }
@@ -150,7 +150,7 @@ namespace HIKARI::MESHRENDERER {
         if (stats != nullptr) {
             ++stats->emissiveTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/emissive/" + texturePath, texturePath);
+        const int handle = DXTEX::DxTextureManager::LoadTextureSrgb("model_material/emissive/" + texturePath, texturePath);
         materialTextureCache_[cacheKey] = handle;
         return handle >= 0 ? handle : fallbacks_.blackTexture;
     }
@@ -194,7 +194,7 @@ namespace HIKARI::MESHRENDERER {
         if (stats != nullptr) {
             ++stats->metallicRoughnessTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/metallic_roughness/" + texturePath, texturePath);
+        const int handle = DXTEX::DxTextureManager::LoadTextureLinear("model_material/metallic_roughness/" + texturePath, texturePath);
         materialTextureCache_[cacheKey] = handle;
         if (handle < 0) {
             DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] metallicRoughness texture failed. material=") +
@@ -242,7 +242,7 @@ namespace HIKARI::MESHRENDERER {
         if (stats != nullptr) {
             ++stats->occlusionTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTexture("model_material/occlusion/" + texturePath, texturePath);
+        const int handle = DXTEX::DxTextureManager::LoadTextureLinear("model_material/occlusion/" + texturePath, texturePath);
         materialTextureCache_[cacheKey] = handle;
         if (handle < 0) {
             DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] occlusion texture failed. material=") +

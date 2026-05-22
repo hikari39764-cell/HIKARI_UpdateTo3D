@@ -141,6 +141,15 @@ namespace HIKARI {
             }
         }
 
+        const char* ToneMappingModeName(int mode) {
+            switch (mode) {
+            case 0: return "None";
+            case 1: return "Reinhard";
+            case 2: return "ACES Approx";
+            default: return "Unknown";
+            }
+        }
+
         void ApplyEnvironmentPreset(SceneEnvironment& environment, int presetIndex) {
             switch (presetIndex) {
             case 1: // Bright Day
@@ -526,6 +535,22 @@ namespace HIKARI {
             if (environment.debugView != RenderDebugView::None) {
                 ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Debug view overrides the final shaded output.");
             }
+
+            const POST::PostSystem::FxaaSettings fxaaState = POST::PostSystem::GetFxaaSettings();
+            ImGui::SeparatorText("Render Quality State");
+            ImGui::Text("PBR Mode: Cook-Torrance ON");
+            ImGui::Text("DebugView: %s", DebugViewName(environment.debugView));
+            ImGui::Text("ToneMapping: %s  Exposure %.2f  Gamma %.2f  Mode %s",
+                environment.toneMapping.enabled ? "On" : "Off",
+                environment.toneMapping.exposure,
+                environment.toneMapping.gamma,
+                ToneMappingModeName(environment.toneMapping.mode));
+            ImGui::Text("FXAA: %s  Edge %.4f / Min %.4f  Subpixel %.2f",
+                fxaaState.enabled ? "On" : "Off",
+                fxaaState.edgeThreshold,
+                fxaaState.edgeThresholdMin,
+                fxaaState.subpixelQuality);
+            ImGui::Text("Texture Color Space: Auto / SRGB / Linear enabled");
 
             const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
             ImGui::SeparatorText("Light Upload Stats");

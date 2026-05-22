@@ -1,6 +1,7 @@
 #include "HIKARI_ImGuiInspectorBuilder.h"
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "Assets/HIKARI_AssetRegistry.h"
@@ -89,16 +90,19 @@ namespace HIKARI {
         }
 
         std::vector<const AssetDescriptor*> assets = context_.assetRegistry->CollectByType(assetType);
-        std::sort(assets.begin(), assets.end(),
-            [](const AssetDescriptor* lhs, const AssetDescriptor* rhs) {
-                const std::string left = lhs ? lhs->id.value : std::string{};
-                const std::string right = rhs ? rhs->id.value : std::string{};
-                return left < right;
-            });
+        std::vector<std::string> assetIds;
+        assetIds.reserve(assets.size());
+        for (const AssetDescriptor* descriptor : assets) {
+            if (descriptor && !descriptor->id.value.empty()) {
+                assetIds.push_back(descriptor->id.value);
+            }
+        }
+        std::sort(assetIds.begin(), assetIds.end());
 
         bool changed = false;
-        const char* preview = value.empty() ? "<none>" : value.c_str();
-        if (ImGui::BeginCombo(std::string(label).c_str(), preview)) {
+        const std::string labelText(label);
+        const std::string previewText = value.empty() ? std::string("<none>") : value;
+        if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
             const bool isNoneSelected = value.empty();
             if (ImGui::Selectable("<none>", isNoneSelected)) {
                 value.clear();
@@ -108,18 +112,21 @@ namespace HIKARI {
                 ImGui::SetItemDefaultFocus();
             }
 
-            for (const AssetDescriptor* descriptor : assets) {
-                if (!descriptor) {
-                    continue;
-                }
-                const bool selected = (value == descriptor->id.value);
-                if (ImGui::Selectable(descriptor->id.value.c_str(), selected)) {
-                    value = descriptor->id.value;
+            if (assetIds.empty()) {
+                ImGui::TextDisabled("No matching assets");
+            }
+
+            for (const std::string& assetId : assetIds) {
+                const bool selected = (value == assetId);
+                ImGui::PushID(assetId.c_str());
+                if (ImGui::Selectable(assetId.c_str(), selected)) {
+                    value = assetId;
                     changed = true;
                 }
                 if (selected) {
                     ImGui::SetItemDefaultFocus();
                 }
+                ImGui::PopID();
             }
             ImGui::EndCombo();
         }
@@ -143,10 +150,15 @@ namespace HIKARI {
         std::sort(sceneIds.begin(), sceneIds.end());
 
         bool changed = false;
-        const char* preview = value.empty() ? "<none>" : value.c_str();
-        if (ImGui::BeginCombo(std::string(label).c_str(), preview)) {
+        const std::string labelText(label);
+        const std::string previewText = value.empty() ? std::string("<none>") : value;
+        if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
+            if (sceneIds.empty()) {
+                ImGui::TextDisabled("No scenes registered");
+            }
             for (const std::string& sceneId : sceneIds) {
                 const bool selected = (sceneId == value);
+                ImGui::PushID(sceneId.c_str());
                 if (ImGui::Selectable(sceneId.c_str(), selected)) {
                     value = sceneId;
                     changed = true;
@@ -154,6 +166,7 @@ namespace HIKARI {
                 if (selected) {
                     ImGui::SetItemDefaultFocus();
                 }
+                ImGui::PopID();
             }
             ImGui::EndCombo();
         }

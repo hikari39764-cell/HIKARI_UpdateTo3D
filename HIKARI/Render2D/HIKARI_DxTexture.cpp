@@ -8,6 +8,7 @@
 #include <d3dx12.h>
 #include "../External/WICTextureLoader.h"
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 
 using Microsoft::WRL::ComPtr;
@@ -35,6 +36,35 @@ namespace HIKARI {
                 default:
                     return "|auto";
                 }
+            }
+
+            const char* ColorSpaceName(TextureColorSpace colorSpace)
+            {
+                switch (colorSpace) {
+                case TextureColorSpace::Linear:
+                    return "Linear";
+                case TextureColorSpace::Srgb:
+                    return "SRGB";
+                case TextureColorSpace::Auto:
+                default:
+                    return "Auto";
+                }
+            }
+
+            void LogTextureLoad(
+                const char* kind,
+                const std::string& path,
+                TextureColorSpace colorSpace,
+                DXGI_FORMAT srvFormat,
+                int handle)
+            {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][TextureLoad] kind=" << (kind ? kind : "Texture2D")
+                    << " path=" << path
+                    << " colorSpace=" << ColorSpaceName(colorSpace)
+                    << " srvFormat=" << GFX::FormatToString(srvFormat)
+                    << " handle=" << handle;
+                HIKARI_LOG_INFO(oss.str());
             }
 
             std::string MakeTextureCacheKey(const std::string& name, TextureColorSpace colorSpace)
@@ -394,6 +424,8 @@ namespace HIKARI {
             device->CreateShaderResourceView(
                 texResource.Get(), &srvDesc, srvCpu_[handle]);
 
+            LogTextureLoad("Texture2D", path, colorSpace, srvFormat, handle);
+
             return handle;
         }
 
@@ -491,7 +523,11 @@ namespace HIKARI {
             }
 
             const DXGI_FORMAT srvFormat = ResolveSrvFormat(texResource->GetDesc().Format, colorSpace);
-            return RegisterCubeFromResourceAs(texResource.Get(), srvFormat);
+            const int handle = RegisterCubeFromResourceAs(texResource.Get(), srvFormat);
+            if (handle >= 0) {
+                LogTextureLoad("TextureCube", path, colorSpace, srvFormat, handle);
+            }
+            return handle;
         }
 
 

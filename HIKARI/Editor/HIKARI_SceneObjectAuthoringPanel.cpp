@@ -147,6 +147,7 @@ namespace HIKARI {
 
                 std::vector<std::string> componentTypes = scene.GetComponentRegistry().GetTypeNames();
                 std::sort(componentTypes.begin(), componentTypes.end());
+                bool needsRebuildAfterAdd = false;
                 if (ImGui::BeginCombo("Add Component", "Select component type")) {
                     for (const std::string& typeName : componentTypes) {
                         if (ImGui::Selectable(typeName.c_str(), false)) {
@@ -155,11 +156,14 @@ namespace HIKARI {
                             context.componentAddStatusIsError = !addResult.success;
                             if (addResult.success && addResult.documentChanged) {
                                 context.sceneDirty = true;
-                                selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                                needsRebuildAfterAdd = true;
                             }
                         }
                     }
                     ImGui::EndCombo();
+                }
+                if (needsRebuildAfterAdd) {
+                    selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
                 }
 
                 if (!context.componentAddStatusMessage.empty()) {

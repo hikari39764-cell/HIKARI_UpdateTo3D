@@ -63,12 +63,17 @@ namespace HIKARI {
         ImGui::SeparatorText("Components");
         ImGuiInspectorBuilder builder{};
         for (const auto& component : object.GetComponents()) {
+            if (!component) {
+                continue;
+            }
             const std::string label(component->GetTypeName());
-            if (ImGui::TreeNode(label.c_str())) {
+            ImGui::PushID(component.get());
+            if (ImGui::TreeNodeEx("Component", ImGuiTreeNodeFlags_DefaultOpen, "%s", label.c_str())) {
                 component->BuildInspector(builder);
                 component->RenderImGui();
                 ImGui::TreePop();
             }
+            ImGui::PopID();
         }
 #else
         (void)selection;

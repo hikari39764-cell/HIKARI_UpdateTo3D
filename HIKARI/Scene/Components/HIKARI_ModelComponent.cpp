@@ -477,9 +477,11 @@ namespace HIKARI {
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
         out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
-        out["materialFxParamValues"] = nlohmann::json::array();
-        for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
-            out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
+        if (materialFxValuesInitialized_) {
+            out["materialFxParamValues"] = nlohmann::json::array();
+            for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
+                out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
+            }
         }
     }
 
@@ -531,7 +533,9 @@ namespace HIKARI {
         }
         materialFxValuesInitialized_ = in.value("materialFxValuesInitialized", hasParamValues);
         if (!materialFxValuesInitialized_) {
-            ResetMaterialFxToProfileDefaults();
+            for (DirectX::XMFLOAT4& value : materialFxParamValues_) {
+                value = {};
+            }
         }
     }
 
@@ -599,6 +603,11 @@ namespace HIKARI {
                 if (procedural_.kind == ProceduralMeshKind::Sphere) {
                     ImGui::TextDisabled("Sphere currently falls back to Box generation.");
                 }
+            } else {
+                ImGui::Text("Asset Id: %s", assetId_.empty() ? "<none>" : assetId_.c_str());
+                if (asset_ == nullptr) {
+                    ImGui::TextDisabled("Runtime model asset is not resolved yet.");
+                }
             }
             int debugMode = static_cast<int>(debugRenderMode_);
             const char* debugModes[] = { "Normal", "WireOverlay", "WireOnly", "BoundsOnly" };
@@ -621,7 +630,6 @@ namespace HIKARI {
                 postGroupMask_ = static_cast<uint32_t>(postMask < 0 ? 0 : postMask);
             }
             char profileBuffer[256]{};
-            const std::string previousProfileId = materialFxProfileId_;
             std::strncpy(profileBuffer, materialFxProfileId_.c_str(), sizeof(profileBuffer) - 1);
             if (ImGui::InputText("Material FX Profile", profileBuffer, sizeof(profileBuffer))) {
                 SetMaterialFxProfileId(profileBuffer);
@@ -630,14 +638,19 @@ namespace HIKARI {
             if (!materialFxProfileId_.empty()) {
                 MaterialFxProfile profile{};
                 if (MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
-                    const bool profileChanged = (materialFxProfileId_ != previousProfileId);
-                    if (profileChanged || !materialFxValuesInitialized_) {
-                        profile.CopyValuesTo(materialFxParamValues_);
-                        materialFxValuesInitialized_ = true;
+                    DirectX::XMFLOAT4 visibleFxValues[VFX::kMaterialFxUserCount]{};
+                    if (materialFxValuesInitialized_) {
+                        for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                            visibleFxValues[i] = materialFxParamValues_[i];
+                        }
+                    } else {
+                        profile.CopyValuesTo(visibleFxValues);
+                        ImGui::TextDisabled("Using profile defaults until a parameter is edited.");
                     }
 
                     if (ImGui::Button("Reset Material FX Defaults")) {
                         profile.CopyValuesTo(materialFxParamValues_);
+                        profile.CopyValuesTo(visibleFxValues);
                         materialFxValuesInitialized_ = true;
                     }
                     ImGui::SameLine();
@@ -646,17 +659,35 @@ namespace HIKARI {
                         MaterialFxProfile reloadedProfile{};
                         if (MaterialFxProfile::LoadById(materialFxProfileId_, reloadedProfile)) {
                             profile = std::move(reloadedProfile);
+                            if (!materialFxValuesInitialized_) {
+                                profile.CopyValuesTo(visibleFxValues);
+                            }
                         }
                     }
 
                     if (ImGui::TreeNode("Material FX Parameters")) {
+                        const auto ensureWritableFxValues = [&]() {
+                            if (materialFxValuesInitialized_) {
+                                return;
+                            }
+                            for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                                materialFxParamValues_[i] = visibleFxValues[i];
+                            }
+                            materialFxValuesInitialized_ = true;
+                        };
+
                         for (const VFX::ParamDesc& param : profile.params) {
                             const int slot = static_cast<int>(param.ref.slot);
                             if (slot < 0 || slot >= static_cast<int>(std::size(materialFxParamValues_)) || param.ref.channel >= 4) {
                                 continue;
                             }
                             ImGui::PushID(param.key.c_str());
-                            DrawParamControl(param, materialFxParamValues_[slot]);
+                            DirectX::XMFLOAT4 slotValue = visibleFxValues[slot];
+                            if (DrawParamControl(param, slotValue)) {
+                                visibleFxValues[slot] = slotValue;
+                                ensureWritableFxValues();
+                                materialFxParamValues_[slot] = slotValue;
+                            }
                             ImGui::PopID();
                         }
                         ImGui::TreePop();
@@ -677,15 +708,15 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (asset_ == nullptr && sourceKind_ == ModelSourceKind::Asset) {
-            ImGui::TextUnformatted("Asset: <none>");
-            return;
-        }
-
         if (ImGui::TreeNodeEx("Shadow", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Cast Shadow", &castShadow_);
             ImGui::Checkbox("Receive Shadow", &receiveShadow_);
             ImGui::TreePop();
+        }
+
+        if (asset_ == nullptr && sourceKind_ == ModelSourceKind::Asset) {
+            ImGui::TextUnformatted("Asset: <none>");
+            return;
         }
 
         if (asset_ == nullptr) {
@@ -735,7 +766,7 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Model Structure", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNode("Model Structure")) {
             ImGui::Text("Nodes: %zu", asset_->nodes.size());
             ImGui::Text("Matrix Nodes: %zu", matrixNodeCount);
             ImGui::Text("Mesh Count: %zu", meshCount);
@@ -796,7 +827,7 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Skinning", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNode("Skinning")) {
             ImGui::Text("Skin Nodes: %zu", skinNodeCount);
             ImGui::Checkbox("Show Skeleton Debug", &showSkeletonDebug_);
             ImGui::Checkbox("Skeleton Debug XRay", &skeletonDebugXRay_);
@@ -840,7 +871,7 @@ namespace HIKARI {
         const MODELRENDERER::ModelRendererDebugStats& rendererStats = MODELRENDERER::GetDebugStats();
         const MESHRENDERER::MeshRendererDebugStats& meshRendererStats = MESHRENDERER::GetDebugStats();
 
-        if (ImGui::TreeNodeEx("Runtime Skinning", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNode("Runtime Skinning")) {
             ImGui::Text("Joint Palette Built: %s", rendererStats.builtPaletteCount > 0 ? "Yes" : "No");
             ImGui::Text("Skinned Nodes Rendered: %zu", rendererStats.skinnedNodeCount);
             ImGui::Text("Built Palettes: %zu", rendererStats.builtPaletteCount);
@@ -943,7 +974,7 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Animation Clips", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNode("Animation Clips")) {
             ImGui::Text("Animation clips: %zu", asset_->animations.size());
             for (const AnimationClip& clip : asset_->animations) {
                 ImGui::BulletText("%s (%.2fs)", clip.name.c_str(), clip.durationSec);
