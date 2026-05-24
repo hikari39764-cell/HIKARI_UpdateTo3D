@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetJsonLoader.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
@@ -46,6 +47,8 @@ namespace HIKARI {
 
         SceneEnvironment& GetSceneEnvironment();
         const SceneEnvironment& GetSceneEnvironment() const;
+        AssetDatabase& GetAssetDatabase();
+        const AssetDatabase& GetAssetDatabase() const;
         AssetRegistry& GetAssetRegistry();
         ModelManager& GetModelManager();
         SkyManager& GetSkyManager();
@@ -87,6 +90,7 @@ namespace HIKARI {
         SceneEnvironment environment_{};
         bool environmentLightingEnabled_ = true;
 
+        AssetDatabase assetDatabase_{};
         AssetRegistry assetRegistry_{};
         AssetJsonLoader assetJsonLoader_{};
         ComponentRegistry componentRegistry_{};

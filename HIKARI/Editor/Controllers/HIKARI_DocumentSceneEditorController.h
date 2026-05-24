@@ -7,6 +7,7 @@
 #include "Editor/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
+#include "Editor/Panels/HIKARI_AssetInspectorPanel.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
@@ -33,6 +34,7 @@ namespace HIKARI {
         TimePanel timePanel_{};
         InspectorPanel inspectorPanel_{};
         AssetBrowserPanel assetBrowserPanel_{};
+        AssetInspectorPanel assetInspectorPanel_{};
         StatsPanel statsPanel_{};
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};

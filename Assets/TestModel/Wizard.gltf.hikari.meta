@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Wizard",
+  "guid": "0f84361bcbd2b2d330d32d9f7616f84f",
+  "importSettings": {
+    "cookModel": false,
+    "futureOutputFormat": "HMESH",
+    "sourceFormat": ".gltf"
+  },
+  "importerId": "ModelImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/Wizard.gltf",
+  "type": "Model"
+}

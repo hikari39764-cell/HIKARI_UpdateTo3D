@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "player",
+  "guid": "2bef97f97cc48c9c5efb516e433e50be",
+  "importSettings": {
+    "cookModel": false,
+    "futureOutputFormat": "HMESH",
+    "sourceFormat": ".obj"
+  },
+  "importerId": "ModelImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/player.obj",
+  "type": "Model"
+}

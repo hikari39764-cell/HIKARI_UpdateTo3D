@@ -1,0 +1,23 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Rock063_1K-JPG_Roughness",
+  "guid": "e528f0f53fd78c1eef1f76578bb01d2e",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "futureOutputFormat": "HTEX",
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "DDS",
+    "usage": "MetallicRoughness"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/Rock063_1K-JPG_Roughness.jpg",
+  "type": "Texture"
+}

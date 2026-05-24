@@ -1,0 +1,23 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Wizard_Staff_Texture",
+  "guid": "fc5fa2cb4829531185861f5db1b74ee4",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "futureOutputFormat": "HTEX",
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "DDS",
+    "usage": "Auto"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/Wizard_Staff_Texture.png",
+  "type": "Texture"
+}

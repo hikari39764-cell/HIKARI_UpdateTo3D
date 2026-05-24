@@ -1,0 +1,23 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "op_9",
+  "guid": "1440c70fa1ebebf5dffbbd029c5d1681",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "futureOutputFormat": "HTEX",
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "DDS",
+    "usage": "Auto"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Spine/op_9.png",
+  "type": "Texture"
+}

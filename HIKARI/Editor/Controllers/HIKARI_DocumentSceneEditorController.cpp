@@ -129,7 +129,7 @@ namespace HIKARI {
             DrawSceneWorkspaceWindow(scene);
         }
         if (context_.windows.resources.showAssetBrowser) {
-            assetBrowserPanel_.Draw(scene.GetModelManager(), context_.selection);
+            assetBrowserPanel_.Draw(scene.GetAssetDatabase(), context_.selection);
         }
         if (context_.windows.resources.showEnvironment) {
             environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState());
@@ -305,6 +305,11 @@ namespace HIKARI {
                 if (!ImGui::IsAnyItemActive()) {
                     selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
                 }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Asset Inspector")) {
+                ImGui::SeparatorText("Asset");
+                assetInspectorPanel_.Draw(scene.GetAssetDatabase(), context_.selection);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Viewport")) {

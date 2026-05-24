@@ -1,0 +1,23 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "texture_metallic.png-texture_roughness",
+  "guid": "33d6822fc030195bb86b253e537f46c6",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "futureOutputFormat": "HTEX",
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "DDS",
+    "usage": "MetallicRoughness"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/texture_metallic.png-texture_roughness.png",
+  "type": "Texture"
+}

@@ -1,0 +1,22 @@
+#pragma once
+
+#include <cstdint>
+
+#include "Assets/HIKARI_AssetTypes.h"
+
+namespace HIKARI {
+
+    struct TextureImportSettings {
+        TextureUsage usage = TextureUsage::Auto;
+        TextureAssetDimension dimension = TextureAssetDimension::Texture2D;
+        TextureAssetColorSpace colorSpace = TextureAssetColorSpace::Auto;
+        TextureCompression compression = TextureCompression::Auto;
+        TextureMipPolicy mipPolicy = TextureMipPolicy::Auto;
+        CookedAssetFormat outputFormat = CookedAssetFormat::DDS;
+
+        bool forcePowerOfTwo = false;
+        bool allowResize = false;
+        uint32_t maxSize = 4096;
+    };
+
+} // namespace HIKARI

@@ -11,6 +11,8 @@ namespace HIKARI {
     struct EditorSelection {
         GameObject* selectedObject = nullptr;
         ModelAsset* selectedAsset = nullptr;
+        std::string selectedAssetGuid{};
+        std::string selectedAssetPath{};
     };
 
     struct ComponentGizmoState {

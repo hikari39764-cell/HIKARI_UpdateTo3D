@@ -123,9 +123,57 @@ namespace HIKARI {
         Srgb,
     };
 
+    enum class TextureUsage {
+        Auto,
+        BaseColor,
+        Normal,
+        MetallicRoughness,
+        Occlusion,
+        Emissive,
+        Mask,
+        UI,
+        SkyCubemap,
+        IblIrradiance,
+        IblPrefiltered,
+        BrdfLut,
+    };
+
+    enum class TextureCompression {
+        Auto,
+        None,
+        BC1,
+        BC3,
+        BC4,
+        BC5,
+        BC6H,
+        BC7,
+    };
+
+    enum class TextureMipPolicy {
+        Auto,
+        Generate,
+        Preserve,
+        None,
+    };
+
+    enum class CookedAssetFormat {
+        Unknown,
+        DDS,
+        HTEX,
+        HMODEL,
+        HMESH,
+        HMAT,
+        HSKY,
+        HIBL,
+        HPAK,
+    };
+
     struct TextureAssetDescriptor final : AssetDescriptor {
         TextureAssetDimension dimension = TextureAssetDimension::Texture2D;
         TextureAssetColorSpace colorSpace = TextureAssetColorSpace::Auto;
+        TextureUsage usage = TextureUsage::Auto;
+        TextureCompression compression = TextureCompression::Auto;
+        TextureMipPolicy mipPolicy = TextureMipPolicy::Auto;
     };
 
     struct VfxAssetDescriptor final : AssetDescriptor {

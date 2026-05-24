@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "blockT",
+  "guid": "b5a0ff7088c10ade209f1ceee2baf02a",
+  "importSettings": {
+    "cookModel": false,
+    "futureOutputFormat": "HMESH",
+    "sourceFormat": ".gltf"
+  },
+  "importerId": "ModelImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/blockT.gltf",
+  "type": "Model"
+}

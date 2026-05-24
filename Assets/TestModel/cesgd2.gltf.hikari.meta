@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "cesgd2",
+  "guid": "f34c0ad7f5255bd8d10e7d224e18d81e",
+  "importSettings": {
+    "cookModel": false,
+    "futureOutputFormat": "HMESH",
+    "sourceFormat": ".gltf"
+  },
+  "importerId": "ModelImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/TestModel/cesgd2.gltf",
+  "type": "Model"
+}

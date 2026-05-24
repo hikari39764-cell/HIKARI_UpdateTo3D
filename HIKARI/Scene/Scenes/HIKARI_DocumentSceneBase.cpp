@@ -7,6 +7,7 @@
 
 #include "HIKARI_3D.h"
 #include "HIKARI_Services.h"
+#include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
@@ -201,6 +202,14 @@ namespace HIKARI {
         return assetRegistry_;
     }
 
+    AssetDatabase& DocumentSceneBase::GetAssetDatabase() {
+        return assetDatabase_;
+    }
+
+    const AssetDatabase& DocumentSceneBase::GetAssetDatabase() const {
+        return assetDatabase_;
+    }
+
     ModelManager& DocumentSceneBase::GetModelManager() {
         return modelManager_;
     }
@@ -243,12 +252,21 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBase::ReloadAssets() {
+        if (assetDatabase_.GetProjectRoot().empty()) {
+            assetDatabase_.Initialize(std::filesystem::current_path());
+        }
+        const bool okDatabase = assetDatabase_.ScanAssets(true);
+
         assetRegistry_.Clear();
         const bool okModels = assetJsonLoader_.LoadModelDescriptors("Data/assets_models.json", assetRegistry_);
         const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
         const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
         const bool okVfx = assetJsonLoader_.LoadVfxDescriptors("Data/assets_vfx.json", assetRegistry_);
-        return okModels && okSkies && okTextures && okVfx;
+
+        AssetRegistryBuilder assetRegistryBuilder{};
+        const bool okAssetDatabaseRegistry = assetRegistryBuilder.AppendToRegistry(assetDatabase_, assetRegistry_);
+
+        return okDatabase && okModels && okSkies && okTextures && okVfx && okAssetDatabaseRegistry;
     }
 
     bool DocumentSceneBase::ReloadSceneDocument() {

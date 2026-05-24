@@ -10,6 +10,9 @@
     <Filter Include="Header Files\Assets">
       <UniqueIdentifier>{8B3A62EC-04D2-5403-BA01-4334B6399585}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Importers">
+      <UniqueIdentifier>{1F40F81B-B4C4-4A4C-B6D7-9C08C296821D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -180,6 +183,9 @@
     </Filter>
     <Filter Include="Source Files\Assets">
       <UniqueIdentifier>{A89C19E9-604D-515F-A248-55946BA81A2B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Importers">
+      <UniqueIdentifier>{8A8DE0F9-A8BD-41BB-9822-92024C79B41A}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
@@ -456,8 +462,35 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetDatabase.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetGuid.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp">
       <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp">
       <Filter>Source Files\Scene\Serialization</Filter>
@@ -828,6 +861,9 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
@@ -1134,14 +1170,56 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetDatabase.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetGuid.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetMeta.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetRecord.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h">
       <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporter.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportSettings.h">
+      <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h">
       <Filter>Header Files\Scene</Filter>
@@ -1360,6 +1438,9 @@
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
