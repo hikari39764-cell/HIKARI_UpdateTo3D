@@ -840,6 +840,13 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\DirectXGame\3d\Camera.h">
@@ -1358,6 +1365,17 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">
