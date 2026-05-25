@@ -78,9 +78,19 @@ namespace HIKARI {
                 }
             }
 
-            const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(AssetId{ descriptor->textureAssetId });
-            const std::string texturePath = texture ? texture->sourcePath : std::string{};
-            skyManager.RegisterAsset(SkyAsset{ descriptor->id.value, descriptor->meshAssetId, texturePath, descriptor->preferredMode });
+            std::string texturePath = descriptor->sourcePath;
+            if (!descriptor->textureAssetId.empty()) {
+                if (const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(AssetId{ descriptor->textureAssetId })) {
+                    texturePath = texture->sourcePath;
+                }
+            }
+
+            skyManager.RegisterAsset(SkyAsset{
+                descriptor->id.value,
+                descriptor->meshAssetId,
+                texturePath,
+                descriptor->preferredMode
+            });
         }
 
         return true;

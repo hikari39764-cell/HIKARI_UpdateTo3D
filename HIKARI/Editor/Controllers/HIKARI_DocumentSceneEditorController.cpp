@@ -61,23 +61,28 @@ namespace HIKARI {
                 ImGuiID mainNode = dockspaceId;
                 ImGuiID leftNode = 0;
                 ImGuiID rightNode = 0;
-                ImGuiID bottomNode = 0;
+                ImGuiID rightLowerNode = 0;
+                ImGuiID rightEnvironmentNode = 0;
+                ImGuiID rightResourceNode = 0;
+                ImGuiID rightDebugNode = 0;
                 ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Left, 0.23f, &leftNode, &mainNode);
-                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Right, 0.28f, &rightNode, &mainNode);
-                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Down, 0.23f, &bottomNode, &mainNode);
+                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Right, 0.27f, &rightNode, &mainNode);
+                ImGui::DockBuilderSplitNode(rightNode, ImGuiDir_Down, 0.58f, &rightLowerNode, &rightEnvironmentNode);
+                ImGui::DockBuilderSplitNode(rightLowerNode, ImGuiDir_Down, 0.40f, &rightDebugNode, &rightResourceNode);
 
                 ImGui::DockBuilderDockWindow("Game View", mainNode);
                 ImGui::DockBuilderDockWindow("Scene Workspace", leftNode);
-                ImGui::DockBuilderDockWindow("Environment", rightNode);
-                ImGui::DockBuilderDockWindow("Data Monitor", bottomNode);
-                ImGui::DockBuilderDockWindow("Asset Browser", bottomNode);
+                ImGui::DockBuilderDockWindow("Environment", rightEnvironmentNode);
+                ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
+                ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
 
                 // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
-                ImGui::DockBuilderDockWindow("Debug Camera", bottomNode);
+                ImGui::DockBuilderDockWindow("Asset Browser", rightResourceNode);
+                ImGui::DockBuilderDockWindow("Debug Camera", rightDebugNode);
+                ImGui::DockBuilderDockWindow("Inspector", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Scene Document", leftNode);
                 ImGui::DockBuilderDockWindow("Scene Hierarchy", leftNode);
                 ImGui::DockBuilderDockWindow("Scene Object Authoring", leftNode);
-                ImGui::DockBuilderDockWindow("Inspector", bottomNode);
 
                 ImGui::DockBuilderFinish(dockspaceId);
             }
@@ -129,10 +134,10 @@ namespace HIKARI {
             DrawSceneWorkspaceWindow(scene);
         }
         if (context_.windows.resources.showAssetBrowser) {
-            assetBrowserPanel_.Draw(scene.GetAssetDatabase(), context_.selection);
+            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), context_.selection);
         }
         if (context_.windows.resources.showEnvironment) {
-            environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState());
+            environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState(), &scene.GetAssetRegistry(), &scene.GetAssetDatabase());
             scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
         }
         if (context_.windows.runtime.showDebugWorkspace) {
@@ -237,12 +242,11 @@ namespace HIKARI {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
         } else {
-            const ImVec2 origin = ImGui::GetCursorScreenPos();
+            const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
             ImDrawList* drawList = ImGui::GetWindowDrawList();
-            const ImVec2 max{ origin.x + imageSize.x, origin.y + imageSize.y };
-            drawList->AddRectFilled(origin, max, IM_COL32(8, 10, 13, 255));
-            drawList->AddRect(origin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
-            drawList->AddText(ImVec2(origin.x + 16.0f, origin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
+            drawList->AddRectFilled(imageOrigin, max, IM_COL32(8, 10, 13, 255));
+            drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
+            drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
         }
 
@@ -301,15 +305,14 @@ namespace HIKARI {
             }
             if (ImGui::BeginTabItem("Inspector")) {
                 ImGui::SeparatorText("Selection");
-                inspectorPanel_.DrawContents(context_.selection);
+                inspectorPanel_.DrawContents(
+                    context_.selection,
+                    &scene.GetAssetRegistry(),
+                    &scene.GetAssetDatabase(),
+                    &scene.GetSceneCatalog());
                 if (!ImGui::IsAnyItemActive()) {
                     selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
                 }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Asset Inspector")) {
-                ImGui::SeparatorText("Asset");
-                assetInspectorPanel_.Draw(scene.GetAssetDatabase(), context_.selection);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Viewport")) {

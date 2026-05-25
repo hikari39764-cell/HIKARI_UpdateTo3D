@@ -41,7 +41,7 @@ namespace HIKARI {
     };
 
     struct ResourceWindowState {
-        bool showAssetBrowser = false;
+        bool showAssetBrowser = true;
         bool showEnvironment = true;
     };
 

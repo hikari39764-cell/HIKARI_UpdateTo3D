@@ -139,7 +139,7 @@ namespace HIKARI {
 
         MODELRENDERER::RenderAll(camera_, activeEnvironment);
         // DebugLine3D draws after models so DepthTest mode can use the model depth buffer.
-        RENDERER3D::RenderAll(camera_, static_cast<float>(kScreenW), static_cast<float>(kScreenH));
+        RENDERER3D::RenderAll(camera_, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(camera_);
     }
 
@@ -258,15 +258,10 @@ namespace HIKARI {
         const bool okDatabase = assetDatabase_.ScanAssets(true);
 
         assetRegistry_.Clear();
-        const bool okModels = assetJsonLoader_.LoadModelDescriptors("Data/assets_models.json", assetRegistry_);
-        const bool okSkies = assetJsonLoader_.LoadSkyDescriptors("Data/assets_skies.json", assetRegistry_);
-        const bool okTextures = assetJsonLoader_.LoadTextureDescriptors("Data/assets_textures.json", assetRegistry_);
-        const bool okVfx = assetJsonLoader_.LoadVfxDescriptors("Data/assets_vfx.json", assetRegistry_);
-
         AssetRegistryBuilder assetRegistryBuilder{};
-        const bool okAssetDatabaseRegistry = assetRegistryBuilder.AppendToRegistry(assetDatabase_, assetRegistry_);
+        const bool okRegistry = assetRegistryBuilder.AppendToRegistry(assetDatabase_, assetRegistry_);
 
-        return okDatabase && okModels && okSkies && okTextures && okVfx && okAssetDatabaseRegistry;
+        return okDatabase && okRegistry;
     }
 
     bool DocumentSceneBase::ReloadSceneDocument() {
@@ -405,7 +400,7 @@ namespace HIKARI {
                     properties["slots"] = nlohmann::json::array({
                         {
                             { "slotName", "Default" },
-                            { "effectAssetId", "Laser01" },
+                            { "effectAssetId", "" },
                             { "loop", false },
                             { "autoPlay", false },
                             { "restartIfAlreadyPlaying", true }

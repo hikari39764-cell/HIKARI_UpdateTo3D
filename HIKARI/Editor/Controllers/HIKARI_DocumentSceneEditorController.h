@@ -1,13 +1,12 @@
 #pragma once
 
-#include "Editor/HIKARI_AssetBrowserPanel.h"
 #include "Editor/HIKARI_DebugCameraPanel.h"
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
-#include "Editor/Panels/HIKARI_AssetInspectorPanel.h"
+#include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
@@ -33,8 +32,7 @@ namespace HIKARI {
         HierarchyPanel hierarchyPanel_{};
         TimePanel timePanel_{};
         InspectorPanel inspectorPanel_{};
-        AssetBrowserPanel assetBrowserPanel_{};
-        AssetInspectorPanel assetInspectorPanel_{};
+        ResourceWorkspacePanel resourceWorkspacePanel_{};
         StatsPanel statsPanel_{};
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};

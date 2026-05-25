@@ -1088,9 +1088,8 @@ namespace HIKARI {
                 return false;
             }
 
-            int captureW = 0;
-            int captureH = 0;
-            GetSceneCaptureSize(captureW, captureH);
+            const int captureW = finalSceneRT->GetWidth();
+            const int captureH = finalSceneRT->GetHeight();
             EnsureEditorViewportRTSize(captureW, captureH);
             if (!editorViewportRT_.GetResource() || !editorViewportRT_.IsInitialized()) {
                 BindBackBufferFullViewport();

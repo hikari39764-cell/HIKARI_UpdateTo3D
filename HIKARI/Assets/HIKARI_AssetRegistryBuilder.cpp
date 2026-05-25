@@ -130,7 +130,7 @@ namespace HIKARI {
                     descriptor->sourcePath = record->sourcePath.generic_string();
                 }
                 descriptor->version = record->meta.importerVersion;
-                descriptor->textureAssetId = record->guid.value;
+                descriptor->textureAssetId.clear();
                 descriptor->preferredMode = SkyMode::Cubemap;
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
             } else if (record->type == AssetType::VfxEffect) {

@@ -178,6 +178,7 @@ namespace HIKARI {
                 bool needsRebuild = false;
                 const InspectorContext inspectorContext{
                     &scene.GetAssetRegistry(),
+                    &scene.GetAssetDatabase(),
                     &scene.GetSceneCatalog()
                 };
 

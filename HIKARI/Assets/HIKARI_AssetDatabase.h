@@ -11,6 +11,12 @@
 
 namespace HIKARI {
 
+    struct AssetImportBatchResult {
+        int attempted = 0;
+        int succeeded = 0;
+        int failed = 0;
+    };
+
     class AssetDatabase {
     public:
         bool Initialize(const std::filesystem::path& projectRoot);
@@ -24,6 +30,7 @@ namespace HIKARI {
 
         bool ScanAssets(bool createMissingMeta);
         bool ImportAsset(const AssetGuid& guid);
+        AssetImportBatchResult ImportAllOutdated();
 
         const AssetRecord* FindByGuid(const AssetGuid& guid) const;
         AssetRecord* FindByGuid(const AssetGuid& guid);
@@ -33,9 +40,12 @@ namespace HIKARI {
 
         std::vector<const AssetRecord*> CollectByType(AssetType type) const;
         std::vector<const AssetRecord*> CollectAll() const;
+        std::vector<std::filesystem::path> CollectDirectories() const;
+        std::vector<const AssetRecord*> CollectInDirectory(const std::filesystem::path& directory, bool recursive) const;
 
         bool WriteMeta(const AssetRecord& record);
         bool ReadMeta(const std::filesystem::path& metaPath, AssetMeta& outMeta) const;
+        bool RegenerateMeta(const std::filesystem::path& sourcePath);
 
         std::filesystem::path GetMetaPathForSource(const std::filesystem::path& sourcePath) const;
         std::filesystem::path GetImportedDirectory(const AssetGuid& guid) const;
@@ -47,11 +57,14 @@ namespace HIKARI {
 
         void RegisterDefaultImporters();
         void EnsureProjectDirectories() const;
+        void AddDirectoryToCache(const std::filesystem::path& directory);
+        void SortAndUniqueDirectories();
         void RefreshRecordState(AssetRecord& record) const;
         bool WriteImportReport(const AssetRecord& record, const AssetImportResult& result) const;
 
         std::filesystem::path NormalizeProjectPath(const std::filesystem::path& path) const;
         std::string MakePathKey(const std::filesystem::path& path) const;
+        bool IsPathUnderDirectory(const std::filesystem::path& path, const std::filesystem::path& directory) const;
 
         std::filesystem::path projectRoot_{};
         std::filesystem::path assetsRoot_{};
@@ -60,6 +73,7 @@ namespace HIKARI {
 
         AssetImporterRegistry importerRegistry_{};
         std::vector<AssetRecord> records_{};
+        std::vector<std::filesystem::path> directories_{};
         std::unordered_map<std::string, size_t> recordsByGuid_{};
         std::unordered_map<std::string, size_t> guidByNormalizedPath_{};
     };

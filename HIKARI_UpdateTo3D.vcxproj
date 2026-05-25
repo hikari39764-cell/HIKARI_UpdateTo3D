@@ -178,15 +178,18 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetDatabase.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetGuid.cpp" />
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetImportState.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
+    <ClCompile Include="HIKARI\Assets\Legacy\HIKARI_LegacyAssetJsonMigrator.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_VfxImporterStub.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
@@ -233,6 +236,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -424,12 +428,14 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetDatabase.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetGuid.h" />
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetImportState.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetMeta.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRecord.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h" />
+    <ClInclude Include="HIKARI\Assets\Legacy\HIKARI_LegacyAssetJsonMigrator.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.h" />
@@ -439,6 +445,7 @@
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportSettings.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_VfxImporterStub.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
     <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h" />
@@ -455,6 +462,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />

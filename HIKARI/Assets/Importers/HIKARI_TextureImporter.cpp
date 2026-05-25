@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <exception>
 #include <filesystem>
 #include <sstream>
 
@@ -29,7 +30,7 @@ namespace HIKARI {
         bool IsTextureExtension(const std::string& ext) {
             return ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
                 ext == ".tga" || ext == ".bmp" || ext == ".dds" ||
-                ext == ".hdr" || ext == ".exr";
+                ext == ".hdr";
         }
 
         const char* ToString(TextureUsage value) {
@@ -200,10 +201,11 @@ namespace HIKARI {
             }
 
             if (ext == ".dds") {
+                settings.colorSpace = TextureAssetColorSpace::Auto;
                 settings.mipPolicy = TextureMipPolicy::Preserve;
                 settings.compression = TextureCompression::None;
             }
-            if (ext == ".hdr" || ext == ".exr") {
+            if (ext == ".hdr") {
                 settings.colorSpace = TextureAssetColorSpace::Linear;
                 settings.compression = TextureCompression::None;
             }
@@ -273,9 +275,16 @@ namespace HIKARI {
                 finalPath.wstring().c_str(),
                 MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
             if (!moved) {
+                const DWORD error = GetLastError();
+                std::error_code removeEc{};
+                std::filesystem::remove(tempPath, removeEc);
+
                 std::ostringstream oss;
-                oss << "[TextureImporter] failed to replace output DDS. error=" << GetLastError();
+                oss << "[TextureImporter] failed to replace output DDS. error=" << error
+                    << " temp=" << tempPath.generic_string()
+                    << " final=" << finalPath.generic_string();
                 outMessage = oss.str();
+                HIKARI_LOG_ERROR(outMessage);
                 return false;
             }
             return true;
@@ -329,17 +338,51 @@ namespace HIKARI {
 
         TextureImportSettings settings = ReadSettings(record.meta);
         std::string inspectMessage{};
-        if (!backend_->Inspect(context.projectRoot / record.sourcePath, settings, inspectMessage)) {
-            result.message = inspectMessage.empty() ? "[TextureImporter] inspect failed" : inspectMessage;
+        try {
+            if (!backend_->Inspect(context.projectRoot / record.sourcePath, settings, inspectMessage)) {
+                result.message = inspectMessage.empty() ? "[TextureImporter] inspect failed" : inspectMessage;
+                return result;
+            }
+        } catch (const std::exception& ex) {
+            result.message = std::string("[TextureImporter] inspect exception: ") + ex.what();
+            HIKARI_LOG_ERROR(result.message);
+            return result;
+        } catch (...) {
+            result.message = "[TextureImporter] inspect exception: unknown";
+            HIKARI_LOG_ERROR(result.message);
             return result;
         }
 
         const std::filesystem::path finalPath = context.importedDirectory / "texture.dds";
-        const std::filesystem::path tempPath = context.importedDirectory / "texture.dds.tmp";
+        const std::filesystem::path tempPath = context.importedDirectory / "texture.importing.dds";
+
+        std::error_code removeEc{};
+        std::filesystem::remove(tempPath, removeEc);
+        if (removeEc) {
+            result.message = "[TextureImporter] failed to clear stale temporary DDS: " + tempPath.generic_string();
+            HIKARI_LOG_ERROR(result.message);
+            return result;
+        }
 
         std::string convertMessage{};
-        if (!backend_->ConvertToDds(context.projectRoot / record.sourcePath, tempPath, settings, convertMessage)) {
-            result.message = convertMessage.empty() ? "[TextureImporter] import failed" : convertMessage;
+        try {
+            if (!backend_->ConvertToDds(context.projectRoot / record.sourcePath, tempPath, settings, convertMessage)) {
+                std::error_code cleanupEc{};
+                std::filesystem::remove(tempPath, cleanupEc);
+                result.message = convertMessage.empty() ? "[TextureImporter] import failed" : convertMessage;
+                return result;
+            }
+        } catch (const std::exception& ex) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = std::string("[TextureImporter] import exception: ") + ex.what();
+            HIKARI_LOG_ERROR(result.message);
+            return result;
+        } catch (...) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = "[TextureImporter] import exception: unknown";
+            HIKARI_LOG_ERROR(result.message);
             return result;
         }
 

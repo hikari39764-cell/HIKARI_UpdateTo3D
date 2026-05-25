@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -14,6 +15,7 @@
 #include "Importers/HIKARI_SkyCubemapImporter.h"
 #include "Importers/HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Importers/HIKARI_TextureImporter.h"
+#include "Importers/HIKARI_VfxImporterStub.h"
 
 namespace HIKARI {
 
@@ -56,7 +58,7 @@ namespace HIKARI {
         bool IsTextureExtension(const std::string& ext) {
             return ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
                 ext == ".tga" || ext == ".bmp" || ext == ".dds" ||
-                ext == ".hdr" || ext == ".exr";
+                ext == ".hdr";
         }
 
         bool IsModelExtension(const std::string& ext) {
@@ -220,8 +222,10 @@ namespace HIKARI {
         EnsureProjectDirectories();
 
         records_.clear();
+        directories_.clear();
         recordsByGuid_.clear();
         guidByNormalizedPath_.clear();
+        AddDirectoryToCache("Assets");
 
         std::error_code ec{};
         if (!std::filesystem::exists(assetsRoot_, ec)) {
@@ -239,6 +243,14 @@ namespace HIKARI {
             if (entry.is_directory(ec)) {
                 if (IsIgnoredDirectoryName(entry.path().filename().string())) {
                     it.disable_recursion_pending();
+                    continue;
+                }
+
+                std::error_code relativeEc{};
+                const std::filesystem::path relativeDirectory =
+                    std::filesystem::relative(entry.path(), projectRoot_, relativeEc);
+                if (!relativeEc) {
+                    AddDirectoryToCache(relativeDirectory.lexically_normal());
                 }
                 continue;
             }
@@ -262,6 +274,7 @@ namespace HIKARI {
             AssetRecord record = BuildRecordForSource(relativeSource, createMissingMeta);
             const std::string pathKey = MakePathKey(record.sourcePath);
             const size_t index = records_.size();
+            AddDirectoryToCache(record.sourcePath.parent_path());
 
             if (record.guid.IsValid()) {
                 const auto existing = recordsByGuid_.find(record.guid.value);
@@ -283,6 +296,7 @@ namespace HIKARI {
             return false;
         }
 
+        SortAndUniqueDirectories();
         HIKARI_LOG_INFO("[AssetDatabase] scanned assets. count=" + std::to_string(records_.size()));
         return true;
     }
@@ -333,7 +347,18 @@ namespace HIKARI {
             return false;
         }
 
-        AssetImportResult result = importer->Import(*record, context);
+        AssetImportResult result{};
+        try {
+            result = importer->Import(*record, context);
+        } catch (const std::exception& ex) {
+            result.success = false;
+            result.message = std::string("[AssetDatabase] importer exception: ") + ex.what();
+            HIKARI_LOG_ERROR(result.message + " source=" + record->sourcePath.generic_string() + " guid=" + record->guid.value);
+        } catch (...) {
+            result.success = false;
+            result.message = "[AssetDatabase] importer exception: unknown";
+            HIKARI_LOG_ERROR(result.message + " source=" + record->sourcePath.generic_string() + " guid=" + record->guid.value);
+        }
         if (result.success) {
             record->meta.importerVersion = importer->GetImporterVersion();
             record->meta.sourcePath = record->sourcePath.generic_string();
@@ -351,6 +376,34 @@ namespace HIKARI {
         WriteImportReport(*record, result);
         RefreshRecordState(*record);
         return result.success;
+    }
+
+    AssetImportBatchResult AssetDatabase::ImportAllOutdated() {
+        AssetImportBatchResult batch{};
+        std::vector<AssetGuid> importGuids;
+        importGuids.reserve(records_.size());
+
+        for (const AssetRecord& record : records_) {
+            if (!record.importOutdated ||
+                record.duplicateGuid ||
+                !record.sourceExists ||
+                record.importerMissing ||
+                !record.guid.IsValid()) {
+                continue;
+            }
+            importGuids.push_back(record.guid);
+        }
+
+        for (const AssetGuid& guid : importGuids) {
+            ++batch.attempted;
+            if (ImportAsset(guid)) {
+                ++batch.succeeded;
+            } else {
+                ++batch.failed;
+            }
+        }
+
+        return batch;
     }
 
     const AssetRecord* AssetDatabase::FindByGuid(const AssetGuid& guid) const {
@@ -400,6 +453,26 @@ namespace HIKARI {
         out.reserve(records_.size());
         for (const AssetRecord& record : records_) {
             out.push_back(&record);
+        }
+        return out;
+    }
+
+    std::vector<std::filesystem::path> AssetDatabase::CollectDirectories() const {
+        return directories_;
+    }
+
+    std::vector<const AssetRecord*> AssetDatabase::CollectInDirectory(
+        const std::filesystem::path& directory,
+        bool recursive) const {
+
+        std::vector<const AssetRecord*> out;
+        for (const AssetRecord& record : records_) {
+            const bool include = recursive
+                ? IsPathUnderDirectory(record.sourcePath, directory)
+                : MakePathKey(record.sourcePath.parent_path()) == MakePathKey(directory);
+            if (include) {
+                out.push_back(&record);
+            }
         }
         return out;
     }
@@ -468,6 +541,50 @@ namespace HIKARI {
         ParseDependencies(root, outMeta.dependencies);
         ParseArtifacts(root, outMeta.artifacts);
         return true;
+    }
+
+    bool AssetDatabase::RegenerateMeta(const std::filesystem::path& sourcePath) {
+        AssetRecord* record = FindByPath(sourcePath);
+        if (!record) {
+            HIKARI_LOG_ERROR("[AssetDatabase] RegenerateMeta failed: source not found " + sourcePath.generic_string());
+            return false;
+        }
+
+        const AssetGuid guid = record->guid.IsValid() ? record->guid : GenerateAssetGuid();
+        const AssetType type = GuessAssetTypeFromPath(record->sourcePath);
+        const std::string importerId = SelectDefaultImporterId(type, record->sourcePath);
+
+        AssetMeta meta{};
+        if (const IAssetImporter* importer = importerRegistry_.FindById(importerId)) {
+            meta = importer->CreateDefaultMeta(record->sourcePath, guid);
+        } else {
+            meta.guid = guid;
+            meta.type = type;
+            meta.importerId = importerId;
+            meta.importerVersion = 1;
+            meta.sourcePath = record->sourcePath.generic_string();
+            meta.displayName = record->sourcePath.stem().string();
+            meta.importSettingsJson = "{}";
+        }
+
+        record->guid = meta.guid;
+        record->type = meta.type;
+        record->meta = std::move(meta);
+        record->displayName = record->meta.displayName;
+        record->metaPath = GetMetaPathForSource(record->sourcePath);
+        record->importedDirectory = GetImportedDirectory(record->guid);
+        if (record->guid.IsValid()) {
+            const size_t index = static_cast<size_t>(record - records_.data());
+            recordsByGuid_[record->guid.value] = index;
+            guidByNormalizedPath_[MakePathKey(record->sourcePath)] = index;
+        }
+        const bool wrote = WriteMeta(*record);
+        RefreshRecordState(*record);
+        record->importOutdated = true;
+        record->lastImportMessage = wrote
+            ? "[AssetDatabase] Meta regenerated; reimport required"
+            : "[AssetDatabase] Meta regeneration failed";
+        return wrote;
     }
 
     std::filesystem::path AssetDatabase::GetMetaPathForSource(const std::filesystem::path& sourcePath) const {
@@ -593,6 +710,9 @@ namespace HIKARI {
         if (type == AssetType::Material) {
             return "MaterialImporterStub";
         }
+        if (type == AssetType::VfxEffect) {
+            return "VfxImporterStub";
+        }
 
         if (const IAssetImporter* importer = importerRegistry_.FindForSource(sourcePath)) {
             return importer->GetImporterId();
@@ -607,6 +727,7 @@ namespace HIKARI {
             std::make_unique<DirectXTexTextureImportBackend>()));
         importerRegistry_.Register(std::make_unique<ModelImporterStub>());
         importerRegistry_.Register(std::make_unique<MaterialImporterStub>());
+        importerRegistry_.Register(std::make_unique<VfxImporterStub>());
     }
 
     void AssetDatabase::EnsureProjectDirectories() const {
@@ -651,6 +772,28 @@ namespace HIKARI {
                 ofs << settings.dump(2) << '\n';
             }
         }
+    }
+
+    void AssetDatabase::AddDirectoryToCache(const std::filesystem::path& directory) {
+        if (directory.empty()) {
+            return;
+        }
+
+        std::filesystem::path normalized = NormalizeProjectPath(directory).lexically_normal();
+        if (normalized.empty()) {
+            return;
+        }
+
+        directories_.push_back(std::move(normalized));
+    }
+
+    void AssetDatabase::SortAndUniqueDirectories() {
+        std::sort(directories_.begin(), directories_.end(), [this](const auto& lhs, const auto& rhs) {
+            return MakePathKey(lhs) < MakePathKey(rhs);
+        });
+        directories_.erase(std::unique(directories_.begin(), directories_.end(), [this](const auto& lhs, const auto& rhs) {
+            return MakePathKey(lhs) == MakePathKey(rhs);
+        }), directories_.end());
     }
 
     void AssetDatabase::RefreshRecordState(AssetRecord& record) const {
@@ -760,6 +903,24 @@ namespace HIKARI {
 
     std::string AssetDatabase::MakePathKey(const std::filesystem::path& path) const {
         return ToLowerCopy(NormalizeProjectPath(path).generic_string());
+    }
+
+    bool AssetDatabase::IsPathUnderDirectory(
+        const std::filesystem::path& path,
+        const std::filesystem::path& directory) const {
+
+        const std::string pathKey = MakePathKey(path);
+        const std::string directoryKey = MakePathKey(directory);
+        if (directoryKey.empty()) {
+            return false;
+        }
+        if (pathKey == directoryKey) {
+            return true;
+        }
+        const std::string prefix = directoryKey.back() == '/'
+            ? directoryKey
+            : directoryKey + '/';
+        return pathKey.rfind(prefix, 0) == 0;
     }
 
 } // namespace HIKARI

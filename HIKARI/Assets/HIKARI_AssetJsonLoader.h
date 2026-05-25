@@ -6,6 +6,8 @@ namespace HIKARI {
 
     class AssetRegistry;
 
+    // Deprecated: kept only as a legacy descriptor reader. Normal asset registration
+    // is built from AssetDatabase and .hikari.meta records.
     class AssetJsonLoader {
     public:
         bool LoadModelDescriptors(const std::string& path, AssetRegistry& registry) const;

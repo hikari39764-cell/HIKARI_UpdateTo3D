@@ -1,4 +1,8 @@
 #include "HIKARI_EnvironmentPanel.h"
+#include "Assets/HIKARI_AssetDatabase.h"
+#include "Assets/HIKARI_AssetImportState.h"
+#include "Assets/HIKARI_AssetRegistry.h"
+#include "Assets/HIKARI_AssetTypes.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
@@ -18,7 +22,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <utility>
+#include <vector>
 #endif
 
 namespace HIKARI {
@@ -181,6 +187,117 @@ namespace HIKARI {
             }
         }
 
+        struct SkyPickerEntry {
+            std::string id{};
+            std::string name{};
+            std::string path{};
+            std::string state{};
+            std::string label{};
+        };
+
+        SkyPickerEntry BuildSkyPickerEntry(const AssetDescriptor& descriptor, const AssetDatabase* assetDatabase) {
+            SkyPickerEntry entry{};
+            entry.id = descriptor.id.value;
+            entry.path = descriptor.sourcePath;
+
+            if (assetDatabase) {
+                if (const AssetRecord* record = assetDatabase->FindByGuid(AssetGuid{ descriptor.id.value })) {
+                    entry.name = record->displayName.empty() ? record->sourcePath.stem().string() : record->displayName;
+                    entry.path = record->sourcePath.generic_string();
+                    entry.state = ToString(GetImportState(*record));
+                }
+            }
+
+            if (entry.name.empty()) {
+                entry.name = std::filesystem::path(descriptor.sourcePath).stem().string();
+            }
+            if (entry.name.empty()) {
+                entry.name = entry.id.empty() ? "<unnamed sky>" : entry.id;
+            }
+            if (entry.state.empty()) {
+                entry.state = "Registered";
+            }
+
+            entry.label = entry.name + "  [" + entry.state + "]##" + entry.id;
+            return entry;
+        }
+
+        bool DrawSkyAssetPicker(
+            const AssetRegistry* assetRegistry,
+            const AssetDatabase* assetDatabase,
+            std::string& value) {
+
+            if (!assetRegistry) {
+                char skyAssetBuffer[256]{};
+                std::strncpy(skyAssetBuffer, value.c_str(), sizeof(skyAssetBuffer) - 1);
+                if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
+                    value = skyAssetBuffer;
+                    return true;
+                }
+                return false;
+            }
+
+            std::vector<const AssetDescriptor*> skies = assetRegistry->CollectByType(AssetType::Sky);
+            std::vector<SkyPickerEntry> entries;
+            entries.reserve(skies.size());
+            for (const AssetDescriptor* descriptor : skies) {
+                if (descriptor && !descriptor->id.value.empty()) {
+                    entries.push_back(BuildSkyPickerEntry(*descriptor, assetDatabase));
+                }
+            }
+            std::sort(entries.begin(), entries.end(), [](const SkyPickerEntry& lhs, const SkyPickerEntry& rhs) {
+                return lhs.name < rhs.name;
+            });
+
+            const SkyPickerEntry* current = nullptr;
+            for (const SkyPickerEntry& entry : entries) {
+                if (entry.id == value) {
+                    current = &entry;
+                    break;
+                }
+            }
+
+            bool changed = false;
+            const std::string preview = value.empty()
+                ? std::string("<none>")
+                : (current ? current->name : ("Missing: " + value));
+            if (ImGui::BeginCombo("Sky Asset", preview.c_str())) {
+                if (ImGui::Selectable("<none>", value.empty())) {
+                    value.clear();
+                    changed = true;
+                }
+                for (const SkyPickerEntry& entry : entries) {
+                    const bool selected = value == entry.id;
+                    if (ImGui::Selectable(entry.label.c_str(), selected)) {
+                        value = entry.id;
+                        changed = true;
+                    }
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("%s\n%s\nGUID: %s",
+                            entry.name.c_str(),
+                            entry.path.empty() ? "<no source path>" : entry.path.c_str(),
+                            entry.id.c_str());
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Copy Sky GUID") && !value.empty()) {
+                ImGui::SetClipboardText(value.c_str());
+            }
+            if (!value.empty()) {
+                if (current) {
+                    ImGui::TextDisabled("%s | %s", current->path.c_str(), current->state.c_str());
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "Unresolved sky asset: %s", value.c_str());
+                }
+            }
+            return changed;
+        }
+
         void ApplyEnvironmentPreset(SceneEnvironment& environment, int presetIndex) {
             switch (presetIndex) {
             case 1: // Bright Day
@@ -259,7 +376,11 @@ namespace HIKARI {
         }
     }
 
-    void EnvironmentPanel::Draw(SceneEnvironment& environment, const SKYRENDERER::SkyRendererDebugState* skyDebugState) const {
+    void EnvironmentPanel::Draw(
+        SceneEnvironment& environment,
+        const SKYRENDERER::SkyRendererDebugState* skyDebugState,
+        const AssetRegistry* assetRegistry,
+        const AssetDatabase* assetDatabase) const {
         if (!ImGui::Begin("Environment")) {
             ImGui::End();
             return;
@@ -432,11 +553,7 @@ namespace HIKARI {
             if (ImGui::Combo("Sky Mode", &skyMode, skyModeNames, static_cast<int>(std::size(skyModeNames)))) {
                 environment.sky.mode = static_cast<SkyMode>(std::clamp(skyMode, 0, 3));
             }
-            char skyAssetBuffer[256]{};
-            std::strncpy(skyAssetBuffer, environment.sky.skyAsset.c_str(), sizeof(skyAssetBuffer) - 1);
-            if (ImGui::InputText("Sky Asset", skyAssetBuffer, sizeof(skyAssetBuffer))) {
-                environment.sky.skyAsset = skyAssetBuffer;
-            }
+            DrawSkyAssetPicker(assetRegistry, assetDatabase, environment.sky.skyAsset);
             ImGui::DragFloat("Sky Scale", &environment.sky.scale, 0.01f, 0.0001f, 1000.0f);
             ImGui::DragFloat("Sky Yaw", &environment.sky.yaw, 0.01f);
             ImGui::DragFloat("Sky Exposure", &environment.sky.exposure, 0.01f, 0.0f, 16.0f);
@@ -808,7 +925,7 @@ namespace HIKARI {
         ImGui::End();
     }
 #else
-    void EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*) const {}
+    void EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*, const AssetRegistry*, const AssetDatabase*) const {}
 #endif
 
 } // namespace HIKARI

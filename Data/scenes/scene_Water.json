@@ -205,7 +205,7 @@
       "scale": 0.4699999988079071,
       "showDebugTexture": false,
       "showSunDisk": true,
-      "skyAsset": "DefaultSky",
+      "skyAsset": "9eeb4bd12741aa7d4c09a4c84f487804",
       "sunDiskIntensity": 0.0,
       "sunDiskSize": 0.03999999910593033,
       "tint": [
@@ -234,7 +234,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Hero",
+            "assetId": "b9b01a5753d51b168caf81fb235fb1c3",
             "castShadow": true,
             "materialFxParamValues": [
               [
@@ -313,7 +313,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Tee",
+            "assetId": "eb94614272c3e977e93886ca0eddb2be",
             "castShadow": false,
             "debugRenderMode": "Normal",
             "materialFxParamValues": [
@@ -416,7 +416,7 @@
             "slots": [
               {
                 "autoPlay": false,
-                "effectAssetId": "sword",
+                "effectAssetId": "64c6f38ea0cf085dd50cf241736df78d",
                 "loop": false,
                 "restartIfAlreadyPlaying": true,
                 "slotName": "Default"

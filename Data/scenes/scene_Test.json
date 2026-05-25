@@ -44,7 +44,7 @@
       "exposure": 1.0,
       "followCamera": true,
       "scale": 0.05000000074505806,
-      "skyAsset": "DefaultSky",
+      "skyAsset": "9eeb4bd12741aa7d4c09a4c84f487804",
       "tint": [
         1.0,
         1.0,
@@ -60,7 +60,7 @@
       "components": [
         {
           "properties": {
-            "assetId": "Player",
+            "assetId": "2bef97f97cc48c9c5efb516e433e50be",
             "visible": true
           },
           "type": "ModelComponent"

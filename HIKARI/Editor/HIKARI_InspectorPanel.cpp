@@ -19,22 +19,33 @@ namespace HIKARI {
         RotationEditorState gRotationEditor{};
     }
 
-    void InspectorPanel::Draw(EditorSelection& selection) const {
+    void InspectorPanel::Draw(
+        EditorSelection& selection,
+        AssetRegistry* assetRegistry,
+        AssetDatabase* assetDatabase,
+        SceneCatalog* sceneCatalog) const {
 #if defined(_DEBUG)
         if (!ImGui::Begin("Inspector")) {
             ImGui::End();
             return;
         }
 
-        DrawContents(selection);
+        DrawContents(selection, assetRegistry, assetDatabase, sceneCatalog);
 
         ImGui::End();
 #else
         (void)selection;
+        (void)assetRegistry;
+        (void)assetDatabase;
+        (void)sceneCatalog;
 #endif
     }
 
-    void InspectorPanel::DrawContents(EditorSelection& selection) const {
+    void InspectorPanel::DrawContents(
+        EditorSelection& selection,
+        AssetRegistry* assetRegistry,
+        AssetDatabase* assetDatabase,
+        SceneCatalog* sceneCatalog) const {
 #if defined(_DEBUG)
         if (selection.selectedObject == nullptr) {
             ImGui::TextUnformatted("No object selected.");
@@ -64,6 +75,11 @@ namespace HIKARI {
 
         ImGui::SeparatorText("Components");
         ImGuiInspectorBuilder builder{};
+        builder.SetContext(InspectorContext{
+            assetRegistry,
+            assetDatabase,
+            sceneCatalog
+        });
         const auto& components = object.GetComponents();
         for (size_t componentIndex = 0; componentIndex < components.size(); ++componentIndex) {
             const auto& component = components[componentIndex];
@@ -82,6 +98,9 @@ namespace HIKARI {
         ImGui::PopID();
 #else
         (void)selection;
+        (void)assetRegistry;
+        (void)assetDatabase;
+        (void)sceneCatalog;
 #endif
     }
 

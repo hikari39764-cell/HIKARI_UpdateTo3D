@@ -3,7 +3,6 @@
 #include <string>
 
 #include "Assets/HIKARI_AssetDatabase.h"
-#include "Assets/HIKARI_AssetJsonLoader.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
@@ -92,7 +91,6 @@ namespace HIKARI {
 
         AssetDatabase assetDatabase_{};
         AssetRegistry assetRegistry_{};
-        AssetJsonLoader assetJsonLoader_{};
         ComponentRegistry componentRegistry_{};
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};
