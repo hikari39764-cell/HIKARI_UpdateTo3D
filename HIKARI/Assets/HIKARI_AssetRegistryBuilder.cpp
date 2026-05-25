@@ -74,6 +74,19 @@ namespace HIKARI {
             return {};
         }
 
+        std::string FindArtifactPathByFormat(
+            const AssetRecord& record,
+            std::string_view role,
+            std::string_view format) {
+
+            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+                if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
+                    return artifact.path;
+                }
+            }
+            return {};
+        }
+
         ModelImporterKind GuessModelImporter(const std::filesystem::path& sourcePath) {
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
             if (ext == ".gltf" || ext == ".glb") {
@@ -98,7 +111,10 @@ namespace HIKARI {
                 auto descriptor = std::make_unique<TextureAssetDescriptor>();
                 descriptor->id.value = record->guid.value;
                 descriptor->type = AssetType::Texture;
-                descriptor->sourcePath = FindArtifactPath(*record, "MainTexture");
+                descriptor->sourcePath = FindArtifactPathByFormat(*record, "MainTexture", "HTEX");
+                if (descriptor->sourcePath.empty()) {
+                    descriptor->sourcePath = FindArtifactPath(*record, "MainTexture");
+                }
                 if (descriptor->sourcePath.empty()) {
                     descriptor->sourcePath = record->sourcePath.generic_string();
                 }

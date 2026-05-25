@@ -1,5 +1,11 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "DDS",
+      "path": "Library/Imported/725f7b2359db95eacfe45c3fb3238fb1/sky.dds",
+      "role": "SkyCubemap"
+    }
+  ],
   "dependencies": [],
   "displayName": "sky4",
   "guid": "725f7b2359db95eacfe45c3fb3238fb1",

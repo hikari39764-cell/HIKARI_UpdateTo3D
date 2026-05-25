@@ -1,7 +1,9 @@
 #pragma once
 
 #include <windows.h>
+#include <filesystem>
 #include <functional>
+#include <vector>
 
 namespace HIKARI::PLATFORM {
 
@@ -36,5 +38,7 @@ private:
     float mouseWheelDelta_{};
     ResizeCallback onResize_{};
 };
+
+std::vector<std::filesystem::path> ConsumeDroppedFiles();
 
 } // namespace HIKARI::PLATFORM

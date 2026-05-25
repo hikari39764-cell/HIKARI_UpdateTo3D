@@ -1,7 +1,10 @@
 #include "HIKARI_Win32Window.h"
 
 #include <cstdio>
+#include <filesystem>
+#include <shellapi.h>
 #include <sstream>
+#include <vector>
 
 #include "Core/HIKARI_Logger.h"
 #if defined(_DEBUG)
@@ -10,6 +13,16 @@
 #endif
 
 namespace HIKARI::PLATFORM {
+
+namespace {
+    std::vector<std::filesystem::path> gDroppedFiles{};
+}
+
+std::vector<std::filesystem::path> ConsumeDroppedFiles() {
+    std::vector<std::filesystem::path> files = std::move(gDroppedFiles);
+    gDroppedFiles.clear();
+    return files;
+}
 
 bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool resizable) {
     HIKARI_LOG_INFO("Win32Window initialization started.");
@@ -75,6 +88,7 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
     HIKARI_LOG_INFO("Window created.");
 
     ShowWindow(hwnd_, SW_SHOW);
+    DragAcceptFiles(hwnd_, TRUE);
     UpdateWindow(hwnd_);
     HIKARI_LOG_INFO("Window shown.");
     running_ = true;
@@ -84,6 +98,7 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
 
 void Win32Window::Shutdown() {
     if (hwnd_) {
+        DragAcceptFiles(hwnd_, FALSE);
         DestroyWindow(hwnd_);
         hwnd_ = nullptr;
     }
@@ -148,6 +163,23 @@ LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
     case WM_MOUSEWHEEL:
         mouseWheelDelta_ += static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam)) / static_cast<float>(WHEEL_DELTA);
         return 0;
+    case WM_DROPFILES: {
+        HDROP drop = reinterpret_cast<HDROP>(wparam);
+        const UINT fileCount = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+        for (UINT i = 0; i < fileCount; ++i) {
+            const UINT length = DragQueryFileW(drop, i, nullptr, 0);
+            if (length == 0) {
+                continue;
+            }
+            std::wstring path;
+            path.resize(static_cast<size_t>(length) + 1u);
+            DragQueryFileW(drop, i, path.data(), length + 1);
+            path.resize(static_cast<size_t>(length));
+            gDroppedFiles.emplace_back(path);
+        }
+        DragFinish(drop);
+        return 0;
+    }
     default:
         break;
     }

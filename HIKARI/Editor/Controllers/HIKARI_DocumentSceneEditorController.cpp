@@ -40,9 +40,7 @@ namespace HIKARI {
 
             const ImGuiViewport* viewport = ImGui::GetMainViewport();
             const ImGuiID dockspaceId = ImGui::GetID("HIKARI_EditorDockSpace");
-            const ImGuiDockNodeFlags dockspaceFlags =
-                ImGuiDockNodeFlags_PassthruCentralNode |
-                ImGuiDockNodeFlags_NoDockingOverCentralNode;
+            const ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
             static bool initializedDefaultDockLayout = false;
             if (!initializedDefaultDockLayout || resetDefaultDockLayout) {
@@ -134,7 +132,7 @@ namespace HIKARI {
             DrawSceneWorkspaceWindow(scene);
         }
         if (context_.windows.resources.showAssetBrowser) {
-            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), context_.selection);
+            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), scene.GetSceneDocument(), context_.selection);
         }
         if (context_.windows.resources.showEnvironment) {
             environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState(), &scene.GetAssetRegistry(), &scene.GetAssetDatabase());

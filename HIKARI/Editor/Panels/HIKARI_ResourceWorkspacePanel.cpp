@@ -6,7 +6,9 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
+#include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Editor/HIKARI_EditorSelection.h"
+#include "Scene/HIKARI_SceneDocument.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -16,6 +18,86 @@ namespace HIKARI {
 
     namespace {
 #if defined(_DEBUG)
+        bool IsBrokenRecord(const AssetRecord& record) {
+            const AssetImportState state = GetImportState(record);
+            return state == AssetImportState::MissingSource ||
+                state == AssetImportState::MissingMeta ||
+                state == AssetImportState::MissingArtifact ||
+                state == AssetImportState::UnknownImporter ||
+                state == AssetImportState::DuplicateGuid ||
+                state == AssetImportState::ImportFailed;
+        }
+
+        int CountByType(const AssetDatabase& assetDatabase, AssetType type) {
+            return static_cast<int>(assetDatabase.CollectByType(type).size());
+        }
+
+        int CountBroken(const AssetDatabase& assetDatabase) {
+            int count = 0;
+            for (const AssetRecord* record : assetDatabase.CollectAll()) {
+                if (record && IsBrokenRecord(*record)) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+
+        void DrawScopeButton(
+            const char* label,
+            int count,
+            AssetBrowserScope scope,
+            AssetBrowserScope& activeScope) {
+
+            const bool selected = activeScope == scope;
+            if (selected) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.32f, 0.48f, 1.0f));
+            }
+
+            const std::string text = std::string(label) + "  " + std::to_string(count);
+            if (ImGui::Button(text.c_str(), ImVec2(-1.0f, 30.0f))) {
+                activeScope = scope;
+            }
+
+            if (selected) {
+                ImGui::PopStyleColor();
+            }
+        }
+
+        void DrawScopeRail(
+            AssetDatabase& assetDatabase,
+            const AssetUsageSummary& usageSummary,
+            AssetBrowserScope& activeScope) {
+
+            const int total = static_cast<int>(assetDatabase.CollectAll().size());
+            const int used = static_cast<int>(usageSummary.usedGuids.size());
+            const int unused = (std::max)(0, total - used);
+
+            ImGui::TextUnformatted("Library");
+            ImGui::Separator();
+            DrawScopeButton("Project", total, AssetBrowserScope::Project, activeScope);
+            DrawScopeButton("Current Scene", used, AssetBrowserScope::CurrentScene, activeScope);
+            DrawScopeButton("Unused", unused, AssetBrowserScope::UnusedInScene, activeScope);
+            DrawScopeButton("Broken", CountBroken(assetDatabase) + static_cast<int>(usageSummary.missingReferences.size()), AssetBrowserScope::Broken, activeScope);
+
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Types");
+            ImGui::Separator();
+            DrawScopeButton("Textures", CountByType(assetDatabase, AssetType::Texture), AssetBrowserScope::Textures, activeScope);
+            DrawScopeButton("Models", CountByType(assetDatabase, AssetType::Model), AssetBrowserScope::Models, activeScope);
+            DrawScopeButton("Materials", CountByType(assetDatabase, AssetType::Material), AssetBrowserScope::Materials, activeScope);
+            DrawScopeButton("Skies", CountByType(assetDatabase, AssetType::Sky), AssetBrowserScope::Skies, activeScope);
+            DrawScopeButton("VFX", CountByType(assetDatabase, AssetType::VfxEffect), AssetBrowserScope::Vfx, activeScope);
+
+            if (!usageSummary.missingReferences.empty()) {
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(1.0f, 0.42f, 0.36f, 1.0f), "Missing References");
+                for (const AssetMissingReference& missing : usageSummary.missingReferences) {
+                    ImGui::TextWrapped("%s: %s", missing.role.c_str(), missing.assetId.c_str());
+                    ImGui::TextDisabled("%s", missing.owner.c_str());
+                }
+            }
+        }
+
         void DrawPreviewAndImportLog(AssetDatabase& assetDatabase, EditorSelection& selection) {
             ImGui::TextUnformatted("Import Log / Preview");
             ImGui::Separator();
@@ -46,12 +128,17 @@ namespace HIKARI {
 #endif
     }
 
-    void ResourceWorkspacePanel::Draw(AssetDatabase& assetDatabase, EditorSelection& selection) const {
+    void ResourceWorkspacePanel::Draw(
+        AssetDatabase& assetDatabase,
+        const SceneDocument& sceneDocument,
+        EditorSelection& selection) const {
 #if defined(_DEBUG)
         if (!ImGui::Begin("Resource Workspace")) {
             ImGui::End();
             return;
         }
+
+        AssetUsageSummary usageSummary = AnalyzeAssetUsage(sceneDocument, assetDatabase);
 
         const AssetRecord* selectedRecord = selection.selectedAssetGuid.empty()
             ? nullptr
@@ -60,6 +147,8 @@ namespace HIKARI {
         ImGui::TextUnformatted("Project Assets");
         ImGui::SameLine();
         ImGui::TextDisabled("%d items", static_cast<int>(assetDatabase.CollectAll().size()));
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
         ImGui::SameLine();
         ImGui::SetNextItemWidth(112.0f);
         ImGui::Checkbox("Import Log", &showPreviewLog_);
@@ -78,9 +167,16 @@ namespace HIKARI {
 
         if (ImGui::BeginChild("##ResourceWorkspaceMain", ImVec2(0.0f, -bottomHeight), false)) {
             if (wideLayout) {
+                const float railWidth = 176.0f;
+                if (ImGui::BeginChild("##ResourceWorkspaceScopeRail", ImVec2(railWidth, 0.0f), true)) {
+                    DrawScopeRail(assetDatabase, usageSummary, activeScope_);
+                }
+                ImGui::EndChild();
+                ImGui::SameLine();
+
                 const float browserWidth = showInspector ? -inspectorWidth - 8.0f : 0.0f;
                 if (ImGui::BeginChild("##ResourceWorkspaceBrowser", ImVec2(browserWidth, 0.0f), false)) {
-                    assetBrowserPanel_.DrawContents(assetDatabase, selection);
+                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_);
                 }
                 ImGui::EndChild();
 
@@ -94,7 +190,11 @@ namespace HIKARI {
                 }
             } else if (ImGui::BeginTabBar("ResourceWorkspaceCompactTabs", ImGuiTabBarFlags_FittingPolicyScroll)) {
                 if (ImGui::BeginTabItem("Browser")) {
-                    assetBrowserPanel_.DrawContents(assetDatabase, selection);
+                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_);
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem("Categories")) {
+                    DrawScopeRail(assetDatabase, usageSummary, activeScope_);
                     ImGui::EndTabItem();
                 }
                 if (showInspector && ImGui::BeginTabItem("Inspector")) {
@@ -114,6 +214,7 @@ namespace HIKARI {
         ImGui::End();
 #else
         (void)assetDatabase;
+        (void)sceneDocument;
         (void)selection;
 #endif
     }

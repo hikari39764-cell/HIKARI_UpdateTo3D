@@ -3,6 +3,7 @@
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
@@ -226,6 +227,19 @@ namespace HIKARI {
             const AssetRegistry* assetRegistry,
             const AssetDatabase* assetDatabase,
             std::string& value) {
+
+            if (assetDatabase) {
+                return EDITOR::DrawAssetField(
+                    assetDatabase,
+                    EDITOR::AssetFieldOptions{
+                        "Sky Asset",
+                        AssetType::Sky,
+                        true,
+                        false,
+                        true
+                    },
+                    value);
+            }
 
             if (!assetRegistry) {
                 char skyAssetBuffer[256]{};

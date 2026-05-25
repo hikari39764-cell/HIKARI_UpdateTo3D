@@ -11,8 +11,10 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
+#include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Assets/Legacy/HIKARI_LegacyAssetJsonMigrator.h"
 #include "HIKARI_EditorSelection.h"
+#include "Platform/HIKARI_Win32Window.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
@@ -79,6 +81,264 @@ namespace HIKARI {
             return value;
         }
 
+        void SelectRecord(const AssetRecord& record, EditorSelection& selection);
+
+        bool IsAssetsRootPath(const std::filesystem::path& path) {
+            return ToLowerCopy(path.lexically_normal().generic_string()) == "assets";
+        }
+
+        bool IsSupportedImportSource(const std::filesystem::path& path) {
+            const std::string filename = ToLowerCopy(path.filename().string());
+            const std::string ext = ToLowerCopy(path.extension().string());
+            return ext == ".png" ||
+                ext == ".jpg" ||
+                ext == ".jpeg" ||
+                ext == ".tga" ||
+                ext == ".bmp" ||
+                ext == ".dds" ||
+                ext == ".hdr" ||
+                ext == ".gltf" ||
+                ext == ".glb" ||
+                ext == ".fbx" ||
+                ext == ".obj" ||
+                ext == ".hmat" ||
+                filename.ends_with(".mat.json") ||
+                ext == ".efk" ||
+                ext == ".efkefc";
+        }
+
+        bool IsCopyOnlySidecarFile(const std::filesystem::path& path) {
+            const std::string ext = ToLowerCopy(path.extension().string());
+            return ext == ".bin" ||
+                ext == ".mtl";
+        }
+
+        std::filesystem::path SuggestedTargetDirectory(
+            const std::filesystem::path& currentDirectory,
+            const std::filesystem::path& sourcePath) {
+
+            if (!currentDirectory.empty() && !IsAssetsRootPath(currentDirectory)) {
+                return currentDirectory;
+            }
+
+            const std::string filename = ToLowerCopy(sourcePath.filename().string());
+            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
+                return "Assets/Models";
+            }
+            if (ext == ".hmat" || filename.ends_with(".mat.json")) {
+                return "Assets/Materials";
+            }
+            if (ext == ".efk" || ext == ".efkefc") {
+                return "Assets/Vfx";
+            }
+            if (ext == ".dds" && (filename.find("sky") != std::string::npos ||
+                filename.find("cube") != std::string::npos ||
+                filename.find("cubemap") != std::string::npos)) {
+                return "Assets/Skies";
+            }
+            return "Assets/Textures";
+        }
+
+        bool IsPathInside(const std::filesystem::path& path, const std::filesystem::path& directory) {
+            std::error_code ec{};
+            const std::filesystem::path relative = std::filesystem::relative(path, directory, ec);
+            if (ec || relative.empty()) {
+                return false;
+            }
+            const std::string native = relative.generic_string();
+            return native != "." && native.find("..") != 0;
+        }
+
+        std::filesystem::path MakeUniqueFilePath(const std::filesystem::path& absolutePath) {
+            std::error_code ec{};
+            if (!std::filesystem::exists(absolutePath, ec)) {
+                return absolutePath;
+            }
+
+            const std::filesystem::path parent = absolutePath.parent_path();
+            const std::string stem = absolutePath.stem().string();
+            const std::string extension = absolutePath.extension().string();
+            for (int i = 1; i < 10000; ++i) {
+                std::filesystem::path candidate = parent / (stem + "_" + std::to_string(i) + extension);
+                ec.clear();
+                if (!std::filesystem::exists(candidate, ec)) {
+                    return candidate;
+                }
+            }
+            return parent / (stem + "_9999" + extension);
+        }
+
+        bool CopySourceFileIntoProject(
+            const AssetDatabase& assetDatabase,
+            const std::filesystem::path& sourceFile,
+            const std::filesystem::path& targetRelativePath,
+            std::filesystem::path& outRelativePath,
+            std::string& outError) {
+
+            std::error_code ec{};
+            const std::filesystem::path sourceAbsolute = std::filesystem::absolute(sourceFile, ec).lexically_normal();
+            if (ec) {
+                outError = "Failed to resolve source path: " + ec.message();
+                return false;
+            }
+
+            if (IsPathInside(sourceAbsolute, assetDatabase.GetAssetsRoot())) {
+                outRelativePath = std::filesystem::relative(sourceAbsolute, assetDatabase.GetProjectRoot(), ec).lexically_normal();
+                if (ec) {
+                    outError = "Failed to make source path project-relative: " + ec.message();
+                    return false;
+                }
+                return true;
+            }
+
+            std::filesystem::path destinationAbsolute = assetDatabase.GetProjectRoot() / targetRelativePath;
+            destinationAbsolute = MakeUniqueFilePath(destinationAbsolute.lexically_normal());
+            std::filesystem::create_directories(destinationAbsolute.parent_path(), ec);
+            if (ec) {
+                outError = "Failed to create target directory: " + ec.message();
+                return false;
+            }
+
+            std::filesystem::copy_file(sourceAbsolute, destinationAbsolute, std::filesystem::copy_options::none, ec);
+            if (ec) {
+                outError = "Failed to copy " + sourceAbsolute.generic_string() + ": " + ec.message();
+                return false;
+            }
+
+            outRelativePath = std::filesystem::relative(destinationAbsolute, assetDatabase.GetProjectRoot(), ec).lexically_normal();
+            if (ec) {
+                outError = "Failed to make imported path project-relative: " + ec.message();
+                return false;
+            }
+            return true;
+        }
+
+        void CollectDroppedFiles(
+            const std::filesystem::path& droppedPath,
+            const std::filesystem::path& currentDirectory,
+            const AssetDatabase& assetDatabase,
+            std::vector<std::filesystem::path>& outProjectRelativeFiles,
+            int& skippedCount,
+            std::string& lastError) {
+
+            std::error_code ec{};
+            if (std::filesystem::is_directory(droppedPath, ec)) {
+                const std::filesystem::path targetRoot = (currentDirectory.empty() || IsAssetsRootPath(currentDirectory))
+                    ? std::filesystem::path("Assets") / droppedPath.filename()
+                    : currentDirectory / droppedPath.filename();
+
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(droppedPath, ec)) {
+                    if (ec) {
+                        lastError = "Failed to read dropped folder: " + ec.message();
+                        break;
+                    }
+                    if (!entry.is_regular_file(ec)) {
+                        ++skippedCount;
+                        continue;
+                    }
+                    const bool supportedAsset = IsSupportedImportSource(entry.path());
+                    const bool copyOnlySidecar = IsCopyOnlySidecarFile(entry.path());
+                    if (!supportedAsset && !copyOnlySidecar) {
+                        ++skippedCount;
+                        continue;
+                    }
+
+                    std::filesystem::path relativeInside = std::filesystem::relative(entry.path(), droppedPath, ec);
+                    if (ec) {
+                        ++skippedCount;
+                        continue;
+                    }
+                    std::filesystem::path copiedRelative{};
+                    const std::filesystem::path targetRelative = (targetRoot / relativeInside).lexically_normal();
+                    if (CopySourceFileIntoProject(assetDatabase, entry.path(), targetRelative, copiedRelative, lastError)) {
+                        if (supportedAsset) {
+                            outProjectRelativeFiles.push_back(copiedRelative);
+                        }
+                    } else {
+                        ++skippedCount;
+                    }
+                }
+                return;
+            }
+
+            if (!std::filesystem::is_regular_file(droppedPath, ec) || !IsSupportedImportSource(droppedPath)) {
+                ++skippedCount;
+                return;
+            }
+
+            const std::filesystem::path targetDirectory = SuggestedTargetDirectory(currentDirectory, droppedPath);
+            const std::filesystem::path targetRelative = (targetDirectory / droppedPath.filename()).lexically_normal();
+            std::filesystem::path copiedRelative{};
+            if (CopySourceFileIntoProject(assetDatabase, droppedPath, targetRelative, copiedRelative, lastError)) {
+                outProjectRelativeFiles.push_back(copiedRelative);
+            } else {
+                ++skippedCount;
+            }
+        }
+
+        void ProcessDroppedFiles(
+            AssetDatabase& assetDatabase,
+            const std::filesystem::path& currentDirectory,
+            EditorSelection& selection,
+            std::string& lastOperationMessage) {
+
+            std::vector<std::filesystem::path> droppedFiles = PLATFORM::ConsumeDroppedFiles();
+            if (droppedFiles.empty()) {
+                return;
+            }
+
+            std::vector<std::filesystem::path> copiedFiles;
+            int skippedCount = 0;
+            std::string lastError{};
+            for (const std::filesystem::path& dropped : droppedFiles) {
+                CollectDroppedFiles(dropped, currentDirectory, assetDatabase, copiedFiles, skippedCount, lastError);
+            }
+
+            if (copiedFiles.empty()) {
+                lastOperationMessage = lastError.empty()
+                    ? "Drop ignored: no supported asset files"
+                    : lastError;
+                return;
+            }
+
+            assetDatabase.ScanAssets(true);
+
+            int imported = 0;
+            int failed = 0;
+            std::filesystem::path firstRelativePath{};
+            for (const std::filesystem::path& relativePath : copiedFiles) {
+                const AssetRecord* record = assetDatabase.FindByPath(relativePath);
+                if (!record) {
+                    ++failed;
+                    continue;
+                }
+                if (firstRelativePath.empty()) {
+                    firstRelativePath = relativePath;
+                }
+                if (assetDatabase.ImportAsset(record->guid)) {
+                    ++imported;
+                } else {
+                    ++failed;
+                }
+            }
+
+            assetDatabase.ScanAssets(false);
+            if (!firstRelativePath.empty()) {
+                if (const AssetRecord* refreshed = assetDatabase.FindByPath(firstRelativePath)) {
+                    SelectRecord(*refreshed, selection);
+                }
+            }
+
+            lastOperationMessage =
+                "Dropped " + std::to_string(copiedFiles.size()) +
+                " file(s), imported " + std::to_string(imported) +
+                ", failed " + std::to_string(failed);
+            if (skippedCount > 0) {
+                lastOperationMessage += ", skipped " + std::to_string(skippedCount);
+            }
+        }
+
         AssetType TypeFromFilterIndex(int index) {
             switch (index) {
             case 1: return AssetType::Texture;
@@ -137,6 +397,87 @@ namespace HIKARI {
             return haystack.find(needle) != std::string::npos;
         }
 
+        bool HasArtifactFormat(const AssetRecord& record, std::string_view format) {
+            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+                if (artifact.format == format && !artifact.path.empty()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool IsBrokenRecord(const AssetRecord& record) {
+            const AssetImportState state = GetImportState(record);
+            return state == AssetImportState::MissingSource ||
+                state == AssetImportState::MissingMeta ||
+                state == AssetImportState::MissingArtifact ||
+                state == AssetImportState::UnknownImporter ||
+                state == AssetImportState::DuplicateGuid ||
+                state == AssetImportState::ImportFailed;
+        }
+
+        bool MatchesScope(
+            const AssetRecord& record,
+            const AssetUsageSummary* usageSummary,
+            AssetBrowserScope scope) {
+
+            switch (scope) {
+            case AssetBrowserScope::CurrentScene:
+                return usageSummary && usageSummary->IsUsed(record.guid);
+            case AssetBrowserScope::UnusedInScene:
+                return usageSummary && !usageSummary->IsUsed(record.guid);
+            case AssetBrowserScope::Broken:
+                return IsBrokenRecord(record);
+            case AssetBrowserScope::Textures:
+                return record.type == AssetType::Texture;
+            case AssetBrowserScope::Models:
+                return record.type == AssetType::Model;
+            case AssetBrowserScope::Materials:
+                return record.type == AssetType::Material;
+            case AssetBrowserScope::Skies:
+                return record.type == AssetType::Sky;
+            case AssetBrowserScope::Vfx:
+                return record.type == AssetType::VfxEffect;
+            case AssetBrowserScope::Project:
+            default:
+                return true;
+            }
+        }
+
+        const char* ToScopeTitle(AssetBrowserScope scope) {
+            switch (scope) {
+            case AssetBrowserScope::CurrentScene: return "Current Scene";
+            case AssetBrowserScope::UnusedInScene: return "Unused In Scene";
+            case AssetBrowserScope::Broken: return "Broken Assets";
+            case AssetBrowserScope::Textures: return "Textures";
+            case AssetBrowserScope::Models: return "Models";
+            case AssetBrowserScope::Materials: return "Materials";
+            case AssetBrowserScope::Skies: return "Skies";
+            case AssetBrowserScope::Vfx: return "VFX";
+            case AssetBrowserScope::Project:
+            default: return "Project Assets";
+            }
+        }
+
+        const char* ToUsageBadge(const AssetRecord& record, const AssetUsageSummary* usageSummary) {
+            if (!usageSummary) {
+                return "";
+            }
+            return usageSummary->IsUsed(record.guid) ? "Used" : "Unused";
+        }
+
+        const char* ToCookedBadge(const AssetRecord& record) {
+            if (record.type == AssetType::Texture) {
+                if (HasArtifactFormat(record, "HTEX")) {
+                    return "HTEX Ready";
+                }
+                if (HasArtifactFormat(record, "DDS")) {
+                    return "DDS Only";
+                }
+            }
+            return "";
+        }
+
 #if defined(_DEBUG)
         ImVec4 StateColor(AssetImportState state) {
             switch (state) {
@@ -193,11 +534,29 @@ namespace HIKARI {
             return parentDirectory / "New Folder 999";
         }
 
-#if defined(_DEBUG)
         void SelectRecord(const AssetRecord& record, EditorSelection& selection) {
             selection.selectedAssetGuid = record.guid.value;
             selection.selectedAssetPath = record.sourcePath.generic_string();
             selection.selectedAsset = nullptr;
+        }
+
+#if defined(_DEBUG)
+        void DrawAssetDragSource(const AssetRecord& record) {
+            if (!record.guid.IsValid()) {
+                return;
+            }
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                ImGui::SetDragDropPayload(
+                    "HIKARI_ASSET_GUID",
+                    record.guid.value.c_str(),
+                    record.guid.value.size() + 1u);
+                const std::string displayName = record.displayName.empty()
+                    ? record.sourcePath.filename().string()
+                    : record.displayName;
+                ImGui::Text("%s", displayName.c_str());
+                ImGui::TextDisabled("%s", record.sourcePath.generic_string().c_str());
+                ImGui::EndDragDropSource();
+            }
         }
 
         void DrawRecordContextMenu(
@@ -244,11 +603,12 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             const std::vector<const AssetRecord*>& records,
             EditorSelection& selection,
+            const AssetUsageSummary* usageSummary,
             std::string& lastOperationMessage) {
 
             if (!ImGui::BeginTable(
                 "AssetBrowserTable",
-                5,
+                6,
                 ImGuiTableFlags_RowBg |
                 ImGuiTableFlags_BordersInnerV |
                 ImGuiTableFlags_Resizable |
@@ -258,8 +618,9 @@ namespace HIKARI {
 
             ImGui::TableSetupColumn("Asset", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("Importer", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+            ImGui::TableSetupColumn("Usage", ImGuiTableColumnFlags_WidthFixed, 74.0f);
             ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+            ImGui::TableSetupColumn("Cooked", ImGuiTableColumnFlags_WidthFixed, 92.0f);
             ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
 
@@ -284,6 +645,7 @@ namespace HIKARI {
                         lastOperationMessage = "Model selected: " + record->displayName;
                     }
                 }
+                DrawAssetDragSource(*record);
 
                 if (ImGui::BeginPopupContextItem()) {
                     DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
@@ -293,11 +655,13 @@ namespace HIKARI {
                 ImGui::TableSetColumnIndex(1);
                 ImGui::TextUnformatted(ToAssetTypeText(record->type));
                 ImGui::TableSetColumnIndex(2);
-                ImGui::TextUnformatted(record->meta.importerId.empty() ? "<none>" : record->meta.importerId.c_str());
+                ImGui::TextDisabled("%s", ToUsageBadge(*record, usageSummary));
                 ImGui::TableSetColumnIndex(3);
                 const AssetImportState state = GetImportState(*record);
                 ImGui::TextColored(StateColor(state), "%s", ToString(state));
                 ImGui::TableSetColumnIndex(4);
+                ImGui::TextDisabled("%s", ToCookedBadge(*record));
+                ImGui::TableSetColumnIndex(5);
                 ImGui::TextUnformatted(record->sourcePath.generic_string().c_str());
                 ImGui::PopID();
             }
@@ -309,6 +673,7 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             const std::vector<const AssetRecord*>& records,
             EditorSelection& selection,
+            const AssetUsageSummary* usageSummary,
             std::string& lastOperationMessage) {
 
             const float cardWidth = 172.0f;
@@ -344,9 +709,18 @@ namespace HIKARI {
                     std::string(ToAssetIcon(record->type)) + "\n" +
                     record->displayName + "\n" +
                     ToString(GetImportState(*record));
-                if (ImGui::Button(buttonLabel.c_str(), ImVec2(cardWidth, 78.0f))) {
+                const char* usageBadge = ToUsageBadge(*record, usageSummary);
+                const char* cookedBadge = ToCookedBadge(*record);
+                if (usageBadge[0] != '\0') {
+                    buttonLabel += std::string(" · ") + usageBadge;
+                }
+                if (cookedBadge[0] != '\0') {
+                    buttonLabel += std::string("\n") + cookedBadge;
+                }
+                if (ImGui::Button(buttonLabel.c_str(), ImVec2(cardWidth, 96.0f))) {
                     SelectRecord(*record, selection);
                 }
+                DrawAssetDragSource(*record);
                 if (isSelected) {
                     ImGui::PopStyleColor();
                 }
@@ -420,15 +794,30 @@ namespace HIKARI {
     }
 
     void AssetBrowserPanel::DrawContents(AssetDatabase& assetDatabase, EditorSelection& selection) const {
+        DrawContents(assetDatabase, selection, nullptr, AssetBrowserScope::Project);
+    }
+
+    void AssetBrowserPanel::DrawContents(
+        AssetDatabase& assetDatabase,
+        EditorSelection& selection,
+        const AssetUsageSummary* usageSummary,
+        AssetBrowserScope scope) const {
 #if defined(_DEBUG)
         if (currentDirectory_.empty()) {
             currentDirectory_ = "Assets";
         }
+        ProcessDroppedFiles(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 6.0f));
-        ImGui::TextUnformatted("Project Assets");
+        ImGui::TextUnformatted(ToScopeTitle(scope));
         ImGui::SameLine();
-        ImGui::TextDisabled("%s", currentDirectory_.generic_string().c_str());
+        if (scope == AssetBrowserScope::Project) {
+            ImGui::TextDisabled("%s", currentDirectory_.generic_string().c_str());
+        } else {
+            ImGui::TextDisabled("project-wide");
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("Drop files/folders here to import");
         ImGui::Separator();
 
         if (ImGui::Button("Refresh")) {
@@ -516,27 +905,34 @@ namespace HIKARI {
         ImGui::Separator();
 
         const ImVec2 available = ImGui::GetContentRegionAvail();
-        const float treeWidth = (std::min)(280.0f, (std::max)(180.0f, available.x * 0.24f));
-        ImGui::BeginChild("##AssetFolderTree", ImVec2(treeWidth, 0.0f), true);
-        ImGui::TextUnformatted("Folders");
-        ImGui::Separator();
-        for (const std::filesystem::path& directory : assetDatabase.CollectDirectories()) {
-            const bool selected = directory.lexically_normal().generic_string() == currentDirectory_.lexically_normal().generic_string();
-            if (ImGui::Selectable(directory.generic_string().c_str(), selected)) {
-                currentDirectory_ = directory;
+        const bool showFolderTree = scope == AssetBrowserScope::Project;
+        if (showFolderTree) {
+            const float treeWidth = (std::min)(280.0f, (std::max)(180.0f, available.x * 0.24f));
+            ImGui::BeginChild("##AssetFolderTree", ImVec2(treeWidth, 0.0f), true);
+            ImGui::TextUnformatted("Folders");
+            ImGui::Separator();
+            for (const std::filesystem::path& directory : assetDatabase.CollectDirectories()) {
+                const bool selected = directory.lexically_normal().generic_string() == currentDirectory_.lexically_normal().generic_string();
+                if (ImGui::Selectable(directory.generic_string().c_str(), selected)) {
+                    currentDirectory_ = directory;
+                }
             }
+            ImGui::EndChild();
+            ImGui::SameLine();
         }
-        ImGui::EndChild();
-
-        ImGui::SameLine();
 
         ImGui::BeginChild("##AssetList", ImVec2(0.0f, 0.0f), true);
-        ImGui::Text("%s", currentDirectory_.generic_string().c_str());
+        ImGui::Text("%s", scope == AssetBrowserScope::Project
+            ? currentDirectory_.generic_string().c_str()
+            : ToScopeTitle(scope));
         ImGui::Separator();
 
-        std::vector<const AssetRecord*> records = assetDatabase.CollectInDirectory(currentDirectory_, recursive_);
+        std::vector<const AssetRecord*> records = showFolderTree
+            ? assetDatabase.CollectInDirectory(currentDirectory_, recursive_)
+            : assetDatabase.CollectAll();
         records.erase(std::remove_if(records.begin(), records.end(), [&](const AssetRecord* record) {
             return !record ||
+                !MatchesScope(*record, usageSummary, scope) ||
                 !MatchesTypeFilter(*record, typeFilter_) ||
                 !MatchesStateFilter(*record, stateFilter_) ||
                 !MatchesSearch(*record, searchBuffer_.data());
@@ -557,15 +953,17 @@ namespace HIKARI {
             ImGui::TextDisabled("No assets here");
             ImGui::TextDisabled("Create folders here, or add source files under Assets and press Refresh.");
         } else if (viewMode_ == 0) {
-            DrawRecordList(assetDatabase, records, selection, lastOperationMessage_);
+            DrawRecordList(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
         } else {
-            DrawRecordGrid(assetDatabase, records, selection, lastOperationMessage_);
+            DrawRecordGrid(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
         }
 
         ImGui::EndChild();
 #else
         (void)assetDatabase;
         (void)selection;
+        (void)usageSummary;
+        (void)scope;
 #endif
     }
 

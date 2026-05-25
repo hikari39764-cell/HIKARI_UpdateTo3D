@@ -10,6 +10,7 @@
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
 #include "Scene/HIKARI_SceneCatalog.h"
 
 #if defined(_DEBUG)
@@ -146,6 +147,19 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::AssetIdPicker(std::string_view label, AssetType assetType, std::string& value) {
 #if defined(_DEBUG)
+        if (context_.assetDatabase) {
+            return EDITOR::DrawAssetField(
+                context_.assetDatabase,
+                EDITOR::AssetFieldOptions{
+                    label,
+                    assetType,
+                    true,
+                    false,
+                    true
+                },
+                value);
+        }
+
         if (!context_.assetRegistry) {
             return String(label, value);
         }

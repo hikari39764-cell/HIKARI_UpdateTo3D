@@ -11,6 +11,7 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "HIKARI_HtexTextureWriter_DirectXTex.h"
 
 namespace HIKARI {
 
@@ -245,8 +246,8 @@ namespace HIKARI {
                 { "colorSpace", ToString(settings.colorSpace) },
                 { "mipPolicy", ToString(settings.mipPolicy) },
                 { "compression", ToString(settings.compression) },
-                { "outputFormat", "DDS" },
-                { "futureOutputFormat", "HTEX" },
+                { "outputFormat", "HTEX" },
+                { "debugOutputFormat", "DDS" },
                 { "forcePowerOfTwo", settings.forcePowerOfTwo },
                 { "allowResize", settings.allowResize },
                 { "maxSize", settings.maxSize },
@@ -280,7 +281,7 @@ namespace HIKARI {
                 std::filesystem::remove(tempPath, removeEc);
 
                 std::ostringstream oss;
-                oss << "[TextureImporter] failed to replace output DDS. error=" << error
+                oss << "[TextureImporter] failed to replace output artifact. error=" << error
                     << " temp=" << tempPath.generic_string()
                     << " final=" << finalPath.generic_string();
                 outMessage = oss.str();
@@ -300,7 +301,7 @@ namespace HIKARI {
     }
 
     uint32_t TextureImporter::GetImporterVersion() const {
-        return 1;
+        return 2;
     }
 
     bool TextureImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -355,11 +356,20 @@ namespace HIKARI {
 
         const std::filesystem::path finalPath = context.importedDirectory / "texture.dds";
         const std::filesystem::path tempPath = context.importedDirectory / "texture.importing.dds";
+        const std::filesystem::path finalHtexPath = context.importedDirectory / "texture.htex";
+        const std::filesystem::path tempHtexPath = context.importedDirectory / "texture.importing.htex";
 
         std::error_code removeEc{};
         std::filesystem::remove(tempPath, removeEc);
         if (removeEc) {
             result.message = "[TextureImporter] failed to clear stale temporary DDS: " + tempPath.generic_string();
+            HIKARI_LOG_ERROR(result.message);
+            return result;
+        }
+        removeEc.clear();
+        std::filesystem::remove(tempHtexPath, removeEc);
+        if (removeEc) {
+            result.message = "[TextureImporter] failed to clear stale temporary HTEX: " + tempHtexPath.generic_string();
             HIKARI_LOG_ERROR(result.message);
             return result;
         }
@@ -386,14 +396,34 @@ namespace HIKARI {
             return result;
         }
 
+        std::string htexMessage{};
+        if (!WriteHtexFromDdsWithDirectXTex(tempPath, tempHtexPath, settings, htexMessage)) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempHtexPath, cleanupEc);
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = htexMessage.empty() ? "[TextureImporter] HTEX conversion failed" : htexMessage;
+            return result;
+        }
+
+        if (!ReplaceFileWithTemp(tempHtexPath, finalHtexPath, result.message)) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempPath, cleanupEc);
+            return result;
+        }
+
         if (!ReplaceFileWithTemp(tempPath, finalPath, result.message)) {
             return result;
         }
 
         result.success = true;
-        result.message = "[TextureImporter] Imported with DirectXTex";
+        result.message = "[TextureImporter] Imported with DirectXTex and wrote HTEX";
         result.artifacts.push_back(AssetArtifactDesc{
             "MainTexture",
+            MakeProjectRelative(context.projectRoot, finalHtexPath).generic_string(),
+            "HTEX"
+        });
+        result.artifacts.push_back(AssetArtifactDesc{
+            "DebugDDS",
             MakeProjectRelative(context.projectRoot, finalPath).generic_string(),
             "DDS"
         });

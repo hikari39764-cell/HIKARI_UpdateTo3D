@@ -7,14 +7,32 @@
 namespace HIKARI {
 
     class AssetDatabase;
+    struct AssetUsageSummary;
     struct EditorSelection;
     class ModelManager;
+
+    enum class AssetBrowserScope {
+        Project,
+        CurrentScene,
+        UnusedInScene,
+        Broken,
+        Textures,
+        Models,
+        Materials,
+        Skies,
+        Vfx,
+    };
 
     class AssetBrowserPanel {
     public:
         void Draw(ModelManager& modelManager, EditorSelection& selection) const;
         void Draw(AssetDatabase& assetDatabase, EditorSelection& selection) const;
         void DrawContents(AssetDatabase& assetDatabase, EditorSelection& selection) const;
+        void DrawContents(
+            AssetDatabase& assetDatabase,
+            EditorSelection& selection,
+            const AssetUsageSummary* usageSummary,
+            AssetBrowserScope scope) const;
 
     private:
         mutable std::filesystem::path currentDirectory_{ "Assets" };
