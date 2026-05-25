@@ -10,6 +10,7 @@ namespace HIKARI {
 
     enum class AssetType {
         Model,
+        Scene,
         Sky,
         Texture,
         Material,

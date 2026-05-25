@@ -26,6 +26,7 @@ namespace HIKARI {
         const char* ToAssetTypeText(AssetType type) {
             switch (type) {
             case AssetType::Model: return "Model";
+            case AssetType::Scene: return "Scene";
             case AssetType::Sky: return "Sky";
             case AssetType::Texture: return "Texture";
             case AssetType::Material: return "Material";
@@ -98,6 +99,15 @@ namespace HIKARI {
             return oss.str();
         }
 
+        bool ReadJsonFile(const std::filesystem::path& path, nlohmann::json& outJson) {
+            std::ifstream ifs(path);
+            if (!ifs.is_open()) {
+                return false;
+            }
+            outJson = nlohmann::json::parse(ifs, nullptr, false);
+            return !outJson.is_discarded() && outJson.is_object();
+        }
+
         void ShowInExplorer(const std::filesystem::path& path) {
             const std::wstring param = L"/select,\"" + path.wstring() + L"\"";
             ShellExecuteW(nullptr, L"open", L"explorer.exe", param.c_str(), nullptr, SW_SHOWNORMAL);
@@ -152,6 +162,88 @@ namespace HIKARI {
 
         void DrawPathRow(const char* label, const std::filesystem::path& path) {
             ImGui::Text("%s: %s", label, path.generic_string().c_str());
+        }
+
+        void DrawModelDiagnostics(const AssetRecord& record) {
+            nlohmann::json report;
+            if (!ReadJsonFile(record.importedDirectory / "import_report.json", report) ||
+                !report.contains("diagnostics") ||
+                !report["diagnostics"].is_object()) {
+                ImGui::TextDisabled("Model diagnostics are written after a successful HMODEL import");
+                return;
+            }
+
+            const nlohmann::json& diagnostics = report["diagnostics"];
+            if (diagnostics.contains("summary") && diagnostics["summary"].is_object()) {
+                const nlohmann::json& summary = diagnostics["summary"];
+                ImGui::SeparatorText("HMODEL Summary");
+                ImGui::Text("Meshes: %d  Primitives: %d  Materials: %d  Textures: %d",
+                    summary.value("meshes", 0),
+                    summary.value("primitives", 0),
+                    summary.value("materials", 0),
+                    summary.value("textures", 0));
+                ImGui::Text("Static Vertices: %d  Skinned Vertices: %d  Indices: %d",
+                    summary.value("staticVertices", 0),
+                    summary.value("skinnedVertices", 0),
+                    summary.value("indices", 0));
+                ImGui::Text("HTEX Refs: %d  Fallback Textures: %d",
+                    summary.value("htexRefs", 0),
+                    summary.value("fallbackTextures", 0));
+            }
+
+            if (diagnostics.contains("textures") &&
+                diagnostics["textures"].is_array() &&
+                ImGui::BeginTable("ModelDiagnosticTextures", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+                ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 48.0f);
+                ImGui::TableSetupColumn("HTEX", ImGuiTableColumnFlags_WidthFixed, 54.0f);
+                ImGui::TableSetupColumn("Source");
+                ImGui::TableSetupColumn("Runtime");
+                ImGui::TableHeadersRow();
+
+                for (const nlohmann::json& texture : diagnostics["textures"]) {
+                    if (!texture.is_object()) {
+                        continue;
+                    }
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%d", texture.value("index", -1));
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::TextUnformatted(texture.value("htexReady", false) ? "Yes" : "No");
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::TextUnformatted(texture.value("sourcePath", "").c_str());
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::TextUnformatted(texture.value("runtimePath", "").c_str());
+                }
+
+                ImGui::EndTable();
+            }
+
+            if (diagnostics.contains("materials") &&
+                diagnostics["materials"].is_array() &&
+                ImGui::BeginTable("ModelDiagnosticMaterials", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+                ImGui::TableSetupColumn("Material");
+                ImGui::TableSetupColumn("Metallic", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+                ImGui::TableSetupColumn("Roughness", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                ImGui::TableSetupColumn("Alpha", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+                ImGui::TableHeadersRow();
+
+                for (const nlohmann::json& material : diagnostics["materials"]) {
+                    if (!material.is_object()) {
+                        continue;
+                    }
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextUnformatted(material.value("name", "<unnamed>").c_str());
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%.3f", material.value("metallicFactor", 0.0f));
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%.3f", material.value("roughnessFactor", 1.0f));
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::TextUnformatted(material.value("alphaMode", "Opaque").c_str());
+                }
+
+                ImGui::EndTable();
+            }
         }
 #endif
     }
@@ -226,6 +318,10 @@ namespace HIKARI {
                     assetDatabase.ImportAsset(record->guid);
                 }
                 ImGui::SameLine();
+                if (ImGui::Button("Import Dependencies")) {
+                    assetDatabase.ImportDependencies(record->guid, false);
+                }
+                ImGui::SameLine();
                 if (ImGui::Button("Save Meta")) {
                     if (dirty) {
                         record->meta.importSettingsJson = settings.dump(2);
@@ -259,6 +355,9 @@ namespace HIKARI {
                     dirty = DrawComboSetting("Generate Tangents", settings, "generateTangents", GeneratePolicyItems, IM_ARRAYSIZE(GeneratePolicyItems)) || dirty;
                     dirty = DrawBoolSetting("Load Materials", settings, "loadMaterials", true) || dirty;
                     dirty = DrawBoolSetting("Load Textures", settings, "loadTextures", true) || dirty;
+                } else if (record->type == AssetType::Scene) {
+                    dirty = DrawBoolSetting("Cook Scene", settings, "cookScene", false) || dirty;
+                    ImGui::TextDisabled("Scene cook is reserved; SceneSerializer JSON remains the runtime source.");
                 } else {
                     ImGui::TextDisabled("No editable import settings for this asset type yet");
                 }
@@ -347,6 +446,11 @@ namespace HIKARI {
 
                     ImGui::EndTable();
                 }
+                if (!record->meta.dependencies.empty()) {
+                    if (ImGui::Button("Import Dependencies")) {
+                        assetDatabase.ImportDependencies(record->guid, false);
+                    }
+                }
                 ImGui::EndTabItem();
             }
 
@@ -366,8 +470,11 @@ namespace HIKARI {
                         }
                     }
                 } else if (record->type == AssetType::Model) {
-                    ImGui::TextDisabled("Model preview scene is reserved for the model cook pass");
                     DrawPathRow("Model Source", record->sourcePath);
+                    DrawModelDiagnostics(*record);
+                } else if (record->type == AssetType::Scene) {
+                    DrawPathRow("Scene Source", record->sourcePath);
+                    ImGui::TextDisabled("Scene is managed as a project asset; runtime scene switching still uses the scene catalog.");
                 } else {
                     ImGui::TextDisabled("No preview for this asset type yet");
                 }

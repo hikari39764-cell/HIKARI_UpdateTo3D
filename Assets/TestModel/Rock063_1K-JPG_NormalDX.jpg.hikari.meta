@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/2e7dd3c0430dcc3e079d6b41cf5c832a/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/2e7dd3c0430dcc3e079d6b41cf5c832a/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Rock063_1K-JPG_NormalDX",
   "guid": "2e7dd3c0430dcc3e079d6b41cf5c832a",
@@ -16,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 1,
+  "importerVersion": 2,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/Rock063_1K-JPG_NormalDX.jpg",
   "type": "Texture"

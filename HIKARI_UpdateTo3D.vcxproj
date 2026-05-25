@@ -182,12 +182,13 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
-    <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp" />
+    <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Legacy\HIKARI_LegacyAssetJsonMigrator.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SceneImporterStub.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_HtexTextureWriter_DirectXTex.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.cpp" />
@@ -441,13 +442,14 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
-    <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h" />
+    <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.h" />
     <ClInclude Include="HIKARI\Assets\Legacy\HIKARI_LegacyAssetJsonMigrator.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SceneImporterStub.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_HtexTextureWriter_DirectXTex.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend.h" />
@@ -526,6 +528,7 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />

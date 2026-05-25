@@ -213,7 +213,7 @@
         1.0,
         1.0
       ],
-      "yaw": -3.390000104904175,
+      "yaw": -3.259999990463257,
       "zenithColor": [
         0.07999999821186066,
         0.2199999988079071,
@@ -610,59 +610,9 @@
       "components": [
         {
           "properties": {
-            "assetId": "b9b01a5753d51b168caf81fb235fb1c3",
+            "assetId": "d5ccc1f0001329c9ce9f8617dceed38c",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxParamValues": [
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ],
-              [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-              ]
-            ],
             "materialFxProfileId": "",
             "materialFxValuesInitialized": false,
             "maxWireLines": 20000,

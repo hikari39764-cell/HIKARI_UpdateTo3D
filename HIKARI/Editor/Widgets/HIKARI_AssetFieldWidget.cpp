@@ -24,6 +24,7 @@ namespace HIKARI::EDITOR {
         const char* ToAssetTypeText(AssetType type) {
             switch (type) {
             case AssetType::Model: return "Model";
+            case AssetType::Scene: return "Scene";
             case AssetType::Texture: return "Texture";
             case AssetType::Sky: return "Sky";
             case AssetType::Material: return "Material";

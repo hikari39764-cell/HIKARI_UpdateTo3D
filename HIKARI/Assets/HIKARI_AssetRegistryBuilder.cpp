@@ -133,7 +133,13 @@ namespace HIKARI {
                 auto descriptor = std::make_unique<ModelAssetDescriptor>();
                 descriptor->id.value = record->guid.value;
                 descriptor->type = AssetType::Model;
-                descriptor->sourcePath = record->sourcePath.generic_string();
+                descriptor->sourcePath = FindArtifactPathByFormat(*record, "MainModel", "HMODEL");
+                if (descriptor->sourcePath.empty()) {
+                    descriptor->sourcePath = FindArtifactPath(*record, "MainModel");
+                }
+                if (descriptor->sourcePath.empty()) {
+                    descriptor->sourcePath = record->sourcePath.generic_string();
+                }
                 descriptor->version = record->meta.importerVersion;
                 descriptor->importer = GuessModelImporter(record->sourcePath);
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;

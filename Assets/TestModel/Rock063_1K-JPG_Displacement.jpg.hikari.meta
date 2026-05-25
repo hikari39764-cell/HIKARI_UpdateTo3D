@@ -1,12 +1,23 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/deb8b3d40d71ff62810fb3041cf7b95d/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/deb8b3d40d71ff62810fb3041cf7b95d/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Rock063_1K-JPG_Displacement",
   "guid": "deb8b3d40d71ff62810fb3041cf7b95d",
   "importSettings": {
     "allowResize": false,
-    "colorSpace": "Srgb",
-    "compression": "BC7",
+    "colorSpace": "Linear",
+    "compression": "BC5",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
     "futureOutputFormat": "HTEX",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 1,
+  "importerVersion": 2,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/Rock063_1K-JPG_Displacement.jpg",
   "type": "Texture"

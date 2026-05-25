@@ -84,6 +84,7 @@ namespace HIKARI {
             ImGui::Separator();
             DrawScopeButton("Textures", CountByType(assetDatabase, AssetType::Texture), AssetBrowserScope::Textures, activeScope);
             DrawScopeButton("Models", CountByType(assetDatabase, AssetType::Model), AssetBrowserScope::Models, activeScope);
+            DrawScopeButton("Scenes", CountByType(assetDatabase, AssetType::Scene), AssetBrowserScope::Scenes, activeScope);
             DrawScopeButton("Materials", CountByType(assetDatabase, AssetType::Material), AssetBrowserScope::Materials, activeScope);
             DrawScopeButton("Skies", CountByType(assetDatabase, AssetType::Sky), AssetBrowserScope::Skies, activeScope);
             DrawScopeButton("VFX", CountByType(assetDatabase, AssetType::VfxEffect), AssetBrowserScope::Vfx, activeScope);

@@ -1,15 +1,45 @@
 {
-  "artifacts": [],
-  "dependencies": [],
+  "artifacts": [
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/f34c0ad7f5255bd8d10e7d224e18d81e/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
+  "dependencies": [
+    {
+      "guid": "76001d32fc0139915abf8e34c481948a",
+      "path": "Assets/TestModel/texture_diffuse.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6f7b17b2170fd19720f79c76a7e548a3",
+      "path": "Assets/TestModel/texture_normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5a57a00bf138b44e0845005ba6da7b73",
+      "path": "Assets/TestModel/texture_metallic-texture_roughness.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "33d6822fc030195bb86b253e537f46c6",
+      "path": "Assets/TestModel/texture_metallic.png-texture_roughness.png",
+      "role": "Texture"
+    }
+  ],
   "displayName": "cesgd2",
   "guid": "f34c0ad7f5255bd8d10e7d224e18d81e",
   "importSettings": {
-    "cookModel": false,
-    "futureOutputFormat": "HMESH",
+    "cookModel": true,
+    "futureMeshFormat": "HMESH",
+    "loadMaterials": true,
+    "loadTextures": true,
+    "outputFormat": "HMODEL",
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporterStub",
-  "importerVersion": 1,
+  "importerVersion": 2,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/cesgd2.gltf",
   "type": "Model"

@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "shiled2",
+  "guid": "73f3534360caef335e9369ae4d4aba42",
+  "importSettings": {
+    "cookVfx": false,
+    "futureOutputFormat": "HPAK",
+    "sourceFormat": ".efkefc"
+  },
+  "importerId": "VfxImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Vfx/shiled2.efkefc",
+  "type": "VfxEffect"
+}

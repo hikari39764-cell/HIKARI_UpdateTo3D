@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "sand",
+  "guid": "9c361e42e1484cf797a125c597a8e671",
+  "importSettings": {
+    "cookVfx": false,
+    "futureOutputFormat": "HPAK",
+    "sourceFormat": ".efkefc"
+  },
+  "importerId": "VfxImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Vfx/sand.efkefc",
+  "type": "VfxEffect"
+}

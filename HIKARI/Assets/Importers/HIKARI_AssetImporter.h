@@ -20,6 +20,7 @@ namespace HIKARI {
     struct AssetImportResult {
         bool success = false;
         std::string message{};
+        std::string diagnosticsJson{};
         std::vector<AssetArtifactDesc> artifacts{};
         std::vector<AssetDependencyDesc> dependencies{};
     };

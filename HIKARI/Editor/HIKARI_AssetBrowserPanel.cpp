@@ -2,12 +2,16 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <Windows.h>
 #include <Shellapi.h>
+#include <json.hpp>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
@@ -15,6 +19,7 @@
 #include "Assets/Legacy/HIKARI_LegacyAssetJsonMigrator.h"
 #include "HIKARI_EditorSelection.h"
 #include "Platform/HIKARI_Win32Window.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
@@ -52,6 +57,7 @@ namespace HIKARI {
         const char* ToAssetTypeText(AssetType type) {
             switch (type) {
             case AssetType::Model: return "Model";
+            case AssetType::Scene: return "Scene";
             case AssetType::Sky: return "Sky";
             case AssetType::Texture: return "Texture";
             case AssetType::Material: return "Material";
@@ -66,6 +72,7 @@ namespace HIKARI {
         const char* ToAssetIcon(AssetType type) {
             switch (type) {
             case AssetType::Model: return "[M]";
+            case AssetType::Scene: return "[Scn]";
             case AssetType::Sky: return "[S]";
             case AssetType::Texture: return "[T]";
             case AssetType::Material: return "[Mat]";
@@ -101,6 +108,8 @@ namespace HIKARI {
                 ext == ".glb" ||
                 ext == ".fbx" ||
                 ext == ".obj" ||
+                ext == ".hscene" ||
+                filename.ends_with(".scene.json") ||
                 ext == ".hmat" ||
                 filename.ends_with(".mat.json") ||
                 ext == ".efk" ||
@@ -125,6 +134,9 @@ namespace HIKARI {
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
             if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
                 return "Assets/Models";
+            }
+            if (ext == ".hscene" || filename.ends_with(".scene.json")) {
+                return "Assets/Scenes";
             }
             if (ext == ".hmat" || filename.ends_with(".mat.json")) {
                 return "Assets/Materials";
@@ -167,6 +179,75 @@ namespace HIKARI {
                 }
             }
             return parent / (stem + "_9999" + extension);
+        }
+
+        bool IsScenesDirectoryPath(const std::filesystem::path& path) {
+            const std::string generic = ToLowerCopy(path.lexically_normal().generic_string());
+            return generic == "assets/scenes" || generic.rfind("assets/scenes/", 0) == 0;
+        }
+
+        bool CreateEmptySceneAsset(
+            AssetDatabase& assetDatabase,
+            const std::filesystem::path& currentDirectory,
+            std::filesystem::path& outRelativePath,
+            std::string& outError) {
+
+            const std::filesystem::path sceneDirectory = IsScenesDirectoryPath(currentDirectory)
+                ? currentDirectory
+                : std::filesystem::path("Assets/Scenes");
+            const std::filesystem::path absoluteScenePath = MakeUniqueFilePath(
+                (assetDatabase.GetProjectRoot() / sceneDirectory / "New Scene.scene.json").lexically_normal());
+
+            std::error_code ec{};
+            std::filesystem::create_directories(absoluteScenePath.parent_path(), ec);
+            if (ec) {
+                outError = "Failed to create scene directory: " + ec.message();
+                return false;
+            }
+
+            const std::string sceneName = absoluteScenePath.stem().stem().string();
+            const nlohmann::json sceneJson{
+                { "version", 1 },
+                { "sceneName", sceneName.empty() ? "New Scene" : sceneName },
+                { "objects", nlohmann::json::array() },
+                { "environment", {
+                    { "ambient", {
+                        { "color", nlohmann::json::array({ 1.0f, 1.0f, 1.0f }) },
+                        { "intensity", 0.2f },
+                    } },
+                    { "directional", {
+                        { "enabled", true },
+                        { "color", nlohmann::json::array({ 1.0f, 1.0f, 1.0f }) },
+                        { "direction", nlohmann::json::array({ 0.26832816f, -0.89442718f, -0.35777089f }) },
+                        { "intensity", 1.0f },
+                    } },
+                    { "pointLights", nlohmann::json::array() },
+                    { "sky", {
+                        { "enabled", false },
+                        { "skyAsset", "" },
+                        { "exposure", 1.0f },
+                        { "followCamera", true },
+                        { "scale", 0.05f },
+                        { "tint", nlohmann::json::array({ 1.0f, 1.0f, 1.0f }) },
+                        { "yaw", 0.0f },
+                    } },
+                    { "specularIntensity", 0.2f },
+                    { "specularPower", 32.0f },
+                } },
+            };
+
+            std::ofstream ofs(absoluteScenePath);
+            if (!ofs.is_open()) {
+                outError = "Failed to write scene file: " + absoluteScenePath.generic_string();
+                return false;
+            }
+            ofs << sceneJson.dump(2) << '\n';
+
+            outRelativePath = std::filesystem::relative(absoluteScenePath, assetDatabase.GetProjectRoot(), ec).lexically_normal();
+            if (ec) {
+                outRelativePath = absoluteScenePath.lexically_normal();
+            }
+            return true;
         }
 
         bool CopySourceFileIntoProject(
@@ -343,9 +424,10 @@ namespace HIKARI {
             switch (index) {
             case 1: return AssetType::Texture;
             case 2: return AssetType::Model;
-            case 3: return AssetType::Sky;
-            case 4: return AssetType::Material;
-            case 5: return AssetType::VfxEffect;
+            case 3: return AssetType::Scene;
+            case 4: return AssetType::Sky;
+            case 5: return AssetType::Material;
+            case 6: return AssetType::VfxEffect;
             default: return AssetType::Unknown;
             }
         }
@@ -432,6 +514,8 @@ namespace HIKARI {
                 return record.type == AssetType::Texture;
             case AssetBrowserScope::Models:
                 return record.type == AssetType::Model;
+            case AssetBrowserScope::Scenes:
+                return record.type == AssetType::Scene;
             case AssetBrowserScope::Materials:
                 return record.type == AssetType::Material;
             case AssetBrowserScope::Skies:
@@ -451,6 +535,7 @@ namespace HIKARI {
             case AssetBrowserScope::Broken: return "Broken Assets";
             case AssetBrowserScope::Textures: return "Textures";
             case AssetBrowserScope::Models: return "Models";
+            case AssetBrowserScope::Scenes: return "Scenes";
             case AssetBrowserScope::Materials: return "Materials";
             case AssetBrowserScope::Skies: return "Skies";
             case AssetBrowserScope::Vfx: return "VFX";
@@ -474,6 +559,69 @@ namespace HIKARI {
                 if (HasArtifactFormat(record, "DDS")) {
                     return "DDS Only";
                 }
+            }
+            if (record.type == AssetType::Model) {
+                return HasArtifactFormat(record, "HMODEL") ? "HMODEL Ready" : "Raw Model";
+            }
+            if (record.type == AssetType::Scene) {
+                return "Scene JSON";
+            }
+            return "";
+        }
+
+        const char* ToCompactTypeBadge(AssetType type) {
+            switch (type) {
+            case AssetType::Texture: return "TEX";
+            case AssetType::Model: return "MDL";
+            case AssetType::Scene: return "SCN";
+            case AssetType::Material: return "MAT";
+            case AssetType::Sky: return "SKY";
+            case AssetType::VfxEffect: return "VFX";
+            case AssetType::Animation: return "ANI";
+            case AssetType::Particle: return "PTC";
+            case AssetType::Unknown:
+            default: return "UNK";
+            }
+        }
+
+        const char* ToCompactStateBadge(AssetImportState state) {
+            switch (state) {
+            case AssetImportState::Imported: return "OK";
+            case AssetImportState::Outdated: return "OUT";
+            case AssetImportState::MetaOnly: return "META";
+            case AssetImportState::MissingSource: return "MISS";
+            case AssetImportState::MissingMeta: return "META?";
+            case AssetImportState::MissingArtifact: return "ART?";
+            case AssetImportState::UnknownImporter: return "IMP?";
+            case AssetImportState::DuplicateGuid: return "DUP";
+            case AssetImportState::ImportFailed: return "ERR";
+            case AssetImportState::Unknown:
+            default: return "UNK";
+            }
+        }
+
+        const char* ToCompactUsageBadge(const AssetRecord& record, const AssetUsageSummary* usageSummary) {
+            if (!usageSummary) {
+                return "";
+            }
+            return usageSummary->IsUsed(record.guid) ? "USE" : "IDLE";
+        }
+
+        const char* ToCompactCookedBadge(const AssetRecord& record) {
+            if (record.type == AssetType::Texture) {
+                if (HasArtifactFormat(record, "HTEX")) {
+                    return "HTEX";
+                }
+                if (HasArtifactFormat(record, "DDS")) {
+                    return "DDS";
+                }
+                return "RAW";
+            }
+            if (record.type == AssetType::Model) {
+                return HasArtifactFormat(record, "HMODEL") ? "HMDL" : "RAW";
+            }
+            if (record.type == AssetType::Scene) {
+                return "JSON";
             }
             return "";
         }
@@ -515,6 +663,127 @@ namespace HIKARI {
             }
             return {};
         }
+
+#if defined(_DEBUG)
+        // 詳細はホバー時だけ表示し、一覧の密度を保つ。
+        void DrawRecordTooltip(const AssetRecord& record) {
+            if (!ImGui::BeginTooltip()) {
+                return;
+            }
+
+            const AssetImportState state = GetImportState(record);
+            ImGui::Text("%s %s", ToAssetIcon(record.type), record.displayName.c_str());
+            ImGui::TextDisabled("%s | %s", ToAssetTypeText(record.type), ToString(state));
+            ImGui::Separator();
+            ImGui::Text("GUID: %s", record.guid.value.empty() ? "<none>" : record.guid.value.c_str());
+            ImGui::Text("Source: %s", record.sourcePath.generic_string().c_str());
+            ImGui::Text("Meta: %s", record.metaPath.generic_string().c_str());
+            ImGui::Text("Importer: %s v%u",
+                record.meta.importerId.empty() ? "<none>" : record.meta.importerId.c_str(),
+                record.meta.importerVersion);
+            const std::string artifactPath = FirstArtifactPath(record);
+            ImGui::Text("Artifact: %s", artifactPath.empty() ? "<none>" : artifactPath.c_str());
+            ImGui::Text("Dependencies: %d", static_cast<int>(record.meta.dependencies.size()));
+            ImGui::EndTooltip();
+        }
+
+        void DrawCompactBadge(const char* label, const ImVec4& color) {
+            if (!label || label[0] == '\0') {
+                ImGui::TextDisabled("-");
+                return;
+            }
+            ImGui::TextColored(color, "[%s]", label);
+        }
+
+        ImVec4 TypeBadgeColor(AssetType type) {
+            switch (type) {
+            case AssetType::Texture: return ImVec4(0.55f, 0.78f, 1.0f, 1.0f);
+            case AssetType::Model: return ImVec4(0.76f, 0.70f, 1.0f, 1.0f);
+            case AssetType::Scene: return ImVec4(0.66f, 0.88f, 0.68f, 1.0f);
+            case AssetType::Material: return ImVec4(1.0f, 0.78f, 0.48f, 1.0f);
+            case AssetType::Sky: return ImVec4(0.54f, 0.90f, 0.92f, 1.0f);
+            case AssetType::VfxEffect: return ImVec4(1.0f, 0.62f, 0.74f, 1.0f);
+            default: return ImVec4(0.72f, 0.74f, 0.78f, 1.0f);
+            }
+        }
+
+        ImVec4 UsageBadgeColor(const char* label) {
+            if (label && std::string_view(label) == "USE") {
+                return ImVec4(0.60f, 0.86f, 0.60f, 1.0f);
+            }
+            return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
+        }
+
+        ImVec4 CookedBadgeColor(const char* label) {
+            if (!label || label[0] == '\0') {
+                return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
+            }
+            if (std::string_view(label) == "HTEX" || std::string_view(label) == "HMDL") {
+                return ImVec4(0.54f, 0.82f, 1.0f, 1.0f);
+            }
+            if (std::string_view(label) == "JSON") {
+                return ImVec4(0.66f, 0.88f, 0.68f, 1.0f);
+            }
+            if (std::string_view(label) == "DDS") {
+                return ImVec4(0.92f, 0.78f, 0.42f, 1.0f);
+            }
+            return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
+        }
+
+        int IconAtlasIndexForType(AssetType type) {
+            switch (type) {
+            case AssetType::Texture: return 1;
+            case AssetType::Model: return 2;
+            case AssetType::Material: return 3;
+            case AssetType::Sky: return 4;
+            case AssetType::Scene: return 5;
+            case AssetType::VfxEffect: return 6;
+            default: return 10;
+            }
+        }
+
+        bool DrawIconAtlasCell(int iconIndex, const ImVec2& size) {
+            static int iconAtlasHandle = -2;
+            if (iconAtlasHandle == -2) {
+                iconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(
+                    "editor/asset_icon_atlas",
+                    "HIKARI/Icon/hikari_asset_icons.png");
+            }
+            if (iconAtlasHandle < 0) {
+                return false;
+            }
+
+            const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+                DXTEX::DxTextureManager::GetSrvGpuHandle(iconAtlasHandle);
+            if (srv.ptr == 0) {
+                return false;
+            }
+
+            constexpr int kColumns = 4;
+            constexpr int kRows = 3;
+            const int clampedIndex = (std::max)(0, (std::min)(iconIndex, kColumns * kRows - 1));
+            const int column = clampedIndex % kColumns;
+            const int row = clampedIndex / kColumns;
+            const ImVec2 uv0{
+                static_cast<float>(column) / static_cast<float>(kColumns),
+                static_cast<float>(row) / static_cast<float>(kRows)
+            };
+            const ImVec2 uv1{
+                static_cast<float>(column + 1) / static_cast<float>(kColumns),
+                static_cast<float>(row + 1) / static_cast<float>(kRows)
+            };
+            ImGui::Image(
+                reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(srv.ptr)),
+                size,
+                uv0,
+                uv1);
+            return true;
+        }
+
+        bool DrawAssetTypeIcon(AssetType type, const ImVec2& size = ImVec2(18.0f, 18.0f)) {
+            return DrawIconAtlasCell(IconAtlasIndexForType(type), size);
+        }
+#endif
 
         std::filesystem::path MakeUniqueFolderPath(const std::filesystem::path& parentDirectory) {
             std::filesystem::path candidate = parentDirectory / "New Folder";
@@ -571,7 +840,10 @@ namespace HIKARI {
                 lastOperationMessage = ok ? "Reimport succeeded" : "Reimport failed";
             }
             if (ImGui::MenuItem("Reimport Dependencies")) {
-                lastOperationMessage = "Dependency reimport is reserved for dependency graph import";
+                const AssetImportBatchResult result = assetDatabase.ImportDependencies(record.guid, false);
+                lastOperationMessage =
+                    "Dependencies imported " + std::to_string(result.succeeded) +
+                    ", failed " + std::to_string(result.failed);
             }
             if (ImGui::MenuItem("Show in Explorer")) {
                 ShowInExplorer(assetDatabase.GetProjectRoot() / record.sourcePath);
@@ -635,8 +907,13 @@ namespace HIKARI {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 const bool isSelected = selection.selectedAssetGuid == record->guid.value;
+                const bool drewIcon = DrawAssetTypeIcon(record->type);
+                if (drewIcon) {
+                    ImGui::SameLine();
+                }
                 const std::string label =
-                    std::string(ToAssetIcon(record->type)) + " " +
+                    std::string(drewIcon ? "" : ToAssetIcon(record->type)) +
+                    (drewIcon ? "" : " ") +
                     record->displayName + "##" +
                     record->sourcePath.generic_string();
                 if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
@@ -645,7 +922,11 @@ namespace HIKARI {
                         lastOperationMessage = "Model selected: " + record->displayName;
                     }
                 }
+                const bool rowHovered = ImGui::IsItemHovered();
                 DrawAssetDragSource(*record);
+                if (rowHovered) {
+                    DrawRecordTooltip(*record);
+                }
 
                 if (ImGui::BeginPopupContextItem()) {
                     DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
@@ -663,6 +944,90 @@ namespace HIKARI {
                 ImGui::TextDisabled("%s", ToCookedBadge(*record));
                 ImGui::TableSetColumnIndex(5);
                 ImGui::TextUnformatted(record->sourcePath.generic_string().c_str());
+                ImGui::PopID();
+            }
+
+            ImGui::EndTable();
+        }
+
+        void DrawRecordCompactRows(
+            AssetDatabase& assetDatabase,
+            const std::vector<const AssetRecord*>& records,
+            EditorSelection& selection,
+            const AssetUsageSummary* usageSummary,
+            std::string& lastOperationMessage) {
+
+            if (!ImGui::BeginTable(
+                "AssetBrowserCompactRows",
+                5,
+                ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_ScrollY |
+                ImGuiTableFlags_SizingStretchProp)) {
+                return;
+            }
+
+            ImGui::TableSetupColumn("Asset", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 56.0f);
+            ImGui::TableSetupColumn("Usage", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+            ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 68.0f);
+            ImGui::TableSetupColumn("Cooked", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+
+            for (const AssetRecord* record : records) {
+                if (!record) {
+                    continue;
+                }
+
+                ImGui::PushID(record->guid.IsValid()
+                    ? record->guid.value.c_str()
+                    : record->sourcePath.generic_string().c_str());
+
+                ImGui::TableNextRow(0, ImGui::GetFrameHeightWithSpacing());
+                ImGui::TableSetColumnIndex(0);
+                const bool isSelected = selection.selectedAssetGuid == record->guid.value;
+                const std::string displayName = record->displayName.empty()
+                    ? record->sourcePath.filename().string()
+                    : record->displayName;
+                const bool drewIcon = DrawAssetTypeIcon(record->type);
+                if (drewIcon) {
+                    ImGui::SameLine();
+                }
+                const std::string label =
+                    std::string(drewIcon ? "" : ToAssetIcon(record->type)) +
+                    (drewIcon ? "" : " ") +
+                    displayName + "##compact_" +
+                    record->sourcePath.generic_string();
+                if (ImGui::Selectable(
+                    label.c_str(),
+                    isSelected,
+                    ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick)) {
+                    SelectRecord(*record, selection);
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && record->type == AssetType::Model) {
+                        lastOperationMessage = "Model selected: " + record->displayName;
+                    }
+                }
+                const bool rowHovered = ImGui::IsItemHovered();
+                DrawAssetDragSource(*record);
+                if (rowHovered) {
+                    DrawRecordTooltip(*record);
+                }
+                if (ImGui::BeginPopupContextItem()) {
+                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
+                    ImGui::EndPopup();
+                }
+
+                const AssetImportState state = GetImportState(*record);
+                const char* usageBadge = ToCompactUsageBadge(*record, usageSummary);
+                const char* cookedBadge = ToCompactCookedBadge(*record);
+
+                ImGui::TableSetColumnIndex(1);
+                DrawCompactBadge(ToCompactTypeBadge(record->type), TypeBadgeColor(record->type));
+                ImGui::TableSetColumnIndex(2);
+                DrawCompactBadge(usageBadge, UsageBadgeColor(usageBadge));
+                ImGui::TableSetColumnIndex(3);
+                DrawCompactBadge(ToCompactStateBadge(state), StateColor(state));
+                ImGui::TableSetColumnIndex(4);
+                DrawCompactBadge(cookedBadge, CookedBadgeColor(cookedBadge));
+
                 ImGui::PopID();
             }
 
@@ -705,14 +1070,19 @@ namespace HIKARI {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.19f, 0.34f, 0.52f, 1.0f));
                 }
 
+                const float iconOffset = (cardWidth - 34.0f) * 0.5f;
+                if (iconOffset > 0.0f) {
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconOffset);
+                }
+                DrawAssetTypeIcon(record->type, ImVec2(34.0f, 34.0f));
+
                 std::string buttonLabel =
-                    std::string(ToAssetIcon(record->type)) + "\n" +
                     record->displayName + "\n" +
                     ToString(GetImportState(*record));
                 const char* usageBadge = ToUsageBadge(*record, usageSummary);
                 const char* cookedBadge = ToCookedBadge(*record);
                 if (usageBadge[0] != '\0') {
-                    buttonLabel += std::string(" · ") + usageBadge;
+                    buttonLabel += std::string(" / ") + usageBadge;
                 }
                 if (cookedBadge[0] != '\0') {
                     buttonLabel += std::string("\n") + cookedBadge;
@@ -720,7 +1090,11 @@ namespace HIKARI {
                 if (ImGui::Button(buttonLabel.c_str(), ImVec2(cardWidth, 96.0f))) {
                     SelectRecord(*record, selection);
                 }
+                const bool cardHovered = ImGui::IsItemHovered();
                 DrawAssetDragSource(*record);
+                if (cardHovered) {
+                    DrawRecordTooltip(*record);
+                }
                 if (isSelected) {
                     ImGui::PopStyleColor();
                 }
@@ -844,6 +1218,21 @@ namespace HIKARI {
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
+        if (!hasSelection) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Import Dependencies") && hasSelection) {
+            const AssetImportBatchResult result = assetDatabase.ImportDependencies(
+                AssetGuid{ selection.selectedAssetGuid },
+                false);
+            lastOperationMessage_ =
+                "Dependencies imported " + std::to_string(result.succeeded) +
+                ", failed " + std::to_string(result.failed);
+        }
+        if (!hasSelection) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
         if (ImGui::Button("New Folder")) {
             const std::filesystem::path parentDirectory = assetDatabase.GetProjectRoot() / currentDirectory_;
             const std::filesystem::path newFolder = MakeUniqueFolderPath(parentDirectory);
@@ -862,6 +1251,21 @@ namespace HIKARI {
             }
         }
         ImGui::SameLine();
+        if (ImGui::Button("New Scene")) {
+            std::filesystem::path scenePath{};
+            std::string error{};
+            if (CreateEmptySceneAsset(assetDatabase, currentDirectory_, scenePath, error)) {
+                assetDatabase.ScanAssets(true);
+                currentDirectory_ = scenePath.parent_path();
+                if (const AssetRecord* sceneRecord = assetDatabase.FindByPath(scenePath)) {
+                    SelectRecord(*sceneRecord, selection);
+                }
+                lastOperationMessage_ = "Scene asset created";
+            } else {
+                lastOperationMessage_ = error.empty() ? "Scene creation failed" : error;
+            }
+        }
+        ImGui::SameLine();
         if (ImGui::Button("Migrate Legacy JSON")) {
             LegacyAssetJsonMigrator migrator{};
             LegacyAssetMigrationOptions options{};
@@ -877,7 +1281,7 @@ namespace HIKARI {
         ImGui::SetNextItemWidth((std::max)(220.0f, filterLineWidth * 0.38f));
         ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
         ImGui::SameLine();
-        static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Sky", "Material", "VFX" };
+        static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX" };
         ImGui::TextUnformatted("Type");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(120.0f);
@@ -889,10 +1293,10 @@ namespace HIKARI {
         ImGui::SetNextItemWidth(130.0f);
         ImGui::Combo("##AssetStateFilter", &stateFilter_, StateFilterItems, IM_ARRAYSIZE(StateFilterItems));
         ImGui::SameLine();
-        static const char* ViewModeItems[] = { "List", "Grid" };
+        static const char* ViewModeItems[] = { "Compact", "List", "Grid" };
         ImGui::TextUnformatted("View");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(96.0f);
+        ImGui::SetNextItemWidth(118.0f);
         ImGui::Combo("##AssetViewMode", &viewMode_, ViewModeItems, IM_ARRAYSIZE(ViewModeItems));
         ImGui::SameLine();
         ImGui::Checkbox("Recursive", &recursive_);
@@ -952,10 +1356,12 @@ namespace HIKARI {
             ImGui::Dummy(ImVec2(0.0f, 16.0f));
             ImGui::TextDisabled("No assets here");
             ImGui::TextDisabled("Create folders here, or add source files under Assets and press Refresh.");
-        } else if (viewMode_ == 0) {
+        } else if (viewMode_ == 1) {
             DrawRecordList(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
-        } else {
+        } else if (viewMode_ == 2) {
             DrawRecordGrid(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
+        } else {
+            DrawRecordCompactRows(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
         }
 
         ImGui::EndChild();

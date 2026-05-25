@@ -20,13 +20,16 @@ namespace HIKARI {
 
         bool LoadAssetNow(const std::string& name);
         bool LoadAllRegisteredAssets();
+        bool LoadCpuAssetFromSource(ModelAsset& asset);
 
         size_t CountLoadedAssets() const;
         size_t CountFailedAssets() const;
 
     private:
-        bool LoadAsObj(ModelAsset& asset);
-        bool LoadAsGltf(ModelAsset& asset);
+        bool LoadAsObj(ModelAsset& asset, bool buildRuntimeResources);
+        bool LoadAsGltf(ModelAsset& asset, bool buildRuntimeResources);
+        bool LoadAsHmodel(ModelAsset& asset);
+        bool BuildRuntimeResources(ModelAsset& asset);
         bool BuildBuiltinCube(ModelAsset& asset);
 
     private:

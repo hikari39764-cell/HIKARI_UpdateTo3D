@@ -148,6 +148,9 @@
     <Filter Include="Project\Data\Vfx">
       <UniqueIdentifier>{1073B2AE-66F8-5407-826B-0A4B227AF7D7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Project\Icons">
+      <UniqueIdentifier>{9D6C91F1-6759-4E08-A758-21B54B6C8511}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Project\Shaders">
       <UniqueIdentifier>{0366C106-C884-59CB-BCE3-0A4E338EDD64}</UniqueIdentifier>
     </Filter>
@@ -489,8 +492,8 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Assets\HIKARI_AssetJsonLoader.cpp">
-      <Filter>Source Files\Assets</Filter>
+    <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp">
+      <Filter>Source Files\Assets\Formats</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.cpp">
       <Filter>Source Files\Assets\Formats</Filter>
@@ -505,6 +508,9 @@
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SceneImporterStub.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp">
@@ -1239,8 +1245,8 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Assets\HIKARI_AssetJsonLoader.h">
-      <Filter>Header Files\Assets</Filter>
+    <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">
+      <Filter>Header Files\Assets\Formats</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.h">
       <Filter>Header Files\Assets\Formats</Filter>
@@ -1258,6 +1264,9 @@
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SceneImporterStub.h">
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h">
@@ -1533,6 +1542,9 @@
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
+    </None>
+    <None Include="HIKARI\Icon\hikari_asset_icons.png">
+      <Filter>Project\Icons</Filter>
     </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>

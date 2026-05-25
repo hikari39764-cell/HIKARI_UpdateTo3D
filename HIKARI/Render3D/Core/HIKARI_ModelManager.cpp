@@ -7,9 +7,11 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <utility>
 #include <unordered_map>
 #include <vector>
 #include <json.hpp>
+#include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "HIKARI_DxTexture.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
@@ -609,15 +611,35 @@ namespace HIKARI {
         } else {
             std::string ext = GetFileExt(sourcePath);
             for (char& c : ext) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
-            if (ext == ".obj") {
-                ok = LoadAsObj(*asset);
+            if (ext == ".hmodel") {
+                ok = LoadAsHmodel(*asset);
+            } else if (ext == ".obj") {
+                ok = LoadAsObj(*asset, true);
             } else if (ext == ".gltf") {
-                ok = LoadAsGltf(*asset);
+                ok = LoadAsGltf(*asset, true);
             }
         }
 
         asset->SetState(ok ? ModelAsset::State::Loaded : ModelAsset::State::Failed);
         return ok;
+    }
+
+    bool ModelManager::LoadCpuAssetFromSource(ModelAsset& asset) {
+        const std::string sourcePath = asset.GetSourcePath();
+        std::string ext = GetFileExt(sourcePath);
+        for (char& c : ext) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+
+        if (ext == ".hmodel") {
+            std::string message{};
+            return ReadHmodelFile(sourcePath, asset, message);
+        }
+        if (ext == ".obj") {
+            return LoadAsObj(asset, false);
+        }
+        if (ext == ".gltf") {
+            return LoadAsGltf(asset, false);
+        }
+        return false;
     }
 
     bool ModelManager::LoadAllRegisteredAssets() {
@@ -702,7 +724,110 @@ namespace HIKARI {
         return true;
     }
 
-    bool ModelManager::LoadAsGltf(ModelAsset& asset) {
+    bool ModelManager::LoadAsHmodel(ModelAsset& asset) {
+        const std::string runtimePath = asset.GetSourcePath();
+        const std::string runtimeName = asset.GetName();
+
+        ModelAsset cooked{};
+        std::string message{};
+        if (!ReadHmodelFile(runtimePath, cooked, message)) {
+            return false;
+        }
+
+        cooked.SetName(runtimeName.empty() ? cooked.id.value : runtimeName);
+        cooked.SetSourcePath(runtimePath);
+        asset = std::move(cooked);
+        return BuildRuntimeResources(asset);
+    }
+
+    bool ModelManager::BuildRuntimeResources(ModelAsset& asset) {
+        std::vector<VertexStatic3D> legacyVertices;
+        std::vector<uint32_t> legacyIndices;
+
+        // HMODEL は CPU データを保持し、実行時だけ従来の Mesh/Material へ橋渡しする。
+        for (const MeshAsset& meshAsset : asset.meshes) {
+            for (const MeshPrimitive& primitive : meshAsset.primitives) {
+                const uint32_t baseVertex = static_cast<uint32_t>(legacyVertices.size());
+
+                if (!primitive.staticVertices.empty()) {
+                    legacyVertices.reserve(legacyVertices.size() + primitive.staticVertices.size());
+                    for (const Vertex3D& source : primitive.staticVertices) {
+                        VertexStatic3D vertex{};
+                        vertex.position = source.position;
+                        vertex.normal = source.normal;
+                        vertex.tangent = source.tangent;
+                        vertex.u = source.uv0.x;
+                        vertex.v = source.uv0.y;
+                        legacyVertices.push_back(vertex);
+                    }
+                } else if (!primitive.skinnedVertices.empty()) {
+                    legacyVertices.reserve(legacyVertices.size() + primitive.skinnedVertices.size());
+                    for (const SkinnedVertex3D& source : primitive.skinnedVertices) {
+                        VertexStatic3D vertex{};
+                        vertex.position = source.position;
+                        vertex.normal = source.normal;
+                        vertex.tangent = source.tangent;
+                        vertex.u = source.uv0.x;
+                        vertex.v = source.uv0.y;
+                        legacyVertices.push_back(vertex);
+                    }
+                }
+
+                const uint32_t vertexCount = static_cast<uint32_t>(legacyVertices.size() - baseVertex);
+                if (!primitive.indices.empty()) {
+                    legacyIndices.reserve(legacyIndices.size() + primitive.indices.size());
+                    for (uint32_t index : primitive.indices) {
+                        if (index < vertexCount) {
+                            legacyIndices.push_back(baseVertex + index);
+                        }
+                    }
+                } else {
+                    legacyIndices.reserve(legacyIndices.size() + vertexCount);
+                    for (uint32_t index = 0; index < vertexCount; ++index) {
+                        legacyIndices.push_back(baseVertex + index);
+                    }
+                }
+            }
+        }
+
+        if (legacyVertices.empty() || legacyIndices.empty()) {
+            return false;
+        }
+
+        auto mesh = std::make_unique<Mesh>();
+        if (!mesh->CreateStatic(SERVICES::gCtx.device, legacyVertices, legacyIndices)) {
+            return false;
+        }
+
+        auto material = std::make_unique<Material>();
+        material->SetBaseColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+        material->SetBaseColorTextureHandle(-1);
+
+        if (!asset.materials.empty()) {
+            const MaterialAsset& primaryMat = asset.materials.front();
+            material->SetBaseColor(primaryMat.baseColorFactor);
+            if (primaryMat.baseColorTexture.textureIndex >= 0 &&
+                primaryMat.baseColorTexture.textureIndex < static_cast<int>(asset.textures.size())) {
+                const std::string& texPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
+                if (!texPath.empty()) {
+                    material->SetBaseColorTexturePath(texPath);
+                    const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
+                        asset.GetName() + "/hmodel_baseColor",
+                        texPath,
+                        DXTEX::TextureColorSpace::Auto);
+                    if (handle >= 0) {
+                        material->SetBaseColorTextureHandle(handle);
+                    }
+                }
+            }
+        }
+
+        asset.SetMesh(std::move(mesh));
+        asset.SetMaterial(std::move(material));
+        return true;
+    }
+
+    bool ModelManager::LoadAsGltf(ModelAsset& asset, bool buildRuntimeResources) {
         const std::filesystem::path gltfPath(asset.GetSourcePath());
         std::ifstream ifs(gltfPath);
         if (!ifs.is_open()) {
@@ -1179,6 +1304,10 @@ namespace HIKARI {
             return false;
         }
 
+        if (!buildRuntimeResources) {
+            return true;
+        }
+
         auto mesh = std::make_unique<Mesh>();
         if (!mesh->CreateStatic(SERVICES::gCtx.device, legacyVertices, legacyIndices)) {
             return false;
@@ -1205,7 +1334,7 @@ namespace HIKARI {
         return true;
     }
 
-    bool ModelManager::LoadAsObj(ModelAsset& asset) {
+    bool ModelManager::LoadAsObj(ModelAsset& asset, bool buildRuntimeResources) {
         std::ifstream file(asset.GetSourcePath());
         if (!file.is_open()) {
             return false;
@@ -1383,34 +1512,57 @@ namespace HIKARI {
 
         SanitizeAndFixNormalOrientation(vertices, indices);
 
-        auto mesh = std::make_unique<Mesh>();
-        if (!mesh->CreateStatic(SERVICES::gCtx.device, vertices, indices)) {
-            return false;
-        }
-
-        auto material = std::make_unique<Material>();
-        material->SetBaseColor({ 1.0f, 1.0f, 1.0f, 1.0f });
-        material->SetBaseColorTexturePath("");
-        material->SetBaseColorTextureHandle(-1);
-
+        ObjMaterialInfo materialInfo{};
+        materialInfo.name = firstUsedMaterialName;
         if (!mtllibPath.empty() && !firstUsedMaterialName.empty()) {
-            ObjMaterialInfo materialInfo{};
-            if (ParseMtlMaterial(std::filesystem::path(mtllibPath), firstUsedMaterialName, materialInfo)) {
-                material->SetBaseColor(materialInfo.baseColor);
-                if (!materialInfo.baseColorMapPath.empty()) {
-                    material->SetBaseColorTexturePath(materialInfo.baseColorMapPath);
-                    const std::string textureName = asset.GetName() + "/baseColor";
-                    const int textureHandle = DXTEX::DxTextureManager::LoadTextureSrgb(textureName, materialInfo.baseColorMapPath);
-                    if (textureHandle >= 0) {
-                        material->SetBaseColorTextureHandle(textureHandle);
-                    }
-                }
-            }
+            ParseMtlMaterial(std::filesystem::path(mtllibPath), firstUsedMaterialName, materialInfo);
         }
 
-        asset.SetMesh(std::move(mesh));
-        asset.SetMaterial(std::move(material));
-        return true;
+        asset.nodes.clear();
+        asset.meshes.clear();
+        asset.materials.clear();
+        asset.textures.clear();
+        asset.skins.clear();
+        asset.animations.clear();
+        asset.defaultSceneRootNode = 0;
+
+        ModelNode rootNode{};
+        rootNode.name = "OBJ Root";
+        rootNode.meshIndex = 0;
+        asset.nodes.push_back(std::move(rootNode));
+
+        MeshPrimitive primitive{};
+        primitive.name = "OBJ Primitive";
+        primitive.layout = VertexLayoutKind::StaticPNTT;
+        primitive.indices = indices;
+        primitive.staticVertices.reserve(vertices.size());
+        for (const VertexStatic3D& source : vertices) {
+            Vertex3D vertex{};
+            vertex.position = source.position;
+            vertex.normal = source.normal;
+            vertex.tangent = source.tangent;
+            vertex.uv0 = { source.u, source.v };
+            primitive.staticVertices.push_back(vertex);
+        }
+
+        MeshAsset meshAsset{};
+        meshAsset.name = asset.GetName().empty() ? "OBJ Mesh" : asset.GetName();
+        meshAsset.primitives.push_back(std::move(primitive));
+        asset.meshes.push_back(std::move(meshAsset));
+
+        MaterialAsset materialAsset{};
+        materialAsset.name = materialInfo.name.empty() ? "Default" : materialInfo.name;
+        materialAsset.baseColorFactor = materialInfo.baseColor;
+        if (!materialInfo.baseColorMapPath.empty()) {
+            TextureAsset3D texture{};
+            texture.name = materialAsset.name + "_baseColor";
+            texture.sourcePath = materialInfo.baseColorMapPath;
+            asset.textures.push_back(std::move(texture));
+            materialAsset.baseColorTexture.textureIndex = 0;
+        }
+        asset.materials.push_back(std::move(materialAsset));
+
+        return buildRuntimeResources ? BuildRuntimeResources(asset) : true;
     }
 
 } // namespace HIKARI

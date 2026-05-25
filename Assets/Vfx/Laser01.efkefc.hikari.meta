@@ -1,0 +1,16 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Laser01",
+  "guid": "ca8b4bc6ae65973e3202edf0a6aa8f17",
+  "importSettings": {
+    "cookVfx": false,
+    "futureOutputFormat": "HPAK",
+    "sourceFormat": ".efkefc"
+  },
+  "importerId": "VfxImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Vfx/Laser01.efkefc",
+  "type": "VfxEffect"
+}

@@ -18,6 +18,7 @@ namespace HIKARI {
         Broken,
         Textures,
         Models,
+        Scenes,
         Materials,
         Skies,
         Vfx,

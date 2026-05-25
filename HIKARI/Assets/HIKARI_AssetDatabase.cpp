@@ -6,12 +6,14 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
 #include "Importers/HIKARI_MaterialImporterStub.h"
 #include "Importers/HIKARI_ModelImporterStub.h"
+#include "Importers/HIKARI_SceneImporterStub.h"
 #include "Importers/HIKARI_SkyCubemapImporter.h"
 #include "Importers/HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Importers/HIKARI_TextureImporter.h"
@@ -69,9 +71,19 @@ namespace HIKARI {
             return ext == ".efk" || ext == ".efkefc";
         }
 
+        bool IsScenePath(const std::filesystem::path& path) {
+            const std::string filename = ToLowerCopy(path.filename().string());
+            const std::string ext = ToLowerCopy(path.extension().string());
+            const std::string generic = ToLowerCopy(path.generic_string());
+            return ext == ".hscene" ||
+                EndsWith(filename, ".scene.json") ||
+                (ext == ".json" && generic.find("assets/scenes/") != std::string::npos);
+        }
+
         const char* ToString(AssetType type) {
             switch (type) {
             case AssetType::Model: return "Model";
+            case AssetType::Scene: return "Scene";
             case AssetType::Sky: return "Sky";
             case AssetType::Texture: return "Texture";
             case AssetType::Material: return "Material";
@@ -85,6 +97,7 @@ namespace HIKARI {
 
         AssetType ParseAssetType(const std::string& text) {
             if (text == "Model") return AssetType::Model;
+            if (text == "Scene") return AssetType::Scene;
             if (text == "Sky") return AssetType::Sky;
             if (text == "Texture") return AssetType::Texture;
             if (text == "Material") return AssetType::Material;
@@ -406,6 +419,63 @@ namespace HIKARI {
         return batch;
     }
 
+    AssetImportBatchResult AssetDatabase::ImportDependencies(const AssetGuid& guid, bool includeSelf) {
+        AssetImportBatchResult batch{};
+        const AssetRecord* rootRecord = FindByGuid(guid);
+        if (!rootRecord) {
+            HIKARI_LOG_ERROR("[AssetDatabase] ImportDependencies failed: GUID not found " + guid.value);
+            return batch;
+        }
+
+        std::vector<AssetGuid> importGuids;
+        std::unordered_set<std::string> visited;
+        importGuids.reserve(rootRecord->meta.dependencies.size() + (includeSelf ? 1u : 0u));
+
+        auto queueGuid = [&](const AssetGuid& candidateGuid) {
+            if (!candidateGuid.IsValid() || !visited.insert(candidateGuid.value).second) {
+                return;
+            }
+            importGuids.push_back(candidateGuid);
+        };
+
+        for (const AssetDependencyDesc& dependency : rootRecord->meta.dependencies) {
+            if (dependency.guid.IsValid()) {
+                queueGuid(dependency.guid);
+                continue;
+            }
+            if (!dependency.path.empty()) {
+                if (const AssetRecord* dependencyRecord = FindByPath(dependency.path)) {
+                    queueGuid(dependencyRecord->guid);
+                }
+            }
+        }
+
+        if (includeSelf) {
+            queueGuid(rootRecord->guid);
+        }
+
+        for (const AssetGuid& dependencyGuid : importGuids) {
+            AssetRecord* record = FindByGuid(dependencyGuid);
+            if (!record ||
+                record->duplicateGuid ||
+                !record->sourceExists ||
+                record->importerMissing ||
+                !record->guid.IsValid()) {
+                ++batch.failed;
+                continue;
+            }
+
+            ++batch.attempted;
+            if (ImportAsset(dependencyGuid)) {
+                ++batch.succeeded;
+            } else {
+                ++batch.failed;
+            }
+        }
+
+        return batch;
+    }
+
     const AssetRecord* AssetDatabase::FindByGuid(const AssetGuid& guid) const {
         const auto it = recordsByGuid_.find(guid.value);
         if (it == recordsByGuid_.end() || it->second >= records_.size()) {
@@ -688,6 +758,9 @@ namespace HIKARI {
         if (IsModelExtension(ext)) {
             return AssetType::Model;
         }
+        if (IsScenePath(sourcePath)) {
+            return AssetType::Scene;
+        }
         if (ext == ".hmat" || EndsWith(generic, ".mat.json")) {
             return AssetType::Material;
         }
@@ -706,6 +779,9 @@ namespace HIKARI {
         }
         if (type == AssetType::Model) {
             return "ModelImporterStub";
+        }
+        if (type == AssetType::Scene) {
+            return "SceneImporterStub";
         }
         if (type == AssetType::Material) {
             return "MaterialImporterStub";
@@ -726,6 +802,7 @@ namespace HIKARI {
         importerRegistry_.Register(std::make_unique<TextureImporter>(
             std::make_unique<DirectXTexTextureImportBackend>()));
         importerRegistry_.Register(std::make_unique<ModelImporterStub>());
+        importerRegistry_.Register(std::make_unique<SceneImporterStub>());
         importerRegistry_.Register(std::make_unique<MaterialImporterStub>());
         importerRegistry_.Register(std::make_unique<VfxImporterStub>());
     }
@@ -836,12 +913,14 @@ namespace HIKARI {
         const IAssetImporter* importer = importerRegistry_.FindById(record.meta.importerId);
         const bool importerVersionOutdated = importer && record.meta.importerVersion != importer->GetImporterVersion();
         const bool textureNeedsArtifact = record.type == AssetType::Texture && record.meta.artifacts.empty();
+        const bool modelNeedsArtifact = record.type == AssetType::Model && record.meta.artifacts.empty();
         const bool skyNeedsArtifact = record.type == AssetType::Sky && record.meta.artifacts.empty();
         record.importOutdated = record.importerMissing ||
             record.artifactMissing ||
             sourceNewerThanArtifact ||
             importerVersionOutdated ||
             textureNeedsArtifact ||
+            modelNeedsArtifact ||
             skyNeedsArtifact;
 
         const std::filesystem::path reportPath = record.importedDirectory / "import_report.json";
@@ -874,6 +953,15 @@ namespace HIKARI {
             { "artifacts", SerializeArtifacts(result.success ? result.artifacts : record.meta.artifacts) },
             { "dependencies", SerializeDependencies(result.success ? result.dependencies : record.meta.dependencies) },
         };
+
+        if (!result.diagnosticsJson.empty()) {
+            nlohmann::json diagnostics = nlohmann::json::parse(result.diagnosticsJson, nullptr, false);
+            if (diagnostics.is_discarded()) {
+                root["diagnosticsText"] = result.diagnosticsJson;
+            } else {
+                root["diagnostics"] = std::move(diagnostics);
+            }
+        }
 
         const std::filesystem::path reportPath = record.importedDirectory / "import_report.json";
         std::ofstream ofs(reportPath);

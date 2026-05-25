@@ -169,12 +169,30 @@ namespace HIKARI {
             return DirectX::TEX_FILTER_DEFAULT;
         }
 
-        DirectX::TEX_COMPRESS_FLAGS ResolveCompressFlags(TextureAssetColorSpace colorSpace) {
+        DirectX::TEX_COMPRESS_FLAGS ResolveCompressFlags(
+            TextureAssetColorSpace colorSpace,
+            DXGI_FORMAT compressedFormat,
+            bool quick)
+        {
             DirectX::TEX_COMPRESS_FLAGS flags = DirectX::TEX_COMPRESS_DEFAULT;
+
             if (colorSpace == TextureAssetColorSpace::Srgb) {
                 flags = static_cast<DirectX::TEX_COMPRESS_FLAGS>(
                     flags | DirectX::TEX_COMPRESS_SRGB_OUT);
             }
+
+            // 允许 DirectXTex 内部多线程压缩。
+            flags = static_cast<DirectX::TEX_COMPRESS_FLAGS>(
+                flags | DirectX::TEX_COMPRESS_PARALLEL);
+
+            // 只对 BC7 开 quick。
+            if (quick &&
+                (compressedFormat == DXGI_FORMAT_BC7_UNORM ||
+                    compressedFormat == DXGI_FORMAT_BC7_UNORM_SRGB)) {
+                flags = static_cast<DirectX::TEX_COMPRESS_FLAGS>(
+                    flags | DirectX::TEX_COMPRESS_BC7_QUICK);
+            }
+
             return flags;
         }
 
@@ -304,12 +322,13 @@ namespace HIKARI {
         DirectX::ScratchImage compressed{};
         const DXGI_FORMAT compressedFormat = ResolveCompressedFormat(sourcePath, mipMetadata, settings);
         if (compressedFormat != DXGI_FORMAT_UNKNOWN && !mipMetadata.IsCubemap()) {
+            const bool quickCompress = true;
             hr = DirectX::Compress(
                 mipSource.GetImages(),
                 mipSource.GetImageCount(),
                 mipMetadata,
                 compressedFormat,
-                ResolveCompressFlags(settings.colorSpace),
+                ResolveCompressFlags(settings.colorSpace, compressedFormat, quickCompress),
                 DirectX::TEX_THRESHOLD_DEFAULT,
                 compressed);
             if (FAILED(hr)) {

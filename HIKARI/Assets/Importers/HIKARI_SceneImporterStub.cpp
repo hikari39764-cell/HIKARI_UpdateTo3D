@@ -1,0 +1,83 @@
+#include "HIKARI_SceneImporterStub.h"
+
+#include <algorithm>
+#include <cctype>
+
+#include <json.hpp>
+
+namespace HIKARI {
+
+    namespace {
+        std::string ToLowerCopy(std::string value) {
+            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+            return value;
+        }
+
+        bool EndsWith(std::string_view text, std::string_view suffix) {
+            return text.size() >= suffix.size() &&
+                text.substr(text.size() - suffix.size()) == suffix;
+        }
+
+        bool IsSceneSourcePath(const std::filesystem::path& sourcePath) {
+            const std::string lowerPath = ToLowerCopy(sourcePath.generic_string());
+            const std::string filename = ToLowerCopy(sourcePath.filename().string());
+            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            return ext == ".hscene" ||
+                EndsWith(filename, ".scene.json") ||
+                (ext == ".json" && lowerPath.find("assets/scenes/") != std::string::npos);
+        }
+    }
+
+    const char* SceneImporterStub::GetImporterId() const {
+        return "SceneImporterStub";
+    }
+
+    uint32_t SceneImporterStub::GetImporterVersion() const {
+        return 1;
+    }
+
+    bool SceneImporterStub::CanImport(const std::filesystem::path& sourcePath) const {
+        return IsSceneSourcePath(sourcePath);
+    }
+
+    AssetMeta SceneImporterStub::CreateDefaultMeta(
+        const std::filesystem::path& sourcePath,
+        const AssetGuid& guid) const {
+
+        AssetMeta meta{};
+        meta.metaVersion = 1;
+        meta.guid = guid;
+        meta.type = AssetType::Scene;
+        meta.importerId = GetImporterId();
+        meta.importerVersion = GetImporterVersion();
+        meta.sourcePath = sourcePath.generic_string();
+        meta.displayName = sourcePath.stem().string();
+        meta.importSettingsJson = nlohmann::json{
+            { "sourceFormat", sourcePath.extension().string() },
+            { "runtimeLoader", "SceneSerializer" },
+            { "cookScene", false },
+            { "futureOutputFormat", "HSCENE" },
+        }.dump(2);
+        return meta;
+    }
+
+    AssetImportResult SceneImporterStub::Import(
+        const AssetRecord& record,
+        const AssetImportContext& context) {
+
+        (void)context;
+        AssetImportResult result{};
+        result.success = true;
+        result.message = "[AssetImporter] Scene cook not implemented yet; scene JSON remains authoritative. source=" +
+            record.sourcePath.generic_string();
+        result.diagnosticsJson = nlohmann::json{
+            { "kind", "Scene" },
+            { "runtimeLoader", "SceneSerializer" },
+            { "cookScene", false },
+        }.dump(2);
+        return result;
+    }
+
+} // namespace HIKARI
