@@ -272,6 +272,8 @@ namespace HIKARI {
             return false;
         }
 
+        currentSceneAssetGuid_ = {};
+        sceneDocumentDirty_ = false;
         environment_ = sceneDocument_.environment;
         return true;
     }
@@ -291,6 +293,66 @@ namespace HIKARI {
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
         return built;
+    }
+
+    bool DocumentSceneBase::RequestOpenSceneAsset(const AssetGuid& sceneGuid) {
+        return OpenSceneAssetNow(sceneGuid);
+    }
+
+    bool DocumentSceneBase::OpenSceneAssetNow(const AssetGuid& sceneGuid) {
+        if (!sceneGuid.IsValid()) {
+            return false;
+        }
+        if (assetDatabase_.GetProjectRoot().empty()) {
+            assetDatabase_.Initialize(std::filesystem::current_path());
+        }
+
+        const AssetRecord* record = assetDatabase_.FindByGuid(sceneGuid);
+        if (!record) {
+            assetDatabase_.ScanAssets(false);
+            record = assetDatabase_.FindByGuid(sceneGuid);
+        }
+        if (!record || record->type != AssetType::Scene || record->sourcePath.empty()) {
+            return false;
+        }
+
+        const std::filesystem::path scenePath =
+            (assetDatabase_.GetProjectRoot() / record->sourcePath).lexically_normal();
+        SceneDocument loaded{};
+        if (!sceneSerializer_.LoadFromFile(scenePath.generic_string(), loaded)) {
+            return false;
+        }
+
+        sceneDocument_ = std::move(loaded);
+        scenePath_ = scenePath.generic_string();
+        sceneId_ = sceneGuid.value;
+        currentSceneAssetGuid_ = sceneGuid;
+        sceneDocumentDirty_ = false;
+
+        environment_ = sceneDocument_.environment;
+        ReloadAssets();
+        return RebuildRuntimeWorld();
+    }
+
+    bool DocumentSceneBase::HasUnsavedSceneChanges() const {
+        return sceneDocumentDirty_;
+    }
+
+    void DocumentSceneBase::SetUnsavedSceneChanges(bool dirty) {
+        sceneDocumentDirty_ = dirty;
+    }
+
+    bool DocumentSceneBase::SaveCurrentSceneDocument() {
+        if (scenePath_.empty()) {
+            return false;
+        }
+
+        sceneDocument_.environment = environment_;
+        const bool saved = sceneSerializer_.SaveToFile(scenePath_, sceneDocument_);
+        if (saved) {
+            sceneDocumentDirty_ = false;
+        }
+        return saved;
     }
 
     void DocumentSceneBase::RegisterDefaultSystems() {

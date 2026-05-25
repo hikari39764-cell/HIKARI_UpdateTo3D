@@ -8,6 +8,7 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
+#include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_AssetPickerPopup.h"
 
@@ -54,22 +55,20 @@ namespace HIKARI::EDITOR {
         }
 
         bool AcceptAssetGuidPayload(const AssetDatabase* assetDatabase, AssetType requiredType, std::string& inOutGuid) {
-            bool changed = false;
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIKARI_ASSET_GUID")) {
-                    const char* payloadText = static_cast<const char*>(payload->Data);
-                    if (payloadText && payload->DataSize > 0) {
-                        const std::string guid(payloadText, payloadText + std::strlen(payloadText));
-                        const AssetRecord* record = assetDatabase ? assetDatabase->FindByGuid(AssetGuid{ guid }) : nullptr;
-                        if (requiredType == AssetType::Unknown || (record && record->type == requiredType)) {
-                            inOutGuid = guid;
-                            changed = true;
-                        }
-                    }
-                }
-                ImGui::EndDragDropTarget();
+            if (!assetDatabase) {
+                return false;
             }
-            return changed;
+
+            DroppedAssetPayload payload{};
+            const bool accepted = requiredType == AssetType::Unknown
+                ? AcceptAssetDrop(*assetDatabase, payload)
+                : AcceptAssetDropOfType(*assetDatabase, requiredType, payload);
+            if (!accepted || !payload.record) {
+                return false;
+            }
+
+            inOutGuid = payload.guid.value;
+            return true;
         }
 #endif
     }

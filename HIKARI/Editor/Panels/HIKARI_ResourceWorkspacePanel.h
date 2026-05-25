@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Editor/HIKARI_AssetBrowserPanel.h"
 #include "Editor/Panels/HIKARI_AssetInspectorPanel.h"
 
@@ -15,6 +17,7 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             const SceneDocument& sceneDocument,
             EditorSelection& selection) const;
+        std::string ConsumeActivatedSceneGuid() const;
 
     private:
         mutable AssetBrowserPanel assetBrowserPanel_{};

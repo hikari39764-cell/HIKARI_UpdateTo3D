@@ -61,6 +61,11 @@ namespace HIKARI {
         bool ReloadAssets();
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
+        bool RequestOpenSceneAsset(const AssetGuid& sceneGuid);
+        bool OpenSceneAssetNow(const AssetGuid& sceneGuid);
+        bool HasUnsavedSceneChanges() const;
+        void SetUnsavedSceneChanges(bool dirty);
+        bool SaveCurrentSceneDocument();
 
         void SetComponentGizmoState(const ComponentGizmoState& state);
         void SetViewportOverlayState(const ViewportOverlayState& state);
@@ -95,6 +100,8 @@ namespace HIKARI {
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};
         SceneDocument sceneDocument_{};
+        AssetGuid currentSceneAssetGuid_{};
+        bool sceneDocumentDirty_ = false;
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         ViewportOverlayState viewportOverlayState_{};

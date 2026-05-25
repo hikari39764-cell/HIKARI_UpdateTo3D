@@ -40,6 +40,15 @@
     <Filter Include="Header Files\Editor\Panels">
       <UniqueIdentifier>{DDC228B8-08A1-55B1-A9BC-E6AAA3E568F3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Authoring">
+      <UniqueIdentifier>{C39F7C8D-426C-44D1-8B41-D091436B275B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\DragDrop">
+      <UniqueIdentifier>{9081B90A-5B1A-46B9-8682-0CCAFD995233}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Style">
+      <UniqueIdentifier>{A1E743A7-EA84-4FD8-BCE4-F5E8F933BE49}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\External">
       <UniqueIdentifier>{4D99C27F-D21C-500C-B045-9C442F15C85B}</UniqueIdentifier>
     </Filter>
@@ -222,6 +231,15 @@
     </Filter>
     <Filter Include="Source Files\Editor\Panels">
       <UniqueIdentifier>{34A5A9E3-66B5-542D-8726-306B268D5013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Authoring">
+      <UniqueIdentifier>{FA88E7C2-F209-438E-9CF6-C10C65E0A334}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\DragDrop">
+      <UniqueIdentifier>{DFD9F4DF-6C07-440B-976B-C6C842B8F04D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Style">
+      <UniqueIdentifier>{E205462B-E487-4770-A020-E1D96E8A5A2A}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\External">
       <UniqueIdentifier>{6A12A215-0A4F-5C0C-9693-8CABE3D6A62A}</UniqueIdentifier>
@@ -458,6 +476,15 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp">
       <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp">
+      <Filter>Source Files\Editor\DragDrop</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
@@ -1169,6 +1196,15 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h">
       <Filter>Header Files\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h">
+      <Filter>Header Files\Editor\DragDrop</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
+      <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h">
       <Filter>Header Files\Editor</Filter>

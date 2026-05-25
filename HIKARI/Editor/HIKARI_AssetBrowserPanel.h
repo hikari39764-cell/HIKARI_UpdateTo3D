@@ -34,6 +34,7 @@ namespace HIKARI {
             EditorSelection& selection,
             const AssetUsageSummary* usageSummary,
             AssetBrowserScope scope) const;
+        std::string ConsumeActivatedSceneGuid() const;
 
     private:
         mutable std::filesystem::path currentDirectory_{ "Assets" };

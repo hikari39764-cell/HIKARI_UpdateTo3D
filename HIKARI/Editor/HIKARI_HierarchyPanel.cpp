@@ -1,5 +1,6 @@
 #include "HIKARI_HierarchyPanel.h"
 #include "HIKARI_EditorSelection.h"
+#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #if defined(_DEBUG)
@@ -30,8 +31,13 @@ namespace HIKARI {
             GameObject* objectPtr = object.get();
             ImGui::PushID(objectPtr);
             const bool isSelected = (selection.selectedObject == objectPtr);
+            EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::GameObject, ImVec2(16.0f, 16.0f));
+            ImGui::SameLine();
             if (ImGui::Selectable(objectPtr->GetName().c_str(), isSelected)) {
                 selection.selectedObject = objectPtr;
+                selection.selectedAsset = nullptr;
+                selection.selectedAssetGuid.clear();
+                selection.selectedAssetPath.clear();
             }
             ImGui::PopID();
         }

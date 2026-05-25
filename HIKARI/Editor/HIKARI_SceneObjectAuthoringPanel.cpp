@@ -6,6 +6,8 @@
 
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_SelectionSyncService.h"
+#include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
+#include "Scene/HIKARI_GameObject.h"
 #include "Scene/Prefab/HIKARI_PrefabDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
@@ -54,12 +56,14 @@ namespace HIKARI {
 #if defined(_DEBUG)
 
         if (ImGui::Button("Create Object")) {
-            SceneObjectData newObject{};
-            newObject.id = SceneObjectId{ context.nextSceneObjectId++ };
-            newObject.name = "GameObject_" + std::to_string(newObject.id.value);
-            scene.GetSceneDocument().objects.push_back(newObject);
+            EDITOR::CreateObjectRequest request{};
+            GameObject* object = EDITOR::CreateEmptyObject(scene, request);
+            context.selection.selectedObject = object;
+            context.selection.selectedAsset = nullptr;
+            context.selection.selectedAssetGuid.clear();
+            context.selection.selectedAssetPath.clear();
             context.sceneDirty = true;
-            selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+            selectionSync.SyncNextSceneObjectId(scene, context.nextSceneObjectId);
         }
 
         if (context.selection.selectedObject != nullptr) {

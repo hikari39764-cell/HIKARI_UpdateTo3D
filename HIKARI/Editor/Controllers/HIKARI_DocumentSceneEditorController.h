@@ -12,6 +12,7 @@
 #include "Editor/HIKARI_StatsPanel.h"
 #include "Editor/HIKARI_DocumentToolbarController.h"
 #include "Editor/HIKARI_TimePanel.h"
+#include "Assets/HIKARI_AssetGuid.h"
 
 namespace HIKARI {
 
@@ -40,6 +41,12 @@ namespace HIKARI {
         void DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugWorkspaceWindow(DocumentSceneBase& scene);
+        void HandleGameViewportAssetDrop(DocumentSceneBase& scene);
+        void DrawPendingSceneOpenModal(DocumentSceneBase& scene);
+        bool OpenSceneAssetFromEditor(DocumentSceneBase& scene, const AssetGuid& sceneGuid);
+
+        AssetGuid pendingSceneOpenGuid_{};
+        std::string viewportDropMessage_{};
     };
 
 } // namespace HIKARI

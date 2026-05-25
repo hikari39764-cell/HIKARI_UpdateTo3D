@@ -220,4 +220,8 @@ namespace HIKARI {
 #endif
     }
 
+    std::string ResourceWorkspacePanel::ConsumeActivatedSceneGuid() const {
+        return assetBrowserPanel_.ConsumeActivatedSceneGuid();
+    }
+
 } // namespace HIKARI

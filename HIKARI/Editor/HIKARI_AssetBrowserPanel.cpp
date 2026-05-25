@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <Windows.h>
@@ -17,9 +18,10 @@
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Assets/Legacy/HIKARI_LegacyAssetJsonMigrator.h"
+#include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
+#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "HIKARI_EditorSelection.h"
 #include "Platform/HIKARI_Win32Window.h"
-#include "Render2D/HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
@@ -70,15 +72,7 @@ namespace HIKARI {
         }
 
         const char* ToAssetIcon(AssetType type) {
-            switch (type) {
-            case AssetType::Model: return "[M]";
-            case AssetType::Scene: return "[Scn]";
-            case AssetType::Sky: return "[S]";
-            case AssetType::Texture: return "[T]";
-            case AssetType::Material: return "[Mat]";
-            case AssetType::VfxEffect: return "[V]";
-            default: return "[?]";
-            }
+            return EDITOR::EditorIconManager::GetAssetFallbackText(type);
         }
 
         std::string ToLowerCopy(std::string value) {
@@ -209,6 +203,44 @@ namespace HIKARI {
             const nlohmann::json sceneJson{
                 { "version", 1 },
                 { "sceneName", sceneName.empty() ? "New Scene" : sceneName },
+                { "systems", nlohmann::json::array({
+                    {
+                        { "systemId", "TransformSystem" },
+                        { "enabled", true },
+                        { "executionOrder", 0 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                    {
+                        { "systemId", "ModelRenderSystem" },
+                        { "enabled", true },
+                        { "executionOrder", 100 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                    {
+                        { "systemId", "AnimationSystem" },
+                        { "enabled", true },
+                        { "executionOrder", 150 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                    {
+                        { "systemId", "VfxSystem" },
+                        { "enabled", true },
+                        { "executionOrder", 200 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                    {
+                        { "systemId", "PhysicsSystem" },
+                        { "enabled", false },
+                        { "executionOrder", 300 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                    {
+                        { "systemId", "ScriptSystem" },
+                        { "enabled", false },
+                        { "executionOrder", 400 },
+                        { "settings", nlohmann::json::object() }
+                    },
+                }) },
                 { "objects", nlohmann::json::array() },
                 { "environment", {
                     { "ambient", {
@@ -730,58 +762,8 @@ namespace HIKARI {
             return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
         }
 
-        int IconAtlasIndexForType(AssetType type) {
-            switch (type) {
-            case AssetType::Texture: return 1;
-            case AssetType::Model: return 2;
-            case AssetType::Material: return 3;
-            case AssetType::Sky: return 4;
-            case AssetType::Scene: return 5;
-            case AssetType::VfxEffect: return 6;
-            default: return 10;
-            }
-        }
-
-        bool DrawIconAtlasCell(int iconIndex, const ImVec2& size) {
-            static int iconAtlasHandle = -2;
-            if (iconAtlasHandle == -2) {
-                iconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(
-                    "editor/asset_icon_atlas",
-                    "HIKARI/Icon/hikari_asset_icons.png");
-            }
-            if (iconAtlasHandle < 0) {
-                return false;
-            }
-
-            const D3D12_GPU_DESCRIPTOR_HANDLE srv =
-                DXTEX::DxTextureManager::GetSrvGpuHandle(iconAtlasHandle);
-            if (srv.ptr == 0) {
-                return false;
-            }
-
-            constexpr int kColumns = 4;
-            constexpr int kRows = 3;
-            const int clampedIndex = (std::max)(0, (std::min)(iconIndex, kColumns * kRows - 1));
-            const int column = clampedIndex % kColumns;
-            const int row = clampedIndex / kColumns;
-            const ImVec2 uv0{
-                static_cast<float>(column) / static_cast<float>(kColumns),
-                static_cast<float>(row) / static_cast<float>(kRows)
-            };
-            const ImVec2 uv1{
-                static_cast<float>(column + 1) / static_cast<float>(kColumns),
-                static_cast<float>(row + 1) / static_cast<float>(kRows)
-            };
-            ImGui::Image(
-                reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(srv.ptr)),
-                size,
-                uv0,
-                uv1);
-            return true;
-        }
-
         bool DrawAssetTypeIcon(AssetType type, const ImVec2& size = ImVec2(18.0f, 18.0f)) {
-            return DrawIconAtlasCell(IconAtlasIndexForType(type), size);
+            return EDITOR::EditorIconManager::DrawAssetIcon(type, size);
         }
 #endif
 
@@ -804,28 +786,30 @@ namespace HIKARI {
         }
 
         void SelectRecord(const AssetRecord& record, EditorSelection& selection) {
+            selection.selectedObject = nullptr;
             selection.selectedAssetGuid = record.guid.value;
             selection.selectedAssetPath = record.sourcePath.generic_string();
             selection.selectedAsset = nullptr;
         }
 
 #if defined(_DEBUG)
-        void DrawAssetDragSource(const AssetRecord& record) {
-            if (!record.guid.IsValid()) {
+        std::string gActivatedSceneGuid{};
+
+        void HandleRecordActivated(const AssetRecord& record, std::string& lastOperationMessage) {
+            if (record.type == AssetType::Scene) {
+                gActivatedSceneGuid = record.guid.value;
+                lastOperationMessage = "Scene open requested: " + record.displayName;
                 return;
             }
-            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-                ImGui::SetDragDropPayload(
-                    "HIKARI_ASSET_GUID",
-                    record.guid.value.c_str(),
-                    record.guid.value.size() + 1u);
-                const std::string displayName = record.displayName.empty()
-                    ? record.sourcePath.filename().string()
-                    : record.displayName;
-                ImGui::Text("%s", displayName.c_str());
-                ImGui::TextDisabled("%s", record.sourcePath.generic_string().c_str());
-                ImGui::EndDragDropSource();
+            if (record.type == AssetType::Model) {
+                lastOperationMessage = "Model selected: " + record.displayName;
+                return;
             }
+            lastOperationMessage = "Asset selected: " + record.displayName;
+        }
+
+        void DrawAssetDragSource(const AssetRecord& record) {
+            EDITOR::BeginAssetDragSource(record);
         }
 
         void DrawRecordContextMenu(
@@ -918,8 +902,8 @@ namespace HIKARI {
                     record->sourcePath.generic_string();
                 if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
                     SelectRecord(*record, selection);
-                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && record->type == AssetType::Model) {
-                        lastOperationMessage = "Model selected: " + record->displayName;
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                        HandleRecordActivated(*record, lastOperationMessage);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1001,8 +985,8 @@ namespace HIKARI {
                     isSelected,
                     ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick)) {
                     SelectRecord(*record, selection);
-                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && record->type == AssetType::Model) {
-                        lastOperationMessage = "Model selected: " + record->displayName;
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                        HandleRecordActivated(*record, lastOperationMessage);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1100,9 +1084,7 @@ namespace HIKARI {
                 }
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                     SelectRecord(*record, selection);
-                    if (record->type == AssetType::Model) {
-                        lastOperationMessage = "Model selected: " + record->displayName;
-                    }
+                    HandleRecordActivated(*record, lastOperationMessage);
                 }
                 if (ImGui::BeginPopupContextItem()) {
                     DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
@@ -1204,6 +1186,9 @@ namespace HIKARI {
             lastOperationMessage_ =
                 "Imported " + std::to_string(result.succeeded) +
                 " assets, failed " + std::to_string(result.failed);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Runs synchronously for now; large BC imports can block the editor.");
         }
         ImGui::SameLine();
         const bool hasSelection = !selection.selectedAssetGuid.empty();
@@ -1370,6 +1355,16 @@ namespace HIKARI {
         (void)selection;
         (void)usageSummary;
         (void)scope;
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeActivatedSceneGuid() const {
+#if defined(_DEBUG)
+        std::string value = std::move(gActivatedSceneGuid);
+        gActivatedSceneGuid.clear();
+        return value;
+#else
+        return {};
 #endif
     }
 

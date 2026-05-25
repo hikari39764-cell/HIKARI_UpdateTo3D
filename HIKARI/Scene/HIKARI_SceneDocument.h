@@ -41,11 +41,19 @@ namespace HIKARI {
         bool enabled = true;
     };
 
+    struct SceneSystemData {
+        std::string systemId{};
+        bool enabled = true;
+        int executionOrder = 0;
+        nlohmann::json settings = nlohmann::json::object();
+    };
+
     struct SceneDocument {
         uint32_t version = 1;
         std::string sceneName = "Untitled";
         SceneEnvironment environment{};
         std::vector<SceneObjectData> objects{};
+        std::vector<SceneSystemData> systems{};
     };
 
 } // namespace HIKARI

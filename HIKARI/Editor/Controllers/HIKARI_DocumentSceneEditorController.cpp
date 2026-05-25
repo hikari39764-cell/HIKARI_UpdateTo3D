@@ -1,14 +1,20 @@
 #include "Editor/HIKARI_DocumentSceneEditorController.h"
 
+#include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
+#include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
+#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
+#include <json.hpp>
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -29,6 +35,14 @@ namespace HIKARI {
                 }
             }
             return false;
+        }
+
+        MATH::Vec3 ComputeDebugCameraForward(const DebugCameraController3D& camera) {
+            const float cp = std::cos(camera.GetPitch());
+            const float sp = std::sin(camera.GetPitch());
+            const float cy = std::cos(camera.GetYaw());
+            const float sy = std::sin(camera.GetYaw());
+            return MATH::Normalize({ sy * cp, sp, cy * cp });
         }
 
 #if defined(_DEBUG)
@@ -98,6 +112,7 @@ namespace HIKARI {
         }
 
         documentToolbarController_.SyncDocumentMeta(scene, context_, selectionSync_);
+        scene.SetUnsavedSceneChanges(context_.sceneDirty);
         if (context_.selection.selectedObject) {
             scene.SetSelectedGizmoObjectId(context_.selection.selectedObject->GetDocumentId());
         } else {
@@ -115,6 +130,7 @@ namespace HIKARI {
 
         if (context_.windows.viewport.gameOnlyMode) {
             DrawGameViewportWindow(scene, true);
+            DrawPendingSceneOpenModal(scene);
             return;
         }
 
@@ -133,6 +149,16 @@ namespace HIKARI {
         }
         if (context_.windows.resources.showAssetBrowser) {
             resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), scene.GetSceneDocument(), context_.selection);
+            const std::string activatedSceneGuid = resourceWorkspacePanel_.ConsumeActivatedSceneGuid();
+            if (!activatedSceneGuid.empty()) {
+                pendingSceneOpenGuid_ = AssetGuid{ activatedSceneGuid };
+                if (context_.sceneDirty || scene.HasUnsavedSceneChanges()) {
+                    ImGui::OpenPopup("Unsaved Scene Changes");
+                } else {
+                    OpenSceneAssetFromEditor(scene, pendingSceneOpenGuid_);
+                    pendingSceneOpenGuid_ = {};
+                }
+            }
         }
         if (context_.windows.resources.showEnvironment) {
             environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState(), &scene.GetAssetRegistry(), &scene.GetAssetDatabase());
@@ -141,6 +167,7 @@ namespace HIKARI {
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);
         }
+        DrawPendingSceneOpenModal(scene);
 #else
         (void)scene;
 #endif
@@ -239,6 +266,7 @@ namespace HIKARI {
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
+            HandleGameViewportAssetDrop(scene);
         } else {
             const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
             ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -246,6 +274,13 @@ namespace HIKARI {
             drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
             drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
+            HandleGameViewportAssetDrop(scene);
+        }
+
+        if (!viewportDropMessage_.empty()) {
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            const ImVec2 textPos{ imageOrigin.x + 14.0f, imageOrigin.y + imageSize.y - 28.0f };
+            drawList->AddText(textPos, IM_COL32(210, 226, 236, 230), viewportDropMessage_.c_str());
         }
 
         ImGui::End();
@@ -256,6 +291,126 @@ namespace HIKARI {
 #endif
     }
 
+    void DocumentSceneEditorController::HandleGameViewportAssetDrop(DocumentSceneBase& scene) {
+#if defined(_DEBUG)
+        EDITOR::DroppedAssetPayload payload{};
+        if (!EDITOR::AcceptAssetDrop(scene.GetAssetDatabase(), payload) || !payload.record) {
+            return;
+        }
+
+        switch (payload.record->type) {
+        case AssetType::Model: {
+            const MATH::Vec3 forward = ComputeDebugCameraForward(scene.GetDebugCamera());
+            EDITOR::CreateObjectRequest request{};
+            request.name = payload.record->displayName.empty()
+                ? payload.record->sourcePath.stem().string()
+                : payload.record->displayName;
+            request.position = scene.GetDebugCamera().GetPosition() + forward * 5.0f;
+
+            GameObject* object = EDITOR::CreateModelObject(scene, payload.guid, request);
+            context_.selection.selectedObject = object;
+            context_.selection.selectedAsset = nullptr;
+            context_.selection.selectedAssetGuid.clear();
+            context_.selection.selectedAssetPath.clear();
+            context_.sceneDirty = true;
+            scene.SetUnsavedSceneChanges(true);
+            selectionSync_.SyncNextSceneObjectId(scene, context_.nextSceneObjectId);
+            viewportDropMessage_ = object
+                ? "Model object created: " + object->GetName()
+                : "Model drop failed";
+            break;
+        }
+        case AssetType::Scene:
+            pendingSceneOpenGuid_ = payload.guid;
+            if (context_.sceneDirty || scene.HasUnsavedSceneChanges()) {
+                ImGui::OpenPopup("Unsaved Scene Changes");
+            } else {
+                OpenSceneAssetFromEditor(scene, payload.guid);
+            }
+            break;
+        case AssetType::VfxEffect:
+            viewportDropMessage_ = "VFX drop target not implemented yet";
+            break;
+        case AssetType::Texture:
+        case AssetType::Material:
+            viewportDropMessage_ = "Texture/Material viewport drop is not implemented yet";
+            break;
+        default:
+            viewportDropMessage_ = "This asset type cannot be dropped into Game View yet";
+            break;
+        }
+#else
+        (void)scene;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawPendingSceneOpenModal(DocumentSceneBase& scene) {
+#if defined(_DEBUG)
+        bool openModal = true;
+        if (!ImGui::BeginPopupModal("Unsaved Scene Changes", &openModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            return;
+        }
+
+        ImGui::TextUnformatted("Current scene has unsaved changes.");
+        ImGui::TextDisabled("Save before opening the dropped Scene asset?");
+        ImGui::Separator();
+
+        if (ImGui::Button("Save", ImVec2(96.0f, 0.0f))) {
+            if (scene.SaveCurrentSceneDocument()) {
+                context_.sceneDirty = false;
+                OpenSceneAssetFromEditor(scene, pendingSceneOpenGuid_);
+                pendingSceneOpenGuid_ = {};
+                ImGui::CloseCurrentPopup();
+            } else {
+                viewportDropMessage_ = "Save failed; scene was not opened";
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Discard", ImVec2(96.0f, 0.0f))) {
+            context_.sceneDirty = false;
+            scene.SetUnsavedSceneChanges(false);
+            OpenSceneAssetFromEditor(scene, pendingSceneOpenGuid_);
+            pendingSceneOpenGuid_ = {};
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(96.0f, 0.0f))) {
+            pendingSceneOpenGuid_ = {};
+            viewportDropMessage_ = "Scene open cancelled";
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+#else
+        (void)scene;
+#endif
+    }
+
+    bool DocumentSceneEditorController::OpenSceneAssetFromEditor(DocumentSceneBase& scene, const AssetGuid& sceneGuid) {
+        if (!sceneGuid.IsValid()) {
+            viewportDropMessage_ = "Invalid scene asset";
+            return false;
+        }
+
+        const bool opened = scene.OpenSceneAssetNow(sceneGuid);
+        if (!opened) {
+            viewportDropMessage_ = "Scene asset open failed";
+            return false;
+        }
+
+        context_.selection.selectedObject = nullptr;
+        context_.selection.selectedAsset = nullptr;
+        context_.selection.selectedAssetGuid = sceneGuid.value;
+        context_.selection.selectedAssetPath.clear();
+        context_.sceneDirty = false;
+        scene.SetUnsavedSceneChanges(false);
+        context_.sceneNameEditBuffer = scene.GetSceneDocument().sceneName;
+        context_.saveAsNameBuffer = scene.GetSceneDocument().sceneName;
+        selectionSync_.SyncNextSceneObjectId(scene, context_.nextSceneObjectId);
+        viewportDropMessage_ = "Scene opened: " + scene.GetSceneDocument().sceneName;
+        return true;
+    }
+
     void DocumentSceneEditorController::DrawSceneWorkspaceWindow(DocumentSceneBase& scene) {
 #if defined(_DEBUG)
         if (!ImGui::Begin("Scene Workspace")) {
@@ -264,19 +419,70 @@ namespace HIKARI {
         }
 
         if (ImGui::BeginTabBar("SceneWorkspaceTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
-            if (ImGui::BeginTabItem("Document")) {
-                ImGui::SeparatorText("Scene Document");
-                documentToolbarController_.DrawContents(scene, context_, selectionSync_);
+            if (ImGui::BeginTabItem("Objects")) {
+                ImGui::SeparatorText("Objects");
+                ImGui::TextDisabled("Current scene object list");
+                hierarchyPanel_.DrawContents(scene.GetWorld(), context_.selection);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Create")) {
-                ImGui::SeparatorText("Object Authoring");
+                ImGui::SeparatorText("Create Object");
                 sceneObjectAuthoringPanel_.DrawContents(scene, context_, selectionSync_);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Objects")) {
-                ImGui::SeparatorText("Hierarchy");
-                hierarchyPanel_.DrawContents(scene.GetWorld(), context_.selection);
+            if (ImGui::BeginTabItem("Scene")) {
+                ImGui::SeparatorText("Scene File");
+                documentToolbarController_.DrawContents(scene, context_, selectionSync_);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Systems")) {
+                ImGui::SeparatorText("Scene Systems");
+                ImGui::TextDisabled("Runtime switching is reserved; this edits scene document data for now.");
+
+                SceneDocument& document = scene.GetSceneDocument();
+                if (document.systems.empty()) {
+                    document.systems = {
+                        SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
+                        SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
+                        SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
+                        SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
+                        SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
+                        SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
+                    };
+                }
+
+                if (ImGui::BeginTable("SceneSystemsTable", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+                    ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+                    ImGui::TableSetupColumn("System");
+                    ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 96.0f);
+                    ImGui::TableHeadersRow();
+
+                    for (SceneSystemData& system : document.systems) {
+                        ImGui::PushID(system.systemId.c_str());
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+                        if (ImGui::Checkbox("##enabled", &system.enabled)) {
+                            context_.sceneDirty = true;
+                            scene.SetUnsavedSceneChanges(true);
+                        }
+
+                        ImGui::TableSetColumnIndex(1);
+                        EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::System, ImVec2(16.0f, 16.0f));
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted(system.systemId.c_str());
+
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::SetNextItemWidth(-1.0f);
+                        if (ImGui::DragInt("##order", &system.executionOrder, 1.0f, -10000, 10000)) {
+                            context_.sceneDirty = true;
+                            scene.SetUnsavedSceneChanges(true);
+                        }
+                        ImGui::PopID();
+                    }
+
+                    ImGui::EndTable();
+                }
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();

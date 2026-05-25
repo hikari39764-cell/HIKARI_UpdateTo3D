@@ -3,6 +3,7 @@
 #include <fstream>
 #include <algorithm>
 #include <array>
+#include <utility>
 
 #include <json.hpp>
 
@@ -293,6 +294,64 @@ namespace HIKARI {
                 environment.post.valuesInitialized = post.value("valuesInitialized", hasParamValues);
             }
         }
+
+        std::vector<SceneSystemData> CreateDefaultSceneSystems() {
+            return {
+                SceneSystemData{ "TransformSystem", true, 0, json::object() },
+                SceneSystemData{ "ModelRenderSystem", true, 100, json::object() },
+                SceneSystemData{ "AnimationSystem", true, 150, json::object() },
+                SceneSystemData{ "VfxSystem", true, 200, json::object() },
+                SceneSystemData{ "PhysicsSystem", false, 300, json::object() },
+                SceneSystemData{ "ScriptSystem", false, 400, json::object() },
+            };
+        }
+
+        void DeserializeSystems(const json& in, SceneDocument& outDocument) {
+            outDocument.systems.clear();
+            if (!in.is_array()) {
+                outDocument.systems = CreateDefaultSceneSystems();
+                return;
+            }
+
+            for (const json& node : in) {
+                if (!node.is_object()) {
+                    continue;
+                }
+
+                SceneSystemData system{};
+                system.systemId = node.value("systemId", std::string{});
+                if (system.systemId.empty()) {
+                    continue;
+                }
+                system.enabled = node.value("enabled", true);
+                system.executionOrder = node.value("executionOrder", 0);
+                system.settings = node.value("settings", json::object());
+                if (!system.settings.is_object()) {
+                    system.settings = json::object();
+                }
+                outDocument.systems.push_back(std::move(system));
+            }
+
+            if (outDocument.systems.empty()) {
+                outDocument.systems = CreateDefaultSceneSystems();
+            }
+        }
+
+        void SerializeSystems(const SceneDocument& document, json& out) {
+            out = json::array();
+            const std::vector<SceneSystemData> systems = document.systems.empty()
+                ? CreateDefaultSceneSystems()
+                : document.systems;
+
+            for (const SceneSystemData& system : systems) {
+                out.push_back({
+                    { "systemId", system.systemId },
+                    { "enabled", system.enabled },
+                    { "executionOrder", system.executionOrder },
+                    { "settings", system.settings.is_object() ? system.settings : json::object() }
+                });
+            }
+        }
     }
 
     bool SceneSerializer::LoadFromFile(const std::string& path, SceneDocument& outDocument) const {
@@ -313,6 +372,8 @@ namespace HIKARI {
         if (root.contains("environment") && root["environment"].is_object()) {
             DeserializeEnvironment(root["environment"], outDocument.environment);
         }
+
+        DeserializeSystems(root.value("systems", json{}), outDocument);
 
         if (root.contains("objects") && root["objects"].is_array()) {
             for (const json& node : root["objects"]) {
@@ -363,6 +424,7 @@ namespace HIKARI {
         root["sceneName"] = document.sceneName;
 
         SerializeEnvironment(document.environment, root["environment"]);
+        SerializeSystems(document, root["systems"]);
 
         root["objects"] = json::array();
         for (const SceneObjectData& object : document.objects) {
