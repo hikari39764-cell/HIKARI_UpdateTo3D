@@ -57,7 +57,7 @@ namespace HIKARI {
             return false;
         }
 
-        // プロジェクト設定は GUID だけを保存し、Scene の中身は Asset 側に任せる。
+        // ProjectSettings は参照 GUID だけを保持し、Scene 本体は Asset 側に置く。
         const nlohmann::json root{
             { "version", settings_.version },
             { "startupSceneGuid", settings_.startupSceneGuid.value },

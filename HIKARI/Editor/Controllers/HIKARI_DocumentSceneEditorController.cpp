@@ -4,6 +4,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Core/HIKARI_Logger.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -165,8 +166,10 @@ namespace HIKARI {
                     context_.sceneDirty = false;
                     scene.SetUnsavedSceneChanges(false);
                     viewportDropMessage_ = "Scene saved to selected asset";
+                    HIKARI_LOG_INFO("[SceneAsset] save scene: " + saveSceneAsGuid);
                 } else {
                     viewportDropMessage_ = "Scene save target failed";
+                    HIKARI_LOG_WARN("[SceneAsset] save scene failed: " + saveSceneAsGuid);
                 }
             }
 
@@ -416,6 +419,7 @@ namespace HIKARI {
         const bool opened = scene.OpenSceneAssetNow(sceneGuid);
         if (!opened) {
             viewportDropMessage_ = "Scene asset open failed";
+            HIKARI_LOG_WARN("[SceneAsset] open scene failed: " + sceneGuid.value);
             return false;
         }
 
@@ -429,6 +433,7 @@ namespace HIKARI {
         context_.saveAsNameBuffer = scene.GetSceneDocument().sceneName;
         selectionSync_.SyncNextSceneObjectId(scene, context_.nextSceneObjectId);
         viewportDropMessage_ = "Scene opened: " + scene.GetSceneDocument().sceneName;
+        HIKARI_LOG_INFO("[SceneAsset] open scene: " + sceneGuid.value);
         return true;
     }
 

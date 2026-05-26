@@ -54,6 +54,11 @@ namespace HIKARI {
         mutable int viewMode_ = 0;
         mutable bool recursive_ = false;
         mutable std::string lastOperationMessage_{};
+        mutable std::string activatedSceneGuid_{};
+        mutable std::string saveSceneAsGuid_{};
+        mutable std::string renameSceneGuid_{};
+        mutable std::string deleteSceneGuid_{};
+        mutable std::array<char, 128> renameSceneNameBuffer_{};
     };
 
 } // namespace HIKARI
