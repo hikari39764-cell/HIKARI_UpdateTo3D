@@ -4,6 +4,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <cstdio>
 #include <json.hpp>
 
 #if defined(_DEBUG)
@@ -148,7 +150,26 @@ namespace HIKARI {
             DrawSceneWorkspaceWindow(scene);
         }
         if (context_.windows.resources.showAssetBrowser) {
-            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), scene.GetSceneDocument(), context_.selection);
+            ProjectSettingsService projectSettings{};
+            projectSettings.Load(scene.GetAssetDatabase().GetProjectRoot());
+            const ResourceWorkspaceContext resourceContext{
+                scene.GetCurrentSceneAssetGuid(),
+                projectSettings.GetSettings().startupSceneGuid,
+                context_.sceneDirty || scene.HasUnsavedSceneChanges()
+            };
+            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), scene.GetSceneDocument(), context_.selection, resourceContext);
+
+            const std::string saveSceneAsGuid = resourceWorkspacePanel_.ConsumeSaveSceneAsGuid();
+            if (!saveSceneAsGuid.empty()) {
+                if (scene.SaveCurrentSceneDocumentAs(AssetGuid{ saveSceneAsGuid })) {
+                    context_.sceneDirty = false;
+                    scene.SetUnsavedSceneChanges(false);
+                    viewportDropMessage_ = "Scene saved to selected asset";
+                } else {
+                    viewportDropMessage_ = "Scene save target failed";
+                }
+            }
+
             const std::string activatedSceneGuid = resourceWorkspacePanel_.ConsumeActivatedSceneGuid();
             if (!activatedSceneGuid.empty()) {
                 pendingSceneOpenGuid_ = AssetGuid{ activatedSceneGuid };
@@ -430,9 +451,32 @@ namespace HIKARI {
                 sceneObjectAuthoringPanel_.DrawContents(scene, context_, selectionSync_);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Scene")) {
-                ImGui::SeparatorText("Scene File");
-                documentToolbarController_.DrawContents(scene, context_, selectionSync_);
+            if (ImGui::BeginTabItem("Scene Settings")) {
+                ImGui::SeparatorText("Current Scene");
+                SceneDocument& document = scene.GetSceneDocument();
+                char sceneNameBuffer[128]{};
+                std::snprintf(sceneNameBuffer, sizeof(sceneNameBuffer), "%s", document.sceneName.c_str());
+                if (ImGui::InputText("Name", sceneNameBuffer, sizeof(sceneNameBuffer))) {
+                    document.sceneName = sceneNameBuffer;
+                    context_.sceneNameEditBuffer = document.sceneName;
+                    context_.sceneDirty = true;
+                    scene.SetUnsavedSceneChanges(true);
+                }
+
+                const AssetGuid& currentSceneGuid = scene.GetCurrentSceneAssetGuid();
+                ImGui::Text("Asset GUID: %s", currentSceneGuid.IsValid() ? currentSceneGuid.value.c_str() : "<transient>");
+                ImGui::TextWrapped("Path: %s", scene.GetScenePath().empty() ? "<not saved as Scene Asset>" : scene.GetScenePath().c_str());
+                ImGui::Text("Dirty: %s", (context_.sceneDirty || scene.HasUnsavedSceneChanges()) ? "Yes" : "No");
+
+                ImGui::Spacing();
+                ImGui::TextDisabled("Scene file operations are handled in Resource Workspace.");
+                ImGui::SeparatorText("Environment Summary");
+                const SceneEnvironment& environment = scene.GetSceneEnvironment();
+                ImGui::Text("Sky: %s", environment.sky.skyAsset.empty() ? "<none>" : environment.sky.skyAsset.c_str());
+                ImGui::Text("Directional Light: %s / %.2f",
+                    environment.directional.enabled ? "Enabled" : "Disabled",
+                    environment.directional.intensity);
+                ImGui::Text("Ambient: %.2f", environment.ambient.intensity);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Systems")) {

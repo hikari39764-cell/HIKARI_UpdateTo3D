@@ -20,13 +20,14 @@ using Microsoft::WRL::ComPtr;
 namespace HIKARI::GFX {
 
 namespace {
+	// バックバッファに対するレターボックスの位置とサイズを計算する。座標とサイズはバックバッファに対するピクセル単位。
     struct LetterboxRect {
         float x;
         float y;
         float width;
         float height;
     };
-
+	// 画面サイズとバックバッファサイズから、レターボックスの位置とサイズを計算する。
     static LetterboxRect ComputeLetterboxRect(int backBufferW, int backBufferH) {
         if (backBufferW <= 0 || backBufferH <= 0) {
             return { 0.0f, 0.0f, 1.0f, 1.0f };
@@ -58,7 +59,7 @@ namespace {
 }
 
 namespace {
-
+	// エラーコードをログに出力する
 void LogHr(const char* stage, HRESULT hr) {
     char buf[256]{};
     std::snprintf(buf, sizeof(buf), "[Dx12Core] %s failed. hr=0x%08lX\n", stage, static_cast<unsigned long>(hr));
@@ -68,7 +69,7 @@ void LogHr(const char* stage, HRESULT hr) {
 }
 
 }
-
+// Dx12Core の初期化。失敗した場合は false を返す。
 bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     HIKARI_LOG_D3D12("Dx12Core initialization started.");
 
@@ -79,7 +80,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     GfxDebugConfig debugConfig = GetGfxDebugConfig();
     debugConfig.enableDebugLayer = enableDebugLayer && debugConfig.enableDebugLayer;
     SetGfxDebugConfig(debugConfig);
-
+	// デバッグレイヤーと GPU ベースのバリデーションを有効にする
 #ifdef _DEBUG
     if (debugConfig.enableDebugLayer) {
         ComPtr<ID3D12Debug> debug;
@@ -177,6 +178,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
         LogHr("Create RTV Heap", hr);
         return false;
     }
+	
     SetD3D12Name(rtvHeap_.Get(), L"HIKARI SwapChain RTV Heap");
     rtvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     HIKARI_LOG_D3D12("RTV heap created.");
@@ -244,7 +246,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     HIKARI_LOG_D3D12("Dx12Core initialization completed.");
     return true;
 }
-
+// スワップチェインのバックバッファを取得し、RTV を作成する
 void Dx12Core::CreateSwapChainResources() {
     auto rtv = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     for (uint32_t i = 0; i < kFrameCount; ++i) {
@@ -259,7 +261,7 @@ void Dx12Core::CreateSwapChainResources() {
         rtv.ptr += rtvDescriptorSize_;
     }
 }
-
+// 深度バッファを作成し、DSV と SRV を作成する
 void Dx12Core::CreateDepthBuffer() {
     D3D12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
         DXGI_FORMAT_R32_TYPELESS, static_cast<UINT64>(width_), static_cast<UINT>(height_), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
@@ -309,14 +311,14 @@ void Dx12Core::CreateDepthBuffer() {
 
     device_->CreateShaderResourceView(depthBuffer_.Get(), &srv, sceneDepthSrvCpu_);
 }
-
+// Dx12Core の終了処理。GPU の完了を待ち、リソースを解放する。
 void Dx12Core::Shutdown() {
     WaitGPU();
     deferredReleaseQueue_.FlushAll();
     if (fenceEvent_) CloseHandle(fenceEvent_);
     fenceEvent_ = nullptr;
 }
-
+// フレームの開始処理
 void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA) {
     allocators_[frameIndex_]->Reset();
     cmdList_->Reset(allocators_[frameIndex_].Get(), nullptr);
@@ -357,7 +359,7 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
     cmdList_->RSSetViewports(1, &vp);
     cmdList_->RSSetScissorRects(1, &sc);
 }
-
+// フレームの終了処理
 void Dx12Core::EndFrame() {
     resourceStates_.Transition(
         cmdList_.Get(),
@@ -376,7 +378,7 @@ void Dx12Core::EndFrame() {
 
     MoveToNextFrame();
 }
-
+// GPU の完了を待ち、GPU が使用しているリソースの解放を行う
 void Dx12Core::WaitGPU() {
     const uint64_t signal = fenceValue_;
     queue_->Signal(fence_.Get(), signal);
@@ -387,7 +389,7 @@ void Dx12Core::WaitGPU() {
     }
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
 }
-
+// フレームを進める。現在のフレームの完了を待ち、次のフレームのバックバッファを取得する。
 void Dx12Core::MoveToNextFrame() {
     const uint64_t signal = fenceValue_;
     queue_->Signal(fence_.Get(), signal);
@@ -400,7 +402,7 @@ void Dx12Core::MoveToNextFrame() {
     }
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
 }
-
+// ウィンドウサイズの変更に伴うリソースの再作成。GPU の完了を待ち、古いリソースを解放してから、新しいスワップチェインのバッファと深度バッファを作成する。
 void Dx12Core::Resize(int w, int h) {
     if (w <= 0 || h <= 0) return;
     WaitGPU();
@@ -418,39 +420,39 @@ void Dx12Core::Resize(int w, int h) {
     CreateSwapChainResources();
     CreateDepthBuffer();
 }
-
+// 現在のフレームの RTV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::CurrentRTV() const {
     auto handle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += rtvDescriptorSize_ * frameIndex_;
     return handle;
 }
-
+// DSV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::DSV() const {
     return dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 }
-
+// 読み取り専用 DSV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::ReadOnlyDSV() const {
     auto handle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += dsvDescriptorSize_;
     return handle;
 }
-
+// 深度バッファの SRV ハンドルを取得する
 D3D12_GPU_DESCRIPTOR_HANDLE Dx12Core::SceneDepthSrv() const {
     return sceneDepthSrvGpu_;
 }
-
+// 深度バッファのリソースを取得する
 ID3D12Resource* Dx12Core::SceneDepthResource() const {
     return depthBuffer_.Get();
 }
-
+// 現在のフレームのバックバッファリソースを取得する
 ID3D12Resource* Dx12Core::CurrentBackBuffer() {
     return backBuffers_[frameIndex_].Get();
 }
-
+// GPU による遅延解放の保留数を取得する
 size_t Dx12Core::GetPendingDeferredReleaseCount() const {
     return deferredReleaseQueue_.GetPendingCount();
 }
-
+// 現在のコンテキストを構築して返す。Context には、コマンドリストやリソースのハンドルなど、描画に必要な情報が含まれる。
 Context Dx12Core::BuildContext() const {
     Context ctx{};
     ctx.device = device_.Get();

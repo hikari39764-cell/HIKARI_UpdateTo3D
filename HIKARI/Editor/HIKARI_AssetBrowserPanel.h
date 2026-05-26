@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <string>
 
+#include "Assets/HIKARI_AssetGuid.h"
+
 namespace HIKARI {
 
     class AssetDatabase;
@@ -24,6 +26,12 @@ namespace HIKARI {
         Vfx,
     };
 
+    struct AssetBrowserContext {
+        AssetGuid currentSceneGuid{};
+        AssetGuid startupSceneGuid{};
+        bool currentSceneDirty = false;
+    };
+
     class AssetBrowserPanel {
     public:
         void Draw(ModelManager& modelManager, EditorSelection& selection) const;
@@ -33,8 +41,10 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             EditorSelection& selection,
             const AssetUsageSummary* usageSummary,
-            AssetBrowserScope scope) const;
+            AssetBrowserScope scope,
+            const AssetBrowserContext* context = nullptr) const;
         std::string ConsumeActivatedSceneGuid() const;
+        std::string ConsumeSaveSceneAsGuid() const;
 
     private:
         mutable std::filesystem::path currentDirectory_{ "Assets" };

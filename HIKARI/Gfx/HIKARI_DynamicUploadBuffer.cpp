@@ -3,14 +3,15 @@
 #include <d3dx12.h>
 
 using namespace HIKARI::DX;
-
+// 256 バイト境界にサイズを切り上げる
 static inline size_t Align256(size_t size) {
     return (size + 255) & ~255;
 }
-
+// DynamicUploadBuffer クラスの実装
 DynamicUploadBuffer::DynamicUploadBuffer() {}
 DynamicUploadBuffer::~DynamicUploadBuffer() {}
 
+// バッファを初期化する。device には ID3D12Device のポインタを、bufferSize にはバッファのサイズを指定する
 void DynamicUploadBuffer::Init(ID3D12Device* device, size_t bufferSize)
 {
     bufferSize_ = Align256(bufferSize);
@@ -33,7 +34,7 @@ void DynamicUploadBuffer::Init(ID3D12Device* device, size_t bufferSize)
 
     offset_ = 0;
 }
-
+// バッファから size バイト分の領域を確保し、その CPU アドレスを返す。gpuAddress には対応する GPU アドレスが格納される
 void* DynamicUploadBuffer::Allocate(size_t size, D3D12_GPU_VIRTUAL_ADDRESS& gpuAddress)
 {
     size_t aligned = Align256(size);
@@ -49,6 +50,7 @@ void* DynamicUploadBuffer::Allocate(size_t size, D3D12_GPU_VIRTUAL_ADDRESS& gpuA
 
     return cpuAddr;
 }
+// バッファを解放する。バッファが存在する場合は Unmap し、リセットする
 void DynamicUploadBuffer::Finalize()
 {
     if (buffer_) {
@@ -60,7 +62,7 @@ void DynamicUploadBuffer::Finalize()
     offset_ = 0;
     bufferSize_ = 0;
 }
-
+// バッファのオフセットをリセットする
 void DynamicUploadBuffer::Reset()
 {
     offset_ = 0;

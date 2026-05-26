@@ -262,26 +262,47 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::SceneIdPicker(std::string_view label, std::string& value) {
 #if defined(_DEBUG)
-        if (!context_.sceneCatalog) {
+        if (!context_.assetDatabase) {
             return String(label, value);
         }
 
-        std::vector<std::string> sceneIds = context_.sceneCatalog->GetSceneIds();
-        std::sort(sceneIds.begin(), sceneIds.end());
+        std::vector<const AssetRecord*> sceneRecords = context_.assetDatabase->CollectByType(AssetType::Scene);
+        std::sort(sceneRecords.begin(), sceneRecords.end(), [](const AssetRecord* lhs, const AssetRecord* rhs) {
+            if (!lhs || !rhs) {
+                return lhs < rhs;
+            }
+            return lhs->displayName < rhs->displayName;
+        });
 
         bool changed = false;
         const std::string labelText(label);
         const std::string previewText = value.empty() ? std::string("<none>") : value;
         if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
-            if (sceneIds.empty()) {
-                ImGui::TextDisabled("No scenes registered");
+            // Scene 遷移先は Scene Asset の GUID で選ぶ。
+            if (ImGui::Selectable("<none>", value.empty())) {
+                value.clear();
+                changed = true;
             }
-            for (const std::string& sceneId : sceneIds) {
-                const bool selected = (sceneId == value);
-                ImGui::PushID(sceneId.c_str());
-                if (ImGui::Selectable(sceneId.c_str(), selected)) {
-                    value = sceneId;
+            if (sceneRecords.empty()) {
+                ImGui::TextDisabled("No scene assets");
+            }
+            for (const AssetRecord* record : sceneRecords) {
+                if (!record || !record->guid.IsValid()) {
+                    continue;
+                }
+                const bool selected = (record->guid.value == value);
+                const std::string itemText = record->displayName.empty()
+                    ? record->sourcePath.filename().string()
+                    : record->displayName;
+                ImGui::PushID(record->guid.value.c_str());
+                if (ImGui::Selectable(itemText.c_str(), selected)) {
+                    value = record->guid.value;
                     changed = true;
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("%s\n%s",
+                        record->sourcePath.generic_string().c_str(),
+                        record->guid.value.c_str());
                 }
                 if (selected) {
                     ImGui::SetItemDefaultFocus();
@@ -289,6 +310,13 @@ namespace HIKARI {
                 ImGui::PopID();
             }
             ImGui::EndCombo();
+        }
+
+        if (!value.empty()) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Copy")) {
+                ImGui::SetClipboardText(value.c_str());
+            }
         }
 
         return changed;

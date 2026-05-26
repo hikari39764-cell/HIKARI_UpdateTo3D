@@ -1,0 +1,17 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Untitled.scene",
+  "guid": "c8632751c0a5a5d411f1a1a51455b114",
+  "importSettings": {
+    "cookScene": false,
+    "futureOutputFormat": "HSCENE",
+    "runtimeLoader": "SceneSerializer",
+    "sourceFormat": ".json"
+  },
+  "importerId": "SceneImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Scenes/Untitled.scene.json",
+  "type": "Scene"
+}

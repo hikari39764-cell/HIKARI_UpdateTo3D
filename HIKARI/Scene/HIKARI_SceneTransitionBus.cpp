@@ -8,6 +8,8 @@
 #include "HIKARI_SceneInstanceCache.h"
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
+#include "Assets/HIKARI_AssetGuid.h"
+#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Transition/HIKARI_TransitionProfile.h"
 
 namespace HIKARI {
@@ -17,10 +19,7 @@ namespace HIKARI {
     }
 
     bool SceneTransitionBus::RequestTransition(const SceneTransitionRequest& request) {
-        if (request.targetSceneId.empty()) {
-            return false;
-        }
-        if (!sceneCatalog_.Find(request.targetSceneId)) {
+        if (!IsValidAssetGuid(request.targetSceneAssetGuid)) {
             return false;
         }
 
@@ -60,56 +59,31 @@ namespace HIKARI {
             break;
 
         case TransitionState::SwitchingScene: {
-            RuntimeSceneContext::SetPendingSceneEntry(pendingRequest_->targetSceneId, pendingRequest_->targetSpawnPointId);
-            IScene* currentScene = sceneManager_.GetCurrentScene();
-            bool callOnExitCurrent = true;
-            if (currentScene) {
-                const SceneCatalogEntry* currentEntry = sceneCatalog_.Find(currentScene->GetSceneId());
-                bool shouldKeepCurrentAlive = currentEntry && currentEntry->lifetimePolicy == SceneLifetimePolicy::KeepAlive;
-                if (pendingRequest_->keepCurrentSceneAliveOverride.has_value()) {
-                    shouldKeepCurrentAlive = pendingRequest_->keepCurrentSceneAliveOverride.value();
-                }
-
-                if (shouldKeepCurrentAlive && currentEntry) {
-                    std::unique_ptr<IScene> cachedCurrent = sceneManager_.TakeCurrentScene();
-                    sceneCache_.Store(currentEntry->sceneId, std::move(cachedCurrent));
-                    callOnExitCurrent = false;
-                }
-            }
-
-            std::unique_ptr<IScene> nextScene{};
-            bool callOnEnterNext = true;
-            const SceneCatalogEntry* targetEntry = sceneCatalog_.Find(pendingRequest_->targetSceneId);
-            bool shouldReloadTarget = !targetEntry || targetEntry->lifetimePolicy == SceneLifetimePolicy::ReloadOnEnter;
-            if (pendingRequest_->reloadTargetSceneOverride.has_value()) {
-                shouldReloadTarget = pendingRequest_->reloadTargetSceneOverride.value();
-            }
-
-            if (!shouldReloadTarget && targetEntry) {
-                nextScene = sceneCache_.Take(targetEntry->sceneId);
-                if (nextScene) {
-                    callOnEnterNext = false;
-                    lastSceneLoadedFromCache_ = true;
-                }
-            } else if (targetEntry) {
-                sceneCache_.Clear(targetEntry->sceneId);
-            }
-
-            if (!nextScene) {
-                nextScene = sceneFactory_.CreateScene(pendingRequest_->targetSceneId);
+            if (!pendingRequest_->targetSceneAssetGuid.empty()) {
+                // Scene Asset GUID を現在の DocumentScene に読み込む。
+                RuntimeSceneContext::SetPendingSceneEntry(pendingRequest_->targetSceneAssetGuid, pendingRequest_->targetSpawnPointId);
+                IScene* currentScene = sceneManager_.GetCurrentScene();
+                DocumentSceneBase* documentScene = dynamic_cast<DocumentSceneBase*>(currentScene);
+                const bool opened = documentScene &&
+                    documentScene->OpenSceneAssetNow(AssetGuid{ pendingRequest_->targetSceneAssetGuid });
                 lastSceneLoadedFromCache_ = false;
-            }
-            if (nextScene) {
-                sceneManager_.ChangeScene(std::move(nextScene), callOnEnterNext, callOnExitCurrent);
+
+                if (!opened) {
+                    state_ = TransitionState::Idle;
+                    pendingRequest_.reset();
+                    break;
+                }
+
+                if (pendingRequest_->useTransition) {
+                    state_ = TransitionState::TransitionIn;
+                    timer_ = 0.0f;
+                } else {
+                    state_ = TransitionState::Idle;
+                    pendingRequest_.reset();
+                }
+                break;
             }
 
-            if (pendingRequest_->useTransition) {
-                state_ = TransitionState::TransitionIn;
-                timer_ = 0.0f;
-            } else {
-                state_ = TransitionState::Idle;
-                pendingRequest_.reset();
-            }
             break;
         }
 

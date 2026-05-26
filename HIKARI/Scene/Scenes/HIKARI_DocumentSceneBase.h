@@ -63,9 +63,15 @@ namespace HIKARI {
         bool RebuildRuntimeWorld();
         bool RequestOpenSceneAsset(const AssetGuid& sceneGuid);
         bool OpenSceneAssetNow(const AssetGuid& sceneGuid);
+        bool OpenStartupSceneAsset();
+        bool CreateTransientEmptySceneDocument();
         bool HasUnsavedSceneChanges() const;
         void SetUnsavedSceneChanges(bool dirty);
         bool SaveCurrentSceneDocument();
+        bool SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid);
+        const AssetGuid& GetCurrentSceneAssetGuid() const;
+        bool IsCurrentSceneAsset(const AssetGuid& guid) const;
+        std::string GetCurrentSceneDisplayName() const;
 
         void SetComponentGizmoState(const ComponentGizmoState& state);
         void SetViewportOverlayState(const ViewportOverlayState& state);

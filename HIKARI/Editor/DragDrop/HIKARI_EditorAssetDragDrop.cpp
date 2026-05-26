@@ -10,7 +10,7 @@
 #endif
 
 namespace HIKARI::EDITOR {
-
+    
     bool BeginAssetDragSource(const AssetRecord& record) {
 #if defined(_DEBUG)
         if (!record.guid.IsValid()) {

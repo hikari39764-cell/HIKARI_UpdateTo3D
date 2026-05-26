@@ -27,7 +27,7 @@ namespace HIKARI {
         bool IsDebugDrawRectEnabled() const;
         const ScreenRect& GetScreenRect() const;
         uint32_t GetDebugColorRgba() const;
-        const std::string& GetTargetSceneId() const;
+        const std::string& GetTargetSceneAssetGuid() const;
 
     private:
         bool IsMouseInsideRect() const;
@@ -36,11 +36,9 @@ namespace HIKARI {
         bool enabled_ = true;
         ScreenRect screenRect_{};
         bool requireLeftClick_ = true;
-        std::string targetSceneId_{ "Title" };
+        std::string targetSceneAssetGuid_{};
         std::string transitionProfileId_{ "noise_wipe" };
         bool useTransition_ = true;
-        bool keepCurrentSceneAlive_ = false;
-        bool reloadTargetScene_ = false;
         bool debugDrawRect_ = true;
         uint32_t debugColorRgba_ = 0xFFCC33FF;
     };

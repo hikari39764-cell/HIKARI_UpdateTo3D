@@ -11,13 +11,21 @@ namespace HIKARI {
     struct EditorSelection;
     struct SceneDocument;
 
+    struct ResourceWorkspaceContext {
+        AssetGuid currentSceneGuid{};
+        AssetGuid startupSceneGuid{};
+        bool currentSceneDirty = false;
+    };
+
     class ResourceWorkspacePanel {
     public:
         void Draw(
             AssetDatabase& assetDatabase,
             const SceneDocument& sceneDocument,
-            EditorSelection& selection) const;
+            EditorSelection& selection,
+            const ResourceWorkspaceContext& context) const;
         std::string ConsumeActivatedSceneGuid() const;
+        std::string ConsumeSaveSceneAsGuid() const;
 
     private:
         mutable AssetBrowserPanel assetBrowserPanel_{};

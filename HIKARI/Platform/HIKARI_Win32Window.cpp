@@ -104,7 +104,7 @@ void Win32Window::Shutdown() {
     }
     running_ = false;
 }
-
+// メッセージループを処理する。WM_QUIT メッセージが来たら false を返す。それ以外は true を返す。
 bool Win32Window::PumpMessages() {
     MSG msg{};
     while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -117,13 +117,13 @@ bool Win32Window::PumpMessages() {
     }
     return running_;
 }
-
+// マウスホイールのデルタを消費する。呼び出すと現在のデルタが返され、内部のデルタはリセットされる。
 float Win32Window::ConsumeMouseWheelDelta() {
     const float delta = mouseWheelDelta_;
     mouseWheelDelta_ = 0.0f;
     return delta;
 }
-
+//
 LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     Win32Window* window = nullptr;
     if (msg == WM_NCCREATE) {

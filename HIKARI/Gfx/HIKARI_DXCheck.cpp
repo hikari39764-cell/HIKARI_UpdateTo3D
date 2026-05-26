@@ -6,14 +6,14 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 
 namespace HIKARI::GFX {
-
+	// HRESULT を 16 進数の文字列にフォーマットする
     std::string FormatHRESULT(HRESULT hr) {
         std::ostringstream oss;
         oss << "0x" << std::uppercase << std::hex << std::setw(8) << std::setfill('0')
             << static_cast<unsigned long>(hr);
         return oss.str();
     }
-
+	// HRESULT をシステムから取得したエラーメッセージに変換する
     std::string HResultToString(HRESULT hr) {
         LPSTR messageBuffer = nullptr;
         const DWORD size = FormatMessageA(
@@ -36,7 +36,7 @@ namespace HIKARI::GFX {
         }
         return message;
     }
-
+	// HRESULT をチェックし、失敗していたらログに出力する。expr にはチェックした式の文字列を、message には任意の追加メッセージを指定できる。
     bool CheckHRESULT(HRESULT hr, const char* expr, const char* message, const char* file, int line) {
         if (SUCCEEDED(hr)) {
             return true;
@@ -52,7 +52,7 @@ namespace HIKARI::GFX {
         DEBUGLOG::PushRenderError(oss.str());
         return false;
     }
-
+	// DXGI_FORMAT を文字列に変換する
     const char* FormatToString(DXGI_FORMAT format) {
         switch (format) {
         case DXGI_FORMAT_R8G8B8A8_UNORM: return "R8G8B8A8_UNORM";
@@ -64,7 +64,7 @@ namespace HIKARI::GFX {
         default: return "DXGI_FORMAT_OTHER";
         }
     }
-
+	// D3D12_RESOURCE_STATES を文字列に変換する
     const char* ResourceStateToString(D3D12_RESOURCE_STATES state) {
         if (state == D3D12_RESOURCE_STATE_COMMON) { return "COMMON"; }
         if (state == D3D12_RESOURCE_STATE_RENDER_TARGET) { return "RENDER_TARGET"; }
@@ -74,7 +74,7 @@ namespace HIKARI::GFX {
         if (state == D3D12_RESOURCE_STATE_GENERIC_READ) { return "GENERIC_READ"; }
         return "D3D12_RESOURCE_STATE_OTHER";
     }
-
+	// D3D12 オブジェクトに名前を設定する。デバッグビルドでのみ有効で、リリースビルドでは引数を無視する。
     void SetD3D12Name(ID3D12Object* object, const wchar_t* name) {
 #if defined(_DEBUG)
         if (object && name) {

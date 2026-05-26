@@ -15,11 +15,11 @@ namespace HIKARI {
         void BuildInspector(IInspectorBuilder& builder) override;
 
         bool IsEnabled() const;
-        const std::string& GetTargetSceneId() const;
+        const std::string& GetTargetSceneAssetGuid() const;
 
     private:
         bool enabled_ = true;
-        std::string targetSceneId_{};
+        std::string targetSceneAssetGuid_{};
         bool requireInteractKey_ = true;
     };
 

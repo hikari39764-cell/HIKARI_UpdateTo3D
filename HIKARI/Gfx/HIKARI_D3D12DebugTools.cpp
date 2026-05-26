@@ -11,6 +11,7 @@ namespace HIKARI::GFX {
     using Microsoft::WRL::ComPtr;
 
     namespace {
+		// D3D12_MESSAGE_SEVERITY を文字列に変換する
         const char* ToString(D3D12_MESSAGE_SEVERITY severity) {
             switch (severity) {
             case D3D12_MESSAGE_SEVERITY_CORRUPTION: return "CORRUPTION";
@@ -21,7 +22,7 @@ namespace HIKARI::GFX {
             default: return "UNKNOWN";
             }
         }
-
+		// D3D12_MESSAGE_CATEGORY を文字列に変換する
         const char* ToString(D3D12_MESSAGE_CATEGORY category) {
             switch (category) {
             case D3D12_MESSAGE_CATEGORY_APPLICATION_DEFINED: return "APPLICATION_DEFINED";
@@ -39,7 +40,9 @@ namespace HIKARI::GFX {
             }
         }
     }
-
+	// D3D12 の InfoQueue を設定する
+    // device には ID3D12Device のポインタを指定する
+    // _DEBUG が定義されている場合は、InfoQueue を取得して、エラーと警告でブレークするように設定する。_DEBUG が定義されていない場合は、何もしない
     void ConfigureD3D12InfoQueue(ID3D12Device* device) {
 #if defined(_DEBUG)
         if (!device) {
@@ -63,7 +66,7 @@ namespace HIKARI::GFX {
         (void)device;
 #endif
     }
-
+	// D3D12 の InfoQueue をダンプする
     void DumpD3D12InfoQueue(ID3D12Device* device, const char* reason) {
 #if defined(_DEBUG)
         if (!device) {
@@ -105,7 +108,7 @@ namespace HIKARI::GFX {
         (void)reason;
 #endif
     }
-
+	// D3D12 の InfoQueue をクリアする
     void ClearD3D12InfoQueue(ID3D12Device* device) {
 #if defined(_DEBUG)
         if (!device) {

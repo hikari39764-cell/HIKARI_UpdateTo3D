@@ -1,42 +1,14 @@
 #include "HIKARI_EngineApp.h"
 
-#include <fstream>
 #include <memory>
 #include <string>
 
-#include <json.hpp>
-
 #include "HIKARI_Services.h"
+#include "Scene/Scenes/HIKARI_GameDocumentScene.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI {
-
-    namespace {
-        struct StartupConfig {
-            std::string startupMode{ "debug" };
-            std::string startupSceneId{ "Sandbox" };
-        };
-
-        StartupConfig LoadStartupConfig(const char* path) {
-            StartupConfig cfg{};
-            std::ifstream ifs(path);
-            if (!ifs.is_open()) {
-                HIKARI_LOG_WARN("Data/project.json not found. using default startup config.");
-                return cfg;
-            }
-
-            nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-            if (root.is_discarded() || !root.is_object()) {
-                HIKARI_LOG_WARN("Data/project.json parse failed. using default startup config.");
-                return cfg;
-            }
-
-            cfg.startupMode = root.value("startupMode", cfg.startupMode);
-            cfg.startupSceneId = root.value("startupSceneId", cfg.startupSceneId);
-            return cfg;
-        }
-    }
 
     EngineApp::EngineApp()
         : sceneFactory_(sceneCatalog_),
@@ -46,37 +18,12 @@ namespace HIKARI {
     bool EngineApp::Initialize() {
         HIKARI_LOG_INFO("EngineApp initialization started.");
 
-        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox", SceneLifetimePolicy::ReloadOnEnter });
-        HIKARI_LOG_INFO("SceneCatalog registered: Sandbox.");
-        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title", SceneLifetimePolicy::ReloadOnEnter });
-        HIKARI_LOG_INFO("SceneCatalog registered: Title.");
-        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty", SceneLifetimePolicy::ReloadOnEnter });
-        HIKARI_LOG_INFO("SceneCatalog registered: Empty.");
-
-        const StartupConfig startup = LoadStartupConfig("Data/project.json");
-        HIKARI_LOG_INFO(std::string("Startup config loaded. mode=") + startup.startupMode + " scene=" + startup.startupSceneId);
-
-        std::string targetSceneId = startup.startupSceneId;
-        if (startup.startupMode == "debug") {
-            targetSceneId = "Sandbox";
-        }
-        HIKARI_LOG_INFO(std::string("Initial scene requested: ") + targetSceneId);
-
-        std::string createdSceneId = targetSceneId;
-        std::unique_ptr<IScene> initialScene = sceneFactory_.CreateScene(targetSceneId);
-        if (!initialScene) {
-            HIKARI_LOG_WARN("Initial scene creation failed. fallback=Sandbox.");
-            initialScene = sceneFactory_.CreateScene("Sandbox");
-            createdSceneId = "Sandbox";
-        }
-        if (!initialScene) {
-            HIKARI_LOG_ERROR("Initial scene creation failed.");
-            return false;
-        }
+        // 起動時は SceneCatalog ではなく、DocumentSceneBase が Scene Asset GUID を解決する。
+        std::unique_ptr<IScene> initialScene = std::make_unique<GameDocumentScene>(sceneCatalog_, "StartupSceneAsset");
 
         RuntimeSceneContext::SetTransitionBus(&sceneTransitionBus_);
         sceneManager_.ChangeScene(std::move(initialScene));
-        HIKARI_LOG_INFO(std::string("Initial scene created. id=") + createdSceneId);
+        HIKARI_LOG_INFO("Initial document scene created.");
         HIKARI_LOG_INFO("EngineApp initialization completed.");
         return true;
     }

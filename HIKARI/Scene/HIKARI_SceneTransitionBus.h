@@ -22,13 +22,11 @@ namespace HIKARI {
     class SceneInstanceCache;
 
     struct SceneTransitionRequest {
-        std::string targetSceneId{};
+        std::string targetSceneAssetGuid{};
         std::string targetSpawnPointId{};
         std::string transitionProfileId{ "Default" };
         bool useTransition = true;
         bool preserveGameplayState = false;
-        std::optional<bool> keepCurrentSceneAliveOverride{};
-        std::optional<bool> reloadTargetSceneOverride{};
     };
 
     class SceneTransitionBus {

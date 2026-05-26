@@ -132,7 +132,8 @@ namespace HIKARI {
     void ResourceWorkspacePanel::Draw(
         AssetDatabase& assetDatabase,
         const SceneDocument& sceneDocument,
-        EditorSelection& selection) const {
+        EditorSelection& selection,
+        const ResourceWorkspaceContext& context) const {
 #if defined(_DEBUG)
         if (!ImGui::Begin("Resource Workspace")) {
             ImGui::End();
@@ -140,6 +141,11 @@ namespace HIKARI {
         }
 
         AssetUsageSummary usageSummary = AnalyzeAssetUsage(sceneDocument, assetDatabase);
+        const AssetBrowserContext browserContext{
+            context.currentSceneGuid,
+            context.startupSceneGuid,
+            context.currentSceneDirty
+        };
 
         const AssetRecord* selectedRecord = selection.selectedAssetGuid.empty()
             ? nullptr
@@ -177,7 +183,7 @@ namespace HIKARI {
 
                 const float browserWidth = showInspector ? -inspectorWidth - 8.0f : 0.0f;
                 if (ImGui::BeginChild("##ResourceWorkspaceBrowser", ImVec2(browserWidth, 0.0f), false)) {
-                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_);
+                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_, &browserContext);
                 }
                 ImGui::EndChild();
 
@@ -191,7 +197,7 @@ namespace HIKARI {
                 }
             } else if (ImGui::BeginTabBar("ResourceWorkspaceCompactTabs", ImGuiTabBarFlags_FittingPolicyScroll)) {
                 if (ImGui::BeginTabItem("Browser")) {
-                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_);
+                    assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_, &browserContext);
                     ImGui::EndTabItem();
                 }
                 if (ImGui::BeginTabItem("Categories")) {
@@ -217,11 +223,16 @@ namespace HIKARI {
         (void)assetDatabase;
         (void)sceneDocument;
         (void)selection;
+        (void)context;
 #endif
     }
 
     std::string ResourceWorkspacePanel::ConsumeActivatedSceneGuid() const {
         return assetBrowserPanel_.ConsumeActivatedSceneGuid();
+    }
+
+    std::string ResourceWorkspacePanel::ConsumeSaveSceneAsGuid() const {
+        return assetBrowserPanel_.ConsumeSaveSceneAsGuid();
     }
 
 } // namespace HIKARI

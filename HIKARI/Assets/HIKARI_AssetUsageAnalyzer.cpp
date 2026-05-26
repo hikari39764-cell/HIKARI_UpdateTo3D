@@ -67,6 +67,14 @@ namespace HIKARI {
                                 summary);
                         }
                     }
+                } else if (component.type == "UIButtonSceneTransitionComponent" ||
+                    component.type == "DoorTransitionComponent") {
+                    AddReference(
+                        component.properties.value("targetSceneAssetGuid", std::string{}),
+                        owner,
+                        "Scene Transition",
+                        assetDatabase,
+                        summary);
                 }
             }
         }

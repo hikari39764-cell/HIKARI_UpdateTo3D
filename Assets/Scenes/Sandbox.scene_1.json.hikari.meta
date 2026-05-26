@@ -1,0 +1,17 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "Sandbox.scene_1",
+  "guid": "affd550d30af57d472876dbee5195fb4",
+  "importSettings": {
+    "cookScene": false,
+    "futureOutputFormat": "HSCENE",
+    "runtimeLoader": "SceneSerializer",
+    "sourceFormat": ".json"
+  },
+  "importerId": "SceneImporterStub",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Scenes/Sandbox.scene_1.json",
+  "type": "Scene"
+}

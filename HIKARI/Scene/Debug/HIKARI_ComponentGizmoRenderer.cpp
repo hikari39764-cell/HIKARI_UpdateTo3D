@@ -109,8 +109,8 @@ namespace HIKARI {
             const ImVec2 maxP{ rect.x + rect.w, rect.y + rect.h };
             drawList->AddRect(minP, maxP, color, 0.0f, 0, 2.0f);
 
-            if (!button->GetTargetSceneId().empty()) {
-                drawList->AddText(ImVec2(minP.x, minP.y - 16.0f), color, button->GetTargetSceneId().c_str());
+            if (!button->GetTargetSceneAssetGuid().empty()) {
+                drawList->AddText(ImVec2(minP.x, minP.y - 16.0f), color, button->GetTargetSceneAssetGuid().c_str());
             }
         }
 #else

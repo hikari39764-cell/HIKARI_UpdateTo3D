@@ -4,11 +4,14 @@
 #include <utility>
 #include <numbers>
 #include <memory>
+#include <algorithm>
+#include <vector>
 
 #include "HIKARI_3D.h"
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_TimeService.h"
+#include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -29,34 +32,48 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 namespace HIKARI {
-
+    namespace {
+		// デフォルトのシーンシステムのリストを作成する。各システムは、名前、アクティブ状態、更新順序、および初期化パラメータを持つ。
+        std::vector<SceneSystemData> CreateDefaultSceneSystems() {
+            return {
+                SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
+                SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
+                SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
+                SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
+                SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
+                SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
+            };
+        }
+    }
+    
     DocumentSceneBase::DocumentSceneBase(SceneCatalog& sceneCatalog, std::string sceneId)
         : sceneCatalog_(sceneCatalog), sceneId_(std::move(sceneId)) {
     }
-
+	// シーンが開始されるときに呼び出される
     void DocumentSceneBase::OnEnter() {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
         RegisterDefaultComponentTypes();
-        RegisterDefaultSceneCatalogEntries();
 
         ReloadAssets();
         VFX::SetAssetRegistry(&assetRegistry_);
-        ReloadSceneDocument();
+        if (!OpenStartupSceneAsset()) {
+            CreateTransientEmptySceneDocument();
+        }
         if (RebuildRuntimeWorld()) {
             systemScheduler_.Clear();
             RegisterDefaultSystems();
             systemScheduler_.AttachWorld(world_);
         }
     }
-
+	// シーンが終了するときに呼び出される
     void DocumentSceneBase::OnExit() {
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
         RuntimeSceneContext::SetCurrentWorld(nullptr);
     }
-
+	// シーンの更新を行う。dt には前のフレームからの経過時間が秒単位で渡される。
     void DocumentSceneBase::Update(float dt) {
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         if (UseDebugCamera()) {
@@ -67,7 +84,7 @@ namespace HIKARI {
         systemScheduler_.Update(world_, frame);
         systemScheduler_.LateUpdate(world_, frame);
     }
-
+	// シーンの描画を行う
     void DocumentSceneBase::Render() {
         int captureW = 0;
         int captureH = 0;
@@ -117,7 +134,7 @@ namespace HIKARI {
         systemScheduler_.PreRender(world_, frame);
         systemScheduler_.Render(world_, frame);
         systemScheduler_.PostRender(world_, frame);
-
+		// 環境設定を正規化してから描画に渡す。特に、環境光と点光源の強度は、環境光が無効な場合は 0 にする。
         SceneEnvironment activeEnvironment = environment_;
         activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);
         if (!UseEnvironmentLighting()) {
@@ -136,121 +153,120 @@ namespace HIKARI {
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
-
+		// モデルの描画を行う
         MODELRENDERER::RenderAll(camera_, activeEnvironment);
-        // DebugLine3D draws after models so DepthTest mode can use the model depth buffer.
+		// モデルの描画が完了した後に、RenderSubmissionSystem を通じて他のシステムが描画に参加できるようにする
         RENDERER3D::RenderAll(camera_, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(camera_);
     }
-
+	// ImGui を使ったエディタ UI の描画を行う
     void DocumentSceneBase::RenderImGui() {
         if (!SERVICES::IsEditorUIEnabled()) {
             world_.RenderImGui();
         }
         componentGizmoRenderer_.DrawScreenSpaceGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
     }
-
+	// シーンの ID を取得する
     const std::string& DocumentSceneBase::GetSceneId() const {
         return sceneId_;
     }
-
+	// シーンのファイルパスを取得する
     const std::string& DocumentSceneBase::GetScenePath() const {
         return scenePath_;
     }
-
+	// シーンカタログへの参照を取得する
     SceneCatalog& DocumentSceneBase::GetSceneCatalog() {
         return sceneCatalog_;
     }
-
+	// シーンカタログへの const 参照を取得する
     const SceneCatalog& DocumentSceneBase::GetSceneCatalog() const {
         return sceneCatalog_;
     }
-
+	// シーンの ID を設定する
     void DocumentSceneBase::SetSceneId(std::string sceneId) {
         sceneId_ = std::move(sceneId);
     }
-
+	// シーンのファイルパスを設定する
     void DocumentSceneBase::SetScenePath(std::string scenePath) {
         scenePath_ = std::move(scenePath);
     }
-
+	// シーン内のオブジェクトやシステムを管理する World オブジェクトへの参照を取得する
     World& DocumentSceneBase::GetWorld() {
         return world_;
     }
-
+	// シーン内のオブジェクトやシステムを管理する World オブジェクトへの const 参照を取得する
     const World& DocumentSceneBase::GetWorld() const {
         return world_;
     }
-
+	// シーンのドキュメントデータへの参照を取得する。シーンのドキュメントは、シーン内のオブジェクトや環境設定などのデータを保持する構造体である。
     SceneDocument& DocumentSceneBase::GetSceneDocument() {
         return sceneDocument_;
     }
-
+	// シーンのドキュメントデータへの const 参照を取得する
     const SceneDocument& DocumentSceneBase::GetSceneDocument() const {
         return sceneDocument_;
     }
-
+	// シーンの環境設定への参照を取得する。環境設定には、環境光や空の設定などが含まれる。
     SceneEnvironment& DocumentSceneBase::GetSceneEnvironment() {
         return environment_;
     }
-
+    // シーンの環境設定への const 参照を取得する
     const SceneEnvironment& DocumentSceneBase::GetSceneEnvironment() const {
         return environment_;
     }
-
+	// アセットレジストリへの参照を取得する。アセットレジストリは、プロジェクト内のアセットの情報を管理するクラスである。
     AssetRegistry& DocumentSceneBase::GetAssetRegistry() {
         return assetRegistry_;
     }
-
+	// アセットレジストリへの const 参照を取得する
     AssetDatabase& DocumentSceneBase::GetAssetDatabase() {
         return assetDatabase_;
     }
-
+	// アセットデータベースへの const 参照を取得する。アセットデータベースは、プロジェクト内のアセットの物理的なファイルパスや GUID などの情報を管理するクラスである。
     const AssetDatabase& DocumentSceneBase::GetAssetDatabase() const {
         return assetDatabase_;
     }
-
+	// モデルマネージャへの参照を取得する。モデルマネージャは、3D モデルのアセットを管理し、ロードやアクセスを提供するクラスである。
     ModelManager& DocumentSceneBase::GetModelManager() {
         return modelManager_;
     }
-
+    // スカイマネージャへの参照を取得する。スカイマネージャは、3D シーンの空の表現を管理するクラスである。
     SkyManager& DocumentSceneBase::GetSkyManager() {
         return skyManager_;
     }
-
+	// コンポーネントレジストリへの参照を取得する。コンポーネントレジストリは、シーン内のオブジェクトにアタッチされるコンポーネントの種類やデータ構造を管理するクラスである。
     ComponentRegistry& DocumentSceneBase::GetComponentRegistry() {
         return componentRegistry_;
     }
-
+	// カメラへの参照を取得する。カメラは、シーンの描画に使用される視点を表すクラスである。
     Camera3D& DocumentSceneBase::GetCamera() {
         return camera_;
     }
-
+	// カメラへの const 参照を取得する
     const Camera3D& DocumentSceneBase::GetCamera() const {
         return camera_;
     }
-
+	// デバッグカメラコントローラーへの参照を取得する。デバッグカメラコントローラーは、エディタでシーンを操作するためのカメラコントローラーである。
     DebugCameraController3D& DocumentSceneBase::GetDebugCamera() {
         return debugCamera_;
     }
-
+	// デバッグカメラコントローラーへの const 参照を取得する
     bool& DocumentSceneBase::GetEnvironmentLightingEnabled() {
         return environmentLightingEnabled_;
     }
-
-
+	// 環境光の有効状態を取得する
     void DocumentSceneBase::SetComponentGizmoState(const ComponentGizmoState& state) {
         componentGizmoState_ = state;
     }
-
+	// ビューポートのオーバーレイ表示の状態を設定する
     void DocumentSceneBase::SetViewportOverlayState(const ViewportOverlayState& state) {
         viewportOverlayState_ = state;
     }
-
+	// 現在選択されているギズモオブジェクトの ID を設定する
     void DocumentSceneBase::SetSelectedGizmoObjectId(SceneObjectId id) {
         selectedGizmoObjectId_ = id;
     }
-
+	// アセットの再読み込みを行う。アセットデータベースをスキャンして最新の状態に更新し、アセットレジストリを再構築する。
     bool DocumentSceneBase::ReloadAssets() {
         if (assetDatabase_.GetProjectRoot().empty()) {
             assetDatabase_.Initialize(std::filesystem::current_path());
@@ -263,21 +279,14 @@ namespace HIKARI {
 
         return okDatabase && okRegistry;
     }
-
+	// 現在のシーンドキュメントを再読み込みする。現在のシーンアセットの GUID が有効であれば、そのアセットを開き直す。そうでなければ、スタートアップシーンアセットを開く。
     bool DocumentSceneBase::ReloadSceneDocument() {
-        const SceneCatalogEntry* entry = sceneCatalog_.Find(sceneId_);
-        scenePath_ = (entry && !entry->documentPath.empty()) ? entry->documentPath : "Data/scenes/scene_sandbox.json";
-
-        if (!sceneSerializer_.LoadFromFile(scenePath_, sceneDocument_)) {
-            return false;
+        if (currentSceneAssetGuid_.IsValid()) {
+            return OpenSceneAssetNow(currentSceneAssetGuid_);
         }
-
-        currentSceneAssetGuid_ = {};
-        sceneDocumentDirty_ = false;
-        environment_ = sceneDocument_.environment;
-        return true;
+        return OpenStartupSceneAsset();
     }
-
+	// ランタイムのワールドを再構築する。シーンドキュメントの内容に基づいて、ワールド内のオブジェクトやシステムを構築し直す。
     bool DocumentSceneBase::RebuildRuntimeWorld() {
         const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
         runtimeBuilder_.PreloadDependencies(deps, assetRegistry_, modelManager_, skyManager_);
@@ -294,11 +303,11 @@ namespace HIKARI {
 
         return built;
     }
-
+	// 指定されたシーンアセットの GUID を使って、そのシーンアセットを開くことを要求する。実際のオープン処理は OpenSceneAssetNow で行われる。
     bool DocumentSceneBase::RequestOpenSceneAsset(const AssetGuid& sceneGuid) {
         return OpenSceneAssetNow(sceneGuid);
     }
-
+	// 指定されたシーンアセットの GUID を使って、そのシーンアセットを今すぐ開く。GUID が有効でない場合や、アセットが見つからない場合は false を返す。
     bool DocumentSceneBase::OpenSceneAssetNow(const AssetGuid& sceneGuid) {
         if (!sceneGuid.IsValid()) {
             return false;
@@ -333,17 +342,65 @@ namespace HIKARI {
         ReloadAssets();
         return RebuildRuntimeWorld();
     }
+	// スタートアップシーンアセットを開く。プロジェクト設定でスタートアップシーンの GUID が指定されていればそのシーンを開き、そうでなければプロジェクト内の最初のシーンアセットを開く。
+    bool DocumentSceneBase::OpenStartupSceneAsset() {
+        if (assetDatabase_.GetProjectRoot().empty()) {
+            assetDatabase_.Initialize(std::filesystem::current_path());
+        }
 
+        assetDatabase_.ScanAssets(true);
+
+        ProjectSettingsService settings{};
+        settings.Load(assetDatabase_.GetProjectRoot());
+
+        const AssetGuid startupGuid = settings.GetSettings().startupSceneGuid;
+        if (startupGuid.IsValid() && OpenSceneAssetNow(startupGuid)) {
+            return true;
+        }
+
+        std::vector<const AssetRecord*> sceneRecords = assetDatabase_.CollectByType(AssetType::Scene);
+        std::sort(sceneRecords.begin(), sceneRecords.end(), [](const AssetRecord* lhs, const AssetRecord* rhs) {
+            if (!lhs || !rhs) {
+                return lhs < rhs;
+            }
+            return lhs->sourcePath.generic_string() < rhs->sourcePath.generic_string();
+        });
+
+        for (const AssetRecord* record : sceneRecords) {
+            if (!record || !record->guid.IsValid()) {
+                continue;
+            }
+            settings.SetStartupSceneGuid(record->guid);
+            settings.Save();
+            return OpenSceneAssetNow(record->guid);
+        }
+
+        return false;
+    }
+	// 一時的な空のシーンドキュメントを作成する。これは、保存されていない新しいシーンを表すために使用される。
+    bool DocumentSceneBase::CreateTransientEmptySceneDocument() {
+        // 一時シーンは Asset ではない。保存先を選ぶまで GUID を持たせない。
+        sceneDocument_ = SceneDocument{};
+        sceneDocument_.sceneName = "Untitled Scene";
+        sceneDocument_.systems = CreateDefaultSceneSystems();
+        environment_ = sceneDocument_.environment;
+        scenePath_.clear();
+        sceneId_ = "TransientScene";
+        currentSceneAssetGuid_ = {};
+        sceneDocumentDirty_ = false;
+        return true;
+    }
+	// シーンドキュメントに保存されていない変更があるかどうかを返す
     bool DocumentSceneBase::HasUnsavedSceneChanges() const {
         return sceneDocumentDirty_;
     }
-
+	// シーンドキュメントの変更が保存されていない状態を設定する。dirty が true の場合は変更があるとみなし、false の場合は変更がないとみなす。
     void DocumentSceneBase::SetUnsavedSceneChanges(bool dirty) {
         sceneDocumentDirty_ = dirty;
     }
-
+	// 現在のシーンドキュメントをファイルに保存する。現在のシーンアセットの GUID が有効であり、シーンパスが設定されている場合にのみ保存を試みる。保存に成功した場合は true を返し、そうでない場合は false を返す。
     bool DocumentSceneBase::SaveCurrentSceneDocument() {
-        if (scenePath_.empty()) {
+        if (!currentSceneAssetGuid_.IsValid() || scenePath_.empty()) {
             return false;
         }
 
@@ -354,13 +411,65 @@ namespace HIKARI {
         }
         return saved;
     }
+	// 現在のシーンドキュメントを、指定されたシーンアセットの GUID を持つファイルに保存する。GUID が有効でない場合や、アセットが見つからない場合は false を返す。保存に成功した場合は true を返す。
+    bool DocumentSceneBase::SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid) {
+        if (!sceneGuid.IsValid()) {
+            return false;
+        }
+        if (assetDatabase_.GetProjectRoot().empty()) {
+            assetDatabase_.Initialize(std::filesystem::current_path());
+        }
 
+        const AssetRecord* record = assetDatabase_.FindByGuid(sceneGuid);
+        if (!record) {
+            assetDatabase_.ScanAssets(false);
+            record = assetDatabase_.FindByGuid(sceneGuid);
+        }
+        if (!record || record->type != AssetType::Scene || record->sourcePath.empty()) {
+            return false;
+        }
+
+        const std::filesystem::path absolutePath =
+            (assetDatabase_.GetProjectRoot() / record->sourcePath).lexically_normal();
+        sceneDocument_.environment = environment_;
+        if (!sceneSerializer_.SaveToFile(absolutePath.generic_string(), sceneDocument_)) {
+            return false;
+        }
+
+        scenePath_ = absolutePath.generic_string();
+        sceneId_ = sceneGuid.value;
+        currentSceneAssetGuid_ = sceneGuid;
+        sceneDocumentDirty_ = false;
+        return true;
+    }
+	// 現在のシーンアセットの GUID を取得する。GUID が有効でない場合は、現在のシーンがアセットとして保存されていないことを意味する。
+    const AssetGuid& DocumentSceneBase::GetCurrentSceneAssetGuid() const {
+        return currentSceneAssetGuid_;
+    }
+	// 指定された GUID が現在のシーンアセットの GUID と等しいかどうかを返す。これにより、特定のシーンアセットが現在のシーンとして開かれているかどうかを確認できる。
+    bool DocumentSceneBase::IsCurrentSceneAsset(const AssetGuid& guid) const {
+        return currentSceneAssetGuid_.IsValid() && currentSceneAssetGuid_ == guid;
+    }
+	// 現在のシーンの表示名を取得する。現在のシーンアセットの GUID が有効であれば、そのアセットの表示名を返す。そうでなければ、シーンドキュメントの sceneName を返す。
+    std::string DocumentSceneBase::GetCurrentSceneDisplayName() const {
+        if (currentSceneAssetGuid_.IsValid()) {
+            if (const AssetRecord* record = assetDatabase_.FindByGuid(currentSceneAssetGuid_)) {
+                if (!record->displayName.empty()) {
+                    return record->displayName;
+                }
+            }
+        }
+        return sceneDocument_.sceneName;
+    }
+	// デフォルトのシーンシステムを登録する。これには、アニメーションシステムやレンダリングサブミッションシステムなどが含まれる。
     void DocumentSceneBase::RegisterDefaultSystems() {
         systemScheduler_.AddSystem(std::make_unique<AnimationSystem>());
         systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
     }
-
+	// デフォルトのコンポーネントタイプを登録する
+    //これには、モデルコンポーネントやアニメーターコンポーネントなどが含まれる。各コンポーネントタイプは、名前、インスタンス化関数、依存関係、相互排他関係、プロパティの初期化関数などの情報を持つ。
     void DocumentSceneBase::RegisterDefaultComponentTypes() {
+		// ModelComponent は、シーン内のオブジェクトに 3D モデルを割り当てるための基本的なコンポーネントである。多くのオブジェクトがモデルを持つ可能性があるため、複数インスタンスを許可する。
         if (!componentRegistry_.Find("ModelComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "ModelComponent",
@@ -371,7 +480,7 @@ namespace HIKARI {
                 false
             });
         }
-
+		// AnimatorComponent は ModelComponent に依存する。ModelComponent がないと AnimatorComponent は意味をなさないため、ModelComponent を必須コンポーネントとして指定する。
         if (!componentRegistry_.Find("AnimatorComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "AnimatorComponent",
@@ -401,7 +510,7 @@ namespace HIKARI {
                 {},
                 false,
                 [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["targetSceneId"] = "Title";
+                    properties["targetSceneAssetGuid"] = "";
                     properties["transitionProfileId"] = "noise_wipe";
                     properties["screenRect"] = {
                         { "x", 100.0f },
@@ -471,7 +580,7 @@ namespace HIKARI {
                 }
             });
         }
-
+		// ComponentLinkComponent は、シーン内のオブジェクト同士をリンクするための汎用的なコンポーネントである。特定の依存関係はないが、他のコンポーネントと組み合わせて使用されることが多い。
         if (!componentRegistry_.Find("ComponentLinkComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "ComponentLinkComponent",
@@ -491,7 +600,7 @@ namespace HIKARI {
                 {},
                 false,
                 [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["targetSceneId"] = "";
+                    properties["targetSceneAssetGuid"] = "";
                     properties["requireInteractKey"] = true;
                     properties["enabled"] = true;
                 }
@@ -500,49 +609,18 @@ namespace HIKARI {
     }
 
     void DocumentSceneBase::RegisterDefaultSceneCatalogEntries() {
-        sceneCatalog_.Register(SceneCatalogEntry{ "Sandbox", "SandboxScene", "Data/scenes/scene_sandbox.json", true, "Sandbox", SceneLifetimePolicy::ReloadOnEnter });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Empty", "GameDocumentScene", "Data/scenes/scene_empty.json", true, "Empty", SceneLifetimePolicy::ReloadOnEnter });
-        sceneCatalog_.Register(SceneCatalogEntry{ "Title", "TitleScene", "Data/scenes/scene_title.json", true, "Title", SceneLifetimePolicy::ReloadOnEnter });
-
-        std::error_code ec{};
-        const std::filesystem::path sceneRoot{ "Data/scenes" };
-        if (!std::filesystem::exists(sceneRoot, ec) || ec) {
-            return;
-        }
-
-        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(sceneRoot, ec)) {
-            if (ec || !entry.is_regular_file()) {
-                continue;
-            }
-            const std::filesystem::path& path = entry.path();
-            if (path.extension() != ".json") {
-                continue;
-            }
-
-            std::string stem = path.stem().string();
-            if (stem.rfind("scene_", 0) == 0) {
-                stem.erase(0, 6);
-            }
-            if (stem.empty()) {
-                continue;
-            }
-
-            if (stem == "sandbox" || stem == "empty" || stem == "title") {
-                continue;
-            }
-
-            sceneCatalog_.Register(SceneCatalogEntry{ stem, "GameDocumentScene", path.generic_string(), true, stem, SceneLifetimePolicy::ReloadOnEnter });
-        }
+        // SceneCatalog は旧 sceneId 互換型として残すが、通常の Scene 発見は AssetDatabase が担当する。
     }
 
+	// デバッグカメラを使用するかどうかを返す
     bool DocumentSceneBase::UseDebugCamera() const {
         return true;
     }
-
+	// デバッグヘルパー（グリッド、軸、ライトの補助線など）を描画するかどうかを返す。通常はエディタ表示中のみ描画する。
     bool DocumentSceneBase::DrawDebugHelpers() const {
-        return false;
+        return SERVICES::IsEditorUIEnabled();
     }
-
+	// 環境光を使用するかどうかを返す
     bool DocumentSceneBase::UseEnvironmentLighting() const {
         return environmentLightingEnabled_;
     }

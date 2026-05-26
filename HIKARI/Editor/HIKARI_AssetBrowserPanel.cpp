@@ -1,8 +1,11 @@
 #include "HIKARI_AssetBrowserPanel.h"
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -17,11 +20,11 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
-#include "Assets/Legacy/HIKARI_LegacyAssetJsonMigrator.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "HIKARI_EditorSelection.h"
 #include "Platform/HIKARI_Win32Window.h"
+#include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
@@ -173,6 +176,58 @@ namespace HIKARI {
                 }
             }
             return parent / (stem + "_9999" + extension);
+        }
+
+        std::string SanitizeFileToken(const std::string& raw, const std::string& fallback) {
+            std::string out{};
+            out.reserve(raw.size());
+            for (char ch : raw) {
+                const unsigned char c = static_cast<unsigned char>(ch);
+                if (std::isalnum(c) != 0 || ch == '_' || ch == '-') {
+                    out.push_back(ch);
+                } else if (std::isspace(c) != 0) {
+                    out.push_back(' ');
+                }
+            }
+
+            while (!out.empty() && std::isspace(static_cast<unsigned char>(out.front())) != 0) {
+                out.erase(out.begin());
+            }
+            while (!out.empty() && std::isspace(static_cast<unsigned char>(out.back())) != 0) {
+                out.pop_back();
+            }
+            return out.empty() ? fallback : out;
+        }
+
+        std::string GetSceneAssetBaseName(const std::filesystem::path& path) {
+            std::string filename = path.filename().string();
+            const std::string lower = ToLowerCopy(filename);
+            constexpr std::string_view kSceneJsonSuffix = ".scene.json";
+            const std::string suffix(kSceneJsonSuffix);
+            if (lower.size() >= kSceneJsonSuffix.size() &&
+                lower.compare(lower.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                filename.resize(filename.size() - kSceneJsonSuffix.size());
+                return filename;
+            }
+            return path.stem().string();
+        }
+
+        bool LoadJsonFile(const std::filesystem::path& path, nlohmann::json& outRoot) {
+            std::ifstream ifs(path);
+            if (!ifs.is_open()) {
+                return false;
+            }
+            outRoot = nlohmann::json::parse(ifs, nullptr, false);
+            return !outRoot.is_discarded() && outRoot.is_object();
+        }
+
+        bool SaveJsonFile(const std::filesystem::path& path, const nlohmann::json& root) {
+            std::ofstream ofs(path);
+            if (!ofs.is_open()) {
+                return false;
+            }
+            ofs << root.dump(2) << '\n';
+            return true;
         }
 
         bool IsScenesDirectoryPath(const std::filesystem::path& path) {
@@ -696,8 +751,191 @@ namespace HIKARI {
             return {};
         }
 
+        bool DuplicateSceneAsset(
+            AssetDatabase& assetDatabase,
+            const AssetRecord& record,
+            std::filesystem::path& outRelativePath,
+            std::string& outError) {
+
+            const std::filesystem::path sourcePath = (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
+            const std::string baseName = GetSceneAssetBaseName(sourcePath);
+            const std::filesystem::path targetPath = MakeUniqueFilePath(
+                sourcePath.parent_path() / (baseName + " Copy.scene.json"));
+
+            nlohmann::json root{};
+            if (!LoadJsonFile(sourcePath, root)) {
+                outError = "Scene duplicate failed: source JSON could not be read";
+                return false;
+            }
+
+            root["sceneName"] = GetSceneAssetBaseName(targetPath);
+            if (!SaveJsonFile(targetPath, root)) {
+                outError = "Scene duplicate failed: destination could not be written";
+                return false;
+            }
+
+            std::error_code ec{};
+            outRelativePath = std::filesystem::relative(targetPath, assetDatabase.GetProjectRoot(), ec).lexically_normal();
+            if (ec) {
+                outRelativePath = targetPath.lexically_normal();
+            }
+            return true;
+        }
+
+        bool RenameSceneAsset(
+            AssetDatabase& assetDatabase,
+            const AssetRecord& record,
+            std::string_view newName,
+            std::filesystem::path& outRelativePath,
+            std::string& outError) {
+
+            const std::string cleanName = SanitizeFileToken(std::string(newName), "Scene");
+            const std::filesystem::path oldSource = (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
+            const std::filesystem::path newSource = MakeUniqueFilePath(oldSource.parent_path() / (cleanName + ".scene.json"));
+            if (oldSource == newSource) {
+                outRelativePath = record.sourcePath;
+                return true;
+            }
+
+            std::error_code ec{};
+            std::filesystem::rename(oldSource, newSource, ec);
+            if (ec) {
+                outError = "Scene rename failed: " + ec.message();
+                return false;
+            }
+
+            const std::filesystem::path newMetaPath = newSource.parent_path() / (newSource.filename().string() + ".hikari.meta");
+            if (!record.metaPath.empty() && std::filesystem::exists(record.metaPath, ec)) {
+                ec.clear();
+                std::filesystem::rename(record.metaPath, newMetaPath, ec);
+                if (ec) {
+                    outError = "Scene meta rename failed: " + ec.message();
+                    return false;
+                }
+            }
+
+            nlohmann::json sceneJson{};
+            if (LoadJsonFile(newSource, sceneJson)) {
+                sceneJson["sceneName"] = cleanName;
+                SaveJsonFile(newSource, sceneJson);
+            }
+
+            outRelativePath = std::filesystem::relative(newSource, assetDatabase.GetProjectRoot(), ec).lexically_normal();
+            if (ec) {
+                outRelativePath = newSource.lexically_normal();
+            }
+
+            if (std::filesystem::exists(newMetaPath, ec)) {
+                AssetMeta meta{};
+                if (assetDatabase.ReadMeta(newMetaPath, meta)) {
+                    AssetRecord writable = record;
+                    writable.sourcePath = outRelativePath;
+                    writable.metaPath = newMetaPath;
+                    writable.displayName = cleanName;
+                    writable.meta = std::move(meta);
+                    writable.meta.sourcePath = outRelativePath.generic_string();
+                    writable.meta.displayName = cleanName;
+                    assetDatabase.WriteMeta(writable);
+                }
+            }
+            return true;
+        }
+
+        std::filesystem::path MakeSceneTrashDirectory(const AssetDatabase& assetDatabase) {
+            const auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            return assetDatabase.GetLibraryRoot() / "Trash" / ("scene_" + std::to_string(ticks));
+        }
+
+        bool DeleteSceneAssetToTrash(
+            AssetDatabase& assetDatabase,
+            const AssetRecord& record,
+            std::string& outError) {
+
+            const std::filesystem::path sourcePath = (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
+            const std::filesystem::path trashDirectory = MakeSceneTrashDirectory(assetDatabase);
+
+            std::error_code ec{};
+            std::filesystem::create_directories(trashDirectory, ec);
+            if (ec) {
+                outError = "Scene delete failed: " + ec.message();
+                return false;
+            }
+
+            std::filesystem::rename(sourcePath, trashDirectory / sourcePath.filename(), ec);
+            if (ec) {
+                outError = "Scene delete failed: " + ec.message();
+                return false;
+            }
+
+            if (!record.metaPath.empty() && std::filesystem::exists(record.metaPath, ec)) {
+                ec.clear();
+                std::filesystem::rename(record.metaPath, trashDirectory / record.metaPath.filename(), ec);
+                if (ec) {
+                    outError = "Scene meta trash move failed: " + ec.message();
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool UpgradeExistingDataScenesIntoAssets(AssetDatabase& assetDatabase, std::string& outMessage) {
+            const std::filesystem::path sourceRoot = assetDatabase.GetProjectRoot() / "Data" / "scenes";
+            const std::filesystem::path targetRoot = assetDatabase.GetProjectRoot() / "Assets" / "Scenes";
+            const std::filesystem::path reportPath = assetDatabase.GetLibraryRoot() / "AssetDatabase" / "scene_asset_upgrade_report.json";
+
+            std::error_code ec{};
+            if (!std::filesystem::exists(sourceRoot, ec)) {
+                outMessage = "No Data/scenes folder to upgrade";
+                return true;
+            }
+
+            std::filesystem::create_directories(targetRoot, ec);
+            std::filesystem::create_directories(reportPath.parent_path(), ec);
+
+            nlohmann::json report = nlohmann::json::array();
+            int copied = 0;
+            int skipped = 0;
+            for (const auto& entry : std::filesystem::directory_iterator(sourceRoot, ec)) {
+                if (ec || !entry.is_regular_file()) {
+                    continue;
+                }
+                if (ToLowerCopy(entry.path().extension().string()) != ".json") {
+                    continue;
+                }
+
+                nlohmann::json root{};
+                if (!LoadJsonFile(entry.path(), root)) {
+                    ++skipped;
+                    continue;
+                }
+
+                std::string sceneName = root.value("sceneName", GetSceneAssetBaseName(entry.path()));
+                sceneName = SanitizeFileToken(sceneName, GetSceneAssetBaseName(entry.path()));
+                root["sceneName"] = sceneName;
+
+                const std::filesystem::path targetPath = MakeUniqueFilePath(targetRoot / (sceneName + ".scene.json"));
+                if (!SaveJsonFile(targetPath, root)) {
+                    ++skipped;
+                    continue;
+                }
+
+                report.push_back({
+                    { "sourcePath", std::filesystem::relative(entry.path(), assetDatabase.GetProjectRoot(), ec).generic_string() },
+                    { "newPath", std::filesystem::relative(targetPath, assetDatabase.GetProjectRoot(), ec).generic_string() },
+                    { "sceneName", sceneName },
+                });
+                ++copied;
+            }
+
+            SaveJsonFile(reportPath, nlohmann::json{ { "upgradedScenes", report } });
+            assetDatabase.ScanAssets(true);
+            outMessage = "Upgraded " + std::to_string(copied) + " scene(s), skipped " + std::to_string(skipped);
+            return true;
+        }
+
 #if defined(_DEBUG)
-        // 詳細はホバー時だけ表示し、一覧の密度を保つ。
         void DrawRecordTooltip(const AssetRecord& record) {
             if (!ImGui::BeginTooltip()) {
                 return;
@@ -794,6 +1032,10 @@ namespace HIKARI {
 
 #if defined(_DEBUG)
         std::string gActivatedSceneGuid{};
+        std::string gSaveSceneAsGuid{};
+        std::string gRenameSceneGuid{};
+        std::string gDeleteSceneGuid{};
+        std::array<char, 128> gRenameSceneNameBuffer{};
 
         void HandleRecordActivated(const AssetRecord& record, std::string& lastOperationMessage) {
             if (record.type == AssetType::Scene) {
@@ -808,6 +1050,47 @@ namespace HIKARI {
             lastOperationMessage = "Asset selected: " + record.displayName;
         }
 
+        std::string SceneBadges(const AssetRecord& record, const AssetBrowserContext* context) {
+            if (!context || record.type != AssetType::Scene || !record.guid.IsValid()) {
+                return {};
+            }
+
+            std::string badges{};
+            if (context->currentSceneGuid == record.guid) {
+                badges += "  [Current";
+                if (context->currentSceneDirty) {
+                    badges += "*";
+                }
+                badges += "]";
+            }
+            if (context->startupSceneGuid == record.guid) {
+                badges += "  [Startup]";
+            }
+            return badges;
+        }
+
+        std::string DisplayNameWithSceneBadges(const AssetRecord& record, const AssetBrowserContext* context) {
+            const std::string displayName = record.displayName.empty()
+                ? record.sourcePath.filename().string()
+                : record.displayName;
+            return displayName + SceneBadges(record, context);
+        }
+
+        void QueueRenameSceneAsset(const AssetRecord& record) {
+            gRenameSceneGuid = record.guid.value;
+            const std::string name = record.displayName.empty()
+                ? GetSceneAssetBaseName(record.sourcePath)
+                : record.displayName;
+            gRenameSceneNameBuffer.fill('\0');
+            std::snprintf(gRenameSceneNameBuffer.data(), gRenameSceneNameBuffer.size(), "%s", name.c_str());
+            ImGui::OpenPopup("Rename Scene Asset");
+        }
+
+        void QueueDeleteSceneAsset(const AssetRecord& record) {
+            gDeleteSceneGuid = record.guid.value;
+            ImGui::OpenPopup("Delete Scene Asset");
+        }
+
         void DrawAssetDragSource(const AssetRecord& record) {
             EDITOR::BeginAssetDragSource(record);
         }
@@ -816,7 +1099,53 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             const AssetRecord& record,
             EditorSelection& selection,
-            std::string& lastOperationMessage) {
+            std::string& lastOperationMessage,
+            const AssetBrowserContext* context) {
+
+            if (record.type == AssetType::Scene) {
+                if (ImGui::MenuItem("Open Scene")) {
+                    SelectRecord(record, selection);
+                    gActivatedSceneGuid = record.guid.value;
+                    lastOperationMessage = "Scene open requested: " + record.displayName;
+                }
+                if (ImGui::MenuItem("Save Current Scene Here")) {
+                    gSaveSceneAsGuid = record.guid.value;
+                    lastOperationMessage = "Scene save requested: " + record.displayName;
+                }
+                if (ImGui::MenuItem("Duplicate Scene")) {
+                    std::filesystem::path duplicatedPath{};
+                    std::string error{};
+                    if (DuplicateSceneAsset(assetDatabase, record, duplicatedPath, error)) {
+                        assetDatabase.ScanAssets(true);
+                        if (const AssetRecord* duplicated = assetDatabase.FindByPath(duplicatedPath)) {
+                            SelectRecord(*duplicated, selection);
+                        }
+                        lastOperationMessage = "Scene duplicated";
+                    } else {
+                        lastOperationMessage = error.empty() ? "Scene duplicate failed" : error;
+                    }
+                }
+                if (ImGui::MenuItem("Rename Scene")) {
+                    QueueRenameSceneAsset(record);
+                }
+                const bool isCurrentScene = context && context->currentSceneGuid == record.guid;
+                if (ImGui::MenuItem("Delete Scene", nullptr, false, !isCurrentScene)) {
+                    QueueDeleteSceneAsset(record);
+                }
+                if (isCurrentScene && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    ImGui::SetTooltip("Open another scene before deleting this one.");
+                }
+                if (ImGui::MenuItem("Set as Startup Scene")) {
+                    ProjectSettingsService settings{};
+                    settings.Load(assetDatabase.GetProjectRoot());
+                    if (settings.SetStartupSceneGuid(record.guid) && settings.Save()) {
+                        lastOperationMessage = "Startup scene set: " + record.displayName;
+                    } else {
+                        lastOperationMessage = "Startup scene update failed";
+                    }
+                }
+                ImGui::Separator();
+            }
 
             if (ImGui::MenuItem("Reimport")) {
                 SelectRecord(record, selection);
@@ -860,7 +1189,8 @@ namespace HIKARI {
             const std::vector<const AssetRecord*>& records,
             EditorSelection& selection,
             const AssetUsageSummary* usageSummary,
-            std::string& lastOperationMessage) {
+            std::string& lastOperationMessage,
+            const AssetBrowserContext* context) {
 
             if (!ImGui::BeginTable(
                 "AssetBrowserTable",
@@ -898,7 +1228,7 @@ namespace HIKARI {
                 const std::string label =
                     std::string(drewIcon ? "" : ToAssetIcon(record->type)) +
                     (drewIcon ? "" : " ") +
-                    record->displayName + "##" +
+                    DisplayNameWithSceneBadges(*record, context) + "##" +
                     record->sourcePath.generic_string();
                 if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
                     SelectRecord(*record, selection);
@@ -913,7 +1243,7 @@ namespace HIKARI {
                 }
 
                 if (ImGui::BeginPopupContextItem()) {
-                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
+                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage, context);
                     ImGui::EndPopup();
                 }
 
@@ -939,7 +1269,8 @@ namespace HIKARI {
             const std::vector<const AssetRecord*>& records,
             EditorSelection& selection,
             const AssetUsageSummary* usageSummary,
-            std::string& lastOperationMessage) {
+            std::string& lastOperationMessage,
+            const AssetBrowserContext* context) {
 
             if (!ImGui::BeginTable(
                 "AssetBrowserCompactRows",
@@ -968,9 +1299,7 @@ namespace HIKARI {
                 ImGui::TableNextRow(0, ImGui::GetFrameHeightWithSpacing());
                 ImGui::TableSetColumnIndex(0);
                 const bool isSelected = selection.selectedAssetGuid == record->guid.value;
-                const std::string displayName = record->displayName.empty()
-                    ? record->sourcePath.filename().string()
-                    : record->displayName;
+                const std::string displayName = DisplayNameWithSceneBadges(*record, context);
                 const bool drewIcon = DrawAssetTypeIcon(record->type);
                 if (drewIcon) {
                     ImGui::SameLine();
@@ -995,7 +1324,7 @@ namespace HIKARI {
                     DrawRecordTooltip(*record);
                 }
                 if (ImGui::BeginPopupContextItem()) {
-                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
+                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage, context);
                     ImGui::EndPopup();
                 }
 
@@ -1023,7 +1352,8 @@ namespace HIKARI {
             const std::vector<const AssetRecord*>& records,
             EditorSelection& selection,
             const AssetUsageSummary* usageSummary,
-            std::string& lastOperationMessage) {
+            std::string& lastOperationMessage,
+            const AssetBrowserContext* context) {
 
             const float cardWidth = 172.0f;
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
@@ -1061,7 +1391,7 @@ namespace HIKARI {
                 DrawAssetTypeIcon(record->type, ImVec2(34.0f, 34.0f));
 
                 std::string buttonLabel =
-                    record->displayName + "\n" +
+                    DisplayNameWithSceneBadges(*record, context) + "\n" +
                     ToString(GetImportState(*record));
                 const char* usageBadge = ToUsageBadge(*record, usageSummary);
                 const char* cookedBadge = ToCookedBadge(*record);
@@ -1087,7 +1417,7 @@ namespace HIKARI {
                     HandleRecordActivated(*record, lastOperationMessage);
                 }
                 if (ImGui::BeginPopupContextItem()) {
-                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage);
+                    DrawRecordContextMenu(assetDatabase, *record, selection, lastOperationMessage, context);
                     ImGui::EndPopup();
                 }
 
@@ -1096,6 +1426,83 @@ namespace HIKARI {
             }
 
             ImGui::EndTable();
+        }
+
+        void DrawSceneAssetModals(
+            AssetDatabase& assetDatabase,
+            EditorSelection& selection,
+            std::string& lastOperationMessage,
+            const AssetBrowserContext* context) {
+
+            bool renameOpen = true;
+            if (ImGui::BeginPopupModal("Rename Scene Asset", &renameOpen, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::TextUnformatted("Rename Scene Asset");
+                ImGui::SetNextItemWidth(280.0f);
+                ImGui::InputText("Name", gRenameSceneNameBuffer.data(), gRenameSceneNameBuffer.size());
+                ImGui::Separator();
+
+                if (ImGui::Button("Apply", ImVec2(96.0f, 0.0f))) {
+                    AssetRecord* record = assetDatabase.FindByGuid(AssetGuid{ gRenameSceneGuid });
+                    std::filesystem::path renamedPath{};
+                    std::string error{};
+                    if (record && RenameSceneAsset(assetDatabase, *record, gRenameSceneNameBuffer.data(), renamedPath, error)) {
+                        assetDatabase.ScanAssets(true);
+                        if (const AssetRecord* renamed = assetDatabase.FindByPath(renamedPath)) {
+                            SelectRecord(*renamed, selection);
+                        }
+                        lastOperationMessage = "Scene renamed";
+                    } else {
+                        lastOperationMessage = error.empty() ? "Scene rename failed" : error;
+                    }
+                    gRenameSceneGuid.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(96.0f, 0.0f))) {
+                    gRenameSceneGuid.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+
+            bool deleteOpen = true;
+            if (ImGui::BeginPopupModal("Delete Scene Asset", &deleteOpen, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const AssetRecord* record = assetDatabase.FindByGuid(AssetGuid{ gDeleteSceneGuid });
+                ImGui::TextUnformatted("Delete Scene Asset?");
+                ImGui::TextDisabled("The source and meta file will be moved to Library/Trash.");
+                if (record) {
+                    ImGui::TextWrapped("%s", record->sourcePath.generic_string().c_str());
+                }
+                ImGui::Separator();
+
+                const bool deletingCurrent = record && context && context->currentSceneGuid == record->guid;
+                if (deletingCurrent) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.46f, 0.34f, 1.0f), "Open another scene before deleting this one.");
+                    ImGui::BeginDisabled();
+                }
+                if (ImGui::Button("Delete", ImVec2(96.0f, 0.0f))) {
+                    std::string error{};
+                    if (record && DeleteSceneAssetToTrash(assetDatabase, *record, error)) {
+                        assetDatabase.ScanAssets(true);
+                        selection.selectedAssetGuid.clear();
+                        selection.selectedAssetPath.clear();
+                        lastOperationMessage = "Scene moved to Library/Trash";
+                    } else {
+                        lastOperationMessage = error.empty() ? "Scene delete failed" : error;
+                    }
+                    gDeleteSceneGuid.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                if (deletingCurrent) {
+                    ImGui::EndDisabled();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(96.0f, 0.0f))) {
+                    gDeleteSceneGuid.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
         }
 #endif
     }
@@ -1157,7 +1564,8 @@ namespace HIKARI {
         AssetDatabase& assetDatabase,
         EditorSelection& selection,
         const AssetUsageSummary* usageSummary,
-        AssetBrowserScope scope) const {
+        AssetBrowserScope scope,
+        const AssetBrowserContext* context) const {
 #if defined(_DEBUG)
         if (currentDirectory_.empty()) {
             currentDirectory_ = "Assets";
@@ -1175,6 +1583,10 @@ namespace HIKARI {
         ImGui::SameLine();
         ImGui::TextDisabled("Drop files/folders here to import");
         ImGui::Separator();
+        if (scope == AssetBrowserScope::Scenes) {
+            ImGui::TextDisabled("Scenes are project assets. Open, duplicate, delete, and set startup scene here.");
+            ImGui::Separator();
+        }
 
         if (ImGui::Button("Refresh")) {
             const bool ok = assetDatabase.ScanAssets(true);
@@ -1251,15 +1663,10 @@ namespace HIKARI {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Migrate Legacy JSON")) {
-            LegacyAssetJsonMigrator migrator{};
-            LegacyAssetMigrationOptions options{};
-            options.rewriteScenes = true;
-            LegacyAssetMigrationResult result = migrator.Migrate(assetDatabase, options);
-            assetDatabase.ScanAssets(true);
-            lastOperationMessage_ = result.success
-                ? "Legacy migration report written"
-                : "Legacy migration failed";
+        if (ImGui::Button("Upgrade Existing Scenes")) {
+            std::string message{};
+            UpgradeExistingDataScenesIntoAssets(assetDatabase, message);
+            lastOperationMessage_ = message.empty() ? "Scene upgrade finished" : message;
         }
 
         const float filterLineWidth = ImGui::GetContentRegionAvail().x;
@@ -1342,19 +1749,21 @@ namespace HIKARI {
             ImGui::TextDisabled("No assets here");
             ImGui::TextDisabled("Create folders here, or add source files under Assets and press Refresh.");
         } else if (viewMode_ == 1) {
-            DrawRecordList(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
+            DrawRecordList(assetDatabase, records, selection, usageSummary, lastOperationMessage_, context);
         } else if (viewMode_ == 2) {
-            DrawRecordGrid(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
+            DrawRecordGrid(assetDatabase, records, selection, usageSummary, lastOperationMessage_, context);
         } else {
-            DrawRecordCompactRows(assetDatabase, records, selection, usageSummary, lastOperationMessage_);
+            DrawRecordCompactRows(assetDatabase, records, selection, usageSummary, lastOperationMessage_, context);
         }
 
         ImGui::EndChild();
+        DrawSceneAssetModals(assetDatabase, selection, lastOperationMessage_, context);
 #else
         (void)assetDatabase;
         (void)selection;
         (void)usageSummary;
         (void)scope;
+        (void)context;
 #endif
     }
 
@@ -1362,6 +1771,16 @@ namespace HIKARI {
 #if defined(_DEBUG)
         std::string value = std::move(gActivatedSceneGuid);
         gActivatedSceneGuid.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeSaveSceneAsGuid() const {
+#if defined(_DEBUG)
+        std::string value = std::move(gSaveSceneAsGuid);
+        gSaveSceneAsGuid.clear();
         return value;
 #else
         return {};
