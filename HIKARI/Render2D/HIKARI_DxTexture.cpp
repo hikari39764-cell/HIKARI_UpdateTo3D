@@ -68,9 +68,20 @@ namespace HIKARI {
                 HIKARI_LOG_INFO(oss.str());
             }
 
-            std::string MakeTextureCacheKey(const std::string& name, TextureColorSpace colorSpace)
+            std::string NormalizeTextureCachePath(const std::string& path)
             {
-                return name + ColorSpaceSuffix(colorSpace);
+                std::string normalized = path;
+                std::replace(normalized.begin(), normalized.end(), '\\', '/');
+                return ToLowerCopy(normalized);
+            }
+
+            std::string MakeTextureCacheKey(
+                const std::string& name,
+                const std::string& path,
+                TextureColorSpace colorSpace)
+            {
+                // 同じ論理名でも、実体ファイルが違う場合は別 GPU resource として扱う。
+                return name + "|" + NormalizeTextureCachePath(path) + ColorSpaceSuffix(colorSpace);
             }
 
             bool ContainsAny(const std::string& text, std::initializer_list<const char*> needles)
@@ -330,7 +341,7 @@ namespace HIKARI {
             const TextureColorSpace resolvedColorSpace = (colorSpace == TextureColorSpace::Auto)
                 ? (IsHtexPath(path) ? TextureColorSpace::Auto : ResolveAutoColorSpace(name, path))
                 : colorSpace;
-            const std::string cacheKey = MakeTextureCacheKey(name, resolvedColorSpace);
+            const std::string cacheKey = MakeTextureCacheKey(name, path, resolvedColorSpace);
             auto it = nameToHandle_.find(cacheKey);
             if (it != nameToHandle_.end()) {
                 return it->second;
@@ -356,7 +367,7 @@ namespace HIKARI {
         int DxTextureManager::LoadCubemap(const std::string& name, const std::string& path, TextureColorSpace colorSpace)
         {
             EnsureInit();
-            const std::string cacheKey = MakeTextureCacheKey("cube:" + name, colorSpace);
+            const std::string cacheKey = MakeTextureCacheKey("cube:" + name, path, colorSpace);
             auto it = nameToHandle_.find(cacheKey);
             if (it != nameToHandle_.end()) {
                 return it->second;
@@ -367,6 +378,42 @@ namespace HIKARI {
                 nameToHandle_[cacheKey] = handle;
             }
             return handle;
+        }
+
+        void DxTextureManager::InvalidateTextureCacheByName(const std::string& name)
+        {
+            const std::string texturePrefix = name + "|";
+            const std::string cubemapPrefix = "cube:" + name + "|";
+            for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
+                if (it->first.rfind(texturePrefix, 0) == 0 ||
+                    it->first.rfind(cubemapPrefix, 0) == 0) {
+                    it = nameToHandle_.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        void DxTextureManager::InvalidateTextureCacheByPath(const std::string& path)
+        {
+            const std::string normalizedPath = NormalizeTextureCachePath(path);
+            if (normalizedPath.empty()) {
+                return;
+            }
+
+            const std::string pathNeedle = "|" + normalizedPath + "|";
+            for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
+                if (it->first.find(pathNeedle) != std::string::npos) {
+                    it = nameToHandle_.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        void DxTextureManager::InvalidateAllTextureCache()
+        {
+            nameToHandle_.clear();
         }
 
         int DxTextureManager::CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace)

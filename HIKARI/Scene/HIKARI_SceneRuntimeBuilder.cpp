@@ -85,7 +85,7 @@ namespace HIKARI {
                 }
             }
 
-            skyManager.RegisterAsset(SkyAsset{
+            skyManager.RegisterOrUpdateAsset(SkyAsset{
                 descriptor->id.value,
                 descriptor->meshAssetId,
                 texturePath,

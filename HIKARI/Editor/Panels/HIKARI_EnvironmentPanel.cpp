@@ -93,6 +93,117 @@ namespace HIKARI {
             return count;
         }
 
+        bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+        }
+
+        bool EqualFloat4(const DirectX::XMFLOAT4& lhs, const DirectX::XMFLOAT4& rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w == rhs.w;
+        }
+
+        bool EqualSkySettings(const SkySettings& lhs, const SkySettings& rhs) {
+            return lhs.enabled == rhs.enabled &&
+                lhs.mode == rhs.mode &&
+                lhs.skyAsset == rhs.skyAsset &&
+                lhs.scale == rhs.scale &&
+                lhs.yaw == rhs.yaw &&
+                lhs.exposure == rhs.exposure &&
+                EqualVec3(lhs.tint, rhs.tint) &&
+                lhs.followCamera == rhs.followCamera &&
+                EqualVec3(lhs.zenithColor, rhs.zenithColor) &&
+                EqualVec3(lhs.horizonColor, rhs.horizonColor) &&
+                EqualVec3(lhs.groundColor, rhs.groundColor) &&
+                lhs.horizonPower == rhs.horizonPower &&
+                lhs.showSunDisk == rhs.showSunDisk &&
+                lhs.sunDiskIntensity == rhs.sunDiskIntensity &&
+                lhs.sunDiskSize == rhs.sunDiskSize &&
+                lhs.ambientFromSky == rhs.ambientFromSky &&
+                lhs.reflectionIntensity == rhs.reflectionIntensity &&
+                lhs.showDebugTexture == rhs.showDebugTexture;
+        }
+
+        bool EqualPointLight(const PointLight& lhs, const PointLight& rhs) {
+            return lhs.enabled == rhs.enabled &&
+                EqualVec3(lhs.position, rhs.position) &&
+                lhs.range == rhs.range &&
+                EqualVec3(lhs.color, rhs.color) &&
+                lhs.intensity == rhs.intensity;
+        }
+
+        bool EqualPostSettings(const ScenePostSettings& lhs, const ScenePostSettings& rhs) {
+            if (lhs.enabled != rhs.enabled ||
+                lhs.globalPostProfileId != rhs.globalPostProfileId ||
+                lhs.valuesInitialized != rhs.valuesInitialized) {
+                return false;
+            }
+            for (int i = 0; i < 16; ++i) {
+                if (!EqualFloat4(lhs.paramValues[i], rhs.paramValues[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool EqualSceneEnvironment(const SceneEnvironment& lhs, const SceneEnvironment& rhs) {
+            if (!EqualVec3(lhs.ambient.color, rhs.ambient.color) ||
+                lhs.ambient.intensity != rhs.ambient.intensity ||
+                lhs.ambient.useSkyColor != rhs.ambient.useSkyColor ||
+                lhs.ambient.skyBlend != rhs.ambient.skyBlend ||
+                lhs.directional.enabled != rhs.directional.enabled ||
+                !EqualVec3(lhs.directional.direction, rhs.directional.direction) ||
+                lhs.directional.intensity != rhs.directional.intensity ||
+                !EqualVec3(lhs.directional.color, rhs.directional.color) ||
+                lhs.directionalShadow.enabled != rhs.directionalShadow.enabled ||
+                lhs.directionalShadow.resolution != rhs.directionalShadow.resolution ||
+                lhs.directionalShadow.orthoSize != rhs.directionalShadow.orthoSize ||
+                lhs.directionalShadow.nearPlane != rhs.directionalShadow.nearPlane ||
+                lhs.directionalShadow.farPlane != rhs.directionalShadow.farPlane ||
+                lhs.directionalShadow.depthBias != rhs.directionalShadow.depthBias ||
+                lhs.directionalShadow.normalBias != rhs.directionalShadow.normalBias ||
+                lhs.directionalShadow.strength != rhs.directionalShadow.strength ||
+                lhs.directionalShadow.pcfEnabled != rhs.directionalShadow.pcfEnabled ||
+                lhs.directionalShadow.pcfRadius != rhs.directionalShadow.pcfRadius ||
+                lhs.directionalShadow.stabilize != rhs.directionalShadow.stabilize ||
+                lhs.directionalShadow.showDebugTexture != rhs.directionalShadow.showDebugTexture ||
+                lhs.directionalShadow.shadowDistance != rhs.directionalShadow.shadowDistance ||
+                lhs.directionalShadow.showDebugFrustum != rhs.directionalShadow.showDebugFrustum ||
+                !EqualSkySettings(lhs.sky, rhs.sky) ||
+                lhs.bloom.enabled != rhs.bloom.enabled ||
+                lhs.bloom.threshold != rhs.bloom.threshold ||
+                lhs.bloom.intensity != rhs.bloom.intensity ||
+                lhs.bloom.radius != rhs.bloom.radius ||
+                lhs.bloom.downsampleCount != rhs.bloom.downsampleCount ||
+                lhs.fog.enabled != rhs.fog.enabled ||
+                !EqualVec3(lhs.fog.color, rhs.fog.color) ||
+                lhs.fog.density != rhs.fog.density ||
+                lhs.fog.startDistance != rhs.fog.startDistance ||
+                lhs.fog.endDistance != rhs.fog.endDistance ||
+                lhs.fog.heightFalloff != rhs.fog.heightFalloff ||
+                lhs.fog.useSkyHorizonColor != rhs.fog.useSkyHorizonColor ||
+                lhs.toneMapping.enabled != rhs.toneMapping.enabled ||
+                lhs.toneMapping.exposure != rhs.toneMapping.exposure ||
+                lhs.toneMapping.gamma != rhs.toneMapping.gamma ||
+                lhs.toneMapping.mode != rhs.toneMapping.mode ||
+                lhs.debugView != rhs.debugView ||
+                lhs.specularIntensity != rhs.specularIntensity ||
+                lhs.specularPower != rhs.specularPower ||
+                lhs.showLightDebug != rhs.showLightDebug ||
+                lhs.showPointLightMarkers != rhs.showPointLightMarkers ||
+                lhs.showSkyDebugInfo != rhs.showSkyDebugInfo ||
+                !EqualPostSettings(lhs.post, rhs.post) ||
+                lhs.pointLights.size() != rhs.pointLights.size()) {
+                return false;
+            }
+
+            for (size_t i = 0; i < lhs.pointLights.size(); ++i) {
+                if (!EqualPointLight(lhs.pointLights[i], rhs.pointLights[i])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         constexpr float kPi = 3.14159265358979323846f;
 
         float RadToDeg(float radians) {
@@ -390,15 +501,18 @@ namespace HIKARI {
         }
     }
 
-    void EnvironmentPanel::Draw(
+    bool EnvironmentPanel::Draw(
         SceneEnvironment& environment,
         const SKYRENDERER::SkyRendererDebugState* skyDebugState,
         const AssetRegistry* assetRegistry,
         const AssetDatabase* assetDatabase) const {
         if (!ImGui::Begin("Environment")) {
             ImGui::End();
-            return;
+            return false;
         }
+
+        // UI 全体の編集前後を比較し、Preset や配列操作もまとめて検出する。
+        const SceneEnvironment beforeEdit = environment;
 
         ImGui::SeparatorText("Scene Environment");
 
@@ -608,6 +722,12 @@ namespace HIKARI {
             if (skyDebugState != nullptr) {
                 ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
                 ImGui::Text("Active Texture Path: %s", skyDebugState->activeTexturePath.c_str());
+                ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
+                if (!skyDebugState->skyAssetFound && !skyDebugState->activeSkyAsset.empty()) {
+                    ImGui::TextColored(
+                        ImVec4(1.0f, 0.45f, 0.35f, 1.0f),
+                        "Sky asset is not registered in SkyManager.");
+                }
                 ImGui::Text("Sky Debug Mode: %s", SkyModeName(skyDebugState->mode));
                 ImGui::Text("Cubemap Loaded: %s", skyDebugState->cubemapLoaded ? "true" : "false");
                 ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
@@ -936,10 +1056,12 @@ namespace HIKARI {
             NormalizeDirectionalLight(environment.directional);
         }
 
+        const bool changed = !EqualSceneEnvironment(beforeEdit, environment);
         ImGui::End();
+        return changed;
     }
 #else
-    void EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*, const AssetRegistry*, const AssetDatabase*) const {}
+    bool EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*, const AssetRegistry*, const AssetDatabase*) const { return false; }
 #endif
 
 } // namespace HIKARI

@@ -250,6 +250,12 @@ namespace HIKARI::SKYRENDERER {
             const SkyAsset* skyAsset = skyManager.FindAsset(settings.skyAsset);
             g.debug.skyAssetFound = (skyAsset != nullptr);
             if (!skyAsset) {
+                g.debug.activeTexturePath.clear();
+                g.debug.textureValid = false;
+                g.debug.usingFallback = true;
+                if (!settings.skyAsset.empty()) {
+                    HIKARI_LOG_WARN("[SkyRenderer] sky asset not registered: " + settings.skyAsset);
+                }
                 return -1;
             }
 
@@ -267,7 +273,18 @@ namespace HIKARI::SKYRENDERER {
         int ResolveCubemap(const SkySettings& settings, SkyManager& skyManager) {
             const SkyAsset* skyAsset = skyManager.FindAsset(settings.skyAsset);
             g.debug.skyAssetFound = (skyAsset != nullptr);
-            const std::string path = skyAsset ? skyAsset->texturePath : settings.skyAsset;
+            if (!skyAsset) {
+                g.debug.activeTexturePath.clear();
+                g.debug.cubemapLoaded = false;
+                g.debug.textureValid = false;
+                g.debug.usingFallback = true;
+                if (!settings.skyAsset.empty()) {
+                    HIKARI_LOG_WARN("[SkyRenderer] sky asset not registered: " + settings.skyAsset);
+                }
+                return -1;
+            }
+
+            const std::string path = skyAsset->texturePath;
             g.debug.activeTexturePath = path;
             if (path.empty()) {
                 return -1;
@@ -298,6 +315,19 @@ namespace HIKARI::SKYRENDERER {
         g.debug.mode = SkyMode::None;
         g.debug.cubemapHandle = -1;
         g.debug.textureHandle = -1;
+    }
+
+    void InvalidateSkyTextureCache() {
+        // Sky の再選択や再 import 後に、次フレームで必ず実体 texture を取り直す。
+        g.loadedTexturePath.clear();
+        g.loadedCubemapPath.clear();
+        g.textureHandle = -1;
+        g.cubemapHandle = -1;
+        g.debug.textureHandle = -1;
+        g.debug.cubemapHandle = -1;
+        g.debug.activeTexturePath.clear();
+        DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky");
+        DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky_cube");
     }
 
     void Render(const Camera3D& camera, const SceneEnvironment& environment, ModelManager&, SkyManager& skyManager) {

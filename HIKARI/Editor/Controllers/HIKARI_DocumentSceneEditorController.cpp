@@ -185,8 +185,14 @@ namespace HIKARI {
             }
         }
         if (context_.windows.resources.showEnvironment) {
-            environmentPanel_.Draw(scene.GetSceneEnvironment(), &SKYRENDERER::GetDebugState(), &scene.GetAssetRegistry(), &scene.GetAssetDatabase());
-            scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
+            if (environmentPanel_.Draw(
+                    scene.GetSceneEnvironment(),
+                    &SKYRENDERER::GetDebugState(),
+                    &scene.GetAssetRegistry(),
+                    &scene.GetAssetDatabase())) {
+                scene.ApplyEnvironmentRuntimeChanges();
+                context_.sceneDirty = true;
+            }
         }
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);

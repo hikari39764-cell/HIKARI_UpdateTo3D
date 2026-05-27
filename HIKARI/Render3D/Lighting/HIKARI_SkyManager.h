@@ -10,6 +10,9 @@ namespace HIKARI {
     class SkyManager {
     public:
         void RegisterAsset(const SkyAsset& asset);
+        void RegisterOrUpdateAsset(const SkyAsset& asset);
+        void Clear();
+        bool ContainsAsset(const std::string& name) const;
         const SkyAsset* FindAsset(const std::string& name) const;
 
     private:

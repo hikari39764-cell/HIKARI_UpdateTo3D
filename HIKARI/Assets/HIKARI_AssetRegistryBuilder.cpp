@@ -6,6 +6,8 @@
 
 #include <json.hpp>
 
+#include "Core/HIKARI_Logger.h"
+
 namespace HIKARI {
 
     namespace {
@@ -147,9 +149,13 @@ namespace HIKARI {
                 auto descriptor = std::make_unique<SkyAssetDescriptor>();
                 descriptor->id.value = record->guid.value;
                 descriptor->type = AssetType::Sky;
-                descriptor->sourcePath = FindArtifactPath(*record, "SkyCubemap");
-                if (descriptor->sourcePath.empty()) {
+                const std::string skyArtifact = FindArtifactPath(*record, "SkyCubemap");
+                if (skyArtifact.empty()) {
+                    HIKARI_LOG_WARN("[AssetRegistryBuilder][Sky] missing SkyCubemap artifact, fallback to source: " +
+                        record->sourcePath.generic_string());
                     descriptor->sourcePath = record->sourcePath.generic_string();
+                } else {
+                    descriptor->sourcePath = skyArtifact;
                 }
                 descriptor->version = record->meta.importerVersion;
                 descriptor->textureAssetId.clear();

@@ -47,6 +47,7 @@ namespace HIKARI::SKYRENDERER {
     };
 
     void Reset();
+    void InvalidateSkyTextureCache();
     void Render(const Camera3D& camera, const SceneEnvironment& environment, ModelManager& modelManager, SkyManager& skyManager);
     const SkyRendererDebugState& GetDebugState();
     const SkyEnvironmentData& GetEnvironmentData();

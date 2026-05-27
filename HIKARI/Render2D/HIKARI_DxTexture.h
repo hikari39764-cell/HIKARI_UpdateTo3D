@@ -39,6 +39,10 @@ namespace HIKARI {
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
             static int RegisterCubeFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
 
+            static void InvalidateTextureCacheByName(const std::string& name);
+            static void InvalidateTextureCacheByPath(const std::string& path);
+            static void InvalidateAllTextureCache();
+
             static void ReleaseTexture(int handle);
             // Defers releasing the texture resource and descriptor slot until the GPU fence
             // confirms the current frame no longer uses them.

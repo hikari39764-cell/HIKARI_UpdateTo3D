@@ -12,7 +12,7 @@ namespace HIKARI {
 
     class EnvironmentPanel {
     public:
-        void Draw(
+        bool Draw(
             SceneEnvironment& environment,
             const SKYRENDERER::SkyRendererDebugState* skyDebugState,
             const AssetRegistry* assetRegistry = nullptr,

@@ -64,6 +64,31 @@ namespace HIKARI {
             default: return "Unknown";
             }
         }
+
+        bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+        }
+
+        bool EqualSkySettings(const SkySettings& lhs, const SkySettings& rhs) {
+            return lhs.enabled == rhs.enabled &&
+                lhs.mode == rhs.mode &&
+                lhs.skyAsset == rhs.skyAsset &&
+                lhs.scale == rhs.scale &&
+                lhs.yaw == rhs.yaw &&
+                lhs.exposure == rhs.exposure &&
+                EqualVec3(lhs.tint, rhs.tint) &&
+                lhs.followCamera == rhs.followCamera &&
+                EqualVec3(lhs.zenithColor, rhs.zenithColor) &&
+                EqualVec3(lhs.horizonColor, rhs.horizonColor) &&
+                EqualVec3(lhs.groundColor, rhs.groundColor) &&
+                lhs.horizonPower == rhs.horizonPower &&
+                lhs.showSunDisk == rhs.showSunDisk &&
+                lhs.sunDiskIntensity == rhs.sunDiskIntensity &&
+                lhs.sunDiskSize == rhs.sunDiskSize &&
+                lhs.ambientFromSky == rhs.ambientFromSky &&
+                lhs.reflectionIntensity == rhs.reflectionIntensity &&
+                lhs.showDebugTexture == rhs.showDebugTexture;
+        }
     }
     
     DocumentSceneBase::DocumentSceneBase(SceneCatalog& sceneCatalog, std::string sceneId)
@@ -530,6 +555,42 @@ namespace HIKARI {
         sceneDocumentDirty_ = dirty;
     }
 	// 現在のシーンドキュメントをファイルに保存する。現在のシーンアセットの GUID が有効であり、シーンパスが設定されている場合にのみ保存を試みる。保存に成功した場合は true を返し、そうでない場合は false を返す。
+    // Environment panel の変更を SceneDocument へ反映し、必要な場合だけ Sky runtime を更新する。
+    bool DocumentSceneBase::ApplyEnvironmentRuntimeChanges() {
+        const bool skyChanged = !EqualSkySettings(sceneDocument_.environment.sky, environment_.sky);
+        sceneDocument_.environment = environment_;
+        sceneDocumentDirty_ = true;
+
+        if (!skyChanged) {
+            return true;
+        }
+
+        return RefreshSkyRuntime();
+    }
+
+    bool DocumentSceneBase::RefreshSkyRuntime() {
+        SceneDependencySet deps{};
+        if (!environment_.sky.skyAsset.empty()) {
+            deps.skyAssetIds.insert(environment_.sky.skyAsset);
+        }
+
+        // Sky だけを再登録し、World 全体の再構築は避ける。
+        const bool ok = runtimeBuilder_.PreloadDependencies(
+            deps,
+            assetRegistry_,
+            modelManager_,
+            skyManager_);
+
+        SKYRENDERER::InvalidateSkyTextureCache();
+
+        if (!ok) {
+            HIKARI_LOG_WARN("[SkyRuntime] failed to preload sky dependency.");
+        }
+
+        return ok;
+    }
+
+    // 現在の Scene Asset へ SceneDocument を保存する。
     bool DocumentSceneBase::SaveCurrentSceneDocument() {
         if (!currentSceneAssetGuid_.IsValid() || scenePath_.empty()) {
             return false;
