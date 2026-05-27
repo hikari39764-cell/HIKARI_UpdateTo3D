@@ -277,7 +277,7 @@ float3 ApplyFog(float3 color, float3 worldPosWS)
         return color;
     }
 
-    float dist = length(gCameraPos.xyz - worldPosWS);
+    float dist = length(gCameraPos.xyz - worldPosWS) * 0.8f;
     float fogRange = max(0.001f, gFogParams.z - gFogParams.y);
     float fogFactor = saturate((dist - gFogParams.y) / fogRange);
     fogFactor = saturate(fogFactor * max(0.0f, gFogColorDensity.a) * dist);

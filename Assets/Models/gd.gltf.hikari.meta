@@ -36,7 +36,8 @@
     "loadMaterials": true,
     "loadTextures": true,
     "outputFormat": "HMODEL",
-    "sourceFormat": ".gltf"
+    "sourceFormat": ".gltf",
+    "unitScale": 1.0
   },
   "importerId": "ModelImporterStub",
   "importerVersion": 2,
