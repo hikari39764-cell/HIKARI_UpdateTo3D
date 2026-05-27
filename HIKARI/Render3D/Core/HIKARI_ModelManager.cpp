@@ -12,6 +12,7 @@
 #include <vector>
 #include <json.hpp>
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
+#include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
@@ -45,6 +46,25 @@ namespace HIKARI {
             MATH::Vec4 baseColor{ 1.0f, 1.0f, 1.0f, 1.0f };
             std::string baseColorMapPath;
         };
+
+        const char* ToModelTextureUsageText(ModelTextureUsage usage) {
+            switch (usage) {
+            case ModelTextureUsage::BaseColor: return "BaseColor";
+            case ModelTextureUsage::Normal: return "Normal";
+            case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
+            case ModelTextureUsage::Occlusion: return "Occlusion";
+            case ModelTextureUsage::Emissive: return "Emissive";
+            default: return "Unknown";
+            }
+        }
+
+        bool IsHtexPath(const std::string& path) {
+            std::string ext = std::filesystem::path(path).extension().string();
+            for (char& c : ext) {
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            return ext == ".htex";
+        }
 
         bool ParseObjIndexToken(const std::string& token, ObjKey& key) {
             std::stringstream ss(token);
@@ -670,6 +690,58 @@ namespace HIKARI {
         return count;
     }
 
+    void ModelManager::SetTexturePathResolver(ModelTexturePathResolver resolver) {
+        texturePathResolver_ = std::move(resolver);
+    }
+
+    void ModelManager::ClearTexturePathResolver() {
+        texturePathResolver_ = {};
+    }
+
+    std::string ModelManager::ResolveTexturePath(
+        const std::string& sourceTexturePath,
+        ModelTextureUsage usage) const {
+
+        if (sourceTexturePath.empty()) {
+            return {};
+        }
+
+        if (!texturePathResolver_) {
+            HIKARI_LOG_INFO("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " reason=resolver not configured");
+            return sourceTexturePath;
+        }
+
+        const std::string resolvedPath = texturePathResolver_(sourceTexturePath, usage);
+        if (resolvedPath.empty()) {
+            HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " reason=resolver returned empty");
+            return sourceTexturePath;
+        }
+
+        if (resolvedPath == sourceTexturePath) {
+            HIKARI_LOG_INFO("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage));
+        } else if (IsHtexPath(resolvedPath)) {
+            HIKARI_LOG_INFO("[ModelTextureResolver] resolved HTEX: " +
+                sourceTexturePath +
+                " -> " + resolvedPath +
+                " usage=" + ToModelTextureUsageText(usage));
+        } else {
+            HIKARI_LOG_INFO("[ModelTextureResolver] source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " resolved=" + resolvedPath);
+        }
+
+        return resolvedPath;
+    }
+
     bool ModelManager::BuildBuiltinCube(ModelAsset& asset) {
         auto mesh = std::make_unique<Mesh>();
         std::vector<VertexStatic3D> vertices;
@@ -808,13 +880,20 @@ namespace HIKARI {
             material->SetBaseColor(primaryMat.baseColorFactor);
             if (primaryMat.baseColorTexture.textureIndex >= 0 &&
                 primaryMat.baseColorTexture.textureIndex < static_cast<int>(asset.textures.size())) {
-                const std::string& texPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
-                if (!texPath.empty()) {
-                    material->SetBaseColorTexturePath(texPath);
+                const std::string& sourceTexPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
+                if (!sourceTexPath.empty()) {
+                    const std::string resolvedTexPath = ResolveTexturePath(sourceTexPath, ModelTextureUsage::BaseColor);
+                    std::string ext = std::filesystem::path(asset.GetSourcePath()).extension().string();
+                    for (char& c : ext) {
+                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    }
+                    const bool hmodelSource = ext == ".hmodel";
+                    // モデル材質の参照はここで cooked texture へ解決する。
+                    material->SetBaseColorTexturePath(resolvedTexPath);
                     const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-                        asset.GetName() + "/hmodel_baseColor",
-                        texPath,
-                        DXTEX::TextureColorSpace::Auto);
+                        asset.GetName() + (hmodelSource ? "/hmodel_baseColor" : "/obj_baseColor"),
+                        resolvedTexPath,
+                        hmodelSource ? DXTEX::TextureColorSpace::Auto : DXTEX::TextureColorSpace::Srgb);
                     if (handle >= 0) {
                         material->SetBaseColorTextureHandle(handle);
                     }
@@ -1319,10 +1398,14 @@ namespace HIKARI {
         material->SetBaseColorTextureHandle(-1);
         if (primaryMat.baseColorTexture.textureIndex >= 0 &&
             primaryMat.baseColorTexture.textureIndex < static_cast<int>(asset.textures.size())) {
-            const std::string& texPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
-            if (!texPath.empty()) {
-                material->SetBaseColorTexturePath(texPath);
-                const int handle = DXTEX::DxTextureManager::LoadTextureSrgb(asset.GetName() + "/gltf_baseColor", texPath);
+            const std::string& sourceTexPath = asset.textures[static_cast<size_t>(primaryMat.baseColorTexture.textureIndex)].sourcePath;
+            if (!sourceTexPath.empty()) {
+                const std::string resolvedTexPath = ResolveTexturePath(sourceTexPath, ModelTextureUsage::BaseColor);
+                material->SetBaseColorTexturePath(resolvedTexPath);
+                const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
+                    asset.GetName() + "/gltf_baseColor",
+                    resolvedTexPath,
+                    DXTEX::TextureColorSpace::Srgb);
                 if (handle >= 0) {
                     material->SetBaseColorTextureHandle(handle);
                 }

@@ -1,6 +1,7 @@
 #include "HIKARI_DocumentSceneBase.h"
 
 #include <filesystem>
+#include <cctype>
 #include <utility>
 #include <numbers>
 #include <memory>
@@ -10,6 +11,7 @@
 #include "HIKARI_3D.h"
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
+#include "Core/HIKARI_Logger.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
@@ -43,6 +45,24 @@ namespace HIKARI {
                 SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
                 SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
             };
+        }
+
+        std::string ToLowerCopy(std::string value) {
+            for (char& ch : value) {
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            }
+            return value;
+        }
+
+        const char* ToModelTextureUsageText(ModelTextureUsage usage) {
+            switch (usage) {
+            case ModelTextureUsage::BaseColor: return "BaseColor";
+            case ModelTextureUsage::Normal: return "Normal";
+            case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
+            case ModelTextureUsage::Occlusion: return "Occlusion";
+            case ModelTextureUsage::Emissive: return "Emissive";
+            default: return "Unknown";
+            }
         }
     }
     
@@ -277,8 +297,114 @@ namespace HIKARI {
         AssetRegistryBuilder assetRegistryBuilder{};
         const bool okRegistry = assetRegistryBuilder.AppendToRegistry(assetDatabase_, assetRegistry_);
 
+        ConfigureModelTextureResolver();
         return okDatabase && okRegistry;
     }
+    // モデル材質のテクスチャ参照を AssetDatabase 経由で解決する。
+    void DocumentSceneBase::ConfigureModelTextureResolver() {
+        // ModelManager は AssetDatabase を直接知らず、上位層から解決関数だけを受け取る。
+        modelManager_.SetTexturePathResolver(
+            [this](const std::string& sourceTexturePath, ModelTextureUsage usage) -> std::string {
+                return ResolveModelTexturePathFromAssets(sourceTexturePath, usage);
+            });
+    }
+
+    const AssetRecord* DocumentSceneBase::FindUniqueTextureAssetByFilename(
+        const std::string& filename,
+        const std::string& sourceTexturePath) const {
+
+        if (filename.empty()) {
+            return nullptr;
+        }
+
+        const std::string target = ToLowerCopy(filename);
+        const AssetRecord* matchedRecord = nullptr;
+        int matchCount = 0;
+
+        for (const AssetRecord* record : assetDatabase_.CollectByType(AssetType::Texture)) {
+            if (!record) {
+                continue;
+            }
+
+            const std::string recordFilename = ToLowerCopy(record->sourcePath.filename().string());
+            if (recordFilename != target) {
+                continue;
+            }
+
+            matchedRecord = record;
+            ++matchCount;
+        }
+
+        if (matchCount > 1) {
+            HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " reason=ambiguous filename matches filename=" + filename +
+                " count=" + std::to_string(matchCount));
+            return nullptr;
+        }
+
+        return matchCount == 1 ? matchedRecord : nullptr;
+    }
+
+    std::string DocumentSceneBase::ResolveModelTexturePathFromAssets(
+        const std::string& sourceTexturePath,
+        ModelTextureUsage usage) const {
+
+        if (sourceTexturePath.empty()) {
+            return {};
+        }
+
+        std::filesystem::path sourcePath = std::filesystem::path(sourceTexturePath).lexically_normal();
+        const AssetRecord* record = assetDatabase_.FindByPath(sourcePath);
+
+        if (!record && !assetDatabase_.GetProjectRoot().empty()) {
+            std::error_code ec{};
+            const std::filesystem::path absolutePath = sourcePath.is_absolute()
+                ? sourcePath.lexically_normal()
+                : (assetDatabase_.GetProjectRoot() / sourcePath).lexically_normal();
+            const std::filesystem::path relativePath =
+                std::filesystem::relative(absolutePath, assetDatabase_.GetProjectRoot(), ec).lexically_normal();
+            if (!ec && !relativePath.empty()) {
+                record = assetDatabase_.FindByPath(relativePath);
+            }
+            if (!record) {
+                record = assetDatabase_.FindByPath(absolutePath);
+            }
+        }
+
+        if (!record) {
+            // glTF/MTL の相対参照は、同名が一意な場合だけ補助的に解決する。
+            record = FindUniqueTextureAssetByFilename(sourcePath.filename().string(), sourceTexturePath);
+        }
+
+        if (!record) {
+            HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " reason=texture asset not found");
+            return sourceTexturePath;
+        }
+
+        if (record->type != AssetType::Texture || !record->guid.IsValid()) {
+            HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " reason=resolved asset is not a texture");
+            return sourceTexturePath;
+        }
+
+        const auto* descriptor = assetRegistry_.FindAs<TextureAssetDescriptor>(AssetId{ record->guid.value });
+        if (!descriptor || descriptor->sourcePath.empty()) {
+            HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
+                sourceTexturePath +
+                " usage=" + ToModelTextureUsageText(usage) +
+                " reason=texture descriptor missing");
+            return sourceTexturePath;
+        }
+
+        return descriptor->sourcePath;
+    }
+
 	// 現在のシーンドキュメントを再読み込みする。現在のシーンアセットの GUID が有効であれば、そのアセットを開き直す。そうでなければ、スタートアップシーンアセットを開く。
     bool DocumentSceneBase::ReloadSceneDocument() {
         if (currentSceneAssetGuid_.IsValid()) {

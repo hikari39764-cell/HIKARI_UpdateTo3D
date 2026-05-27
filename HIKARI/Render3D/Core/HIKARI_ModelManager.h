@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -6,6 +7,19 @@
 #include "Render3D/HIKARI_ModelAsset.h"
 
 namespace HIKARI {
+
+    enum class ModelTextureUsage {
+        BaseColor,
+        Normal,
+        MetallicRoughness,
+        Occlusion,
+        Emissive,
+        Unknown,
+    };
+
+    using ModelTexturePathResolver = std::function<std::string(
+        const std::string& sourceTexturePath,
+        ModelTextureUsage usage)>;
 
     class ModelManager {
     public:
@@ -25,16 +39,23 @@ namespace HIKARI {
         size_t CountLoadedAssets() const;
         size_t CountFailedAssets() const;
 
+        void SetTexturePathResolver(ModelTexturePathResolver resolver);
+        void ClearTexturePathResolver();
+
     private:
         bool LoadAsObj(ModelAsset& asset, bool buildRuntimeResources);
         bool LoadAsGltf(ModelAsset& asset, bool buildRuntimeResources);
         bool LoadAsHmodel(ModelAsset& asset);
         bool BuildRuntimeResources(ModelAsset& asset);
         bool BuildBuiltinCube(ModelAsset& asset);
+        std::string ResolveTexturePath(
+            const std::string& sourceTexturePath,
+            ModelTextureUsage usage) const;
 
     private:
         std::vector<std::unique_ptr<ModelAsset>> assets_;
         std::unordered_map<std::string, ModelAsset*> nameToAsset_;
+        ModelTexturePathResolver texturePathResolver_{};
     };
 
 } // namespace HIKARI

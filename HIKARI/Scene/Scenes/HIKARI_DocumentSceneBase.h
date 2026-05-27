@@ -85,6 +85,13 @@ namespace HIKARI {
         virtual bool UseDebugCamera() const;
         virtual bool DrawDebugHelpers() const;
         virtual bool UseEnvironmentLighting() const;
+        void ConfigureModelTextureResolver();
+        std::string ResolveModelTexturePathFromAssets(
+            const std::string& sourceTexturePath,
+            ModelTextureUsage usage) const;
+        const AssetRecord* FindUniqueTextureAssetByFilename(
+            const std::string& filename,
+            const std::string& sourceTexturePath) const;
 
     protected:
         SceneCatalog& sceneCatalog_;
