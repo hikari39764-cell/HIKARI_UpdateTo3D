@@ -86,6 +86,14 @@ namespace HIKARI {
             return value;
         }
 
+        bool EndsWithCaseInsensitive(const std::string& value, std::string_view suffix) {
+            if (suffix.size() > value.size()) {
+                return false;
+            }
+            const std::string tail = ToLowerCopy(value.substr(value.size() - suffix.size()));
+            return tail == ToLowerCopy(std::string(suffix));
+        }
+
         void SelectRecord(const AssetRecord& record, EditorSelection& selection);
 
         bool IsAssetsRootPath(const std::filesystem::path& path) {
@@ -1760,14 +1768,32 @@ namespace HIKARI {
                 ToStateText(assetPtr->GetState()),
                 assetPtr->GetMesh() ? "Yes" : "No");
             if (const Material* material = assetPtr->GetMaterial()) {
-                const bool hasTexture = material->HasBaseColorTexture();
-                const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
-                ImGui::Text("  Texture Path: %s", texturePath);
-                ImGui::Text("  Texture: %s (handle=%d)", hasTexture ? "Loaded" : "Not Loaded", material->GetBaseColorTextureHandle());
+                auto drawSlot = [](const char* label, const RuntimeTextureSlot& slot) {
+                    const char* source = slot.sourcePath.empty() ? "<none>" : slot.sourcePath.c_str();
+                    const char* resolved = slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str();
+                    const bool isHtex = EndsWithCaseInsensitive(slot.resolvedPath, ".htex");
+                    ImGui::Text("  %s: %s handle=%d", label, slot.IsValid() ? (isHtex ? "HTEX" : "RAW") : "Not Loaded", slot.handle);
+                    ImGui::Text("    source: %s", source);
+                    ImGui::Text("    resolved: %s", resolved);
+                };
+                drawSlot("BaseColor", material->GetTextureSlot(ModelTextureUsage::BaseColor));
+                drawSlot("Normal", material->GetTextureSlot(ModelTextureUsage::Normal));
+                drawSlot("MetallicRoughness", material->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
+                drawSlot("Occlusion", material->GetTextureSlot(ModelTextureUsage::Occlusion));
+                drawSlot("Emissive", material->GetTextureSlot(ModelTextureUsage::Emissive));
             } else {
                 ImGui::TextUnformatted("  Texture Path: <no material>");
             }
         }
+
+        const ModelTextureResolveStats& resolveStats = modelManager.GetTextureResolveStats();
+        ImGui::Separator();
+        ImGui::Text("Model Texture Resolve: Total=%d HTEX=%d RAW=%d Missing=%d Ambiguous=%d",
+            resolveStats.total,
+            resolveStats.resolvedHtex,
+            resolveStats.fallbackRaw,
+            resolveStats.missing,
+            resolveStats.ambiguous);
 
         ImGui::End();
 #else

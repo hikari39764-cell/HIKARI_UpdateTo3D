@@ -39,6 +39,7 @@ namespace HIKARI {
     struct TextureAsset3D {
         std::string name;
         std::string sourcePath;
+        std::string resolvedPath;
     };
 
     struct TextureSlot {

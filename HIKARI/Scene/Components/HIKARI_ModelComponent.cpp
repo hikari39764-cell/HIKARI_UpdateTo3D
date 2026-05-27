@@ -117,6 +117,15 @@ namespace HIKARI {
             return path.empty() ? "<empty>" : path.c_str();
         }
 
+        const char* ResolveTextureResolvedPathDebug(const ModelAsset& asset, const TextureSlot& slot) {
+            if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
+                return "<none>";
+            }
+            const TextureAsset3D& texture = asset.textures[static_cast<size_t>(slot.textureIndex)];
+            const std::string& path = texture.resolvedPath.empty() ? texture.sourcePath : texture.resolvedPath;
+            return path.empty() ? "<empty>" : path.c_str();
+        }
+
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
             bool changed = false;
@@ -765,11 +774,18 @@ namespace HIKARI {
             if (const Material* material = asset_->GetMaterial()) {
                 const MATH::Vec4& color = material->GetBaseColor();
                 ImGui::Text("BaseColor: (%.2f, %.2f, %.2f, %.2f)", color.x, color.y, color.z, color.w);
-                const char* texturePath = material->GetBaseColorTexturePath().empty() ? "<none>" : material->GetBaseColorTexturePath().c_str();
-                ImGui::Text("TexturePath: %s", texturePath);
-                ImGui::Text("TextureHandle: %d (%s)",
-                    material->GetBaseColorTextureHandle(),
-                    material->HasBaseColorTexture() ? "Valid" : "Invalid");
+                auto drawRuntimeSlot = [](const char* label, const RuntimeTextureSlot& slot) {
+                    ImGui::Text("%s: handle=%d source=%s",
+                        label,
+                        slot.handle,
+                        slot.sourcePath.empty() ? "<none>" : slot.sourcePath.c_str());
+                    ImGui::Text("  resolved=%s", slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str());
+                };
+                drawRuntimeSlot("BaseColor", material->GetTextureSlot(ModelTextureUsage::BaseColor));
+                drawRuntimeSlot("Normal", material->GetTextureSlot(ModelTextureUsage::Normal));
+                drawRuntimeSlot("MetallicRoughness", material->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
+                drawRuntimeSlot("Occlusion", material->GetTextureSlot(ModelTextureUsage::Occlusion));
+                drawRuntimeSlot("Emissive", material->GetTextureSlot(ModelTextureUsage::Emissive));
             }
             ImGui::TreePop();
         }
@@ -795,34 +811,39 @@ namespace HIKARI {
                         material.baseColorFactor.y,
                         material.baseColorFactor.z,
                         material.baseColorFactor.w);
-                    ImGui::Text("Base Color Texture: index=%d texCoord=%d path=%s",
+                    ImGui::Text("Base Color Texture: index=%d texCoord=%d source=%s",
                         material.baseColorTexture.textureIndex,
                         material.baseColorTexture.texCoord,
                         ResolveTexturePathDebug(*asset_, material.baseColorTexture));
+                    ImGui::Text("  resolved=%s", ResolveTextureResolvedPathDebug(*asset_, material.baseColorTexture));
                     ImGui::Text("Metallic / Roughness: %.3f / %.3f", material.metallicFactor, material.roughnessFactor);
-                    ImGui::Text("Metallic Roughness Texture: index=%d texCoord=%d path=%s",
+                    ImGui::Text("Metallic Roughness Texture: index=%d texCoord=%d source=%s",
                         material.metallicRoughnessTexture.textureIndex,
                         material.metallicRoughnessTexture.texCoord,
                         ResolveTexturePathDebug(*asset_, material.metallicRoughnessTexture));
-                    ImGui::Text("Normal Texture: index=%d texCoord=%d scale=%.3f path=%s",
+                    ImGui::Text("  resolved=%s", ResolveTextureResolvedPathDebug(*asset_, material.metallicRoughnessTexture));
+                    ImGui::Text("Normal Texture: index=%d texCoord=%d scale=%.3f source=%s",
                         material.normalTexture.textureIndex,
                         material.normalTexture.texCoord,
                         material.normalTexture.scale,
                         ResolveTexturePathDebug(*asset_, material.normalTexture));
-                    ImGui::Text("Occlusion Texture: index=%d texCoord=%d strength=%.3f path=%s",
+                    ImGui::Text("  resolved=%s", ResolveTextureResolvedPathDebug(*asset_, material.normalTexture));
+                    ImGui::Text("Occlusion Texture: index=%d texCoord=%d strength=%.3f source=%s",
                         material.occlusionTexture.textureIndex,
                         material.occlusionTexture.texCoord,
                         material.occlusionTexture.strength,
                         ResolveTexturePathDebug(*asset_, material.occlusionTexture));
+                    ImGui::Text("  resolved=%s", ResolveTextureResolvedPathDebug(*asset_, material.occlusionTexture));
                     ImGui::Text("Emissive Factor: %.3f %.3f %.3f",
                         material.emissiveFactor.x,
                         material.emissiveFactor.y,
                         material.emissiveFactor.z);
                     ImGui::Text("Emissive Strength: %.3f", material.emissiveStrength);
-                    ImGui::Text("Emissive Texture: index=%d texCoord=%d path=%s",
+                    ImGui::Text("Emissive Texture: index=%d texCoord=%d source=%s",
                         material.emissiveTexture.textureIndex,
                         material.emissiveTexture.texCoord,
                         ResolveTexturePathDebug(*asset_, material.emissiveTexture));
+                    ImGui::Text("  resolved=%s", ResolveTextureResolvedPathDebug(*asset_, material.emissiveTexture));
                     ImGui::Text("Alpha Mode: %s", ToAlphaModeText(material.alphaMode));
                     ImGui::Text("Alpha Cutoff: %.3f", material.alphaCutoff);
                     ImGui::Text("Double Sided: %s", material.doubleSided ? "Yes" : "No");

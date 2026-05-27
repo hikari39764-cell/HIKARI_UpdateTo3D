@@ -1,6 +1,18 @@
 {
-  "artifacts": [],
-  "dependencies": [],
+  "artifacts": [
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/2bef97f97cc48c9c5efb516e433e50be/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
+  "dependencies": [
+    {
+      "guid": "811450674cf1348573d6de1b2b9112b9",
+      "path": "Assets/TestModel/player.png",
+      "role": "Texture"
+    }
+  ],
   "displayName": "player",
   "guid": "2bef97f97cc48c9c5efb516e433e50be",
   "importSettings": {
@@ -9,7 +21,7 @@
     "sourceFormat": ".obj"
   },
   "importerId": "ModelImporterStub",
-  "importerVersion": 1,
+  "importerVersion": 2,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/player.obj",
   "type": "Model"

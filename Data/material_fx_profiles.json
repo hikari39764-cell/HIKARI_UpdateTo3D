@@ -9,7 +9,6 @@
       "depthTest": true,
       "depthWrite": true,
       "doubleSided": false,
-      "renderPhase": "SceneDepth",
       "composite": "Alpha",
       "params": [
         {

@@ -303,6 +303,7 @@ namespace HIKARI {
     // モデル材質のテクスチャ参照を AssetDatabase 経由で解決する。
     void DocumentSceneBase::ConfigureModelTextureResolver() {
         // ModelManager は AssetDatabase を直接知らず、上位層から解決関数だけを受け取る。
+        modelManager_.ResetTextureResolveStats();
         modelManager_.SetTexturePathResolver(
             [this](const std::string& sourceTexturePath, ModelTextureUsage usage) -> std::string {
                 return ResolveModelTexturePathFromAssets(sourceTexturePath, usage);
@@ -336,6 +337,7 @@ namespace HIKARI {
         }
 
         if (matchCount > 1) {
+            modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Ambiguous);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
                 " reason=ambiguous filename matches filename=" + filename +
@@ -378,6 +380,7 @@ namespace HIKARI {
         }
 
         if (!record) {
+            modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
                 " usage=" + ToModelTextureUsageText(usage) +
@@ -386,6 +389,7 @@ namespace HIKARI {
         }
 
         if (record->type != AssetType::Texture || !record->guid.IsValid()) {
+            modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
                 " usage=" + ToModelTextureUsageText(usage) +
@@ -395,6 +399,7 @@ namespace HIKARI {
 
         const auto* descriptor = assetRegistry_.FindAs<TextureAssetDescriptor>(AssetId{ record->guid.value });
         if (!descriptor || descriptor->sourcePath.empty()) {
+            modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
                 " usage=" + ToModelTextureUsageText(usage) +

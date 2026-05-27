@@ -181,6 +181,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.binding.depthAwarePhase = depthAwarePhase;
             ctx.binding.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.binding.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
+            ctx.binding.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
             ctx.materialFill.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.materialFill.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;

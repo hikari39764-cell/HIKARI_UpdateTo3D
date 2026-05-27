@@ -17,7 +17,7 @@
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
-    "compression": "None",
+    "compression": "BC7",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
     "futureOutputFormat": "HTEX",

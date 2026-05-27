@@ -52,7 +52,7 @@ namespace HIKARI::MESHRENDERER {
 
         D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.normal);
         if (normalSrv.ptr == 0) {
-            normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
+            normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackNormalTextureHandle);
         }
         if (normalSrv.ptr != 0) {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Normal, normalSrv);
@@ -68,7 +68,7 @@ namespace HIKARI::MESHRENDERER {
 
         D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.emissive);
         if (emissiveSrv.ptr == 0) {
-            emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
+            emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackBlackTextureHandle);
         }
         if (emissiveSrv.ptr != 0) {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Emissive, emissiveSrv);

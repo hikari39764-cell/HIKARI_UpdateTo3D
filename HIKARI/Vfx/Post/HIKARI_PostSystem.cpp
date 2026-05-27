@@ -607,7 +607,7 @@ namespace HIKARI {
             if (sceneInvalid) {
                 sceneRT_.Finalize();
                 sceneRT_.SetDebugName("Post.SceneRT.HDR");
-                HIKARI_LOG_INFO("[PostSystem][HDR] Recreate SceneRT size=" + std::to_string(w) + "x" + std::to_string(h) + " format=R16G16B16A16_FLOAT withDepth=true");
+               /* HIKARI_LOG_INFO("[PostSystem][HDR] Recreate SceneRT size=" + std::to_string(w) + "x" + std::to_string(h) + " format=R16G16B16A16_FLOAT withDepth=true");*/
                 const bool ok = sceneRT_.Init(
                     w, h,
                     DXGI_FORMAT_R16G16B16A16_FLOAT,

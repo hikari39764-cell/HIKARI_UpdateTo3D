@@ -232,6 +232,22 @@ namespace HIKARI::MESHRENDERER {
             if (const Material* material = item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
+                obj.hasNormalTexture = material->HasTextureSlot(ModelTextureUsage::Normal) ? 1u : 0u;
+                obj.hasMetallicRoughnessTexture = material->HasTextureSlot(ModelTextureUsage::MetallicRoughness) ? 1u : 0u;
+                obj.hasOcclusionTexture = material->HasTextureSlot(ModelTextureUsage::Occlusion) ? 1u : 0u;
+                obj.hasEmissiveTexture = material->HasTextureSlot(ModelTextureUsage::Emissive) ? 1u : 0u;
+                obj.normalScale = material->GetNormalScale();
+                obj.metallicFactor = material->GetMetallicFactor();
+                obj.roughnessFactor = material->GetRoughnessFactor();
+                obj.occlusionStrength = material->GetOcclusionStrength();
+                const MATH::Vec3& emissive = material->GetEmissiveFactor();
+                obj.emissiveFactor = {
+                    emissive.x,
+                    emissive.y,
+                    emissive.z,
+                    material->GetEmissiveStrength()
+                };
+                obj.materialFlags = material->GetFeatureBits();
             } else {
                 obj.baseColor = { 1, 1, 1, 1 };
                 obj.hasBaseColorTexture = 0u;
@@ -242,20 +258,32 @@ namespace HIKARI::MESHRENDERER {
             const D3D12_GPU_VIRTUAL_ADDRESS objectAddress = ObjectAddress(ctx, objectIndex);
             BindPerDrawCommon(ctx, ctx.staticRootSig, objectAddress);
 
-            int textureHandle = ctx.binding.fallbackTextureHandle;
+            MaterialTextureHandles textureHandles{};
+            textureHandles.baseColor = ctx.binding.fallbackTextureHandle;
+            textureHandles.normal = ctx.binding.fallbackNormalTextureHandle;
+            textureHandles.emissive = ctx.materialFill.fallbackBlackTextureHandle;
+            textureHandles.metallicRoughness = ctx.binding.fallbackTextureHandle;
+            textureHandles.occlusion = ctx.binding.fallbackTextureHandle;
             if (const Material* material = item.asset->GetMaterial()) {
                 if (material->HasBaseColorTexture()) {
-                    textureHandle = material->GetBaseColorTextureHandle();
+                    textureHandles.baseColor = material->GetBaseColorTextureHandle();
+                }
+                if (material->HasTextureSlot(ModelTextureUsage::Normal)) {
+                    textureHandles.normal = material->GetTextureSlot(ModelTextureUsage::Normal).handle;
+                }
+                if (material->HasTextureSlot(ModelTextureUsage::Emissive)) {
+                    textureHandles.emissive = material->GetTextureSlot(ModelTextureUsage::Emissive).handle;
+                }
+                if (material->HasTextureSlot(ModelTextureUsage::MetallicRoughness)) {
+                    textureHandles.metallicRoughness = material->GetTextureSlot(ModelTextureUsage::MetallicRoughness).handle;
+                }
+                if (material->HasTextureSlot(ModelTextureUsage::Occlusion)) {
+                    textureHandles.occlusion = material->GetTextureSlot(ModelTextureUsage::Occlusion).handle;
                 }
             }
 
-            BindMaterialTextureSet(ctx.binding, {
-                textureHandle,
-                ctx.binding.fallbackNormalTextureHandle,
-                ctx.binding.fallbackTextureHandle,
-                ctx.binding.fallbackTextureHandle,
-                ctx.binding.fallbackTextureHandle
-            });
+            // Legacy mesh でも runtime Material の PBR slot を同じ root table へ流す。
+            BindMaterialTextureSet(ctx.binding, textureHandles);
             BindSkyCube(ctx.binding);
             BindSceneDepth(ctx.binding);
             BindSceneColor(ctx.binding);

@@ -17,6 +17,7 @@ namespace HIKARI::MESHRENDERER {
         bool depthAwarePhase = false;
         int fallbackTextureHandle = -1;
         int fallbackNormalTextureHandle = -1;
+        int fallbackBlackTextureHandle = -1;
     };
 
     void BindFrameCommonResources(
