@@ -191,6 +191,8 @@ namespace HIKARI {
         }
     }
 
+    ModelComponent::~ModelComponent() = default;
+
     void ModelComponent::SetModelAsset(ModelAsset* asset) {
         asset_ = asset;
         if (asset_) {
@@ -293,6 +295,50 @@ namespace HIKARI {
 
     const std::string& ModelComponent::GetMaterialFxProfileId() const {
         return materialFxProfileId_;
+    }
+
+    const std::vector<ModelMaterialOverrideSlot>& ModelComponent::GetMaterialOverrides() const {
+        return materialOverrides_;
+    }
+
+    void ModelComponent::SetMaterialOverride(uint32_t slotIndex, AssetGuid materialGuid) {
+        for (ModelMaterialOverrideSlot& slot : materialOverrides_) {
+            if (slot.slotIndex == slotIndex) {
+                slot.materialAssetGuid = std::move(materialGuid);
+                ClearRuntimeMaterialOverride();
+                return;
+            }
+        }
+
+        materialOverrides_.push_back(ModelMaterialOverrideSlot{ slotIndex, std::move(materialGuid) });
+        ClearRuntimeMaterialOverride();
+    }
+
+    void ModelComponent::ClearMaterialOverride(uint32_t slotIndex) {
+        materialOverrides_.erase(
+            std::remove_if(materialOverrides_.begin(), materialOverrides_.end(), [slotIndex](const ModelMaterialOverrideSlot& slot) {
+                return slot.slotIndex == slotIndex;
+            }),
+            materialOverrides_.end());
+        ClearRuntimeMaterialOverride();
+    }
+
+    const Material* ModelComponent::GetRuntimeMaterialOverride() const {
+        return runtimeMaterialOverride_.get();
+    }
+
+    void ModelComponent::SetRuntimeMaterialOverride(std::unique_ptr<Material> material, AssetGuid guid) {
+        runtimeMaterialOverride_ = std::move(material);
+        runtimeMaterialOverrideGuid_ = std::move(guid);
+    }
+
+    void ModelComponent::ClearRuntimeMaterialOverride() {
+        runtimeMaterialOverride_.reset();
+        runtimeMaterialOverrideGuid_ = {};
+    }
+
+    const AssetGuid& ModelComponent::GetRuntimeMaterialOverrideGuid() const {
+        return runtimeMaterialOverrideGuid_;
     }
 
     DirectX::XMFLOAT4(&ModelComponent::GetMaterialFxParamValues())[VFX::kMaterialFxUserCount] {
@@ -486,6 +532,16 @@ namespace HIKARI {
         out["wirePerPrimitiveColor"] = wirePerPrimitiveColor_;
         out["postGroupMask"] = postGroupMask_;
         out["materialFxProfileId"] = materialFxProfileId_;
+        out["materialOverrides"] = nlohmann::json::array();
+        for (const ModelMaterialOverrideSlot& slot : materialOverrides_) {
+            if (!slot.materialAssetGuid.IsValid()) {
+                continue;
+            }
+            out["materialOverrides"].push_back({
+                { "slot", slot.slotIndex },
+                { "materialAssetGuid", slot.materialAssetGuid.value }
+            });
+        }
         out["materialFxValuesInitialized"] = materialFxValuesInitialized_;
         if (materialFxValuesInitialized_) {
             out["materialFxParamValues"] = nlohmann::json::array();
@@ -523,6 +579,21 @@ namespace HIKARI {
         wirePerPrimitiveColor_ = in.value("wirePerPrimitiveColor", wirePerPrimitiveColor_);
         postGroupMask_ = in.value("postGroupMask", postGroupMask_);
         materialFxProfileId_ = in.value("materialFxProfileId", materialFxProfileId_);
+        materialOverrides_.clear();
+        if (in.contains("materialOverrides") && in["materialOverrides"].is_array()) {
+            for (const nlohmann::json& node : in["materialOverrides"]) {
+                if (!node.is_object()) {
+                    continue;
+                }
+                ModelMaterialOverrideSlot slot{};
+                slot.slotIndex = node.value("slot", 0u);
+                slot.materialAssetGuid.value = node.value("materialAssetGuid", std::string{});
+                if (slot.materialAssetGuid.IsValid()) {
+                    materialOverrides_.push_back(std::move(slot));
+                }
+            }
+        }
+        ClearRuntimeMaterialOverride();
         bool hasParamValues = false;
         if (in.contains("materialFxParamValues") && in["materialFxParamValues"].is_array()) {
             const auto& values = in["materialFxParamValues"];
@@ -577,6 +648,20 @@ namespace HIKARI {
             builder.Bool("Generate Tangents", procedural_.generateTangents);
         } else {
             builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
+        }
+        std::string materialOverrideGuid{};
+        for (const ModelMaterialOverrideSlot& slot : materialOverrides_) {
+            if (slot.slotIndex == 0 && slot.materialAssetGuid.IsValid()) {
+                materialOverrideGuid = slot.materialAssetGuid.value;
+                break;
+            }
+        }
+        if (builder.AssetIdPicker("Material Override Slot 0", AssetType::Material, materialOverrideGuid)) {
+            if (materialOverrideGuid.empty()) {
+                ClearMaterialOverride(0);
+            } else {
+                SetMaterialOverride(0, AssetGuid{ materialOverrideGuid });
+            }
         }
         int postMask = static_cast<int>(postGroupMask_);
         if (builder.Int("Post Group Mask", postMask)) {
@@ -721,6 +806,32 @@ namespace HIKARI {
                     ImGui::PopID();
                 }
                 ImGui::TreePop();
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("Material Override", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const ModelMaterialOverrideSlot* slot0 = nullptr;
+            for (const ModelMaterialOverrideSlot& slot : materialOverrides_) {
+                if (slot.slotIndex == 0) {
+                    slot0 = &slot;
+                    break;
+                }
+            }
+            ImGui::Text("Slot 0: %s",
+                (slot0 && slot0->materialAssetGuid.IsValid()) ? slot0->materialAssetGuid.value.c_str() : "<none>");
+            ImGui::Text("Runtime Override: %s",
+                runtimeMaterialOverride_ ? "Ready" : "Default model material");
+            if (runtimeMaterialOverride_) {
+                auto drawRuntimeSlot = [](const char* label, const RuntimeTextureSlot& slot) {
+                    ImGui::Text("%s: handle=%d", label, slot.handle);
+                    ImGui::TextDisabled("  resolved=%s", slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str());
+                };
+                drawRuntimeSlot("BaseColor", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::BaseColor));
+                drawRuntimeSlot("Normal", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Normal));
+                drawRuntimeSlot("MetallicRoughness", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
+                drawRuntimeSlot("Occlusion", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Occlusion));
+                drawRuntimeSlot("Emissive", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Emissive));
             }
             ImGui::TreePop();
         }

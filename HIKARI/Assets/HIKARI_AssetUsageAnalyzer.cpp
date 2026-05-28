@@ -1,6 +1,7 @@
 #include "HIKARI_AssetUsageAnalyzer.h"
 
 #include "HIKARI_AssetDatabase.h"
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 namespace HIKARI {
@@ -27,6 +28,44 @@ namespace HIKARI {
                 owner,
                 role
             });
+        }
+
+        void AddMaterialTextureReference(
+            const MaterialTextureSlotData& slot,
+            const std::string& owner,
+            const std::string& role,
+            const AssetDatabase& assetDatabase,
+            AssetUsageSummary& summary) {
+
+            if (!slot.useTexture || !slot.textureAssetGuid.IsValid()) {
+                return;
+            }
+            AddReference(slot.textureAssetGuid.value, owner, role, assetDatabase, summary);
+        }
+
+        void AddMaterialTextureReferences(
+            const std::string& materialGuid,
+            const std::string& owner,
+            const AssetDatabase& assetDatabase,
+            AssetUsageSummary& summary) {
+
+            const AssetRecord* materialRecord = assetDatabase.FindByGuid(AssetGuid{ materialGuid });
+            if (!materialRecord || materialRecord->type != AssetType::Material) {
+                return;
+            }
+
+            PbrMaterialAssetData data{};
+            std::string error{};
+            if (!LoadPbrMaterialAssetData(assetDatabase.GetProjectRoot() / materialRecord->sourcePath, data, error)) {
+                return;
+            }
+
+            // Material Asset が参照する Texture も scene usage に含める。
+            AddMaterialTextureReference(data.baseColorTexture, owner, "Material BaseColor", assetDatabase, summary);
+            AddMaterialTextureReference(data.normalTexture, owner, "Material Normal", assetDatabase, summary);
+            AddMaterialTextureReference(data.metallicRoughnessTexture, owner, "Material MetallicRoughness", assetDatabase, summary);
+            AddMaterialTextureReference(data.occlusionTexture, owner, "Material Occlusion", assetDatabase, summary);
+            AddMaterialTextureReference(data.emissiveTexture, owner, "Material Emissive", assetDatabase, summary);
         }
     }
 
@@ -56,6 +95,14 @@ namespace HIKARI {
                         "Model",
                         assetDatabase,
                         summary);
+                    if (component.properties.contains("materialOverrides") &&
+                        component.properties["materialOverrides"].is_array()) {
+                        for (const nlohmann::json& slot : component.properties["materialOverrides"]) {
+                            const std::string materialGuid = slot.value("materialAssetGuid", std::string{});
+                            AddReference(materialGuid, owner, "Material Override", assetDatabase, summary);
+                            AddMaterialTextureReferences(materialGuid, owner, assetDatabase, summary);
+                        }
+                    }
                 } else if (component.type == "VfxPlayerComponent") {
                     if (component.properties.contains("slots") && component.properties["slots"].is_array()) {
                         for (const nlohmann::json& slot : component.properties["slots"]) {

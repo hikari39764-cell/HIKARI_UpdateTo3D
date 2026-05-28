@@ -55,6 +55,7 @@ namespace HIKARI {
         mutable int stateFilter_ = 0;
         mutable int viewMode_ = 0;
         mutable bool recursive_ = false;
+        mutable bool filtersExpanded_ = false;
         mutable std::string lastOperationMessage_{};
         mutable std::string activatedSceneGuid_{};
         mutable std::string saveSceneAsGuid_{};

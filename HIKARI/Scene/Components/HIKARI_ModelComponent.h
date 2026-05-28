@@ -1,15 +1,19 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <memory>
+#include <vector>
 #include <DirectXMath.h>
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
+#include "Assets/HIKARI_AssetGuid.h"
 #include "HIKARI_IComponent.h"
 
 
 namespace HIKARI {
 
     class ModelAsset;
+    class Material;
 
     enum class ModelSourceKind {
         Asset,
@@ -44,8 +48,15 @@ namespace HIKARI {
         bool generateTangents = true;
     };
 
+    struct ModelMaterialOverrideSlot {
+        uint32_t slotIndex = 0;
+        AssetGuid materialAssetGuid{};
+    };
+
     class ModelComponent final : public IComponent {
     public:
+        ~ModelComponent() override;
+
         std::string_view GetTypeName() const override { return "ModelComponent"; }
 
         void SetModelAsset(ModelAsset* asset);
@@ -91,6 +102,13 @@ namespace HIKARI {
 
         void SetMaterialFxProfileId(std::string profileId);
         const std::string& GetMaterialFxProfileId() const;
+        const std::vector<ModelMaterialOverrideSlot>& GetMaterialOverrides() const;
+        void SetMaterialOverride(uint32_t slotIndex, AssetGuid materialGuid);
+        void ClearMaterialOverride(uint32_t slotIndex);
+        const Material* GetRuntimeMaterialOverride() const;
+        void SetRuntimeMaterialOverride(std::unique_ptr<Material> material, AssetGuid guid);
+        void ClearRuntimeMaterialOverride();
+        const AssetGuid& GetRuntimeMaterialOverrideGuid() const;
         DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[VFX::kMaterialFxUserCount];
         const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[VFX::kMaterialFxUserCount];
         bool AreMaterialFxValuesInitialized() const;
@@ -117,6 +135,9 @@ namespace HIKARI {
         bool wirePerPrimitiveColor_ = true;
         uint32_t postGroupMask_ = 0;
         std::string materialFxProfileId_{};
+        std::vector<ModelMaterialOverrideSlot> materialOverrides_{};
+        std::unique_ptr<Material> runtimeMaterialOverride_{};
+        AssetGuid runtimeMaterialOverrideGuid_{};
         DirectX::XMFLOAT4 materialFxParamValues_[VFX::kMaterialFxUserCount]{};
         bool materialFxValuesInitialized_ = false;
     };

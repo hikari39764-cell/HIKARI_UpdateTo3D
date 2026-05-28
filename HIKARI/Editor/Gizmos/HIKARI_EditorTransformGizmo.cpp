@@ -127,6 +127,7 @@ namespace HIKARI::EDITOR {
         result.interacting = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 
         if (result.changed) {
+            // TODO: undo stack に積む TransformEditCommand をここから生成する。
             result.transform = DecomposeEditedMatrix(model);
             Transform3D& runtimeTransform = object.Transform();
             runtimeTransform.useExplicitMatrix = false;

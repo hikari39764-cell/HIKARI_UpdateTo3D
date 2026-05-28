@@ -8,6 +8,7 @@
 namespace HIKARI {
 
     class AssetDatabase;
+    class AssetRegistry;
     struct EditorSelection;
     struct SceneDocument;
 
@@ -21,6 +22,7 @@ namespace HIKARI {
     public:
         void Draw(
             AssetDatabase& assetDatabase,
+            AssetRegistry& assetRegistry,
             const SceneDocument& sceneDocument,
             EditorSelection& selection,
             const ResourceWorkspaceContext& context) const;

@@ -1,0 +1,33 @@
+{
+  "artifacts": [],
+  "dependencies": [
+    {
+      "guid": "6a90da6d3a0b84a4360cc337efc3cb67",
+      "path": "",
+      "role": "BaseColor"
+    },
+    {
+      "guid": "d04327bb0ac9c163b56ff7e1b2c947b8",
+      "path": "",
+      "role": "Normal"
+    },
+    {
+      "guid": "30992a26f9b14033e1d46f600cc65678",
+      "path": "",
+      "role": "MetallicRoughness"
+    }
+  ],
+  "displayName": "New Material",
+  "guid": "90bf234aaca2691807c79c50586851f9",
+  "importSettings": {
+    "cookMaterial": false,
+    "futureOutputFormat": "HMAT",
+    "shaderModel": "PBR",
+    "sourceFormat": ".material.json"
+  },
+  "importerId": "MaterialImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Materials/New Material.material.json",
+  "type": "Material"
+}

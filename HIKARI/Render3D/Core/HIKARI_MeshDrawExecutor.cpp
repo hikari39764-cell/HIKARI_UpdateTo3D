@@ -106,6 +106,60 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
+        MaterialTextureHandles ResolveRuntimeMaterialTextureHandles(
+            const Material* material,
+            const MeshBindingContext& binding,
+            const MeshMaterialFillContext& fill) {
+
+            MaterialTextureHandles textureHandles{};
+            textureHandles.baseColor = binding.fallbackTextureHandle;
+            textureHandles.normal = binding.fallbackNormalTextureHandle;
+            textureHandles.emissive = fill.fallbackBlackTextureHandle;
+            textureHandles.metallicRoughness = binding.fallbackTextureHandle;
+            textureHandles.occlusion = binding.fallbackTextureHandle;
+
+            if (material == nullptr) {
+                return textureHandles;
+            }
+            if (material->HasBaseColorTexture()) {
+                textureHandles.baseColor = material->GetBaseColorTextureHandle();
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::Normal)) {
+                textureHandles.normal = material->GetTextureSlot(ModelTextureUsage::Normal).handle;
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::Emissive)) {
+                textureHandles.emissive = material->GetTextureSlot(ModelTextureUsage::Emissive).handle;
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::MetallicRoughness)) {
+                textureHandles.metallicRoughness = material->GetTextureSlot(ModelTextureUsage::MetallicRoughness).handle;
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::Occlusion)) {
+                textureHandles.occlusion = material->GetTextureSlot(ModelTextureUsage::Occlusion).handle;
+            }
+            return textureHandles;
+        }
+
+        void FillRuntimeMaterialValues(ObjectCB& obj, const Material& material) {
+            obj.baseColor = material.GetBaseColor();
+            obj.hasBaseColorTexture = material.HasBaseColorTexture() ? 1u : 0u;
+            obj.hasNormalTexture = material.HasTextureSlot(ModelTextureUsage::Normal) ? 1u : 0u;
+            obj.hasMetallicRoughnessTexture = material.HasTextureSlot(ModelTextureUsage::MetallicRoughness) ? 1u : 0u;
+            obj.hasOcclusionTexture = material.HasTextureSlot(ModelTextureUsage::Occlusion) ? 1u : 0u;
+            obj.hasEmissiveTexture = material.HasTextureSlot(ModelTextureUsage::Emissive) ? 1u : 0u;
+            obj.normalScale = material.GetNormalScale();
+            obj.metallicFactor = material.GetMetallicFactor();
+            obj.roughnessFactor = material.GetRoughnessFactor();
+            obj.occlusionStrength = material.GetOcclusionStrength();
+            const MATH::Vec3& emissive = material.GetEmissiveFactor();
+            obj.emissiveFactor = {
+                emissive.x,
+                emissive.y,
+                emissive.z,
+                material.GetEmissiveStrength()
+            };
+            obj.materialFlags = material.GetFeatureBits();
+        }
+
         bool DrawStructuredMeshItem(
             const MeshDrawContext& ctx,
             const DrawItem& item,
@@ -140,7 +194,16 @@ namespace HIKARI::MESHRENDERER {
 
                     const MaterialAsset* materialAsset = GetPrimitiveMaterial(*item.asset, primitive.materialIndex);
                     ResolvedMaterialTextures textures{};
-                    if (ctx.services.materialResolver != nullptr) {
+                    const Material* runtimeMaterial = item.materialOverride;
+                    if (runtimeMaterial != nullptr) {
+                        const MaterialTextureHandles handles =
+                            ResolveRuntimeMaterialTextureHandles(runtimeMaterial, ctx.binding, ctx.materialFill);
+                        textures.baseColor = handles.baseColor;
+                        textures.normal = handles.normal;
+                        textures.emissive = handles.emissive;
+                        textures.metallicRoughness = handles.metallicRoughness;
+                        textures.occlusion = handles.occlusion;
+                    } else if (ctx.services.materialResolver != nullptr) {
                         textures = ctx.services.materialResolver->Resolve(*item.asset, materialAsset, ctx.services.stats);
                     } else {
                         textures.baseColor = ctx.binding.fallbackTextureHandle;
@@ -161,6 +224,10 @@ namespace HIKARI::MESHRENDERER {
                         textures.metallicRoughness,
                         textures.occlusion,
                         ctx.materialFill);
+                    if (runtimeMaterial != nullptr) {
+                        // Material Asset override はモデル内 MaterialAsset より優先する。
+                        FillRuntimeMaterialValues(obj, *runtimeMaterial);
+                    }
                     obj.hasBaseColorTexture = (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
                     obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                     FillFxValues(obj, item);
@@ -169,7 +236,9 @@ namespace HIKARI::MESHRENDERER {
                     const D3D12_GPU_VIRTUAL_ADDRESS objectAddress = ObjectAddress(ctx, objectIndex);
                     BindPerDrawCommon(ctx, drawingSkinned ? ctx.skinnedRootSig : ctx.staticRootSig, objectAddress);
 
-                    const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(item, materialAsset);
+                    const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(
+                        item,
+                        runtimeMaterial ? nullptr : materialAsset);
 
                     if (drawingSkinned) {
                         const size_t uploadedJointCount = UploadJointPalette(ctx.jointPaletteMapped, objectIndex, item.jointPalette);
@@ -229,7 +298,7 @@ namespace HIKARI::MESHRENDERER {
                 ctx.binding.fallbackTextureHandle,
                 ctx.materialFill);
             obj.receiveShadow = item.receiveShadow ? 1u : 0u;
-            if (const Material* material = item.asset->GetMaterial()) {
+            if (const Material* material = item.materialOverride ? item.materialOverride : item.asset->GetMaterial()) {
                 obj.baseColor = material->GetBaseColor();
                 obj.hasBaseColorTexture = material->HasBaseColorTexture() ? 1u : 0u;
                 obj.hasNormalTexture = material->HasTextureSlot(ModelTextureUsage::Normal) ? 1u : 0u;
@@ -259,28 +328,10 @@ namespace HIKARI::MESHRENDERER {
             BindPerDrawCommon(ctx, ctx.staticRootSig, objectAddress);
 
             MaterialTextureHandles textureHandles{};
-            textureHandles.baseColor = ctx.binding.fallbackTextureHandle;
-            textureHandles.normal = ctx.binding.fallbackNormalTextureHandle;
-            textureHandles.emissive = ctx.materialFill.fallbackBlackTextureHandle;
-            textureHandles.metallicRoughness = ctx.binding.fallbackTextureHandle;
-            textureHandles.occlusion = ctx.binding.fallbackTextureHandle;
-            if (const Material* material = item.asset->GetMaterial()) {
-                if (material->HasBaseColorTexture()) {
-                    textureHandles.baseColor = material->GetBaseColorTextureHandle();
-                }
-                if (material->HasTextureSlot(ModelTextureUsage::Normal)) {
-                    textureHandles.normal = material->GetTextureSlot(ModelTextureUsage::Normal).handle;
-                }
-                if (material->HasTextureSlot(ModelTextureUsage::Emissive)) {
-                    textureHandles.emissive = material->GetTextureSlot(ModelTextureUsage::Emissive).handle;
-                }
-                if (material->HasTextureSlot(ModelTextureUsage::MetallicRoughness)) {
-                    textureHandles.metallicRoughness = material->GetTextureSlot(ModelTextureUsage::MetallicRoughness).handle;
-                }
-                if (material->HasTextureSlot(ModelTextureUsage::Occlusion)) {
-                    textureHandles.occlusion = material->GetTextureSlot(ModelTextureUsage::Occlusion).handle;
-                }
-            }
+            textureHandles = ResolveRuntimeMaterialTextureHandles(
+                item.materialOverride ? item.materialOverride : item.asset->GetMaterial(),
+                ctx.binding,
+                ctx.materialFill);
 
             // Legacy mesh でも runtime Material の PBR slot を同じ root table へ流す。
             BindMaterialTextureSet(ctx.binding, textureHandles);

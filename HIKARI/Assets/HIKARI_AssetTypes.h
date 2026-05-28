@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI {
@@ -175,6 +176,10 @@ namespace HIKARI {
         TextureUsage usage = TextureUsage::Auto;
         TextureCompression compression = TextureCompression::Auto;
         TextureMipPolicy mipPolicy = TextureMipPolicy::Auto;
+    };
+
+    struct MaterialAssetDescriptor final : AssetDescriptor {
+        PbrMaterialAssetData data{};
     };
 
     struct VfxAssetDescriptor final : AssetDescriptor {

@@ -16,6 +16,8 @@
 #include "Core/HIKARI_TimeService.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
+#include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Scene/HIKARI_AnimationSystem.h"
@@ -652,7 +654,47 @@ namespace HIKARI {
                 ++reboundCount;
             });
 
+        RebuildMaterialOverrides();
         return reboundCount;
+    }
+
+    int DocumentSceneBase::RebuildMaterialOverrides() {
+        int rebuiltCount = 0;
+        MaterialRuntimeBuilder materialBuilder{};
+
+        world_.ForEachObjectWith<ModelComponent>(
+            [this, &rebuiltCount, &materialBuilder](GameObject&, ModelComponent& modelComponent) {
+                modelComponent.ClearRuntimeMaterialOverride();
+                for (const ModelMaterialOverrideSlot& slot : modelComponent.GetMaterialOverrides()) {
+                    if (slot.slotIndex != 0 || !slot.materialAssetGuid.IsValid()) {
+                        continue;
+                    }
+
+                    const auto* descriptor = assetRegistry_.FindAs<MaterialAssetDescriptor>(
+                        AssetId{ slot.materialAssetGuid.value });
+                    if (!descriptor) {
+                        HIKARI_LOG_WARN("[MaterialRuntime] material asset not registered: " +
+                            slot.materialAssetGuid.value);
+                        continue;
+                    }
+
+                    auto runtimeMaterial = std::make_unique<Material>();
+                    // Material override は scene load / refresh 時だけ再構築し、毎フレームの生成を避ける。
+                    if (materialBuilder.BuildRuntimeMaterial(
+                            descriptor->data,
+                            assetRegistry_,
+                            *runtimeMaterial,
+                            descriptor->id.value)) {
+                        modelComponent.SetRuntimeMaterialOverride(
+                            std::move(runtimeMaterial),
+                            slot.materialAssetGuid);
+                        ++rebuiltCount;
+                    }
+                    break;
+                }
+            });
+
+        return rebuiltCount;
     }
 
     // 現在の Scene Asset へ SceneDocument を保存する。

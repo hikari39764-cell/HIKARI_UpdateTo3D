@@ -48,7 +48,7 @@ namespace HIKARI::MESHRENDERER {
         if (!item.asset) {
             return;
         }
-        const Material* material = item.asset->GetMaterial();
+        const Material* material = item.materialOverride ? item.materialOverride : item.asset->GetMaterial();
         if (material) {
             item.variant.shaderId = material->GetShaderProfileId();
             item.variant.featureBits = material->GetFeatureBits();
@@ -87,7 +87,10 @@ namespace HIKARI::MESHRENDERER {
         const MaterialAsset* materialAsset) {
         VFX::VariantKey variant = item.variant;
 
-        if (materialAsset != nullptr) {
+        if (item.materialOverride != nullptr) {
+            variant.shaderId = item.materialOverride->GetShaderProfileId();
+            variant.featureBits = item.materialOverride->GetFeatureBits();
+        } else if (materialAsset != nullptr) {
             variant.shaderId = materialAsset->shaderProfileId;
             variant.featureBits = materialAsset->featureBits;
             variant.doubleSided = materialAsset->doubleSided;

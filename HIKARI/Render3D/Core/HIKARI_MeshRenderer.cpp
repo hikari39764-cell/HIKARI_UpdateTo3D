@@ -313,9 +313,10 @@ namespace HIKARI::MESHRENDERER {
         g.debugStats = {};
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
+    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
         DrawItem item{};
         item.asset = &asset;
+        item.materialOverride = materialOverride;
         item.transform = transform;
         item.materialFxProfileId = materialFxProfileId;
         item.postGroupMask = postGroupMask;
@@ -333,9 +334,10 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode) {
+    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
         DrawItem item{};
         item.asset = &asset;
+        item.materialOverride = materialOverride;
         item.transform = transform;
         item.jointPalette = jointPalette;
         item.materialFxProfileId = materialFxProfileId;

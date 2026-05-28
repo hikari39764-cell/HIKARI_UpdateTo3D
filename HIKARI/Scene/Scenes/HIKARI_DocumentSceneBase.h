@@ -76,6 +76,7 @@ namespace HIKARI {
         bool RefreshTextureRuntimeByPath(const std::string& path);
         bool ReloadModelAssetRuntime(const AssetId& modelId);
         int RebindModelComponents();
+        int RebuildMaterialOverrides();
         bool SaveCurrentSceneDocument();
         bool SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid);
         const AssetGuid& GetCurrentSceneAssetGuid() const;

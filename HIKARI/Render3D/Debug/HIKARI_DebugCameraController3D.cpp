@@ -62,13 +62,15 @@ namespace HIKARI {
         }
 #endif
 
-        if (!wantKeyboard && (::GetAsyncKeyState('R') & 0x8000) != 0) {
+        // エディタ操作キー(W/E/R/Q)と衝突しないよう、カメラリセットは Home に寄せる。
+        if (!wantKeyboard && (::GetAsyncKeyState(VK_HOME) & 0x8000) != 0) {
             position_ = resetPosition_;
             yaw_ = resetYaw_;
             pitch_ = resetPitch_;
         }
 
-        if (!wantMouse && HINPUT::IsMouseDown(HINPUT::MouseButton::Right)) {
+        const bool rightMouseDown = HINPUT::IsMouseDown(HINPUT::MouseButton::Right);
+        if (!wantMouse && rightMouseDown) {
             const Vector2 delta = HINPUT::GetMouseDelta();
             yaw_ += delta.x * settings_.mouseLookSensitivity;
             pitch_ -= delta.y * settings_.mouseLookSensitivity;
@@ -79,7 +81,8 @@ namespace HIKARI {
         const MATH::Vec3 worldUp{ 0.0f, 1.0f, 0.0f };
         const MATH::Vec3 right = MATH::Normalize(MATH::Cross(worldUp, forward));
 
-        if (!wantKeyboard) {
+        // WASD/QE は右クリック中だけ飛行カメラとして扱う。
+        if (!wantKeyboard && rightMouseDown) {
             MATH::Vec3 move{};
             if ((::GetAsyncKeyState('W') & 0x8000) != 0) move = move + forward;
             if ((::GetAsyncKeyState('S') & 0x8000) != 0) move = move - forward;

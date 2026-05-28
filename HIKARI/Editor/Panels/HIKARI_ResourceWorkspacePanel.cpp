@@ -132,6 +132,7 @@ namespace HIKARI {
 
     void ResourceWorkspacePanel::Draw(
         AssetDatabase& assetDatabase,
+        AssetRegistry& assetRegistry,
         const SceneDocument& sceneDocument,
         EditorSelection& selection,
         const ResourceWorkspaceContext& context) const {
@@ -158,6 +159,14 @@ namespace HIKARI {
         ImGui::SameLine();
         ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
         ImGui::SameLine();
+        if (ImGui::SmallButton("Refresh")) {
+            assetDatabase.ScanAssets(true);
+            refreshCurrentSceneResourcesRequested_ = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Refreshes AssetDatabase and reloads resources used by the current scene.");
+        }
+        ImGui::SameLine();
         if (EDITOR::EditorIconManager::IconButton(
             EDITOR::EditorIconKind::Settings,
             "ResourceImportLogToggle",
@@ -165,13 +174,6 @@ namespace HIKARI {
             showPreviewLog_,
             showPreviewLog_ ? "Hide import log" : "Show import log")) {
             showPreviewLog_ = !showPreviewLog_;
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Refresh Scene Runtime")) {
-            refreshCurrentSceneResourcesRequested_ = true;
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Reloads runtime resources referenced by the currently open scene.");
         }
         ImGui::Separator();
 
@@ -205,7 +207,7 @@ namespace HIKARI {
                     ImGui::SameLine();
 
                     if (ImGui::BeginChild("##ResourceWorkspaceInspector", ImVec2(0.0f, 0.0f), true)) {
-                        assetInspectorPanel_.Draw(assetDatabase, selection);
+                        assetInspectorPanel_.Draw(assetDatabase, assetRegistry, selection);
                     }
                     ImGui::EndChild();
                 }
@@ -219,7 +221,7 @@ namespace HIKARI {
                     ImGui::EndTabItem();
                 }
                 if (showInspector && ImGui::BeginTabItem("Inspector")) {
-                    assetInspectorPanel_.Draw(assetDatabase, selection);
+                    assetInspectorPanel_.Draw(assetDatabase, assetRegistry, selection);
                     ImGui::EndTabItem();
                 }
                 ImGui::EndTabBar();
@@ -235,6 +237,7 @@ namespace HIKARI {
         ImGui::End();
 #else
         (void)assetDatabase;
+        (void)assetRegistry;
         (void)sceneDocument;
         (void)selection;
         (void)context;

@@ -9,6 +9,7 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -55,10 +56,56 @@ namespace HIKARI {
                 ", sky " + std::to_string(report.skyInvalidatedCount) +
                 ", model " + std::to_string(report.modelReloadedCount) +
                 ", rebound " + std::to_string(report.modelReboundComponentCount) +
+                ", material " + std::to_string(report.materialReloadedCount) +
+                ", mat rebound " + std::to_string(report.materialReboundComponentCount) +
                 ", failed " + std::to_string(report.failedCount);
         }
 
 #if defined(_DEBUG)
+        bool CanUseViewportShortcut(bool focused) {
+            if (!focused) {
+                return false;
+            }
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.WantTextInput || ImGui::IsAnyItemActive() || ImGui::GetDragDropPayload() != nullptr) {
+                return false;
+            }
+            if (ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
+                return false;
+            }
+            if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+                return false;
+            }
+            return true;
+        }
+
+        void HandleTransformGizmoShortcuts(EditorTransformGizmoState& state, bool gameViewFocused) {
+            if (!CanUseViewportShortcut(gameViewFocused)) {
+                return;
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Q) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                state.enabled = false;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) {
+                state.enabled = true;
+                state.operation = EditorTransformGizmoOperation::Translate;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+                state.enabled = true;
+                state.operation = EditorTransformGizmoOperation::Rotate;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+                state.enabled = true;
+                state.operation = EditorTransformGizmoOperation::Scale;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_X)) {
+                state.mode = state.mode == EditorTransformGizmoMode::World
+                    ? EditorTransformGizmoMode::Local
+                    : EditorTransformGizmoMode::World;
+            }
+        }
+
         void DrawEditorDockSpace(bool resetDefaultDockLayout) {
             ImGuiIO& io = ImGui::GetIO();
             if ((io.ConfigFlags & ImGuiConfigFlags_DockingEnable) == 0) {
@@ -168,7 +215,12 @@ namespace HIKARI {
                 projectSettings.GetSettings().startupSceneGuid,
                 context_.sceneDirty || scene.HasUnsavedSceneChanges()
             };
-            resourceWorkspacePanel_.Draw(scene.GetAssetDatabase(), scene.GetSceneDocument(), context_.selection, resourceContext);
+            resourceWorkspacePanel_.Draw(
+                scene.GetAssetDatabase(),
+                scene.GetAssetRegistry(),
+                scene.GetSceneDocument(),
+                context_.selection,
+                resourceContext);
 
             const std::string saveSceneAsGuid = resourceWorkspacePanel_.ConsumeSaveSceneAsGuid();
             if (!saveSceneAsGuid.empty()) {
@@ -358,6 +410,19 @@ namespace HIKARI {
                 }
                 ImGui::SameLine();
                 ImGui::Checkbox("Snap", &context_.transformGizmo.snapEnabled);
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Snap Settings")) {
+                    ImGui::OpenPopup("TransformSnapSettings");
+                }
+                if (ImGui::BeginPopup("TransformSnapSettings")) {
+                    ImGui::TextUnformatted("Snap");
+                    ImGui::Separator();
+                    ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
+                    ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
+                    ImGui::DragFloat("Scale", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
+                    ImGui::TextDisabled("Ctrl enables snap while held.");
+                    ImGui::EndPopup();
+                }
             }
             ImGui::EndChild();
             ImGui::PopStyleColor();
@@ -369,6 +434,7 @@ namespace HIKARI {
 
         const ImVec2 imageOrigin = ImGui::GetCursorScreenPos();
         const bool gameViewFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        HandleTransformGizmoShortcuts(context_.transformGizmo, gameViewFocused);
         EDITOR::SetGameViewportInputRect(imageOrigin.x, imageOrigin.y, imageSize.x, imageSize.y, gameViewFocused);
 
         const float resolutionScale = std::clamp(context_.windows.viewport.gameViewResolutionScale, 0.5f, 1.0f);
@@ -386,10 +452,14 @@ namespace HIKARI {
                     imageSize.x,
                     imageSize.y
                 };
+                EditorTransformGizmoState gizmoState = context_.transformGizmo;
+                if (ImGui::IsKeyDown(ImGuiKey_ModCtrl)) {
+                    gizmoState.snapEnabled = true;
+                }
                 const EDITOR::EditorTransformGizmoResult gizmoResult = transformGizmo_.Draw(
                     *context_.selection.selectedObject,
                     scene.GetCamera(),
-                    context_.transformGizmo,
+                    gizmoState,
                     viewportRect);
                 gizmoCapture = gizmoResult.interacting;
 
@@ -480,8 +550,37 @@ namespace HIKARI {
             viewportDropMessage_ = "VFX drop target not implemented yet";
             break;
         case AssetType::Texture:
+            viewportDropMessage_ = "Texture viewport drop is not implemented yet";
+            break;
         case AssetType::Material:
-            viewportDropMessage_ = "Texture/Material viewport drop is not implemented yet";
+            if (!context_.selection.selectedObject) {
+                viewportDropMessage_ = "Select a model object first, then drop Material";
+                break;
+            }
+            if (auto* modelComponent = context_.selection.selectedObject->GetComponent<ModelComponent>()) {
+                modelComponent->SetMaterialOverride(0, payload.guid);
+                scene.RebuildMaterialOverrides();
+                if (SceneObjectData* documentObject =
+                    selectionSync_.FindDocumentObjectByRuntime(scene, context_.selection.selectedObject)) {
+                    for (SceneComponentData& component : documentObject->components) {
+                        if (component.type != "ModelComponent") {
+                            continue;
+                        }
+                        component.properties["materialOverrides"] = nlohmann::json::array({
+                            {
+                                { "slot", 0u },
+                                { "materialAssetGuid", payload.guid.value }
+                            }
+                        });
+                        break;
+                    }
+                }
+                context_.sceneDirty = true;
+                scene.SetUnsavedSceneChanges(true);
+                viewportDropMessage_ = "Material assigned: " + payload.record->displayName;
+            } else {
+                viewportDropMessage_ = "Selected object has no ModelComponent";
+            }
             break;
         default:
             viewportDropMessage_ = "This asset type cannot be dropped into Game View yet";

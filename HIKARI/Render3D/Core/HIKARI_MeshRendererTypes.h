@@ -15,6 +15,10 @@
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
+namespace HIKARI {
+    class Material;
+}
+
 namespace HIKARI::MESHRENDERER {
 
     enum class MeshRenderDebugMode {
@@ -109,6 +113,7 @@ namespace HIKARI::MESHRENDERER {
 
     struct DrawItem {
         const ModelAsset* asset = nullptr;
+        const Material* materialOverride = nullptr;
         Transform3D transform{};
         std::vector<MATH::Mat4> jointPalette{};
         std::string materialFxProfileId{};

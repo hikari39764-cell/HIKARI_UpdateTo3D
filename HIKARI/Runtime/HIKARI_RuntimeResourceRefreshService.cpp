@@ -33,6 +33,8 @@ namespace HIKARI {
             RefreshSkyAsset(scene, *sky, report);
         } else if (const auto* model = registry.FindAs<ModelAssetDescriptor>(assetId)) {
             RefreshModelAsset(scene, *model, report);
+        } else if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(assetId)) {
+            RefreshMaterialAsset(scene, *material, report);
         } else {
             ++report.failedCount;
             AppendMessage(report, "Unsupported or missing asset: " + assetId.value);
@@ -57,6 +59,8 @@ namespace HIKARI {
                 RefreshSkyAsset(scene, *sky, report);
             } else if (const auto* model = registry.FindAs<ModelAssetDescriptor>(assetId)) {
                 RefreshModelAsset(scene, *model, report);
+            } else if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(assetId)) {
+                RefreshMaterialAsset(scene, *material, report);
             } else {
                 ++report.failedCount;
                 AppendMessage(report, "Unsupported or missing asset: " + assetId.value);
@@ -69,7 +73,7 @@ namespace HIKARI {
 
         return report;
     }
-
+	/// すべてのリソースをリフレッシュする。モデルの再ロードとスカイの即時差し替えを行い、モデルコンポーネントの再バインドも試みる。
     RuntimeResourceRefreshReport RuntimeResourceRefreshService::RefreshCurrentSceneResources(
         DocumentSceneBase& scene) {
 
@@ -98,11 +102,20 @@ namespace HIKARI {
             }
         }
 
+        for (const std::string& materialId : dependencies.materialAssetIds) {
+            if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(AssetId{ materialId })) {
+                RefreshMaterialAsset(scene, *material, report);
+            } else {
+                ++report.failedCount;
+                AppendMessage(report, "Missing material dependency: " + materialId);
+            }
+        }
+
         report.modelReboundComponentCount += scene.RebindModelComponents();
         scene.RefreshCurrentSkyRuntime();
         return report;
     }
-
+	// Texture は cache を失効させ、モデル再ロード時に resolver 経由で再取得する。
     bool RuntimeResourceRefreshService::RefreshTextureAsset(
         DocumentSceneBase& scene,
         const TextureAssetDescriptor& descriptor,
@@ -125,7 +138,7 @@ namespace HIKARI {
         AppendMessage(report, "Invalidated texture: " + descriptor.sourcePath);
         return true;
     }
-
+	// Sky は即時差し替えを試みる。非アクティブ sky は次回選択時に読む。
     bool RuntimeResourceRefreshService::RefreshSkyAsset(
         DocumentSceneBase& scene,
         const SkyAssetDescriptor& descriptor,
@@ -153,7 +166,7 @@ namespace HIKARI {
         AppendMessage(report, "Refreshed sky: " + descriptor.id.value);
         return true;
     }
-
+	// Model は再ロードを試みる。成功すればモデルコンポーネントの再バインドも行う。
     bool RuntimeResourceRefreshService::RefreshModelAsset(
         DocumentSceneBase& scene,
         const ModelAssetDescriptor& descriptor,
@@ -171,6 +184,18 @@ namespace HIKARI {
         return true;
     }
 
+    bool RuntimeResourceRefreshService::RefreshMaterialAsset(
+        DocumentSceneBase& scene,
+        const MaterialAssetDescriptor& descriptor,
+        RuntimeResourceRefreshReport& report) {
+
+        const int rebuilt = scene.RebuildMaterialOverrides();
+        ++report.materialReloadedCount;
+        report.materialReboundComponentCount += rebuilt;
+        AppendMessage(report, "Rebuilt material override: " + descriptor.id.value);
+        return true;
+    }
+	// 現在のシーンで使われているモデルの依存関係を再評価し、必要に応じてモデルを再ロードする。Texture は cache を失効させるだけなので、個別の再ロードは行わない。
     void RuntimeResourceRefreshService::ReloadCurrentSceneModelDependencies(
         DocumentSceneBase& scene,
         RuntimeResourceRefreshReport& report) {
@@ -185,7 +210,7 @@ namespace HIKARI {
             }
         }
     }
-
+	// リフレッシュの過程で発生したメッセージをレポートに追加し、同時にログにも出す。
     void RuntimeResourceRefreshService::AppendMessage(
         RuntimeResourceRefreshReport& report,
         std::string message) const {

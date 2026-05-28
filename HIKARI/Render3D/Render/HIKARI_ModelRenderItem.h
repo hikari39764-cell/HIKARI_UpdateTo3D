@@ -9,6 +9,7 @@
 
 namespace HIKARI {
     class ModelAsset;
+    class Material;
 
     enum class ModelGeometryDebugMode {
         Normal,
@@ -20,6 +21,7 @@ namespace HIKARI {
         const ModelAsset* model = nullptr;
         uint64_t instanceKey = 0;
         Transform3D worldTransform;
+        const Material* materialOverride = nullptr;
 
         std::string materialFxProfileId;
         DirectX::XMFLOAT4 materialFxParamValues[VFX::kMaterialFxUserCount]{};

@@ -1,0 +1,162 @@
+#include "HIKARI_MaterialAssetData.h"
+
+#include <algorithm>
+#include <fstream>
+
+#include <json.hpp>
+
+namespace HIKARI {
+
+    namespace {
+        float NumberOr(const nlohmann::json& node, size_t index, float fallback) {
+            if (!node.is_array() || node.size() <= index || !node[index].is_number()) {
+                return fallback;
+            }
+            return node[index].get<float>();
+        }
+
+        MATH::Vec3 ReadVec3(const nlohmann::json& node, const MATH::Vec3& fallback) {
+            return {
+                NumberOr(node, 0, fallback.x),
+                NumberOr(node, 1, fallback.y),
+                NumberOr(node, 2, fallback.z)
+            };
+        }
+
+        MATH::Vec4 ReadVec4(const nlohmann::json& node, const MATH::Vec4& fallback) {
+            return {
+                NumberOr(node, 0, fallback.x),
+                NumberOr(node, 1, fallback.y),
+                NumberOr(node, 2, fallback.z),
+                NumberOr(node, 3, fallback.w)
+            };
+        }
+
+        nlohmann::json WriteVec3(const MATH::Vec3& value) {
+            return nlohmann::json::array({ value.x, value.y, value.z });
+        }
+
+        nlohmann::json WriteVec4(const MATH::Vec4& value) {
+            return nlohmann::json::array({ value.x, value.y, value.z, value.w });
+        }
+
+        MaterialTextureSlotData ReadSlot(const nlohmann::json& node) {
+            MaterialTextureSlotData slot{};
+            if (!node.is_object()) {
+                return slot;
+            }
+            slot.useTexture = node.value("useTexture", false);
+            slot.textureAssetGuid.value = node.value("textureAssetGuid", std::string{});
+            return slot;
+        }
+
+        nlohmann::json WriteSlot(const MaterialTextureSlotData& slot) {
+            return nlohmann::json{
+                { "useTexture", slot.useTexture },
+                { "textureAssetGuid", slot.textureAssetGuid.value }
+            };
+        }
+
+        PbrMaterialAssetData FromJson(const nlohmann::json& root) {
+            PbrMaterialAssetData data{};
+            data.version = root.value("version", data.version);
+            data.materialName = root.value("materialName", data.materialName);
+
+            if (auto baseColor = root.find("baseColor"); baseColor != root.end() && baseColor->is_object()) {
+                data.baseColorTexture = ReadSlot(*baseColor);
+                data.baseColorFactor = ReadVec4(baseColor->value("factor", nlohmann::json::array()), data.baseColorFactor);
+            }
+            if (auto normal = root.find("normal"); normal != root.end() && normal->is_object()) {
+                data.normalTexture = ReadSlot(*normal);
+                data.normalScale = normal->value("scale", data.normalScale);
+            }
+            if (auto mr = root.find("metallicRoughness"); mr != root.end() && mr->is_object()) {
+                data.metallicRoughnessTexture = ReadSlot(*mr);
+                data.metallicFactor = mr->value("metallicFactor", data.metallicFactor);
+                data.roughnessFactor = mr->value("roughnessFactor", data.roughnessFactor);
+            }
+            if (auto occlusion = root.find("occlusion"); occlusion != root.end() && occlusion->is_object()) {
+                data.occlusionTexture = ReadSlot(*occlusion);
+                data.occlusionStrength = occlusion->value("strength", data.occlusionStrength);
+            }
+            if (auto emissive = root.find("emissive"); emissive != root.end() && emissive->is_object()) {
+                data.emissiveTexture = ReadSlot(*emissive);
+                data.emissiveFactor = ReadVec3(emissive->value("factor", nlohmann::json::array()), data.emissiveFactor);
+                data.emissiveStrength = emissive->value("strength", data.emissiveStrength);
+            }
+
+            data.doubleSided = root.value("doubleSided", data.doubleSided);
+            data.unlit = root.value("unlit", data.unlit);
+            return data;
+        }
+
+        nlohmann::json ToJson(const PbrMaterialAssetData& data) {
+            nlohmann::json root{
+                { "version", data.version },
+                { "materialName", data.materialName },
+                { "shaderModel", "PBR" },
+                { "baseColor", WriteSlot(data.baseColorTexture) },
+                { "normal", WriteSlot(data.normalTexture) },
+                { "metallicRoughness", WriteSlot(data.metallicRoughnessTexture) },
+                { "occlusion", WriteSlot(data.occlusionTexture) },
+                { "emissive", WriteSlot(data.emissiveTexture) },
+                { "doubleSided", data.doubleSided },
+                { "unlit", data.unlit }
+            };
+
+            root["baseColor"]["factor"] = WriteVec4(data.baseColorFactor);
+            root["normal"]["scale"] = data.normalScale;
+            root["metallicRoughness"]["metallicFactor"] = data.metallicFactor;
+            root["metallicRoughness"]["roughnessFactor"] = data.roughnessFactor;
+            root["occlusion"]["strength"] = data.occlusionStrength;
+            root["emissive"]["factor"] = WriteVec3(data.emissiveFactor);
+            root["emissive"]["strength"] = data.emissiveStrength;
+            return root;
+        }
+    }
+
+    bool LoadPbrMaterialAssetData(
+        const std::filesystem::path& path,
+        PbrMaterialAssetData& outData,
+        std::string& outError) {
+
+        std::ifstream ifs(path);
+        if (!ifs.is_open()) {
+            outError = "failed to open material file: " + path.generic_string();
+            return false;
+        }
+
+        nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
+        if (root.is_discarded() || !root.is_object()) {
+            outError = "invalid material JSON: " + path.generic_string();
+            return false;
+        }
+
+        // Material は Texture の GUID だけを保持し、実パスは Registry 側で解決する。
+        outData = FromJson(root);
+        return true;
+    }
+
+    bool SavePbrMaterialAssetData(
+        const std::filesystem::path& path,
+        const PbrMaterialAssetData& data,
+        std::string& outError) {
+
+        std::error_code ec{};
+        std::filesystem::create_directories(path.parent_path(), ec);
+        if (ec) {
+            outError = "failed to create material directory: " + ec.message();
+            return false;
+        }
+
+        std::ofstream ofs(path);
+        if (!ofs.is_open()) {
+            outError = "failed to write material file: " + path.generic_string();
+            return false;
+        }
+
+        ofs << ToJson(data).dump(2) << '\n';
+        return true;
+    }
+
+} // namespace HIKARI

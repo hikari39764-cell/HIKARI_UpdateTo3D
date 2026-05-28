@@ -14,6 +14,8 @@ namespace HIKARI {
         int skyInvalidatedCount = 0;
         int modelReloadedCount = 0;
         int modelReboundComponentCount = 0;
+        int materialReloadedCount = 0;
+        int materialReboundComponentCount = 0;
         int failedCount = 0;
         std::vector<std::string> messages{};
     };
@@ -45,6 +47,11 @@ namespace HIKARI {
         bool RefreshModelAsset(
             DocumentSceneBase& scene,
             const ModelAssetDescriptor& descriptor,
+            RuntimeResourceRefreshReport& report);
+
+        bool RefreshMaterialAsset(
+            DocumentSceneBase& scene,
+            const MaterialAssetDescriptor& descriptor,
             RuntimeResourceRefreshReport& report);
 
         void ReloadCurrentSceneModelDependencies(

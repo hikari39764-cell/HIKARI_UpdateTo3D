@@ -1,10 +1,13 @@
 #include "HIKARI_SceneRuntimeBuilder.h"
 
+#include <memory>
 #include <numbers>
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
+#include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Scene/Components/HIKARI_IComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -30,6 +33,38 @@ namespace HIKARI {
             modelManager.RegisterAsset(descriptor.id.value, descriptor.sourcePath);
             modelManager.LoadAssetNow(descriptor.id.value);
         }
+
+        void BuildModelMaterialOverride(
+            ModelComponent& modelComponent,
+            const AssetRegistry& assetRegistry) {
+
+            modelComponent.ClearRuntimeMaterialOverride();
+            for (const ModelMaterialOverrideSlot& slot : modelComponent.GetMaterialOverrides()) {
+                if (slot.slotIndex != 0 || !slot.materialAssetGuid.IsValid()) {
+                    continue;
+                }
+
+                const auto* descriptor = assetRegistry.FindAs<MaterialAssetDescriptor>(
+                    AssetId{ slot.materialAssetGuid.value });
+                if (!descriptor) {
+                    continue;
+                }
+
+                auto runtimeMaterial = std::make_unique<Material>();
+                MaterialRuntimeBuilder builder{};
+                // 現段階では slot 0 をモデル全体に適用する。
+                if (builder.BuildRuntimeMaterial(
+                        descriptor->data,
+                        assetRegistry,
+                        *runtimeMaterial,
+                        descriptor->id.value)) {
+                    modelComponent.SetRuntimeMaterialOverride(
+                        std::move(runtimeMaterial),
+                        slot.materialAssetGuid);
+                }
+                return;
+            }
+        }
     }
 
     SceneDependencySet SceneRuntimeBuilder::CollectDependencies(const SceneDocument& document) const {
@@ -45,6 +80,18 @@ namespace HIKARI {
                     const std::string assetId = component.properties.value("assetId", std::string{});
                     if (!assetId.empty()) {
                         deps.modelAssetIds.insert(assetId);
+                    }
+                    if (component.properties.contains("materialOverrides") &&
+                        component.properties["materialOverrides"].is_array()) {
+                        for (const nlohmann::json& node : component.properties["materialOverrides"]) {
+                            if (!node.is_object()) {
+                                continue;
+                            }
+                            const std::string materialGuid = node.value("materialAssetGuid", std::string{});
+                            if (!materialGuid.empty()) {
+                                deps.materialAssetIds.insert(materialGuid);
+                            }
+                        }
                     }
                 }
             }
@@ -99,7 +146,7 @@ namespace HIKARI {
     bool SceneRuntimeBuilder::BuildWorldFromDocument(
         const SceneDocument& document,
         World& world,
-        const AssetRegistry&,
+        const AssetRegistry& assetRegistry,
         const ComponentRegistry& componentRegistry,
         ModelManager& modelManager,
         SkyManager&) const {
@@ -126,6 +173,7 @@ namespace HIKARI {
 
                 if (auto* modelComponent = dynamic_cast<ModelComponent*>(component)) {
                     modelComponent->SetModelAsset(modelManager.FindAsset(modelComponent->GetAssetId()));
+                    BuildModelMaterialOverride(*modelComponent, assetRegistry);
                 }
             }
         }

@@ -16,6 +16,7 @@ namespace HIKARI {
         std::unordered_set<std::string> modelAssetIds{};
         std::unordered_set<std::string> skyAssetIds{};
         std::unordered_set<std::string> textureAssetIds{};
+        std::unordered_set<std::string> materialAssetIds{};
     };
 
     class SceneRuntimeBuilder {

@@ -19,6 +19,9 @@
     <Filter Include="Header Files\Assets\Legacy">
       <UniqueIdentifier>{D24F49D4-9820-4E59-9F90-49E6AF7E6B2F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Material">
+      <UniqueIdentifier>{2C8932E7-7A66-4B6D-9E91-1B7ED8D7F2F1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -93,6 +96,9 @@
     </Filter>
     <Filter Include="Header Files\Render3D\Lighting">
       <UniqueIdentifier>{A5284DF4-6862-505D-A7C1-5D4FD7F789E9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Material">
+      <UniqueIdentifier>{832EDAF8-07B7-4F1D-A7F2-3E6F6420D7BA}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Render3D\Render">
       <UniqueIdentifier>{07B0E4B2-AC2D-54F3-9F48-9D4707B2F6E1}</UniqueIdentifier>
@@ -220,6 +226,9 @@
     <Filter Include="Source Files\Assets\Legacy">
       <UniqueIdentifier>{18D4696C-907D-4E2B-95BB-9C18D8D206D0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Material">
+      <UniqueIdentifier>{7D0947F2-F49E-46F2-BC96-43F427AB6C60}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
     </Filter>
@@ -291,6 +300,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Lighting">
       <UniqueIdentifier>{C1A3C0C6-B467-522C-9581-6B8444E82C66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Material">
+      <UniqueIdentifier>{10E3758B-F06E-4B68-96B1-03F3415EE852}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Render">
       <UniqueIdentifier>{A1841888-3554-5F96-862F-794EE5020D69}</UniqueIdentifier>
@@ -558,8 +570,11 @@
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.cpp">
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.cpp">
+      <Filter>Source Files\Assets\Material</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
@@ -981,6 +996,9 @@
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
@@ -1006,6 +1024,9 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp">
+      <Filter>Source Files\Render3D\Material</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -1275,8 +1296,11 @@
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h">
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporterStub.h">
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.h">
       <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.h">
+      <Filter>Header Files\Assets\Material</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporterStub.h">
       <Filter>Header Files\Assets\Importers</Filter>
@@ -1539,6 +1563,9 @@
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -1559,6 +1586,9 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h">
+      <Filter>Header Files\Render3D\Material</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">

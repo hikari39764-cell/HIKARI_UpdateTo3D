@@ -50,6 +50,7 @@ namespace HIKARI {
 
                 ModelRenderItem item{};
                 item.model = asset;
+                item.materialOverride = model.GetRuntimeMaterialOverride();
                 item.instanceKey = object.GetDocumentId().value;
                 if (item.instanceKey == 0) {
                     item.instanceKey = reinterpret_cast<uint64_t>(&object);

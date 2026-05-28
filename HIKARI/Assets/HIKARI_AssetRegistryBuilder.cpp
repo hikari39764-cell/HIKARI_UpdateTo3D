@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <memory>
 
 #include <json.hpp>
 
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 
 namespace HIKARI {
@@ -160,6 +162,23 @@ namespace HIKARI {
                 descriptor->version = record->meta.importerVersion;
                 descriptor->textureAssetId.clear();
                 descriptor->preferredMode = SkyMode::Cubemap;
+                ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
+            } else if (record->type == AssetType::Material) {
+                auto descriptor = std::make_unique<MaterialAssetDescriptor>();
+                descriptor->id.value = record->guid.value;
+                descriptor->type = AssetType::Material;
+                descriptor->sourcePath = record->sourcePath.generic_string();
+                descriptor->version = record->meta.importerVersion;
+
+                const std::filesystem::path sourcePath =
+                    (assetDatabase.GetProjectRoot() / record->sourcePath).lexically_normal();
+                std::string loadError{};
+                if (!LoadPbrMaterialAssetData(sourcePath, descriptor->data, loadError)) {
+                    HIKARI_LOG_WARN("[AssetRegistryBuilder][Material] failed to read material: " + loadError);
+                    descriptor->data.materialName = record->displayName.empty()
+                        ? record->sourcePath.stem().string()
+                        : record->displayName;
+                }
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
             } else if (record->type == AssetType::VfxEffect) {
                 auto descriptor = std::make_unique<VfxAssetDescriptor>();

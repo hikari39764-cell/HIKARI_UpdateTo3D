@@ -638,7 +638,8 @@ namespace HIKARI::MODELRENDERER {
                                 item.materialFxParamValues,
                                 item.materialFxValuesInitialized,
                                 item.receiveShadow,
-                                ToMeshRenderDebugMode(item.geometryDebugMode));
+                                ToMeshRenderDebugMode(item.geometryDebugMode),
+                                item.materialOverride);
                             SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             submittedSkinned = true;
                             submitted = true;
@@ -666,7 +667,8 @@ namespace HIKARI::MODELRENDERER {
                     item.materialFxParamValues,
                     item.materialFxValuesInitialized,
                     item.receiveShadow,
-                    ToMeshRenderDebugMode(item.geometryDebugMode));
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
                 SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
                 submitted = true;
             }
@@ -711,7 +713,8 @@ namespace HIKARI::MODELRENDERER {
                 item.materialFxParamValues,
                 item.materialFxValuesInitialized,
                 item.receiveShadow,
-                ToMeshRenderDebugMode(item.geometryDebugMode));
+                ToMeshRenderDebugMode(item.geometryDebugMode),
+                item.materialOverride);
             SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
         }
 

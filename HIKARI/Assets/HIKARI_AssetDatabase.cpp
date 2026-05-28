@@ -11,7 +11,7 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
-#include "Importers/HIKARI_MaterialImporterStub.h"
+#include "Importers/HIKARI_MaterialImporter.h"
 #include "Importers/HIKARI_ModelImporterStub.h"
 #include "Importers/HIKARI_SceneImporterStub.h"
 #include "Importers/HIKARI_SkyCubemapImporter.h"
@@ -761,7 +761,7 @@ namespace HIKARI {
         if (IsScenePath(sourcePath)) {
             return AssetType::Scene;
         }
-        if (ext == ".hmat" || EndsWith(generic, ".mat.json")) {
+        if (ext == ".hmat" || EndsWith(generic, ".material.json")) {
             return AssetType::Material;
         }
         if (IsVfxExtension(ext)) {
@@ -784,7 +784,7 @@ namespace HIKARI {
             return "SceneImporterStub";
         }
         if (type == AssetType::Material) {
-            return "MaterialImporterStub";
+            return "MaterialImporter";
         }
         if (type == AssetType::VfxEffect) {
             return "VfxImporterStub";
@@ -803,7 +803,7 @@ namespace HIKARI {
             std::make_unique<DirectXTexTextureImportBackend>()));
         importerRegistry_.Register(std::make_unique<ModelImporterStub>());
         importerRegistry_.Register(std::make_unique<SceneImporterStub>());
-        importerRegistry_.Register(std::make_unique<MaterialImporterStub>());
+        importerRegistry_.Register(std::make_unique<MaterialImporter>());
         importerRegistry_.Register(std::make_unique<VfxImporterStub>());
     }
 

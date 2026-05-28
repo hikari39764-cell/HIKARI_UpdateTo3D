@@ -14,7 +14,9 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Editor/HIKARI_EditorSelection.h"
+#include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -245,10 +247,137 @@ namespace HIKARI {
                 ImGui::EndTable();
             }
         }
+
+        bool DrawMaterialAssetEditor(
+            AssetDatabase& assetDatabase,
+            AssetRegistry& assetRegistry,
+            EditorSelection& selection,
+            AssetRecord& record) {
+
+            static std::string loadedMaterialGuid{};
+            static PbrMaterialAssetData editData{};
+            static std::string materialStatus{};
+            static bool materialDirty = false;
+
+            const std::filesystem::path sourcePath =
+                (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
+            if (loadedMaterialGuid != record.guid.value) {
+                loadedMaterialGuid = record.guid.value;
+                std::string error{};
+                if (!LoadPbrMaterialAssetData(sourcePath, editData, error)) {
+                    editData = {};
+                    editData.materialName = record.displayName.empty()
+                        ? record.sourcePath.stem().string()
+                        : record.displayName;
+                    materialStatus = error;
+                } else {
+                    materialStatus.clear();
+                }
+                materialDirty = false;
+            }
+
+            bool changed = false;
+            char nameBuffer[256]{};
+            CopyToBuffer(editData.materialName, nameBuffer, sizeof(nameBuffer));
+            if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer))) {
+                editData.materialName = nameBuffer;
+                changed = true;
+            }
+            ImGui::TextDisabled("Shader: PBR");
+
+            if (!materialStatus.empty()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", materialStatus.c_str());
+            }
+
+            ImGui::SeparatorText("Base Color");
+            changed = EDITOR::DrawMaterialTextureSlot(
+                "Base Color Texture",
+                editData.baseColorTexture,
+                assetDatabase,
+                assetRegistry,
+                &selection) || changed;
+            changed = ImGui::ColorEdit4("Base Color Factor", &editData.baseColorFactor.x) || changed;
+
+            ImGui::SeparatorText("Normal");
+            changed = EDITOR::DrawMaterialTextureSlot(
+                "Normal Texture",
+                editData.normalTexture,
+                assetDatabase,
+                assetRegistry,
+                &selection) || changed;
+            changed = ImGui::DragFloat("Normal Scale", &editData.normalScale, 0.01f, 0.0f, 4.0f) || changed;
+
+            ImGui::SeparatorText("Metallic / Roughness");
+            changed = EDITOR::DrawMaterialTextureSlot(
+                "Metallic Roughness Texture",
+                editData.metallicRoughnessTexture,
+                assetDatabase,
+                assetRegistry,
+                &selection) || changed;
+            changed = ImGui::SliderFloat("Metallic", &editData.metallicFactor, 0.0f, 1.0f) || changed;
+            changed = ImGui::SliderFloat("Roughness", &editData.roughnessFactor, 0.0f, 1.0f) || changed;
+
+            ImGui::SeparatorText("Ambient Occlusion");
+            changed = EDITOR::DrawMaterialTextureSlot(
+                "Occlusion Texture",
+                editData.occlusionTexture,
+                assetDatabase,
+                assetRegistry,
+                &selection) || changed;
+            changed = ImGui::SliderFloat("Occlusion Strength", &editData.occlusionStrength, 0.0f, 1.0f) || changed;
+
+            ImGui::SeparatorText("Emissive");
+            changed = EDITOR::DrawMaterialTextureSlot(
+                "Emissive Texture",
+                editData.emissiveTexture,
+                assetDatabase,
+                assetRegistry,
+                &selection) || changed;
+            changed = ImGui::ColorEdit3("Emissive Factor", &editData.emissiveFactor.x) || changed;
+            changed = ImGui::DragFloat("Emissive Strength", &editData.emissiveStrength, 0.01f, 0.0f, 100.0f) || changed;
+
+            ImGui::SeparatorText("Options");
+            changed = ImGui::Checkbox("Double Sided", &editData.doubleSided) || changed;
+            changed = ImGui::Checkbox("Unlit", &editData.unlit) || changed;
+
+            if (changed) {
+                materialDirty = true;
+            }
+
+            if (materialDirty) {
+                ImGui::TextColored(ImVec4(1.0f, 0.78f, 0.35f, 1.0f), "Unsaved material edits");
+            } else {
+                ImGui::TextDisabled("Material file is clean");
+            }
+
+            if (ImGui::Button("Save Material")) {
+                std::string error{};
+                if (SavePbrMaterialAssetData(sourcePath, editData, error)) {
+                    materialDirty = false;
+                    materialStatus = "Material saved";
+                    assetDatabase.ImportAsset(record.guid);
+                    assetDatabase.ScanAssets(true);
+                } else {
+                    materialStatus = error.empty() ? "Material save failed" : error;
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Revert")) {
+                std::string error{};
+                if (LoadPbrMaterialAssetData(sourcePath, editData, error)) {
+                    materialStatus.clear();
+                    materialDirty = false;
+                } else {
+                    materialStatus = error;
+                }
+            }
+
+            return materialDirty;
+        }
 #endif
     }
 
-    void AssetInspectorPanel::Draw(AssetDatabase& assetDatabase, EditorSelection& selection) const {
+    void AssetInspectorPanel::Draw(AssetDatabase& assetDatabase, AssetRegistry& assetRegistry, EditorSelection& selection) const {
 #if defined(_DEBUG)
         if (selection.selectedAssetGuid.empty()) {
             ImGui::TextDisabled("No Asset selected");
@@ -481,6 +610,11 @@ namespace HIKARI {
                 ImGui::EndTabItem();
             }
 
+            if (record->type == AssetType::Material && ImGui::BeginTabItem("PBR Material")) {
+                DrawMaterialAssetEditor(assetDatabase, assetRegistry, selection, *record);
+                ImGui::EndTabItem();
+            }
+
             if (ImGui::BeginTabItem("Debug JSON")) {
                 if (ImGui::InputTextMultiline(
                     "Import Settings JSON",
@@ -532,6 +666,7 @@ namespace HIKARI {
         }
 #else
         (void)assetDatabase;
+        (void)assetRegistry;
         (void)selection;
 #endif
     }

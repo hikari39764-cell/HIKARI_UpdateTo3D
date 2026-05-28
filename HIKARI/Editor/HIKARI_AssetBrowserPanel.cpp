@@ -20,6 +20,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -95,6 +96,9 @@ namespace HIKARI {
         }
 
         void SelectRecord(const AssetRecord& record, EditorSelection& selection);
+        void LogSceneAssetInfo(const std::string& message);
+        void LogSceneAssetWarn(const std::string& message);
+        std::filesystem::path MakeUniqueFolderPath(const std::filesystem::path& parentDirectory);
 
         bool IsAssetsRootPath(const std::filesystem::path& path) {
             return ToLowerCopy(path.lexically_normal().generic_string()) == "assets";
@@ -117,7 +121,7 @@ namespace HIKARI {
                 ext == ".hscene" ||
                 filename.ends_with(".scene.json") ||
                 ext == ".hmat" ||
-                filename.ends_with(".mat.json") ||
+                filename.ends_with(".material.json") ||
                 ext == ".efk" ||
                 ext == ".efkefc";
         }
@@ -144,7 +148,7 @@ namespace HIKARI {
             if (ext == ".hscene" || filename.ends_with(".scene.json")) {
                 return "Assets/Scenes";
             }
-            if (ext == ".hmat" || filename.ends_with(".mat.json")) {
+            if (ext == ".hmat" || filename.ends_with(".material.json")) {
                 return "Assets/Materials";
             }
             if (ext == ".efk" || ext == ".efkefc") {
@@ -242,6 +246,46 @@ namespace HIKARI {
         bool IsScenesDirectoryPath(const std::filesystem::path& path) {
             const std::string generic = ToLowerCopy(path.lexically_normal().generic_string());
             return generic == "assets/scenes" || generic.rfind("assets/scenes/", 0) == 0;
+        }
+
+        bool IsMaterialsDirectoryPath(const std::filesystem::path& path) {
+            const std::string generic = ToLowerCopy(path.lexically_normal().generic_string());
+            return generic == "assets/materials" || generic.rfind("assets/materials/", 0) == 0;
+        }
+
+        bool CreateDefaultMaterialAsset(
+            AssetDatabase& assetDatabase,
+            const std::filesystem::path& currentDirectory,
+            std::filesystem::path& outRelativePath,
+            std::string& outError) {
+
+            const std::filesystem::path materialDirectory = IsMaterialsDirectoryPath(currentDirectory)
+                ? currentDirectory
+                : std::filesystem::path("Assets/Materials");
+            const std::filesystem::path absoluteMaterialPath = MakeUniqueFilePath(
+                (assetDatabase.GetProjectRoot() / materialDirectory / "New Material.material.json").lexically_normal());
+
+            PbrMaterialAssetData data{};
+            data.materialName = absoluteMaterialPath.stem().stem().string();
+            if (data.materialName.empty()) {
+                data.materialName = "New Material";
+            }
+
+            // Material Asset は Texture の GUID を保持し、実際の HTEX は runtime builder が解決する。
+            if (!SavePbrMaterialAssetData(absoluteMaterialPath, data, outError)) {
+                return false;
+            }
+
+            std::error_code relativeEc{};
+            outRelativePath = std::filesystem::relative(
+                absoluteMaterialPath,
+                assetDatabase.GetProjectRoot(),
+                relativeEc).lexically_normal();
+            if (relativeEc) {
+                outError = "Failed to resolve material path: " + relativeEc.message();
+                return false;
+            }
+            return true;
         }
 
         bool CreateEmptySceneAsset(
@@ -343,6 +387,79 @@ namespace HIKARI {
             if (ec) {
                 outRelativePath = absoluteScenePath.lexically_normal();
             }
+            return true;
+        }
+
+        bool CreateFolderFromBrowser(
+            AssetDatabase& assetDatabase,
+            std::filesystem::path& currentDirectory,
+            std::string& lastOperationMessage) {
+
+            const std::filesystem::path parentDirectory = assetDatabase.GetProjectRoot() / currentDirectory;
+            const std::filesystem::path newFolder = MakeUniqueFolderPath(parentDirectory);
+            std::error_code ec{};
+            std::filesystem::create_directories(newFolder, ec);
+            if (ec) {
+                lastOperationMessage = "Folder creation failed: " + ec.message();
+                return false;
+            }
+
+            std::error_code relativeEc{};
+            std::filesystem::path relative =
+                std::filesystem::relative(newFolder, assetDatabase.GetProjectRoot(), relativeEc);
+            if (!relativeEc) {
+                currentDirectory = relative.lexically_normal();
+            }
+            assetDatabase.ScanAssets(true);
+            lastOperationMessage = "Folder created";
+            return true;
+        }
+
+        bool CreateSceneFromBrowser(
+            AssetDatabase& assetDatabase,
+            std::filesystem::path& currentDirectory,
+            EditorSelection& selection,
+            std::string& lastOperationMessage) {
+
+            std::filesystem::path scenePath{};
+            std::string error{};
+            if (!CreateEmptySceneAsset(assetDatabase, currentDirectory, scenePath, error)) {
+                lastOperationMessage = error.empty() ? "Scene creation failed" : error;
+                LogSceneAssetWarn("new scene failed: " + lastOperationMessage);
+                return false;
+            }
+
+            assetDatabase.ScanAssets(true);
+            currentDirectory = scenePath.parent_path();
+            if (const AssetRecord* sceneRecord = assetDatabase.FindByPath(scenePath)) {
+                SelectRecord(*sceneRecord, selection);
+            }
+            lastOperationMessage = "Scene asset created";
+            LogSceneAssetInfo("new scene: " + scenePath.generic_string());
+            return true;
+        }
+
+        bool CreateMaterialFromBrowser(
+            AssetDatabase& assetDatabase,
+            std::filesystem::path& currentDirectory,
+            EditorSelection& selection,
+            std::string& lastOperationMessage) {
+
+            std::filesystem::path materialPath{};
+            std::string error{};
+            if (!CreateDefaultMaterialAsset(assetDatabase, currentDirectory, materialPath, error)) {
+                lastOperationMessage = error.empty() ? "Material creation failed" : error;
+                HIKARI_LOG_WARN("[MaterialAsset] new material failed: " + lastOperationMessage);
+                return false;
+            }
+
+            assetDatabase.ScanAssets(true);
+            currentDirectory = materialPath.parent_path();
+            if (const AssetRecord* materialRecord = assetDatabase.FindByPath(materialPath)) {
+                SelectRecord(*materialRecord, selection);
+            }
+            lastOperationMessage = "Material asset created";
+            HIKARI_LOG_INFO("[MaterialAsset] new material: " + materialPath.generic_string());
             return true;
         }
 
@@ -1877,131 +1994,49 @@ namespace HIKARI {
             ImGui::Separator();
         }
 
-        if (ImGui::Button("Refresh")) {
-            const bool ok = assetDatabase.ScanAssets(true);
-            lastOperationMessage_ = ok ? "AssetDatabase refreshed" : "AssetDatabase refresh failed";
+        if (ImGui::Button("+ New")) {
+            ImGui::OpenPopup("AssetBrowserCreateMenu");
         }
-        ImGui::SameLine();
-        if (ImGui::Button("Import All Outdated")) {
-            const AssetImportBatchResult result = assetDatabase.ImportAllOutdated();
-            lastOperationMessage_ =
-                "Imported " + std::to_string(result.succeeded) +
-                " assets, failed " + std::to_string(result.failed);
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Runs synchronously for now; large BC imports can block the editor.");
-        }
-        ImGui::SameLine();
-        const bool hasSelection = !selection.selectedAssetGuid.empty();
-        if (!hasSelection) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Reimport Selected") && hasSelection) {
-            const bool ok = assetDatabase.ImportAsset(AssetGuid{ selection.selectedAssetGuid });
-            lastOperationMessage_ = ok ? "Selected asset reimported" : "Selected asset reimport failed";
-        }
-        if (!hasSelection) {
-            ImGui::EndDisabled();
-        }
-        ImGui::SameLine();
-        if (!hasSelection) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Reimport + Refresh") && hasSelection) {
-            const bool ok = assetDatabase.ImportAsset(AssetGuid{ selection.selectedAssetGuid });
-            if (ok) {
-                reimportAndRefreshRuntimeAssetGuid_ = selection.selectedAssetGuid;
+        if (ImGui::BeginPopup("AssetBrowserCreateMenu")) {
+            // 作成系はメインバーから逃がし、コンテンツ領域の文脈操作として扱う。
+            if (ImGui::MenuItem("Folder")) {
+                CreateFolderFromBrowser(assetDatabase, currentDirectory_, lastOperationMessage_);
             }
-            lastOperationMessage_ = ok ? "Selected asset reimported; runtime refresh queued" : "Selected asset reimport failed";
-        }
-        if (!hasSelection) {
-            ImGui::EndDisabled();
-        }
-        ImGui::SameLine();
-        if (!hasSelection) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Refresh Runtime") && hasSelection) {
-            refreshRuntimeAssetGuid_ = selection.selectedAssetGuid;
-            lastOperationMessage_ = "Runtime refresh queued";
-        }
-        if (!hasSelection) {
-            ImGui::EndDisabled();
-        }
-        ImGui::SameLine();
-        if (!hasSelection) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Import Dependencies") && hasSelection) {
-            const AssetImportBatchResult result = assetDatabase.ImportDependencies(
-                AssetGuid{ selection.selectedAssetGuid },
-                false);
-            lastOperationMessage_ =
-                "Dependencies imported " + std::to_string(result.succeeded) +
-                ", failed " + std::to_string(result.failed);
-        }
-        if (!hasSelection) {
-            ImGui::EndDisabled();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("New Folder")) {
-            const std::filesystem::path parentDirectory = assetDatabase.GetProjectRoot() / currentDirectory_;
-            const std::filesystem::path newFolder = MakeUniqueFolderPath(parentDirectory);
-            std::error_code ec{};
-            std::filesystem::create_directories(newFolder, ec);
-            if (ec) {
-                lastOperationMessage_ = "Folder creation failed: " + ec.message();
-            } else {
-                std::error_code relativeEc{};
-                std::filesystem::path relative = std::filesystem::relative(newFolder, assetDatabase.GetProjectRoot(), relativeEc);
-                if (!relativeEc) {
-                    currentDirectory_ = relative.lexically_normal();
-                }
-                assetDatabase.ScanAssets(true);
-                lastOperationMessage_ = "Folder created";
+            if (ImGui::MenuItem("Scene Asset")) {
+                CreateSceneFromBrowser(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
             }
-        }
-        ImGui::SameLine();
-        const char* newSceneButtonLabel = scope == AssetBrowserScope::Scenes ? "New Scene Asset" : "New Scene";
-        if (ImGui::Button(newSceneButtonLabel)) {
-            std::filesystem::path scenePath{};
-            std::string error{};
-            if (CreateEmptySceneAsset(assetDatabase, currentDirectory_, scenePath, error)) {
-                assetDatabase.ScanAssets(true);
-                currentDirectory_ = scenePath.parent_path();
-                if (const AssetRecord* sceneRecord = assetDatabase.FindByPath(scenePath)) {
-                    SelectRecord(*sceneRecord, selection);
-                }
-                lastOperationMessage_ = "Scene asset created";
-                LogSceneAssetInfo("new scene: " + scenePath.generic_string());
-            } else {
-                lastOperationMessage_ = error.empty() ? "Scene creation failed" : error;
-                LogSceneAssetWarn("new scene failed: " + lastOperationMessage_);
+            if (ImGui::MenuItem("Material Asset")) {
+                CreateMaterialFromBrowser(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
             }
+            ImGui::EndPopup();
         }
-        const float filterLineWidth = ImGui::GetContentRegionAvail().x;
-        ImGui::SetNextItemWidth((std::max)(220.0f, filterLineWidth * 0.38f));
-        ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
-        ImGui::SameLine();
-        static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX" };
-        ImGui::TextUnformatted("Type");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
-        ImGui::Combo("##AssetTypeFilter", &typeFilter_, TypeFilterItems, IM_ARRAYSIZE(TypeFilterItems));
-        ImGui::SameLine();
-        static const char* StateFilterItems[] = { "All", "Imported", "Outdated", "Missing", "Error", "Meta Only" };
-        ImGui::TextUnformatted("State");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(130.0f);
-        ImGui::Combo("##AssetStateFilter", &stateFilter_, StateFilterItems, IM_ARRAYSIZE(StateFilterItems));
         ImGui::SameLine();
         static const char* ViewModeItems[] = { "Compact", "List", "Grid" };
-        ImGui::TextUnformatted("View");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(118.0f);
+        ImGui::SetNextItemWidth(104.0f);
         ImGui::Combo("##AssetViewMode", &viewMode_, ViewModeItems, IM_ARRAYSIZE(ViewModeItems));
         ImGui::SameLine();
+        if (ImGui::SmallButton(filtersExpanded_ ? "Hide Filters" : "Filters")) {
+            filtersExpanded_ = !filtersExpanded_;
+        }
+        ImGui::SameLine();
         ImGui::Checkbox("Recursive", &recursive_);
+
+        if (filtersExpanded_ || searchBuffer_[0] != '\0' || typeFilter_ != 0 || stateFilter_ != 0) {
+            ImGui::SetNextItemWidth((std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
+            ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
+            ImGui::SameLine();
+            static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX" };
+            ImGui::TextUnformatted("Type");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(120.0f);
+            ImGui::Combo("##AssetTypeFilter", &typeFilter_, TypeFilterItems, IM_ARRAYSIZE(TypeFilterItems));
+            ImGui::SameLine();
+            static const char* StateFilterItems[] = { "All", "Imported", "Outdated", "Missing", "Error", "Meta Only" };
+            ImGui::TextUnformatted("State");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(130.0f);
+            ImGui::Combo("##AssetStateFilter", &stateFilter_, StateFilterItems, IM_ARRAYSIZE(StateFilterItems));
+        }
         ImGui::PopStyleVar();
 
         if (!lastOperationMessage_.empty()) {
@@ -2034,6 +2069,25 @@ namespace HIKARI {
             ? currentDirectory_.generic_string().c_str()
             : ToScopeTitle(scope));
         ImGui::Separator();
+        if (ImGui::BeginPopupContextWindow(
+            "AssetBrowserEmptyContext",
+            ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+            if (ImGui::MenuItem("New Folder")) {
+                CreateFolderFromBrowser(assetDatabase, currentDirectory_, lastOperationMessage_);
+            }
+            if (ImGui::MenuItem("New Scene Asset")) {
+                CreateSceneFromBrowser(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
+            }
+            if (ImGui::MenuItem("New Material Asset")) {
+                CreateMaterialFromBrowser(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Refresh Assets")) {
+                const bool ok = assetDatabase.ScanAssets(true);
+                lastOperationMessage_ = ok ? "AssetDatabase refreshed" : "AssetDatabase refresh failed";
+            }
+            ImGui::EndPopup();
+        }
 
         std::vector<const AssetRecord*> records = showFolderTree
             ? assetDatabase.CollectInDirectory(currentDirectory_, recursive_)
