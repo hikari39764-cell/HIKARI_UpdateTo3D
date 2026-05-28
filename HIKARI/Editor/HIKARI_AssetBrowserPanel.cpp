@@ -1500,7 +1500,7 @@ namespace HIKARI {
 
             if (!ImGui::BeginTable(
                 "AssetBrowserCompactRows",
-                5,
+                2,
                 ImGuiTableFlags_RowBg |
                 ImGuiTableFlags_ScrollY |
                 ImGuiTableFlags_SizingStretchProp)) {
@@ -1508,10 +1508,7 @@ namespace HIKARI {
             }
 
             ImGui::TableSetupColumn("Asset", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 56.0f);
-            ImGui::TableSetupColumn("Usage", ImGuiTableColumnFlags_WidthFixed, 64.0f);
-            ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 68.0f);
-            ImGui::TableSetupColumn("Cooked", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+            ImGui::TableSetupColumn("Badges", ImGuiTableColumnFlags_WidthFixed, 230.0f);
 
             for (const AssetRecord* record : records) {
                 if (!record) {
@@ -1572,11 +1569,11 @@ namespace HIKARI {
 
                 ImGui::TableSetColumnIndex(1);
                 DrawCompactBadge(ToCompactTypeBadge(record->type), TypeBadgeColor(record->type));
-                ImGui::TableSetColumnIndex(2);
+                ImGui::SameLine(0.0f, 6.0f);
                 DrawCompactBadge(usageBadge, UsageBadgeColor(usageBadge));
-                ImGui::TableSetColumnIndex(3);
+                ImGui::SameLine(0.0f, 6.0f);
                 DrawCompactBadge(ToCompactStateBadge(state), StateColor(state));
-                ImGui::TableSetColumnIndex(4);
+                ImGui::SameLine(0.0f, 6.0f);
                 DrawCompactBadge(cookedBadge, CookedBadgeColor(cookedBadge));
 
                 ImGui::PopID();
@@ -2022,6 +2019,8 @@ namespace HIKARI {
             ImGui::Separator();
             for (const std::filesystem::path& directory : assetDatabase.CollectDirectories()) {
                 const bool selected = directory.lexically_normal().generic_string() == currentDirectory_.lexically_normal().generic_string();
+                EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::Folder, ImVec2(15.0f, 15.0f));
+                ImGui::SameLine();
                 if (ImGui::Selectable(directory.generic_string().c_str(), selected)) {
                     currentDirectory_ = directory;
                 }

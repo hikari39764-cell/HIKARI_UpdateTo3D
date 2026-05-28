@@ -27,7 +27,16 @@ namespace HIKARI {
 
     void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) const {
 #if defined(_DEBUG)
-        for (const auto& object : world.GetObjects()) {
+        const auto& objects = world.GetObjects();
+        ImGui::TextDisabled("%d objects", static_cast<int>(objects.size()));
+        ImGui::Separator();
+
+        if (objects.empty()) {
+            ImGui::TextDisabled("No scene objects");
+            return;
+        }
+
+        for (const auto& object : objects) {
             GameObject* objectPtr = object.get();
             ImGui::PushID(objectPtr);
             const bool isSelected = (selection.selectedObject == objectPtr);

@@ -8,6 +8,7 @@
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Editor/HIKARI_EditorSelection.h"
+#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 #if defined(_DEBUG)
@@ -151,16 +152,22 @@ namespace HIKARI {
             ? nullptr
             : assetDatabase.FindByGuid(AssetGuid{ selection.selectedAssetGuid });
 
-        ImGui::TextUnformatted("Project Assets");
+        ImGui::TextUnformatted("Resources");
         ImGui::SameLine();
         ImGui::TextDisabled("%d items", static_cast<int>(assetDatabase.CollectAll().size()));
         ImGui::SameLine();
         ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(112.0f);
-        ImGui::Checkbox("Import Log", &showPreviewLog_);
+        if (EDITOR::EditorIconManager::IconButton(
+            EDITOR::EditorIconKind::Settings,
+            "ResourceImportLogToggle",
+            ImVec2(24.0f, 24.0f),
+            showPreviewLog_,
+            showPreviewLog_ ? "Hide import log" : "Show import log")) {
+            showPreviewLog_ = !showPreviewLog_;
+        }
         ImGui::SameLine();
-        if (ImGui::Button("Refresh Current Scene Resources")) {
+        if (ImGui::SmallButton("Refresh Scene Runtime")) {
             refreshCurrentSceneResourcesRequested_ = true;
         }
         if (ImGui::IsItemHovered()) {

@@ -17,12 +17,21 @@ namespace HIKARI::EDITOR {
         Sky,
         Scene,
         Vfx,
+        File,
+        Music,
         Component,
         System,
         GameObject,
         Camera,
         Light,
         Transform,
+        Settings,
+        Play,
+        Stop,
+        Translate,
+        Rotate,
+        Scale,
+        Count,
     };
 
     class EditorIconManager {
@@ -33,6 +42,12 @@ namespace HIKARI::EDITOR {
 #if defined(_DEBUG)
         static bool DrawIcon(EditorIconKind kind, const ImVec2& size);
         static bool DrawAssetIcon(AssetType type, const ImVec2& size);
+        static bool IconButton(
+            EditorIconKind kind,
+            const char* id,
+            const ImVec2& size,
+            bool selected = false,
+            const char* tooltip = nullptr);
 #endif
         static const char* GetFallbackText(EditorIconKind kind);
         static const char* GetAssetFallbackText(AssetType type);

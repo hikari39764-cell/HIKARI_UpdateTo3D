@@ -271,7 +271,16 @@ namespace HIKARI {
                 ImGui::SetCursorPosY(8.0f);
                 ImGui::Dummy(ImVec2(8.0f, 0.0f));
                 ImGui::SameLine();
-                ImGui::TextUnformatted(gameOnly ? "Game Only" : "Game");
+                if (EDITOR::EditorIconManager::IconButton(
+                    context_.windows.viewport.gameOnlyMode ? EDITOR::EditorIconKind::Stop : EDITOR::EditorIconKind::Play,
+                    "GameOnlyToggle",
+                    ImVec2(24.0f, 24.0f),
+                    context_.windows.viewport.gameOnlyMode,
+                    context_.windows.viewport.gameOnlyMode ? "Exit Game Only" : "Enter Game Only")) {
+                    context_.windows.viewport.gameOnlyMode = !context_.windows.viewport.gameOnlyMode;
+                }
+                ImGui::SameLine();
+                ImGui::TextUnformatted(gameOnly ? "Game Only" : "Scene View");
                 ImGui::SameLine();
                 ImGui::TextDisabled("%s", scene.GetSceneId().c_str());
                 ImGui::SameLine();
