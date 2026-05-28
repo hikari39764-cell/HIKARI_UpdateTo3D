@@ -316,16 +316,28 @@ namespace HIKARI::SKYRENDERER {
         g.debug.cubemapHandle = -1;
         g.debug.textureHandle = -1;
     }
+	// キャッシュされたテクスチャを解放し、次回の描画で再ロードするようにする
+    void InvalidateSkyTextureCache()
+    {
+		// 既にロードされているテクスチャがあれば解放する
+        if (g.textureHandle >= 0) {
+            DXTEX::DxTextureManager::ReleaseTextureDeferred(g.textureHandle);
+        }
+		// キューブマップがテクスチャと同じハンドルでない場合のみ解放する
+        if (g.cubemapHandle >= 0 && g.cubemapHandle != g.textureHandle) {
+            DXTEX::DxTextureManager::ReleaseTextureDeferred(g.cubemapHandle);
+        }
 
-    void InvalidateSkyTextureCache() {
-        // Sky の再選択や再 import 後に、次フレームで必ず実体 texture を取り直す。
         g.loadedTexturePath.clear();
         g.loadedCubemapPath.clear();
+
         g.textureHandle = -1;
         g.cubemapHandle = -1;
+
         g.debug.textureHandle = -1;
         g.debug.cubemapHandle = -1;
         g.debug.activeTexturePath.clear();
+
         DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky");
         DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky_cube");
     }
