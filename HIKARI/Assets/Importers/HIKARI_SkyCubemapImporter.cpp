@@ -154,7 +154,7 @@ namespace HIKARI {
         TextureImportSettings textureSettings{};
         textureSettings.usage = TextureUsage::SkyCubemap;
         textureSettings.dimension = TextureAssetDimension::TextureCube;
-        textureSettings.colorSpace = TextureAssetColorSpace::Linear;
+        textureSettings.colorSpace = TextureAssetColorSpace::Srgb;
         textureSettings.compression = TextureCompression::None;
         textureSettings.mipPolicy = TextureMipPolicy::Preserve;
 

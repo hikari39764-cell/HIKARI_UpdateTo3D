@@ -89,6 +89,16 @@ namespace HIKARI {
                 lhs.reflectionIntensity == rhs.reflectionIntensity &&
                 lhs.showDebugTexture == rhs.showDebugTexture;
         }
+
+        bool IsSkyRuntimeResourceBindingChanged(
+             const SkySettings& before,
+             const SkySettings& after)
+        {
+			// スカイのランタイムリソースバインディングが変更されたかどうかを判断する
+            return before.skyAsset != after.skyAsset ||
+                   before.mode != after.mode;
+        }
+      
     }
     
     DocumentSceneBase::DocumentSceneBase(SceneCatalog& sceneCatalog, std::string sceneId)
@@ -556,12 +566,17 @@ namespace HIKARI {
     }
 	// 現在のシーンドキュメントをファイルに保存する。現在のシーンアセットの GUID が有効であり、シーンパスが設定されている場合にのみ保存を試みる。保存に成功した場合は true を返し、そうでない場合は false を返す。
     // Environment panel の変更を SceneDocument へ反映し、必要な場合だけ Sky runtime を更新する。
-    bool DocumentSceneBase::ApplyEnvironmentRuntimeChanges() {
-        const bool skyChanged = !EqualSkySettings(sceneDocument_.environment.sky, environment_.sky);
+    bool DocumentSceneBase::ApplyEnvironmentRuntimeChanges()
+    {
+        const bool skyResourceBindingChanged =
+            IsSkyRuntimeResourceBindingChanged(
+                sceneDocument_.environment.sky,
+                environment_.sky);
+
         sceneDocument_.environment = environment_;
         sceneDocumentDirty_ = true;
 
-        if (!skyChanged) {
+        if (!skyResourceBindingChanged) {
             return true;
         }
 
