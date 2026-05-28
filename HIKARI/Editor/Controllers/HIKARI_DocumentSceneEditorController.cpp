@@ -313,6 +313,51 @@ namespace HIKARI {
                 ImGui::Checkbox("Gizmos", &context_.gizmos.showComponentGizmos);
                 ImGui::SameLine();
                 ImGui::Checkbox("Game Only", &context_.windows.viewport.gameOnlyMode);
+                ImGui::SameLine();
+                ImGui::Checkbox("Transform", &context_.transformGizmo.enabled);
+                ImGui::SameLine();
+                if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Translate,
+                    "TransformTranslate",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Translate,
+                    "Translate")) {
+                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Translate;
+                }
+                ImGui::SameLine();
+                if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Rotate,
+                    "TransformRotate",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Rotate,
+                    "Rotate")) {
+                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Rotate;
+                }
+                ImGui::SameLine();
+                if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Scale,
+                    "TransformScale",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Scale,
+                    "Scale")) {
+                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Scale;
+                }
+                ImGui::SameLine();
+                const char* modeLabel = context_.transformGizmo.mode == EditorTransformGizmoMode::Local
+                    ? "Local"
+                    : "World";
+                ImGui::SetNextItemWidth(70.0f);
+                if (ImGui::BeginCombo("Space", modeLabel, ImGuiComboFlags_NoArrowButton)) {
+                    if (ImGui::Selectable("World", context_.transformGizmo.mode == EditorTransformGizmoMode::World)) {
+                        context_.transformGizmo.mode = EditorTransformGizmoMode::World;
+                    }
+                    if (ImGui::Selectable("Local", context_.transformGizmo.mode == EditorTransformGizmoMode::Local)) {
+                        context_.transformGizmo.mode = EditorTransformGizmoMode::Local;
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::SameLine();
+                ImGui::Checkbox("Snap", &context_.transformGizmo.snapEnabled);
             }
             ImGui::EndChild();
             ImGui::PopStyleColor();
@@ -332,11 +377,42 @@ namespace HIKARI {
         const int captureHeight = (std::max)(16, static_cast<int>(imageSize.y * resolutionScale + 0.5f));
         POST::PostSystem::SetSceneCaptureSize(captureWidth, captureHeight);
 
+        auto drawTransformGizmoOverlay = [&]() {
+            bool gizmoCapture = false;
+            if (context_.selection.selectedObject != nullptr) {
+                const EDITOR::EditorViewportRect viewportRect{
+                    imageOrigin.x,
+                    imageOrigin.y,
+                    imageSize.x,
+                    imageSize.y
+                };
+                const EDITOR::EditorTransformGizmoResult gizmoResult = transformGizmo_.Draw(
+                    *context_.selection.selectedObject,
+                    scene.GetCamera(),
+                    context_.transformGizmo,
+                    viewportRect);
+                gizmoCapture = gizmoResult.interacting;
+
+                if (gizmoResult.changed) {
+                    // Runtime Transform と SceneDocument の TRS を同時に更新する。
+                    if (SceneObjectData* documentObject =
+                        selectionSync_.FindDocumentObjectByRuntime(scene, context_.selection.selectedObject)) {
+                        documentObject->transform = gizmoResult.transform;
+                    }
+                    context_.sceneDirty = true;
+                    scene.SetUnsavedSceneChanges(true);
+                }
+            }
+
+            EDITOR::SetGameViewportGizmoCapture(gizmoCapture);
+        };
+
         const bool ready = POST::PostSystem::EndSceneCaptureToEditorViewport();
         const D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv = POST::PostSystem::GetEditorViewportSrv();
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
+            drawTransformGizmoOverlay();
             HandleGameViewportAssetDrop(scene);
         } else {
             const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
@@ -345,6 +421,7 @@ namespace HIKARI {
             drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
             drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
+            drawTransformGizmoOverlay();
             HandleGameViewportAssetDrop(scene);
         }
 
@@ -627,6 +704,14 @@ namespace HIKARI {
                     ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
                     ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
                     ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
+                }
+                if (ImGui::CollapsingHeader("Transform Gizmo", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Enabled", &context_.transformGizmo.enabled);
+                    ImGui::Checkbox("Snap", &context_.transformGizmo.snapEnabled);
+                    ImGui::DragFloat3("Translate Snap", &context_.transformGizmo.translateSnap.x, 0.05f, 0.01f, 100.0f);
+                    ImGui::DragFloat("Rotate Snap", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
+                    ImGui::DragFloat("Scale Snap", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
+                    ImGui::TextDisabled("W/E/R shortcuts are reserved until camera input separation is stricter.");
                 }
                 ImGui::SeparatorText("Camera");
                 if (ImGui::CollapsingHeader("Debug Camera")) {

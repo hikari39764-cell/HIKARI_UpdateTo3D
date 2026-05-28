@@ -1,7 +1,6 @@
 ﻿#include "HIKARI_SpineActor.h"
 #include "HIKARI_SpineTextureLoader.h"
 #include "Matrix3x3.h"
-#include <KamataEngine.h>
 #include <spine/RegionAttachment.h>
 #include <spine/TextureRegion.h>
 #include <spine/Animation.h>
@@ -32,7 +31,7 @@ namespace HIKARI {
     }
 
     bool SpineActor::Load(const std::string& atlasPath, const std::string& jsonPath) {
-        static TextureLoader_Kamata loader;
+        static SpineDxTextureLoader loader;
 
         atlas_ = new spine::Atlas(atlasPath.c_str(), &loader);
         if (!atlas_) return false;

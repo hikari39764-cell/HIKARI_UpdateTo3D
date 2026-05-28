@@ -11,6 +11,7 @@ namespace HIKARI::EDITOR {
             bool hasRect = false;
             bool windowFocused = false;
             bool mouseCaptured = false;
+            bool gizmoCaptured = false;
             float x = 0.0f;
             float y = 0.0f;
             float width = 0.0f;
@@ -83,6 +84,16 @@ namespace HIKARI::EDITOR {
         gGameViewportInput = {};
     }
 
+    void SetGameViewportGizmoCapture(bool captured)
+    {
+#if defined(_DEBUG)
+        // ImGuizmo 操作中は DebugCamera の入力取得を一時停止する。
+        gGameViewportInput.gizmoCaptured = captured;
+#else
+        (void)captured;
+#endif
+    }
+
     bool HasGameViewportInputRect()
     {
         return gGameViewportInput.hasRect;
@@ -101,6 +112,9 @@ namespace HIKARI::EDITOR {
     {
 #if defined(_DEBUG)
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
+            return false;
+        }
+        if (gGameViewportInput.gizmoCaptured) {
             return false;
         }
 
@@ -125,6 +139,9 @@ namespace HIKARI::EDITOR {
     {
 #if defined(_DEBUG)
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
+            return false;
+        }
+        if (gGameViewportInput.gizmoCaptured) {
             return false;
         }
 

@@ -3,7 +3,7 @@
 namespace HIKARI {
 
 
-    void TextureLoader_Kamata::load(spine::AtlasPage& page, const spine::String& path) {
+    void SpineDxTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
         const std::string p = path.buffer();
 
         int handle = HIKARI::DXTEX::DxTextureManager::LoadTexture(p, p);
@@ -11,11 +11,11 @@ namespace HIKARI {
             return;
         }
 
-        // 查询纹理尺寸
+        // Spine が必要とする実サイズを DxTextureManager から取得する。
         UINT w = 0, h = 0;
         HIKARI::DXTEX::DxTextureManager::GetTextureSize(handle, w, h);
 
-        // 创建扩展信息
+        // AtlasPage に rendererObject として保持させる。
         SpineTexture* tex = new SpineTexture{};
         tex->handle = handle;
         tex->width = static_cast<int>(w);
@@ -25,8 +25,8 @@ namespace HIKARI {
         page.texture = tex;
     }
 
-    void TextureLoader_Kamata::unload(void* textureObject) {
-
+    void SpineDxTextureLoader::unload(void* textureObject) {
+        (void)textureObject;
     }
 
 } // namespace HIKARI

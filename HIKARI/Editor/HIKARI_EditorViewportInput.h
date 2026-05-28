@@ -4,6 +4,7 @@ namespace HIKARI::EDITOR {
 
     void SetGameViewportInputRect(float x, float y, float width, float height, bool windowFocused);
     void ClearGameViewportInputRect();
+    void SetGameViewportGizmoCapture(bool captured);
 
     bool HasGameViewportInputRect();
     bool IsGameViewportMouseHovered();

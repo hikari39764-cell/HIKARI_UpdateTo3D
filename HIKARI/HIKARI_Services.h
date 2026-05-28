@@ -187,8 +187,12 @@ namespace HIKARI {
             HIKARI_LOG_INFO("DxRenderer initialized.");
             POST::PostSystem::Initialize(gCtx);
             HIKARI_LOG_INFO("PostSystem initialized.");
-            AUDIO::Initialize(AUDIO::BackendType::Kamata);
-            HIKARI_LOG_INFO("Audio initialized.");
+            if (AUDIO::Initialize(AUDIO::BackendType::XAudio2)) {
+                HIKARI_LOG_INFO("Audio initialized.");
+            }
+            else {
+                HIKARI_LOG_WARN("Audio initialized with Null fallback.");
+            }
             HIKARI::VFX::Initialize(gCtx);
             HIKARI_LOG_INFO("VFX initialized.");
 

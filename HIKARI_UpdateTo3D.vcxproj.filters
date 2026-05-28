@@ -52,6 +52,9 @@
     <Filter Include="Header Files\Editor\DragDrop">
       <UniqueIdentifier>{9081B90A-5B1A-46B9-8682-0CCAFD995233}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Gizmos">
+      <UniqueIdentifier>{46685F6C-8C77-4145-99E7-E722A90B7CB8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Style">
       <UniqueIdentifier>{A1E743A7-EA84-4FD8-BCE4-F5E8F933BE49}</UniqueIdentifier>
     </Filter>
@@ -121,11 +124,11 @@
     <Filter Include="Header Files\ThirdParty">
       <UniqueIdentifier>{0DB7CCE5-71FE-57DF-B834-2F53DA9C85CC}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\ThirdParty\KamataEngine">
-      <UniqueIdentifier>{E31E8484-564B-5CA0-8B31-CFEF3134A4F8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ThirdParty\Spine">
       <UniqueIdentifier>{26D08199-C792-581F-A58A-608E88AC9821}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ThirdParty\ImGuizmo">
+      <UniqueIdentifier>{2D5BD914-6A91-4521-8F75-E5D892C05E65}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Vfx">
       <UniqueIdentifier>{E5E496B5-9BAD-53F3-9451-E7C2FED7FBCA}</UniqueIdentifier>
@@ -250,6 +253,9 @@
     <Filter Include="Source Files\Editor\DragDrop">
       <UniqueIdentifier>{DFD9F4DF-6C07-440B-976B-C6C842B8F04D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Editor\Gizmos">
+      <UniqueIdentifier>{D8D5CF59-1ED5-4355-B8ED-92920E2FE422}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Editor\Style">
       <UniqueIdentifier>{E205462B-E487-4770-A020-E1D96E8A5A2A}</UniqueIdentifier>
     </Filter>
@@ -318,6 +324,12 @@
     </Filter>
     <Filter Include="Source Files\ThirdParty\Spine">
       <UniqueIdentifier>{2600B266-8CD5-574E-A51D-AD68C4F2D0DE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ThirdParty\ImGui">
+      <UniqueIdentifier>{99A7C2F1-78E6-49D3-8C0B-EDB8E4B6818F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ThirdParty\ImGuizmo">
+      <UniqueIdentifier>{87BE430E-317D-43F9-BDF2-A7D9FE8CE71B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Vfx">
       <UniqueIdentifier>{743EC9F5-0053-50E6-A9ED-33AFF1E33CB2}</UniqueIdentifier>
@@ -495,6 +507,9 @@
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp">
       <Filter>Source Files\Editor\DragDrop</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp">
+      <Filter>Source Files\Editor\Gizmos</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
@@ -651,7 +666,7 @@
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp">
       <Filter>Source Files\Audio</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp">
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.cpp">
       <Filter>Source Files\Audio\Backends</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.cpp">
@@ -888,6 +903,24 @@
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp">
       <Filter>Source Files\ThirdParty\Spine</Filter>
     </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui.cpp">
+      <Filter>Source Files\ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>Source Files\ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_tables.cpp">
+      <Filter>Source Files\ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_impl_dx12.cpp">
+      <Filter>Source Files\ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGuizmo\ImGuizmo.cpp">
+      <Filter>Source Files\ThirdParty\ImGuizmo</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -975,84 +1008,6 @@
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\DirectXGame\3d\Camera.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\StringUtility.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Matrix4x4.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector2.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector3.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector4.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\CircleShadow.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DebugCamera.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DirectionalLight.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\LightGroup.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Material.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Mesh.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\PointLight.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\SpotLight.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\DebugText.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\Sprite.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\ImGuiManager.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Model.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\WorldTransform.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\audio\Audio.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\DirectXCommon.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\SafeDelete.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\TextureManager.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\WinApp.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h">
-      <Filter>Header Files\ThirdParty\KamataEngine</Filter>
-    </ClInclude>
     <ClInclude Include="External\WICTextureLoader.h">
       <Filter>Header Files\External\WIC</Filter>
     </ClInclude>
@@ -1223,6 +1178,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h">
       <Filter>Header Files\Editor\DragDrop</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h">
+      <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
       <Filter>Header Files\Editor\Style</Filter>
@@ -1401,7 +1359,7 @@
     <ClInclude Include="HIKARI\HIKARI_Bgm.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h">
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.h">
       <Filter>Header Files\Audio\Backends</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h">
@@ -1571,6 +1529,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h">
+      <Filter>Header Files\ThirdParty\ImGuizmo</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>

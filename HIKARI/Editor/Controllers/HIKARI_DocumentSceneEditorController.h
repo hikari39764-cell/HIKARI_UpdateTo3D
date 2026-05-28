@@ -3,6 +3,7 @@
 #include "Editor/HIKARI_DebugCameraPanel.h"
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
+#include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
@@ -37,6 +38,7 @@ namespace HIKARI {
         StatsPanel statsPanel_{};
         EnvironmentPanel environmentPanel_{};
         DebugCameraPanel debugCameraPanel_{};
+        EDITOR::EditorTransformGizmo transformGizmo_{};
 
         void DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);

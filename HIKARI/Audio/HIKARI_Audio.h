@@ -4,13 +4,14 @@
 
 namespace HIKARI::AUDIO {
 
-class IAudioBackend;
+struct IAudioBackend;
 
 enum class BackendType {
-    Kamata
+    XAudio2,
+    Null,
 };
 
-bool Initialize(BackendType type = BackendType::Kamata);
+bool Initialize(BackendType type = BackendType::XAudio2);
 void Shutdown();
 
 int Load(const char* path);

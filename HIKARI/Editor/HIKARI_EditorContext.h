@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "Render3D/HIKARI_Math3D.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 
 namespace HIKARI {
@@ -24,6 +25,27 @@ namespace HIKARI {
         bool showDoorTransitions = false;
         bool showUIScreenRects = false;
         bool showOnlySelectedObject = false;
+    };
+
+    enum class EditorTransformGizmoOperation {
+        Translate,
+        Rotate,
+        Scale,
+    };
+
+    enum class EditorTransformGizmoMode {
+        World,
+        Local,
+    };
+
+    struct EditorTransformGizmoState {
+        bool enabled = true;
+        EditorTransformGizmoOperation operation = EditorTransformGizmoOperation::Translate;
+        EditorTransformGizmoMode mode = EditorTransformGizmoMode::World;
+        bool snapEnabled = false;
+        MATH::Vec3 translateSnap{ 0.5f, 0.5f, 0.5f };
+        float rotateSnapDeg = 15.0f;
+        float scaleSnap = 0.1f;
     };
 
     struct ViewportOverlayState {
@@ -61,6 +83,7 @@ namespace HIKARI {
     struct EditorContext {
         DebugWindowState windows{};
         ComponentGizmoState gizmos{};
+        EditorTransformGizmoState transformGizmo{};
         ViewportOverlayState overlays{};
         EditorSelection selection{};
 

@@ -47,13 +47,13 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\Generated\Outputs\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\Generated\Obj\$(ProjectName)\$(Configuration)\</IntDir>
-    <LibraryPath>$(ProjectDir)..\External\KamataEngine\lib\$(Configuration);$(ProjectDir)..\External\DirectXTex\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\Generated\Outputs\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\Generated\Obj\$(ProjectName)\$(Configuration)\</IntDir>
-    <LibraryPath>$(ProjectDir)..\External\KamataEngine\lib\$(Configuration);$(ProjectDir)..\External\DirectXTex\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -61,7 +61,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;$(ProjectDir)ThirdParty\imgui;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\nlohmann;$(ProjectDir)include;$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex;$(SolutionDir)ThirdParty\DirectXTex\Common</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -71,8 +71,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);$(SolutionDir)ThirdParty\DirectXTex\DirectXTex\Bin\Desktop_2022_Win10\$(Platform)\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)ThirdParty\DirectXTex\DirectXTex\Bin\Desktop_2022_Win10\$(Platform)\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>DirectXTex.lib;Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;dxguid.lib;xaudio2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
   </ItemDefinitionGroup>
@@ -84,7 +84,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\KamataEngine\External\KamataEngine\include;C:\KamataEngine\External\DirectXTex\include;$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)include;$(ProjectDir)HIKARI;C:\HikariEngine\ThirdParty\spine\include;C:\HikariEngine\include;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\nlohmann;$(ProjectDir)include;$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex;$(SolutionDir)ThirdParty\DirectXTex\Common</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MinSpace</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -97,8 +97,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>KamataEngine.lib;DirectXTex.lib;Effekseer.lib;EffekseerRendererDX12.lib;LLGI.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\KamataEngine\External\KamataEngine\lib\$(Configuration);$(SolutionDir)ThirdParty\DirectXTex\DirectXTex\Bin\Desktop_2022_Win10\$(Platform)\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>DirectXTex.lib;Effekseer.lib;EffekseerRendererDX12.lib;LLGI.lib;dxguid.lib;xaudio2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)ThirdParty\DirectXTex\DirectXTex\Bin\Desktop_2022_Win10\$(Platform)\$(Configuration);$(ProjectDir)ThirdParty\Effekseer\Lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -168,6 +168,7 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
@@ -237,7 +238,7 @@
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
-    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.cpp" />
+    <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.cpp" />
     <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.cpp" />
     <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxAsset.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostProfile.cpp" />
@@ -318,34 +319,31 @@
     <ClCompile Include="ThirdParty\spine\src\spine\Triangulator.cpp" />
     <ClCompile Include="ThirdParty\spine\src\spine\Updatable.cpp" />
     <ClCompile Include="ThirdParty\spine\src\spine\VertexAttachment.cpp" />
+    <ClCompile Include="ThirdParty\imgui\imgui.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_draw.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_tables.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_widgets.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\imgui\imgui_impl_dx12.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGuizmo\ImGuizmo.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\DirectXGame\3d\Camera.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\StringUtility.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Matrix4x4.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector2.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector3.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\math\Vector4.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\CircleShadow.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DebugCamera.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\DirectionalLight.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\LightGroup.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Material.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Mesh.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\PointLight.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\SpotLight.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\DebugText.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\Sprite.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\2d\ImGuiManager.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\Model.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\3d\WorldTransform.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\audio\Audio.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\DirectXCommon.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\SafeDelete.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\TextureManager.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\base\WinApp.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\input\Input.h" />
-    <ClInclude Include="C:\KamataEngine\DirectXGame\scene\GameScene.h" />
+    <ClCompile Update="ThirdParty\spine\src\spine\*.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DescriptorHeapLayout.h" />
@@ -415,6 +413,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h" />
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
@@ -487,12 +486,13 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
+    <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
-    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_Kamata.h" />
+    <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h" />

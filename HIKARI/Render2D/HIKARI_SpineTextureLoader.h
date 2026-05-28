@@ -15,7 +15,7 @@ namespace HIKARI {
     };
 
 
-    class TextureLoader_Kamata : public spine::TextureLoader {
+    class SpineDxTextureLoader : public spine::TextureLoader {
     public:
         void load(spine::AtlasPage& page, const spine::String& path) override;
         void unload(void* rendererObject) override;
