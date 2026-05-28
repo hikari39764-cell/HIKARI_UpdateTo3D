@@ -26,11 +26,15 @@ namespace HIKARI {
             const ResourceWorkspaceContext& context) const;
         std::string ConsumeActivatedSceneGuid() const;
         std::string ConsumeSaveSceneAsGuid() const;
+        std::string ConsumeRefreshRuntimeAssetGuid() const;
+        std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;
+        bool ConsumeRefreshCurrentSceneResourcesRequested() const;
 
     private:
         mutable AssetBrowserPanel assetBrowserPanel_{};
         mutable AssetInspectorPanel assetInspectorPanel_{};
         mutable bool showPreviewLog_ = false;
+        mutable bool refreshCurrentSceneResourcesRequested_ = false;
         mutable AssetBrowserScope activeScope_ = AssetBrowserScope::Project;
     };
 

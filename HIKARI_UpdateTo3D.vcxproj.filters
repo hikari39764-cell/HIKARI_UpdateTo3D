@@ -31,6 +31,9 @@
     <Filter Include="Header Files\Project">
       <UniqueIdentifier>{F3C30E53-E47A-4E83-A08B-A59E8827F4A7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Runtime">
+      <UniqueIdentifier>{B7D17D4B-3B47-4C3D-9424-38A7F4B1B30F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor">
       <UniqueIdentifier>{30D89BA9-6610-5B19-B909-7CBDC62C1A2A}</UniqueIdentifier>
     </Filter>
@@ -225,6 +228,9 @@
     </Filter>
     <Filter Include="Source Files\Project">
       <UniqueIdentifier>{F99E1225-9D38-46D9-8E27-C12364820C53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Runtime">
+      <UniqueIdentifier>{D86F33CF-36A5-4702-989C-8D6D4C6AE127}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor">
       <UniqueIdentifier>{B0E6EB35-2869-5CC7-B270-F62A45D5D646}</UniqueIdentifier>
@@ -957,6 +963,9 @@
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp">
       <Filter>Source Files\Project</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp">
+      <Filter>Source Files\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
@@ -1574,6 +1583,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h">
       <Filter>Header Files\Project</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h">
+      <Filter>Header Files\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />

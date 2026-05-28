@@ -49,9 +49,12 @@ namespace HIKARI {
         AssetDatabase& GetAssetDatabase();
         const AssetDatabase& GetAssetDatabase() const;
         AssetRegistry& GetAssetRegistry();
+        const AssetRegistry& GetAssetRegistry() const;
         ModelManager& GetModelManager();
         SkyManager& GetSkyManager();
         ComponentRegistry& GetComponentRegistry();
+        SceneRuntimeBuilder& GetRuntimeBuilder();
+        const SceneRuntimeBuilder& GetRuntimeBuilder() const;
 
         Camera3D& GetCamera();
         const Camera3D& GetCamera() const;
@@ -69,6 +72,10 @@ namespace HIKARI {
         void SetUnsavedSceneChanges(bool dirty);
         bool ApplyEnvironmentRuntimeChanges();
         bool RefreshSkyRuntime();
+        bool RefreshCurrentSkyRuntime();
+        bool RefreshTextureRuntimeByPath(const std::string& path);
+        bool ReloadModelAssetRuntime(const AssetId& modelId);
+        int RebindModelComponents();
         bool SaveCurrentSceneDocument();
         bool SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid);
         const AssetGuid& GetCurrentSceneAssetGuid() const;

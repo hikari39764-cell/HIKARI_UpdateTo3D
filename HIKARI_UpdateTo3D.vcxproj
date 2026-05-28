@@ -200,6 +200,7 @@
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
@@ -466,6 +467,7 @@
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportSettings.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_VfxImporterStub.h" />
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h" />
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
     <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h" />

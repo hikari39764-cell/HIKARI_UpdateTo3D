@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "HIKARI_3D.h"
+#include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_Logger.h"
@@ -273,6 +274,11 @@ namespace HIKARI {
     AssetRegistry& DocumentSceneBase::GetAssetRegistry() {
         return assetRegistry_;
     }
+
+    // 最新の runtime descriptor を読み取り専用で参照する。
+    const AssetRegistry& DocumentSceneBase::GetAssetRegistry() const {
+        return assetRegistry_;
+    }
 	// アセットレジストリへの const 参照を取得する
     AssetDatabase& DocumentSceneBase::GetAssetDatabase() {
         return assetDatabase_;
@@ -292,6 +298,15 @@ namespace HIKARI {
 	// コンポーネントレジストリへの参照を取得する。コンポーネントレジストリは、シーン内のオブジェクトにアタッチされるコンポーネントの種類やデータ構造を管理するクラスである。
     ComponentRegistry& DocumentSceneBase::GetComponentRegistry() {
         return componentRegistry_;
+    }
+
+    // SceneDocument から runtime 依存を集めるための入口。
+    SceneRuntimeBuilder& DocumentSceneBase::GetRuntimeBuilder() {
+        return runtimeBuilder_;
+    }
+
+    const SceneRuntimeBuilder& DocumentSceneBase::GetRuntimeBuilder() const {
+        return runtimeBuilder_;
     }
 	// カメラへの参照を取得する。カメラは、シーンの描画に使用される視点を表すクラスである。
     Camera3D& DocumentSceneBase::GetCamera() {
@@ -603,6 +618,41 @@ namespace HIKARI {
         }
 
         return ok;
+    }
+
+    bool DocumentSceneBase::RefreshCurrentSkyRuntime() {
+        return RefreshSkyRuntime();
+    }
+
+    bool DocumentSceneBase::RefreshTextureRuntimeByPath(const std::string& path) {
+        if (path.empty()) {
+            return false;
+        }
+
+        // Texture cache だけを失効させる。再ロードは次に参照された時点で行う。
+        DXTEX::DxTextureManager::InvalidateTextureCacheByPath(path);
+        return true;
+    }
+
+    bool DocumentSceneBase::ReloadModelAssetRuntime(const AssetId& modelId) {
+        if (modelId.value.empty()) {
+            return false;
+        }
+
+        return modelManager_.ReloadAssetNow(modelId.value);
+    }
+
+    int DocumentSceneBase::RebindModelComponents() {
+        int reboundCount = 0;
+
+        // World 側の ModelComponent を、再ロード後の ModelAsset ポインタへ張り直す。
+        world_.ForEachObjectWith<ModelComponent>(
+            [this, &reboundCount](GameObject&, ModelComponent& modelComponent) {
+                modelComponent.SetModelAsset(modelManager_.FindAsset(modelComponent.GetAssetId()));
+                ++reboundCount;
+            });
+
+        return reboundCount;
     }
 
     // 現在の Scene Asset へ SceneDocument を保存する。

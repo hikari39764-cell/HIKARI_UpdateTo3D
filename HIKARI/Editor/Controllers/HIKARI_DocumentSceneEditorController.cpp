@@ -7,6 +7,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
@@ -17,6 +18,7 @@
 #include <cstdint>
 #include <cmath>
 #include <cstdio>
+#include <utility>
 #include <json.hpp>
 
 #if defined(_DEBUG)
@@ -46,6 +48,14 @@ namespace HIKARI {
             const float cy = std::cos(camera.GetYaw());
             const float sy = std::sin(camera.GetYaw());
             return MATH::Normalize({ sy * cp, sp, cy * cp });
+        }
+
+        std::string SummarizeRuntimeRefreshReport(const RuntimeResourceRefreshReport& report) {
+            return "Runtime refresh: texture " + std::to_string(report.textureInvalidatedCount) +
+                ", sky " + std::to_string(report.skyInvalidatedCount) +
+                ", model " + std::to_string(report.modelReloadedCount) +
+                ", rebound " + std::to_string(report.modelReboundComponentCount) +
+                ", failed " + std::to_string(report.failedCount);
         }
 
 #if defined(_DEBUG)
@@ -182,6 +192,28 @@ namespace HIKARI {
                     OpenSceneAssetFromEditor(scene, pendingSceneOpenGuid_);
                     pendingSceneOpenGuid_ = {};
                 }
+            }
+
+            RuntimeResourceRefreshService refreshService{};
+            auto applyRefreshReport = [this](RuntimeResourceRefreshReport report) {
+                context_.lastRuntimeRefreshReport = std::move(report);
+                viewportDropMessage_ = SummarizeRuntimeRefreshReport(context_.lastRuntimeRefreshReport);
+            };
+
+            if (resourceWorkspacePanel_.ConsumeRefreshCurrentSceneResourcesRequested()) {
+                // 現在の SceneDocument に出てくる依存 resource をまとめて張り直す。
+                applyRefreshReport(refreshService.RefreshCurrentSceneResources(scene));
+            }
+
+            const std::string refreshRuntimeGuid = resourceWorkspacePanel_.ConsumeRefreshRuntimeAssetGuid();
+            if (!refreshRuntimeGuid.empty()) {
+                applyRefreshReport(refreshService.RefreshAsset(scene, AssetId{ refreshRuntimeGuid }));
+            }
+
+            const std::string reimportAndRefreshRuntimeGuid =
+                resourceWorkspacePanel_.ConsumeReimportAndRefreshRuntimeAssetGuid();
+            if (!reimportAndRefreshRuntimeGuid.empty()) {
+                applyRefreshReport(refreshService.RefreshAsset(scene, AssetId{ reimportAndRefreshRuntimeGuid }));
             }
         }
         if (context_.windows.resources.showEnvironment) {
@@ -596,6 +628,24 @@ namespace HIKARI {
             if (ImGui::BeginTabItem("Time")) {
                 ImGui::SeparatorText("Timeline");
                 timePanel_.DrawContents();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Runtime Refresh")) {
+                const RuntimeResourceRefreshReport& report = context_.lastRuntimeRefreshReport;
+                ImGui::SeparatorText("Runtime Resource Refresh");
+                ImGui::Text("Texture invalidated: %d", report.textureInvalidatedCount);
+                ImGui::Text("Sky refreshed: %d", report.skyInvalidatedCount);
+                ImGui::Text("Model reloaded: %d", report.modelReloadedCount);
+                ImGui::Text("Components rebound: %d", report.modelReboundComponentCount);
+                ImGui::Text("Failed: %d", report.failedCount);
+                ImGui::SeparatorText("Messages");
+                if (report.messages.empty()) {
+                    ImGui::TextDisabled("No runtime refresh has run yet.");
+                } else {
+                    for (const std::string& message : report.messages) {
+                        ImGui::BulletText("%s", message.c_str());
+                    }
+                }
                 ImGui::EndTabItem();
             }
 

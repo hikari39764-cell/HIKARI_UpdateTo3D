@@ -1279,6 +1279,8 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& saveSceneAsGuid,
+            std::string& refreshRuntimeAssetGuid,
+            std::string& reimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1337,6 +1339,19 @@ namespace HIKARI {
                 const bool ok = assetDatabase.ImportAsset(record.guid);
                 lastOperationMessage = ok ? "Reimport succeeded" : "Reimport failed";
             }
+            if (ImGui::MenuItem("Reimport + Refresh Runtime")) {
+                SelectRecord(record, selection);
+                const bool ok = assetDatabase.ImportAsset(record.guid);
+                if (ok) {
+                    reimportAndRefreshRuntimeAssetGuid = record.guid.value;
+                }
+                lastOperationMessage = ok ? "Reimported; runtime refresh queued" : "Reimport failed";
+            }
+            if (ImGui::MenuItem("Refresh Runtime Only")) {
+                SelectRecord(record, selection);
+                refreshRuntimeAssetGuid = record.guid.value;
+                lastOperationMessage = "Runtime refresh queued";
+            }
             if (ImGui::MenuItem("Reimport Dependencies")) {
                 const AssetImportBatchResult result = assetDatabase.ImportDependencies(record.guid, false);
                 lastOperationMessage =
@@ -1378,6 +1393,8 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& saveSceneAsGuid,
+            std::string& refreshRuntimeAssetGuid,
+            std::string& reimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1441,6 +1458,8 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         saveSceneAsGuid,
+                        refreshRuntimeAssetGuid,
+                        reimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1473,6 +1492,8 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& saveSceneAsGuid,
+            std::string& refreshRuntimeAssetGuid,
+            std::string& reimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1537,6 +1558,8 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         saveSceneAsGuid,
+                        refreshRuntimeAssetGuid,
+                        reimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1571,6 +1594,8 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& saveSceneAsGuid,
+            std::string& refreshRuntimeAssetGuid,
+            std::string& reimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1645,6 +1670,8 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         saveSceneAsGuid,
+                        refreshRuntimeAssetGuid,
+                        reimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1883,6 +1910,31 @@ namespace HIKARI {
         if (!hasSelection) {
             ImGui::BeginDisabled();
         }
+        if (ImGui::Button("Reimport + Refresh") && hasSelection) {
+            const bool ok = assetDatabase.ImportAsset(AssetGuid{ selection.selectedAssetGuid });
+            if (ok) {
+                reimportAndRefreshRuntimeAssetGuid_ = selection.selectedAssetGuid;
+            }
+            lastOperationMessage_ = ok ? "Selected asset reimported; runtime refresh queued" : "Selected asset reimport failed";
+        }
+        if (!hasSelection) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        if (!hasSelection) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Refresh Runtime") && hasSelection) {
+            refreshRuntimeAssetGuid_ = selection.selectedAssetGuid;
+            lastOperationMessage_ = "Runtime refresh queued";
+        }
+        if (!hasSelection) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        if (!hasSelection) {
+            ImGui::BeginDisabled();
+        }
         if (ImGui::Button("Import Dependencies") && hasSelection) {
             const AssetImportBatchResult result = assetDatabase.ImportDependencies(
                 AssetGuid{ selection.selectedAssetGuid },
@@ -2019,6 +2071,8 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 saveSceneAsGuid_,
+                refreshRuntimeAssetGuid_,
+                reimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2032,6 +2086,8 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 saveSceneAsGuid_,
+                refreshRuntimeAssetGuid_,
+                reimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2045,6 +2101,8 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 saveSceneAsGuid_,
+                refreshRuntimeAssetGuid_,
+                reimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2082,6 +2140,26 @@ namespace HIKARI {
 #if defined(_DEBUG)
         std::string value = std::move(saveSceneAsGuid_);
         saveSceneAsGuid_.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeRefreshRuntimeAssetGuid() const {
+#if defined(_DEBUG)
+        std::string value = std::move(refreshRuntimeAssetGuid_);
+        refreshRuntimeAssetGuid_.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeReimportAndRefreshRuntimeAssetGuid() const {
+#if defined(_DEBUG)
+        std::string value = std::move(reimportAndRefreshRuntimeAssetGuid_);
+        reimportAndRefreshRuntimeAssetGuid_.clear();
         return value;
 #else
         return {};

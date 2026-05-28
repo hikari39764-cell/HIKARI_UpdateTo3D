@@ -79,6 +79,32 @@ namespace HIKARI {
             }
         }
 
+        void ReleaseTextureHandleOnce(int handle, std::vector<int>& releasedHandles) {
+            if (handle < 0) {
+                return;
+            }
+            if (std::find(releasedHandles.begin(), releasedHandles.end(), handle) != releasedHandles.end()) {
+                return;
+            }
+
+            DXTEX::DxTextureManager::ReleaseTextureDeferred(handle);
+            releasedHandles.push_back(handle);
+        }
+
+        void ReleaseRuntimeMaterialTextures(const Material* material) {
+            if (!material) {
+                return;
+            }
+
+            std::vector<int> releasedHandles{};
+            // Model reload 時に古い material slot の GPU handle を deferred release へ渡す。
+            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::BaseColor).handle, releasedHandles);
+            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Normal).handle, releasedHandles);
+            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness).handle, releasedHandles);
+            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Occlusion).handle, releasedHandles);
+            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Emissive).handle, releasedHandles);
+        }
+
         const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
             if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
                 return nullptr;
@@ -669,6 +695,37 @@ namespace HIKARI {
 
         asset->SetState(ok ? ModelAsset::State::Loaded : ModelAsset::State::Failed);
         return ok;
+    }
+
+    bool ModelManager::ReloadAssetNow(const std::string& name) {
+        ModelAsset* asset = FindAsset(name);
+        if (!asset) {
+            return false;
+        }
+
+        // Asset entry 自体は保持し、中身だけを捨てて同じ id に再ロードする。
+        UnloadAsset(name);
+        return LoadAssetNow(name);
+    }
+
+    void ModelManager::UnloadAsset(const std::string& name) {
+        ModelAsset* asset = FindAsset(name);
+        if (!asset) {
+            return;
+        }
+
+        asset->nodes.clear();
+        asset->meshes.clear();
+        asset->materials.clear();
+        asset->textures.clear();
+        asset->skins.clear();
+        asset->animations.clear();
+        asset->defaultSceneRootNode = -1;
+        asset->bounds = {};
+        ReleaseRuntimeMaterialTextures(asset->GetMaterial());
+        asset->SetMesh(nullptr);
+        asset->SetMaterial(nullptr);
+        asset->SetState(ModelAsset::State::Unloaded);
     }
 
     bool ModelManager::LoadCpuAssetFromSource(ModelAsset& asset) {

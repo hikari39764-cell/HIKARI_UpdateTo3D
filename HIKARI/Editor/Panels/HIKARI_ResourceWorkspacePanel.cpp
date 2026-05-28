@@ -159,6 +159,13 @@ namespace HIKARI {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(112.0f);
         ImGui::Checkbox("Import Log", &showPreviewLog_);
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh Current Scene Resources")) {
+            refreshCurrentSceneResourcesRequested_ = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Reloads runtime resources referenced by the currently open scene.");
+        }
         ImGui::Separator();
 
         const ImVec2 available = ImGui::GetContentRegionAvail();
@@ -233,6 +240,20 @@ namespace HIKARI {
 
     std::string ResourceWorkspacePanel::ConsumeSaveSceneAsGuid() const {
         return assetBrowserPanel_.ConsumeSaveSceneAsGuid();
+    }
+
+    std::string ResourceWorkspacePanel::ConsumeRefreshRuntimeAssetGuid() const {
+        return assetBrowserPanel_.ConsumeRefreshRuntimeAssetGuid();
+    }
+
+    std::string ResourceWorkspacePanel::ConsumeReimportAndRefreshRuntimeAssetGuid() const {
+        return assetBrowserPanel_.ConsumeReimportAndRefreshRuntimeAssetGuid();
+    }
+
+    bool ResourceWorkspacePanel::ConsumeRefreshCurrentSceneResourcesRequested() const {
+        const bool requested = refreshCurrentSceneResourcesRequested_;
+        refreshCurrentSceneResourcesRequested_ = false;
+        return requested;
     }
 
 } // namespace HIKARI

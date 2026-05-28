@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string>
 
+#include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
+
 namespace HIKARI {
 
     class GameObject;
@@ -70,6 +72,7 @@ namespace HIKARI {
         bool componentAddStatusIsError = false;
         uint64_t nextSceneObjectId = 1;
         bool sceneDirty = false;
+        RuntimeResourceRefreshReport lastRuntimeRefreshReport{};
     };
 
 } // namespace HIKARI
