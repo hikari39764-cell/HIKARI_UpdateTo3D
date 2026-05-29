@@ -68,6 +68,16 @@ namespace HIKARI {
             }
         }
 
+        bool IsCookedTextureRuntimePath(const std::filesystem::path& path) {
+            const std::string ext = ToLowerCopy(path.extension().string());
+            if (ext == ".htex") {
+                return true;
+            }
+
+            const std::string generic = ToLowerCopy(path.generic_string());
+            return generic.find("library/imported/") != std::string::npos;
+        }
+
         bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
             return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
         }
@@ -366,6 +376,10 @@ namespace HIKARI {
         }
 
         std::filesystem::path sourcePath = std::filesystem::path(sourceTexturePath).lexically_normal();
+        if (IsCookedTextureRuntimePath(sourcePath)) {
+            return sourcePath.generic_string();
+        }
+
         const AssetRecord* record = assetDatabase_.FindByPath(sourcePath);
 
         if (!record && !assetDatabase_.GetProjectRoot().empty()) {

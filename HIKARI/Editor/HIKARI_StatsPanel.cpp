@@ -3,6 +3,7 @@
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -101,6 +102,23 @@ namespace HIKARI {
                 iblData.hasPrefiltered ? "Yes" : "No",
                 iblData.hasBrdfLut ? "Yes" : "No");
             ImGui::Text("IBL Prefiltered Mips: %u", iblData.prefilteredMipCount);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("PIX")) {
+            ImGui::Text("Compiled In: %s", GFX::PIX::IsCompiledIn() ? "Yes" : "No");
+            ImGui::Text("Capturer Loaded: %s", GFX::PIX::IsCapturerLoaded() ? "Yes" : "No");
+            ImGui::TextWrapped("Status: %s", GFX::PIX::GetLastStatusMessage().c_str());
+            if (GFX::PIX::HasLastCapture()) {
+                ImGui::TextWrapped("Last Capture: %s", GFX::PIX::GetLastCapturePath().generic_string().c_str());
+            }
+            if (ImGui::Button("Capture Next Frame")) {
+                GFX::PIX::CaptureNextFrames(1, true);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Open Last") && GFX::PIX::HasLastCapture()) {
+                GFX::PIX::OpenLastCaptureInPix();
+            }
             ImGui::TreePop();
         }
 

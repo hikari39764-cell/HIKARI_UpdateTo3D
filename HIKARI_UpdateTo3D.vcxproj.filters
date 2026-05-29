@@ -396,6 +396,9 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_PixProfiler.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
@@ -1363,6 +1366,9 @@
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_PixProfiler.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h">

@@ -59,7 +59,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HIKARI_ENABLE_PIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\nlohmann;$(ProjectDir)include;$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex;$(SolutionDir)ThirdParty\DirectXTex\Common</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -82,7 +82,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HIKARI_ENABLE_PIX;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\spine\include;$(ProjectDir)ThirdParty\nlohmann;$(ProjectDir)include;$(ProjectDir)HIKARI;$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories);$(ProjectDir)ThirdParty\Effekseer\include;$(ProjectDir)ThirdParty$Effekseer$include$Effekseer;$(ProjectDir)ThirdParty$Effekseer$include$EffekseerRendererDX12;$(ProjectDir)ThirdParty$Effekseer$include$LLGI;$(ProjectDir)ThirdParty\Effekseer\include\Effekseer;$(ProjectDir)ThirdParty\Effekseer\include\EffekseerRendererDX12;$(ProjectDir)ThirdParty\Effekseer\include\LLGI;$(SolutionDir)ThirdParty\DirectXTex\DirectXTex;$(SolutionDir)ThirdParty\DirectXTex\Common</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -116,6 +116,7 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_PixProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
@@ -495,6 +496,7 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_PixProfiler.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3DBlobCompat.h" />
@@ -562,6 +564,10 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+    <PlatformTarget Condition="'$(PlatformTarget)'==''">$(Platform)</PlatformTarget>
+  </PropertyGroup>
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="ThirdParty\WinPixEventRuntime\build\WinPixEventRuntime.targets" Condition="Exists('ThirdParty\WinPixEventRuntime\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
 </Project>

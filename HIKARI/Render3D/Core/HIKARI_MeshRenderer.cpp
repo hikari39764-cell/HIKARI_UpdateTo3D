@@ -10,6 +10,7 @@
 
 #include "HIKARI_DxTexture.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ResourceStateTracker.h"
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
@@ -196,6 +197,8 @@ namespace HIKARI::MESHRENDERER {
 
         bool RenderMeshPhase(const RENDER3D::RenderQueue& queue, RENDER3D::RenderPhase phase, size_t& objectIndex) {
             const bool depthAwarePhase = phase == RENDER3D::RenderPhase::DepthAware;
+            const char* eventName = depthAwarePhase ? "MeshRenderer.DepthAware" : "MeshRenderer.Opaque";
+            GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
             const MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase);
 
             for (const DrawItem* item : queue.GetPhase(phase)) {
@@ -360,6 +363,7 @@ namespace HIKARI::MESHRENDERER {
         if (g.drawItems.empty()) {
             return;
         }
+        GFX::PIX::ScopedGpuEvent pixMeshRenderer(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "MeshRenderer");
         if (!EnsureInitialized()) {
             return;
         }

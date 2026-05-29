@@ -16,6 +16,7 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_Dx12Core.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(_DEBUG)
@@ -152,6 +153,7 @@ namespace HIKARI {
                 HIKARI_LOG_ERROR("Window initialization failed.");
                 return false;
             }
+            GFX::PIX::Initialize(gWindow.GetHWND());
             {
                 std::ostringstream oss;
                 oss << "Window initialized. size=" << cfg.windowWidth << "x" << cfg.windowHeight
@@ -272,6 +274,7 @@ namespace HIKARI {
             HIKARI_LOG_INFO("Audio shutdown.");
             gCore.Shutdown();
             HIKARI_LOG_INFO("D3D12 core shutdown.");
+            GFX::PIX::Shutdown();
             gWindow.Shutdown();
             HIKARI_LOG_INFO("Window shutdown.");
             if (gComInitialized) {
@@ -289,6 +292,7 @@ namespace HIKARI {
 
         inline void BeginFrame(const BootstrapConfig& cfg = {}) {
             (void)cfg;
+            GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.BeginFrame");
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
             gCtx = gCore.BuildContext();
             DXTEX::DxTextureManager::UpdateContext(gCtx);
@@ -345,6 +349,7 @@ namespace HIKARI {
         }
 
         inline void EndFrame() {
+            GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.EndFrame");
             HIKARI::VFX::EndFrame();
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
 #if defined(_DEBUG)
@@ -352,12 +357,22 @@ namespace HIKARI {
                 gImGuiFrameBegun = false;
 #endif
             }
-            HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
-            HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
-            HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
+            {
+                GFX::PIX::ScopedGpuEvent pixScene(gCtx.cmdList, GFX::PIX::kColorRender, "Scene Layers");
+                HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
+            }
+            {
+                GFX::PIX::ScopedGpuEvent pixPost(gCtx.cmdList, GFX::PIX::kColorPost, "PostSystem");
+                HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
+            }
+            {
+                GFX::PIX::ScopedGpuEvent pixUi(gCtx.cmdList, GFX::PIX::kColorEditor, "UI and Debug Layers");
+                HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
+            }
 
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
 #if defined(_DEBUG)
+                GFX::PIX::ScopedGpuEvent pixImGui(gCtx.cmdList, GFX::PIX::kColorEditor, "ImGui");
                 auto* cmd = gCtx.cmdList;
                 ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
                 cmd->SetDescriptorHeaps(1, heaps);
@@ -372,6 +387,7 @@ namespace HIKARI {
             }
 
             gCore.EndFrame();
+            GFX::PIX::Update();
         }
     } // namespace SERVICES
 } // namespace HIKARI

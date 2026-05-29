@@ -1,5 +1,6 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "HIKARI_DebugWindowState.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
 #if defined(_DEBUG)
@@ -64,6 +65,13 @@ namespace HIKARI {
 
         if (ImGui::BeginMenu("Render")) {
             ImGui::MenuItem("Environment Lighting", nullptr, &environmentLightingEnabled);
+            ImGui::Separator();
+            if (ImGui::MenuItem("PIX Capture Next Frame", nullptr, false, GFX::PIX::IsCompiledIn())) {
+                GFX::PIX::CaptureNextFrames(1, true);
+            }
+            if (ImGui::MenuItem("Open Last PIX Capture", nullptr, false, GFX::PIX::HasLastCapture())) {
+                GFX::PIX::OpenLastCaptureInPix();
+            }
             ImGui::EndMenu();
         }
 

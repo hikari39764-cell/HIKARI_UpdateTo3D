@@ -13,6 +13,7 @@
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "Core/HIKARI_Logger.h"
 
 using Microsoft::WRL::ComPtr;
@@ -322,6 +323,7 @@ void Dx12Core::Shutdown() {
 void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA) {
     allocators_[frameIndex_]->Reset();
     cmdList_->Reset(allocators_[frameIndex_].Get(), nullptr);
+    PIX::BeginGpuEvent(cmdList_.Get(), PIX::kColorFrame, "Frame");
 
     resourceStates_.Transition(
         cmdList_.Get(),
@@ -365,6 +367,7 @@ void Dx12Core::EndFrame() {
         cmdList_.Get(),
         CurrentBackBuffer(),
         D3D12_RESOURCE_STATE_PRESENT);
+    PIX::EndGpuEvent(cmdList_.Get());
 
     cmdList_->Close();
     ID3D12CommandList* lists[] = { cmdList_.Get() };
