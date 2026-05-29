@@ -337,12 +337,6 @@ namespace HIKARI {
                         { "settings", nlohmann::json::object() }
                     },
                     {
-                        { "systemId", "PhysicsSystem" },
-                        { "enabled", false },
-                        { "executionOrder", 300 },
-                        { "settings", nlohmann::json::object() }
-                    },
-                    {
                         { "systemId", "ScriptSystem" },
                         { "enabled", false },
                         { "executionOrder", 400 },

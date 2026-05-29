@@ -11,15 +11,14 @@
 namespace HIKARI {
 
     EngineApp::EngineApp()
-        : sceneFactory_(sceneCatalog_),
-        sceneTransitionBus_(sceneManager_, sceneCatalog_, sceneFactory_, sceneInstanceCache_) {
+        : sceneTransitionBus_(sceneManager_) {
     }
 
     bool EngineApp::Initialize() {
         HIKARI_LOG_INFO("EngineApp initialization started.");
 
-        // 起動時は SceneCatalog ではなく、DocumentSceneBase が Scene Asset GUID を解決する。
-        std::unique_ptr<IScene> initialScene = std::make_unique<GameDocumentScene>(sceneCatalog_, "StartupSceneAsset");
+        // 起動 Scene は Scene Asset GUID から DocumentSceneBase が解決する。
+        std::unique_ptr<IScene> initialScene = std::make_unique<GameDocumentScene>("StartupSceneAsset");
 
         RuntimeSceneContext::SetTransitionBus(&sceneTransitionBus_);
         sceneManager_.ChangeScene(std::move(initialScene));
@@ -59,7 +58,6 @@ namespace HIKARI {
 
     void EngineApp::Shutdown() {
         RuntimeSceneContext::SetTransitionBus(nullptr);
-        sceneInstanceCache_.ClearAll();
         sceneManager_.ChangeScene(nullptr);
         sceneManager_.Update(0.0f);
     }

@@ -8,7 +8,7 @@
     "futureOutputFormat": "HMESH",
     "sourceFormat": ".obj"
   },
-  "importerId": "ModelImporterStub",
+  "importerId": "ModelImporter",
   "importerVersion": 1,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/block.obj",

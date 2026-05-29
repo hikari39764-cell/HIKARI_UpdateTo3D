@@ -4,7 +4,7 @@
 
 namespace HIKARI {
 
-    class SceneImporterStub final : public IAssetImporter {
+    class SceneAssetImporter final : public IAssetImporter {
     public:
         const char* GetImporterId() const override;
         uint32_t GetImporterVersion() const override;

@@ -1,8 +1,10 @@
 #include "HIKARI_DxTexture.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <cstdio>
+#include <iomanip>
 #include <sstream>
 #include <DirectXTex.h>
 #include <d3dx12.h>
@@ -199,6 +201,21 @@ namespace HIKARI {
                     }
                 }
             }
+
+            void WriteRgba(uint32_t rgba, uint8_t* outPixel)
+            {
+                outPixel[0] = static_cast<uint8_t>((rgba >> 24) & 0xffu);
+                outPixel[1] = static_cast<uint8_t>((rgba >> 16) & 0xffu);
+                outPixel[2] = static_cast<uint8_t>((rgba >> 8) & 0xffu);
+                outPixel[3] = static_cast<uint8_t>(rgba & 0xffu);
+            }
+
+            std::string HexColor(uint32_t rgba)
+            {
+                std::ostringstream oss;
+                oss << std::hex << std::setw(8) << std::setfill('0') << rgba;
+                return oss.str();
+            }
         }
 
         bool  DxTextureManager::initialized_ = false;
@@ -374,6 +391,74 @@ namespace HIKARI {
             }
 
             int handle = CreateCubemapFromFile(path, colorSpace);
+            if (handle >= 0) {
+                nameToHandle_[cacheKey] = handle;
+            }
+            return handle;
+        }
+
+        int DxTextureManager::CreateSolidColorTexture(
+            const std::string& name,
+            uint32_t rgba,
+            TextureColorSpace colorSpace)
+        {
+            EnsureInit();
+
+            const std::string syntheticPath =
+                "generated://solid/" + HexColor(rgba);
+            const std::string cacheKey = MakeTextureCacheKey(name, syntheticPath, colorSpace);
+            auto it = nameToHandle_.find(cacheKey);
+            if (it != nameToHandle_.end()) {
+                return it->second;
+            }
+
+            std::array<uint8_t, 4> pixel{};
+            WriteRgba(rgba, pixel.data());
+            const int handle = CreateTextureFromRgbaPixels(
+                syntheticPath,
+                1,
+                1,
+                pixel.data(),
+                colorSpace,
+                "GeneratedSolid");
+            if (handle >= 0) {
+                nameToHandle_[cacheKey] = handle;
+            }
+            return handle;
+        }
+
+        int DxTextureManager::CreateCheckerTexture(
+            const std::string& name,
+            uint32_t colorA,
+            uint32_t colorB,
+            TextureColorSpace colorSpace)
+        {
+            EnsureInit();
+
+            const std::string syntheticPath =
+                "generated://checker/" + HexColor(colorA) + "/" + HexColor(colorB);
+            const std::string cacheKey = MakeTextureCacheKey(name, syntheticPath, colorSpace);
+            auto it = nameToHandle_.find(cacheKey);
+            if (it != nameToHandle_.end()) {
+                return it->second;
+            }
+
+            constexpr uint32_t kSize = 8;
+            std::vector<uint8_t> pixels(kSize * kSize * 4);
+            for (uint32_t y = 0; y < kSize; ++y) {
+                for (uint32_t x = 0; x < kSize; ++x) {
+                    const bool useA = ((x / 4u) + (y / 4u)) % 2u == 0u;
+                    WriteRgba(useA ? colorA : colorB, pixels.data() + ((y * kSize + x) * 4u));
+                }
+            }
+
+            const int handle = CreateTextureFromRgbaPixels(
+                syntheticPath,
+                kSize,
+                kSize,
+                pixels.data(),
+                colorSpace,
+                "GeneratedChecker");
             if (handle >= 0) {
                 nameToHandle_[cacheKey] = handle;
             }
@@ -729,6 +814,104 @@ namespace HIKARI {
             const int handle = RegisterCubeFromResourceAs(texResource.Get(), srvFormat);
             if (handle >= 0) {
                 LogTextureLoad("TextureCube", path, colorSpace, srvFormat, handle);
+            }
+            return handle;
+        }
+
+        int DxTextureManager::CreateTextureFromRgbaPixels(
+            const std::string& debugName,
+            uint32_t width,
+            uint32_t height,
+            const uint8_t* rgbaPixels,
+            TextureColorSpace colorSpace,
+            const char* logKind)
+        {
+            auto* device = context_.device;
+            auto* queue = context_.queue;
+            if (!device || !queue || !uploadAllocator_ || !uploadCmdList_ || !uploadFence_ || !uploadFenceEvent_ ||
+                width == 0 || height == 0 || rgbaPixels == nullptr) {
+                HIKARI_LOG_ERROR("[DxTextureManager][Generated][ERROR] invalid generated texture request: " + debugName);
+                return -1;
+            }
+
+            D3D12_RESOURCE_DESC textureDesc{};
+            textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+            textureDesc.Alignment = 0;
+            textureDesc.Width = width;
+            textureDesc.Height = height;
+            textureDesc.DepthOrArraySize = 1;
+            textureDesc.MipLevels = 1;
+            textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            textureDesc.SampleDesc.Count = 1;
+            textureDesc.SampleDesc.Quality = 0;
+            textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+            textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+            auto textureHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+            Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
+            HRESULT hr = device->CreateCommittedResource(
+                &textureHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &textureDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(texResource.GetAddressOf()));
+            if (FAILED(hr) || !texResource) {
+                HIKARI_LOG_ERROR("[DxTextureManager][Generated][ERROR] CreateCommittedResource failed: " + debugName);
+                return -1;
+            }
+
+            D3D12_SUBRESOURCE_DATA subresource{};
+            subresource.pData = rgbaPixels;
+            subresource.RowPitch = static_cast<LONG_PTR>(width * 4u);
+            subresource.SlicePitch = static_cast<LONG_PTR>(width * height * 4u);
+
+            const UINT64 uploadSize = GetRequiredIntermediateSize(texResource.Get(), 0, 1);
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+            hr = device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(uploadResource.GetAddressOf()));
+            if (FAILED(hr) || !uploadResource) {
+                HIKARI_LOG_ERROR("[DxTextureManager][Generated][ERROR] upload buffer creation failed: " + debugName);
+                return -1;
+            }
+
+            hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
+
+            UpdateSubresources(uploadCmdList_.Get(), texResource.Get(), uploadResource.Get(), 0, 0, 1, &subresource);
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                texResource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            uploadCmdList_->ResourceBarrier(1, &barrier);
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(DXGI_FORMAT_R8G8B8A8_UNORM, colorSpace);
+            const int handle = RegisterFromResourceAs(texResource.Get(), srvFormat);
+            if (handle >= 0) {
+                LogTextureLoad(logKind, debugName, colorSpace, srvFormat, handle);
             }
             return handle;
         }

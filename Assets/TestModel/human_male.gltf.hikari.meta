@@ -8,7 +8,7 @@
     "futureOutputFormat": "HMESH",
     "sourceFormat": ".gltf"
   },
-  "importerId": "ModelImporterStub",
+  "importerId": "ModelImporter",
   "importerVersion": 1,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/human_male.gltf",

@@ -16,6 +16,7 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_Dx12Core.h"
+#include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(_DEBUG)
 #include "Editor/HIKARI_EditorStyle.h"
@@ -183,6 +184,8 @@ namespace HIKARI {
 
             DXTEX::DxTextureManager::Init(gCtx);
             HIKARI_LOG_INFO("TextureManager initialized.");
+            HIKARI::DefaultPbrResources::Initialize();
+            HIKARI_LOG_INFO("Default PBR resources initialized.");
             DX::DxRenderer::Init(gCtx);
             HIKARI_LOG_INFO("DxRenderer initialized.");
             POST::PostSystem::Initialize(gCtx);
@@ -259,6 +262,8 @@ namespace HIKARI {
             HIKARI_LOG_INFO("PostSystem shutdown.");
             DX::DxRenderer::Finalize();
             HIKARI_LOG_INFO("DxRenderer finalized.");
+            HIKARI::DefaultPbrResources::Shutdown();
+            HIKARI_LOG_INFO("Default PBR resources finalized.");
             DXTEX::DxTextureManager::Finalize();
             HIKARI_LOG_INFO("TextureManager finalized.");
             HIKARI::VFX::Shutdown();

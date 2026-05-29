@@ -16,10 +16,7 @@ namespace HIKARI {
         float inDuration = 0.0f;  // 追加: inDuration メンバー（必要に応じて）
     };
 
-    class SceneCatalog;
-    class SceneFactory;
     class SceneManager;
-    class SceneInstanceCache;
 
     struct SceneTransitionRequest {
         std::string targetSceneAssetGuid{};
@@ -38,7 +35,7 @@ namespace HIKARI {
             TransitionIn,
         };
 
-        SceneTransitionBus(SceneManager& sceneManager, const SceneCatalog& sceneCatalog, const SceneFactory& sceneFactory, SceneInstanceCache& sceneCache);
+        explicit SceneTransitionBus(SceneManager& sceneManager);
 
         bool RequestTransition(const SceneTransitionRequest& request);
         void Update(float dt);
@@ -51,9 +48,6 @@ namespace HIKARI {
 
     private:
         SceneManager& sceneManager_;
-        const SceneCatalog& sceneCatalog_;
-        const SceneFactory& sceneFactory_;
-        SceneInstanceCache& sceneCache_;
         std::optional<SceneTransitionRequest> pendingRequest_{};
         TransitionState state_ = TransitionState::Idle;
         float timer_ = 0.0f;

@@ -22,30 +22,27 @@ namespace HIKARI {
     void InspectorPanel::Draw(
         EditorSelection& selection,
         AssetRegistry* assetRegistry,
-        AssetDatabase* assetDatabase,
-        SceneCatalog* sceneCatalog) const {
+        AssetDatabase* assetDatabase) const {
 #if defined(_DEBUG)
         if (!ImGui::Begin("Inspector")) {
             ImGui::End();
             return;
         }
 
-        DrawContents(selection, assetRegistry, assetDatabase, sceneCatalog);
+        DrawContents(selection, assetRegistry, assetDatabase);
 
         ImGui::End();
 #else
         (void)selection;
         (void)assetRegistry;
         (void)assetDatabase;
-        (void)sceneCatalog;
 #endif
     }
 
     void InspectorPanel::DrawContents(
         EditorSelection& selection,
         AssetRegistry* assetRegistry,
-        AssetDatabase* assetDatabase,
-        SceneCatalog* sceneCatalog) const {
+        AssetDatabase* assetDatabase) const {
 #if defined(_DEBUG)
         if (selection.selectedObject == nullptr) {
             ImGui::TextUnformatted("No object selected.");
@@ -77,8 +74,7 @@ namespace HIKARI {
         ImGuiInspectorBuilder builder{};
         builder.SetContext(InspectorContext{
             assetRegistry,
-            assetDatabase,
-            sceneCatalog
+            assetDatabase
         });
         const auto& components = object.GetComponents();
         for (size_t componentIndex = 0; componentIndex < components.size(); ++componentIndex) {
@@ -100,7 +96,6 @@ namespace HIKARI {
         (void)selection;
         (void)assetRegistry;
         (void)assetDatabase;
-        (void)sceneCatalog;
 #endif
     }
 

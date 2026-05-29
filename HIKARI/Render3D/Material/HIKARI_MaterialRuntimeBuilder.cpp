@@ -8,6 +8,7 @@
 #include "HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 
 namespace HIKARI {
 
@@ -36,15 +37,38 @@ namespace HIKARI {
             }
         }
 
+        RuntimeTextureSlot DefaultSlotForUsage(ModelTextureUsage usage)
+        {
+            switch (usage) {
+            case ModelTextureUsage::BaseColor:
+            case ModelTextureUsage::Occlusion:
+                return DefaultPbrResources::WhiteSlot();
+            case ModelTextureUsage::Normal:
+                return DefaultPbrResources::FlatNormalSlot();
+            case ModelTextureUsage::MetallicRoughness:
+                return DefaultPbrResources::MetallicRoughnessSlot();
+            case ModelTextureUsage::Emissive:
+                return DefaultPbrResources::BlackSlot();
+            default:
+                return DefaultPbrResources::MissingSlot();
+            }
+        }
+
+        RuntimeTextureSlot ActiveMissingSlot()
+        {
+            RuntimeTextureSlot slot = DefaultPbrResources::MissingSlot();
+            slot.enabled = true;
+            return slot;
+        }
+
         RuntimeTextureSlot BuildSlot(
             const MaterialTextureSlotData& slotData,
             ModelTextureUsage usage,
             const AssetRegistry& assetRegistry,
             std::string_view debugName) {
 
-            RuntimeTextureSlot slot{};
             if (!slotData.useTexture || !slotData.textureAssetGuid.IsValid()) {
-                return slot;
+                return DefaultSlotForUsage(usage);
             }
 
             const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(
@@ -52,9 +76,10 @@ namespace HIKARI {
             if (!texture || texture->sourcePath.empty()) {
                 HIKARI_LOG_WARN("[MaterialRuntimeBuilder] texture asset not resolved: " +
                     slotData.textureAssetGuid.value);
-                return slot;
+                return ActiveMissingSlot();
             }
 
+            RuntimeTextureSlot slot{};
             slot.sourcePath = texture->sourcePath;
             slot.resolvedPath = texture->sourcePath;
             const std::string textureName =
@@ -63,6 +88,13 @@ namespace HIKARI {
                 textureName,
                 slot.resolvedPath,
                 ColorSpaceForUsage(usage));
+            if (slot.handle < 0) {
+                HIKARI_LOG_WARN("[MaterialRuntimeBuilder] texture load failed: " +
+                    slot.resolvedPath);
+                return ActiveMissingSlot();
+            }
+
+            slot.enabled = true;
             return slot;
         }
     }
@@ -91,7 +123,7 @@ namespace HIKARI {
         }
         outMaterial.SetFeatureBits(featureBits);
 
-        // JSON は GUID を持つだけなので、runtime では Registry から HTEX パスへ変換する。
+        // Material JSON は GUID だけを保持し、Runtime では Registry から cooked texture へ解決する。
         outMaterial.SetTextureSlot(ModelTextureUsage::BaseColor,
             BuildSlot(data.baseColorTexture, ModelTextureUsage::BaseColor, assetRegistry, debugName));
         outMaterial.SetTextureSlot(ModelTextureUsage::Normal,

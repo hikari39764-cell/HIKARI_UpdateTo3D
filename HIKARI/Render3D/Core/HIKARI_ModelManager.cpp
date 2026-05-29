@@ -885,6 +885,7 @@ namespace HIKARI {
             textureName,
             slot.resolvedPath,
             ColorSpaceForUsage(usage));
+        slot.enabled = slot.handle >= 0;
         return slot;
     }
 

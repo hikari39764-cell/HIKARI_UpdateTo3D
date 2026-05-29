@@ -30,6 +30,8 @@ namespace HIKARI {
         std::string ConsumeSaveSceneAsGuid() const;
         std::string ConsumeRefreshRuntimeAssetGuid() const;
         std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;
+        bool ConsumeApplyRuntimeMaterialRequest(AssetGuid& outGuid, PbrMaterialAssetData& outData) const;
+        std::string ConsumeRefreshRuntimeMaterialGuid() const;
         bool ConsumeRefreshCurrentSceneResourcesRequested() const;
 
     private:

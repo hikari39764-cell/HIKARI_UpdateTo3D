@@ -4,6 +4,8 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
+#include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -253,19 +255,42 @@ namespace HIKARI {
             };
 
             if (resourceWorkspacePanel_.ConsumeRefreshCurrentSceneResourcesRequested()) {
+                EDITOR::ClearMaterialTextureSlotPreviewCache();
                 // 現在の SceneDocument に出てくる依存 resource をまとめて張り直す。
                 applyRefreshReport(refreshService.RefreshCurrentSceneResources(scene));
             }
 
             const std::string refreshRuntimeGuid = resourceWorkspacePanel_.ConsumeRefreshRuntimeAssetGuid();
             if (!refreshRuntimeGuid.empty()) {
+                EDITOR::ClearMaterialTextureSlotPreviewCache();
                 applyRefreshReport(refreshService.RefreshAsset(scene, AssetId{ refreshRuntimeGuid }));
             }
 
             const std::string reimportAndRefreshRuntimeGuid =
                 resourceWorkspacePanel_.ConsumeReimportAndRefreshRuntimeAssetGuid();
             if (!reimportAndRefreshRuntimeGuid.empty()) {
+                EDITOR::ClearMaterialTextureSlotPreviewCache();
                 applyRefreshReport(refreshService.RefreshAsset(scene, AssetId{ reimportAndRefreshRuntimeGuid }));
+            }
+
+            AssetGuid applyMaterialGuid{};
+            PbrMaterialAssetData applyMaterialData{};
+            if (resourceWorkspacePanel_.ConsumeApplyRuntimeMaterialRequest(applyMaterialGuid, applyMaterialData)) {
+                const int rebuilt = scene.ApplyRuntimeMaterialOverridePreview(
+                    applyMaterialGuid,
+                    applyMaterialData);
+                context_.lastRuntimeRefreshReport = {};
+                context_.lastRuntimeRefreshReport.materialReboundComponentCount = rebuilt;
+                context_.lastRuntimeRefreshReport.messages.push_back(
+                    "Applied material runtime preview: " + applyMaterialGuid.value);
+                viewportDropMessage_ = SummarizeRuntimeRefreshReport(context_.lastRuntimeRefreshReport);
+            }
+
+            const std::string refreshRuntimeMaterialGuid =
+                resourceWorkspacePanel_.ConsumeRefreshRuntimeMaterialGuid();
+            if (!refreshRuntimeMaterialGuid.empty()) {
+                EDITOR::ClearMaterialTextureSlotPreviewCache();
+                applyRefreshReport(refreshService.RefreshAsset(scene, AssetId{ refreshRuntimeMaterialGuid }));
             }
         }
         if (context_.windows.resources.showEnvironment) {
@@ -784,8 +809,7 @@ namespace HIKARI {
                 inspectorPanel_.DrawContents(
                     context_.selection,
                     &scene.GetAssetRegistry(),
-                    &scene.GetAssetDatabase(),
-                    &scene.GetSceneCatalog());
+                    &scene.GetAssetDatabase());
                 if (!ImGui::IsAnyItemActive()) {
                     selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
                 }

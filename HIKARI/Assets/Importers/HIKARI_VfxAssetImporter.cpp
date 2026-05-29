@@ -1,4 +1,4 @@
-#include "HIKARI_VfxImporterStub.h"
+#include "HIKARI_VfxAssetImporter.h"
 
 #include <algorithm>
 #include <cctype>
@@ -16,20 +16,20 @@ namespace HIKARI {
         }
     }
 
-    const char* VfxImporterStub::GetImporterId() const {
-        return "VfxImporterStub";
+    const char* VfxAssetImporter::GetImporterId() const {
+        return "VfxAssetImporter";
     }
 
-    uint32_t VfxImporterStub::GetImporterVersion() const {
+    uint32_t VfxAssetImporter::GetImporterVersion() const {
         return 1;
     }
 
-    bool VfxImporterStub::CanImport(const std::filesystem::path& sourcePath) const {
+    bool VfxAssetImporter::CanImport(const std::filesystem::path& sourcePath) const {
         const std::string ext = ToLowerCopy(sourcePath.extension().string());
         return ext == ".efk" || ext == ".efkefc";
     }
 
-    AssetMeta VfxImporterStub::CreateDefaultMeta(
+    AssetMeta VfxAssetImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
@@ -49,7 +49,7 @@ namespace HIKARI {
         return meta;
     }
 
-    AssetImportResult VfxImporterStub::Import(
+    AssetImportResult VfxAssetImporter::Import(
         const AssetRecord& record,
         const AssetImportContext& context) {
 

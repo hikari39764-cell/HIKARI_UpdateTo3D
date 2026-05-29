@@ -10,9 +10,14 @@ namespace HIKARI {
         std::string sourcePath{};
         std::string resolvedPath{};
         int handle = -1;
+        bool enabled = false;
 
         bool IsValid() const {
             return handle >= 0;
+        }
+
+        bool IsActive() const {
+            return enabled && IsValid();
         }
     };
 

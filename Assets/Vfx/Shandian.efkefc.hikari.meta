@@ -8,7 +8,7 @@
     "futureOutputFormat": "HPAK",
     "sourceFormat": ".efkefc"
   },
-  "importerId": "VfxImporterStub",
+  "importerId": "VfxAssetImporter",
   "importerVersion": 1,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Shandian.efkefc",

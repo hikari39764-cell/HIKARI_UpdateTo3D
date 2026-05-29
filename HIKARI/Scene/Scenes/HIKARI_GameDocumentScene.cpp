@@ -2,8 +2,8 @@
 
 namespace HIKARI {
 
-    GameDocumentScene::GameDocumentScene(SceneCatalog& sceneCatalog, std::string sceneId)
-        : DocumentSceneBase(sceneCatalog, std::move(sceneId)) {
+    GameDocumentScene::GameDocumentScene(std::string sceneId)
+        : DocumentSceneBase(std::move(sceneId)) {
     }
 	// シーンの名前を取得する。シーンの名前は、シーンドキュメントの sceneName フィールドから取得される。
     const char* GameDocumentScene::GetSceneName() const {

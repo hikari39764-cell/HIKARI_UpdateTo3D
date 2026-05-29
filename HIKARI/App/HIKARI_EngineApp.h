@@ -3,9 +3,6 @@
 
 #include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
-#include "Scene/HIKARI_SceneCatalog.h"
-#include "Scene/HIKARI_SceneFactory.h"
-#include "Scene/HIKARI_SceneInstanceCache.h"
 #include "Scene/HIKARI_SceneManager.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
 
@@ -22,9 +19,6 @@ namespace HIKARI {
 
     private:
         SceneManager sceneManager_{};
-        SceneCatalog sceneCatalog_{};
-        SceneFactory sceneFactory_;
-        SceneInstanceCache sceneInstanceCache_{};
         SceneTransitionBus sceneTransitionBus_;
         DocumentSceneEditorController documentSceneEditorController_{};
     };

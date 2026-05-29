@@ -117,6 +117,13 @@ namespace HIKARI {
             return path.empty() ? "<empty>" : path.c_str();
         }
 
+        std::string ShortGuid(const std::string& guid) {
+            if (guid.size() <= 8) {
+                return guid;
+            }
+            return guid.substr(0, 8);
+        }
+
         const char* ResolveTextureResolvedPathDebug(const ModelAsset& asset, const TextureSlot& slot) {
             if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
                 return "<none>";
@@ -656,7 +663,8 @@ namespace HIKARI {
                 break;
             }
         }
-        if (builder.AssetIdPicker("Material Override Slot 0", AssetType::Material, materialOverrideGuid)) {
+        // Inspector では slot 0 を主材質として扱い、詳細 debug は折り畳みに逃がす。
+        if (builder.AssetIdPicker("Material", AssetType::Material, materialOverrideGuid)) {
             if (materialOverrideGuid.empty()) {
                 ClearMaterialOverride(0);
             } else {
@@ -675,7 +683,7 @@ namespace HIKARI {
 
     void ModelComponent::RenderImGui() {
 #if defined(_DEBUG)
-        if (ImGui::TreeNodeEx("Model Source", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNodeEx("Model Source")) {
             int sourceKind = static_cast<int>(sourceKind_);
             const char* sourceNames[] = { "Asset", "Procedural" };
             if (ImGui::Combo("Source Kind", &sourceKind, sourceNames, 2)) {
@@ -721,7 +729,7 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Material FX / Post", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNodeEx("Material FX / Post")) {
             ImGui::Checkbox("Visible", &visible_);
             int postMask = static_cast<int>(postGroupMask_);
             if (ImGui::InputInt("Post Group Mask", &postMask)) {
@@ -819,12 +827,15 @@ namespace HIKARI {
                 }
             }
             ImGui::Text("Slot 0: %s",
-                (slot0 && slot0->materialAssetGuid.IsValid()) ? slot0->materialAssetGuid.value.c_str() : "<none>");
+                (slot0 && slot0->materialAssetGuid.IsValid()) ? ShortGuid(slot0->materialAssetGuid.value).c_str() : "<none>");
             ImGui::Text("Runtime Override: %s",
                 runtimeMaterialOverride_ ? "Ready" : "Default model material");
-            if (runtimeMaterialOverride_) {
+            if (runtimeMaterialOverride_ && ImGui::TreeNode("Runtime Texture Debug")) {
                 auto drawRuntimeSlot = [](const char* label, const RuntimeTextureSlot& slot) {
-                    ImGui::Text("%s: handle=%d", label, slot.handle);
+                    ImGui::Text("%s: handle=%d active=%s",
+                        label,
+                        slot.handle,
+                        slot.IsActive() ? "true" : "false");
                     ImGui::TextDisabled("  resolved=%s", slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str());
                 };
                 drawRuntimeSlot("BaseColor", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::BaseColor));
@@ -832,11 +843,12 @@ namespace HIKARI {
                 drawRuntimeSlot("MetallicRoughness", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
                 drawRuntimeSlot("Occlusion", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Occlusion));
                 drawRuntimeSlot("Emissive", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Emissive));
+                ImGui::TreePop();
             }
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Shadow", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNodeEx("Shadow")) {
             ImGui::Checkbox("Cast Shadow", &castShadow_);
             ImGui::Checkbox("Receive Shadow", &receiveShadow_);
             ImGui::TreePop();
@@ -876,7 +888,7 @@ namespace HIKARI {
             }
         }
 
-        if (ImGui::TreeNodeEx("Model Basic", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNodeEx("Model Basic")) {
             ImGui::Text("Asset: %s", asset_->GetName().c_str());
             ImGui::Text("Source: %s", asset_->GetSourcePath().c_str());
             ImGui::Text("State: %s", ToStateText(asset_->GetState()));

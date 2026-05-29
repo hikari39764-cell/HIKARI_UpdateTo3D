@@ -12,12 +12,12 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Importers/HIKARI_MaterialImporter.h"
-#include "Importers/HIKARI_ModelImporterStub.h"
-#include "Importers/HIKARI_SceneImporterStub.h"
+#include "Importers/HIKARI_ModelImporter.h"
+#include "Importers/HIKARI_SceneAssetImporter.h"
 #include "Importers/HIKARI_SkyCubemapImporter.h"
 #include "Importers/HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Importers/HIKARI_TextureImporter.h"
-#include "Importers/HIKARI_VfxImporterStub.h"
+#include "Importers/HIKARI_VfxAssetImporter.h"
 
 namespace HIKARI {
 
@@ -105,6 +105,20 @@ namespace HIKARI {
             if (text == "Particle") return AssetType::Particle;
             if (text == "VfxEffect" || text == "Vfx") return AssetType::VfxEffect;
             return AssetType::Unknown;
+        }
+
+        std::string NormalizeImporterId(std::string importerId) {
+            // 旧 Stub 名で保存済みの meta を、現在の正式 importer 名へ寄せる。
+            if (importerId == "ModelImporterStub") {
+                return "ModelImporter";
+            }
+            if (importerId == "SceneImporterStub") {
+                return "SceneAssetImporter";
+            }
+            if (importerId == "VfxImporterStub") {
+                return "VfxAssetImporter";
+            }
+            return importerId;
         }
 
         nlohmann::json SerializeDependencies(const std::vector<AssetDependencyDesc>& dependencies) {
@@ -599,7 +613,7 @@ namespace HIKARI {
         outMeta.metaVersion = root.value("metaVersion", 1u);
         outMeta.guid.value = root.value("guid", "");
         outMeta.type = ParseAssetType(root.value("type", "Unknown"));
-        outMeta.importerId = root.value("importerId", "");
+        outMeta.importerId = NormalizeImporterId(root.value("importerId", ""));
         outMeta.importerVersion = root.value("importerVersion", 1u);
         outMeta.sourcePath = root.value("sourcePath", "");
         outMeta.displayName = root.value("displayName", "");
@@ -778,16 +792,16 @@ namespace HIKARI {
             return "TextureImporter";
         }
         if (type == AssetType::Model) {
-            return "ModelImporterStub";
+            return "ModelImporter";
         }
         if (type == AssetType::Scene) {
-            return "SceneImporterStub";
+            return "SceneAssetImporter";
         }
         if (type == AssetType::Material) {
             return "MaterialImporter";
         }
         if (type == AssetType::VfxEffect) {
-            return "VfxImporterStub";
+            return "VfxAssetImporter";
         }
 
         if (const IAssetImporter* importer = importerRegistry_.FindForSource(sourcePath)) {
@@ -801,10 +815,10 @@ namespace HIKARI {
             std::make_unique<DirectXTexTextureImportBackend>()));
         importerRegistry_.Register(std::make_unique<TextureImporter>(
             std::make_unique<DirectXTexTextureImportBackend>()));
-        importerRegistry_.Register(std::make_unique<ModelImporterStub>());
-        importerRegistry_.Register(std::make_unique<SceneImporterStub>());
+        importerRegistry_.Register(std::make_unique<ModelImporter>());
+        importerRegistry_.Register(std::make_unique<SceneAssetImporter>());
         importerRegistry_.Register(std::make_unique<MaterialImporter>());
-        importerRegistry_.Register(std::make_unique<VfxImporterStub>());
+        importerRegistry_.Register(std::make_unique<VfxAssetImporter>());
     }
 
     void AssetDatabase::EnsureProjectDirectories() const {

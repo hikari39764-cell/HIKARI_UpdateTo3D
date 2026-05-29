@@ -11,7 +11,6 @@
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_IScene.h"
-#include "Scene/HIKARI_SceneCatalog.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
 #include "Scene/HIKARI_SystemScheduler.h"
@@ -21,9 +20,11 @@
 
 namespace HIKARI {
 
+    struct PbrMaterialAssetData;
+
     class DocumentSceneBase : public IScene {
     public:
-        DocumentSceneBase(SceneCatalog& sceneCatalog, std::string sceneId);
+        explicit DocumentSceneBase(std::string sceneId);
 
         void OnEnter() override;
         void OnExit() override;
@@ -33,8 +34,6 @@ namespace HIKARI {
 
         const std::string& GetSceneId() const override;
         const std::string& GetScenePath() const;
-        SceneCatalog& GetSceneCatalog();
-        const SceneCatalog& GetSceneCatalog() const;
         void SetSceneId(std::string sceneId);
         void SetScenePath(std::string scenePath);
 
@@ -77,6 +76,10 @@ namespace HIKARI {
         bool ReloadModelAssetRuntime(const AssetId& modelId);
         int RebindModelComponents();
         int RebuildMaterialOverrides();
+        int RebuildMaterialOverridesForMaterial(const AssetGuid& materialGuid);
+        int ApplyRuntimeMaterialOverridePreview(
+            const AssetGuid& materialGuid,
+            const PbrMaterialAssetData& data);
         bool SaveCurrentSceneDocument();
         bool SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid);
         const AssetGuid& GetCurrentSceneAssetGuid() const;
@@ -89,7 +92,6 @@ namespace HIKARI {
 
     protected:
         void RegisterDefaultComponentTypes();
-        void RegisterDefaultSceneCatalogEntries();
         void RegisterDefaultSystems();
 
         virtual bool UseDebugCamera() const;
@@ -104,7 +106,6 @@ namespace HIKARI {
             const std::string& sourceTexturePath) const;
 
     protected:
-        SceneCatalog& sceneCatalog_;
         std::string sceneId_;
         std::string scenePath_{};
 

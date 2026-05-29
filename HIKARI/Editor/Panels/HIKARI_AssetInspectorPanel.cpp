@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include <Windows.h>
 #include <Shellapi.h>
@@ -252,7 +253,10 @@ namespace HIKARI {
             AssetDatabase& assetDatabase,
             AssetRegistry& assetRegistry,
             EditorSelection& selection,
-            AssetRecord& record) {
+            AssetRecord& record,
+            AssetGuid& outApplyRuntimeGuid,
+            PbrMaterialAssetData& outApplyRuntimeData,
+            std::string& outRefreshRuntimeGuid) {
 
             static std::string loadedMaterialGuid{};
             static PbrMaterialAssetData editData{};
@@ -289,56 +293,63 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", materialStatus.c_str());
             }
 
-            ImGui::SeparatorText("Base Color");
-            changed = EDITOR::DrawMaterialTextureSlot(
-                "Base Color Texture",
-                editData.baseColorTexture,
-                assetDatabase,
-                assetRegistry,
-                &selection) || changed;
-            changed = ImGui::ColorEdit4("Base Color Factor", &editData.baseColorFactor.x) || changed;
+            // HE 風に、よく触る slot だけを開きやすい折り畳みで並べる。
+            if (ImGui::CollapsingHeader("Base Color", ImGuiTreeNodeFlags_DefaultOpen)) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Albedo",
+                    editData.baseColorTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::ColorEdit4("Color", &editData.baseColorFactor.x) || changed;
+            }
 
-            ImGui::SeparatorText("Normal");
-            changed = EDITOR::DrawMaterialTextureSlot(
-                "Normal Texture",
-                editData.normalTexture,
-                assetDatabase,
-                assetRegistry,
-                &selection) || changed;
-            changed = ImGui::DragFloat("Normal Scale", &editData.normalScale, 0.01f, 0.0f, 4.0f) || changed;
+            if (ImGui::CollapsingHeader("Normal")) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Normal",
+                    editData.normalTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::DragFloat("Scale", &editData.normalScale, 0.01f, 0.0f, 4.0f) || changed;
+            }
 
-            ImGui::SeparatorText("Metallic / Roughness");
-            changed = EDITOR::DrawMaterialTextureSlot(
-                "Metallic Roughness Texture",
-                editData.metallicRoughnessTexture,
-                assetDatabase,
-                assetRegistry,
-                &selection) || changed;
-            changed = ImGui::SliderFloat("Metallic", &editData.metallicFactor, 0.0f, 1.0f) || changed;
-            changed = ImGui::SliderFloat("Roughness", &editData.roughnessFactor, 0.0f, 1.0f) || changed;
+            if (ImGui::CollapsingHeader("Metallic / Roughness", ImGuiTreeNodeFlags_DefaultOpen)) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "MR Texture",
+                    editData.metallicRoughnessTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::SliderFloat("Metallic", &editData.metallicFactor, 0.0f, 1.0f) || changed;
+                changed = ImGui::SliderFloat("Roughness", &editData.roughnessFactor, 0.0f, 1.0f) || changed;
+            }
 
-            ImGui::SeparatorText("Ambient Occlusion");
-            changed = EDITOR::DrawMaterialTextureSlot(
-                "Occlusion Texture",
-                editData.occlusionTexture,
-                assetDatabase,
-                assetRegistry,
-                &selection) || changed;
-            changed = ImGui::SliderFloat("Occlusion Strength", &editData.occlusionStrength, 0.0f, 1.0f) || changed;
+            if (ImGui::CollapsingHeader("Ambient Occlusion")) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Occlusion",
+                    editData.occlusionTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::SliderFloat("Strength", &editData.occlusionStrength, 0.0f, 1.0f) || changed;
+            }
 
-            ImGui::SeparatorText("Emissive");
-            changed = EDITOR::DrawMaterialTextureSlot(
-                "Emissive Texture",
-                editData.emissiveTexture,
-                assetDatabase,
-                assetRegistry,
-                &selection) || changed;
-            changed = ImGui::ColorEdit3("Emissive Factor", &editData.emissiveFactor.x) || changed;
-            changed = ImGui::DragFloat("Emissive Strength", &editData.emissiveStrength, 0.01f, 0.0f, 100.0f) || changed;
+            if (ImGui::CollapsingHeader("Emissive")) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Emissive",
+                    editData.emissiveTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::ColorEdit3("Color##Emissive", &editData.emissiveFactor.x) || changed;
+                changed = ImGui::DragFloat("Strength##Emissive", &editData.emissiveStrength, 0.01f, 0.0f, 100.0f) || changed;
+            }
 
-            ImGui::SeparatorText("Options");
-            changed = ImGui::Checkbox("Double Sided", &editData.doubleSided) || changed;
-            changed = ImGui::Checkbox("Unlit", &editData.unlit) || changed;
+            if (ImGui::CollapsingHeader("Options")) {
+                changed = ImGui::Checkbox("Double Sided", &editData.doubleSided) || changed;
+                changed = ImGui::Checkbox("Unlit", &editData.unlit) || changed;
+            }
 
             if (changed) {
                 materialDirty = true;
@@ -350,6 +361,12 @@ namespace HIKARI {
                 ImGui::TextDisabled("Material file is clean");
             }
 
+            if (ImGui::Button("Apply Runtime")) {
+                outApplyRuntimeGuid = record.guid;
+                outApplyRuntimeData = editData;
+                materialStatus = "Applied to runtime preview";
+            }
+            ImGui::SameLine();
             if (ImGui::Button("Save Material")) {
                 std::string error{};
                 if (SavePbrMaterialAssetData(sourcePath, editData, error)) {
@@ -357,6 +374,8 @@ namespace HIKARI {
                     materialStatus = "Material saved";
                     assetDatabase.ImportAsset(record.guid);
                     assetDatabase.ScanAssets(true);
+                    EDITOR::ClearMaterialTextureSlotPreviewCache();
+                    outRefreshRuntimeGuid = record.guid.value;
                 } else {
                     materialStatus = error.empty() ? "Material save failed" : error;
                 }
@@ -367,6 +386,7 @@ namespace HIKARI {
                 if (LoadPbrMaterialAssetData(sourcePath, editData, error)) {
                     materialStatus.clear();
                     materialDirty = false;
+                    EDITOR::ClearMaterialTextureSlotPreviewCache();
                 } else {
                     materialStatus = error;
                 }
@@ -611,7 +631,14 @@ namespace HIKARI {
             }
 
             if (record->type == AssetType::Material && ImGui::BeginTabItem("PBR Material")) {
-                DrawMaterialAssetEditor(assetDatabase, assetRegistry, selection, *record);
+                DrawMaterialAssetEditor(
+                    assetDatabase,
+                    assetRegistry,
+                    selection,
+                    *record,
+                    applyRuntimeMaterialGuid_,
+                    applyRuntimeMaterialData_,
+                    refreshRuntimeMaterialGuid_);
                 ImGui::EndTabItem();
             }
 
@@ -669,6 +696,27 @@ namespace HIKARI {
         (void)assetRegistry;
         (void)selection;
 #endif
+    }
+
+    bool AssetInspectorPanel::ConsumeApplyRuntimeMaterialRequest(
+        AssetGuid& outGuid,
+        PbrMaterialAssetData& outData) const {
+
+        if (!applyRuntimeMaterialGuid_.IsValid()) {
+            return false;
+        }
+
+        outGuid = applyRuntimeMaterialGuid_;
+        outData = applyRuntimeMaterialData_;
+        applyRuntimeMaterialGuid_ = {};
+        applyRuntimeMaterialData_ = {};
+        return true;
+    }
+
+    std::string AssetInspectorPanel::ConsumeRefreshRuntimeMaterialGuid() const {
+        std::string guid = std::move(refreshRuntimeMaterialGuid_);
+        refreshRuntimeMaterialGuid_.clear();
+        return guid;
     }
 
 } // namespace HIKARI

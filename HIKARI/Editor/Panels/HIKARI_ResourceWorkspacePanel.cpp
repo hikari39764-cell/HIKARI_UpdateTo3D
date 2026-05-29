@@ -260,6 +260,17 @@ namespace HIKARI {
         return assetBrowserPanel_.ConsumeReimportAndRefreshRuntimeAssetGuid();
     }
 
+    bool ResourceWorkspacePanel::ConsumeApplyRuntimeMaterialRequest(
+        AssetGuid& outGuid,
+        PbrMaterialAssetData& outData) const {
+
+        return assetInspectorPanel_.ConsumeApplyRuntimeMaterialRequest(outGuid, outData);
+    }
+
+    std::string ResourceWorkspacePanel::ConsumeRefreshRuntimeMaterialGuid() const {
+        return assetInspectorPanel_.ConsumeRefreshRuntimeMaterialGuid();
+    }
+
     bool ResourceWorkspacePanel::ConsumeRefreshCurrentSceneResourcesRequested() const {
         const bool requested = refreshCurrentSceneResourcesRequested_;
         refreshCurrentSceneResourcesRequested_ = false;

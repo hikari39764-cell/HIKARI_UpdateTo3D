@@ -8,7 +8,7 @@
     "futureOutputFormat": "HMESH",
     "sourceFormat": ".fbx"
   },
-  "importerId": "ModelImporterStub",
+  "importerId": "ModelImporter",
   "importerVersion": 1,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Model/Arrow.fbx",

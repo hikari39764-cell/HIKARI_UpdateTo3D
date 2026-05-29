@@ -9,7 +9,7 @@
     "runtimeLoader": "SceneSerializer",
     "sourceFormat": ".json"
   },
-  "importerId": "SceneImporterStub",
+  "importerId": "SceneAssetImporter",
   "importerVersion": 1,
   "metaVersion": 1,
   "sourcePath": "Assets/Scenes/Sandbox.scene_2.json",

@@ -2,7 +2,6 @@
 #include <cmath>
 #include "HIKARI_DxRenderer.h"
 #include "HIKARI_DxTexture.h"
-#include "HIKARI_Camera2_5D.h"
 #include "Windows.h"
 #include <algorithm>
 #undef max

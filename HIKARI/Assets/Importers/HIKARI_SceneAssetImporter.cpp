@@ -1,4 +1,4 @@
-#include "HIKARI_SceneImporterStub.h"
+#include "HIKARI_SceneAssetImporter.h"
 
 #include <algorithm>
 #include <cctype>
@@ -30,19 +30,19 @@ namespace HIKARI {
         }
     }
 
-    const char* SceneImporterStub::GetImporterId() const {
-        return "SceneImporterStub";
+    const char* SceneAssetImporter::GetImporterId() const {
+        return "SceneAssetImporter";
     }
 
-    uint32_t SceneImporterStub::GetImporterVersion() const {
+    uint32_t SceneAssetImporter::GetImporterVersion() const {
         return 1;
     }
 
-    bool SceneImporterStub::CanImport(const std::filesystem::path& sourcePath) const {
+    bool SceneAssetImporter::CanImport(const std::filesystem::path& sourcePath) const {
         return IsSceneSourcePath(sourcePath);
     }
 
-    AssetMeta SceneImporterStub::CreateDefaultMeta(
+    AssetMeta SceneAssetImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
@@ -63,7 +63,7 @@ namespace HIKARI {
         return meta;
     }
 
-    AssetImportResult SceneImporterStub::Import(
+    AssetImportResult SceneAssetImporter::Import(
         const AssetRecord& record,
         const AssetImportContext& context) {
 

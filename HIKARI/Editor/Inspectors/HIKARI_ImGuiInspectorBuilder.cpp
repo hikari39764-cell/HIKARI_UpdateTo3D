@@ -11,7 +11,6 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
-#include "Scene/HIKARI_SceneCatalog.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"

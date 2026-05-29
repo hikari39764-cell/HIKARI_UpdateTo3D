@@ -32,7 +32,7 @@ namespace HIKARI {
         } else if (const auto* sky = registry.FindAs<SkyAssetDescriptor>(assetId)) {
             RefreshSkyAsset(scene, *sky, report);
         } else if (const auto* model = registry.FindAs<ModelAssetDescriptor>(assetId)) {
-            RefreshModelAsset(scene, *model, report);
+            RefreshModelAsset(scene, *model, report, true);
         } else if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(assetId)) {
             RefreshMaterialAsset(scene, *material, report);
         } else {
@@ -51,6 +51,7 @@ namespace HIKARI {
         scene.ReloadAssets();
 
         bool textureTouched = false;
+        bool modelTouched = false;
         const AssetRegistry& registry = scene.GetAssetRegistry();
         for (const AssetId& assetId : assetIds) {
             if (const auto* texture = registry.FindAs<TextureAssetDescriptor>(assetId)) {
@@ -58,7 +59,7 @@ namespace HIKARI {
             } else if (const auto* sky = registry.FindAs<SkyAssetDescriptor>(assetId)) {
                 RefreshSkyAsset(scene, *sky, report);
             } else if (const auto* model = registry.FindAs<ModelAssetDescriptor>(assetId)) {
-                RefreshModelAsset(scene, *model, report);
+                modelTouched = RefreshModelAsset(scene, *model, report, false) || modelTouched;
             } else if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(assetId)) {
                 RefreshMaterialAsset(scene, *material, report);
             } else {
@@ -69,11 +70,13 @@ namespace HIKARI {
 
         if (textureTouched) {
             ReloadCurrentSceneModelDependencies(scene, report);
+        } else if (modelTouched) {
+            report.modelReboundComponentCount += scene.RebindModelComponents();
         }
 
         return report;
     }
-	/// すべてのリソースをリフレッシュする。モデルの再ロードとスカイの即時差し替えを行い、モデルコンポーネントの再バインドも試みる。
+
     RuntimeResourceRefreshReport RuntimeResourceRefreshService::RefreshCurrentSceneResources(
         DocumentSceneBase& scene) {
 
@@ -83,14 +86,19 @@ namespace HIKARI {
         const SceneDependencySet dependencies =
             scene.GetRuntimeBuilder().CollectDependencies(scene.GetSceneDocument());
 
+        bool modelTouched = false;
         const AssetRegistry& registry = scene.GetAssetRegistry();
         for (const std::string& modelId : dependencies.modelAssetIds) {
             if (const auto* model = registry.FindAs<ModelAssetDescriptor>(AssetId{ modelId })) {
-                RefreshModelAsset(scene, *model, report);
+                modelTouched = RefreshModelAsset(scene, *model, report, false) || modelTouched;
             } else {
                 ++report.failedCount;
                 AppendMessage(report, "Missing model dependency: " + modelId);
             }
+        }
+
+        if (modelTouched) {
+            report.modelReboundComponentCount += scene.RebindModelComponents();
         }
 
         for (const std::string& skyId : dependencies.skyAssetIds) {
@@ -111,11 +119,10 @@ namespace HIKARI {
             }
         }
 
-        report.modelReboundComponentCount += scene.RebindModelComponents();
         scene.RefreshCurrentSkyRuntime();
         return report;
     }
-	// Texture は cache を失効させ、モデル再ロード時に resolver 経由で再取得する。
+
     bool RuntimeResourceRefreshService::RefreshTextureAsset(
         DocumentSceneBase& scene,
         const TextureAssetDescriptor& descriptor,
@@ -127,7 +134,7 @@ namespace HIKARI {
             return false;
         }
 
-        // Texture は cache を失効させ、モデル再ロード時に resolver 経由で再取得する。
+        // Texture は cache だけを無効化し、次の model reload / preview 解決時に再取得する。
         if (!scene.RefreshTextureRuntimeByPath(descriptor.sourcePath)) {
             ++report.failedCount;
             AppendMessage(report, "Texture cache invalidation failed: " + descriptor.sourcePath);
@@ -138,7 +145,7 @@ namespace HIKARI {
         AppendMessage(report, "Invalidated texture: " + descriptor.sourcePath);
         return true;
     }
-	// Sky は即時差し替えを試みる。非アクティブ sky は次回選択時に読む。
+
     bool RuntimeResourceRefreshService::RefreshSkyAsset(
         DocumentSceneBase& scene,
         const SkyAssetDescriptor& descriptor,
@@ -155,7 +162,7 @@ namespace HIKARI {
             return true;
         }
 
-        // 現在使っている sky だけを即時差し替える。非アクティブ sky は次回選択時に読む。
+        // 現在使用中の sky だけを即時差し替える。
         if (!scene.RefreshCurrentSkyRuntime()) {
             ++report.failedCount;
             AppendMessage(report, "Sky runtime refresh failed: " + descriptor.id.value);
@@ -166,11 +173,12 @@ namespace HIKARI {
         AppendMessage(report, "Refreshed sky: " + descriptor.id.value);
         return true;
     }
-	// Model は再ロードを試みる。成功すればモデルコンポーネントの再バインドも行う。
+
     bool RuntimeResourceRefreshService::RefreshModelAsset(
         DocumentSceneBase& scene,
         const ModelAssetDescriptor& descriptor,
-        RuntimeResourceRefreshReport& report) {
+        RuntimeResourceRefreshReport& report,
+        bool rebindAfterReload) {
 
         if (!scene.ReloadModelAssetRuntime(descriptor.id)) {
             ++report.failedCount;
@@ -179,7 +187,9 @@ namespace HIKARI {
         }
 
         ++report.modelReloadedCount;
-        report.modelReboundComponentCount += scene.RebindModelComponents();
+        if (rebindAfterReload) {
+            report.modelReboundComponentCount += scene.RebindModelComponents();
+        }
         AppendMessage(report, "Reloaded model: " + descriptor.id.value);
         return true;
     }
@@ -189,13 +199,14 @@ namespace HIKARI {
         const MaterialAssetDescriptor& descriptor,
         RuntimeResourceRefreshReport& report) {
 
-        const int rebuilt = scene.RebuildMaterialOverrides();
+        const int rebuilt = scene.RebuildMaterialOverridesForMaterial(
+            AssetGuid{ descriptor.id.value });
         ++report.materialReloadedCount;
         report.materialReboundComponentCount += rebuilt;
         AppendMessage(report, "Rebuilt material override: " + descriptor.id.value);
         return true;
     }
-	// 現在のシーンで使われているモデルの依存関係を再評価し、必要に応じてモデルを再ロードする。Texture は cache を失効させるだけなので、個別の再ロードは行わない。
+
     void RuntimeResourceRefreshService::ReloadCurrentSceneModelDependencies(
         DocumentSceneBase& scene,
         RuntimeResourceRefreshReport& report) {
@@ -203,14 +214,19 @@ namespace HIKARI {
         const SceneDependencySet dependencies =
             scene.GetRuntimeBuilder().CollectDependencies(scene.GetSceneDocument());
 
+        bool modelTouched = false;
         const AssetRegistry& registry = scene.GetAssetRegistry();
         for (const std::string& modelId : dependencies.modelAssetIds) {
             if (const auto* model = registry.FindAs<ModelAssetDescriptor>(AssetId{ modelId })) {
-                RefreshModelAsset(scene, *model, report);
+                modelTouched = RefreshModelAsset(scene, *model, report, false) || modelTouched;
             }
         }
+
+        if (modelTouched) {
+            report.modelReboundComponentCount += scene.RebindModelComponents();
+        }
     }
-	// リフレッシュの過程で発生したメッセージをレポートに追加し、同時にログにも出す。
+
     void RuntimeResourceRefreshService::AppendMessage(
         RuntimeResourceRefreshReport& report,
         std::string message) const {

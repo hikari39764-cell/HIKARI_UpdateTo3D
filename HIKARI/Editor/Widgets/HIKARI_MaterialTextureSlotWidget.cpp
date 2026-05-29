@@ -194,4 +194,47 @@ namespace HIKARI::EDITOR {
 #endif
     }
 
+    void ClearMaterialTextureSlotPreviewCache() {
+#if defined(_DEBUG)
+        gPreviewTextureHandles.clear();
+#endif
+    }
+
+    void InvalidateMaterialTextureSlotPreviewByGuid(const AssetGuid& guid) {
+#if defined(_DEBUG)
+        if (!guid.IsValid()) {
+            return;
+        }
+
+        const std::string prefix = guid.value + "|";
+        for (auto it = gPreviewTextureHandles.begin(); it != gPreviewTextureHandles.end();) {
+            if (it->first.rfind(prefix, 0) == 0) {
+                it = gPreviewTextureHandles.erase(it);
+            } else {
+                ++it;
+            }
+        }
+#else
+        (void)guid;
+#endif
+    }
+
+    void InvalidateMaterialTextureSlotPreviewByPath(const std::string& path) {
+#if defined(_DEBUG)
+        if (path.empty()) {
+            return;
+        }
+
+        for (auto it = gPreviewTextureHandles.begin(); it != gPreviewTextureHandles.end();) {
+            if (it->first.find("|" + path) != std::string::npos) {
+                it = gPreviewTextureHandles.erase(it);
+            } else {
+                ++it;
+            }
+        }
+#else
+        (void)path;
+#endif
+    }
+
 } // namespace HIKARI::EDITOR

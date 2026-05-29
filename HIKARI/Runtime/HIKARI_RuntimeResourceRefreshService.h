@@ -47,7 +47,8 @@ namespace HIKARI {
         bool RefreshModelAsset(
             DocumentSceneBase& scene,
             const ModelAssetDescriptor& descriptor,
-            RuntimeResourceRefreshReport& report);
+            RuntimeResourceRefreshReport& report,
+            bool rebindAfterReload);
 
         bool RefreshMaterialAsset(
             DocumentSceneBase& scene,

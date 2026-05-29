@@ -3,9 +3,6 @@
 #include <algorithm>
 
 #include "HIKARI_RuntimeSceneContext.h"
-#include "HIKARI_SceneCatalog.h"
-#include "HIKARI_SceneFactory.h"
-#include "HIKARI_SceneInstanceCache.h"
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
 #include "Assets/HIKARI_AssetGuid.h"
@@ -14,8 +11,8 @@
 
 namespace HIKARI {
 
-    SceneTransitionBus::SceneTransitionBus(SceneManager& sceneManager, const SceneCatalog& sceneCatalog, const SceneFactory& sceneFactory, SceneInstanceCache& sceneCache)
-        : sceneManager_(sceneManager), sceneCatalog_(sceneCatalog), sceneFactory_(sceneFactory), sceneCache_(sceneCache) {
+    SceneTransitionBus::SceneTransitionBus(SceneManager& sceneManager)
+        : sceneManager_(sceneManager) {
     }
 
     bool SceneTransitionBus::RequestTransition(const SceneTransitionRequest& request) {
@@ -60,7 +57,7 @@ namespace HIKARI {
 
         case TransitionState::SwitchingScene: {
             if (!pendingRequest_->targetSceneAssetGuid.empty()) {
-                // Scene Asset GUID を現在の DocumentScene に読み込む。
+                // Scene Asset GUID は現在の DocumentScene に直接渡す。
                 RuntimeSceneContext::SetPendingSceneEntry(pendingRequest_->targetSceneAssetGuid, pendingRequest_->targetSpawnPointId);
                 IScene* currentScene = sceneManager_.GetCurrentScene();
                 DocumentSceneBase* documentScene = dynamic_cast<DocumentSceneBase*>(currentScene);
@@ -111,11 +108,11 @@ namespace HIKARI {
     }
 
     size_t SceneTransitionBus::GetCachedSceneCount() const {
-        return sceneCache_.GetCachedCount();
+        return 0;
     }
 
     std::vector<std::string> SceneTransitionBus::GetCachedSceneIds() const {
-        return sceneCache_.GetCachedSceneIds();
+        return {};
     }
 
     TransitionVisualState SceneTransitionBus::GetVisualState() const {

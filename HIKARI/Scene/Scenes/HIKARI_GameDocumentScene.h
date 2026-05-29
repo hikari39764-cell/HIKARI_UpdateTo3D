@@ -8,7 +8,7 @@ namespace HIKARI {
 
     class GameDocumentScene : public DocumentSceneBase {
     public:
-        GameDocumentScene(SceneCatalog& sceneCatalog, std::string sceneId);
+        explicit GameDocumentScene(std::string sceneId);
 
         const char* GetSceneName() const override;
         void RenderImGui() override;

@@ -19,6 +19,7 @@ namespace HIKARI {
         if (baseColorTexture_.sourcePath.empty()) {
             baseColorTexture_.sourcePath = baseColorTexture_.resolvedPath;
         }
+        baseColorTexture_.enabled = !baseColorTexture_.resolvedPath.empty();
     }
 
     const std::string& Material::GetBaseColorTexturePath() const {
@@ -27,6 +28,7 @@ namespace HIKARI {
 
     void Material::SetBaseColorTextureHandle(int handle) {
         baseColorTexture_.handle = handle;
+        baseColorTexture_.enabled = handle >= 0;
     }
 
     int Material::GetBaseColorTextureHandle() const {
@@ -34,7 +36,7 @@ namespace HIKARI {
     }
 
     bool Material::HasBaseColorTexture() const {
-        return baseColorTexture_.IsValid();
+        return baseColorTexture_.IsActive();
     }
 
     void Material::SetShaderProfileId(std::string shaderProfileId) {
@@ -93,7 +95,7 @@ namespace HIKARI {
     }
 
     bool Material::HasTextureSlot(ModelTextureUsage usage) const {
-        return GetTextureSlot(usage).IsValid();
+        return GetTextureSlot(usage).IsActive();
     }
 
     void Material::SetMetallicFactor(float value) {

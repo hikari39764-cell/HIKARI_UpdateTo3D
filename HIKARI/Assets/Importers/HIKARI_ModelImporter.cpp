@@ -1,4 +1,4 @@
-#include "HIKARI_ModelImporterStub.h"
+#include "HIKARI_ModelImporter.h"
 
 #include <Windows.h>
 
@@ -261,20 +261,20 @@ namespace HIKARI {
         }
     }
 
-    const char* ModelImporterStub::GetImporterId() const {
-        return "ModelImporterStub";
+    const char* ModelImporter::GetImporterId() const {
+        return "ModelImporter";
     }
 
-    uint32_t ModelImporterStub::GetImporterVersion() const {
+    uint32_t ModelImporter::GetImporterVersion() const {
         return 2;
     }
 
-    bool ModelImporterStub::CanImport(const std::filesystem::path& sourcePath) const {
+    bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
         const std::string ext = ToLowerCopy(sourcePath.extension().string());
         return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj";
     }
 
-    AssetMeta ModelImporterStub::CreateDefaultMeta(
+    AssetMeta ModelImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
@@ -297,7 +297,7 @@ namespace HIKARI {
         return meta;
     }
 
-    AssetImportResult ModelImporterStub::Import(
+    AssetImportResult ModelImporter::Import(
         const AssetRecord& record,
         const AssetImportContext& context) {
 

@@ -9,12 +9,10 @@ namespace HIKARI {
     enum class AssetType;
     class AssetDatabase;
     class AssetRegistry;
-    class SceneCatalog;
 
     struct InspectorContext {
         AssetRegistry* assetRegistry = nullptr;
         AssetDatabase* assetDatabase = nullptr;
-        SceneCatalog* sceneCatalog = nullptr;
     };
 
     class IInspectorBuilder {

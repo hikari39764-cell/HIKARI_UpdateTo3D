@@ -25,7 +25,7 @@
     "futureOutputFormat": "HMESH",
     "sourceFormat": ".gltf"
   },
-  "importerId": "ModelImporterStub",
+  "importerId": "ModelImporter",
   "importerVersion": 2,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/blockT2.gltf",
