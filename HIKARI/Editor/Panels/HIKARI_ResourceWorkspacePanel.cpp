@@ -43,61 +43,108 @@ namespace HIKARI {
             return count;
         }
 
-        void DrawScopeButton(
-            const char* label,
-            int count,
-            AssetBrowserScope scope,
-            AssetBrowserScope& activeScope) {
-
-            const bool selected = activeScope == scope;
-            if (selected) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.32f, 0.48f, 1.0f));
-            }
-
-            const std::string text = std::string(label) + "  " + std::to_string(count);
-            if (ImGui::Button(text.c_str(), ImVec2(-1.0f, 30.0f))) {
-                activeScope = scope;
-            }
-
-            if (selected) {
-                ImGui::PopStyleColor();
+        const char* ScopeLabel(AssetBrowserScope scope) {
+            switch (scope) {
+            case AssetBrowserScope::CurrentScene: return "Current Scene";
+            case AssetBrowserScope::UnusedInScene: return "Unused";
+            case AssetBrowserScope::Broken: return "Broken";
+            case AssetBrowserScope::Textures: return "Textures";
+            case AssetBrowserScope::Models: return "Models";
+            case AssetBrowserScope::Scenes: return "Scenes";
+            case AssetBrowserScope::Materials: return "Materials";
+            case AssetBrowserScope::Skies: return "Skies";
+            case AssetBrowserScope::Vfx: return "VFX";
+            case AssetBrowserScope::Project:
+            default:
+                return "Project";
             }
         }
 
-        void DrawScopeRail(
-            AssetDatabase& assetDatabase,
+        int ScopeCount(
+            const AssetDatabase& assetDatabase,
             const AssetUsageSummary& usageSummary,
-            AssetBrowserScope& activeScope) {
+            AssetBrowserScope scope) {
 
             const int total = static_cast<int>(assetDatabase.CollectAll().size());
             const int used = static_cast<int>(usageSummary.usedGuids.size());
-            const int unused = (std::max)(0, total - used);
+            switch (scope) {
+            case AssetBrowserScope::CurrentScene:
+                return used;
+            case AssetBrowserScope::UnusedInScene:
+                return (std::max)(0, total - used);
+            case AssetBrowserScope::Broken:
+                return CountBroken(assetDatabase) + static_cast<int>(usageSummary.missingReferences.size());
+            case AssetBrowserScope::Textures:
+                return CountByType(assetDatabase, AssetType::Texture);
+            case AssetBrowserScope::Models:
+                return CountByType(assetDatabase, AssetType::Model);
+            case AssetBrowserScope::Scenes:
+                return CountByType(assetDatabase, AssetType::Scene);
+            case AssetBrowserScope::Materials:
+                return CountByType(assetDatabase, AssetType::Material);
+            case AssetBrowserScope::Skies:
+                return CountByType(assetDatabase, AssetType::Sky);
+            case AssetBrowserScope::Vfx:
+                return CountByType(assetDatabase, AssetType::VfxEffect);
+            case AssetBrowserScope::Project:
+            default:
+                return total;
+            }
+        }
 
-            ImGui::TextUnformatted("Library");
-            ImGui::Separator();
-            DrawScopeButton("Project", total, AssetBrowserScope::Project, activeScope);
-            DrawScopeButton("Current Scene", used, AssetBrowserScope::CurrentScene, activeScope);
-            DrawScopeButton("Unused", unused, AssetBrowserScope::UnusedInScene, activeScope);
-            DrawScopeButton("Broken", CountBroken(assetDatabase) + static_cast<int>(usageSummary.missingReferences.size()), AssetBrowserScope::Broken, activeScope);
+        void DrawScopeMenuItem(
+            const AssetDatabase& assetDatabase,
+            const AssetUsageSummary& usageSummary,
+            const char* label,
+            AssetBrowserScope scope,
+            AssetBrowserScope& activeScope) {
 
-            ImGui::Spacing();
-            ImGui::TextUnformatted("Types");
+            const std::string itemLabel =
+                std::string(label) + "  " +
+                std::to_string(ScopeCount(assetDatabase, usageSummary, scope));
+            if (ImGui::MenuItem(itemLabel.c_str(), nullptr, activeScope == scope)) {
+                activeScope = scope;
+            }
+        }
+
+        void DrawScopeCombo(
+            const AssetDatabase& assetDatabase,
+            const AssetUsageSummary& usageSummary,
+            AssetBrowserScope& activeScope) {
+
+            const std::string preview =
+                std::string(ScopeLabel(activeScope)) + "  " +
+                std::to_string(ScopeCount(assetDatabase, usageSummary, activeScope));
+
+            ImGui::SetNextItemWidth(190.0f);
+            if (!ImGui::BeginCombo("##ResourceScope", preview.c_str())) {
+                return;
+            }
+
+            ImGui::TextDisabled("Library");
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Project", AssetBrowserScope::Project, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Current Scene", AssetBrowserScope::CurrentScene, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Unused", AssetBrowserScope::UnusedInScene, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Broken", AssetBrowserScope::Broken, activeScope);
+
             ImGui::Separator();
-            DrawScopeButton("Textures", CountByType(assetDatabase, AssetType::Texture), AssetBrowserScope::Textures, activeScope);
-            DrawScopeButton("Models", CountByType(assetDatabase, AssetType::Model), AssetBrowserScope::Models, activeScope);
-            DrawScopeButton("Scenes", CountByType(assetDatabase, AssetType::Scene), AssetBrowserScope::Scenes, activeScope);
-            DrawScopeButton("Materials", CountByType(assetDatabase, AssetType::Material), AssetBrowserScope::Materials, activeScope);
-            DrawScopeButton("Skies", CountByType(assetDatabase, AssetType::Sky), AssetBrowserScope::Skies, activeScope);
-            DrawScopeButton("VFX", CountByType(assetDatabase, AssetType::VfxEffect), AssetBrowserScope::Vfx, activeScope);
+            ImGui::TextDisabled("Types");
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Textures", AssetBrowserScope::Textures, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Models", AssetBrowserScope::Models, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Scenes", AssetBrowserScope::Scenes, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Materials", AssetBrowserScope::Materials, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Skies", AssetBrowserScope::Skies, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "VFX", AssetBrowserScope::Vfx, activeScope);
 
             if (!usageSummary.missingReferences.empty()) {
-                ImGui::Spacing();
+                ImGui::Separator();
                 ImGui::TextColored(ImVec4(1.0f, 0.42f, 0.36f, 1.0f), "Missing References");
                 for (const AssetMissingReference& missing : usageSummary.missingReferences) {
-                    ImGui::TextWrapped("%s: %s", missing.role.c_str(), missing.assetId.c_str());
-                    ImGui::TextDisabled("%s", missing.owner.c_str());
+                    ImGui::TextDisabled("%s: %s", missing.role.c_str(), missing.assetId.c_str());
                 }
             }
+
+            ImGui::EndCombo();
         }
 
         void DrawPreviewAndImportLog(AssetDatabase& assetDatabase, EditorSelection& selection) {
@@ -155,6 +202,8 @@ namespace HIKARI {
 
         ImGui::TextUnformatted("Resources");
         ImGui::SameLine();
+        DrawScopeCombo(assetDatabase, usageSummary, activeScope_);
+        ImGui::SameLine();
         ImGui::TextDisabled("%d items", static_cast<int>(assetDatabase.CollectAll().size()));
         ImGui::SameLine();
         ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
@@ -190,13 +239,6 @@ namespace HIKARI {
 
         if (ImGui::BeginChild("##ResourceWorkspaceMain", ImVec2(0.0f, -bottomHeight), false)) {
             if (wideLayout) {
-                const float railWidth = 176.0f;
-                if (ImGui::BeginChild("##ResourceWorkspaceScopeRail", ImVec2(railWidth, 0.0f), true)) {
-                    DrawScopeRail(assetDatabase, usageSummary, activeScope_);
-                }
-                ImGui::EndChild();
-                ImGui::SameLine();
-
                 const float browserWidth = showInspector ? -inspectorWidth - 8.0f : 0.0f;
                 if (ImGui::BeginChild("##ResourceWorkspaceBrowser", ImVec2(browserWidth, 0.0f), false)) {
                     assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_, &browserContext);
@@ -214,10 +256,6 @@ namespace HIKARI {
             } else if (ImGui::BeginTabBar("ResourceWorkspaceCompactTabs", ImGuiTabBarFlags_FittingPolicyScroll)) {
                 if (ImGui::BeginTabItem("Browser")) {
                     assetBrowserPanel_.DrawContents(assetDatabase, selection, &usageSummary, activeScope_, &browserContext);
-                    ImGui::EndTabItem();
-                }
-                if (ImGui::BeginTabItem("Categories")) {
-                    DrawScopeRail(assetDatabase, usageSummary, activeScope_);
                     ImGui::EndTabItem();
                 }
                 if (showInspector && ImGui::BeginTabItem("Inspector")) {

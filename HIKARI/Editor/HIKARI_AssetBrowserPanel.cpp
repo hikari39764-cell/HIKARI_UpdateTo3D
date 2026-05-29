@@ -855,6 +855,46 @@ namespace HIKARI {
                 return ImVec4(0.78f, 0.78f, 0.78f, 1.0f);
             }
         }
+
+        std::string BuildGridCardLabel(std::string_view text, float maxWidth) {
+            if (text.empty() || maxWidth <= 0.0f) {
+                return {};
+            }
+            if (ImGui::CalcTextSize(text.data(), text.data() + text.size()).x <= maxWidth) {
+                return std::string(text);
+            }
+
+            // グリッドでは名前だけを短く表示し、詳細はツールチップ側に任せる。
+            constexpr const char* kSuffix = "...";
+            std::vector<size_t> utf8Ends{};
+            for (size_t i = 0; i < text.size();) {
+                const unsigned char c = static_cast<unsigned char>(text[i]);
+                size_t step = 1;
+                if ((c & 0xE0) == 0xC0) {
+                    step = 2;
+                } else if ((c & 0xF0) == 0xE0) {
+                    step = 3;
+                } else if ((c & 0xF8) == 0xF0) {
+                    step = 4;
+                }
+
+                if (i + step > text.size()) {
+                    break;
+                }
+                i += step;
+                utf8Ends.push_back(i);
+            }
+
+            for (size_t count = utf8Ends.size(); count > 0; --count) {
+                std::string candidate{ text.substr(0, utf8Ends[count - 1]) };
+                candidate += kSuffix;
+                if (ImGui::CalcTextSize(candidate.c_str()).x <= maxWidth) {
+                    return candidate;
+                }
+            }
+
+            return ImGui::CalcTextSize(kSuffix).x <= maxWidth ? std::string(kSuffix) : std::string{};
+        }
 #endif
 
         void ShowInExplorer(const std::filesystem::path& path) {
@@ -1271,7 +1311,7 @@ namespace HIKARI {
             return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
         }
 
-        bool DrawAssetTypeIcon(AssetType type, const ImVec2& size = ImVec2(18.0f, 18.0f)) {
+        bool DrawAssetTypeIcon(AssetType type, const ImVec2& size = ImVec2(38.0f, 38.0f)) {
             return EDITOR::EditorIconManager::DrawAssetIcon(type, size);
         }
 #endif
@@ -1708,7 +1748,11 @@ namespace HIKARI {
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
 
-            const float cardWidth = 172.0f;
+            (void)usageSummary;
+
+            const float cardWidth = 142.0f;
+            const float cardHeight = 132.0f;
+            const float iconSize = 58.0f;
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
             const float availableWidth = (std::max)(cardWidth, ImGui::GetContentRegionAvail().x);
             const int columns = (std::max)(1, static_cast<int>(availableWidth / (cardWidth + spacing)));
@@ -1733,39 +1777,26 @@ namespace HIKARI {
                     : record->sourcePath.generic_string().c_str());
 
                 const bool isSelected = selection.selectedAssetGuid == record->guid.value;
-                if (isSelected) {
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.19f, 0.34f, 0.52f, 1.0f));
-                }
 
-                const float iconOffset = (cardWidth - 34.0f) * 0.5f;
-                if (iconOffset > 0.0f) {
-                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconOffset);
-                }
-                DrawAssetTypeIcon(record->type, ImVec2(34.0f, 34.0f));
+                const ImVec2 cardMin = ImGui::GetCursorScreenPos();
+                ImGui::InvisibleButton(
+                    "##AssetGridCard",
+                    ImVec2(cardWidth, cardHeight),
+                    ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+                const bool cardHovered = ImGui::IsItemHovered();
+                const bool cardClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+                const bool cardDoubleClicked = cardHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+                const ImVec2 cardMax = ImGui::GetItemRectMax();
+                const ImVec2 cursorAfterCard = ImGui::GetCursorScreenPos();
 
-                std::string buttonLabel =
-                    DisplayNameWithSceneBadges(*record, context) + "\n" +
-                    ToString(GetImportState(*record));
-                const char* usageBadge = ToUsageBadge(*record, usageSummary);
-                const char* cookedBadge = ToCookedBadge(*record);
-                if (usageBadge[0] != '\0') {
-                    buttonLabel += std::string(" / ") + usageBadge;
-                }
-                if (cookedBadge[0] != '\0') {
-                    buttonLabel += std::string("\n") + cookedBadge;
-                }
-                if (ImGui::Button(buttonLabel.c_str(), ImVec2(cardWidth, 96.0f))) {
+                if (cardClicked) {
                     SelectRecord(*record, selection);
                 }
-                const bool cardHovered = ImGui::IsItemHovered();
                 DrawAssetDragSource(*record);
                 if (cardHovered) {
                     DrawRecordTooltip(*record);
                 }
-                if (isSelected) {
-                    ImGui::PopStyleColor();
-                }
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                if (cardDoubleClicked) {
                     SelectRecord(*record, selection);
                     HandleRecordActivated(*record, lastOperationMessage, activatedSceneGuid);
                 }
@@ -1785,6 +1816,43 @@ namespace HIKARI {
                         renameSceneNameBuffer);
                     ImGui::EndPopup();
                 }
+
+                const ImVec4 baseColor = isSelected
+                    ? ImVec4(0.16f, 0.30f, 0.46f, 1.0f)
+                    : (cardHovered ? ImVec4(0.16f, 0.21f, 0.27f, 1.0f) : ImVec4(0.11f, 0.14f, 0.18f, 1.0f));
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                drawList->AddRectFilled(
+                    cardMin,
+                    cardMax,
+                    ImGui::GetColorU32(baseColor),
+                    6.0f);
+                drawList->AddRect(
+                    cardMin,
+                    cardMax,
+                    ImGui::GetColorU32(isSelected ? ImVec4(0.36f, 0.62f, 0.92f, 1.0f) : ImVec4(0.22f, 0.27f, 0.34f, 1.0f)),
+                    6.0f);
+
+                const AssetImportState state = GetImportState(*record);
+                drawList->AddCircleFilled(
+                    ImVec2(cardMax.x - 13.0f, cardMin.y + 13.0f),
+                    4.0f,
+                    ImGui::GetColorU32(StateColor(state)));
+
+                const ImVec2 iconPos{
+                    cardMin.x + (cardWidth - iconSize) * 0.5f,
+                    cardMin.y + 15.0f
+                };
+                ImGui::SetCursorScreenPos(iconPos);
+                DrawAssetTypeIcon(record->type, ImVec2(iconSize, iconSize));
+
+                const std::string displayName = record->displayName.empty()
+                    ? record->sourcePath.stem().string()
+                    : record->displayName;
+                const float labelWidth = cardWidth - 20.0f;
+                const std::string gridLabel = BuildGridCardLabel(displayName, labelWidth);
+                ImGui::SetCursorScreenPos(ImVec2(cardMin.x + 10.0f, cardMin.y + iconSize + 27.0f));
+                ImGui::TextUnformatted(gridLabel.c_str());
+                ImGui::SetCursorScreenPos(cursorAfterCard);
 
                 ImGui::PopID();
                 column = (column + 1) % columns;

@@ -53,7 +53,7 @@ namespace HIKARI {
         mutable std::array<char, 128> searchBuffer_{};
         mutable int typeFilter_ = 0;
         mutable int stateFilter_ = 0;
-        mutable int viewMode_ = 0;
+        mutable int viewMode_ = 2;
         mutable bool recursive_ = false;
         mutable bool filtersExpanded_ = false;
         mutable std::string lastOperationMessage_{};
