@@ -1,0 +1,17 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "New Material_1",
+  "guid": "226bf2025db7b9624b97557756bb39d6",
+  "importSettings": {
+    "cookMaterial": false,
+    "futureOutputFormat": "HMAT",
+    "shaderModel": "PBR",
+    "sourceFormat": ".material.json"
+  },
+  "importerId": "MaterialImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Materials/New Material_1.material.json",
+  "type": "Material"
+}

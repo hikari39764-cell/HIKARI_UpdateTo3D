@@ -60,7 +60,7 @@ namespace HIKARI {
         RuntimeTextureSlot metallicRoughnessTexture_{};
         RuntimeTextureSlot occlusionTexture_{};
         RuntimeTextureSlot emissiveTexture_{};
-        float metallicFactor_ = 1.0f;
+        float metallicFactor_ = 0.0f;
         float roughnessFactor_ = 1.0f;
         float normalScale_ = 1.0f;
         float occlusionStrength_ = 1.0f;

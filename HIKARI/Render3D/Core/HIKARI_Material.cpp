@@ -1,4 +1,6 @@
 #include "Render3D/HIKARI_Material.h"
+
+#include <algorithm>
 #include <utility>
 
 namespace HIKARI {
@@ -99,7 +101,7 @@ namespace HIKARI {
     }
 
     void Material::SetMetallicFactor(float value) {
-        metallicFactor_ = value;
+        metallicFactor_ = std::clamp(value, 0.0f, 1.0f);
     }
 
     float Material::GetMetallicFactor() const {
@@ -107,7 +109,7 @@ namespace HIKARI {
     }
 
     void Material::SetRoughnessFactor(float value) {
-        roughnessFactor_ = value;
+        roughnessFactor_ = std::clamp(value, 0.04f, 1.0f);
     }
 
     float Material::GetRoughnessFactor() const {

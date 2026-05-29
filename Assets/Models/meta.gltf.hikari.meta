@@ -1,0 +1,25 @@
+{
+  "artifacts": [
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/e6f6bfb64447d7f0ba6acd728cfe316d/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
+  "dependencies": [],
+  "displayName": "meta",
+  "guid": "e6f6bfb64447d7f0ba6acd728cfe316d",
+  "importSettings": {
+    "cookModel": true,
+    "futureMeshFormat": "HMESH",
+    "loadMaterials": true,
+    "loadTextures": true,
+    "outputFormat": "HMODEL",
+    "sourceFormat": ".gltf"
+  },
+  "importerId": "ModelImporter",
+  "importerVersion": 2,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Models/meta.gltf",
+  "type": "Model"
+}

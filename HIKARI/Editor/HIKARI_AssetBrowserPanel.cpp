@@ -191,6 +191,29 @@ namespace HIKARI {
             return parent / (stem + "_9999" + extension);
         }
 
+        std::filesystem::path MakeUniqueCompoundSuffixFilePath(
+            const std::filesystem::path& absoluteDirectory,
+            const std::string& baseName,
+            const std::string& compoundSuffix) {
+
+            std::error_code ec{};
+            std::filesystem::path candidate = absoluteDirectory / (baseName + compoundSuffix);
+            if (!std::filesystem::exists(candidate, ec)) {
+                return candidate;
+            }
+
+            for (int i = 1; i < 10000; ++i) {
+                candidate = absoluteDirectory /
+                    (baseName + "_" + std::to_string(i) + compoundSuffix);
+                ec.clear();
+                if (!std::filesystem::exists(candidate, ec)) {
+                    return candidate;
+                }
+            }
+
+            return absoluteDirectory / (baseName + "_9999" + compoundSuffix);
+        }
+
         std::string SanitizeFileToken(const std::string& raw, const std::string& fallback) {
             std::string out{};
             out.reserve(raw.size());
@@ -262,8 +285,13 @@ namespace HIKARI {
             const std::filesystem::path materialDirectory = IsMaterialsDirectoryPath(currentDirectory)
                 ? currentDirectory
                 : std::filesystem::path("Assets/Materials");
-            const std::filesystem::path absoluteMaterialPath = MakeUniqueFilePath(
-                (assetDatabase.GetProjectRoot() / materialDirectory / "New Material.material.json").lexically_normal());
+            const std::filesystem::path absoluteMaterialDirectory =
+                (assetDatabase.GetProjectRoot() / materialDirectory).lexically_normal();
+            const std::filesystem::path absoluteMaterialPath =
+                MakeUniqueCompoundSuffixFilePath(
+                    absoluteMaterialDirectory,
+                    "New Material",
+                    ".material.json");
 
             PbrMaterialAssetData data{};
             data.materialName = absoluteMaterialPath.stem().stem().string();
