@@ -564,6 +564,9 @@
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_IblBaker.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
@@ -1264,6 +1267,9 @@
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_IblBaker.h">
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.h">

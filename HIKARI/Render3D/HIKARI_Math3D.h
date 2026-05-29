@@ -62,6 +62,10 @@ namespace HIKARI::MATH {
     float Length(const Vec3& v);
     Vec3 Normalize(const Vec3& v);
     Quat NormalizeQ(const Quat& q);
+    // QuaternionをHIKARIのXYZ Euler角へ戻す。戻り値はラジアン。
+    Vec3 EulerXYZFromQuat(const Quat& q);
+    // SceneDocument / Inspector用の度数版。
+    Vec3 EulerXYZDegreesFromQuat(const Quat& q);
 
     // Runtime sanity checks for convention consistency.
     bool RunMathConventionSelfCheck();

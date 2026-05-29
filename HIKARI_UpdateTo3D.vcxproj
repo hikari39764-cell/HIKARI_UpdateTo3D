@@ -190,6 +190,7 @@
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_IblBaker.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporter.cpp" />
@@ -450,6 +451,7 @@
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AssetImporterRegistry.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_IblBaker.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_MaterialImporter.h" />
     <ClInclude Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporter.h" />

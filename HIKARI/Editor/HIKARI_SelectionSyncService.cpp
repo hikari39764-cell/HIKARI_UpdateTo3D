@@ -1,9 +1,11 @@
 #include "HIKARI_SelectionSyncService.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "HIKARI_EditorContext.h"
+#include "Render3D/HIKARI_Math3D.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
@@ -11,6 +13,17 @@
 #undef min
 
 namespace HIKARI {
+    namespace {
+        bool NearlyEqual(float lhs, float rhs, float epsilon = 0.001f) {
+            return std::abs(lhs - rhs) <= epsilon;
+        }
+
+        bool NearlyEqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs, float epsilon = 0.001f) {
+            return NearlyEqual(lhs.x, rhs.x, epsilon)
+                && NearlyEqual(lhs.y, rhs.y, epsilon)
+                && NearlyEqual(lhs.z, rhs.z, epsilon);
+        }
+    }
 
     SceneObjectData* SelectionSyncService::FindDocumentObjectById(DocumentSceneBase& scene, SceneObjectId id) const {
         for (SceneObjectData& object : scene.GetSceneDocument().objects) {
@@ -61,6 +74,12 @@ namespace HIKARI {
             || documentObject->transform.scale.y != runtimeTransform.scale.y
             || documentObject->transform.scale.z != runtimeTransform.scale.z) {
             documentObject->transform.scale = runtimeTransform.scale;
+            changed = true;
+        }
+        const MATH::Vec3 runtimeRotationEulerDeg = MATH::EulerXYZDegreesFromQuat(runtimeTransform.rotation);
+        if (!NearlyEqualVec3(documentObject->transform.rotationEulerDeg, runtimeRotationEulerDeg)) {
+            // RuntimeのQuaternionを保存用Euler角へ同期する。
+            documentObject->transform.rotationEulerDeg = runtimeRotationEulerDeg;
             changed = true;
         }
 

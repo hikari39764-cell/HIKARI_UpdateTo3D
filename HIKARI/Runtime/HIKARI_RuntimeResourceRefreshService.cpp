@@ -162,6 +162,11 @@ namespace HIKARI {
             return true;
         }
 
+        scene.RefreshTextureRuntimeByPath(descriptor.sourcePath);
+        scene.RefreshTextureRuntimeByPath(descriptor.irradiancePath);
+        scene.RefreshTextureRuntimeByPath(descriptor.prefilteredPath);
+        scene.RefreshTextureRuntimeByPath(descriptor.brdfLutPath);
+
         // 現在使用中の sky だけを即時差し替える。
         if (!scene.RefreshCurrentSkyRuntime()) {
             ++report.failedCount;

@@ -108,6 +108,13 @@ namespace HIKARI {
         if (ImGui::TreeNode("PIX")) {
             ImGui::Text("Compiled In: %s", GFX::PIX::IsCompiledIn() ? "Yes" : "No");
             ImGui::Text("Capturer Loaded: %s", GFX::PIX::IsCapturerLoaded() ? "Yes" : "No");
+            bool eventMarkersEnabled = GFX::PIX::AreEventMarkersEnabled();
+            if (ImGui::Checkbox("Event Markers", &eventMarkersEnabled)) {
+                GFX::PIX::SetEventMarkersEnabled(eventMarkersEnabled);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Capture file generation remains available. Enable this only when you need PIX timeline markers.");
+            }
             ImGui::TextWrapped("Status: %s", GFX::PIX::GetLastStatusMessage().c_str());
             if (GFX::PIX::HasLastCapture()) {
                 ImGui::TextWrapped("Last Capture: %s", GFX::PIX::GetLastCapturePath().generic_string().c_str());

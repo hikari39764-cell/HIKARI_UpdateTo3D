@@ -9,7 +9,7 @@
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::MESHRENDERER {
-
+	// フレーム全体で共通のリソースをバインドする。これには、カメラ、ライト、シャドウ、スカイ環境の定数バッファが含まれる。ルートシグネチャも設定される。
     void BindFrameCommonResources(
         const MeshBindingContext& ctx,
         ID3D12RootSignature* rootSig,
@@ -27,7 +27,7 @@ namespace HIKARI::MESHRENDERER {
         ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::ShadowCB, shadowAddress);
         ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::SkyEnvironment, skyEnvironmentAddress);
     }
-
+	// オブジェクト固有の定数バッファをバインドする。これには、モデル行列やマテリアルプロパティなどが含まれる。ルートパラメータのObjectスロットにバインドされる。
     void BindObjectConstantBuffer(
         const MeshBindingContext& ctx,
         D3D12_GPU_VIRTUAL_ADDRESS objectAddress) {
@@ -37,7 +37,7 @@ namespace HIKARI::MESHRENDERER {
 
         ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::Object, objectAddress);
     }
-
+	// マテリアルに関連するテクスチャセットをバインドする
     void BindMaterialTextureSet(
         const MeshBindingContext& ctx,
         const MaterialTextureHandles& textures) {
@@ -90,7 +90,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Occlusion, occlusionSrv);
         }
     }
-
+	// スカイキューブマップをバインドする。スカイレンダラーから環境データを取得し、キューブマップSRVが有効な場合はそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
     void BindSkyCube(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;
@@ -101,7 +101,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SkyCube, skyCubeSrv);
         }
     }
-
+	// シーンの深度テクスチャをバインドする。深度アウェアな描画フェーズの場合、サービスコンテキストからシーン深度SRVを取得し、利用可能であればそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
     void BindSceneDepth(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;
@@ -113,7 +113,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SceneDepth, sceneDepthSrv);
         }
     }
-
+    // シーンのカラー（アルベド）テクスチャをバインドする。ポストシステムからシーンカラーSRVを取得し、利用可能であればそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
     void BindSceneColor(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;

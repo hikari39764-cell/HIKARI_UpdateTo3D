@@ -21,6 +21,7 @@ namespace HIKARI {
             bool changed = false;
             bool interacting = false;
             TransformData transform{};
+            MATH::Quat rotation = MATH::Quat::Identity();
         };
 
         class EditorTransformGizmo {

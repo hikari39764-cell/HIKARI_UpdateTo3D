@@ -8,7 +8,7 @@ struct ID3D12GraphicsCommandList;
 
 namespace HIKARI::GFX::PIX {
 
-    // Thin diagnostic layer for PIX integration.
+    // 色は ARGB 形式で、Alpha は不透明度ではなく、PIX 内でのイベントの種類を表すために使用される。色の選択は任意で、イベントの識別に役立つようにする。
     constexpr uint64_t kColorFrame = 0xFF4BA3FFull;
     constexpr uint64_t kColorRender = 0xFF67D391ull;
     constexpr uint64_t kColorPost = 0xFFFFB454ull;
@@ -17,6 +17,7 @@ namespace HIKARI::GFX::PIX {
 
     bool IsCompiledIn();
     bool IsCapturerLoaded();
+    bool AreEventMarkersEnabled();
     bool HasLastCapture();
 
     const std::filesystem::path& GetLastCapturePath();
@@ -25,6 +26,7 @@ namespace HIKARI::GFX::PIX {
     void Initialize(void* hwnd);
     void Shutdown();
     void Update();
+    void SetEventMarkersEnabled(bool enabled);
 
     bool CaptureNextFrames(uint32_t frameCount = 1, bool openWhenReady = true);
     bool OpenLastCaptureInPix();

@@ -60,6 +60,7 @@ namespace HIKARI {
         private:
             static void EnsureInit();
             static int CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Auto);
+            static int CreateDdsTextureFromFile(const std::string& path, TextureColorSpace colorSpace);
             static int CreateTextureFromHtexFile(const std::string& path, TextureColorSpace colorSpace);
             static int CreateCubemapFromFile(const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);
             static int CreateTextureFromRgbaPixels(

@@ -26,6 +26,7 @@ namespace HIKARI::GFX::PIX {
             HWND hwnd = nullptr;
             bool capturerLoadAttempted = false;
             bool capturerLoaded = false;
+            bool eventMarkersEnabled = false;
             bool emitEvents = false;
             uint32_t emitEventFramesRemaining = 0;
             bool autoOpenPending = false;
@@ -64,7 +65,7 @@ namespace HIKARI::GFX::PIX {
         }
 
         bool ShouldEmitPixEvents() {
-            return gPix.capturerLoaded && gPix.emitEvents;
+            return gPix.capturerLoaded && gPix.eventMarkersEnabled && gPix.emitEvents;
         }
 
         void StopPixEventEmission() {
@@ -72,7 +73,26 @@ namespace HIKARI::GFX::PIX {
             gPix.emitEventFramesRemaining = 0;
         }
 
+        void ArmPixEventEmission(uint32_t frameCount) {
+            if (!gPix.eventMarkersEnabled) {
+                StopPixEventEmission();
+                return;
+            }
+
+            gPix.emitEvents = true;
+            gPix.emitEventFramesRemaining = frameCount;
+        }
+
 #if defined(HIKARI_ENABLE_PIX)
+        bool IsDeferredCapturerLoadRequested() {
+            wchar_t value[16]{};
+            const DWORD length = GetEnvironmentVariableW(
+                L"HIKARI_PIX_DEFER_LOAD",
+                value,
+                static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
+            return length == 1 && value[0] == L'1';
+        }
+
         bool TryGetCaptureFileSize(const std::filesystem::path& path, std::uintmax_t& outSize) {
             std::error_code ec{};
             if (!std::filesystem::exists(path, ec) || ec) {
@@ -213,6 +233,10 @@ namespace HIKARI::GFX::PIX {
         return gPix.capturerLoaded;
     }
 
+    bool AreEventMarkersEnabled() {
+        return gPix.eventMarkersEnabled;
+    }
+
     bool HasLastCapture() {
         return !gPix.lastCapturePath.empty();
     }
@@ -228,7 +252,13 @@ namespace HIKARI::GFX::PIX {
     void Initialize(void* hwnd) {
         gPix.hwnd = static_cast<HWND>(hwnd);
 #if defined(HIKARI_ENABLE_PIX)
-        // PIX GPU capturer must be loaded before D3D12 device creation.
+        // GPU CaptureはD3D12 Device作成前にCapturerを読み込む必要がある。
+        if (IsDeferredCapturerLoadRequested()) {
+            SetStatus("PIX compiled in. GPU capturer load is deferred by HIKARI_PIX_DEFER_LOAD=1.");
+            HIKARI_LOG_WARN("[PIX] GPU capturer load deferred. GPU captures may not include D3D12 work.");
+            return;
+        }
+
         if (EnsureGpuCapturerLoaded()) {
             SetStatus("PIX GPU capturer ready before D3D12 initialization.");
         }
@@ -289,6 +319,21 @@ namespace HIKARI::GFX::PIX {
 #endif
     }
 
+    void SetEventMarkersEnabled(bool enabled) {
+        gPix.eventMarkersEnabled = enabled;
+        if (!enabled) {
+            StopPixEventEmission();
+            SetStatus("PIX event markers disabled. Captures still work without per-frame markers.");
+            return;
+        }
+
+#if defined(HIKARI_ENABLE_PIX)
+        SetStatus("PIX event markers enabled for the next capture.");
+#else
+        SetStatus("PIX is not enabled in this build.");
+#endif
+    }
+
     bool CaptureNextFrames(uint32_t frameCount, bool openWhenReady) {
 #if defined(HIKARI_ENABLE_PIX)
         if (frameCount == 0) {
@@ -321,10 +366,11 @@ namespace HIKARI::GFX::PIX {
         gPix.autoOpenPollFramesRemaining = frameCount + 600;
         gPix.autoOpenStableFrameCount = 0;
         gPix.autoOpenLastFileSize = 0;
-        gPix.emitEvents = true;
-        gPix.emitEventFramesRemaining = frameCount + 120;
-        SetStatus("PIX capture requested: " + gPix.lastCapturePath.generic_string());
-        HIKARI_LOG_INFO("[PIX] capture requested: " + gPix.lastCapturePath.generic_string());
+        // PIXイベントは高頻度APIなので、必要な時だけ明示的に有効化する。
+        ArmPixEventEmission(frameCount + 120);
+        const std::string markerMode = gPix.eventMarkersEnabled ? " eventMarkers=on" : " eventMarkers=off";
+        SetStatus("PIX capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);
+        HIKARI_LOG_INFO("[PIX] capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);
         return true;
 #else
         (void)frameCount;

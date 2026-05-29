@@ -4,13 +4,28 @@
       "format": "DDS",
       "path": "Library/Imported/9eeb4bd12741aa7d4c09a4c84f487804/sky.dds",
       "role": "SkyCubemap"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/9eeb4bd12741aa7d4c09a4c84f487804/IBL/irradiance.dds",
+      "role": "IblIrradiance"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/9eeb4bd12741aa7d4c09a4c84f487804/IBL/prefiltered.dds",
+      "role": "IblPrefiltered"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Generated/IBL/brdf_lut.dds",
+      "role": "BrdfLut"
     }
   ],
   "dependencies": [],
   "displayName": "sky2",
   "guid": "9eeb4bd12741aa7d4c09a4c84f487804",
   "importSettings": {
-    "autoBakeIBL": false,
+    "autoBakeIBL": true,
     "colorSpace": "Linear",
     "copySkyCubemap": true,
     "futureOutputFormat": "HTEX",

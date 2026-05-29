@@ -743,7 +743,6 @@ namespace HIKARI {
                 ImGui::Text("Prefiltered: %s  Handle: %d", iblData.hasPrefiltered ? "Yes" : "No", iblData.prefilteredHandle);
                 ImGui::Text("BRDF LUT: %s  Handle: %d", iblData.hasBrdfLut ? "Yes" : "No", iblData.brdfLutHandle);
                 ImGui::Text("Prefiltered Mips: %u", iblData.prefilteredMipCount);
-                ImGui::TextDisabled("No IBL assets are generated automatically yet; missing resources fall back to sky approximation.");
                 ImGui::TreePop();
             }
             ImGui::TreePop();

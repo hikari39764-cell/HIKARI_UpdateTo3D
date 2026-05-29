@@ -4,8 +4,11 @@
 #include <numbers>
 
 #include "Assets/HIKARI_AssetRegistry.h"
+#include "Core/HIKARI_Logger.h"
+#include "HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Scene/Components/HIKARI_IComponent.h"
@@ -17,6 +20,8 @@
 namespace HIKARI {
 
     namespace {
+        constexpr const char* kSharedBrdfLutPath = "Library/Generated/IBL/brdf_lut.dds";
+
         void EnsureModelLoaded(ModelManager& modelManager, const ModelAssetDescriptor& descriptor) {
             ModelAsset* existing = modelManager.FindAsset(descriptor.id.value);
             if (existing != nullptr) {
@@ -113,9 +118,14 @@ namespace HIKARI {
             EnsureModelLoaded(modelManager, *descriptor);
         }
 
+        if (dependencies.skyAssetIds.empty()) {
+            IBL::Reset();
+        }
+
         for (const std::string& skyId : dependencies.skyAssetIds) {
             const auto* descriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ skyId });
             if (!descriptor) {
+                IBL::Reset();
                 continue;
             }
 
@@ -138,6 +148,45 @@ namespace HIKARI {
                 texturePath,
                 descriptor->preferredMode
             });
+
+            if (!descriptor->hasIbl) {
+                IBL::Reset();
+                continue;
+            }
+
+            int irradiance = -1;
+            int prefiltered = -1;
+            int brdf = -1;
+            if (!descriptor->irradiancePath.empty()) {
+                irradiance = DXTEX::DxTextureManager::LoadCubemap(
+                    "ibl/irradiance/" + descriptor->id.value,
+                    descriptor->irradiancePath,
+                    DXTEX::TextureColorSpace::Linear);
+            }
+            if (!descriptor->prefilteredPath.empty()) {
+                prefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                    "ibl/prefiltered/" + descriptor->id.value,
+                    descriptor->prefilteredPath,
+                    DXTEX::TextureColorSpace::Linear);
+            }
+            const std::string brdfLutPath = descriptor->brdfLutPath.empty()
+                ? std::string{ kSharedBrdfLutPath }
+                : descriptor->brdfLutPath;
+            if (!brdfLutPath.empty()) {
+                brdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                    "ibl/brdf_lut",
+                    brdfLutPath);
+            }
+
+            IBL::SetFromTextureHandles(
+                irradiance,
+                prefiltered,
+                brdf,
+                descriptor->prefilteredMipCount);
+            HIKARI_LOG_INFO("[SceneRuntimeBuilder] loaded IBL sky=" + descriptor->id.value +
+                " irradiance=" + std::to_string(irradiance) +
+                " prefiltered=" + std::to_string(prefiltered) +
+                " brdf=" + std::to_string(brdf));
         }
 
         return true;

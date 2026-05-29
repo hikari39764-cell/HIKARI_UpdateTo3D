@@ -120,6 +120,12 @@ namespace HIKARI {
                 return lower.size() >= 5 && lower.substr(lower.size() - 5) == ".htex";
             }
 
+            bool IsDdsPath(const std::string& path)
+            {
+                const std::string lower = ToLowerCopy(path);
+                return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".dds";
+            }
+
             TextureColorSpace ToRuntimeColorSpace(TextureAssetColorSpace colorSpace)
             {
                 switch (colorSpace) {
@@ -506,6 +512,9 @@ namespace HIKARI {
             if (IsHtexPath(path)) {
                 return CreateTextureFromHtexFile(path, colorSpace);
             }
+            if (IsDdsPath(path)) {
+                return CreateDdsTextureFromFile(path, colorSpace);
+            }
 
             auto* device = context_.device;
             auto* queue = context_.queue;
@@ -582,6 +591,113 @@ namespace HIKARI {
 
             LogTextureLoad("Texture2D", path, colorSpace, srvFormat, handle);
 
+            return handle;
+        }
+
+        int DxTextureManager::CreateDdsTextureFromFile(const std::string& path, TextureColorSpace colorSpace)
+        {
+            auto* device = context_.device;
+            auto* queue = context_.queue;
+            if (!device || !queue || !uploadAllocator_ || !uploadCmdList_ || !uploadFence_ || !uploadFenceEvent_) {
+                HIKARI_LOG_ERROR("[DxTextureManager][DDS][ERROR] invalid D3D12 context: " + path);
+                return -1;
+            }
+
+            wchar_t wpath[260]{};
+            mbstowcs_s(nullptr, wpath, path.c_str(), _TRUNCATE);
+
+            DirectX::TexMetadata metadata{};
+            DirectX::ScratchImage image{};
+            HRESULT hr = DirectX::LoadFromDDSFile(wpath, DirectX::DDS_FLAGS_NONE, &metadata, image);
+            if (FAILED(hr)) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][DDS][ERROR] LoadFromDDSFile failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            if (metadata.IsCubemap()) {
+                return CreateCubemapFromFile(path, colorSpace);
+            }
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
+            hr = DirectX::CreateTexture(device, metadata, texResource.GetAddressOf());
+            if (FAILED(hr) || !texResource) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][DDS][ERROR] CreateTexture failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+            DirectX::PrepareUpload(device, image.GetImages(), image.GetImageCount(), metadata, subresources);
+            if (subresources.empty()) {
+                HIKARI_LOG_ERROR("[DxTextureManager][DDS][ERROR] PrepareUpload returned no subresources: " + path);
+                return -1;
+            }
+
+            const UINT64 uploadSize = GetRequiredIntermediateSize(
+                texResource.Get(),
+                0,
+                static_cast<UINT>(subresources.size()));
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+            hr = device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(uploadResource.GetAddressOf()));
+            if (FAILED(hr) || !uploadResource) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][DDS][ERROR] Create upload resource failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
+
+            UpdateSubresources(
+                uploadCmdList_.Get(),
+                texResource.Get(),
+                uploadResource.Get(),
+                0,
+                0,
+                static_cast<UINT>(subresources.size()),
+                subresources.data());
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                texResource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            uploadCmdList_->ResourceBarrier(1, &barrier);
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(texResource->GetDesc().Format, colorSpace);
+            const int handle = RegisterFromResourceAs(texResource.Get(), srvFormat);
+            if (handle >= 0) {
+                LogTextureLoad("DDS 2D", path, colorSpace, srvFormat, handle);
+            }
             return handle;
         }
 

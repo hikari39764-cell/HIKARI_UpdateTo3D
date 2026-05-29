@@ -9,6 +9,7 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "HIKARI_IblBaker.h"
 
 namespace HIKARI {
 
@@ -35,10 +36,14 @@ namespace HIKARI {
                 { "sourceDimension", "TextureCube" },
                 { "colorSpace", "Linear" },
                 { "copySkyCubemap", true },
-                { "autoBakeIBL", false },
+                { "autoBakeIBL", true },
                 { "irradianceSize", 64 },
+                { "irradianceSampleCount", 256 },
                 { "prefilteredSize", 256 },
                 { "prefilteredMipCount", 7 },
+                { "prefilteredSampleCount", 1024 },
+                { "brdfLutSize", 256 },
+                { "brdfSampleCount", 1024 },
                 { "outputFormat", "DDS" },
                 { "futureOutputFormat", "HTEX" },
             };
@@ -193,14 +198,50 @@ namespace HIKARI {
 
         result.success = true;
         result.message = "[SkyCubemapImporter] Imported sky cubemap";
-        if (settingsJson.value("autoBakeIBL", false)) {
-            result.message += "; IBL baker not implemented yet";
-        }
         result.artifacts.push_back(AssetArtifactDesc{
             "SkyCubemap",
             MakeProjectRelative(context.projectRoot, finalPath).generic_string(),
             "DDS"
         });
+
+        if (settingsJson.value("autoBakeIBL", true)) {
+            IblBakeSettings iblSettings{};
+            iblSettings.irradianceSize = settingsJson.value("irradianceSize", 64u);
+            iblSettings.prefilteredSize = settingsJson.value("prefilteredSize", 256u);
+            iblSettings.prefilteredMipCount = settingsJson.value("prefilteredMipCount", 7u);
+            iblSettings.irradianceSampleCount = settingsJson.value("irradianceSampleCount", 256u);
+            iblSettings.prefilteredSampleCount = settingsJson.value("prefilteredSampleCount", 1024u);
+            iblSettings.brdfLutSize = settingsJson.value("brdfLutSize", 256u);
+            iblSettings.brdfSampleCount = settingsJson.value("brdfSampleCount", 1024u);
+
+            const IblBakeResult bake = IblBaker::BakeSkyCubemapToIbl(
+                finalPath,
+                context.importedDirectory / "IBL",
+                context.projectRoot / "Library" / "Generated" / "IBL",
+                iblSettings);
+
+            if (bake.success) {
+                result.artifacts.push_back(AssetArtifactDesc{
+                    "IblIrradiance",
+                    MakeProjectRelative(context.projectRoot, bake.irradiancePath).generic_string(),
+                    "DDS"
+                });
+                result.artifacts.push_back(AssetArtifactDesc{
+                    "IblPrefiltered",
+                    MakeProjectRelative(context.projectRoot, bake.prefilteredPath).generic_string(),
+                    "DDS"
+                });
+                result.artifacts.push_back(AssetArtifactDesc{
+                    "BrdfLut",
+                    MakeProjectRelative(context.projectRoot, bake.brdfLutPath).generic_string(),
+                    "DDS"
+                });
+                result.message += "; IBL baked";
+            } else {
+                result.message += "; IBL bake failed: " + bake.message;
+                HIKARI_LOG_WARN("[SkyCubemapImporter] IBL bake failed: " + bake.message);
+            }
+        }
 
         HIKARI_LOG_INFO(result.message + " source=" + record.sourcePath.generic_string() + " guid=" + record.guid.value);
         return result;

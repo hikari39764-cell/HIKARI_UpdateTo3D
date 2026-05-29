@@ -4,6 +4,7 @@
 #include <cctype>
 #include <filesystem>
 #include <memory>
+#include <system_error>
 
 #include <json.hpp>
 
@@ -91,6 +92,20 @@ namespace HIKARI {
             return {};
         }
 
+        std::string FindSharedBrdfLutPath(const AssetDatabase& assetDatabase) {
+            const std::filesystem::path relativePath =
+                std::filesystem::path("Library") / "Generated" / "IBL" / "brdf_lut.dds";
+            const std::filesystem::path absolutePath =
+                (assetDatabase.GetProjectRoot() / relativePath).lexically_normal();
+
+            std::error_code ec{};
+            if (std::filesystem::exists(absolutePath, ec) && !ec) {
+                return relativePath.generic_string();
+            }
+
+            return {};
+        }
+
         ModelImporterKind GuessModelImporter(const std::filesystem::path& sourcePath) {
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
             if (ext == ".gltf" || ext == ".glb") {
@@ -162,6 +177,20 @@ namespace HIKARI {
                 descriptor->version = record->meta.importerVersion;
                 descriptor->textureAssetId.clear();
                 descriptor->preferredMode = SkyMode::Cubemap;
+                descriptor->irradiancePath = FindArtifactPath(*record, "IblIrradiance");
+                descriptor->prefilteredPath = FindArtifactPath(*record, "IblPrefiltered");
+                descriptor->brdfLutPath = FindArtifactPath(*record, "BrdfLut");
+                if (descriptor->brdfLutPath.empty()) {
+                    descriptor->brdfLutPath = FindSharedBrdfLutPath(assetDatabase);
+                }
+                descriptor->hasIbl =
+                    !descriptor->irradiancePath.empty() ||
+                    !descriptor->prefilteredPath.empty();
+
+                nlohmann::json settings = nlohmann::json::parse(record->meta.importSettingsJson, nullptr, false);
+                if (settings.is_object()) {
+                    descriptor->prefilteredMipCount = settings.value("prefilteredMipCount", 7u);
+                }
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
             } else if (record->type == AssetType::Material) {
                 auto descriptor = std::make_unique<MaterialAssetDescriptor>();

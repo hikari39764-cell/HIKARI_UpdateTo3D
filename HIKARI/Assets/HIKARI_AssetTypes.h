@@ -112,6 +112,11 @@ namespace HIKARI {
         std::string meshAssetId{};
         std::string textureAssetId{};
         SkyMode preferredMode = SkyMode::Gradient;
+        std::string irradiancePath{};
+        std::string prefilteredPath{};
+        std::string brdfLutPath{};
+        uint32_t prefilteredMipCount = 1;
+        bool hasIbl = false;
     };
 
     enum class TextureAssetDimension {

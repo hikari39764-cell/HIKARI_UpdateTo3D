@@ -29,6 +29,7 @@ namespace HIKARI::MESHRENDERER {
     }
 
     namespace {
+		// シェーダIDから、実際のシェーダファイルのパスを解決する。特定のIDに対しては、デフォルトのファイルパスを返す。
         std::wstring ResolveShaderPath(const std::string& shaderId, const wchar_t* defaultFile) {
             if (shaderId.empty() || shaderId == "PBR" || shaderId == "StaticLit") {
                 return defaultFile;
@@ -41,7 +42,7 @@ namespace HIKARI::MESHRENDERER {
             path += L".hlsl";
             return path;
         }
-
+		// シェーダIDをキーにして、コンパイル済みのピクセルシェーダのバイナリをキャッシュから取得する。キャッシュに存在しない場合は、ファイルからコンパイルしてキャッシュに保存する。
         bool LoadPixelShaderBlob(MeshPipelineStore& store, const std::string& shaderProfileId, ID3DBlob** outBlob) {
             const std::string cacheKey = shaderProfileId.empty() ? "StaticLit" : shaderProfileId;
             auto it = store.psBlobCache.find(cacheKey);
@@ -66,7 +67,7 @@ namespace HIKARI::MESHRENDERER {
             *outBlob = insertIt->second.Get();
             return true;
         }
-
+        // シェーダIDをキーにして、コンパイル済みの頂点シェーダのバイナリをキャッシュから取得する。キャッシュに存在しない場合は、ファイルからコンパイルしてキャッシュに保存する。
         bool LoadVertexShaderBlob(MeshPipelineStore& store, const std::string& vertexShaderId, ID3DBlob** outBlob) {
             const std::string cacheKey = vertexShaderId.empty() ? "Render3D_StaticVS" : vertexShaderId;
             auto it = store.vsBlobCache.find(cacheKey);
@@ -199,6 +200,15 @@ namespace HIKARI::MESHRENDERER {
             rt0.DestBlendAlpha = D3D12_BLEND_ONE;
             rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+        } else if (composite == VFX::CompositeMode::Multiply){
+			rt0.BlendEnable = TRUE;
+			rt0.SrcBlend = D3D12_BLEND_DEST_COLOR;
+			rt0.DestBlend = D3D12_BLEND_ZERO;
+			rt0.BlendOp = D3D12_BLEND_OP_ADD;
+			rt0.SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+			rt0.DestBlendAlpha = D3D12_BLEND_ZERO;
+			rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
         }
     }
 

@@ -493,10 +493,14 @@ namespace HIKARI {
                     dirty = DrawBoolSetting("Allow Resize", settings, "allowResize", false) || dirty;
                 } else if (record->type == AssetType::Sky) {
                     dirty = DrawBoolSetting("Copy Sky Cubemap", settings, "copySkyCubemap", true) || dirty;
-                    dirty = DrawBoolSetting("Auto Bake IBL", settings, "autoBakeIBL", false) || dirty;
+                    dirty = DrawBoolSetting("Auto Bake IBL", settings, "autoBakeIBL", true) || dirty;
                     dirty = DrawIntSetting("Irradiance Size", settings, "irradianceSize", 64, 1) || dirty;
+                    dirty = DrawIntSetting("Irradiance Samples", settings, "irradianceSampleCount", 256, 1) || dirty;
                     dirty = DrawIntSetting("Prefiltered Size", settings, "prefilteredSize", 256, 1) || dirty;
                     dirty = DrawIntSetting("Prefiltered Mip Count", settings, "prefilteredMipCount", 7, 0) || dirty;
+                    dirty = DrawIntSetting("Prefiltered Samples", settings, "prefilteredSampleCount", 1024, 1) || dirty;
+                    dirty = DrawIntSetting("BRDF LUT Size", settings, "brdfLutSize", 256, 1) || dirty;
+                    dirty = DrawIntSetting("BRDF Samples", settings, "brdfSampleCount", 1024, 1) || dirty;
                 } else if (record->type == AssetType::Model) {
                     dirty = DrawFloatSetting("Unit Scale", settings, "unitScale", 1.0f, 0.0f) || dirty;
                     dirty = DrawComboSetting("Coordinate System", settings, "coordinateSystem", CoordinateSystemItems, IM_ARRAYSIZE(CoordinateSystemItems)) || dirty;

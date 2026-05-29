@@ -14,9 +14,18 @@ namespace HIKARI {
         struct RotationEditorState {
             GameObject* object = nullptr;
             MATH::Vec3 eulerDeg{ 0.0f, 0.0f, 0.0f };
+            bool editing = false;
         };
 
         RotationEditorState gRotationEditor{};
+
+        MATH::Quat QuatFromEulerDegrees(const MATH::Vec3& eulerDeg) {
+            constexpr float kDegToRad = 3.1415926535f / 180.0f;
+            return MATH::Quat::FromEulerXYZ(
+                eulerDeg.x * kDegToRad,
+                eulerDeg.y * kDegToRad,
+                eulerDeg.z * kDegToRad);
+        }
     }
 
     void InspectorPanel::Draw(
@@ -57,17 +66,20 @@ namespace HIKARI {
         Transform3D& transform = object.Transform();
         ImGui::SeparatorText("Transform3D");
         ImGui::DragFloat3("Position", &transform.position.x, 0.01f);
+
+        const MATH::Vec3 runtimeEulerDeg = MATH::EulerXYZDegreesFromQuat(transform.rotation);
         if (gRotationEditor.object != &object) {
             gRotationEditor.object = &object;
-            gRotationEditor.eulerDeg = { 0.0f, 0.0f, 0.0f };
+            gRotationEditor.eulerDeg = runtimeEulerDeg;
+            gRotationEditor.editing = false;
+        } else if (!gRotationEditor.editing) {
+            // Gizmoなど外部操作のQuaternionをInspector表示へ反映する。
+            gRotationEditor.eulerDeg = runtimeEulerDeg;
         }
         if (ImGui::DragFloat3("Rotation Euler (deg)", &gRotationEditor.eulerDeg.x, 0.1f)) {
-            constexpr float kDegToRad = 3.1415926535f / 180.0f;
-            const float rx = gRotationEditor.eulerDeg.x * kDegToRad;
-            const float ry = gRotationEditor.eulerDeg.y * kDegToRad;
-            const float rz = gRotationEditor.eulerDeg.z * kDegToRad;
-            transform.rotation = MATH::Quat::FromEulerXYZ(rx, ry, rz);
+            transform.rotation = QuatFromEulerDegrees(gRotationEditor.eulerDeg);
         }
+        gRotationEditor.editing = ImGui::IsItemActive();
         ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, 0.001f, 1000.0f);
 
         ImGui::SeparatorText("Components");

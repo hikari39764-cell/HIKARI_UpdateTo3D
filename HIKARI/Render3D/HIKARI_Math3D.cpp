@@ -1,5 +1,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "HIKARI_MathConfig.h"
+
+#include <algorithm>
 #include <cassert>
 
 namespace HIKARI::MATH {
@@ -42,6 +44,29 @@ namespace HIKARI::MATH {
         q.y = cx * sy * cz + sx * cy * sz;
         q.z = cx * cy * sz - sx * sy * cz;
         return q;
+    }
+
+    Vec3 EulerXYZFromQuat(const Quat& rotation) {
+        const Quat q = NormalizeQ(rotation);
+
+        const float sinXCosY = 2.0f * (q.w * q.x + q.y * q.z);
+        const float cosXCosY = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
+        const float x = std::atan2(sinXCosY, cosXCosY);
+
+        const float sinY = std::clamp(2.0f * (q.w * q.y - q.z * q.x), -1.0f, 1.0f);
+        const float y = std::asin(sinY);
+
+        const float sinZCosY = 2.0f * (q.w * q.z + q.x * q.y);
+        const float cosZCosY = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+        const float z = std::atan2(sinZCosY, cosZCosY);
+
+        return { x, y, z };
+    }
+
+    Vec3 EulerXYZDegreesFromQuat(const Quat& q) {
+        constexpr float kRadToDeg = 180.0f / 3.1415926535f;
+        const Vec3 radians = EulerXYZFromQuat(q);
+        return radians * kRadToDeg;
     }
 
     Mat4 Mat4::Identity() {
