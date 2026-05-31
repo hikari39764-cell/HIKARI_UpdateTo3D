@@ -203,6 +203,39 @@ namespace HIKARI {
             outRoot = nlohmann::json::parse(ifs, nullptr, false);
             return !outRoot.is_discarded() && outRoot.is_object();
         }
+
+        bool HasArtifactByRoleAndFormat(
+            const AssetRecord& record,
+            std::string_view role,
+            std::string_view format) {
+
+            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+                if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool IsMaterialHmatCookEnabled(const AssetRecord& record) {
+            if (record.type != AssetType::Material) {
+                return false;
+            }
+
+            nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
+            if (!settings.is_object()) {
+                settings = nlohmann::json::object();
+            }
+
+            const bool legacyFutureHmat =
+                !settings.contains("outputFormat") &&
+                settings.value("futureOutputFormat", std::string{}) == "HMAT";
+            const bool cookMaterial = legacyFutureHmat
+                ? true
+                : settings.value("cookMaterial", true);
+            const std::string outputFormat = settings.value("outputFormat", std::string("HMAT"));
+            return cookMaterial && outputFormat == "HMAT";
+        }
     }
 
     bool AssetDatabase::Initialize(const std::filesystem::path& projectRoot) {
@@ -929,13 +962,18 @@ namespace HIKARI {
         const bool textureNeedsArtifact = record.type == AssetType::Texture && record.meta.artifacts.empty();
         const bool modelNeedsArtifact = record.type == AssetType::Model && record.meta.artifacts.empty();
         const bool skyNeedsArtifact = record.type == AssetType::Sky && record.meta.artifacts.empty();
+        // Material の cook 設定が有効な場合は artifact 欠落も outdated として扱う。
+        const bool materialNeedsArtifact =
+            IsMaterialHmatCookEnabled(record) &&
+            !HasArtifactByRoleAndFormat(record, "Material", "HMAT");
         record.importOutdated = record.importerMissing ||
             record.artifactMissing ||
             sourceNewerThanArtifact ||
             importerVersionOutdated ||
             textureNeedsArtifact ||
             modelNeedsArtifact ||
-            skyNeedsArtifact;
+            skyNeedsArtifact ||
+            materialNeedsArtifact;
 
         const std::filesystem::path reportPath = record.importedDirectory / "import_report.json";
         nlohmann::json report;

@@ -8,6 +8,7 @@
 
 #include <json.hpp>
 
+#include "Assets/Formats/HIKARI_HmatFormat.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 
@@ -90,6 +91,49 @@ namespace HIKARI {
                 }
             }
             return {};
+        }
+
+        bool LoadMaterialSourceJson(
+            const AssetDatabase& assetDatabase,
+            const AssetRecord& record,
+            PbrMaterialAssetData& outData) {
+
+            const std::filesystem::path sourcePath =
+                (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
+            std::string loadError{};
+            if (LoadPbrMaterialAssetData(sourcePath, outData, loadError)) {
+                return true;
+            }
+
+            HIKARI_LOG_WARN("[AssetRegistryBuilder][Material] source JSON read failed: " + loadError);
+            return false;
+        }
+
+        bool LoadMaterialDataForRegistry(
+            const AssetDatabase& assetDatabase,
+            const AssetRecord& record,
+            PbrMaterialAssetData& outData) {
+
+            // Cook 済み HMAT を優先し、無い場合だけ source JSON を読む。
+            const std::string hmatArtifact = FindArtifactPathByFormat(record, "Material", "HMAT");
+            if (!hmatArtifact.empty()) {
+                const std::filesystem::path hmatPath =
+                    (assetDatabase.GetProjectRoot() / hmatArtifact).lexically_normal();
+
+                std::string readMessage{};
+                if (ReadHmatFile(hmatPath, outData, readMessage)) {
+                    HIKARI_LOG_INFO("[AssetRegistryBuilder][Material] loaded HMAT: " + hmatArtifact);
+                    return true;
+                }
+
+                HIKARI_LOG_WARN("[AssetRegistryBuilder][Material][WARN] HMAT read failed: " + readMessage);
+                return LoadMaterialSourceJson(assetDatabase, record, outData);
+            }
+
+            // 旧 asset 互換のため JSON 読み込み経路は残す。
+            HIKARI_LOG_WARN("[AssetRegistryBuilder][Material] HMAT artifact missing, fallback to source JSON: " +
+                record.sourcePath.generic_string());
+            return LoadMaterialSourceJson(assetDatabase, record, outData);
         }
 
         std::string FindSharedBrdfLutPath(const AssetDatabase& assetDatabase) {
@@ -199,14 +243,12 @@ namespace HIKARI {
                 descriptor->sourcePath = record->sourcePath.generic_string();
                 descriptor->version = record->meta.importerVersion;
 
-                const std::filesystem::path sourcePath =
-                    (assetDatabase.GetProjectRoot() / record->sourcePath).lexically_normal();
-                std::string loadError{};
-                if (!LoadPbrMaterialAssetData(sourcePath, descriptor->data, loadError)) {
-                    HIKARI_LOG_WARN("[AssetRegistryBuilder][Material] failed to read material: " + loadError);
+                if (!LoadMaterialDataForRegistry(assetDatabase, *record, descriptor->data)) {
                     descriptor->data.materialName = record->displayName.empty()
                         ? record->sourcePath.stem().string()
                         : record->displayName;
+                    HIKARI_LOG_WARN("[AssetRegistryBuilder][Material] using fallback material data: " +
+                        descriptor->data.materialName);
                 }
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
             } else if (record->type == AssetType::VfxEffect) {
