@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <unordered_set>
 
@@ -33,7 +34,9 @@ namespace HIKARI {
             const SceneDependencySet& dependencies,
             const AssetRegistry& assetRegistry,
             ModelManager& modelManager,
-            SkyManager& skyManager) const;
+            SkyManager& skyManager,
+            const std::filesystem::path& projectRoot,
+            const std::string& sceneGuid) const;
 
         bool BuildWorldFromDocument(
             const SceneDocument& document,

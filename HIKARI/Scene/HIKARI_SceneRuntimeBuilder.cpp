@@ -5,13 +5,11 @@
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Core/HIKARI_Logger.h"
-#include "HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Core/HIKARI_Material.h"
-#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_LightingRuntimeLoader.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
-#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/Components/HIKARI_IComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -21,8 +19,6 @@
 namespace HIKARI {
 
     namespace {
-        constexpr const char* kSharedBrdfLutPath = "Library/Generated/IBL/brdf_lut.dds";
-
         void EnsureModelLoaded(ModelManager& modelManager, const ModelAssetDescriptor& descriptor) {
             ModelAsset* existing = modelManager.FindAsset(descriptor.id.value);
             if (existing != nullptr) {
@@ -118,7 +114,9 @@ namespace HIKARI {
         const SceneDependencySet& dependencies,
         const AssetRegistry& assetRegistry,
         ModelManager& modelManager,
-        SkyManager& skyManager) const {
+        SkyManager& skyManager,
+        const std::filesystem::path& projectRoot,
+        const std::string& sceneGuid) const {
         for (const std::string& modelId : dependencies.modelAssetIds) {
             const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ modelId });
             if (!descriptor) {
@@ -127,14 +125,9 @@ namespace HIKARI {
             EnsureModelLoaded(modelManager, *descriptor);
         }
 
-        if (dependencies.skyAssetIds.empty()) {
-            IBL::Reset();
-        }
-
         for (const std::string& skyId : dependencies.skyAssetIds) {
             const auto* descriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ skyId });
             if (!descriptor) {
-                IBL::Reset();
                 continue;
             }
 
@@ -143,107 +136,26 @@ namespace HIKARI {
                     EnsureModelLoaded(modelManager, *meshDescriptor);
                 }
             }
-
-            std::string texturePath = descriptor->sourcePath;
-            if (!descriptor->textureAssetId.empty()) {
-                if (const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(AssetId{ descriptor->textureAssetId })) {
-                    texturePath = texture->sourcePath;
-                }
-            }
-
-            skyManager.RegisterOrUpdateAsset(SkyAsset{
-                descriptor->id.value,
-                descriptor->meshAssetId,
-                texturePath,
-                descriptor->preferredMode
-            });
-
-            if (!descriptor->hasIbl) {
-                IBL::Reset();
-                continue;
-            }
-
-            int irradiance = -1;
-            int prefiltered = -1;
-            int brdf = -1;
-            if (!descriptor->irradiancePath.empty()) {
-                irradiance = DXTEX::DxTextureManager::LoadCubemap(
-                    "ibl/irradiance/" + descriptor->id.value,
-                    descriptor->irradiancePath,
-                    DXTEX::TextureColorSpace::Linear);
-            }
-            if (!descriptor->prefilteredPath.empty()) {
-                prefiltered = DXTEX::DxTextureManager::LoadCubemap(
-                    "ibl/prefiltered/" + descriptor->id.value,
-                    descriptor->prefilteredPath,
-                    DXTEX::TextureColorSpace::Linear);
-            }
-            const std::string brdfLutPath = descriptor->brdfLutPath.empty()
-                ? std::string{ kSharedBrdfLutPath }
-                : descriptor->brdfLutPath;
-            if (!brdfLutPath.empty()) {
-                brdf = DXTEX::DxTextureManager::LoadTextureLinear(
-                    "ibl/brdf_lut",
-                    brdfLutPath);
-            }
-
-            IBL::SetFromTextureHandles(
-                irradiance,
-                prefiltered,
-                brdf,
-                descriptor->prefilteredMipCount);
-            HIKARI_LOG_INFO("[SceneRuntimeBuilder] loaded IBL sky=" + descriptor->id.value +
-                " irradiance=" + std::to_string(irradiance) +
-                " prefiltered=" + std::to_string(prefiltered) +
-                " brdf=" + std::to_string(brdf));
         }
 
-        if (dependencies.reflectionProbeCubemapAssetIds.empty()) {
-            REFLECTION::Reset();
-            return true;
-        }
+        RENDER3D::LIGHTING::LightingRuntimeLoadRequest request{};
+        request.sceneGuid = sceneGuid;
+        request.projectRoot = projectRoot;
+        request.skyAssetIds = dependencies.skyAssetIds;
+        request.reflectionProbeCubemapAssetIds = dependencies.reflectionProbeCubemapAssetIds;
+        request.reflectionProbeEnabled = dependencies.reflectionProbeEnabled;
+        request.reflectionProbePosition = dependencies.reflectionProbePosition;
+        request.reflectionProbeRadius = dependencies.reflectionProbeRadius;
+        request.reflectionProbeIntensity = dependencies.reflectionProbeIntensity;
 
-        const std::string probeAssetId = *dependencies.reflectionProbeCubemapAssetIds.begin();
-        const auto* probeDescriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ probeAssetId });
-        if (!probeDescriptor) {
-            REFLECTION::Reset();
-            HIKARI_LOG_WARN("[SceneRuntimeBuilder] reflection probe source asset missing: " + probeAssetId);
-            return true;
+        // 照明リソースは runtime loader に委譲する。
+        RENDER3D::LIGHTING::LightingRuntimeLoader loader{};
+        const RENDER3D::LIGHTING::LightingRuntimeLoadResult lightingResult =
+            loader.Load(request, assetRegistry, skyManager);
+        for (const std::string& message : lightingResult.messages) {
+            HIKARI_LOG_INFO(message);
         }
-
-        int probePrefiltered = -1;
-        int probeBrdf = -1;
-        if (!probeDescriptor->prefilteredPath.empty()) {
-            probePrefiltered = DXTEX::DxTextureManager::LoadCubemap(
-                "reflection_probe/prefiltered/" + probeDescriptor->id.value,
-                probeDescriptor->prefilteredPath,
-                DXTEX::TextureColorSpace::Linear);
-        }
-        const std::string probeBrdfPath = probeDescriptor->brdfLutPath.empty()
-            ? std::string{ kSharedBrdfLutPath }
-            : probeDescriptor->brdfLutPath;
-        if (!probeBrdfPath.empty()) {
-            probeBrdf = DXTEX::DxTextureManager::LoadTextureLinear(
-                "reflection_probe/brdf_lut",
-                probeBrdfPath);
-        }
-
-        REFLECTION::SetActiveProbe(
-            dependencies.reflectionProbeEnabled,
-            probePrefiltered,
-            probeBrdf,
-            probeDescriptor->prefilteredMipCount,
-            dependencies.reflectionProbePosition,
-            dependencies.reflectionProbeRadius,
-            dependencies.reflectionProbeIntensity,
-            probeDescriptor->id.value,
-            probeDescriptor->prefilteredPath,
-            probeBrdfPath);
-        HIKARI_LOG_INFO("[SceneRuntimeBuilder] loaded ReflectionProbe source=" + probeDescriptor->id.value +
-            " prefiltered=" + std::to_string(probePrefiltered) +
-            " brdf=" + std::to_string(probeBrdf));
-
-        return true;
+        return lightingResult.success;
     }
 
     bool SceneRuntimeBuilder::BuildWorldFromDocument(

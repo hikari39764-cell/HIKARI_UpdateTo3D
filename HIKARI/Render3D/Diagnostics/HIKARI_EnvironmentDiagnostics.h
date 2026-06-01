@@ -60,6 +60,13 @@ namespace HIKARI {
             float reflectionProbePositionY = 0.0f;
             float reflectionProbePositionZ = 0.0f;
 
+            bool lightingBakeManifestFound = false;
+            std::string lightingBakeManifestPath{};
+            uint32_t bakedReflectionProbeCount = 0;
+            uint32_t bakedLightProbeCount = 0;
+            uint32_t bakedLightmapCount = 0;
+            std::string lightingRuntimeSource{};
+
             bool ssaoEnabled = false;
             bool ssaoValid = false;
             uint32_t ssaoWidth = 0;

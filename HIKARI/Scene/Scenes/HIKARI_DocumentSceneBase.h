@@ -70,6 +70,7 @@ namespace HIKARI {
         bool HasUnsavedSceneChanges() const;
         void SetUnsavedSceneChanges(bool dirty);
         bool ApplyEnvironmentRuntimeChanges();
+        bool RefreshLightingRuntime();
         bool RefreshSkyRuntime();
         bool RefreshCurrentSkyRuntime();
         bool RefreshTextureRuntimeByPath(const std::string& path);

@@ -1,0 +1,267 @@
+#include "HIKARI_LightingRuntimeLoader.h"
+
+#include "Assets/HIKARI_AssetRegistry.h"
+#include "Assets/HIKARI_AssetTypes.h"
+#include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
+#include "Core/HIKARI_Logger.h"
+#include "HIKARI_DxTexture.h"
+#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SkyManager.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+
+namespace HIKARI::RENDER3D::LIGHTING {
+
+    namespace {
+        constexpr const char* kSharedBrdfLutPath = "Library/Generated/IBL/brdf_lut.dds";
+
+        SceneLightingRuntimeData gLastLightingRuntimeData{};
+
+        void AppendMessage(std::vector<std::string>& messages, const std::string& message) {
+            messages.push_back(message);
+        }
+
+        bool HasAnyRuntimeResource(const SceneLightingRuntimeData& data) {
+            return data.skyLoaded || data.globalIblLoaded || data.reflectionProbeLoaded;
+        }
+    } // namespace
+
+    const char* ToString(LightingRuntimeSource source) {
+        switch (source) {
+        case LightingRuntimeSource::None:
+            return "None";
+        case LightingRuntimeSource::AuthoringFallback:
+            return "AuthoringFallback";
+        case LightingRuntimeSource::BakeManifest:
+            return "BakeManifest";
+        default:
+            return "Unknown";
+        }
+    }
+
+    const SceneLightingRuntimeData& GetLastLightingRuntimeData() {
+        return gLastLightingRuntimeData;
+    }
+
+    void SetLastLightingRuntimeData(const SceneLightingRuntimeData& data) {
+        gLastLightingRuntimeData = data;
+    }
+
+    LightingRuntimeLoadResult LightingRuntimeLoader::Load(
+        const LightingRuntimeLoadRequest& request,
+        const AssetRegistry& assetRegistry,
+        SkyManager& skyManager) const {
+
+        LightingRuntimeLoadResult result{};
+        result.runtimeData.source = LightingRuntimeSource::None;
+
+        if (request.preferBakeManifest) {
+            TryLoadBakeManifest(request, result.runtimeData, result.messages);
+        }
+
+        // Lighting resource の詳細ロードはここへ集約する。
+        LoadSkyLightingFromAssets(
+            request,
+            assetRegistry,
+            skyManager,
+            result.runtimeData,
+            result.messages);
+
+        LoadReflectionProbeFromAuthoringSource(
+            request,
+            assetRegistry,
+            result.runtimeData,
+            result.messages);
+
+        if (HasAnyRuntimeResource(result.runtimeData)) {
+            result.runtimeData.source = LightingRuntimeSource::AuthoringFallback;
+        } else if (result.runtimeData.bakeManifestLoaded) {
+            result.runtimeData.source = LightingRuntimeSource::BakeManifest;
+        }
+
+        SetLastLightingRuntimeData(result.runtimeData);
+        return result;
+    }
+
+    bool LightingRuntimeLoader::TryLoadBakeManifest(
+        const LightingRuntimeLoadRequest& request,
+        SceneLightingRuntimeData& runtimeData,
+        std::vector<std::string>& messages) const {
+
+        if (request.sceneGuid.empty() || request.projectRoot.empty()) {
+            return false;
+        }
+
+        const std::filesystem::path manifestPath =
+            ASSETS::LIGHTING::BuildLightingBakeManifestPath(
+                request.projectRoot,
+                request.sceneGuid);
+
+        runtimeData.bakeManifestPath = manifestPath.generic_string();
+
+        std::string message{};
+        ASSETS::LIGHTING::LightingBakeManifest manifest{};
+        if (!ASSETS::LIGHTING::LoadLightingBakeManifest(manifestPath, manifest, &message)) {
+            AppendMessage(messages, "[LightingRuntimeLoader][BakeManifest] " + message);
+            return false;
+        }
+
+        // Phase 7 では manifest の存在確認だけを行う。
+        runtimeData.bakeManifestLoaded = true;
+        runtimeData.bakedReflectionProbeCount =
+            static_cast<uint32_t>(manifest.reflectionProbes.size());
+        runtimeData.bakedLightProbeCount =
+            static_cast<uint32_t>(manifest.lightProbes.size());
+        runtimeData.bakedLightmapCount =
+            static_cast<uint32_t>(manifest.lightmaps.size());
+
+        HIKARI_LOG_INFO("[LightingRuntimeLoader][BakeManifest] loaded manifest=" +
+            runtimeData.bakeManifestPath +
+            " probes=" + std::to_string(runtimeData.bakedReflectionProbeCount) +
+            " lightProbes=" + std::to_string(runtimeData.bakedLightProbeCount) +
+            " lightmaps=" + std::to_string(runtimeData.bakedLightmapCount));
+        return true;
+    }
+
+    void LightingRuntimeLoader::LoadSkyLightingFromAssets(
+        const LightingRuntimeLoadRequest& request,
+        const AssetRegistry& assetRegistry,
+        SkyManager& skyManager,
+        SceneLightingRuntimeData& runtimeData,
+        std::vector<std::string>& messages) const {
+
+        if (request.skyAssetIds.empty()) {
+            IBL::Reset();
+            return;
+        }
+
+        for (const std::string& skyId : request.skyAssetIds) {
+            const auto* descriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ skyId });
+            if (!descriptor) {
+                IBL::Reset();
+                HIKARI_LOG_WARN("[LightingRuntimeLoader][Sky] sky descriptor missing: " + skyId);
+                AppendMessage(messages, "[LightingRuntimeLoader][Sky] descriptor missing: " + skyId);
+                continue;
+            }
+
+            std::string texturePath = descriptor->sourcePath;
+            if (!descriptor->textureAssetId.empty()) {
+                if (const auto* texture = assetRegistry.FindAs<TextureAssetDescriptor>(
+                        AssetId{ descriptor->textureAssetId })) {
+                    texturePath = texture->sourcePath;
+                }
+            }
+
+            skyManager.RegisterOrUpdateAsset(SkyAsset{
+                descriptor->id.value,
+                descriptor->meshAssetId,
+                texturePath,
+                descriptor->preferredMode
+            });
+            runtimeData.skyLoaded = true;
+            runtimeData.activeSkyAssetId = descriptor->id.value;
+
+            if (!descriptor->hasIbl) {
+                IBL::Reset();
+                AppendMessage(messages, "[LightingRuntimeLoader][IBL] sky has no IBL artifacts: " + descriptor->id.value);
+                continue;
+            }
+
+            int irradiance = -1;
+            int prefiltered = -1;
+            int brdf = -1;
+            if (!descriptor->irradiancePath.empty()) {
+                irradiance = DXTEX::DxTextureManager::LoadCubemap(
+                    "ibl/irradiance/" + descriptor->id.value,
+                    descriptor->irradiancePath,
+                    DXTEX::TextureColorSpace::Linear);
+            }
+            if (!descriptor->prefilteredPath.empty()) {
+                prefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                    "ibl/prefiltered/" + descriptor->id.value,
+                    descriptor->prefilteredPath,
+                    DXTEX::TextureColorSpace::Linear);
+            }
+            const std::string brdfLutPath = descriptor->brdfLutPath.empty()
+                ? std::string{ kSharedBrdfLutPath }
+                : descriptor->brdfLutPath;
+            if (!brdfLutPath.empty()) {
+                brdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                    "ibl/brdf_lut",
+                    brdfLutPath);
+            }
+
+            IBL::SetFromTextureHandles(
+                irradiance,
+                prefiltered,
+                brdf,
+                descriptor->prefilteredMipCount);
+
+            runtimeData.globalIblLoaded = irradiance >= 0 || prefiltered >= 0 || brdf >= 0;
+            HIKARI_LOG_INFO("[LightingRuntimeLoader][IBL] loaded sky=" + descriptor->id.value +
+                " irradiance=" + std::to_string(irradiance) +
+                " prefiltered=" + std::to_string(prefiltered) +
+                " brdf=" + std::to_string(brdf));
+        }
+    }
+
+    void LightingRuntimeLoader::LoadReflectionProbeFromAuthoringSource(
+        const LightingRuntimeLoadRequest& request,
+        const AssetRegistry& assetRegistry,
+        SceneLightingRuntimeData& runtimeData,
+        std::vector<std::string>& messages) const {
+
+        if (!request.reflectionProbeEnabled ||
+            request.reflectionProbeCubemapAssetIds.empty() ||
+            !request.allowAuthoringReflectionProbeFallback) {
+            REFLECTION::Reset();
+            return;
+        }
+
+        const std::string probeAssetId = *request.reflectionProbeCubemapAssetIds.begin();
+        const auto* probeDescriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ probeAssetId });
+        if (!probeDescriptor) {
+            REFLECTION::Reset();
+            HIKARI_LOG_WARN("[LightingRuntimeLoader][ReflectionProbe] source asset missing: " + probeAssetId);
+            AppendMessage(messages, "[LightingRuntimeLoader][ReflectionProbe] source missing: " + probeAssetId);
+            return;
+        }
+
+        int probePrefiltered = -1;
+        int probeBrdf = -1;
+        if (!probeDescriptor->prefilteredPath.empty()) {
+            probePrefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                "reflection_probe/prefiltered/" + probeDescriptor->id.value,
+                probeDescriptor->prefilteredPath,
+                DXTEX::TextureColorSpace::Linear);
+        }
+        const std::string probeBrdfPath = probeDescriptor->brdfLutPath.empty()
+            ? std::string{ kSharedBrdfLutPath }
+            : probeDescriptor->brdfLutPath;
+        if (!probeBrdfPath.empty()) {
+            probeBrdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                "reflection_probe/brdf_lut",
+                probeBrdfPath);
+        }
+
+        // Authoring fallback は正式 bake までの単一 probe 入力として扱う。
+        REFLECTION::SetActiveProbe(
+            request.reflectionProbeEnabled,
+            probePrefiltered,
+            probeBrdf,
+            probeDescriptor->prefilteredMipCount,
+            request.reflectionProbePosition,
+            request.reflectionProbeRadius,
+            request.reflectionProbeIntensity,
+            probeDescriptor->id.value,
+            probeDescriptor->prefilteredPath,
+            probeBrdfPath);
+
+        runtimeData.reflectionProbeLoaded = probePrefiltered >= 0 || probeBrdf >= 0;
+        runtimeData.activeReflectionProbeSourceAssetId = probeDescriptor->id.value;
+        HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] loaded authoring fallback source=" +
+            probeDescriptor->id.value +
+            " prefiltered=" + std::to_string(probePrefiltered) +
+            " brdf=" + std::to_string(probeBrdf));
+    }
+
+} // namespace HIKARI::RENDER3D::LIGHTING

@@ -5,6 +5,7 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
@@ -62,6 +63,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             float reflectionProbePositionX = 0.0f;
             float reflectionProbePositionY = 0.0f;
             float reflectionProbePositionZ = 0.0f;
+
+            bool lightingBakeManifestFound = false;
+            std::string lightingBakeManifestPath{};
+            uint32_t bakedReflectionProbeCount = 0;
+            uint32_t bakedLightProbeCount = 0;
+            uint32_t bakedLightmapCount = 0;
+            std::string lightingRuntimeSource{};
 
             bool ssaoEnabled = false;
             bool ssaoValid = false;
@@ -131,6 +139,12 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.reflectionProbePositionX == rhs.reflectionProbePositionX &&
                 lhs.reflectionProbePositionY == rhs.reflectionProbePositionY &&
                 lhs.reflectionProbePositionZ == rhs.reflectionProbePositionZ &&
+                lhs.lightingBakeManifestFound == rhs.lightingBakeManifestFound &&
+                lhs.lightingBakeManifestPath == rhs.lightingBakeManifestPath &&
+                lhs.bakedReflectionProbeCount == rhs.bakedReflectionProbeCount &&
+                lhs.bakedLightProbeCount == rhs.bakedLightProbeCount &&
+                lhs.bakedLightmapCount == rhs.bakedLightmapCount &&
+                lhs.lightingRuntimeSource == rhs.lightingRuntimeSource &&
                 lhs.ssaoEnabled == rhs.ssaoEnabled &&
                 lhs.ssaoValid == rhs.ssaoValid &&
                 lhs.ssaoWidth == rhs.ssaoWidth &&
@@ -218,6 +232,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.reflectionProbePositionY = snapshot.reflectionProbePositionY;
             key.reflectionProbePositionZ = snapshot.reflectionProbePositionZ;
 
+            key.lightingBakeManifestFound = snapshot.lightingBakeManifestFound;
+            key.lightingBakeManifestPath = snapshot.lightingBakeManifestPath;
+            key.bakedReflectionProbeCount = snapshot.bakedReflectionProbeCount;
+            key.bakedLightProbeCount = snapshot.bakedLightProbeCount;
+            key.bakedLightmapCount = snapshot.bakedLightmapCount;
+            key.lightingRuntimeSource = snapshot.lightingRuntimeSource;
+
             key.ssaoEnabled = snapshot.ssaoEnabled;
             key.ssaoValid = snapshot.ssaoValid;
             key.ssaoWidth = snapshot.ssaoWidth;
@@ -295,6 +316,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.reflectionProbePositionX = probe.position.x;
         snapshot.reflectionProbePositionY = probe.position.y;
         snapshot.reflectionProbePositionZ = probe.position.z;
+
+        const LIGHTING::SceneLightingRuntimeData& lighting = LIGHTING::GetLastLightingRuntimeData();
+        snapshot.lightingBakeManifestFound = lighting.bakeManifestLoaded;
+        snapshot.lightingBakeManifestPath = lighting.bakeManifestPath;
+        snapshot.bakedReflectionProbeCount = lighting.bakedReflectionProbeCount;
+        snapshot.bakedLightProbeCount = lighting.bakedLightProbeCount;
+        snapshot.bakedLightmapCount = lighting.bakedLightmapCount;
+        snapshot.lightingRuntimeSource = LIGHTING::ToString(lighting.source);
 
         const SCREENSPACE::SsaoDebugState& ssao = SCREENSPACE::GetSsaoDebugState();
         snapshot.ssaoEnabled = ssao.enabled;
@@ -410,6 +439,17 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << snapshot.reflectionProbePositionZ
                 << " source=" << snapshot.reflectionProbeSourceAssetId
                 << " prefilteredPath=" << snapshot.reflectionProbePrefilteredPath;
+            LogInfoLine(oss.str());
+        }
+        {
+            std::ostringstream oss;
+            oss << "[EnvironmentDiagnostics][LightingRuntime]"
+                << " source=" << snapshot.lightingRuntimeSource
+                << " manifestFound=" << BoolText(snapshot.lightingBakeManifestFound)
+                << " manifest=" << snapshot.lightingBakeManifestPath
+                << " bakedProbes=" << snapshot.bakedReflectionProbeCount
+                << " bakedLightProbes=" << snapshot.bakedLightProbeCount
+                << " bakedLightmaps=" << snapshot.bakedLightmapCount;
             LogInfoLine(oss.str());
         }
         {

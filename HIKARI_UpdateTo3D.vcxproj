@@ -191,6 +191,7 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
+    <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.cpp" />
@@ -249,6 +250,7 @@
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp" />
@@ -428,6 +430,8 @@
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h" />
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.h" />
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h" />
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h" />
@@ -456,6 +460,7 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
+    <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HtexFormat.h" />
@@ -547,6 +552,7 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
+    <None Include="HIKARI\Tools\Baking\README_LightingBake.md" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />

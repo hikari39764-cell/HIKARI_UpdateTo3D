@@ -133,7 +133,7 @@ namespace HIKARI {
             }
         }
 
-        scene.RefreshCurrentSkyRuntime();
+        scene.RefreshLightingRuntime();
         // Runtime refresh 後の environment 状態変化だけを diagnostics log に流す。
         RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
             "RuntimeRefresh.CurrentScene",
@@ -188,9 +188,9 @@ namespace HIKARI {
         scene.RefreshTextureRuntimeByPath(descriptor.brdfLutPath);
 
         // 現在使用中の sky だけを即時差し替える。
-        if (!scene.RefreshCurrentSkyRuntime()) {
+        if (!scene.RefreshLightingRuntime()) {
             ++report.failedCount;
-            AppendMessage(report, "Sky runtime refresh failed: " + descriptor.id.value);
+            AppendMessage(report, "Lighting runtime refresh failed: " + descriptor.id.value);
             return false;
         }
 

@@ -19,6 +19,9 @@
     <Filter Include="Header Files\Assets\Material">
       <UniqueIdentifier>{2C8932E7-7A66-4B6D-9E91-1B7ED8D7F2F1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Lighting">
+      <UniqueIdentifier>{F1ED72F6-0B07-4D55-AA9E-E9A0E3D0F681}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -181,6 +184,12 @@
     <Filter Include="Project\Icons">
       <UniqueIdentifier>{9D6C91F1-6759-4E08-A758-21B54B6C8511}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Project\Tools">
+      <UniqueIdentifier>{8D1189FB-30E3-42BF-9524-4DC30BC8D427}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Tools\Baking">
+      <UniqueIdentifier>{99BD5BC0-3300-4063-94E1-F25D10F50D9C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Project\Shaders">
       <UniqueIdentifier>{0366C106-C884-59CB-BCE3-0A4E338EDD64}</UniqueIdentifier>
     </Filter>
@@ -231,6 +240,9 @@
     </Filter>
     <Filter Include="Source Files\Assets\Material">
       <UniqueIdentifier>{7D0947F2-F49E-46F2-BC96-43F427AB6C60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Lighting">
+      <UniqueIdentifier>{8C0B7758-A873-4CAD-8936-13CE85DE6A35}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
@@ -507,6 +519,9 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp">
       <Filter>Source Files\Render3D\Reflection</Filter>
     </ClCompile>
@@ -584,6 +599,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
       <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp">
+      <Filter>Source Files\Assets\Lighting</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp">
       <Filter>Source Files\Assets\Formats</Filter>
@@ -1227,6 +1245,12 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h">
       <Filter>Header Files\Render3D\Reflection</Filter>
     </ClInclude>
@@ -1301,6 +1325,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">
       <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h">
+      <Filter>Header Files\Assets\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">
       <Filter>Header Files\Assets\Formats</Filter>
@@ -1614,6 +1641,9 @@
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
+    </None>
+    <None Include="HIKARI\Tools\Baking\README_LightingBake.md">
+      <Filter>Project\Tools\Baking</Filter>
     </None>
     <None Include="HIKARI\Icon\hikari_asset_icons.png">
       <Filter>Project\Icons</Filter>

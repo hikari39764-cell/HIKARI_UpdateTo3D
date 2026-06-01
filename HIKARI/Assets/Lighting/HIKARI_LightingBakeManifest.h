@@ -1,0 +1,68 @@
+#pragma once
+
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include "Render3D/HIKARI_Math3D.h"
+
+namespace HIKARI::ASSETS::LIGHTING {
+
+    constexpr uint32_t kLightingBakeManifestVersion = 1;
+
+    struct ReflectionProbeBakeRecord {
+        std::string id{};
+        std::string name{};
+        MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
+        float radius = 0.0f;
+        float intensity = 1.0f;
+        std::string captureCubemapPath{};
+        std::string prefilteredCubemapPath{};
+        std::string brdfLutPath{};
+        uint32_t prefilteredMipCount = 1;
+    };
+
+    struct LightProbeBakeRecord {
+        std::string id{};
+        MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
+        std::string shDataPath{};
+    };
+
+    struct LightmapBakeRecord {
+        std::string id{};
+        std::string texturePath{};
+        uint32_t width = 0;
+        uint32_t height = 0;
+    };
+
+    struct LightingBakeManifest {
+        uint32_t version = kLightingBakeManifestVersion;
+        std::string sceneGuid{};
+        std::string bakeGuid{};
+        uint32_t bakeVersion = 1;
+        std::string generatedRoot{};
+        std::vector<ReflectionProbeBakeRecord> reflectionProbes{};
+        std::vector<LightProbeBakeRecord> lightProbes{};
+        std::vector<LightmapBakeRecord> lightmaps{};
+    };
+
+    bool LoadLightingBakeManifest(
+        const std::filesystem::path& path,
+        LightingBakeManifest& outManifest,
+        std::string* outMessage = nullptr);
+
+    bool SaveLightingBakeManifest(
+        const std::filesystem::path& path,
+        const LightingBakeManifest& manifest,
+        std::string* outMessage = nullptr);
+
+    std::filesystem::path BuildLightingBakeRoot(
+        const std::filesystem::path& projectRoot,
+        const std::string& sceneGuid);
+
+    std::filesystem::path BuildLightingBakeManifestPath(
+        const std::filesystem::path& projectRoot,
+        const std::string& sceneGuid);
+
+} // namespace HIKARI::ASSETS::LIGHTING

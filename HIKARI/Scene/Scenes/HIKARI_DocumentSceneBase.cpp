@@ -451,7 +451,13 @@ namespace HIKARI {
     }
     bool DocumentSceneBase::RebuildRuntimeWorld() {
         const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
-        runtimeBuilder_.PreloadDependencies(deps, assetRegistry_, modelManager_, skyManager_);
+        runtimeBuilder_.PreloadDependencies(
+            deps,
+            assetRegistry_,
+            modelManager_,
+            skyManager_,
+            assetDatabase_.GetProjectRoot(),
+            currentSceneAssetGuid_.value);
         const bool built = runtimeBuilder_.BuildWorldFromDocument(sceneDocument_, world_, assetRegistry_, componentRegistry_, modelManager_, skyManager_);
 
         environment_ = sceneDocument_.environment;
@@ -572,10 +578,10 @@ namespace HIKARI {
             return true;
         }
 
-        return RefreshSkyRuntime();
+        return RefreshLightingRuntime();
     }
 
-    bool DocumentSceneBase::RefreshSkyRuntime() {
+    bool DocumentSceneBase::RefreshLightingRuntime() {
         SceneDependencySet deps{};
         if (!environment_.sky.skyAsset.empty()) {
             deps.skyAssetIds.insert(environment_.sky.skyAsset);
@@ -593,19 +599,25 @@ namespace HIKARI {
             deps,
             assetRegistry_,
             modelManager_,
-            skyManager_);
+            skyManager_,
+            assetDatabase_.GetProjectRoot(),
+            currentSceneAssetGuid_.value);
 
         SKYRENDERER::InvalidateSkyTextureCache();
 
         if (!ok) {
-            HIKARI_LOG_WARN("[SkyRuntime] failed to preload sky dependency.");
+            HIKARI_LOG_WARN("[LightingRuntime] failed to preload lighting dependency.");
         }
 
         return ok;
     }
 
+    bool DocumentSceneBase::RefreshSkyRuntime() {
+        return RefreshLightingRuntime();
+    }
+
     bool DocumentSceneBase::RefreshCurrentSkyRuntime() {
-        return RefreshSkyRuntime();
+        return RefreshLightingRuntime();
     }
 
     bool DocumentSceneBase::RefreshTextureRuntimeByPath(const std::string& path) {
