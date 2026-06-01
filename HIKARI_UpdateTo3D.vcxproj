@@ -153,6 +153,7 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
@@ -162,6 +163,7 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
@@ -380,6 +382,7 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
@@ -436,6 +439,8 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />

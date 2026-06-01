@@ -23,7 +23,9 @@
 #include "Render3D/Core/HIKARI_MeshRendererState.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
+#include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -129,14 +131,6 @@ namespace HIKARI::MESHRENDERER {
             if (g.fallbackCubeTextureHandle < 0) {
                 HIKARI_LOG_WARN("[MeshRenderer] fallback cubemap creation failed.");
             }
-            g.fallbackAoTextureHandle = DXTEX::DxTextureManager::CreateSolidColorTexture(
-                "mesh_renderer/fallback_ao",
-                0xffffffffu,
-                DXTEX::TextureColorSpace::Linear);
-            if (g.fallbackAoTextureHandle < 0) {
-                g.fallbackAoTextureHandle = g.fallbackTextureHandle;
-            }
-
             MeshMaterialResolverFallbacks fallbacks{};
             fallbacks.whiteTexture = g.fallbackTextureHandle;
             fallbacks.normalTexture = g.fallbackNormalTextureHandle;
@@ -181,7 +175,11 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        MeshDrawContext BuildDrawContext(bool depthAwarePhase, MeshDrawPassKind passKind) {
+        MeshDrawContext BuildDrawContext(
+            bool depthAwarePhase,
+            MeshDrawPassKind passKind,
+            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
+            int fallbackAoTextureHandle) {
             MeshDrawContext ctx{};
             ctx.cmd = SERVICES::gCtx.cmdList;
             ctx.staticRootSig = GetStaticRootSignature(g.pipelines);
@@ -201,8 +199,8 @@ namespace HIKARI::MESHRENDERER {
             ctx.binding.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.binding.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
             ctx.binding.fallbackCubeTextureHandle = g.fallbackCubeTextureHandle;
-            ctx.binding.fallbackAoTextureHandle = g.fallbackAoTextureHandle;
-            ctx.binding.ssaoSrv = g.ssaoRenderer.GetAoSrv();
+            ctx.binding.fallbackAoTextureHandle = fallbackAoTextureHandle >= 0 ? fallbackAoTextureHandle : g.fallbackTextureHandle;
+            ctx.binding.ssaoSrv = ssaoSrv;
             ctx.materialFill.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.materialFill.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
@@ -215,13 +213,19 @@ namespace HIKARI::MESHRENDERER {
             return ctx;
         }
 
-        bool RenderMeshPhase(const RENDER3D::RenderQueue& queue, RENDER3D::RenderPhase phase, MeshDrawPassKind passKind, size_t& objectIndex) {
+        bool RenderMeshPhase(
+            const RENDER3D::RenderQueue& queue,
+            RENDER3D::RenderPhase phase,
+            MeshDrawPassKind passKind,
+            size_t& objectIndex,
+            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
+            int fallbackAoTextureHandle) {
             const bool depthAwarePhase = phase == RENDER3D::RenderPhase::DepthAware;
             const char* eventName = passKind == MeshDrawPassKind::GeometryBuffer
                 ? "MeshRenderer.GeometryBuffer"
                 : (depthAwarePhase ? "MeshRenderer.DepthAware" : "MeshRenderer.Opaque");
             GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
-            const MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind);
+            const MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, ssaoSrv, fallbackAoTextureHandle);
 
             for (const DrawItem* item : queue.GetPhase(phase)) {
                 if (item == nullptr) {
@@ -235,14 +239,16 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool RenderGeometryBufferPass(const RENDER3D::RenderQueue& queue) {
+        bool RenderGeometryBufferPassInternal(
+            const RENDER3D::RenderQueue& queue,
+            RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer) {
             if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque)) {
                 return false;
             }
 
             const uint32_t width = static_cast<uint32_t>(std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.x : 1.0f));
             const uint32_t height = static_cast<uint32_t>(std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.y : 1.0f));
-            if (!g.geometryBuffer.EnsureSize(width, height)) {
+            if (!geometryBuffer.EnsureSize(width, height)) {
                 return false;
             }
 
@@ -252,37 +258,11 @@ namespace HIKARI::MESHRENDERER {
             }
 
             GFX::PIX::ScopedGpuEvent pixGeometry(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "SceneGeometryBuffer");
-            g.geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, depthDsv);
+            geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, depthDsv);
             size_t geometryObjectIndex = 0;
-            const bool ok = RenderMeshPhase(queue, RENDER3D::RenderPhase::Opaque, MeshDrawPassKind::GeometryBuffer, geometryObjectIndex);
-            g.geometryBuffer.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
+            const bool ok = RenderMeshPhase(queue, RENDER3D::RenderPhase::Opaque, MeshDrawPassKind::GeometryBuffer, geometryObjectIndex, {}, g.fallbackTextureHandle);
+            geometryBuffer.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
             POST::PostSystem::RebindCurrentRenderTarget();
-            return ok;
-        }
-
-        bool RenderSsaoPass(const SceneEnvironment& environment) {
-            if (g.skyEnvironmentMapped == nullptr) {
-                return false;
-            }
-
-            if (!environment.ambientOcclusion.enabled) {
-                g.ssaoRenderer.Render(SERVICES::gCtx.cmdList, g.geometryBuffer, {}, *g.cameraMapped, environment.ambientOcclusion);
-                g.skyEnvironmentMapped->aoParams.x = 0.0f;
-                return false;
-            }
-
-            bool ok = false;
-            if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
-                ok = g.ssaoRenderer.Render(
-                    SERVICES::gCtx.cmdList,
-                    g.geometryBuffer,
-                    SERVICES::gCtx.sceneDepthSrv,
-                    *g.cameraMapped,
-                    environment.ambientOcclusion);
-                POST::PostSystem::EndCurrentRenderTargetDepthRead();
-            }
-
-            g.skyEnvironmentMapped->aoParams.x = ok ? 1.0f : 0.0f;
             return ok;
         }
 
@@ -386,6 +366,8 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
+        g.renderQueue.Clear();
+        g.frameObjectIndex = 0;
         g.debugStats = {};
     }
 
@@ -432,24 +414,24 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
-    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
-        if (g.drawItems.empty()) {
-            return;
-        }
-        // MeshRenderer 全体と各 phase の境界を PIX 上で分ける。
-        GFX::PIX::ScopedGpuEvent pixMeshRenderer(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "MeshRenderer.RenderAll");
+    bool HasSubmittedItems() {
+        return !g.drawItems.empty();
+    }
+
+    bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment) {
         if (!EnsureInitialized()) {
-            return;
+            return false;
         }
         if (!PrepareMeshFrame(camera, environment)) {
-            return;
+            return false;
         }
 
         ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
         if (cmd == nullptr || g.objectMapped == nullptr || g.objectCB == nullptr) {
-            return;
+            return false;
         }
 
+        g.frameObjectIndex = 0;
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
         if (srvHeap != nullptr) {
@@ -457,32 +439,77 @@ namespace HIKARI::MESHRENDERER {
             cmd->SetDescriptorHeaps(1, heaps);
         }
 
-        RENDER3D::RenderQueue queue;
-        queue.Build(g.drawItems);
+        return true;
+    }
 
-        if (environment.ambientOcclusion.enabled) {
-            RenderGeometryBufferPass(queue);
-            RenderSsaoPass(environment);
+    const RENDER3D::RenderQueue& BuildRenderQueue() {
+        g.renderQueue.Clear();
+        g.renderQueue.Build(g.drawItems);
+        return g.renderQueue;
+    }
+
+    const CameraCB* GetCameraConstants() {
+        return g.cameraMapped;
+    }
+
+    bool RenderGeometryBufferPass(
+        const RENDER3D::RenderQueue& queue,
+        RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer) {
+        return RenderGeometryBufferPassInternal(queue, geometryBuffer);
+    }
+
+    bool RenderForwardOpaquePass(
+        const RENDER3D::RenderQueue& queue,
+        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
+        int fallbackAoTextureHandle) {
+        // MeshRenderer は mesh draw を担当し、screen-space pass の順序は外部で決める。
+        return RenderMeshPhase(
+            queue,
+            RENDER3D::RenderPhase::Opaque,
+            MeshDrawPassKind::Forward,
+            g.frameObjectIndex,
+            ssaoSrv,
+            fallbackAoTextureHandle);
+    }
+
+    bool RenderDepthAwarePass(
+        const RENDER3D::RenderQueue& queue,
+        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
+        int fallbackAoTextureHandle) {
+        if (!queue.HasPhase(RENDER3D::RenderPhase::DepthAware)) {
+            return true;
         }
-        else {
-            RenderSsaoPass(environment);
+
+        DepthAwarePhaseScope depthAwareScope{};
+        if (!BeginDepthAwarePhase(depthAwareScope)) {
+            return false;
         }
 
-        size_t objectIndex = 0;
-        const bool opaqueOk = RenderMeshPhase(queue, RENDER3D::RenderPhase::Opaque, MeshDrawPassKind::Forward, objectIndex);
+        const bool ok = RenderMeshPhase(
+            queue,
+            RENDER3D::RenderPhase::DepthAware,
+            MeshDrawPassKind::Forward,
+            g.frameObjectIndex,
+            ssaoSrv,
+            fallbackAoTextureHandle);
+        EndDepthAwarePhase(depthAwareScope);
+        return ok;
+    }
 
-        if (opaqueOk && queue.HasPhase(RENDER3D::RenderPhase::DepthAware)) {
-            DepthAwarePhaseScope depthAwareScope{};
-            if (BeginDepthAwarePhase(depthAwareScope)) {
-                RenderMeshPhase(queue, RENDER3D::RenderPhase::DepthAware, MeshDrawPassKind::Forward, objectIndex);
-                EndDepthAwarePhase(depthAwareScope);
-            } else {
-                g.drawItems.clear();
-                return;
-            }
+    void SetAmbientOcclusionRuntimeEnabled(bool enabled) {
+        if (g.skyEnvironmentMapped != nullptr) {
+            g.skyEnvironmentMapped->aoParams.x = enabled ? 1.0f : 0.0f;
         }
+    }
 
+    void EndFrame() {
         g.drawItems.clear();
+        g.renderQueue.Clear();
+        g.frameObjectIndex = 0;
+    }
+
+    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
+        (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(camera, environment);
     }
 
     const MeshRendererDebugStats& GetDebugStats() {
