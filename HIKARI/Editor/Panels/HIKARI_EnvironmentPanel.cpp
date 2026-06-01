@@ -4,19 +4,14 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
-#include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Diagnostics/HIKARI_EnvironmentDiagnostics.h"
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
-#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
-#include "Diagnostics/HIKARI_DebugLogBuffer.h"
-#include "Gfx/HIKARI_D3D12DebugTools.h"
-#include "HIKARI_Services.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -280,25 +275,6 @@ namespace HIKARI {
             return 0;
         }
 
-        const char* SkyModeName(SkyMode mode) {
-            switch (mode) {
-            case SkyMode::None: return "None";
-            case SkyMode::Cubemap: return "Cubemap";
-            case SkyMode::Texture2D: return "Texture2D";
-            case SkyMode::Gradient:
-            default: return "Gradient";
-            }
-        }
-
-        const char* ToneMappingModeName(int mode) {
-            switch (mode) {
-            case 0: return "None";
-            case 1: return "Reinhard";
-            case 2: return "ACES Approx";
-            default: return "Unknown";
-            }
-        }
-
         struct SkyPickerEntry {
             std::string id{};
             std::string name{};
@@ -503,7 +479,7 @@ namespace HIKARI {
 
     bool EnvironmentPanel::Draw(
         SceneEnvironment& environment,
-        const SKYRENDERER::SkyRendererDebugState* skyDebugState,
+        const SKYRENDERER::SkyRendererDebugState*,
         const AssetRegistry* assetRegistry,
         const AssetDatabase* assetDatabase) const {
         if (!ImGui::Begin("Environment")) {
@@ -512,9 +488,20 @@ namespace HIKARI {
         }
 
         // UI 全体の編集前後を比較し、Preset や配列操作もまとめて検出する。
+        // 編集値は即時に runtime へ反映し、詳細診断は log へ逃がす。
         const SceneEnvironment beforeEdit = environment;
 
         ImGui::SeparatorText("Scene Environment");
+        const RENDER3D::DIAGNOSTICS::EnvironmentDiagnosticsSnapshot runtimeSnapshot =
+            RENDER3D::DIAGNOSTICS::CaptureEnvironmentSnapshot(&environment);
+        ImGui::TextDisabled("Runtime: %s | %s | Errors %u",
+            RENDER3D::DIAGNOSTICS::ResolveSkySummaryLabel(runtimeSnapshot),
+            RENDER3D::DIAGNOSTICS::ResolveIblSummaryLabel(runtimeSnapshot),
+            runtimeSnapshot.recentRenderErrorCount);
+        if (runtimeSnapshot.recentRenderErrorCount > 0) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.35f, 1.0f), "Check log");
+        }
 
         if (ImGui::TreeNodeEx("Quick Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::DragFloat("Exposure", &environment.toneMapping.exposure, 0.01f, 0.0f, 8.0f);
@@ -587,7 +574,7 @@ namespace HIKARI {
             }
             ImGui::DragFloat("Shadow Softness", &environment.directionalShadow.pcfRadius, 0.05f, 0.0f, 4.0f);
             ImGui::DragFloat("Shadow Range", &environment.directionalShadow.orthoSize, 0.1f, 1.0f, 200.0f);
-            float acneFix = std::max(environment.directionalShadow.depthBias * 1000.0f, environment.directionalShadow.normalBias * 25.0f);
+            float acneFix = (std::max)(environment.directionalShadow.depthBias * 1000.0f, environment.directionalShadow.normalBias * 25.0f);
             if (ImGui::DragFloat("Shadow Acne Fix", &acneFix, 0.01f, 0.0f, 10.0f)) {
                 environment.directionalShadow.depthBias = acneFix * 0.001f;
                 environment.directionalShadow.normalBias = acneFix * 0.04f;
@@ -719,32 +706,8 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(0.75f, 0.85f, 1.0f, 1.0f), "PNG/JPG panorama should use Texture2D mode.");
             }
             ImGui::Checkbox("Show Sky Debug Texture", &environment.sky.showDebugTexture);
-            if (skyDebugState != nullptr) {
-                ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
-                ImGui::Text("Active Texture Path: %s", skyDebugState->activeTexturePath.c_str());
-                ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
-                if (!skyDebugState->skyAssetFound && !skyDebugState->activeSkyAsset.empty()) {
-                    ImGui::TextColored(
-                        ImVec4(1.0f, 0.45f, 0.35f, 1.0f),
-                        "Sky asset is not registered in SkyManager.");
-                }
-                ImGui::Text("Sky Debug Mode: %s", SkyModeName(skyDebugState->mode));
-                ImGui::Text("Cubemap Loaded: %s", skyDebugState->cubemapLoaded ? "true" : "false");
-                ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
-                ImGui::Text("Cubemap Handle: %d", skyDebugState->cubemapHandle);
-                ImGui::Text("Texture Handle: %d", skyDebugState->textureHandle);
-                ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
-                ImGui::Text("Sky Draws: %zu", skyDebugState->drawCount);
-            }
-            if (ImGui::TreeNode("IBL State")) {
-                const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
-                ImGui::Text("IBL Valid: %s", iblData.valid ? "Yes" : "No");
-                ImGui::Text("Irradiance: %s  Handle: %d", iblData.hasIrradiance ? "Yes" : "No", iblData.irradianceHandle);
-                ImGui::Text("Prefiltered: %s  Handle: %d", iblData.hasPrefiltered ? "Yes" : "No", iblData.prefilteredHandle);
-                ImGui::Text("BRDF LUT: %s  Handle: %d", iblData.hasBrdfLut ? "Yes" : "No", iblData.brdfLutHandle);
-                ImGui::Text("Prefiltered Mips: %u", iblData.prefilteredMipCount);
-                ImGui::TreePop();
-            }
+            ImGui::TextDisabled("Runtime Sky: %s", RENDER3D::DIAGNOSTICS::ResolveSkySummaryLabel(runtimeSnapshot));
+            ImGui::TextDisabled("Runtime IBL: %s", RENDER3D::DIAGNOSTICS::ResolveIblSummaryLabel(runtimeSnapshot));
             ImGui::TreePop();
         }
 
@@ -832,133 +795,17 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Debug view overrides the final shaded output.");
             }
 
-            const POST::PostSystem::FxaaSettings fxaaState = POST::PostSystem::GetFxaaSettings();
-            ImGui::SeparatorText("Render Quality State");
-            ImGui::Text("PBR Mode: Cook-Torrance ON");
-            ImGui::Text("DebugView: %s", DebugViewName(environment.debugView));
-            ImGui::Text("ToneMapping: %s  Exposure %.2f  Gamma %.2f  Mode %s",
-                environment.toneMapping.enabled ? "On" : "Off",
-                environment.toneMapping.exposure,
-                environment.toneMapping.gamma,
-                ToneMappingModeName(environment.toneMapping.mode));
-            ImGui::Text("FXAA: %s  Edge %.4f / Min %.4f  Subpixel %.2f",
-                fxaaState.enabled ? "On" : "Off",
-                fxaaState.edgeThreshold,
-                fxaaState.edgeThresholdMin,
-                fxaaState.subpixelQuality);
-            ImGui::Text("Texture Color Space: Auto / SRGB / Linear enabled");
-            const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
-            ImGui::Text("IBL: %s  Irr %s  Pref %s  BRDF %s  Mips %u",
-                iblData.valid ? "Ready" : "Fallback",
-                iblData.hasIrradiance ? "Yes" : "No",
-                iblData.hasPrefiltered ? "Yes" : "No",
-                iblData.hasBrdfLut ? "Yes" : "No",
-                iblData.prefilteredMipCount);
-
-            const MESHRENDERER::MeshRendererDebugStats& lightStats = MESHRENDERER::GetDebugStats();
-            ImGui::SeparatorText("Light Upload Stats");
-            ImGui::Text("Directional Enabled: %s", lightStats.directionalEnabled ? "Yes" : "No");
-            ImGui::Text("Directional Intensity: %.3f", lightStats.directionalIntensity);
-            ImGui::Text("Ambient Intensity: %.3f", lightStats.ambientIntensity);
-            ImGui::Text("Point Lights Total / Uploaded / Clamped: %zu / %zu / %zu",
-                lightStats.pointLightTotalCount,
-                lightStats.pointLightUploadedCount,
-                lightStats.pointLightClampedCount);
-            ImGui::Text("Specular Intensity / Power: %.3f / %.3f", lightStats.specularIntensity, lightStats.specularPower);
-            ImGui::Text("Emissive Texture Cache Hit / Miss: %zu / %zu",
-                lightStats.emissiveTextureCacheHitCount,
-                lightStats.emissiveTextureCacheMissCount);
-            ImGui::Text("Emissive Mapped / Fallback Primitives: %zu / %zu",
-                lightStats.emissiveMappedPrimitiveCount,
-                lightStats.emissiveMapFallbackCount);
-            ImGui::Text("PBR / Unlit Primitives: %zu / %zu",
-                lightStats.pbrPrimitiveCount,
-                lightStats.unlitPrimitiveCount);
-            ImGui::Text("MR Texture Cache Hit / Miss: %zu / %zu",
-                lightStats.metallicRoughnessTextureCacheHitCount,
-                lightStats.metallicRoughnessTextureCacheMissCount);
-            ImGui::Text("MR Mapped / Fallback Primitives: %zu / %zu",
-                lightStats.metallicRoughnessMappedPrimitiveCount,
-                lightStats.metallicRoughnessFallbackCount);
-            ImGui::Text("AO Texture Cache Hit / Miss: %zu / %zu",
-                lightStats.occlusionTextureCacheHitCount,
-                lightStats.occlusionTextureCacheMissCount);
-            ImGui::Text("AO Mapped / Fallback Primitives: %zu / %zu",
-                lightStats.occlusionMappedPrimitiveCount,
-                lightStats.occlusionFallbackCount);
-
-            const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
-            ImGui::SeparatorText("Shadow Map Stats");
-            ImGui::Text("Shadow Enabled: %s", shadowStats.enabled ? "Yes" : "No");
-            ImGui::Text("Resolution: %u", shadowStats.resolution);
-            ImGui::Text("Casters Submitted: %zu", shadowStats.submittedCasterCount);
-            ImGui::Text("Static / Skinned Draws: %zu / %zu", shadowStats.staticCasterDrawCount, shadowStats.skinnedCasterDrawCount);
-            ImGui::Text("AlphaMask Draws: %zu", shadowStats.alphaMaskCasterDrawCount);
-            ImGui::Text("Skipped No Cast Shadow: %zu", shadowStats.skippedNoCastShadowCount);
-            ImGui::Text("Primitive Caster Draws: %zu", shadowStats.totalPrimitiveCasterDrawCount);
-            ImGui::Text("Shadow Map Recreates: %zu", shadowStats.shadowMapRecreateCount);
-            ImGui::Text("PCF: %s  Radius: %.2f", shadowStats.pcfEnabled != 0 ? "On" : "Off", shadowStats.pcfRadius);
-            ImGui::Text("Bias / NormalBias: %.5f / %.4f", shadowStats.depthBias, shadowStats.normalBias);
-            ImGui::Text("Ortho / Near / Far: %.2f / %.3f / %.2f", shadowStats.orthoSize, shadowStats.nearPlane, shadowStats.farPlane);
-            ImGui::Text("Strength: %.2f", shadowStats.strength);
-            if (environment.directionalShadow.showDebugTexture && SHADOW::IsDirectionalShadowEnabled()) {
-                const D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
-                if (shadowSrv.ptr != 0) {
-                    ImGui::SeparatorText("Shadow Map");
-                    ImGui::Image(reinterpret_cast<ImTextureID>(shadowSrv.ptr), ImVec2(256.0f, 256.0f));
-                }
+            ImGui::TextDisabled("Runtime: %s | %s | Errors %u",
+                RENDER3D::DIAGNOSTICS::ResolveSkySummaryLabel(runtimeSnapshot),
+                RENDER3D::DIAGNOSTICS::ResolveIblSummaryLabel(runtimeSnapshot),
+                runtimeSnapshot.recentRenderErrorCount);
+            if (runtimeSnapshot.recentRenderErrorCount > 0) {
+                ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.35f, 1.0f), "Render diagnostics contain recent errors.");
             }
 
-            const POST::PostSystem::BloomDebugStats& bloomStats = POST::PostSystem::GetBloomDebugStats();
-            ImGui::SeparatorText("Bloom Stats");
-            ImGui::Text("Enabled / Initialized / Failed: %s / %s / %s",
-                bloomStats.enabled ? "Yes" : "No",
-                bloomStats.initialized ? "Yes" : "No",
-                bloomStats.failed ? "Yes" : "No");
-            ImGui::Text("Pass Count: %u", bloomStats.passCount);
-            ImGui::Text("Texture Size: %d x %d", bloomStats.textureWidth, bloomStats.textureHeight);
-            ImGui::Text("Threshold / Intensity / Radius: %.2f / %.2f / %.2f",
-                bloomStats.threshold,
-                bloomStats.intensity,
-                bloomStats.radius);
-            ImGui::Text("Downsample Count: %u", bloomStats.downsampleCount);
-
-            ImGui::SeparatorText("Render Diagnostics");
-            if (ImGui::Button("Clear Render Errors")) {
-                DEBUGLOG::ClearRenderErrors();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Dump PostSystem")) {
-                POST::PostSystem::LogFrameState("EnvironmentPanel button");
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Dump InfoQueue")) {
-                GFX::DumpD3D12InfoQueue(SERVICES::gCtx.device, "EnvironmentPanel button");
-            }
-            const std::vector<std::string> recentErrors = DEBUGLOG::GetRecentRenderErrors(12);
-            if (recentErrors.empty()) {
-                ImGui::TextDisabled("No recent render errors.");
-            } else if (ImGui::TreeNode("Recent Render Errors")) {
-                for (const std::string& error : recentErrors) {
-                    ImGui::TextWrapped("%s", error.c_str());
-                    ImGui::Separator();
-                }
-                ImGui::TreePop();
-            }
-
-            if (skyDebugState && environment.showSkyDebugInfo) {
-                ImGui::SeparatorText("Sky Renderer State");
-                ImGui::Text("Initialized: %s", skyDebugState->initialized ? "true" : "false");
-                ImGui::Text("Render Submitted: %s", skyDebugState->lastRenderSubmitted ? "true" : "false");
-                ImGui::Text("Sky Asset Found: %s", skyDebugState->skyAssetFound ? "true" : "false");
-                ImGui::Text("Mode: %s", SkyModeName(skyDebugState->mode));
-                ImGui::Text("Cubemap Loaded: %s", skyDebugState->cubemapLoaded ? "true" : "false");
-                ImGui::Text("Using Fallback: %s", skyDebugState->usingFallback ? "true" : "false");
-                ImGui::Text("Texture Valid: %s", skyDebugState->textureValid ? "true" : "false");
-                ImGui::Text("Texture Handle / Cubemap Handle: %d / %d", skyDebugState->textureHandle, skyDebugState->cubemapHandle);
-                ImGui::Text("PSO Creates / Draws: %zu / %zu", skyDebugState->psoCreateCount, skyDebugState->drawCount);
-                ImGui::Text("Active Sky Asset: %s", skyDebugState->activeSkyAsset.c_str());
-                ImGui::Text("Active Texture: %s", skyDebugState->activeTexturePath.c_str());
+            // Debug dump は scene dirty にしない。
+            if (ImGui::Button("Dump Environment Diagnostics")) {
+                RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshot("EnvironmentPanel", &environment);
             }
             ImGui::TreePop();
         }

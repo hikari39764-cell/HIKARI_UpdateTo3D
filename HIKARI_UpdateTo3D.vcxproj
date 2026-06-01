@@ -158,6 +158,7 @@
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
@@ -372,6 +373,7 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
+    <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />

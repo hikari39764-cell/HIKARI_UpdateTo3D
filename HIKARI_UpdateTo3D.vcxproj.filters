@@ -91,6 +91,9 @@
     <Filter Include="Header Files\Render3D\Debug">
       <UniqueIdentifier>{D4230920-B950-5BD9-8A44-DC7AD29218A5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Diagnostics">
+      <UniqueIdentifier>{6C793C8D-F924-5B4B-BEC2-8075E4A5F7A8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Lighting">
       <UniqueIdentifier>{A5284DF4-6862-505D-A7C1-5D4FD7F789E9}</UniqueIdentifier>
     </Filter>
@@ -292,6 +295,9 @@
     <Filter Include="Source Files\Render3D\Debug">
       <UniqueIdentifier>{6BB723E5-CA24-58C7-A93A-C9ABF89FE291}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Render3D\Diagnostics">
+      <UniqueIdentifier>{94F8B678-5F7F-5295-8D1A-9AF8D889CB8E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Render3D\Lighting">
       <UniqueIdentifier>{C1A3C0C6-B467-522C-9581-6B8444E82C66}</UniqueIdentifier>
     </Filter>
@@ -488,6 +494,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp">
+      <Filter>Source Files\Render3D\Diagnostics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
@@ -1196,6 +1205,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
+      <Filter>Header Files\Render3D\Diagnostics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
