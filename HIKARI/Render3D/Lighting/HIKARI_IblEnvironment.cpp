@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/HIKARI_DXCheck.h"
 #include "HIKARI_DxTexture.h"
 
 namespace HIKARI::IBL {
@@ -19,10 +20,18 @@ namespace HIKARI::IBL {
             int prefilteredHandle = -1;
             int brdfLutHandle = -1;
             uint32_t prefilteredMipCount = 1;
+            uint32_t irradianceMipCount = 0;
+            uint32_t prefilteredActualMipCount = 0;
+            uint32_t brdfLutMipCount = 0;
+            DXGI_FORMAT irradianceFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT prefilteredFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT brdfLutFormat = DXGI_FORMAT_UNKNOWN;
+            bool prefilteredMipMismatch = false;
         };
 
         bool gHasLastIblKey = false;
         IblStateKey gLastIblKey{};
+        uint32_t gRequestedPrefilteredMipCount = 1;
 
         bool operator==(const IblStateKey& lhs, const IblStateKey& rhs) {
             return lhs.valid == rhs.valid &&
@@ -32,7 +41,14 @@ namespace HIKARI::IBL {
                 lhs.irradianceHandle == rhs.irradianceHandle &&
                 lhs.prefilteredHandle == rhs.prefilteredHandle &&
                 lhs.brdfLutHandle == rhs.brdfLutHandle &&
-                lhs.prefilteredMipCount == rhs.prefilteredMipCount;
+                lhs.prefilteredMipCount == rhs.prefilteredMipCount &&
+                lhs.irradianceMipCount == rhs.irradianceMipCount &&
+                lhs.prefilteredActualMipCount == rhs.prefilteredActualMipCount &&
+                lhs.brdfLutMipCount == rhs.brdfLutMipCount &&
+                lhs.irradianceFormat == rhs.irradianceFormat &&
+                lhs.prefilteredFormat == rhs.prefilteredFormat &&
+                lhs.brdfLutFormat == rhs.brdfLutFormat &&
+                lhs.prefilteredMipMismatch == rhs.prefilteredMipMismatch;
         }
 
         IblStateKey MakeIblStateKey() {
@@ -45,6 +61,13 @@ namespace HIKARI::IBL {
             key.prefilteredHandle = gData.prefilteredHandle;
             key.brdfLutHandle = gData.brdfLutHandle;
             key.prefilteredMipCount = gData.prefilteredMipCount;
+            key.irradianceMipCount = gData.irradianceMipCount;
+            key.prefilteredActualMipCount = gData.prefilteredActualMipCount;
+            key.brdfLutMipCount = gData.brdfLutMipCount;
+            key.irradianceFormat = gData.irradianceFormat;
+            key.prefilteredFormat = gData.prefilteredFormat;
+            key.brdfLutFormat = gData.brdfLutFormat;
+            key.prefilteredMipMismatch = gData.prefilteredMipMismatch;
             return key;
         }
 
@@ -65,11 +88,36 @@ namespace HIKARI::IBL {
             gData.prefilteredSrv = ResolveSrv(gData.prefilteredHandle);
             gData.brdfLutSrv = ResolveSrv(gData.brdfLutHandle);
 
+            gData.irradianceMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.irradianceHandle);
+            gData.prefilteredActualMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.prefilteredHandle);
+            gData.brdfLutMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.brdfLutHandle);
+            gData.irradianceFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.irradianceHandle);
+            gData.prefilteredFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.prefilteredHandle);
+            gData.brdfLutFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.brdfLutHandle);
+
+            // IBL は SRV だけでなく dimension/mip も満たした時だけ有効にする。
             gData.hasIrradiance = IsValidSrv(gData.irradianceSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.irradianceHandle) == DXTEX::TextureDimension::TextureCube;
+                DXTEX::DxTextureManager::GetTextureDimension(gData.irradianceHandle) == DXTEX::TextureDimension::TextureCube &&
+                gData.irradianceMipCount >= 1;
             gData.hasPrefiltered = IsValidSrv(gData.prefilteredSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.prefilteredHandle) == DXTEX::TextureDimension::TextureCube;
-            gData.hasBrdfLut = IsValidSrv(gData.brdfLutSrv);
+                DXTEX::DxTextureManager::GetTextureDimension(gData.prefilteredHandle) == DXTEX::TextureDimension::TextureCube &&
+                gData.prefilteredActualMipCount >= 2;
+            gData.hasBrdfLut = IsValidSrv(gData.brdfLutSrv) &&
+                DXTEX::DxTextureManager::GetTextureDimension(gData.brdfLutHandle) == DXTEX::TextureDimension::Texture2D &&
+                gData.brdfLutMipCount >= 1;
+
+            const uint32_t requestedMipCount = std::max<uint32_t>(1u, gRequestedPrefilteredMipCount);
+            if (gData.hasPrefiltered) {
+                gData.prefilteredMipCount = std::max<uint32_t>(
+                    1u,
+                    std::min<uint32_t>(requestedMipCount, gData.prefilteredActualMipCount));
+                gData.prefilteredMipMismatch = requestedMipCount != gData.prefilteredActualMipCount;
+            }
+            else {
+                gData.prefilteredMipCount = 1;
+                gData.prefilteredMipMismatch = false;
+            }
+
             gData.valid = gData.hasIrradiance || gData.hasPrefiltered || gData.hasBrdfLut;
         }
 
@@ -90,25 +138,36 @@ namespace HIKARI::IBL {
                 << " prefiltered=" << BoolText(gData.hasPrefiltered)
                 << " brdf=" << BoolText(gData.hasBrdfLut)
                 << " handles=" << gData.irradianceHandle << "/" << gData.prefilteredHandle << "/" << gData.brdfLutHandle
-                << " mips=" << gData.prefilteredMipCount;
+                << " mips=" << gData.prefilteredMipCount
+                << " actualMips=" << gData.irradianceMipCount << "/" << gData.prefilteredActualMipCount << "/" << gData.brdfLutMipCount
+                << " formats=" << GFX::FormatToString(gData.irradianceFormat) << "/"
+                << GFX::FormatToString(gData.prefilteredFormat) << "/"
+                << GFX::FormatToString(gData.brdfLutFormat)
+                << " mipMismatch=" << BoolText(gData.prefilteredMipMismatch);
             HIKARI_LOG_INFO(oss.str());
 
-            if (gData.irradianceHandle >= 0 && gData.irradianceSrv.ptr == 0) {
-                HIKARI_LOG_WARN("[Environment][IBL] irradiance handle has no SRV.");
+            if (gData.irradianceHandle >= 0 && !gData.hasIrradiance) {
+                HIKARI_LOG_WARN("[Environment][IBL] irradiance is invalid.");
             }
-            if (gData.prefilteredHandle >= 0 && gData.prefilteredSrv.ptr == 0) {
-                HIKARI_LOG_WARN("[Environment][IBL] prefiltered handle has no SRV.");
+            if (gData.prefilteredHandle >= 0 && !gData.hasPrefiltered) {
+                HIKARI_LOG_WARN("[Environment][IBL] prefiltered is invalid.");
             }
-            if (gData.brdfLutHandle >= 0 && gData.brdfLutSrv.ptr == 0) {
-                HIKARI_LOG_WARN("[Environment][IBL] BRDF LUT handle has no SRV.");
+            if (gData.brdfLutHandle >= 0 && !gData.hasBrdfLut) {
+                HIKARI_LOG_WARN("[Environment][IBL] BRDF LUT is invalid.");
+            }
+            if (gData.prefilteredMipMismatch) {
+                HIKARI_LOG_WARN(
+                    "[Environment][IBL] prefiltered mip count mismatch. requested=" +
+                    std::to_string(std::max<uint32_t>(1u, gRequestedPrefilteredMipCount)) +
+                    " actual=" + std::to_string(gData.prefilteredActualMipCount));
             }
         }
     }
 
     void Reset() {
         gData = {};
+        gRequestedPrefilteredMipCount = 1;
         RefreshResolvedHandles();
-        LogIblStateIfChanged();
     }
 
     void SetFromTextureHandles(
@@ -119,7 +178,7 @@ namespace HIKARI::IBL {
         gData.irradianceHandle = irradianceHandle;
         gData.prefilteredHandle = prefilteredHandle;
         gData.brdfLutHandle = brdfLutHandle;
-        gData.prefilteredMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
+        gRequestedPrefilteredMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
         RefreshResolvedHandles();
         LogIblStateIfChanged();
     }

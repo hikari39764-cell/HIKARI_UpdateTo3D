@@ -77,8 +77,13 @@ float3 HikariEvaluateAmbientIblApprox(
 
     float3 diffuse = kD * baseColor * diffuseAmbient;
 
-    float3 r = reflect(-v, n);
-    r.y = abs(r.y);
+    float3 r = normalize(reflect(-v, n));
+    uint skyMode = (uint)(gSkyMode + 0.5f);
+    if (!(skyMode == 2u && gSkyHasCubemap > 0.5f))
+    {
+        // Gradient fallback だけ上下反転を抑える。
+        r.y = abs(r.y);
+    }
 
     float3 specEnv = HikariSampleSkyEnvironment(r);
     specEnv *= max(0.0f, gSkyReflectionIntensity);
@@ -135,7 +140,7 @@ float3 HikariEvaluateAmbientIbl(
         float3 specular = 0.0f.xxx;
         if (gIblHasPrefiltered > 0.5f)
         {
-            float3 r = reflect(-v, n);
+            float3 r = normalize(reflect(-v, n));
             float mipCount = max(1.0f, gIblPrefilteredMipCount);
             float mip = roughness * (mipCount - 1.0f);
             float3 prefiltered = gIblPrefilteredTex.SampleLevel(gLinearWrap, r, mip).rgb;
@@ -152,7 +157,7 @@ float3 HikariEvaluateAmbientIbl(
         }
         else
         {
-            float3 r = reflect(-v, n);
+            float3 r = normalize(reflect(-v, n));
             float roughnessFade = 1.0f - saturate(roughness * 0.85f);
             specular = HikariSampleSkyEnvironment(r) * F * roughnessFade * max(0.0f, gSkyReflectionIntensity);
         }

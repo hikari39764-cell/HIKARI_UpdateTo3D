@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <dxgiformat.h>
 #include <string>
 
 namespace HIKARI {
@@ -31,6 +32,13 @@ namespace HIKARI {
             int prefilteredHandle = -1;
             int brdfLutHandle = -1;
             uint32_t prefilteredMipCount = 1;
+            uint32_t irradianceMipCount = 0;
+            uint32_t prefilteredActualMipCount = 0;
+            uint32_t brdfLutMipCount = 0;
+            DXGI_FORMAT irradianceFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT prefilteredFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT brdfLutFormat = DXGI_FORMAT_UNKNOWN;
+            bool prefilteredMipMismatch = false;
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;

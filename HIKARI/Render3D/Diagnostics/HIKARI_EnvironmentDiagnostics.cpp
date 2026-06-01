@@ -2,6 +2,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DXCheck.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -32,6 +33,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             int prefilteredHandle = -1;
             int brdfLutHandle = -1;
             uint32_t prefilteredMipCount = 1;
+            uint32_t irradianceMipCount = 0;
+            uint32_t prefilteredActualMipCount = 0;
+            uint32_t brdfLutMipCount = 0;
+            DXGI_FORMAT irradianceFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT prefilteredFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT brdfLutFormat = DXGI_FORMAT_UNKNOWN;
+            bool prefilteredMipMismatch = false;
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;
@@ -65,6 +73,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.prefilteredHandle == rhs.prefilteredHandle &&
                 lhs.brdfLutHandle == rhs.brdfLutHandle &&
                 lhs.prefilteredMipCount == rhs.prefilteredMipCount &&
+                lhs.irradianceMipCount == rhs.irradianceMipCount &&
+                lhs.prefilteredActualMipCount == rhs.prefilteredActualMipCount &&
+                lhs.brdfLutMipCount == rhs.brdfLutMipCount &&
+                lhs.irradianceFormat == rhs.irradianceFormat &&
+                lhs.prefilteredFormat == rhs.prefilteredFormat &&
+                lhs.brdfLutFormat == rhs.brdfLutFormat &&
+                lhs.prefilteredMipMismatch == rhs.prefilteredMipMismatch &&
                 lhs.shadowEnabled == rhs.shadowEnabled &&
                 lhs.shadowResolution == rhs.shadowResolution &&
                 lhs.bloomEnabled == rhs.bloomEnabled &&
@@ -115,6 +130,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.prefilteredHandle = snapshot.prefilteredHandle;
             key.brdfLutHandle = snapshot.brdfLutHandle;
             key.prefilteredMipCount = snapshot.prefilteredMipCount;
+            key.irradianceMipCount = snapshot.irradianceMipCount;
+            key.prefilteredActualMipCount = snapshot.prefilteredActualMipCount;
+            key.brdfLutMipCount = snapshot.brdfLutMipCount;
+            key.irradianceFormat = snapshot.irradianceFormat;
+            key.prefilteredFormat = snapshot.prefilteredFormat;
+            key.brdfLutFormat = snapshot.brdfLutFormat;
+            key.prefilteredMipMismatch = snapshot.prefilteredMipMismatch;
 
             key.shadowEnabled = snapshot.shadowEnabled;
             key.shadowResolution = snapshot.shadowResolution;
@@ -155,6 +177,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.prefilteredHandle = ibl.prefilteredHandle;
         snapshot.brdfLutHandle = ibl.brdfLutHandle;
         snapshot.prefilteredMipCount = ibl.prefilteredMipCount;
+        snapshot.irradianceMipCount = ibl.irradianceMipCount;
+        snapshot.prefilteredActualMipCount = ibl.prefilteredActualMipCount;
+        snapshot.brdfLutMipCount = ibl.brdfLutMipCount;
+        snapshot.irradianceFormat = ibl.irradianceFormat;
+        snapshot.prefilteredFormat = ibl.prefilteredFormat;
+        snapshot.brdfLutFormat = ibl.brdfLutFormat;
+        snapshot.prefilteredMipMismatch = ibl.prefilteredMipMismatch;
 
         const SHADOW::ShadowMapDebugStats& shadow = SHADOW::GetDebugStats();
         snapshot.shadowEnabled = shadow.enabled && SHADOW::IsDirectionalShadowEnabled();
@@ -227,7 +256,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " irradianceHandle=" << snapshot.irradianceHandle
                 << " prefilteredHandle=" << snapshot.prefilteredHandle
                 << " brdfHandle=" << snapshot.brdfLutHandle
-                << " mips=" << snapshot.prefilteredMipCount;
+                << " mips=" << snapshot.prefilteredMipCount
+                << " actualMips=" << snapshot.irradianceMipCount << "/"
+                << snapshot.prefilteredActualMipCount << "/"
+                << snapshot.brdfLutMipCount
+                << " formats=" << GFX::FormatToString(snapshot.irradianceFormat) << "/"
+                << GFX::FormatToString(snapshot.prefilteredFormat) << "/"
+                << GFX::FormatToString(snapshot.brdfLutFormat)
+                << " mipMismatch=" << BoolText(snapshot.prefilteredMipMismatch);
             LogInfoLine(oss.str());
         }
         {
@@ -283,6 +319,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (!snapshot.iblValid) {
             LogWarnLine("[EnvironmentDiagnostics][IBL] IBL is invalid or incomplete.");
         }
+        if (snapshot.prefilteredMipMismatch) {
+            LogWarnLine("[EnvironmentDiagnostics][IBL] prefiltered mip count mismatch.");
+        }
         if (snapshot.bloomFailed) {
             LogWarnLine("[EnvironmentDiagnostics][Bloom] bloom is in failed state.");
         }
@@ -326,10 +365,13 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
     }
 
     const char* ResolveIblSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot) {
-        if (snapshot.iblValid) {
+        if (snapshot.prefilteredMipMismatch) {
+            return "IBL Mip Mismatch";
+        }
+        if (snapshot.iblValid && snapshot.iblHasPrefiltered && snapshot.iblHasBrdfLut) {
             return "IBL Ready";
         }
-        if (snapshot.iblHasIrradiance || snapshot.iblHasPrefiltered || snapshot.iblHasBrdfLut) {
+        if (snapshot.iblValid || snapshot.iblHasIrradiance || snapshot.iblHasPrefiltered || snapshot.iblHasBrdfLut) {
             return "IBL Partial";
         }
         return "IBL Missing";

@@ -194,11 +194,7 @@ namespace HIKARI::MESHRENDERER {
             return srv;
         }
 
-        const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv(fallbackTextureHandle);
-        if (skyCubeSrv.ptr != 0) {
-            return skyCubeSrv;
-        }
-
+        // Sky cubemap を prefiltered IBL の代替として扱わない。
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
     }
 

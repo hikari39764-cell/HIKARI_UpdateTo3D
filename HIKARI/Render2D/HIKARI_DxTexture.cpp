@@ -237,6 +237,8 @@ namespace HIKARI {
 
         std::vector<ComPtr<ID3D12Resource>>       DxTextureManager::textures_;
         std::vector<TextureDimension>             DxTextureManager::dimensions_;
+        std::vector<UINT>                         DxTextureManager::mipCounts_;
+        std::vector<DXGI_FORMAT>                  DxTextureManager::formats_;
         std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvCpu_;
         std::vector<D3D12_GPU_DESCRIPTOR_HANDLE>  DxTextureManager::srvGpu_;
         std::vector<bool>                         DxTextureManager::pendingRelease_;
@@ -297,6 +299,8 @@ namespace HIKARI {
             srvGpu_.resize(maxTextures);
             textures_.resize(maxTextures);
             dimensions_.resize(maxTextures, TextureDimension::Texture2D);
+            mipCounts_.resize(maxTextures, 0);
+            formats_.resize(maxTextures, DXGI_FORMAT_UNKNOWN);
             pendingRelease_.resize(maxTextures, false);
             descriptorAllocator_.Initialize(
                 GFX::DESCRIPTOR::kUserSrvBegin,
@@ -326,6 +330,8 @@ namespace HIKARI {
 
             textures_.clear();
             dimensions_.clear();
+            mipCounts_.clear();
+            formats_.clear();
             srvCpu_.clear();
             srvGpu_.clear();
             pendingRelease_.clear();
@@ -579,6 +585,8 @@ namespace HIKARI {
 
             const DXGI_FORMAT resourceFormat = texResource->GetDesc().Format;
             const DXGI_FORMAT srvFormat = ResolveSrvFormat(resourceFormat, colorSpace);
+            mipCounts_[handle] = std::max<UINT>(1u, static_cast<UINT>(texResource->GetDesc().MipLevels));
+            formats_[handle] = srvFormat;
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             srvDesc.Format = srvFormat;
@@ -1067,6 +1075,8 @@ namespace HIKARI {
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             auto desc = resource->GetDesc();
+            mipCounts_[handle] = std::max<UINT>(1u, static_cast<UINT>(desc.MipLevels));
+            formats_[handle] = srvFormat;
             srvDesc.Format = srvFormat;
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1114,6 +1124,8 @@ namespace HIKARI {
 
             textures_[handle] = resource;
             dimensions_[handle] = TextureDimension::TextureCube;
+            mipCounts_[handle] = std::max<UINT>(1u, static_cast<UINT>(desc.MipLevels));
+            formats_[handle] = srvFormat;
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             srvDesc.Format = srvFormat;
@@ -1149,6 +1161,8 @@ namespace HIKARI {
                 textures_[handle].Reset();
             }
             dimensions_[handle] = TextureDimension::Texture2D;
+            mipCounts_[handle] = 0;
+            formats_[handle] = DXGI_FORMAT_UNKNOWN;
 
             RemoveCacheEntriesForHandle(nameToHandle_, handle);
             descriptorAllocator_.Free(slot);
@@ -1179,6 +1193,8 @@ namespace HIKARI {
             Microsoft::WRL::ComPtr<ID3D12Resource> resourceToRelease = textures_[handle];
             textures_[handle].Reset();
             dimensions_[handle] = TextureDimension::Texture2D;
+            mipCounts_[handle] = 0;
+            formats_[handle] = DXGI_FORMAT_UNKNOWN;
             pendingRelease_[handle] = true;
             RemoveCacheEntriesForHandle(nameToHandle_, handle);
 
@@ -1298,6 +1314,38 @@ namespace HIKARI {
                 return TextureDimension::Texture2D;
             }
             return dimensions_[handle];
+        }
+
+        UINT DxTextureManager::GetTextureMipCount(int handle) {
+            if (!initialized_ || handle < 0 || handle >= static_cast<int>(mipCounts_.size())) {
+                return 0;
+            }
+
+            if (handle >= static_cast<int>(textures_.size()) || !textures_[handle]) {
+                return 0;
+            }
+
+            if (handle < static_cast<int>(pendingRelease_.size()) && pendingRelease_[handle]) {
+                return 0;
+            }
+
+            return mipCounts_[handle];
+        }
+
+        DXGI_FORMAT DxTextureManager::GetTextureFormat(int handle) {
+            if (!initialized_ || handle < 0 || handle >= static_cast<int>(formats_.size())) {
+                return DXGI_FORMAT_UNKNOWN;
+            }
+
+            if (handle >= static_cast<int>(textures_.size()) || !textures_[handle]) {
+                return DXGI_FORMAT_UNKNOWN;
+            }
+
+            if (handle < static_cast<int>(pendingRelease_.size()) && pendingRelease_[handle]) {
+                return DXGI_FORMAT_UNKNOWN;
+            }
+
+            return formats_[handle];
         }
 
 

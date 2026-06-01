@@ -56,6 +56,8 @@ namespace HIKARI {
             static ID3D12DescriptorHeap* GetSrvHeap();
             static void GetTextureSize(int handle, UINT& outWidth, UINT& outHeight);
             static TextureDimension GetTextureDimension(int handle);
+            static UINT GetTextureMipCount(int handle);
+            static DXGI_FORMAT GetTextureFormat(int handle);
 
         private:
             static void EnsureInit();
@@ -84,6 +86,8 @@ namespace HIKARI {
             static uint64_t uploadFenceValue_;
             static std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures_;
             static std::vector<TextureDimension> dimensions_;
+            static std::vector<UINT> mipCounts_;
+            static std::vector<DXGI_FORMAT> formats_;
             static std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvCpu_;
             static std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvGpu_;
             static std::vector<bool> pendingRelease_;
