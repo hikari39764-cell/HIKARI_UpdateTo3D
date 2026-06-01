@@ -131,7 +131,7 @@ namespace HIKARI::MESHRENDERER {
         out.texelSizeY = 1.0f / resolution;
     }
 
-    void FillSkyEnvironmentCB(SkyEnvironmentCB& out) {
+    void FillSkyEnvironmentCB(const SceneEnvironment& environment, SkyEnvironmentCB& out) {
         out = {};
         const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
         out.iblParams = {
@@ -141,6 +141,7 @@ namespace HIKARI::MESHRENDERER {
             static_cast<float>(std::max<uint32_t>(1u, iblData.prefilteredMipCount))
         };
         const REFLECTION::ReflectionProbeRuntimeData& probeData = REFLECTION::GetActiveProbe();
+        const bool hasSharedBrdf = probeData.hasBrdfLut || iblData.hasBrdfLut;
         out.reflectionProbePositionRadius = {
             probeData.position.x,
             probeData.position.y,
@@ -148,15 +149,21 @@ namespace HIKARI::MESHRENDERER {
             std::max(0.001f, probeData.radius)
         };
         out.reflectionProbeParams = {
-            probeData.enabled ? 1.0f : 0.0f,
+            probeData.valid ? 1.0f : 0.0f,
             probeData.hasPrefiltered ? 1.0f : 0.0f,
-            probeData.hasBrdfLut ? 1.0f : 0.0f,
+            hasSharedBrdf ? 1.0f : 0.0f,
             static_cast<float>(std::max<uint32_t>(1u, probeData.prefilteredMipCount))
         };
         out.reflectionProbeIntensity = {
             std::max(0.0f, probeData.intensity),
             0.0f,
             0.0f,
+            0.0f
+        };
+        out.aoParams = {
+            environment.ambientOcclusion.enabled ? 1.0f : 0.0f,
+            std::clamp(environment.ambientOcclusion.diffuseStrength, 0.0f, 1.0f),
+            std::clamp(environment.ambientOcclusion.specularStrength, 0.0f, 1.0f),
             0.0f
         };
 

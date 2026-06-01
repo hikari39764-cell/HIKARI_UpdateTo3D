@@ -55,6 +55,7 @@ float3 HikariEvaluateAmbientIblApprox(
     float metallic,
     float roughness,
     float occlusion,
+    float screenAo,
     float3 n,
     float3 v)
 {
@@ -93,7 +94,11 @@ float3 HikariEvaluateAmbientIblApprox(
     float roughnessFade = 1.0f - saturate(roughness * 0.85f);
     float3 specular = specEnv * F * roughnessFade;
 
-    return (diffuse + specular) * occlusion;
+    float materialAo = saturate(occlusion);
+    float ssao = saturate(screenAo);
+    float diffuseAo = materialAo * lerp(1.0f, ssao, saturate(gSsaoDiffuseStrength));
+    float specularAo = lerp(1.0f, materialAo * ssao, saturate(roughness * roughness) * saturate(gSsaoSpecularStrength));
+    return diffuse * diffuseAo + specular * specularAo;
 }
 
 float3 HikariEvaluateAmbientIbl(
@@ -101,6 +106,7 @@ float3 HikariEvaluateAmbientIbl(
     float metallic,
     float roughness,
     float occlusion,
+    float screenAo,
     float3 n,
     float3 v,
     float3 worldPos)
@@ -115,6 +121,7 @@ float3 HikariEvaluateAmbientIbl(
             metallic,
             roughness,
             occlusion,
+            screenAo,
             n,
             v);
     }
@@ -188,7 +195,11 @@ float3 HikariEvaluateAmbientIbl(
             specular = (skySpecular + probeSpecular * probeWeight) / max(1.0f + probeWeight, 0.0001f);
         }
 
-        result = (diffuse + specular) * occlusion;
+        float materialAo = saturate(occlusion);
+        float ssao = saturate(screenAo);
+        float diffuseAo = materialAo * lerp(1.0f, ssao, saturate(gSsaoDiffuseStrength));
+        float specularAo = lerp(1.0f, materialAo * ssao, saturate(roughness * roughness) * saturate(gSsaoSpecularStrength));
+        result = diffuse * diffuseAo + specular * specularAo;
     }
 
     return result;

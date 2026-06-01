@@ -27,6 +27,8 @@ namespace HIKARI::GFX::PIX {
             bool capturerLoadAttempted = false;
             bool capturerLoaded = false;
             bool eventMarkersEnabled = false;
+            bool eventMarkerApiFailed = false;
+            uint32_t eventMarkerFailureCount = 0;
             bool emitEvents = false;
             uint32_t emitEventFramesRemaining = 0;
             bool autoOpenPending = false;
@@ -65,7 +67,7 @@ namespace HIKARI::GFX::PIX {
         }
 
         bool ShouldEmitPixEvents() {
-            return gPix.capturerLoaded && gPix.eventMarkersEnabled && gPix.emitEvents;
+            return gPix.capturerLoaded && gPix.eventMarkersEnabled && !gPix.eventMarkerApiFailed && gPix.emitEvents;
         }
 
         void StopPixEventEmission() {
@@ -74,6 +76,10 @@ namespace HIKARI::GFX::PIX {
         }
 
         void ArmPixEventEmission(uint32_t frameCount) {
+            if (gPix.eventMarkerApiFailed) {
+                StopPixEventEmission();
+                return;
+            }
             if (!gPix.eventMarkersEnabled) {
                 StopPixEventEmission();
                 return;
@@ -82,6 +88,41 @@ namespace HIKARI::GFX::PIX {
             gPix.emitEvents = true;
             gPix.emitEventFramesRemaining = frameCount;
         }
+
+        void DisablePixEventMarkersAfterException(const char* apiName) {
+            ++gPix.eventMarkerFailureCount;
+            gPix.eventMarkersEnabled = false;
+            gPix.eventMarkerApiFailed = true;
+            StopPixEventEmission();
+
+            std::string message = "PIX event markers disabled after PIX runtime exception";
+            if (apiName != nullptr && apiName[0] != '\0') {
+                message += " in ";
+                message += apiName;
+            }
+            message += ". Capture files still work.";
+
+            SetStatus(message);
+            HIKARI_LOG_WARN("[PIX] " + message);
+        }
+
+#if defined(HIKARI_ENABLE_PIX)
+        template <typename Callback>
+        bool InvokePixEventApi(const char* apiName, Callback&& callback) {
+            if (!ShouldEmitPixEvents()) {
+                return false;
+            }
+
+            try {
+                callback();
+                return true;
+            } catch (...) {
+                // PIX Runtime 側の例外が毎フレーム流れないように、マーカーだけを即座に止める。
+                DisablePixEventMarkersAfterException(apiName);
+                return false;
+            }
+        }
+#endif
 
 #if defined(HIKARI_ENABLE_PIX)
         bool IsDeferredCapturerLoadRequested() {
@@ -321,6 +362,10 @@ namespace HIKARI::GFX::PIX {
 
     void SetEventMarkersEnabled(bool enabled) {
         gPix.eventMarkersEnabled = enabled;
+        if (enabled) {
+            gPix.eventMarkerApiFailed = false;
+            gPix.eventMarkerFailureCount = 0;
+        }
         if (!enabled) {
             StopPixEventEmission();
             SetStatus("PIX event markers disabled. Captures still work without per-frame markers.");
@@ -367,7 +412,7 @@ namespace HIKARI::GFX::PIX {
         gPix.autoOpenStableFrameCount = 0;
         gPix.autoOpenLastFileSize = 0;
         // PIXイベントは高頻度APIなので、必要な時だけ明示的に有効化する。
-        ArmPixEventEmission(frameCount + 120);
+        ArmPixEventEmission(frameCount);
         const std::string markerMode = gPix.eventMarkersEnabled ? " eventMarkers=on" : " eventMarkers=off";
         SetStatus("PIX capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);
         HIKARI_LOG_INFO("[PIX] capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);
@@ -416,9 +461,9 @@ namespace HIKARI::GFX::PIX {
 
     void BeginCpuEvent(uint64_t color, const char* name) {
 #if defined(HIKARI_ENABLE_PIX)
-        if (ShouldEmitPixEvents()) {
+        InvokePixEventApi("PIXBeginEvent(cpu)", [&]() {
             PIXBeginEvent(color, name ? name : "<unnamed>");
-        }
+        });
 #else
         (void)color;
         (void)name;
@@ -427,17 +472,17 @@ namespace HIKARI::GFX::PIX {
 
     void EndCpuEvent() {
 #if defined(HIKARI_ENABLE_PIX)
-        if (ShouldEmitPixEvents()) {
+        InvokePixEventApi("PIXEndEvent(cpu)", [&]() {
             PIXEndEvent();
-        }
+        });
 #endif
     }
 
     void SetCpuMarker(uint64_t color, const char* name) {
 #if defined(HIKARI_ENABLE_PIX)
-        if (ShouldEmitPixEvents()) {
+        InvokePixEventApi("PIXSetMarker(cpu)", [&]() {
             PIXSetMarker(color, name ? name : "<unnamed>");
-        }
+        });
 #else
         (void)color;
         (void)name;
@@ -446,8 +491,10 @@ namespace HIKARI::GFX::PIX {
 
     void BeginGpuEvent(ID3D12GraphicsCommandList* cmd, uint64_t color, const char* name) {
 #if defined(HIKARI_ENABLE_PIX)
-        if (cmd != nullptr && ShouldEmitPixEvents()) {
-            PIXBeginEvent(cmd, color, name ? name : "<unnamed>");
+        if (cmd != nullptr) {
+            InvokePixEventApi("PIXBeginEvent(gpu)", [&]() {
+                PIXBeginEvent(cmd, color, name ? name : "<unnamed>");
+            });
         }
 #else
         (void)cmd;
@@ -458,8 +505,10 @@ namespace HIKARI::GFX::PIX {
 
     void EndGpuEvent(ID3D12GraphicsCommandList* cmd) {
 #if defined(HIKARI_ENABLE_PIX)
-        if (cmd != nullptr && ShouldEmitPixEvents()) {
-            PIXEndEvent(cmd);
+        if (cmd != nullptr) {
+            InvokePixEventApi("PIXEndEvent(gpu)", [&]() {
+                PIXEndEvent(cmd);
+            });
         }
 #else
         (void)cmd;
@@ -468,8 +517,10 @@ namespace HIKARI::GFX::PIX {
 
     void SetGpuMarker(ID3D12GraphicsCommandList* cmd, uint64_t color, const char* name) {
 #if defined(HIKARI_ENABLE_PIX)
-        if (cmd != nullptr && ShouldEmitPixEvents()) {
-            PIXSetMarker(cmd, color, name ? name : "<unnamed>");
+        if (cmd != nullptr) {
+            InvokePixEventApi("PIXSetMarker(gpu)", [&]() {
+                PIXSetMarker(cmd, color, name ? name : "<unnamed>");
+            });
         }
 #else
         (void)cmd;
@@ -481,7 +532,7 @@ namespace HIKARI::GFX::PIX {
     ScopedCpuEvent::ScopedCpuEvent(uint64_t color, const char* name) {
         if (ShouldEmitPixEvents()) {
             BeginCpuEvent(color, name);
-            active_ = true;
+            active_ = ShouldEmitPixEvents();
         }
     }
 
@@ -495,7 +546,7 @@ namespace HIKARI::GFX::PIX {
         : cmd_(cmd) {
         if (cmd_ != nullptr && ShouldEmitPixEvents()) {
             BeginGpuEvent(cmd_, color, name);
-            active_ = true;
+            active_ = ShouldEmitPixEvents();
         }
     }
 

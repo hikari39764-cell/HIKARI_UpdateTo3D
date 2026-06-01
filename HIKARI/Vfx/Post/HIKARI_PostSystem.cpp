@@ -863,6 +863,16 @@ namespace HIKARI {
             return true;
         }
 
+        D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::GetCurrentRenderTargetDsv()
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE handle{};
+            if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                return handle;
+            }
+
+            return rtStack_.top().rt->GetDsvHandle();
+        }
+
         bool PostSystem::BeginCurrentRenderTargetDepthRead()
         {
             if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {

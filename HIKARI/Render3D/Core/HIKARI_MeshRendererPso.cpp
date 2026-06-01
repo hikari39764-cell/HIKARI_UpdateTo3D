@@ -232,6 +232,11 @@ namespace HIKARI::MESHRENDERER {
             if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
             return false;
         }
+        err.Reset();
+        if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, store.geometryPsBlob.GetAddressOf(), err.GetAddressOf()))) {
+            if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+            return false;
+        }
 
         D3D12_DESCRIPTOR_RANGE textureRange{};
         textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -324,7 +329,14 @@ namespace HIKARI::MESHRENDERER {
         reflectionProbePrefilteredRange.RegisterSpace = 0;
         reflectionProbePrefilteredRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[18]{};
+        D3D12_DESCRIPTOR_RANGE ssaoRange{};
+        ssaoRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        ssaoRange.NumDescriptors = 1;
+        ssaoRange.BaseShaderRegister = 13;
+        ssaoRange.RegisterSpace = 0;
+        ssaoRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[19]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -415,6 +427,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::ReflectionProbePrefiltered].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::ReflectionProbePrefiltered].DescriptorTable.pDescriptorRanges = &reflectionProbePrefilteredRange;
 
+        params[ROOT_PARAM::Ssao].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::Ssao].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        params[ROOT_PARAM::Ssao].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::Ssao].DescriptorTable.pDescriptorRanges = &ssaoRange;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -459,7 +476,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[19]{};
+        D3D12_ROOT_PARAMETER skinnedParams[20]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }
@@ -532,6 +549,24 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC geometryPsoDesc = psoDesc;
+        geometryPsoDesc.PS = { store.geometryPsBlob->GetBufferPointer(), store.geometryPsBlob->GetBufferSize() };
+        geometryPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        geometryPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        geometryPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        geometryPsoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        if (FAILED(device->CreateGraphicsPipelineState(&geometryPsoDesc, IID_PPV_ARGS(store.geometryPso.GetAddressOf())))) {
+            return false;
+        }
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC geometrySkinnedPsoDesc = geometryPsoDesc;
+        geometrySkinnedPsoDesc.pRootSignature = store.skinnedRootSig.Get();
+        geometrySkinnedPsoDesc.VS = { store.skinnedVsBlob->GetBufferPointer(), store.skinnedVsBlob->GetBufferSize() };
+        geometrySkinnedPsoDesc.InputLayout = { skinnedInputElements, static_cast<UINT>(std::size(skinnedInputElements)) };
+        if (FAILED(device->CreateGraphicsPipelineState(&geometrySkinnedPsoDesc, IID_PPV_ARGS(store.geometrySkinnedPso.GetAddressOf())))) {
+            return false;
+        }
+
         store.psBlobCache["StaticLit"] = store.psBlob;
         return true;
     }
@@ -545,11 +580,14 @@ namespace HIKARI::MESHRENDERER {
         store.vsBlobCache.clear();
         store.pso.Reset();
         store.skinnedPso.Reset();
+        store.geometryPso.Reset();
+        store.geometrySkinnedPso.Reset();
         store.rootSig.Reset();
         store.skinnedRootSig.Reset();
         store.vsBlob.Reset();
         store.skinnedVsBlob.Reset();
         store.psBlob.Reset();
+        store.geometryPsBlob.Reset();
     }
 
     ID3D12RootSignature* GetStaticRootSignature(MeshPipelineStore& store) {
@@ -558,6 +596,10 @@ namespace HIKARI::MESHRENDERER {
 
     ID3D12RootSignature* GetSkinnedRootSignature(MeshPipelineStore& store) {
         return store.skinnedRootSig.Get();
+    }
+
+    ID3D12PipelineState* GetGeometryPso(MeshPipelineStore& store, bool skinned) {
+        return skinned ? store.geometrySkinnedPso.Get() : store.geometryPso.Get();
     }
 
     ID3D12PipelineState* GetOrCreateVariantPso(

@@ -106,6 +106,9 @@
     <Filter Include="Header Files\Render3D\Reflection">
       <UniqueIdentifier>{96D617F8-6DE6-4CC7-8D57-D34468F52280}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\ScreenSpace">
+      <UniqueIdentifier>{4A8938E6-785A-4619-8BEE-878FA3DB0831}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Shadow">
       <UniqueIdentifier>{7B8DB028-C4E2-5EF6-9581-41E384A4F362}</UniqueIdentifier>
     </Filter>
@@ -313,6 +316,9 @@
     <Filter Include="Source Files\Render3D\Reflection">
       <UniqueIdentifier>{A68E5B82-37E8-432F-9199-F8085C3D081B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Render3D\ScreenSpace">
+      <UniqueIdentifier>{8650D545-304C-4A6D-BF9D-92CFCE9D6FD7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Render3D\Shadow">
       <UniqueIdentifier>{92D6DF23-C71A-5E90-BCDE-2559131213D9}</UniqueIdentifier>
     </Filter>
@@ -503,6 +509,12 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp">
       <Filter>Source Files\Render3D\Reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp">
+      <Filter>Source Files\Render3D\ScreenSpace</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.cpp">
+      <Filter>Source Files\Render3D\ScreenSpace</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp">
       <Filter>Source Files\Render3D\Diagnostics</Filter>
@@ -1221,6 +1233,12 @@
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
       <Filter>Header Files\Render3D\Diagnostics</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h">
+      <Filter>Header Files\Render3D\ScreenSpace</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.h">
+      <Filter>Header Files\Render3D\ScreenSpace</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
@@ -1615,6 +1633,9 @@
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Render3D_GeometryBufferPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
@@ -1658,6 +1679,12 @@
       <Filter>Project\Shaders\Post\Bloom</Filter>
     </None>
     <None Include="HIKARI\Shaders\Post_FXAA.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_SSAOPS.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Post_SSAOBlurPS.hlsl">
       <Filter>Project\Shaders\Post</Filter>
     </None>
     <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl">

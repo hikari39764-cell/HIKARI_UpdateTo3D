@@ -34,6 +34,7 @@
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
+    float4x4 gInvViewProj;
     float4 gCameraPos;
     float4 gTimeParams;
     float4 gScreenParams;

@@ -36,6 +36,7 @@ namespace HIKARI::REFLECTION {
             std::string sourceAssetId{};
             std::string prefilteredPath{};
             std::string brdfLutPath{};
+            MATH::Vec3 position{};
             float radius = 0.0f;
             float intensity = 0.0f;
         };
@@ -60,6 +61,9 @@ namespace HIKARI::REFLECTION {
                 lhs.sourceAssetId == rhs.sourceAssetId &&
                 lhs.prefilteredPath == rhs.prefilteredPath &&
                 lhs.brdfLutPath == rhs.brdfLutPath &&
+                lhs.position.x == rhs.position.x &&
+                lhs.position.y == rhs.position.y &&
+                lhs.position.z == rhs.position.z &&
                 lhs.radius == rhs.radius &&
                 lhs.intensity == rhs.intensity;
         }
@@ -89,6 +93,7 @@ namespace HIKARI::REFLECTION {
             key.sourceAssetId = gData.sourceAssetId;
             key.prefilteredPath = gData.prefilteredPath;
             key.brdfLutPath = gData.brdfLutPath;
+            key.position = gData.position;
             key.radius = gData.radius;
             key.intensity = gData.intensity;
             return key;
@@ -146,6 +151,7 @@ namespace HIKARI::REFLECTION {
                 << " actualMips=" << gData.prefilteredActualMipCount << "/" << gData.brdfLutMipCount
                 << " formats=" << GFX::FormatToString(gData.prefilteredFormat) << "/"
                 << GFX::FormatToString(gData.brdfLutFormat)
+                << " position=" << gData.position.x << "," << gData.position.y << "," << gData.position.z
                 << " radius=" << gData.radius
                 << " intensity=" << gData.intensity
                 << " source=" << gData.sourceAssetId

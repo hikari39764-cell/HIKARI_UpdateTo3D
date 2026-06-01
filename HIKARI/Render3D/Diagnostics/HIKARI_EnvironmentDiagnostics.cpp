@@ -7,6 +7,7 @@
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -58,6 +59,19 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             float reflectionProbeIntensity = 0.0f;
             std::string reflectionProbeSourceAssetId{};
             std::string reflectionProbePrefilteredPath{};
+            float reflectionProbePositionX = 0.0f;
+            float reflectionProbePositionY = 0.0f;
+            float reflectionProbePositionZ = 0.0f;
+
+            bool ssaoEnabled = false;
+            bool ssaoValid = false;
+            uint32_t ssaoWidth = 0;
+            uint32_t ssaoHeight = 0;
+            uint32_t ssaoSampleCount = 0;
+            uint32_t ssaoBlurIterations = 0;
+            float ssaoRadius = 0.0f;
+            float ssaoStrength = 0.0f;
+            float ssaoPower = 0.0f;
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;
@@ -114,6 +128,18 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.reflectionProbeIntensity == rhs.reflectionProbeIntensity &&
                 lhs.reflectionProbeSourceAssetId == rhs.reflectionProbeSourceAssetId &&
                 lhs.reflectionProbePrefilteredPath == rhs.reflectionProbePrefilteredPath &&
+                lhs.reflectionProbePositionX == rhs.reflectionProbePositionX &&
+                lhs.reflectionProbePositionY == rhs.reflectionProbePositionY &&
+                lhs.reflectionProbePositionZ == rhs.reflectionProbePositionZ &&
+                lhs.ssaoEnabled == rhs.ssaoEnabled &&
+                lhs.ssaoValid == rhs.ssaoValid &&
+                lhs.ssaoWidth == rhs.ssaoWidth &&
+                lhs.ssaoHeight == rhs.ssaoHeight &&
+                lhs.ssaoSampleCount == rhs.ssaoSampleCount &&
+                lhs.ssaoBlurIterations == rhs.ssaoBlurIterations &&
+                lhs.ssaoRadius == rhs.ssaoRadius &&
+                lhs.ssaoStrength == rhs.ssaoStrength &&
+                lhs.ssaoPower == rhs.ssaoPower &&
                 lhs.shadowEnabled == rhs.shadowEnabled &&
                 lhs.shadowResolution == rhs.shadowResolution &&
                 lhs.bloomEnabled == rhs.bloomEnabled &&
@@ -188,6 +214,19 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.reflectionProbeIntensity = snapshot.reflectionProbeIntensity;
             key.reflectionProbeSourceAssetId = snapshot.reflectionProbeSourceAssetId;
             key.reflectionProbePrefilteredPath = snapshot.reflectionProbePrefilteredPath;
+            key.reflectionProbePositionX = snapshot.reflectionProbePositionX;
+            key.reflectionProbePositionY = snapshot.reflectionProbePositionY;
+            key.reflectionProbePositionZ = snapshot.reflectionProbePositionZ;
+
+            key.ssaoEnabled = snapshot.ssaoEnabled;
+            key.ssaoValid = snapshot.ssaoValid;
+            key.ssaoWidth = snapshot.ssaoWidth;
+            key.ssaoHeight = snapshot.ssaoHeight;
+            key.ssaoSampleCount = snapshot.ssaoSampleCount;
+            key.ssaoBlurIterations = snapshot.ssaoBlurIterations;
+            key.ssaoRadius = snapshot.ssaoRadius;
+            key.ssaoStrength = snapshot.ssaoStrength;
+            key.ssaoPower = snapshot.ssaoPower;
 
             key.shadowEnabled = snapshot.shadowEnabled;
             key.shadowResolution = snapshot.shadowResolution;
@@ -253,6 +292,20 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.reflectionProbeIntensity = probe.intensity;
         snapshot.reflectionProbeSourceAssetId = probe.sourceAssetId;
         snapshot.reflectionProbePrefilteredPath = probe.prefilteredPath;
+        snapshot.reflectionProbePositionX = probe.position.x;
+        snapshot.reflectionProbePositionY = probe.position.y;
+        snapshot.reflectionProbePositionZ = probe.position.z;
+
+        const SCREENSPACE::SsaoDebugState& ssao = SCREENSPACE::GetSsaoDebugState();
+        snapshot.ssaoEnabled = ssao.enabled;
+        snapshot.ssaoValid = ssao.valid;
+        snapshot.ssaoWidth = ssao.width;
+        snapshot.ssaoHeight = ssao.height;
+        snapshot.ssaoSampleCount = ssao.sampleCount;
+        snapshot.ssaoBlurIterations = ssao.blurIterations;
+        snapshot.ssaoRadius = ssao.radius;
+        snapshot.ssaoStrength = ssao.strength;
+        snapshot.ssaoPower = ssao.power;
 
         const SHADOW::ShadowMapDebugStats& shadow = SHADOW::GetDebugStats();
         snapshot.shadowEnabled = shadow.enabled && SHADOW::IsDirectionalShadowEnabled();
@@ -352,8 +405,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " mipMismatch=" << BoolText(snapshot.reflectionProbeMipMismatch)
                 << " radius=" << snapshot.reflectionProbeRadius
                 << " intensity=" << snapshot.reflectionProbeIntensity
+                << " position=" << snapshot.reflectionProbePositionX << ","
+                << snapshot.reflectionProbePositionY << ","
+                << snapshot.reflectionProbePositionZ
                 << " source=" << snapshot.reflectionProbeSourceAssetId
                 << " prefilteredPath=" << snapshot.reflectionProbePrefilteredPath;
+            LogInfoLine(oss.str());
+        }
+        {
+            std::ostringstream oss;
+            oss << "[EnvironmentDiagnostics][SSAO]"
+                << " enabled=" << BoolText(snapshot.ssaoEnabled)
+                << " valid=" << BoolText(snapshot.ssaoValid)
+                << " size=" << snapshot.ssaoWidth << "x" << snapshot.ssaoHeight
+                << " samples=" << snapshot.ssaoSampleCount
+                << " blur=" << snapshot.ssaoBlurIterations
+                << " radius=" << snapshot.ssaoRadius
+                << " strength=" << snapshot.ssaoStrength
+                << " power=" << snapshot.ssaoPower;
             LogInfoLine(oss.str());
         }
         {
@@ -417,6 +486,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         }
         if (snapshot.reflectionProbeMipMismatch) {
             LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] prefiltered mip count mismatch.");
+        }
+        if (snapshot.ssaoEnabled && !snapshot.ssaoValid) {
+            LogWarnLine("[EnvironmentDiagnostics][SSAO] SSAO is enabled but the runtime texture is invalid.");
         }
         if (snapshot.bloomFailed) {
             LogWarnLine("[EnvironmentDiagnostics][Bloom] bloom is in failed state.");
@@ -487,6 +559,16 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             return "Probe Partial";
         }
         return "Probe Missing";
+    }
+
+    const char* ResolveSsaoSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot) {
+        if (!snapshot.ssaoEnabled) {
+            return "AO Off";
+        }
+        if (snapshot.ssaoValid) {
+            return "AO Ready";
+        }
+        return "AO Missing";
     }
 
 } // namespace HIKARI::RENDER3D::DIAGNOSTICS

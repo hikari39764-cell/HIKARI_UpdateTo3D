@@ -68,6 +68,7 @@ namespace HIKARI {
             // --- 场景捕获 ---
             static void BeginSceneCapture();
             static bool RebindCurrentRenderTarget();
+            static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDsv();
             static bool BeginCurrentRenderTargetDepthRead();
             static void EndCurrentRenderTargetDepthRead();
             static void EndSceneCaptureAndPresent(); // 这里会自动应用光照合成

@@ -82,6 +82,18 @@ namespace HIKARI {
         float intensity = 1.0f;
     };
 
+    struct AmbientOcclusionSettings {
+        bool enabled = false;
+        float radius = 0.6f;
+        float bias = 0.025f;
+        float strength = 1.0f;
+        float power = 1.5f;
+        float diffuseStrength = 1.0f;
+        float specularStrength = 0.5f;
+        uint32_t sampleCount = 16;
+        uint32_t blurIterations = 2;
+    };
+
     struct BloomSettings {
         bool enabled = true;
         float threshold = 1.0f;
@@ -137,6 +149,7 @@ namespace HIKARI {
         std::vector<PointLight> pointLights{};
         SkySettings sky{};
         ReflectionProbeSettings reflectionProbe{};
+        AmbientOcclusionSettings ambientOcclusion{};
         BloomSettings bloom{};
         FogSettings fog{};
         ToneMappingSettings toneMapping{};

@@ -136,6 +136,16 @@ namespace HIKARI {
             out["reflectionProbe"]["radius"] = environment.reflectionProbe.radius;
             out["reflectionProbe"]["intensity"] = environment.reflectionProbe.intensity;
 
+            out["ambientOcclusion"]["enabled"] = environment.ambientOcclusion.enabled;
+            out["ambientOcclusion"]["radius"] = environment.ambientOcclusion.radius;
+            out["ambientOcclusion"]["bias"] = environment.ambientOcclusion.bias;
+            out["ambientOcclusion"]["strength"] = environment.ambientOcclusion.strength;
+            out["ambientOcclusion"]["power"] = environment.ambientOcclusion.power;
+            out["ambientOcclusion"]["diffuseStrength"] = environment.ambientOcclusion.diffuseStrength;
+            out["ambientOcclusion"]["specularStrength"] = environment.ambientOcclusion.specularStrength;
+            out["ambientOcclusion"]["sampleCount"] = environment.ambientOcclusion.sampleCount;
+            out["ambientOcclusion"]["blurIterations"] = environment.ambientOcclusion.blurIterations;
+
             out["bloom"]["enabled"] = environment.bloom.enabled;
             out["bloom"]["threshold"] = environment.bloom.threshold;
             out["bloom"]["intensity"] = environment.bloom.intensity;
@@ -248,6 +258,21 @@ namespace HIKARI {
                 environment.reflectionProbe.position = FromVec3(probe.value("position", json::array()), environment.reflectionProbe.position);
                 environment.reflectionProbe.radius = probe.value("radius", environment.reflectionProbe.radius);
                 environment.reflectionProbe.intensity = probe.value("intensity", environment.reflectionProbe.intensity);
+            }
+
+            if (in.contains("ambientOcclusion") && in["ambientOcclusion"].is_object()) {
+                const json& ao = in["ambientOcclusion"];
+                environment.ambientOcclusion.enabled = ao.value("enabled", environment.ambientOcclusion.enabled);
+                environment.ambientOcclusion.radius = ao.value("radius", environment.ambientOcclusion.radius);
+                environment.ambientOcclusion.bias = ao.value("bias", environment.ambientOcclusion.bias);
+                environment.ambientOcclusion.strength = ao.value("strength", environment.ambientOcclusion.strength);
+                environment.ambientOcclusion.power = ao.value("power", environment.ambientOcclusion.power);
+                environment.ambientOcclusion.diffuseStrength = ao.value("diffuseStrength", environment.ambientOcclusion.diffuseStrength);
+                environment.ambientOcclusion.specularStrength = ao.value("specularStrength", environment.ambientOcclusion.specularStrength);
+                environment.ambientOcclusion.sampleCount = ao.value("sampleCount", environment.ambientOcclusion.sampleCount);
+                environment.ambientOcclusion.blurIterations = ao.value("blurIterations", environment.ambientOcclusion.blurIterations);
+                environment.ambientOcclusion.sampleCount = std::clamp<uint32_t>(environment.ambientOcclusion.sampleCount, 8u, 32u);
+                environment.ambientOcclusion.blurIterations = std::clamp<uint32_t>(environment.ambientOcclusion.blurIterations, 0u, 4u);
             }
 
             if (in.contains("bloom") && in["bloom"].is_object()) {

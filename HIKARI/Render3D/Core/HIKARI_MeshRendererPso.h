@@ -21,9 +21,12 @@ namespace HIKARI::MESHRENDERER {
         Microsoft::WRL::ComPtr<ID3D12RootSignature> skinnedRootSig;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> skinnedPso;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> geometryPso;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> geometrySkinnedPso;
         Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
         Microsoft::WRL::ComPtr<ID3DBlob> skinnedVsBlob;
         Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+        Microsoft::WRL::ComPtr<ID3DBlob> geometryPsBlob;
         std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> variantPsoCache;
         std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> skinnedVariantPsoCache;
         std::unordered_map<VFX::VariantKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, VariantKeyHasher> wireVariantPsoCache;
@@ -37,6 +40,7 @@ namespace HIKARI::MESHRENDERER {
 
     ID3D12RootSignature* GetStaticRootSignature(MeshPipelineStore& store);
     ID3D12RootSignature* GetSkinnedRootSignature(MeshPipelineStore& store);
+    ID3D12PipelineState* GetGeometryPso(MeshPipelineStore& store, bool skinned);
 
     ID3D12PipelineState* GetOrCreateVariantPso(
         MeshPipelineStore& store,

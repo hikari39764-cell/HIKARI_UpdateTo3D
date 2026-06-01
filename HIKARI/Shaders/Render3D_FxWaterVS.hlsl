@@ -11,6 +11,7 @@
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
+    float4x4 gInvViewProj;
     float4 gCameraPos;
     // x = elapsed time, y = unscaled dt, z = game dt, w = frame index
     float4 gTimeParams;

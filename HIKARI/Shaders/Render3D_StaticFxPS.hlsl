@@ -14,6 +14,7 @@
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
+    float4x4 gInvViewProj;
     float4 gCameraPos;
     float4 gTimeParams;
     float4 gScreenParams;
@@ -95,6 +96,7 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gReflectionProbePositionRadius;
     float4 gReflectionProbeParams;
     float4 gReflectionProbeIntensity;
+    float4 gAoParams;
 };
 
 #define gSkyZenithColor gSkyZenithExposure.rgb
@@ -118,6 +120,9 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gReflectionProbeHasBrdfLut gReflectionProbeParams.z
 #define gReflectionProbeMipCount gReflectionProbeParams.w
 #define gReflectionProbeSpecularIntensity gReflectionProbeIntensity.x
+#define gSsaoEnabled gAoParams.x
+#define gSsaoDiffuseStrength gAoParams.y
+#define gSsaoSpecularStrength gAoParams.z
 
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
@@ -132,6 +137,7 @@ TextureCube gIblIrradianceTex : register(t9);
 TextureCube gIblPrefilteredTex : register(t10);
 Texture2D gIblBrdfLutTex : register(t11);
 TextureCube gReflectionProbePrefilteredTex : register(t12);
+Texture2D gSsaoTex : register(t13);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -413,6 +419,11 @@ float4 main(PSInput input) : SV_TARGET
     if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
     {
         ResolvePbrInputs(input.uv, metallic, roughness, occlusion);
+        float screenAo = 1.0f;
+        if (gSsaoEnabled > 0.5f)
+        {
+            screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
+        }
 #if HIKARI_USE_COOK_TORRANCE_PBR
         shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
 
@@ -441,6 +452,7 @@ float4 main(PSInput input) : SV_TARGET
             metallic,
             roughness,
             occlusion,
+            screenAo,
             n,
             v,
             input.worldPosWS);

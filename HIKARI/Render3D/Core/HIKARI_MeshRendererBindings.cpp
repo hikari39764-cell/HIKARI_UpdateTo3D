@@ -167,6 +167,18 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindSsao(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE aoSrv =
+            ResolveSsaoSrv(ctx.ssaoSrv, ctx.fallbackAoTextureHandle);
+        if (aoSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Ssao, aoSrv);
+        }
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle) {
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
@@ -233,6 +245,14 @@ namespace HIKARI::MESHRENDERER {
         }
 
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackCubeTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSsaoSrv(D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle) {
+        if (ssaoSrv.ptr != 0) {
+            return ssaoSrv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackAoTextureHandle);
     }
 
 } // namespace HIKARI::MESHRENDERER

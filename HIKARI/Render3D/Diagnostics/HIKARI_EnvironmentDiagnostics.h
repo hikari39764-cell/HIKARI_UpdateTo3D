@@ -56,6 +56,19 @@ namespace HIKARI {
             float reflectionProbeIntensity = 0.0f;
             std::string reflectionProbeSourceAssetId{};
             std::string reflectionProbePrefilteredPath{};
+            float reflectionProbePositionX = 0.0f;
+            float reflectionProbePositionY = 0.0f;
+            float reflectionProbePositionZ = 0.0f;
+
+            bool ssaoEnabled = false;
+            bool ssaoValid = false;
+            uint32_t ssaoWidth = 0;
+            uint32_t ssaoHeight = 0;
+            uint32_t ssaoSampleCount = 0;
+            uint32_t ssaoBlurIterations = 0;
+            float ssaoRadius = 0.0f;
+            float ssaoStrength = 0.0f;
+            float ssaoPower = 0.0f;
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;
@@ -95,6 +108,7 @@ namespace HIKARI {
         const char* ResolveSkySummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
         const char* ResolveIblSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
         const char* ResolveReflectionProbeSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
+        const char* ResolveSsaoSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
 
     } // namespace RENDER3D::DIAGNOSTICS
 

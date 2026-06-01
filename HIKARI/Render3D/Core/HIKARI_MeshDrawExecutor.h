@@ -26,6 +26,11 @@ namespace HIKARI::MESHRENDERER {
         MeshRendererDebugStats* stats = nullptr;
     };
 
+    enum class MeshDrawPassKind {
+        Forward,
+        GeometryBuffer,
+    };
+
     struct MeshDrawContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         ID3D12RootSignature* staticRootSig = nullptr;
@@ -38,6 +43,7 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress = 0;
+        MeshDrawPassKind passKind = MeshDrawPassKind::Forward;
         MeshBindingContext binding{};
         MeshMaterialFillContext materialFill{};
         MeshDrawServices services{};

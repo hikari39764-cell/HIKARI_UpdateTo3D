@@ -29,6 +29,7 @@ namespace HIKARI::MESHRENDERER {
 
     struct CameraCB {
         MATH::Mat4 viewProj{};
+        MATH::Mat4 invViewProj{};
         MATH::Vec4 cameraPos{};
         MATH::Vec4 timeParams{};
         MATH::Vec4 screenParams{};
@@ -89,6 +90,7 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 reflectionProbePositionRadius{};
         MATH::Vec4 reflectionProbeParams{};
         MATH::Vec4 reflectionProbeIntensity{};
+        MATH::Vec4 aoParams{};
     };
 
     struct ShadowCB {

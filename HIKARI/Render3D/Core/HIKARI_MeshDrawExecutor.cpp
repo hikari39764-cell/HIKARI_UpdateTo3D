@@ -73,6 +73,16 @@ namespace HIKARI::MESHRENDERER {
                 return;
             }
 
+            if (ctx.passKind == MeshDrawPassKind::GeometryBuffer) {
+                ID3D12PipelineState* pso = GetGeometryPso(*ctx.services.pipelines, drawingSkinned);
+                if (pso == nullptr) {
+                    return;
+                }
+                ctx.cmd->SetPipelineState(pso);
+                ctx.cmd->DrawIndexedInstanced(mesh.GetIndexCount(), 1, 0, 0, 0);
+                return;
+            }
+
             const bool drawSolid = mode != MeshRenderDebugMode::WireOnly;
             const bool drawWire = mode == MeshRenderDebugMode::WireOnly ||
                 mode == MeshRenderDebugMode::WireOverlay;
@@ -264,6 +274,7 @@ namespace HIKARI::MESHRENDERER {
                     BindSceneColor(ctx.binding);
                     BindIblResources(ctx.binding);
                     BindReflectionProbeResources(ctx.binding);
+                    BindSsao(ctx.binding);
 
                     D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                     D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -341,6 +352,7 @@ namespace HIKARI::MESHRENDERER {
             BindSceneColor(ctx.binding);
             BindIblResources(ctx.binding);
             BindReflectionProbeResources(ctx.binding);
+            BindSsao(ctx.binding);
 
             const Mesh* mesh = item.asset->GetMesh();
             D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();

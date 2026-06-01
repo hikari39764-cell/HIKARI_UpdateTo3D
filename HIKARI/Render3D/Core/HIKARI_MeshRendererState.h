@@ -9,6 +9,8 @@
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
+#include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
 
 namespace HIKARI::MESHRENDERER {
 
@@ -38,9 +40,12 @@ namespace HIKARI::MESHRENDERER {
         int fallbackNormalTextureHandle = -1;
         int fallbackBlackTextureHandle = -1;
         int fallbackCubeTextureHandle = -1;
+        int fallbackAoTextureHandle = -1;
 
         MeshPrimitiveCache primitiveCache;
         MeshMaterialResolver materialResolver;
+        RENDER3D::SCREENSPACE::SceneGeometryBuffer geometryBuffer;
+        RENDER3D::SCREENSPACE::SsaoRenderer ssaoRenderer;
 
         float elapsedTimeSec = 0.0f;
     };

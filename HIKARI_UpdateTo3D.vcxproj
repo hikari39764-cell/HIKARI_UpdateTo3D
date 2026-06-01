@@ -161,6 +161,8 @@
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp" />
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
@@ -375,6 +377,8 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h" />
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
@@ -549,6 +553,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GeometryBufferPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkyVS.hlsl" />
@@ -564,6 +569,8 @@
     <None Include="HIKARI\Shaders\Post_BloomBlurHPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomBlurVPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_FXAA.hlsl" />
+    <None Include="HIKARI\Shaders\Post_SSAOPS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_SSAOBlurPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl" />
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,7 @@
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
+    float4x4 gInvViewProj;
 };
 
 struct VSInput

@@ -21,9 +21,12 @@ namespace HIKARI::GFX::DESCRIPTOR {
         IblIrradiance = kSystemSrvBegin + 4,
         IblPrefiltered = kSystemSrvBegin + 5,
         IblBrdfLut = kSystemSrvBegin + 6,
+        SceneNormalRoughness = kSystemSrvBegin + 7,
+        SsaoRaw = kSystemSrvBegin + 8,
+        SsaoBlurred = kSystemSrvBegin + 9,
     };
 
-    constexpr UINT kSystemSrvUsedCount = 7;
+    constexpr UINT kSystemSrvUsedCount = 10;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
@@ -68,5 +71,8 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::IblIrradiance) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::IblPrefiltered) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::IblBrdfLut) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::SceneNormalRoughness) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::SsaoRaw) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::SsaoBlurred) < kSrvHeapCapacity);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

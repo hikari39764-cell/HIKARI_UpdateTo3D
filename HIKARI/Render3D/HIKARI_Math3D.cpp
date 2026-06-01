@@ -33,6 +33,62 @@ namespace HIKARI::MATH {
         return { q.x * inv, q.y * inv, q.z * inv, q.w * inv };
     }
 
+    Mat4 Inverse(const Mat4& value) {
+        float a[4][8]{};
+        for (int row = 0; row < 4; ++row) {
+            for (int col = 0; col < 4; ++col) {
+                a[row][col] = value.m[col][row];
+            }
+            a[row][row + 4] = 1.0f;
+        }
+
+        // 列主記憶の行列を行列式なしで安定して反転する。
+        for (int col = 0; col < 4; ++col) {
+            int pivot = col;
+            float pivotAbs = std::abs(a[col][col]);
+            for (int row = col + 1; row < 4; ++row) {
+                const float candidate = std::abs(a[row][col]);
+                if (candidate > pivotAbs) {
+                    pivot = row;
+                    pivotAbs = candidate;
+                }
+            }
+
+            if (pivotAbs <= 1e-8f) {
+                return Mat4::Identity();
+            }
+
+            if (pivot != col) {
+                for (int i = 0; i < 8; ++i) {
+                    std::swap(a[col][i], a[pivot][i]);
+                }
+            }
+
+            const float invPivot = 1.0f / a[col][col];
+            for (int i = 0; i < 8; ++i) {
+                a[col][i] *= invPivot;
+            }
+
+            for (int row = 0; row < 4; ++row) {
+                if (row == col) {
+                    continue;
+                }
+                const float factor = a[row][col];
+                for (int i = 0; i < 8; ++i) {
+                    a[row][i] -= factor * a[col][i];
+                }
+            }
+        }
+
+        Mat4 out{};
+        for (int row = 0; row < 4; ++row) {
+            for (int col = 0; col < 4; ++col) {
+                out.m[col][row] = a[row][col + 4];
+            }
+        }
+        return out;
+    }
+
     Quat Quat::FromEulerXYZ(float rx, float ry, float rz) {
         const float cx = std::cos(rx * 0.5f), sx = std::sin(rx * 0.5f);
         const float cy = std::cos(ry * 0.5f), sy = std::sin(ry * 0.5f);

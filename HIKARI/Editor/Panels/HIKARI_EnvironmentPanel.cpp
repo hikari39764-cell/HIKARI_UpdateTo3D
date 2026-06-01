@@ -125,6 +125,18 @@ namespace HIKARI {
                 lhs.intensity == rhs.intensity;
         }
 
+        bool EqualAmbientOcclusionSettings(const AmbientOcclusionSettings& lhs, const AmbientOcclusionSettings& rhs) {
+            return lhs.enabled == rhs.enabled &&
+                lhs.radius == rhs.radius &&
+                lhs.bias == rhs.bias &&
+                lhs.strength == rhs.strength &&
+                lhs.power == rhs.power &&
+                lhs.diffuseStrength == rhs.diffuseStrength &&
+                lhs.specularStrength == rhs.specularStrength &&
+                lhs.sampleCount == rhs.sampleCount &&
+                lhs.blurIterations == rhs.blurIterations;
+        }
+
         bool EqualPointLight(const PointLight& lhs, const PointLight& rhs) {
             return lhs.enabled == rhs.enabled &&
                 EqualVec3(lhs.position, rhs.position) &&
@@ -172,6 +184,7 @@ namespace HIKARI {
                 lhs.directionalShadow.showDebugFrustum != rhs.directionalShadow.showDebugFrustum ||
                 !EqualSkySettings(lhs.sky, rhs.sky) ||
                 !EqualReflectionProbeSettings(lhs.reflectionProbe, rhs.reflectionProbe) ||
+                !EqualAmbientOcclusionSettings(lhs.ambientOcclusion, rhs.ambientOcclusion) ||
                 lhs.bloom.enabled != rhs.bloom.enabled ||
                 lhs.bloom.threshold != rhs.bloom.threshold ||
                 lhs.bloom.intensity != rhs.bloom.intensity ||
@@ -800,6 +813,34 @@ namespace HIKARI {
             ImGui::DragFloat("Intensity", &environment.reflectionProbe.intensity, 0.01f, 0.0f, 8.0f);
             ImGui::TextDisabled("Runtime Probe: %s",
                 RENDER3D::DIAGNOSTICS::ResolveReflectionProbeSummaryLabel(runtimeSnapshot));
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Ambient Occlusion")) {
+            ImGui::Checkbox("Enabled", &environment.ambientOcclusion.enabled);
+            ImGui::DragFloat("Radius", &environment.ambientOcclusion.radius, 0.01f, 0.01f, 10.0f);
+            ImGui::DragFloat("Bias", &environment.ambientOcclusion.bias, 0.001f, 0.0f, 0.5f, "%.4f");
+            ImGui::DragFloat("Strength", &environment.ambientOcclusion.strength, 0.01f, 0.0f, 4.0f);
+            ImGui::DragFloat("Power", &environment.ambientOcclusion.power, 0.01f, 0.1f, 8.0f);
+            ImGui::DragFloat("Diffuse Strength", &environment.ambientOcclusion.diffuseStrength, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Specular Strength", &environment.ambientOcclusion.specularStrength, 0.01f, 0.0f, 1.0f);
+            int sampleIndex = 0;
+            const uint32_t samples = environment.ambientOcclusion.sampleCount;
+            if (samples <= 8u) sampleIndex = 0;
+            else if (samples <= 16u) sampleIndex = 1;
+            else if (samples <= 24u) sampleIndex = 2;
+            else sampleIndex = 3;
+            const char* sampleNames[] = { "8", "16", "24", "32" };
+            if (ImGui::Combo("Samples", &sampleIndex, sampleNames, static_cast<int>(std::size(sampleNames)))) {
+                const uint32_t sampleValues[] = { 8u, 16u, 24u, 32u };
+                environment.ambientOcclusion.sampleCount = sampleValues[std::clamp(sampleIndex, 0, 3)];
+            }
+            int blurIterations = static_cast<int>(environment.ambientOcclusion.blurIterations);
+            if (ImGui::SliderInt("Blur Iterations", &blurIterations, 0, 4)) {
+                environment.ambientOcclusion.blurIterations = static_cast<uint32_t>(std::clamp(blurIterations, 0, 4));
+            }
+            ImGui::TextDisabled("Runtime AO: %s",
+                RENDER3D::DIAGNOSTICS::ResolveSsaoSummaryLabel(runtimeSnapshot));
             ImGui::TreePop();
         }
 

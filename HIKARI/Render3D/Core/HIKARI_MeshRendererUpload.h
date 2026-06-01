@@ -21,7 +21,7 @@ namespace HIKARI::MESHRENDERER {
 
     void FillLightCB(const SceneEnvironment& environment, LightCB& out, MeshRendererDebugStats& stats);
     void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out);
-    void FillSkyEnvironmentCB(SkyEnvironmentCB& out);
+    void FillSkyEnvironmentCB(const SceneEnvironment& environment, SkyEnvironmentCB& out);
 
     MATH::Mat4 BuildNormalMatrix(const Transform3D& transform);
 
