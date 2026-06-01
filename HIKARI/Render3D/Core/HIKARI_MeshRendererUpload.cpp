@@ -7,6 +7,7 @@
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #ifdef max
@@ -138,6 +139,25 @@ namespace HIKARI::MESHRENDERER {
             iblData.hasPrefiltered ? 1.0f : 0.0f,
             iblData.hasBrdfLut ? 1.0f : 0.0f,
             static_cast<float>(std::max<uint32_t>(1u, iblData.prefilteredMipCount))
+        };
+        const REFLECTION::ReflectionProbeRuntimeData& probeData = REFLECTION::GetActiveProbe();
+        out.reflectionProbePositionRadius = {
+            probeData.position.x,
+            probeData.position.y,
+            probeData.position.z,
+            std::max(0.001f, probeData.radius)
+        };
+        out.reflectionProbeParams = {
+            probeData.enabled ? 1.0f : 0.0f,
+            probeData.hasPrefiltered ? 1.0f : 0.0f,
+            probeData.hasBrdfLut ? 1.0f : 0.0f,
+            static_cast<float>(std::max<uint32_t>(1u, probeData.prefilteredMipCount))
+        };
+        out.reflectionProbeIntensity = {
+            std::max(0.0f, probeData.intensity),
+            0.0f,
+            0.0f,
+            0.0f
         };
 
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();

@@ -36,6 +36,7 @@ namespace HIKARI {
             static int LoadTextureLinear(const std::string& name, const std::string& path);
             static int LoadCubemap(const std::string& name, const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);
             static int CreateSolidColorTexture(const std::string& name, uint32_t rgba, TextureColorSpace colorSpace = TextureColorSpace::Linear);
+            static int CreateSolidColorCubemap(const std::string& name, uint32_t rgba, TextureColorSpace colorSpace = TextureColorSpace::Linear);
             static int CreateCheckerTexture(const std::string& name, uint32_t colorA, uint32_t colorB, TextureColorSpace colorSpace = TextureColorSpace::Linear);
             static int RegisterFromResource(ID3D12Resource* resource);
             static int RegisterFromResourceAs(ID3D12Resource* resource, DXGI_FORMAT srvFormat);
@@ -70,6 +71,11 @@ namespace HIKARI {
                 uint32_t width,
                 uint32_t height,
                 const uint8_t* rgbaPixels,
+                TextureColorSpace colorSpace,
+                const char* logKind);
+            static int CreateCubemapFromRgbaPixels(
+                const std::string& debugName,
+                uint32_t rgba,
                 TextureColorSpace colorSpace,
                 const char* logKind);
             static void CompleteDeferredRelease(int handle, GFX::DescriptorSlot slot);

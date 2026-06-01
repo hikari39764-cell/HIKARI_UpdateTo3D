@@ -11,6 +11,7 @@
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/Components/HIKARI_IComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -77,6 +78,14 @@ namespace HIKARI {
 
         if (!document.environment.sky.skyAsset.empty()) {
             deps.skyAssetIds.insert(document.environment.sky.skyAsset);
+        }
+        if (document.environment.reflectionProbe.enabled &&
+            !document.environment.reflectionProbe.sourceCubemapAsset.empty()) {
+            deps.reflectionProbeCubemapAssetIds.insert(document.environment.reflectionProbe.sourceCubemapAsset);
+            deps.reflectionProbeEnabled = true;
+            deps.reflectionProbePosition = document.environment.reflectionProbe.position;
+            deps.reflectionProbeRadius = document.environment.reflectionProbe.radius;
+            deps.reflectionProbeIntensity = document.environment.reflectionProbe.intensity;
         }
 
         for (const SceneObjectData& object : document.objects) {
@@ -188,6 +197,51 @@ namespace HIKARI {
                 " prefiltered=" + std::to_string(prefiltered) +
                 " brdf=" + std::to_string(brdf));
         }
+
+        if (dependencies.reflectionProbeCubemapAssetIds.empty()) {
+            REFLECTION::Reset();
+            return true;
+        }
+
+        const std::string probeAssetId = *dependencies.reflectionProbeCubemapAssetIds.begin();
+        const auto* probeDescriptor = assetRegistry.FindAs<SkyAssetDescriptor>(AssetId{ probeAssetId });
+        if (!probeDescriptor) {
+            REFLECTION::Reset();
+            HIKARI_LOG_WARN("[SceneRuntimeBuilder] reflection probe source asset missing: " + probeAssetId);
+            return true;
+        }
+
+        int probePrefiltered = -1;
+        int probeBrdf = -1;
+        if (!probeDescriptor->prefilteredPath.empty()) {
+            probePrefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                "reflection_probe/prefiltered/" + probeDescriptor->id.value,
+                probeDescriptor->prefilteredPath,
+                DXTEX::TextureColorSpace::Linear);
+        }
+        const std::string probeBrdfPath = probeDescriptor->brdfLutPath.empty()
+            ? std::string{ kSharedBrdfLutPath }
+            : probeDescriptor->brdfLutPath;
+        if (!probeBrdfPath.empty()) {
+            probeBrdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                "reflection_probe/brdf_lut",
+                probeBrdfPath);
+        }
+
+        REFLECTION::SetActiveProbe(
+            dependencies.reflectionProbeEnabled,
+            probePrefiltered,
+            probeBrdf,
+            probeDescriptor->prefilteredMipCount,
+            dependencies.reflectionProbePosition,
+            dependencies.reflectionProbeRadius,
+            dependencies.reflectionProbeIntensity,
+            probeDescriptor->id.value,
+            probeDescriptor->prefilteredPath,
+            probeBrdfPath);
+        HIKARI_LOG_INFO("[SceneRuntimeBuilder] loaded ReflectionProbe source=" + probeDescriptor->id.value +
+            " prefiltered=" + std::to_string(probePrefiltered) +
+            " brdf=" + std::to_string(probeBrdf));
 
         return true;
     }

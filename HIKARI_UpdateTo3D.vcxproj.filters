@@ -103,6 +103,9 @@
     <Filter Include="Header Files\Render3D\Render">
       <UniqueIdentifier>{07B0E4B2-AC2D-54F3-9F48-9D4707B2F6E1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Reflection">
+      <UniqueIdentifier>{96D617F8-6DE6-4CC7-8D57-D34468F52280}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Shadow">
       <UniqueIdentifier>{7B8DB028-C4E2-5EF6-9581-41E384A4F362}</UniqueIdentifier>
     </Filter>
@@ -307,6 +310,9 @@
     <Filter Include="Source Files\Render3D\Render">
       <UniqueIdentifier>{A1841888-3554-5F96-862F-794EE5020D69}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Render3D\Reflection">
+      <UniqueIdentifier>{A68E5B82-37E8-432F-9199-F8085C3D081B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Render3D\Shadow">
       <UniqueIdentifier>{92D6DF23-C71A-5E90-BCDE-2559131213D9}</UniqueIdentifier>
     </Filter>
@@ -494,6 +500,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp">
+      <Filter>Source Files\Render3D\Reflection</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp">
       <Filter>Source Files\Render3D\Diagnostics</Filter>
@@ -1205,6 +1214,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h">
+      <Filter>Header Files\Render3D\Reflection</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
       <Filter>Header Files\Render3D\Diagnostics</Filter>

@@ -6,6 +6,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -153,6 +154,19 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindReflectionProbeResources(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+        GFX::PIX::ScopedGpuEvent pixProbe(ctx.cmd, GFX::PIX::kColorRender, "ReflectionProbe.BindResources");
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE prefilteredSrv =
+            ResolveReflectionProbePrefilteredSrv(ctx.fallbackCubeTextureHandle);
+        if (prefilteredSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::ReflectionProbePrefiltered, prefilteredSrv);
+        }
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle) {
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
@@ -204,7 +218,21 @@ namespace HIKARI::MESHRENDERER {
             return srv;
         }
 
+        const D3D12_GPU_DESCRIPTOR_HANDLE probeSrv = REFLECTION::GetBrdfLutSrv();
+        if (probeSrv.ptr != 0) {
+            return probeSrv;
+        }
+
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveReflectionProbePrefilteredSrv(int fallbackCubeTextureHandle) {
+        const REFLECTION::ReflectionProbeRuntimeData& probe = REFLECTION::GetActiveProbe();
+        if (probe.valid && probe.hasPrefiltered && probe.prefilteredSrv.ptr != 0) {
+            return probe.prefilteredSrv;
+        }
+
+        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackCubeTextureHandle);
     }
 
 } // namespace HIKARI::MESHRENDERER

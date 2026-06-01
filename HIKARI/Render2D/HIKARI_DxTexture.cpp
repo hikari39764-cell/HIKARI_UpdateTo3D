@@ -439,6 +439,32 @@ namespace HIKARI {
             return handle;
         }
 
+        int DxTextureManager::CreateSolidColorCubemap(
+            const std::string& name,
+            uint32_t rgba,
+            TextureColorSpace colorSpace)
+        {
+            EnsureInit();
+
+            const std::string syntheticPath =
+                "generated://solid-cube/" + HexColor(rgba);
+            const std::string cacheKey = MakeTextureCacheKey("cube:" + name, syntheticPath, colorSpace);
+            auto it = nameToHandle_.find(cacheKey);
+            if (it != nameToHandle_.end()) {
+                return it->second;
+            }
+
+            const int handle = CreateCubemapFromRgbaPixels(
+                syntheticPath,
+                rgba,
+                colorSpace,
+                "GeneratedSolidCube");
+            if (handle >= 0) {
+                nameToHandle_[cacheKey] = handle;
+            }
+            return handle;
+        }
+
         int DxTextureManager::CreateCheckerTexture(
             const std::string& name,
             uint32_t colorA,
@@ -1034,6 +1060,115 @@ namespace HIKARI {
 
             const DXGI_FORMAT srvFormat = ResolveSrvFormat(DXGI_FORMAT_R8G8B8A8_UNORM, colorSpace);
             const int handle = RegisterFromResourceAs(texResource.Get(), srvFormat);
+            if (handle >= 0) {
+                LogTextureLoad(logKind, debugName, colorSpace, srvFormat, handle);
+            }
+            return handle;
+        }
+
+        int DxTextureManager::CreateCubemapFromRgbaPixels(
+            const std::string& debugName,
+            uint32_t rgba,
+            TextureColorSpace colorSpace,
+            const char* logKind)
+        {
+            auto* device = context_.device;
+            auto* queue = context_.queue;
+            if (!device || !queue || !uploadAllocator_ || !uploadCmdList_ || !uploadFence_ || !uploadFenceEvent_) {
+                HIKARI_LOG_ERROR("[DxTextureManager][GeneratedCube][ERROR] invalid generated cubemap request: " + debugName);
+                return -1;
+            }
+
+            D3D12_RESOURCE_DESC textureDesc{};
+            textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+            textureDesc.Alignment = 0;
+            textureDesc.Width = 1;
+            textureDesc.Height = 1;
+            textureDesc.DepthOrArraySize = 6;
+            textureDesc.MipLevels = 1;
+            textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            textureDesc.SampleDesc.Count = 1;
+            textureDesc.SampleDesc.Quality = 0;
+            textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+            textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+            auto textureHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+            Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
+            HRESULT hr = device->CreateCommittedResource(
+                &textureHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &textureDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(texResource.GetAddressOf()));
+            if (FAILED(hr) || !texResource) {
+                HIKARI_LOG_ERROR("[DxTextureManager][GeneratedCube][ERROR] CreateCommittedResource failed: " + debugName);
+                return -1;
+            }
+
+            std::array<uint8_t, 6u * 4u> pixels{};
+            for (uint32_t face = 0; face < 6u; ++face) {
+                WriteRgba(rgba, pixels.data() + face * 4u);
+            }
+
+            std::array<D3D12_SUBRESOURCE_DATA, 6> subresources{};
+            for (uint32_t face = 0; face < 6u; ++face) {
+                subresources[face].pData = pixels.data() + face * 4u;
+                subresources[face].RowPitch = 4;
+                subresources[face].SlicePitch = 4;
+            }
+
+            const UINT64 uploadSize = GetRequiredIntermediateSize(texResource.Get(), 0, static_cast<UINT>(subresources.size()));
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+            hr = device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(uploadResource.GetAddressOf()));
+            if (FAILED(hr) || !uploadResource) {
+                HIKARI_LOG_ERROR("[DxTextureManager][GeneratedCube][ERROR] upload buffer creation failed: " + debugName);
+                return -1;
+            }
+
+            hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
+
+            UpdateSubresources(
+                uploadCmdList_.Get(),
+                texResource.Get(),
+                uploadResource.Get(),
+                0,
+                0,
+                static_cast<UINT>(subresources.size()),
+                subresources.data());
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                texResource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            uploadCmdList_->ResourceBarrier(1, &barrier);
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(DXGI_FORMAT_R8G8B8A8_UNORM, colorSpace);
+            const int handle = RegisterCubeFromResourceAs(texResource.Get(), srvFormat);
             if (handle >= 0) {
                 LogTextureLoad(logKind, debugName, colorSpace, srvFormat, handle);
             }

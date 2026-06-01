@@ -92,6 +92,9 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gSkyGroundAmbient;
     float4 gSkyParams;
     float4 gIblParams;
+    float4 gReflectionProbePositionRadius;
+    float4 gReflectionProbeParams;
+    float4 gReflectionProbeIntensity;
 };
 
 #define gSkyZenithColor gSkyZenithExposure.rgb
@@ -108,6 +111,13 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gIblHasPrefiltered gIblParams.y
 #define gIblHasBrdfLut gIblParams.z
 #define gIblPrefilteredMipCount gIblParams.w
+#define gReflectionProbePosition gReflectionProbePositionRadius.xyz
+#define gReflectionProbeRadius gReflectionProbePositionRadius.w
+#define gReflectionProbeEnabled gReflectionProbeParams.x
+#define gReflectionProbeHasPrefiltered gReflectionProbeParams.y
+#define gReflectionProbeHasBrdfLut gReflectionProbeParams.z
+#define gReflectionProbeMipCount gReflectionProbeParams.w
+#define gReflectionProbeSpecularIntensity gReflectionProbeIntensity.x
 
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
@@ -121,6 +131,7 @@ Texture2D gSceneColorTex : register(t8);
 TextureCube gIblIrradianceTex : register(t9);
 TextureCube gIblPrefilteredTex : register(t10);
 Texture2D gIblBrdfLutTex : register(t11);
+TextureCube gReflectionProbePrefilteredTex : register(t12);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 
@@ -398,7 +409,8 @@ float4 main(PSInput input) : SV_TARGET
             roughness,
             occlusion,
             n,
-            v);
+            v,
+            input.worldPosWS);
 
         shadedColor = direct + pointDirect + ambient;
 #else

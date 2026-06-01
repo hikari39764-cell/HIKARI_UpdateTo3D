@@ -317,7 +317,14 @@ namespace HIKARI::MESHRENDERER {
         iblBrdfLutRange.RegisterSpace = 0;
         iblBrdfLutRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[17]{};
+        D3D12_DESCRIPTOR_RANGE reflectionProbePrefilteredRange{};
+        reflectionProbePrefilteredRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        reflectionProbePrefilteredRange.NumDescriptors = 1;
+        reflectionProbePrefilteredRange.BaseShaderRegister = 12;
+        reflectionProbePrefilteredRange.RegisterSpace = 0;
+        reflectionProbePrefilteredRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[18]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -403,6 +410,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::IblBrdfLut].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::IblBrdfLut].DescriptorTable.pDescriptorRanges = &iblBrdfLutRange;
 
+        params[ROOT_PARAM::ReflectionProbePrefiltered].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::ReflectionProbePrefiltered].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        params[ROOT_PARAM::ReflectionProbePrefiltered].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::ReflectionProbePrefiltered].DescriptorTable.pDescriptorRanges = &reflectionProbePrefilteredRange;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -447,7 +459,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[18]{};
+        D3D12_ROOT_PARAMETER skinnedParams[19]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

@@ -6,6 +6,7 @@
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -40,6 +41,23 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             DXGI_FORMAT prefilteredFormat = DXGI_FORMAT_UNKNOWN;
             DXGI_FORMAT brdfLutFormat = DXGI_FORMAT_UNKNOWN;
             bool prefilteredMipMismatch = false;
+
+            bool reflectionProbeEnabled = false;
+            bool reflectionProbeValid = false;
+            bool reflectionProbeHasPrefiltered = false;
+            bool reflectionProbeHasBrdfLut = false;
+            int reflectionProbePrefilteredHandle = -1;
+            int reflectionProbeBrdfLutHandle = -1;
+            uint32_t reflectionProbeMipCount = 1;
+            uint32_t reflectionProbeActualMipCount = 0;
+            uint32_t reflectionProbeBrdfLutMipCount = 0;
+            DXGI_FORMAT reflectionProbePrefilteredFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT reflectionProbeBrdfLutFormat = DXGI_FORMAT_UNKNOWN;
+            bool reflectionProbeMipMismatch = false;
+            float reflectionProbeRadius = 0.0f;
+            float reflectionProbeIntensity = 0.0f;
+            std::string reflectionProbeSourceAssetId{};
+            std::string reflectionProbePrefilteredPath{};
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;
@@ -80,6 +98,22 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.prefilteredFormat == rhs.prefilteredFormat &&
                 lhs.brdfLutFormat == rhs.brdfLutFormat &&
                 lhs.prefilteredMipMismatch == rhs.prefilteredMipMismatch &&
+                lhs.reflectionProbeEnabled == rhs.reflectionProbeEnabled &&
+                lhs.reflectionProbeValid == rhs.reflectionProbeValid &&
+                lhs.reflectionProbeHasPrefiltered == rhs.reflectionProbeHasPrefiltered &&
+                lhs.reflectionProbeHasBrdfLut == rhs.reflectionProbeHasBrdfLut &&
+                lhs.reflectionProbePrefilteredHandle == rhs.reflectionProbePrefilteredHandle &&
+                lhs.reflectionProbeBrdfLutHandle == rhs.reflectionProbeBrdfLutHandle &&
+                lhs.reflectionProbeMipCount == rhs.reflectionProbeMipCount &&
+                lhs.reflectionProbeActualMipCount == rhs.reflectionProbeActualMipCount &&
+                lhs.reflectionProbeBrdfLutMipCount == rhs.reflectionProbeBrdfLutMipCount &&
+                lhs.reflectionProbePrefilteredFormat == rhs.reflectionProbePrefilteredFormat &&
+                lhs.reflectionProbeBrdfLutFormat == rhs.reflectionProbeBrdfLutFormat &&
+                lhs.reflectionProbeMipMismatch == rhs.reflectionProbeMipMismatch &&
+                lhs.reflectionProbeRadius == rhs.reflectionProbeRadius &&
+                lhs.reflectionProbeIntensity == rhs.reflectionProbeIntensity &&
+                lhs.reflectionProbeSourceAssetId == rhs.reflectionProbeSourceAssetId &&
+                lhs.reflectionProbePrefilteredPath == rhs.reflectionProbePrefilteredPath &&
                 lhs.shadowEnabled == rhs.shadowEnabled &&
                 lhs.shadowResolution == rhs.shadowResolution &&
                 lhs.bloomEnabled == rhs.bloomEnabled &&
@@ -138,6 +172,23 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.brdfLutFormat = snapshot.brdfLutFormat;
             key.prefilteredMipMismatch = snapshot.prefilteredMipMismatch;
 
+            key.reflectionProbeEnabled = snapshot.reflectionProbeEnabled;
+            key.reflectionProbeValid = snapshot.reflectionProbeValid;
+            key.reflectionProbeHasPrefiltered = snapshot.reflectionProbeHasPrefiltered;
+            key.reflectionProbeHasBrdfLut = snapshot.reflectionProbeHasBrdfLut;
+            key.reflectionProbePrefilteredHandle = snapshot.reflectionProbePrefilteredHandle;
+            key.reflectionProbeBrdfLutHandle = snapshot.reflectionProbeBrdfLutHandle;
+            key.reflectionProbeMipCount = snapshot.reflectionProbeMipCount;
+            key.reflectionProbeActualMipCount = snapshot.reflectionProbeActualMipCount;
+            key.reflectionProbeBrdfLutMipCount = snapshot.reflectionProbeBrdfLutMipCount;
+            key.reflectionProbePrefilteredFormat = snapshot.reflectionProbePrefilteredFormat;
+            key.reflectionProbeBrdfLutFormat = snapshot.reflectionProbeBrdfLutFormat;
+            key.reflectionProbeMipMismatch = snapshot.reflectionProbeMipMismatch;
+            key.reflectionProbeRadius = snapshot.reflectionProbeRadius;
+            key.reflectionProbeIntensity = snapshot.reflectionProbeIntensity;
+            key.reflectionProbeSourceAssetId = snapshot.reflectionProbeSourceAssetId;
+            key.reflectionProbePrefilteredPath = snapshot.reflectionProbePrefilteredPath;
+
             key.shadowEnabled = snapshot.shadowEnabled;
             key.shadowResolution = snapshot.shadowResolution;
 
@@ -184,6 +235,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.prefilteredFormat = ibl.prefilteredFormat;
         snapshot.brdfLutFormat = ibl.brdfLutFormat;
         snapshot.prefilteredMipMismatch = ibl.prefilteredMipMismatch;
+
+        const REFLECTION::ReflectionProbeRuntimeData& probe = REFLECTION::GetActiveProbe();
+        snapshot.reflectionProbeEnabled = probe.enabled;
+        snapshot.reflectionProbeValid = probe.valid;
+        snapshot.reflectionProbeHasPrefiltered = probe.hasPrefiltered;
+        snapshot.reflectionProbeHasBrdfLut = probe.hasBrdfLut;
+        snapshot.reflectionProbePrefilteredHandle = probe.prefilteredHandle;
+        snapshot.reflectionProbeBrdfLutHandle = probe.brdfLutHandle;
+        snapshot.reflectionProbeMipCount = probe.prefilteredMipCount;
+        snapshot.reflectionProbeActualMipCount = probe.prefilteredActualMipCount;
+        snapshot.reflectionProbeBrdfLutMipCount = probe.brdfLutMipCount;
+        snapshot.reflectionProbePrefilteredFormat = probe.prefilteredFormat;
+        snapshot.reflectionProbeBrdfLutFormat = probe.brdfLutFormat;
+        snapshot.reflectionProbeMipMismatch = probe.prefilteredMipMismatch;
+        snapshot.reflectionProbeRadius = probe.radius;
+        snapshot.reflectionProbeIntensity = probe.intensity;
+        snapshot.reflectionProbeSourceAssetId = probe.sourceAssetId;
+        snapshot.reflectionProbePrefilteredPath = probe.prefilteredPath;
 
         const SHADOW::ShadowMapDebugStats& shadow = SHADOW::GetDebugStats();
         snapshot.shadowEnabled = shadow.enabled && SHADOW::IsDirectionalShadowEnabled();
@@ -268,6 +337,27 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         }
         {
             std::ostringstream oss;
+            oss << "[EnvironmentDiagnostics][ReflectionProbe]"
+                << " enabled=" << BoolText(snapshot.reflectionProbeEnabled)
+                << " valid=" << BoolText(snapshot.reflectionProbeValid)
+                << " prefiltered=" << BoolText(snapshot.reflectionProbeHasPrefiltered)
+                << " brdf=" << BoolText(snapshot.reflectionProbeHasBrdfLut)
+                << " prefilteredHandle=" << snapshot.reflectionProbePrefilteredHandle
+                << " brdfHandle=" << snapshot.reflectionProbeBrdfLutHandle
+                << " mips=" << snapshot.reflectionProbeMipCount
+                << " actualMips=" << snapshot.reflectionProbeActualMipCount << "/"
+                << snapshot.reflectionProbeBrdfLutMipCount
+                << " formats=" << GFX::FormatToString(snapshot.reflectionProbePrefilteredFormat) << "/"
+                << GFX::FormatToString(snapshot.reflectionProbeBrdfLutFormat)
+                << " mipMismatch=" << BoolText(snapshot.reflectionProbeMipMismatch)
+                << " radius=" << snapshot.reflectionProbeRadius
+                << " intensity=" << snapshot.reflectionProbeIntensity
+                << " source=" << snapshot.reflectionProbeSourceAssetId
+                << " prefilteredPath=" << snapshot.reflectionProbePrefilteredPath;
+            LogInfoLine(oss.str());
+        }
+        {
+            std::ostringstream oss;
             oss << "[EnvironmentDiagnostics][Shadow]"
                 << " enabled=" << BoolText(snapshot.shadowEnabled)
                 << " resolution=" << snapshot.shadowResolution
@@ -322,6 +412,12 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (snapshot.prefilteredMipMismatch) {
             LogWarnLine("[EnvironmentDiagnostics][IBL] prefiltered mip count mismatch.");
         }
+        if (snapshot.reflectionProbeEnabled && !snapshot.reflectionProbeValid) {
+            LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] reflection probe is enabled but invalid.");
+        }
+        if (snapshot.reflectionProbeMipMismatch) {
+            LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] prefiltered mip count mismatch.");
+        }
         if (snapshot.bloomFailed) {
             LogWarnLine("[EnvironmentDiagnostics][Bloom] bloom is in failed state.");
         }
@@ -375,6 +471,22 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             return "IBL Partial";
         }
         return "IBL Missing";
+    }
+
+    const char* ResolveReflectionProbeSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot) {
+        if (!snapshot.reflectionProbeEnabled) {
+            return "Probe Off";
+        }
+        if (snapshot.reflectionProbeMipMismatch) {
+            return "Probe Mip Mismatch";
+        }
+        if (snapshot.reflectionProbeValid) {
+            return "Probe Ready";
+        }
+        if (snapshot.reflectionProbeHasPrefiltered || snapshot.reflectionProbeHasBrdfLut) {
+            return "Probe Partial";
+        }
+        return "Probe Missing";
     }
 
 } // namespace HIKARI::RENDER3D::DIAGNOSTICS

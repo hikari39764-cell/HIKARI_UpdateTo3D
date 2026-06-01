@@ -86,6 +86,9 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 skyGroundAmbient{};
         MATH::Vec4 skyParams{};
         MATH::Vec4 iblParams{};
+        MATH::Vec4 reflectionProbePositionRadius{};
+        MATH::Vec4 reflectionProbeParams{};
+        MATH::Vec4 reflectionProbeIntensity{};
     };
 
     struct ShadowCB {

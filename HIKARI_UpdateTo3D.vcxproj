@@ -160,6 +160,7 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
@@ -423,6 +424,7 @@
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h" />
+    <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />

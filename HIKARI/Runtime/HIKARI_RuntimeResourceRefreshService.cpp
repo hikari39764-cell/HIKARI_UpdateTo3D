@@ -110,6 +110,19 @@ namespace HIKARI {
                 AppendMessage(report, "Missing sky dependency: " + skyId);
             }
         }
+        for (const std::string& probeSourceId : dependencies.reflectionProbeCubemapAssetIds) {
+            if (dependencies.skyAssetIds.find(probeSourceId) != dependencies.skyAssetIds.end()) {
+                continue;
+            }
+            if (const auto* probeSky = registry.FindAs<SkyAssetDescriptor>(AssetId{ probeSourceId })) {
+                scene.RefreshTextureRuntimeByPath(probeSky->prefilteredPath);
+                scene.RefreshTextureRuntimeByPath(probeSky->brdfLutPath);
+                AppendMessage(report, "Invalidated reflection probe source: " + probeSourceId);
+            } else {
+                ++report.failedCount;
+                AppendMessage(report, "Missing reflection probe source: " + probeSourceId);
+            }
+        }
 
         for (const std::string& materialId : dependencies.materialAssetIds) {
             if (const auto* material = registry.FindAs<MaterialAssetDescriptor>(AssetId{ materialId })) {
@@ -163,8 +176,10 @@ namespace HIKARI {
         }
 
         if (scene.GetSceneEnvironment().sky.skyAsset != descriptor.id.value) {
-            AppendMessage(report, "Sky asset is not active: " + descriptor.id.value);
-            return true;
+            if (scene.GetSceneEnvironment().reflectionProbe.sourceCubemapAsset != descriptor.id.value) {
+                AppendMessage(report, "Sky asset is not active: " + descriptor.id.value);
+                return true;
+            }
         }
 
         scene.RefreshTextureRuntimeByPath(descriptor.sourcePath);

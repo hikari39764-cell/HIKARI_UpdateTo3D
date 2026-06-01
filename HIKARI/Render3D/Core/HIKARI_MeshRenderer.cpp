@@ -9,6 +9,7 @@
 #include <wrl/client.h>
 
 #include "HIKARI_DxTexture.h"
+#include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ResourceStateTracker.h"
@@ -121,6 +122,13 @@ namespace HIKARI::MESHRENDERER {
                 g.fallbackNormalTextureHandle = g.fallbackTextureHandle;
             }
             g.fallbackBlackTextureHandle = g.fallbackTextureHandle;
+            g.fallbackCubeTextureHandle = DXTEX::DxTextureManager::CreateSolidColorCubemap(
+                "mesh_renderer/fallback_cube",
+                0x000000ffu,
+                DXTEX::TextureColorSpace::Linear);
+            if (g.fallbackCubeTextureHandle < 0) {
+                HIKARI_LOG_WARN("[MeshRenderer] fallback cubemap creation failed.");
+            }
 
             MeshMaterialResolverFallbacks fallbacks{};
             fallbacks.whiteTexture = g.fallbackTextureHandle;
@@ -183,6 +191,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.binding.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.binding.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.binding.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
+            ctx.binding.fallbackCubeTextureHandle = g.fallbackCubeTextureHandle;
             ctx.materialFill.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.materialFill.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;

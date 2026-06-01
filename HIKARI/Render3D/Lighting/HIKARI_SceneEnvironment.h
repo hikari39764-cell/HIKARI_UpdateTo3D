@@ -74,6 +74,14 @@ namespace HIKARI {
         bool showDebugTexture = false;
     };
 
+    struct ReflectionProbeSettings {
+        bool enabled = false;
+        std::string sourceCubemapAsset{};
+        MATH::Vec3 position{ 0.0f, 2.0f, 0.0f };
+        float radius = 8.0f;
+        float intensity = 1.0f;
+    };
+
     struct BloomSettings {
         bool enabled = true;
         float threshold = 1.0f;
@@ -128,6 +136,7 @@ namespace HIKARI {
         DirectionalShadowSettings directionalShadow{};
         std::vector<PointLight> pointLights{};
         SkySettings sky{};
+        ReflectionProbeSettings reflectionProbe{};
         BloomSettings bloom{};
         FogSettings fog{};
         ToneMappingSettings toneMapping{};

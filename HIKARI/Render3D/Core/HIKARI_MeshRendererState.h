@@ -37,6 +37,7 @@ namespace HIKARI::MESHRENDERER {
         int fallbackTextureHandle = -1;
         int fallbackNormalTextureHandle = -1;
         int fallbackBlackTextureHandle = -1;
+        int fallbackCubeTextureHandle = -1;
 
         MeshPrimitiveCache primitiveCache;
         MeshMaterialResolver materialResolver;

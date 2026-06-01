@@ -102,11 +102,13 @@ float3 HikariEvaluateAmbientIbl(
     float roughness,
     float occlusion,
     float3 n,
-    float3 v)
+    float3 v,
+    float3 worldPos)
 {
     float3 result = 0.0f.xxx;
 
-    if (gIblHasIrradiance < 0.5f && gIblHasPrefiltered < 0.5f)
+    bool hasLocalProbe = (gReflectionProbeEnabled > 0.5f && gReflectionProbeHasPrefiltered > 0.5f);
+    if (gIblHasIrradiance < 0.5f && gIblHasPrefiltered < 0.5f && !hasLocalProbe)
     {
         result = HikariEvaluateAmbientIblApprox(
             baseColor,
@@ -137,7 +139,7 @@ float3 HikariEvaluateAmbientIbl(
 
         float3 diffuse = kD * baseColor * diffuseIbl;
 
-        float3 specular = 0.0f.xxx;
+        float3 skySpecular = 0.0f.xxx;
         if (gIblHasPrefiltered > 0.5f)
         {
             float3 r = normalize(reflect(-v, n));
@@ -148,18 +150,42 @@ float3 HikariEvaluateAmbientIbl(
             if (gIblHasBrdfLut > 0.5f)
             {
                 float2 brdf = gIblBrdfLutTex.Sample(gLinearWrap, float2(ndotv, roughness)).rg;
-                specular = prefiltered * (F * brdf.x + brdf.y);
+                skySpecular = prefiltered * (F * brdf.x + brdf.y);
             }
             else
             {
-                specular = prefiltered * F;
+                skySpecular = prefiltered * F;
             }
         }
         else
         {
             float3 r = normalize(reflect(-v, n));
             float roughnessFade = 1.0f - saturate(roughness * 0.85f);
-            specular = HikariSampleSkyEnvironment(r) * F * roughnessFade * max(0.0f, gSkyReflectionIntensity);
+            skySpecular = HikariSampleSkyEnvironment(r) * F * roughnessFade * max(0.0f, gSkyReflectionIntensity);
+        }
+
+        float3 specular = skySpecular;
+        if (hasLocalProbe)
+        {
+            float3 r = normalize(reflect(-v, n));
+            float probeRadius = max(0.001f, gReflectionProbeRadius);
+            float dist = length(worldPos - gReflectionProbePosition);
+            float probeWeight = saturate(1.0f - dist / probeRadius);
+            probeWeight = probeWeight * probeWeight * (3.0f - 2.0f * probeWeight);
+            probeWeight *= max(0.0f, gReflectionProbeSpecularIntensity);
+
+            float probeMipCount = max(1.0f, gReflectionProbeMipCount);
+            float probeMip = roughness * (probeMipCount - 1.0f);
+            float3 probePrefiltered = gReflectionProbePrefilteredTex.SampleLevel(gLinearWrap, r, probeMip).rgb;
+            float3 probeSpecular = probePrefiltered * F;
+            if (gReflectionProbeHasBrdfLut > 0.5f)
+            {
+                float2 brdf = gIblBrdfLutTex.Sample(gLinearWrap, float2(ndotv, roughness)).rg;
+                probeSpecular = probePrefiltered * (F * brdf.x + brdf.y);
+            }
+
+            // Sky IBL と local probe は加算ではなく正規化 blend にする。
+            specular = (skySpecular + probeSpecular * probeWeight) / max(1.0f + probeWeight, 0.0001f);
         }
 
         result = (diffuse + specular) * occlusion;

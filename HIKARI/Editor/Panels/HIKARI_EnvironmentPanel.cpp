@@ -117,6 +117,14 @@ namespace HIKARI {
                 lhs.showDebugTexture == rhs.showDebugTexture;
         }
 
+        bool EqualReflectionProbeSettings(const ReflectionProbeSettings& lhs, const ReflectionProbeSettings& rhs) {
+            return lhs.enabled == rhs.enabled &&
+                lhs.sourceCubemapAsset == rhs.sourceCubemapAsset &&
+                EqualVec3(lhs.position, rhs.position) &&
+                lhs.radius == rhs.radius &&
+                lhs.intensity == rhs.intensity;
+        }
+
         bool EqualPointLight(const PointLight& lhs, const PointLight& rhs) {
             return lhs.enabled == rhs.enabled &&
                 EqualVec3(lhs.position, rhs.position) &&
@@ -163,6 +171,7 @@ namespace HIKARI {
                 lhs.directionalShadow.shadowDistance != rhs.directionalShadow.shadowDistance ||
                 lhs.directionalShadow.showDebugFrustum != rhs.directionalShadow.showDebugFrustum ||
                 !EqualSkySettings(lhs.sky, rhs.sky) ||
+                !EqualReflectionProbeSettings(lhs.reflectionProbe, rhs.reflectionProbe) ||
                 lhs.bloom.enabled != rhs.bloom.enabled ||
                 lhs.bloom.threshold != rhs.bloom.threshold ||
                 lhs.bloom.intensity != rhs.bloom.intensity ||
@@ -395,6 +404,78 @@ namespace HIKARI {
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "Unresolved sky asset: %s", value.c_str());
                 }
+            }
+            return changed;
+        }
+
+        bool DrawReflectionProbeAssetPicker(
+            const AssetRegistry* assetRegistry,
+            const AssetDatabase* assetDatabase,
+            std::string& value) {
+
+            if (assetDatabase) {
+                return EDITOR::DrawAssetField(
+                    assetDatabase,
+                    EDITOR::AssetFieldOptions{
+                        "Source Cubemap Asset",
+                        AssetType::Sky,
+                        true,
+                        false,
+                        true
+                    },
+                    value);
+            }
+
+            if (!assetRegistry) {
+                char assetBuffer[256]{};
+                std::strncpy(assetBuffer, value.c_str(), sizeof(assetBuffer) - 1);
+                if (ImGui::InputText("Source Cubemap Asset", assetBuffer, sizeof(assetBuffer))) {
+                    value = assetBuffer;
+                    return true;
+                }
+                return false;
+            }
+
+            std::vector<const AssetDescriptor*> skies = assetRegistry->CollectByType(AssetType::Sky);
+            std::vector<SkyPickerEntry> entries;
+            entries.reserve(skies.size());
+            for (const AssetDescriptor* descriptor : skies) {
+                if (descriptor && !descriptor->id.value.empty()) {
+                    entries.push_back(BuildSkyPickerEntry(*descriptor, assetDatabase));
+                }
+            }
+            std::sort(entries.begin(), entries.end(), [](const SkyPickerEntry& lhs, const SkyPickerEntry& rhs) {
+                return lhs.name < rhs.name;
+            });
+
+            const SkyPickerEntry* current = nullptr;
+            for (const SkyPickerEntry& entry : entries) {
+                if (entry.id == value) {
+                    current = &entry;
+                    break;
+                }
+            }
+
+            bool changed = false;
+            const std::string preview = value.empty()
+                ? std::string("<none>")
+                : (current ? current->name : ("Missing: " + value));
+            if (ImGui::BeginCombo("Source Cubemap Asset", preview.c_str())) {
+                if (ImGui::Selectable("<none>", value.empty())) {
+                    value.clear();
+                    changed = true;
+                }
+                for (const SkyPickerEntry& entry : entries) {
+                    const bool selected = value == entry.id;
+                    if (ImGui::Selectable(entry.label.c_str(), selected)) {
+                        value = entry.id;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
             }
             return changed;
         }
@@ -708,6 +789,17 @@ namespace HIKARI {
             ImGui::Checkbox("Show Sky Debug Texture", &environment.sky.showDebugTexture);
             ImGui::TextDisabled("Runtime Sky: %s", RENDER3D::DIAGNOSTICS::ResolveSkySummaryLabel(runtimeSnapshot));
             ImGui::TextDisabled("Runtime IBL: %s", RENDER3D::DIAGNOSTICS::ResolveIblSummaryLabel(runtimeSnapshot));
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Reflection Probe")) {
+            ImGui::Checkbox("Enabled", &environment.reflectionProbe.enabled);
+            DrawReflectionProbeAssetPicker(assetRegistry, assetDatabase, environment.reflectionProbe.sourceCubemapAsset);
+            ImGui::DragFloat3("Position", &environment.reflectionProbe.position.x, 0.02f);
+            ImGui::DragFloat("Radius", &environment.reflectionProbe.radius, 0.05f, 0.01f, 500.0f);
+            ImGui::DragFloat("Intensity", &environment.reflectionProbe.intensity, 0.01f, 0.0f, 8.0f);
+            ImGui::TextDisabled("Runtime Probe: %s",
+                RENDER3D::DIAGNOSTICS::ResolveReflectionProbeSummaryLabel(runtimeSnapshot));
             ImGui::TreePop();
         }
 

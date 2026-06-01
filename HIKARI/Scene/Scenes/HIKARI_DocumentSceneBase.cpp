@@ -110,6 +110,17 @@ namespace HIKARI {
             return before.skyAsset != after.skyAsset ||
                    before.mode != after.mode;
         }
+
+        bool IsReflectionProbeRuntimeBindingChanged(
+            const ReflectionProbeSettings& before,
+            const ReflectionProbeSettings& after)
+        {
+            return before.enabled != after.enabled ||
+                before.sourceCubemapAsset != after.sourceCubemapAsset ||
+                !EqualVec3(before.position, after.position) ||
+                before.radius != after.radius ||
+                before.intensity != after.intensity;
+        }
       
     }
     
@@ -549,11 +560,15 @@ namespace HIKARI {
             IsSkyRuntimeResourceBindingChanged(
                 sceneDocument_.environment.sky,
                 environment_.sky);
+        const bool reflectionProbeBindingChanged =
+            IsReflectionProbeRuntimeBindingChanged(
+                sceneDocument_.environment.reflectionProbe,
+                environment_.reflectionProbe);
 
         sceneDocument_.environment = environment_;
         sceneDocumentDirty_ = true;
 
-        if (!skyResourceBindingChanged) {
+        if (!skyResourceBindingChanged && !reflectionProbeBindingChanged) {
             return true;
         }
 
@@ -564,6 +579,14 @@ namespace HIKARI {
         SceneDependencySet deps{};
         if (!environment_.sky.skyAsset.empty()) {
             deps.skyAssetIds.insert(environment_.sky.skyAsset);
+        }
+        if (environment_.reflectionProbe.enabled &&
+            !environment_.reflectionProbe.sourceCubemapAsset.empty()) {
+            deps.reflectionProbeCubemapAssetIds.insert(environment_.reflectionProbe.sourceCubemapAsset);
+            deps.reflectionProbeEnabled = true;
+            deps.reflectionProbePosition = environment_.reflectionProbe.position;
+            deps.reflectionProbeRadius = environment_.reflectionProbe.radius;
+            deps.reflectionProbeIntensity = environment_.reflectionProbe.intensity;
         }
 
         const bool ok = runtimeBuilder_.PreloadDependencies(

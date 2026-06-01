@@ -38,7 +38,9 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT IblPrefiltered = 15;
     // IBL BRDF LUT -> t11
     constexpr UINT IblBrdfLut = 16;
+    // Reflection Probe Prefiltered Cubemap -> t12
+    constexpr UINT ReflectionProbePrefiltered = 17;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 17;
+    constexpr UINT JointPalette = 18;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

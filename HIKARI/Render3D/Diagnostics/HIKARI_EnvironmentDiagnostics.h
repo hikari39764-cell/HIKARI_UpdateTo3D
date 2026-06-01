@@ -40,6 +40,23 @@ namespace HIKARI {
             DXGI_FORMAT brdfLutFormat = DXGI_FORMAT_UNKNOWN;
             bool prefilteredMipMismatch = false;
 
+            bool reflectionProbeEnabled = false;
+            bool reflectionProbeValid = false;
+            bool reflectionProbeHasPrefiltered = false;
+            bool reflectionProbeHasBrdfLut = false;
+            int reflectionProbePrefilteredHandle = -1;
+            int reflectionProbeBrdfLutHandle = -1;
+            uint32_t reflectionProbeMipCount = 1;
+            uint32_t reflectionProbeActualMipCount = 0;
+            uint32_t reflectionProbeBrdfLutMipCount = 0;
+            DXGI_FORMAT reflectionProbePrefilteredFormat = DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT reflectionProbeBrdfLutFormat = DXGI_FORMAT_UNKNOWN;
+            bool reflectionProbeMipMismatch = false;
+            float reflectionProbeRadius = 0.0f;
+            float reflectionProbeIntensity = 0.0f;
+            std::string reflectionProbeSourceAssetId{};
+            std::string reflectionProbePrefilteredPath{};
+
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;
             size_t shadowSubmittedCasterCount = 0;
@@ -77,6 +94,7 @@ namespace HIKARI {
 
         const char* ResolveSkySummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
         const char* ResolveIblSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
+        const char* ResolveReflectionProbeSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
 
     } // namespace RENDER3D::DIAGNOSTICS
 

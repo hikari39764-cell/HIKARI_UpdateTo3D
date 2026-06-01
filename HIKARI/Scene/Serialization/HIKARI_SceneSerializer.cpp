@@ -130,6 +130,12 @@ namespace HIKARI {
             out["sky"]["reflectionIntensity"] = environment.sky.reflectionIntensity;
             out["sky"]["showDebugTexture"] = environment.sky.showDebugTexture;
 
+            out["reflectionProbe"]["enabled"] = environment.reflectionProbe.enabled;
+            out["reflectionProbe"]["sourceCubemapAsset"] = environment.reflectionProbe.sourceCubemapAsset;
+            out["reflectionProbe"]["position"] = ToVec3(environment.reflectionProbe.position);
+            out["reflectionProbe"]["radius"] = environment.reflectionProbe.radius;
+            out["reflectionProbe"]["intensity"] = environment.reflectionProbe.intensity;
+
             out["bloom"]["enabled"] = environment.bloom.enabled;
             out["bloom"]["threshold"] = environment.bloom.threshold;
             out["bloom"]["intensity"] = environment.bloom.intensity;
@@ -233,6 +239,15 @@ namespace HIKARI {
                 environment.sky.ambientFromSky = sky.value("ambientFromSky", environment.sky.ambientFromSky);
                 environment.sky.reflectionIntensity = sky.value("reflectionIntensity", environment.sky.reflectionIntensity);
                 environment.sky.showDebugTexture = sky.value("showDebugTexture", environment.sky.showDebugTexture);
+            }
+
+            if (in.contains("reflectionProbe") && in["reflectionProbe"].is_object()) {
+                const json& probe = in["reflectionProbe"];
+                environment.reflectionProbe.enabled = probe.value("enabled", environment.reflectionProbe.enabled);
+                environment.reflectionProbe.sourceCubemapAsset = probe.value("sourceCubemapAsset", environment.reflectionProbe.sourceCubemapAsset);
+                environment.reflectionProbe.position = FromVec3(probe.value("position", json::array()), environment.reflectionProbe.position);
+                environment.reflectionProbe.radius = probe.value("radius", environment.reflectionProbe.radius);
+                environment.reflectionProbe.intensity = probe.value("intensity", environment.reflectionProbe.intensity);
             }
 
             if (in.contains("bloom") && in["bloom"].is_object()) {
