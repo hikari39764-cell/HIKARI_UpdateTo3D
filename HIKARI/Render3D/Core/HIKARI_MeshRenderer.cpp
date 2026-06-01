@@ -363,7 +363,8 @@ namespace HIKARI::MESHRENDERER {
         if (g.drawItems.empty()) {
             return;
         }
-        GFX::PIX::ScopedGpuEvent pixMeshRenderer(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "MeshRenderer");
+        // MeshRenderer 全体と各 phase の境界を PIX 上で分ける。
+        GFX::PIX::ScopedGpuEvent pixMeshRenderer(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "MeshRenderer.RenderAll");
         if (!EnsureInitialized()) {
             return;
         }

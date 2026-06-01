@@ -64,6 +64,8 @@ namespace HIKARI {
         EnvironmentDiagnosticsSnapshot CaptureEnvironmentSnapshot(const SceneEnvironment* environment = nullptr);
 
         void LogEnvironmentSnapshot(const char* reason, const SceneEnvironment* environment = nullptr);
+        void LogEnvironmentSnapshotIfChanged(const char* reason, const SceneEnvironment* environment = nullptr);
+        void ResetEnvironmentDiagnosticsChangeCache();
 
         const char* ResolveSkySummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);
         const char* ResolveIblSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot);

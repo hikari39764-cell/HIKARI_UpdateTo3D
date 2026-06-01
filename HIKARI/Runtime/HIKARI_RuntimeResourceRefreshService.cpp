@@ -4,6 +4,7 @@
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Core/HIKARI_Logger.h"
+#include "Render3D/Diagnostics/HIKARI_EnvironmentDiagnostics.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
 
 #if defined(_MSC_VER)
@@ -120,6 +121,10 @@ namespace HIKARI {
         }
 
         scene.RefreshCurrentSkyRuntime();
+        // Runtime refresh 後の environment 状態変化だけを diagnostics log に流す。
+        RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
+            "RuntimeRefresh.CurrentScene",
+            &scene.GetSceneEnvironment());
         return report;
     }
 
@@ -176,6 +181,10 @@ namespace HIKARI {
 
         ++report.skyInvalidatedCount;
         AppendMessage(report, "Refreshed sky: " + descriptor.id.value);
+        // Runtime refresh 後の environment 状態変化だけを diagnostics log に流す。
+        RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
+            "RuntimeRefresh.Sky",
+            &scene.GetSceneEnvironment());
         return true;
     }
 

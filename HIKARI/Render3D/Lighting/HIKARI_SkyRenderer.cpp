@@ -11,6 +11,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 
@@ -378,6 +379,8 @@ namespace HIKARI::SKYRENDERER {
         if (!cmd) {
             return;
         }
+        // PIX 上で sky pass の境界を追いやすくする。
+        GFX::PIX::ScopedGpuEvent pixSky(cmd, GFX::PIX::kColorRender, "SkyRenderer.Render");
 
         const MATH::Vec3 cameraPos = settings.followCamera ? camera.GetPosition() : MATH::Vec3{};
         const MATH::Quat yawRot = MATH::Quat::FromEulerXYZ(0.0f, settings.yaw, 0.0f);

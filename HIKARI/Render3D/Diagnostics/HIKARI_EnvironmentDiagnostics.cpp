@@ -13,6 +13,72 @@
 namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
     namespace {
+        struct EnvironmentDiagnosticsChangeKey {
+            bool skyRendererInitialized = false;
+            bool skyAssetFound = false;
+            bool skyCubemapLoaded = false;
+            bool skyUsingFallback = false;
+            bool skyTextureValid = false;
+            int skyCubemapHandle = -1;
+            int skyTextureHandle = -1;
+            std::string activeSkyAsset{};
+            std::string activeSkyTexturePath{};
+
+            bool iblValid = false;
+            bool iblHasIrradiance = false;
+            bool iblHasPrefiltered = false;
+            bool iblHasBrdfLut = false;
+            int irradianceHandle = -1;
+            int prefilteredHandle = -1;
+            int brdfLutHandle = -1;
+            uint32_t prefilteredMipCount = 1;
+
+            bool shadowEnabled = false;
+            uint32_t shadowResolution = 0;
+
+            bool bloomEnabled = false;
+            bool bloomInitialized = false;
+            bool bloomFailed = false;
+            bool toneMappingEnabled = false;
+            bool fxaaEnabled = false;
+            bool hasRecentRenderErrors = false;
+        };
+
+        bool gHasLastEnvironmentKey = false;
+        EnvironmentDiagnosticsChangeKey gLastEnvironmentKey{};
+
+        bool operator==(const EnvironmentDiagnosticsChangeKey& lhs, const EnvironmentDiagnosticsChangeKey& rhs) {
+            return lhs.skyRendererInitialized == rhs.skyRendererInitialized &&
+                lhs.skyAssetFound == rhs.skyAssetFound &&
+                lhs.skyCubemapLoaded == rhs.skyCubemapLoaded &&
+                lhs.skyUsingFallback == rhs.skyUsingFallback &&
+                lhs.skyTextureValid == rhs.skyTextureValid &&
+                lhs.skyCubemapHandle == rhs.skyCubemapHandle &&
+                lhs.skyTextureHandle == rhs.skyTextureHandle &&
+                lhs.activeSkyAsset == rhs.activeSkyAsset &&
+                lhs.activeSkyTexturePath == rhs.activeSkyTexturePath &&
+                lhs.iblValid == rhs.iblValid &&
+                lhs.iblHasIrradiance == rhs.iblHasIrradiance &&
+                lhs.iblHasPrefiltered == rhs.iblHasPrefiltered &&
+                lhs.iblHasBrdfLut == rhs.iblHasBrdfLut &&
+                lhs.irradianceHandle == rhs.irradianceHandle &&
+                lhs.prefilteredHandle == rhs.prefilteredHandle &&
+                lhs.brdfLutHandle == rhs.brdfLutHandle &&
+                lhs.prefilteredMipCount == rhs.prefilteredMipCount &&
+                lhs.shadowEnabled == rhs.shadowEnabled &&
+                lhs.shadowResolution == rhs.shadowResolution &&
+                lhs.bloomEnabled == rhs.bloomEnabled &&
+                lhs.bloomInitialized == rhs.bloomInitialized &&
+                lhs.bloomFailed == rhs.bloomFailed &&
+                lhs.toneMappingEnabled == rhs.toneMappingEnabled &&
+                lhs.fxaaEnabled == rhs.fxaaEnabled &&
+                lhs.hasRecentRenderErrors == rhs.hasRecentRenderErrors;
+        }
+
+        bool operator!=(const EnvironmentDiagnosticsChangeKey& lhs, const EnvironmentDiagnosticsChangeKey& rhs) {
+            return !(lhs == rhs);
+        }
+
         const char* BoolText(bool value) {
             return value ? "true" : "false";
         }
@@ -27,6 +93,39 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
         void LogWarnLine(const std::string& message) {
             HIKARI_LOG_WARN(message);
+        }
+
+        EnvironmentDiagnosticsChangeKey MakeChangeKey(const EnvironmentDiagnosticsSnapshot& snapshot) {
+            EnvironmentDiagnosticsChangeKey key{};
+            key.skyRendererInitialized = snapshot.skyRendererInitialized;
+            key.skyAssetFound = snapshot.skyAssetFound;
+            key.skyCubemapLoaded = snapshot.skyCubemapLoaded;
+            key.skyUsingFallback = snapshot.skyUsingFallback;
+            key.skyTextureValid = snapshot.skyTextureValid;
+            key.skyCubemapHandle = snapshot.skyCubemapHandle;
+            key.skyTextureHandle = snapshot.skyTextureHandle;
+            key.activeSkyAsset = snapshot.activeSkyAsset;
+            key.activeSkyTexturePath = snapshot.activeSkyTexturePath;
+
+            key.iblValid = snapshot.iblValid;
+            key.iblHasIrradiance = snapshot.iblHasIrradiance;
+            key.iblHasPrefiltered = snapshot.iblHasPrefiltered;
+            key.iblHasBrdfLut = snapshot.iblHasBrdfLut;
+            key.irradianceHandle = snapshot.irradianceHandle;
+            key.prefilteredHandle = snapshot.prefilteredHandle;
+            key.brdfLutHandle = snapshot.brdfLutHandle;
+            key.prefilteredMipCount = snapshot.prefilteredMipCount;
+
+            key.shadowEnabled = snapshot.shadowEnabled;
+            key.shadowResolution = snapshot.shadowResolution;
+
+            key.bloomEnabled = snapshot.bloomEnabled;
+            key.bloomInitialized = snapshot.bloomInitialized;
+            key.bloomFailed = snapshot.bloomFailed;
+            key.toneMappingEnabled = snapshot.toneMappingEnabled;
+            key.fxaaEnabled = snapshot.fxaaEnabled;
+            key.hasRecentRenderErrors = snapshot.recentRenderErrorCount > 0;
+            return key;
         }
     }
 
@@ -190,6 +289,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (snapshot.recentRenderErrorCount > 0) {
             LogWarnLine("[EnvironmentDiagnostics][Errors] recent render errors exist.");
         }
+    }
+
+    void LogEnvironmentSnapshotIfChanged(const char* reason, const SceneEnvironment* environment) {
+        const EnvironmentDiagnosticsSnapshot snapshot = CaptureEnvironmentSnapshot(environment);
+        const EnvironmentDiagnosticsChangeKey key = MakeChangeKey(snapshot);
+        if (gHasLastEnvironmentKey && key == gLastEnvironmentKey) {
+            return;
+        }
+
+        // counter 系は変化判定に含めず、resource 状態だけを見る。
+        gLastEnvironmentKey = key;
+        gHasLastEnvironmentKey = true;
+        LogEnvironmentSnapshot((reason && reason[0] != '\0') ? reason : "EnvironmentChanged", environment);
+    }
+
+    void ResetEnvironmentDiagnosticsChangeCache() {
+        gLastEnvironmentKey = {};
+        gHasLastEnvironmentKey = false;
     }
 
     const char* ResolveSkySummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot) {

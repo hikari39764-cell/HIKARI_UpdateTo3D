@@ -1,6 +1,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 
 #include "HIKARI_DxTexture.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
@@ -130,6 +131,8 @@ namespace HIKARI::MESHRENDERER {
         if (ctx.cmd == nullptr) {
             return;
         }
+        // IBL resource binding の境界を PIX 上で追えるようにする。
+        GFX::PIX::ScopedGpuEvent pixIbl(ctx.cmd, GFX::PIX::kColorRender, "IBL.BindResources");
 
         const D3D12_GPU_DESCRIPTOR_HANDLE irradianceSrv =
             ResolveIblIrradianceSrv(ctx.fallbackTextureHandle);
