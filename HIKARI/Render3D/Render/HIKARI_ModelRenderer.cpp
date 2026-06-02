@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -167,12 +168,43 @@ namespace HIKARI::MODELRENDERER {
             return false;
         }
 
-        void TouchRenderModelCache(const ModelRenderItem& item) {
+        uint32_t ClampToUint32(size_t value) {
+            return static_cast<uint32_t>((std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+        }
+
+        void AddRenderModelRequestedSubmeshCount(size_t value) {
+            const uint64_t sum =
+                static_cast<uint64_t>(gDebugStats.renderModelRequestedSubmeshCount) +
+                static_cast<uint64_t>(ClampToUint32(value));
+            gDebugStats.renderModelRequestedSubmeshCount = static_cast<uint32_t>(
+                (std::min)(sum, static_cast<uint64_t>((std::numeric_limits<uint32_t>::max)())));
+        }
+
+        void SyncRenderModelCacheStats() {
+            const RENDER3D::RUNTIME::RenderModelCache::Stats& cacheStats = gRenderModelCache.GetStats();
+            gDebugStats.renderModelCacheRequestCount = cacheStats.requestCount;
+            gDebugStats.renderModelCacheHitCount = cacheStats.hitCount;
+            gDebugStats.renderModelCacheMissCount = cacheStats.missCount;
+            gDebugStats.renderModelCacheInvalidCount = cacheStats.invalidModelCount;
+            gDebugStats.renderModelCachedModelCount = cacheStats.cachedModelCount;
+            gDebugStats.renderModelCachedSubmeshCount = cacheStats.cachedSubmeshCount;
+        }
+
+        const RENDER3D::RUNTIME::RenderModelAsset* ResolveRenderModelForDebug(const ModelRenderItem& item) {
             if (item.model == nullptr) {
-                return;
+                return nullptr;
             }
             // R0.1 では描画経路を変えず、runtime cache の構築だけを行う。
-            (void)gRenderModelCache.GetOrCreate(*item.model);
+            const RENDER3D::RUNTIME::RenderModelAsset* renderModel = gRenderModelCache.GetOrCreate(*item.model);
+            SyncRenderModelCacheStats();
+            if (renderModel == nullptr || !renderModel->valid) {
+                ++gDebugStats.renderModelInvalidRequestCount;
+                return renderModel;
+            }
+
+            ++gDebugStats.renderModelValidRequestCount;
+            AddRenderModelRequestedSubmeshCount(renderModel->submeshes.size());
+            return renderModel;
         }
 
         bool ShouldUsePoseCache(const ModelRenderItem& item) {
@@ -735,7 +767,9 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
-            TouchRenderModelCache(item);
+            const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
+                ResolveRenderModelForDebug(item);
+            (void)renderModel;
             if (SubmitStructuredModelNodes(item, camera, true)) {
                 continue;
             }
@@ -772,7 +806,9 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
-            TouchRenderModelCache(item);
+            const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
+                ResolveRenderModelForDebug(item);
+            (void)renderModel;
             if (SubmitStructuredModelNodes(item, camera, false)) {
                 continue;
             }

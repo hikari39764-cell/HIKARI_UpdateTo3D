@@ -40,6 +40,15 @@ namespace HIKARI::MODELRENDERER {
         size_t structuredNodeSubmittedCount = 0;
         size_t structuredNodeCulledCount = 0;
         size_t structuredCullBoundsMissingCount = 0;
+        uint32_t renderModelCacheRequestCount = 0;
+        uint32_t renderModelCacheHitCount = 0;
+        uint32_t renderModelCacheMissCount = 0;
+        uint32_t renderModelCacheInvalidCount = 0;
+        uint32_t renderModelCachedModelCount = 0;
+        uint32_t renderModelCachedSubmeshCount = 0;
+        uint32_t renderModelValidRequestCount = 0;
+        uint32_t renderModelInvalidRequestCount = 0;
+        uint32_t renderModelRequestedSubmeshCount = 0;
         int lastSkinIndex = -1;
         size_t lastPaletteJointCount = 0;
         bool hasFirstJointMatrix = false;

@@ -17,9 +17,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         ++stats_.missCount;
         auto runtimeAsset = std::make_unique<RenderModelAsset>();
-        if (!BuildRenderModelAsset(source, *runtimeAsset, nullptr)) {
-            ++stats_.invalidModelCount;
-        }
+        (void)BuildRenderModelAsset(source, *runtimeAsset, nullptr);
 
         const RenderModelAsset* raw = runtimeAsset.get();
         cache_.emplace(&source, std::move(runtimeAsset));
@@ -45,13 +43,19 @@ namespace HIKARI::RENDER3D::RUNTIME {
         stats_.cachedModelCount = static_cast<uint32_t>(
             (std::min)(cache_.size(), static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
         uint64_t submeshCount = 0;
+        uint64_t invalidModelCount = 0;
         for (const auto& entry : cache_) {
             if (entry.second != nullptr) {
                 submeshCount += entry.second->submeshes.size();
+                if (!entry.second->valid) {
+                    ++invalidModelCount;
+                }
             }
         }
         stats_.cachedSubmeshCount = static_cast<uint32_t>(
             (std::min)(submeshCount, static_cast<uint64_t>((std::numeric_limits<uint32_t>::max)())));
+        stats_.invalidModelCount = static_cast<uint32_t>(
+            (std::min)(invalidModelCount, static_cast<uint64_t>((std::numeric_limits<uint32_t>::max)())));
     }
 
 } // namespace HIKARI::RENDER3D::RUNTIME

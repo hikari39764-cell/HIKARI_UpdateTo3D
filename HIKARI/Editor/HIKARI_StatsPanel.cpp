@@ -76,6 +76,10 @@ namespace HIKARI {
                 renderModelCacheStats.cachedModelCount,
                 renderModelCacheStats.cachedSubmeshCount);
             ImGui::Text("RenderModel Invalid Models: %u", renderModelCacheStats.invalidModelCount);
+            ImGui::Text("RenderModel Frame Valid / Invalid: %u / %u",
+                modelStats.renderModelValidRequestCount,
+                modelStats.renderModelInvalidRequestCount);
+            ImGui::Text("RenderModel Frame Submeshes: %u", modelStats.renderModelRequestedSubmeshCount);
             ImGui::Text("Structured Nodes Submitted / Culled: %zu / %zu",
                 modelStats.structuredNodeSubmittedCount,
                 modelStats.structuredNodeCulledCount);
