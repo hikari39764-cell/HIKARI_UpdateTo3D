@@ -97,6 +97,7 @@ namespace HIKARI {
 
             bool ssaoEnabled = false;
             bool ssaoValid = false;
+            bool ssaoSuppressed = false;
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
             uint32_t ssaoSampleCount = 0;
@@ -104,6 +105,15 @@ namespace HIKARI {
             float ssaoRadius = 0.0f;
             float ssaoStrength = 0.0f;
             float ssaoPower = 0.0f;
+
+            size_t debugSubmittedLineCount = 0;
+            size_t debugExpandedLineCount = 0;
+            size_t debugDepthTestLineCount = 0;
+            size_t debugXRayLineCount = 0;
+            uint32_t debugLightProbeGizmoTotalPointCount = 0;
+            uint32_t debugLightProbeGizmoDrawnPointCount = 0;
+            uint32_t debugLightProbeGizmoMode = 0;
+            bool debugLightProbeGizmoCapped = false;
 
             bool shadowEnabled = false;
             uint32_t shadowResolution = 0;

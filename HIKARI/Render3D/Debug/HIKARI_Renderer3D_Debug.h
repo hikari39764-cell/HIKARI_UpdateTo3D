@@ -1,15 +1,16 @@
 #pragma once
+
 #include <array>
+#include <cstddef>
+#include <cstdint>
+
+#include "Render2D/HIKARI_Transform2D.h"
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Transform3D.h"
-#include "Render2D/HIKARI_Transform2D.h"
 
 namespace HIKARI::RENDERER3D::DEBUG {
 
-    // 3D Debug Primitive Layer:
-    // このモジュールはワイヤーフレーム/補助図元を描画するための一時的なデバッグ層。
-    // 将来の Mesh/Material/Model ベースの正式 3D レンダラ責務は持たない。
-
+    // Editor overlay 用の 3D debug primitive。
     enum class DebugDepthMode {
         DepthTest,
         XRay
@@ -45,11 +46,32 @@ namespace HIKARI::RENDERER3D::DEBUG {
         DebugDepthMode depthMode = DebugDepthMode::DepthTest;
     };
 
+    struct DebugRendererFrameStats {
+        size_t submittedLineCount = 0;
+        size_t submittedXRayLineCount = 0;
+        size_t expandedLineCount = 0;
+        size_t depthTestLineCount = 0;
+        size_t xrayLineCount = 0;
+        size_t wireCubeCount = 0;
+        size_t axisCount = 0;
+        size_t gridCount = 0;
+        uint32_t lightProbeGizmoTotalPointCount = 0;
+        uint32_t lightProbeGizmoDrawnPointCount = 0;
+        uint32_t lightProbeGizmoMode = 0;
+        bool lightProbeGizmoCapped = false;
+    };
+
     void Reset();
     void SubmitWireCube(const WireCube& cube);
     void SubmitLine3D(const Line3D& line);
     void SubmitAxis3D(const Axis3D& axis);
     void SubmitGrid3D(const Grid3D& grid);
+    void SetLightProbeVolumeGizmoStats(
+        uint32_t totalPointCount,
+        uint32_t drawnPointCount,
+        uint32_t mode,
+        bool capped);
+    const DebugRendererFrameStats& GetDebugRendererFrameStats();
     void RenderAll(const Camera3D& camera, float screenW, float screenH);
 
 } // namespace HIKARI::RENDERER3D::DEBUG

@@ -3,6 +3,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
@@ -102,6 +103,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
             bool ssaoEnabled = false;
             bool ssaoValid = false;
+            bool ssaoSuppressed = false;
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
             uint32_t ssaoSampleCount = 0;
@@ -204,6 +206,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.lightProbeVolumePath == rhs.lightProbeVolumePath &&
                 lhs.ssaoEnabled == rhs.ssaoEnabled &&
                 lhs.ssaoValid == rhs.ssaoValid &&
+                lhs.ssaoSuppressed == rhs.ssaoSuppressed &&
                 lhs.ssaoWidth == rhs.ssaoWidth &&
                 lhs.ssaoHeight == rhs.ssaoHeight &&
                 lhs.ssaoSampleCount == rhs.ssaoSampleCount &&
@@ -243,6 +246,20 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
         const char* ReasonText(const char* reason) {
             return (reason && reason[0] != '\0') ? reason : "Manual";
+        }
+
+        const char* LightProbeGizmoModeText(uint32_t mode) {
+            switch (mode) {
+            case 1u:
+                return "BoundsOnly";
+            case 2u:
+                return "SampledPoints";
+            case 3u:
+                return "AllPoints";
+            case 0u:
+            default:
+                return "Off";
+            }
         }
 
         void LogInfoLine(const std::string& message) {
@@ -338,6 +355,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
             key.ssaoEnabled = snapshot.ssaoEnabled;
             key.ssaoValid = snapshot.ssaoValid;
+            key.ssaoSuppressed = snapshot.ssaoSuppressed;
             key.ssaoWidth = snapshot.ssaoWidth;
             key.ssaoHeight = snapshot.ssaoHeight;
             key.ssaoSampleCount = snapshot.ssaoSampleCount;
@@ -458,6 +476,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         const SCREENSPACE::SsaoDebugState& ssao = SCREENSPACE::GetSsaoDebugState();
         snapshot.ssaoEnabled = ssao.enabled;
         snapshot.ssaoValid = ssao.valid;
+        snapshot.ssaoSuppressed = ssao.suppressed;
         snapshot.ssaoWidth = ssao.width;
         snapshot.ssaoHeight = ssao.height;
         snapshot.ssaoSampleCount = ssao.sampleCount;
@@ -465,6 +484,16 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.ssaoRadius = ssao.radius;
         snapshot.ssaoStrength = ssao.strength;
         snapshot.ssaoPower = ssao.power;
+
+        const RENDERER3D::DEBUG::DebugRendererFrameStats& debugStats = RENDERER3D::DEBUG::GetDebugRendererFrameStats();
+        snapshot.debugSubmittedLineCount = debugStats.submittedLineCount;
+        snapshot.debugExpandedLineCount = debugStats.expandedLineCount;
+        snapshot.debugDepthTestLineCount = debugStats.depthTestLineCount;
+        snapshot.debugXRayLineCount = debugStats.xrayLineCount;
+        snapshot.debugLightProbeGizmoTotalPointCount = debugStats.lightProbeGizmoTotalPointCount;
+        snapshot.debugLightProbeGizmoDrawnPointCount = debugStats.lightProbeGizmoDrawnPointCount;
+        snapshot.debugLightProbeGizmoMode = debugStats.lightProbeGizmoMode;
+        snapshot.debugLightProbeGizmoCapped = debugStats.lightProbeGizmoCapped;
 
         const SHADOW::ShadowMapDebugStats& shadow = SHADOW::GetDebugStats();
         snapshot.shadowEnabled = shadow.enabled && SHADOW::IsDirectionalShadowEnabled();
@@ -505,7 +534,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         const EnvironmentDiagnosticsSnapshot snapshot = CaptureEnvironmentSnapshot(environment);
         const char* safeReason = ReasonText(reason);
 
-        // 手動 dump の時だけ詳細診断を log に出す。
+        // 手動 dump 時は runtime 状態をまとめて log に出す。
         {
             std::ostringstream oss;
             oss << "[EnvironmentDiagnostics] reason=" << safeReason;
@@ -620,12 +649,26 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             oss << "[EnvironmentDiagnostics][SSAO]"
                 << " enabled=" << BoolText(snapshot.ssaoEnabled)
                 << " valid=" << BoolText(snapshot.ssaoValid)
+                << " suppressed=" << BoolText(snapshot.ssaoSuppressed)
                 << " size=" << snapshot.ssaoWidth << "x" << snapshot.ssaoHeight
                 << " samples=" << snapshot.ssaoSampleCount
                 << " blur=" << snapshot.ssaoBlurIterations
                 << " radius=" << snapshot.ssaoRadius
                 << " strength=" << snapshot.ssaoStrength
                 << " power=" << snapshot.ssaoPower;
+            LogInfoLine(oss.str());
+        }
+        {
+            std::ostringstream oss;
+            oss << "[EnvironmentDiagnostics][DebugOverlay]"
+                << " submittedLines=" << snapshot.debugSubmittedLineCount
+                << " expandedLines=" << snapshot.debugExpandedLineCount
+                << " depthLines=" << snapshot.debugDepthTestLineCount
+                << " xrayLines=" << snapshot.debugXRayLineCount
+                << " lightProbePoints=" << snapshot.debugLightProbeGizmoDrawnPointCount
+                << "/" << snapshot.debugLightProbeGizmoTotalPointCount
+                << " lightProbeMode=" << LightProbeGizmoModeText(snapshot.debugLightProbeGizmoMode)
+                << " lightProbeCapped=" << BoolText(snapshot.debugLightProbeGizmoCapped);
             LogInfoLine(oss.str());
         }
         {
@@ -696,7 +739,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (snapshot.reflectionProbeMipMismatch) {
             LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] prefiltered mip count mismatch.");
         }
-        if (snapshot.ssaoEnabled && !snapshot.ssaoValid) {
+        if (snapshot.ssaoEnabled && !snapshot.ssaoSuppressed && !snapshot.ssaoValid) {
             LogWarnLine("[EnvironmentDiagnostics][SSAO] SSAO is enabled but the runtime texture is invalid.");
         }
         if (snapshot.bloomFailed) {
@@ -776,6 +819,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
     const char* ResolveSsaoSummaryLabel(const EnvironmentDiagnosticsSnapshot& snapshot) {
         if (!snapshot.ssaoEnabled) {
             return "AO Off";
+        }
+        if (snapshot.ssaoSuppressed) {
+            return "AO Suppressed";
         }
         if (snapshot.ssaoValid) {
             return "AO Ready";

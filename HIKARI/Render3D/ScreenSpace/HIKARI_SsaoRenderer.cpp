@@ -74,6 +74,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         gDebugState.enabled = settings.enabled;
         gDebugState.valid = false;
+        gDebugState.suppressed = settings.editorViewportSuppressed;
         gDebugState.width = geometryBuffer.GetWidth();
         gDebugState.height = geometryBuffer.GetHeight();
         gDebugState.sampleCount = NormalizeSampleCount(settings.sampleCount);
@@ -184,6 +185,26 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         valid_ = lastAoSrv_.ptr != 0;
         gDebugState.valid = valid_;
         return valid_;
+    }
+
+    void SsaoRenderer::RecordSkipped(
+        uint32_t width,
+        uint32_t height,
+        const AmbientOcclusionSettings& settings) {
+
+        valid_ = false;
+        lastAoSrv_ = {};
+
+        gDebugState.enabled = settings.enabled;
+        gDebugState.valid = false;
+        gDebugState.suppressed = settings.editorViewportSuppressed;
+        gDebugState.width = width;
+        gDebugState.height = height;
+        gDebugState.sampleCount = NormalizeSampleCount(settings.sampleCount);
+        gDebugState.blurIterations = std::clamp<uint32_t>(settings.blurIterations, 0u, 4u);
+        gDebugState.radius = settings.radius;
+        gDebugState.strength = settings.strength;
+        gDebugState.power = settings.power;
     }
 
     bool SsaoRenderer::EnsureResources(uint32_t width, uint32_t height) {

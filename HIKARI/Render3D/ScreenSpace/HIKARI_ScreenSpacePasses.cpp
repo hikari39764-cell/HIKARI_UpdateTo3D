@@ -52,11 +52,16 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return result;
         }
 
-        // Screen-space pass は mesh draw の前段で実行順だけを管理する。
+        // Screen-space pass は mesh draw の前段で必要な texture だけを作る。
         GFX::PIX::ScopedGpuEvent pixScreenSpace(context.cmd, GFX::PIX::kColorPost, "ScreenSpace.PreLighting");
 
-        if (!environment.ambientOcclusion.enabled) {
-            state.ssaoRenderer.Render(context.cmd, state.geometryBuffer, {}, cameraCb, environment.ambientOcclusion);
+        if (!environment.ambientOcclusion.enabled ||
+            environment.ambientOcclusion.editorViewportSuppressed) {
+            state.ssaoRenderer.RecordSkipped(
+                context.width,
+                context.height,
+                environment.ambientOcclusion);
+            state.geometryValid = false;
             state.ssaoValid = false;
             return result;
         }

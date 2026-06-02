@@ -15,6 +15,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     struct SsaoDebugState {
         bool enabled = false;
         bool valid = false;
+        bool suppressed = false;
         uint32_t width = 0;
         uint32_t height = 0;
         uint32_t sampleCount = 0;
@@ -34,6 +35,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             const AmbientOcclusionSettings& settings);
 
         void Release();
+        void RecordSkipped(
+            uint32_t width,
+            uint32_t height,
+            const AmbientOcclusionSettings& settings);
 
         D3D12_GPU_DESCRIPTOR_HANDLE GetAoSrv() const { return lastAoSrv_; }
         bool IsValid() const { return valid_; }

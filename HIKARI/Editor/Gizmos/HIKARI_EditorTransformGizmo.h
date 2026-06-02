@@ -31,6 +31,12 @@ namespace HIKARI {
                 const Camera3D& camera,
                 const EditorTransformGizmoState& state,
                 const EditorViewportRect& viewportRect) const;
+
+            EditorTransformGizmoResult DrawTransform(
+                const TransformData& transform,
+                const Camera3D& camera,
+                const EditorTransformGizmoState& state,
+                const EditorViewportRect& viewportRect) const;
         };
 
     } // namespace EDITOR

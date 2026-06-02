@@ -149,6 +149,20 @@ namespace HIKARI {
             return shape == ReflectionProbeProjectionShape::Box ? "Box" : "Infinite";
         }
 
+        REFLECTION::RuntimeReflectionProbeInfluenceShape ToRuntimeInfluenceShape(
+            ReflectionProbeInfluenceShape shape) {
+            return shape == ReflectionProbeInfluenceShape::Box
+                ? REFLECTION::RuntimeReflectionProbeInfluenceShape::Box
+                : REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
+        }
+
+        REFLECTION::RuntimeReflectionProbeProjectionShape ToRuntimeProjectionShape(
+            ReflectionProbeProjectionShape shape) {
+            return shape == ReflectionProbeProjectionShape::Box
+                ? REFLECTION::RuntimeReflectionProbeProjectionShape::Box
+                : REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
+        }
+
         const char* ProbeFaceName(uint32_t faceIndex) {
             static constexpr const char* kFaceNames[6] = {
                 "+X", "-X", "+Y", "-Y", "+Z", "-Z"
@@ -470,6 +484,11 @@ namespace HIKARI {
         systemScheduler_.PostRender(world_, frame);
         SceneEnvironment activeEnvironment = environment_;
         activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);
+        const bool editorSsaoSuppressed =
+            DrawDebugHelpers() &&
+            (viewportPerformanceState_.disableSsaoInEditorViewport ||
+                (viewportPerformanceState_.disableSsaoWhileGizmoActive && viewportGizmoInteracting_));
+        activeEnvironment.ambientOcclusion.editorViewportSuppressed = editorSsaoSuppressed;
         if (!UseEnvironmentLighting()) {
             activeEnvironment.directional.intensity = 0.0f;
             activeEnvironment.ambient.intensity = 0.0f;
@@ -481,10 +500,16 @@ namespace HIKARI {
 
         SKYRENDERER::Render(camera_, activeEnvironment, modelManager_, skyManager_);
         if (DrawDebugHelpers()) {
-            LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
-            LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
-            reflectionProbeGizmoRenderer_.Submit(activeEnvironment, true);
-            lightProbeVolumeGizmoRenderer_.Submit(sceneDocument_.lightingBake.lightProbeVolume, true);
+            if (viewportOverlayState_.showLights) {
+                LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
+                LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
+            }
+            if (viewportOverlayState_.showReflectionProbe) {
+                reflectionProbeGizmoRenderer_.Submit(activeEnvironment, viewportOverlayState_, camera_);
+            }
+            lightProbeVolumeGizmoRenderer_.Submit(
+                sceneDocument_.lightingBake.lightProbeVolume,
+                viewportOverlayState_);
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
@@ -577,8 +602,39 @@ namespace HIKARI {
     void DocumentSceneBase::SetViewportOverlayState(const ViewportOverlayState& state) {
         viewportOverlayState_ = state;
     }
+    void DocumentSceneBase::SetViewportPerformanceState(const ViewportPerformanceState& state) {
+        viewportPerformanceState_ = state;
+    }
+    void DocumentSceneBase::SetViewportGizmoInteracting(bool interacting) {
+        viewportGizmoInteracting_ = interacting;
+    }
     void DocumentSceneBase::SetSelectedGizmoObjectId(SceneObjectId id) {
         selectedGizmoObjectId_ = id;
+    }
+    void DocumentSceneBase::SyncReflectionProbeRuntimeFromAuthoring() {
+        const ReflectionProbeSettings& probe = environment_.reflectionProbe;
+        const REFLECTION::ReflectionProbeRuntimeData runtime = REFLECTION::GetActiveProbe();
+
+        // Viewport 操作では現在の texture handle を保持し、authoring 値だけ同期する。
+        REFLECTION::SetActiveProbe(
+            probe.enabled,
+            runtime.prefilteredHandle,
+            runtime.brdfLutHandle,
+            runtime.prefilteredMipCount,
+            probe.position,
+            probe.radius,
+            probe.intensity,
+            ToRuntimeInfluenceShape(probe.influenceShape),
+            ToRuntimeProjectionShape(probe.projectionShape),
+            probe.influenceBoxCenter,
+            probe.influenceBoxSize,
+            probe.projectionBoxCenter,
+            probe.projectionBoxSize,
+            probe.blendDistance,
+            probe.priority,
+            runtime.sourceAssetId,
+            runtime.prefilteredPath,
+            runtime.brdfLutPath);
     }
     bool DocumentSceneBase::ReloadAssets() {
         if (assetDatabase_.GetProjectRoot().empty()) {

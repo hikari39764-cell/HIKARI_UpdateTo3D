@@ -1,7 +1,7 @@
 #include "HIKARI_LightProbeVolumeGizmoRenderer.h"
 
 #include <algorithm>
-#include <initializer_list>
+#include <cstdint>
 
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
@@ -10,6 +10,19 @@
 namespace HIKARI::EDITOR {
 
     namespace {
+
+        constexpr uint32_t kSampledProbeCrossCap = 64u;
+
+        uint32_t ModeToStat(LightProbeVolumeOverlayMode mode) {
+            switch (mode) {
+            case LightProbeVolumeOverlayMode::BoundsOnly: return 1u;
+            case LightProbeVolumeOverlayMode::SampledPoints: return 2u;
+            case LightProbeVolumeOverlayMode::AllPoints: return 3u;
+            case LightProbeVolumeOverlayMode::Off:
+            default:
+                return 0u;
+            }
+        }
 
         unsigned int ResolveVolumeColor(const LightProbeVolumeSettings& settings) {
             const RENDER3D::LIGHTPROBE::LightProbeVolumeRuntimeData& runtime =
@@ -38,19 +51,35 @@ namespace HIKARI::EDITOR {
             if (lighting.lightProbeVolumeLoaded || runtime.probeCount > 0u) {
                 return 0xFF4C5CFF;
             }
-            return 0xFFD166FF;
+            return 0x9B6CFFFF;
         }
 
-        void SubmitLine(const MATH::Vec3& from, const MATH::Vec3& to, unsigned int color) {
+        RENDERER3D::DEBUG::DebugDepthMode ResolveDepthMode(const ViewportOverlayState& overlays) {
+            return overlays.showXRayGizmos
+                ? RENDERER3D::DEBUG::DebugDepthMode::XRay
+                : RENDERER3D::DEBUG::DebugDepthMode::DepthTest;
+        }
+
+        void SubmitLine(
+            const MATH::Vec3& from,
+            const MATH::Vec3& to,
+            unsigned int color,
+            RENDERER3D::DEBUG::DebugDepthMode depthMode) {
+
             RENDERER3D::DEBUG::SubmitLine3D({
                 from,
                 to,
                 color,
-                RENDERER3D::DEBUG::DebugDepthMode::XRay
+                depthMode
             });
         }
 
-        void SubmitBox(const MATH::Vec3& origin, const MATH::Vec3& size, unsigned int color) {
+        void SubmitBox(
+            const MATH::Vec3& origin,
+            const MATH::Vec3& size,
+            unsigned int color,
+            RENDERER3D::DEBUG::DebugDepthMode depthMode) {
+
             const MATH::Vec3 p000 = origin;
             const MATH::Vec3 p100{ origin.x + size.x, origin.y, origin.z };
             const MATH::Vec3 p010{ origin.x, origin.y + size.y, origin.z };
@@ -60,24 +89,25 @@ namespace HIKARI::EDITOR {
             const MATH::Vec3 p011{ origin.x, origin.y + size.y, origin.z + size.z };
             const MATH::Vec3 p111{ origin.x + size.x, origin.y + size.y, origin.z + size.z };
 
-            SubmitLine(p000, p100, color);
-            SubmitLine(p100, p110, color);
-            SubmitLine(p110, p010, color);
-            SubmitLine(p010, p000, color);
-            SubmitLine(p001, p101, color);
-            SubmitLine(p101, p111, color);
-            SubmitLine(p111, p011, color);
-            SubmitLine(p011, p001, color);
-            SubmitLine(p000, p001, color);
-            SubmitLine(p100, p101, color);
-            SubmitLine(p110, p111, color);
-            SubmitLine(p010, p011, color);
+            SubmitLine(p000, p100, color, depthMode);
+            SubmitLine(p100, p110, color, depthMode);
+            SubmitLine(p110, p010, color, depthMode);
+            SubmitLine(p010, p000, color, depthMode);
+            SubmitLine(p001, p101, color, depthMode);
+            SubmitLine(p101, p111, color, depthMode);
+            SubmitLine(p111, p011, color, depthMode);
+            SubmitLine(p011, p001, color, depthMode);
+            SubmitLine(p000, p001, color, depthMode);
+            SubmitLine(p100, p101, color, depthMode);
+            SubmitLine(p110, p111, color, depthMode);
+            SubmitLine(p010, p011, color, depthMode);
         }
 
         void SubmitProbeCross(
             const MATH::Vec3& position,
             const MATH::Vec3& spacing,
-            unsigned int color) {
+            unsigned int color,
+            RENDERER3D::DEBUG::DebugDepthMode depthMode) {
 
             const float sx = (std::max)(0.05f, spacing.x);
             const float sy = (std::max)(0.05f, spacing.y);
@@ -88,45 +118,92 @@ namespace HIKARI::EDITOR {
             SubmitLine(
                 { position.x - size, position.y, position.z },
                 { position.x + size, position.y, position.z },
-                color);
+                color,
+                depthMode);
             SubmitLine(
                 { position.x, position.y - size, position.z },
                 { position.x, position.y + size, position.z },
-                color);
+                color,
+                depthMode);
             SubmitLine(
                 { position.x, position.y, position.z - size },
                 { position.x, position.y, position.z + size },
-                color);
+                color,
+                depthMode);
+        }
+
+        bool ShouldDrawProbePoint(
+            LightProbeVolumeOverlayMode mode,
+            uint32_t probeIndex,
+            uint32_t probeCount,
+            uint32_t drawnCount) {
+
+            if (mode == LightProbeVolumeOverlayMode::AllPoints) {
+                return true;
+            }
+            if (mode != LightProbeVolumeOverlayMode::SampledPoints || probeCount == 0u) {
+                return false;
+            }
+
+            const uint32_t stride = (std::max)(1u, (probeCount + kSampledProbeCrossCap - 1u) / kSampledProbeCrossCap);
+            return drawnCount < kSampledProbeCrossCap && (probeIndex % stride) == 0u;
         }
 
     } // namespace
 
     void LightProbeVolumeGizmoRenderer::Submit(
         const LightProbeVolumeSettings& sourceSettings,
-        bool drawDebugHelpers) const {
-
-        if (!drawDebugHelpers) {
-            return;
-        }
+        const ViewportOverlayState& overlays) const {
 
         LightProbeVolumeSettings settings = sourceSettings;
         ClampLightProbeVolumeSettings(settings);
+        const uint32_t probeCount = GetLightProbeVolumeProbeCount(settings);
+
+        if (!overlays.showLightProbeVolume ||
+            overlays.lightProbeVolumeMode == LightProbeVolumeOverlayMode::Off) {
+            RENDERER3D::DEBUG::SetLightProbeVolumeGizmoStats(
+                probeCount,
+                0u,
+                ModeToStat(LightProbeVolumeOverlayMode::Off),
+                false);
+            return;
+        }
+
         const unsigned int color = ResolveVolumeColor(settings);
         const MATH::Vec3 spacing = GetLightProbeVolumeSpacing(settings);
+        const RENDERER3D::DEBUG::DebugDepthMode depthMode = ResolveDepthMode(overlays);
 
-        // Volume の範囲と probe 配置を editor overlay として描画する。
-        SubmitBox(settings.origin, settings.size, color);
+        // Volume はまず bounds を描き、probe 点は mode に応じて間引く。
+        SubmitBox(settings.origin, settings.size, color, depthMode);
 
+        uint32_t drawnProbeCount = 0u;
+        uint32_t probeIndex = 0u;
         for (uint32_t z = 0; z < settings.countZ; ++z) {
             for (uint32_t y = 0; y < settings.countY; ++y) {
                 for (uint32_t x = 0; x < settings.countX; ++x) {
-                    SubmitProbeCross(
-                        GetLightProbeVolumeProbePosition(settings, x, y, z),
-                        spacing,
-                        color);
+                    if (ShouldDrawProbePoint(
+                            overlays.lightProbeVolumeMode,
+                            probeIndex,
+                            probeCount,
+                            drawnProbeCount)) {
+                        SubmitProbeCross(
+                            GetLightProbeVolumeProbePosition(settings, x, y, z),
+                            spacing,
+                            color,
+                            depthMode);
+                        ++drawnProbeCount;
+                    }
+                    ++probeIndex;
                 }
             }
         }
+
+        RENDERER3D::DEBUG::SetLightProbeVolumeGizmoStats(
+            probeCount,
+            drawnProbeCount,
+            ModeToStat(overlays.lightProbeVolumeMode),
+            overlays.lightProbeVolumeMode == LightProbeVolumeOverlayMode::SampledPoints &&
+                probeCount > drawnProbeCount);
     }
 
 } // namespace HIKARI::EDITOR

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Editor/HIKARI_EditorContext.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 namespace HIKARI::EDITOR {
@@ -8,7 +9,7 @@ namespace HIKARI::EDITOR {
     public:
         void Submit(
             const LightProbeVolumeSettings& settings,
-            bool drawDebugHelpers) const;
+            const ViewportOverlayState& overlays) const;
     };
 
 } // namespace HIKARI::EDITOR

@@ -111,6 +111,7 @@ namespace HIKARI {
         float specularStrength = 0.5f;
         uint32_t sampleCount = 16;
         uint32_t blurIterations = 2;
+        bool editorViewportSuppressed = false;
     };
 
     struct BloomSettings {

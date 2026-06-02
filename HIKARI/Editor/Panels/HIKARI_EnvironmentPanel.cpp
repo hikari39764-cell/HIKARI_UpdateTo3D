@@ -919,6 +919,42 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Ambient Occlusion")) {
+            int qualityIndex = 0;
+            if (environment.ambientOcclusion.enabled) {
+                if (environment.ambientOcclusion.sampleCount <= 8u &&
+                    environment.ambientOcclusion.blurIterations <= 1u) {
+                    qualityIndex = 1;
+                } else if (environment.ambientOcclusion.sampleCount <= 16u &&
+                    environment.ambientOcclusion.blurIterations <= 2u) {
+                    qualityIndex = 2;
+                } else {
+                    qualityIndex = 3;
+                }
+            }
+            const char* qualityNames[] = { "Off", "Low", "Medium", "High" };
+            if (ImGui::Combo("SSAO Quality", &qualityIndex, qualityNames, static_cast<int>(std::size(qualityNames)))) {
+                switch (qualityIndex) {
+                case 1:
+                    environment.ambientOcclusion.enabled = true;
+                    environment.ambientOcclusion.sampleCount = 8u;
+                    environment.ambientOcclusion.blurIterations = 1u;
+                    break;
+                case 2:
+                    environment.ambientOcclusion.enabled = true;
+                    environment.ambientOcclusion.sampleCount = 16u;
+                    environment.ambientOcclusion.blurIterations = 2u;
+                    break;
+                case 3:
+                    environment.ambientOcclusion.enabled = true;
+                    environment.ambientOcclusion.sampleCount = 32u;
+                    environment.ambientOcclusion.blurIterations = 4u;
+                    break;
+                case 0:
+                default:
+                    environment.ambientOcclusion.enabled = false;
+                    break;
+                }
+            }
             ImGui::Checkbox("Enabled", &environment.ambientOcclusion.enabled);
             ImGui::DragFloat("Radius", &environment.ambientOcclusion.radius, 0.01f, 0.01f, 10.0f);
             ImGui::DragFloat("Bias", &environment.ambientOcclusion.bias, 0.001f, 0.0f, 0.5f, "%.4f");

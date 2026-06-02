@@ -104,6 +104,7 @@ namespace HIKARI::EDITOR {
         void BuildSnapValues(
             const EditorTransformGizmoState& state,
             float outSnap[3]) {
+
             switch (state.operation) {
             case EditorTransformGizmoOperation::Rotate:
                 outSnap[0] = state.rotateSnapDeg;
@@ -137,10 +138,57 @@ namespace HIKARI::EDITOR {
                 (std::max)(0.001f, scale[1]),
                 (std::max)(0.001f, scale[2])
             };
-            // ImGuizmoのEuler値ではなく、行列から復元したQuaternionを基準に同期する。
+            // ImGuizmo の Euler 値ではなく、行列から復元した Quaternion を使う。
             decomposed.rotation = ExtractRotationFromMatrix(matrix);
             decomposed.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(decomposed.rotation);
             return decomposed;
+        }
+
+        EditorTransformGizmoResult DrawTransformMatrix(
+            const Camera3D& camera,
+            const EditorTransformGizmoState& state,
+            const EditorViewportRect& viewportRect,
+            float model[16]) {
+
+            EditorTransformGizmoResult result{};
+            if (!state.enabled || viewportRect.width <= 1.0f || viewportRect.height <= 1.0f) {
+                return result;
+            }
+
+            float view[16]{};
+            float projection[16]{};
+            CopyMat4ToFloat16(camera.GetView(), view);
+            CopyMat4ToFloat16(camera.GetProj(), projection);
+
+            ImGuizmo::BeginFrame();
+            ImGuizmo::SetOrthographic(false);
+            ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+            ImGuizmo::SetRect(viewportRect.x, viewportRect.y, viewportRect.width, viewportRect.height);
+
+            float snap[3]{};
+            const float* snapPtr = nullptr;
+            if (state.snapEnabled) {
+                BuildSnapValues(state, snap);
+                snapPtr = snap;
+            }
+
+            // 編集対象ごとの差分反映は呼び出し側に任せる。
+            result.changed = ImGuizmo::Manipulate(
+                view,
+                projection,
+                ToImGuizmoOperation(state.operation),
+                ToImGuizmoMode(state.mode),
+                model,
+                nullptr,
+                snapPtr);
+            result.interacting = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+
+            if (result.changed) {
+                const DecomposedGizmoMatrix decomposed = DecomposeEditedMatrix(model);
+                result.transform = decomposed.transform;
+                result.rotation = decomposed.rotation;
+            }
+            return result;
         }
     }
 #endif
@@ -150,49 +198,15 @@ namespace HIKARI::EDITOR {
         const Camera3D& camera,
         const EditorTransformGizmoState& state,
         const EditorViewportRect& viewportRect) const {
+
         EditorTransformGizmoResult result{};
 
 #if defined(_DEBUG)
-        if (!state.enabled || viewportRect.width <= 1.0f || viewportRect.height <= 1.0f) {
-            return result;
-        }
-
-        float view[16]{};
-        float projection[16]{};
         float model[16]{};
-        CopyMat4ToFloat16(camera.GetView(), view);
-        CopyMat4ToFloat16(camera.GetProj(), projection);
         CopyMat4ToFloat16(object.Transform().GetLocalMatrix(), model);
 
-        ImGuizmo::BeginFrame();
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
-        ImGuizmo::SetRect(viewportRect.x, viewportRect.y, viewportRect.width, viewportRect.height);
-
-        float snap[3]{};
-        const float* snapPtr = nullptr;
-        if (state.snapEnabled) {
-            BuildSnapValues(state, snap);
-            snapPtr = snap;
-        }
-
-        // Transform 編集だけを担当し、保存形式への反映は呼び出し側に任せる。
-        result.changed = ImGuizmo::Manipulate(
-            view,
-            projection,
-            ToImGuizmoOperation(state.operation),
-            ToImGuizmoMode(state.mode),
-            model,
-            nullptr,
-            snapPtr);
-        result.interacting = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
-
+        result = DrawTransformMatrix(camera, state, viewportRect, model);
         if (result.changed) {
-            // TODO: undo stack に積む TransformEditCommand をここから生成する。
-            const DecomposedGizmoMatrix decomposed = DecomposeEditedMatrix(model);
-            result.transform = decomposed.transform;
-            result.rotation = decomposed.rotation;
-
             Transform3D& runtimeTransform = object.Transform();
             runtimeTransform.useExplicitMatrix = false;
             runtimeTransform.position = result.transform.position;
@@ -201,6 +215,33 @@ namespace HIKARI::EDITOR {
         }
 #else
         (void)object;
+        (void)camera;
+        (void)state;
+        (void)viewportRect;
+#endif
+
+        return result;
+    }
+
+    EditorTransformGizmoResult EditorTransformGizmo::DrawTransform(
+        const TransformData& transform,
+        const Camera3D& camera,
+        const EditorTransformGizmoState& state,
+        const EditorViewportRect& viewportRect) const {
+
+        EditorTransformGizmoResult result{};
+
+#if defined(_DEBUG)
+        float model[16]{};
+        CopyMat4ToFloat16(
+            MATH::Mat4::TRS(
+                transform.position,
+                MATH::Quat::Identity(),
+                transform.scale),
+            model);
+        result = DrawTransformMatrix(camera, state, viewportRect, model);
+#else
+        (void)transform;
         (void)camera;
         (void)state;
         (void)viewportRect;

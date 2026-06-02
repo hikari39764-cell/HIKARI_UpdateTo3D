@@ -45,7 +45,12 @@ namespace HIKARI::RENDERER3D::DEBUG {
         std::vector<Line3D> g_lines;
         std::vector<Axis3D> g_axes;
         std::vector<Grid3D> g_grids;
+        std::vector<Line3D> g_expandedScratch;
+        std::vector<Line3D> g_depthTestScratch;
+        std::vector<Line3D> g_xrayScratch;
         State g_state;
+        DebugRendererFrameStats g_submitStats{};
+        DebugRendererFrameStats g_frameStats{};
 
         MATH::Vec4 DecodeRgba(uint32_t rgba) {
             constexpr float inv255 = 1.0f / 255.0f;
@@ -71,8 +76,23 @@ namespace HIKARI::RENDERER3D::DEBUG {
             return { out.x, out.y, out.z };
         }
 
+        size_t EstimateExpandedLineCount() {
+            size_t count = g_lines.size();
+            count += g_axes.size() * 3u;
+            count += g_cubes.size() * 12u;
+
+            for (const Grid3D& grid : g_grids) {
+                const int n = (grid.halfCount < 1) ? 1 : grid.halfCount;
+                count += static_cast<size_t>((n * 2 + 1) * 2);
+            }
+
+            return count;
+        }
+
         void ExpandSubmittedLines(std::vector<Line3D>& outLines) {
-            outLines = g_lines;
+            outLines.clear();
+            outLines.reserve(EstimateExpandedLineCount());
+            outLines.insert(outLines.end(), g_lines.begin(), g_lines.end());
 
             for (const Axis3D& axis : g_axes) {
                 const MATH::Mat4 world = axis.transform.GetWorldMatrix();
@@ -285,51 +305,79 @@ namespace HIKARI::RENDERER3D::DEBUG {
         g_lines.clear();
         g_axes.clear();
         g_grids.clear();
+        g_submitStats = {};
     }
 
     void SubmitWireCube(const WireCube& cube) {
         g_cubes.push_back(cube);
+        ++g_submitStats.wireCubeCount;
     }
 
     void SubmitLine3D(const Line3D& line) {
         g_lines.push_back(line);
+        ++g_submitStats.submittedLineCount;
+        if (line.depthMode == DebugDepthMode::XRay) {
+            ++g_submitStats.submittedXRayLineCount;
+        }
     }
 
     void SubmitAxis3D(const Axis3D& axis) {
         g_axes.push_back(axis);
+        ++g_submitStats.axisCount;
     }
 
     void SubmitGrid3D(const Grid3D& grid) {
         g_grids.push_back(grid);
+        ++g_submitStats.gridCount;
+    }
+
+    void SetLightProbeVolumeGizmoStats(
+        uint32_t totalPointCount,
+        uint32_t drawnPointCount,
+        uint32_t mode,
+        bool capped) {
+
+        g_submitStats.lightProbeGizmoTotalPointCount = totalPointCount;
+        g_submitStats.lightProbeGizmoDrawnPointCount = drawnPointCount;
+        g_submitStats.lightProbeGizmoMode = mode;
+        g_submitStats.lightProbeGizmoCapped = capped;
+    }
+
+    const DebugRendererFrameStats& GetDebugRendererFrameStats() {
+        return g_frameStats;
     }
 
     void RenderAll(const Camera3D& camera, float screenW, float screenH) {
         (void)screenW;
         (void)screenH;
 
-        std::vector<Line3D> expandedLines;
-        ExpandSubmittedLines(expandedLines);
-        if (expandedLines.empty()) {
+        ExpandSubmittedLines(g_expandedScratch);
+        g_frameStats = g_submitStats;
+        g_frameStats.expandedLineCount = g_expandedScratch.size();
+        if (g_expandedScratch.empty()) {
             return;
         }
 
-        std::vector<Line3D> depthTestLines;
-        std::vector<Line3D> xrayLines;
-        depthTestLines.reserve(expandedLines.size());
-        xrayLines.reserve(expandedLines.size());
-        for (const Line3D& line : expandedLines) {
+        // 毎フレームの一時 vector 確保を避ける。
+        g_depthTestScratch.clear();
+        g_xrayScratch.clear();
+        g_depthTestScratch.reserve(g_expandedScratch.size());
+        g_xrayScratch.reserve(g_expandedScratch.size());
+        for (const Line3D& line : g_expandedScratch) {
             if (line.depthMode == DebugDepthMode::XRay) {
-                xrayLines.push_back(line);
+                g_xrayScratch.push_back(line);
             } else {
-                depthTestLines.push_back(line);
+                g_depthTestScratch.push_back(line);
             }
         }
+        g_frameStats.depthTestLineCount = g_depthTestScratch.size();
+        g_frameStats.xrayLineCount = g_xrayScratch.size();
 
         if (!EnsureInitialized()) {
             return;
         }
-        RenderLineBatch(camera, depthTestLines, g_state.depthTestPso.Get());
-        RenderLineBatch(camera, xrayLines, g_state.xrayPso.Get());
+        RenderLineBatch(camera, g_depthTestScratch, g_state.depthTestPso.Get());
+        RenderLineBatch(camera, g_xrayScratch, g_state.xrayPso.Get());
     }
 
 } // namespace HIKARI::RENDERER3D::DEBUG

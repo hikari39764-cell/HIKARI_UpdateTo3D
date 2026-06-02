@@ -101,7 +101,10 @@ namespace HIKARI {
 
         void SetComponentGizmoState(const ComponentGizmoState& state);
         void SetViewportOverlayState(const ViewportOverlayState& state);
+        void SetViewportPerformanceState(const ViewportPerformanceState& state);
+        void SetViewportGizmoInteracting(bool interacting);
         void SetSelectedGizmoObjectId(SceneObjectId id);
+        void SyncReflectionProbeRuntimeFromAuthoring();
 
     protected:
         void RegisterDefaultComponentTypes();
@@ -154,6 +157,8 @@ namespace HIKARI {
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         ViewportOverlayState viewportOverlayState_{};
+        ViewportPerformanceState viewportPerformanceState_{};
+        bool viewportGizmoInteracting_ = false;
         SceneObjectId selectedGizmoObjectId_{};
         std::unique_ptr<ReflectionProbeBakeJob> reflectionProbeBakeJob_{};
         std::unique_ptr<LightProbeBakeJob> lightProbeBakeJob_{};
