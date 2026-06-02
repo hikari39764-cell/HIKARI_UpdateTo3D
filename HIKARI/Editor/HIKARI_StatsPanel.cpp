@@ -67,6 +67,10 @@ namespace HIKARI {
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Submitted Model Items: %zu", modelStats.submittedModelItemCount);
+            ImGui::Text("Structured Nodes Submitted / Culled: %zu / %zu",
+                modelStats.structuredNodeSubmittedCount,
+                modelStats.structuredNodeCulledCount);
+            ImGui::Text("Structured Missing Bounds: %zu", modelStats.structuredCullBoundsMissingCount);
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
             ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu", meshStats.wireDrawItemCount, meshStats.wireGpuDrawCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);

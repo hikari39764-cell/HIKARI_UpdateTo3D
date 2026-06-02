@@ -14,6 +14,7 @@
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
+#include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/HIKARI_Material.h"
 #include "HIKARI_Services.h"
 
@@ -1006,6 +1007,7 @@ namespace HIKARI {
         auto material = std::make_unique<Material>();
         material->SetBaseColor({ 0.85f, 0.9f, 1.0f, 1.0f });
 
+        asset.bounds = { { -0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f } };
         asset.SetMesh(std::move(mesh));
         asset.SetMaterial(std::move(material));
         return true;
@@ -1025,6 +1027,7 @@ namespace HIKARI {
         cooked.SetSourcePath(runtimePath);
         asset = std::move(cooked);
         ResolvePbrTexturePaths(asset);
+        BOUNDS::EnsureModelBounds(asset);
         return BuildRuntimeResources(asset);
     }
 
@@ -1472,10 +1475,12 @@ namespace HIKARI {
                     }
                 }
 
+                primitiveAsset.bounds = BOUNDS::ComputePrimitiveBounds(primitiveAsset);
                 meshAsset.primitives.push_back(std::move(primitiveAsset));
             }
 
             if (!meshAsset.primitives.empty()) {
+                meshAsset.bounds = BOUNDS::ComputeMeshBounds(meshAsset);
                 asset.meshes.push_back(std::move(meshAsset));
             }
         }
@@ -1579,6 +1584,8 @@ namespace HIKARI {
         if (legacyVertices.empty() || legacyIndices.empty()) {
             return false;
         }
+
+        BOUNDS::EnsureModelBounds(asset);
 
         if (!buildRuntimeResources) {
             return true;
@@ -1809,10 +1816,12 @@ namespace HIKARI {
             vertex.uv0 = { source.u, source.v };
             primitive.staticVertices.push_back(vertex);
         }
+        primitive.bounds = BOUNDS::ComputePrimitiveBounds(primitive);
 
         MeshAsset meshAsset{};
         meshAsset.name = asset.GetName().empty() ? "OBJ Mesh" : asset.GetName();
         meshAsset.primitives.push_back(std::move(primitive));
+        meshAsset.bounds = BOUNDS::ComputeMeshBounds(meshAsset);
         asset.meshes.push_back(std::move(meshAsset));
 
         MaterialAsset materialAsset{};
@@ -1828,6 +1837,7 @@ namespace HIKARI {
         asset.materials.push_back(std::move(materialAsset));
 
         ResolvePbrTexturePaths(asset);
+        BOUNDS::EnsureModelBounds(asset);
 
         return buildRuntimeResources ? BuildRuntimeResources(asset) : true;
     }

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
@@ -113,9 +114,9 @@ namespace HIKARI::MODELRENDERER {
             expanded->state = source.state;
             expanded->materials = source.materials;
             expanded->textures = source.textures;
-            expanded->bounds = source.bounds;
             expanded->defaultSceneRootNode = 0;
             expanded->meshes.push_back(source.meshes[static_cast<size_t>(meshIndex)]);
+            expanded->bounds = expanded->meshes.front().bounds;
             return expanded;
         }
 
@@ -597,6 +598,20 @@ namespace HIKARI::MODELRENDERER {
                     continue;
                 }
 
+                const MeshAsset& sourceMesh = item.model->meshes[static_cast<size_t>(node.meshIndex)];
+                const bool sourceMeshBoundsUsable = BOUNDS::IsUsable(sourceMesh.bounds);
+                const bool staticNodeCullable = node.skinIndex < 0 && sourceMeshBoundsUsable;
+                if (staticNodeCullable) {
+                    const MATH::Mat4 localToClip = camera.GetViewProj() * nodeGlobals[nodeIndex];
+                    if (!BOUNDS::IntersectsClipFrustum(sourceMesh.bounds, localToClip)) {
+                        ++gDebugStats.structuredNodeCulledCount;
+                        continue;
+                    }
+                } else if (node.skinIndex < 0 && !sourceMeshBoundsUsable) {
+                    // 旧アセットの bounds 欠落時は安全側で描画する。
+                    ++gDebugStats.structuredCullBoundsMissingCount;
+                }
+
                 bool submittedSkinned = false;
                 if (node.skinIndex >= 0) {
                     if (item.showSkeletonDebug && submittedDebugSkins.insert(node.skinIndex).second) {
@@ -647,6 +662,7 @@ namespace HIKARI::MODELRENDERER {
                             if (submitShadow) {
                                 SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             }
+                            ++gDebugStats.structuredNodeSubmittedCount;
                             submittedSkinned = true;
                             submitted = true;
                         }
@@ -675,6 +691,7 @@ namespace HIKARI::MODELRENDERER {
                     item.receiveShadow,
                     ToMeshRenderDebugMode(item.geometryDebugMode),
                     item.materialOverride);
+                ++gDebugStats.structuredNodeSubmittedCount;
                 if (submitShadow) {
                     SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
                 }

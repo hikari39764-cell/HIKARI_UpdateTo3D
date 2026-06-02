@@ -1156,6 +1156,9 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MaterialTextureUsage.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_BoundsUtils.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>

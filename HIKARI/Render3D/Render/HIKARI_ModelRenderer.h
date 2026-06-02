@@ -36,6 +36,9 @@ namespace HIKARI::MODELRENDERER {
         size_t lodVeryFarCount = 0;
         size_t jointPaletteCacheHitCount = 0;
         size_t jointPaletteCacheMissCount = 0;
+        size_t structuredNodeSubmittedCount = 0;
+        size_t structuredNodeCulledCount = 0;
+        size_t structuredCullBoundsMissingCount = 0;
         int lastSkinIndex = -1;
         size_t lastPaletteJointCount = 0;
         bool hasFirstJointMatrix = false;

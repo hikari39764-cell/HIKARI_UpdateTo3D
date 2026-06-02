@@ -1,6 +1,8 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
+#include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
@@ -14,6 +16,11 @@
 namespace HIKARI {
 
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
+    const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
+
+    void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
+        sActiveRenderCamera_ = camera;
+    }
 
     const RenderSubmissionDebugStats& RenderSubmissionSystem::GetDebugStats() {
         return sDebugStats_;
@@ -23,11 +30,19 @@ namespace HIKARI {
         (void)frame;
 
         sDebugStats_.submittedModelCount = 0;
+        sDebugStats_.scannedModelCount = 0;
+        sDebugStats_.hiddenModelCount = 0;
+        sDebugStats_.culledModelCount = 0;
+        sDebugStats_.missingBoundsCount = 0;
+        sDebugStats_.skinnedCullSkippedCount = 0;
         sDebugStats_.fallbackWireCount = 0;
+        sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
         MESHWIREDEBUG::BeginFrame();
 
         world.ForEachObjectWith<ModelComponent>([](GameObject& object, ModelComponent& model) {
+            ++sDebugStats_.scannedModelCount;
             if (!model.IsVisible()) {
+                ++sDebugStats_.hiddenModelCount;
                 return;
             }
 
@@ -40,11 +55,27 @@ namespace HIKARI {
             const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
-                ++sDebugStats_.submittedModelCount;
+                if (sActiveRenderCamera_ != nullptr) {
+                    if (asset->HasSkinnedMesh()) {
+                        // スキニング後の bounds は未確定なので安全側で描画する。
+                        ++sDebugStats_.skinnedCullSkippedCount;
+                    } else if (BOUNDS::IsUsable(asset->bounds)) {
+                        const MATH::Mat4 localToClip =
+                            sActiveRenderCamera_->GetViewProj() * object.Transform().GetWorldMatrix();
+                        if (!BOUNDS::IntersectsClipFrustum(asset->bounds, localToClip)) {
+                            ++sDebugStats_.culledModelCount;
+                            return;
+                        }
+                    } else {
+                        // 旧アセットは bounds が無い場合があるため、安全側で描画する。
+                        ++sDebugStats_.missingBoundsCount;
+                    }
+                }
 
                 const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
                 if (debugMode == ModelRenderDebugMode::BoundsOnly) {
                     MESHWIREDEBUG::SubmitModelBounds(*asset, object.Transform(), model.GetWireColor());
+                    ++sDebugStats_.submittedModelCount;
                     return;
                 }
 
@@ -80,6 +111,7 @@ namespace HIKARI {
                 }
 
                 MODELRENDERER::SubmitModel(item);
+                ++sDebugStats_.submittedModelCount;
             } else {
                 ++sDebugStats_.fallbackWireCount;
 

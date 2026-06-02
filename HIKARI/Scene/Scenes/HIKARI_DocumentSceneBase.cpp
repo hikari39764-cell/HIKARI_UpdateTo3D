@@ -479,7 +479,9 @@ namespace HIKARI {
 
         world_.Render();
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        RenderSubmissionSystem::SetActiveRenderCamera(&camera_);
         systemScheduler_.PreRender(world_, frame);
+        RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
         systemScheduler_.Render(world_, frame);
         systemScheduler_.PostRender(world_, frame);
         SceneEnvironment activeEnvironment = environment_;
@@ -1313,7 +1315,9 @@ namespace HIKARI {
         SKYRENDERER::Reset();
 
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        RenderSubmissionSystem::SetActiveRenderCamera(&faceCamera);
         systemScheduler_.PreRender(world_, frame);
+        RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
 
         SKYRENDERER::Render(faceCamera, captureEnvironment, modelManager_, skyManager_);
         MODELRENDERER::RenderOpaqueForReflectionProbeCapture(
@@ -1351,7 +1355,9 @@ namespace HIKARI {
         SKYRENDERER::Reset();
 
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        RenderSubmissionSystem::SetActiveRenderCamera(&faceCamera);
         systemScheduler_.PreRender(world_, frame);
+        RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
 
         SKYRENDERER::Render(faceCamera, captureEnvironment, modelManager_, skyManager_);
         MODELRENDERER::RenderOpaqueForReflectionProbeCapture(

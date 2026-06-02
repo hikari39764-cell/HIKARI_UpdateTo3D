@@ -51,7 +51,13 @@ namespace HIKARI {
 
         ImGui::Separator();
         ImGui::TextUnformatted("Render Submission System");
+        ImGui::Text("Frustum Culling: %s", renderStats.frustumCullingEnabled ? "On" : "Off");
+        ImGui::Text("Scanned Models:  %d", renderStats.scannedModelCount);
         ImGui::Text("Submitted Models: %d", renderStats.submittedModelCount);
+        ImGui::Text("Hidden Models:   %d", renderStats.hiddenModelCount);
+        ImGui::Text("Culled Models:   %d", renderStats.culledModelCount);
+        ImGui::Text("Missing Bounds:  %d", renderStats.missingBoundsCount);
+        ImGui::Text("Skinned Safe Draw: %d", renderStats.skinnedCullSkippedCount);
         ImGui::Text("Fallback Wires:   %d", renderStats.fallbackWireCount);
 #endif
     }
