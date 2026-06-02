@@ -160,10 +160,10 @@ namespace HIKARI::MESHRENDERER {
             int screenW = static_cast<int>(overrideScreenWidth);
             int screenH = static_cast<int>(overrideScreenHeight);
             if (screenW <= 0 || screenH <= 0) {
-                screenW = POST::PostSystem::GetSceneColorWidth();
-                screenH = POST::PostSystem::GetSceneColorHeight();
+                POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
                 if (screenW <= 0 || screenH <= 0) {
-                    POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
+                    screenW = POST::PostSystem::GetSceneColorWidth();
+                    screenH = POST::PostSystem::GetSceneColorHeight();
                 }
                 if (screenW <= 0 || screenH <= 0) {
                     screenW = std::max(1, SERVICES::gCtx.backBufferWidth);

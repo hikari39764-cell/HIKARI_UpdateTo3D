@@ -292,9 +292,9 @@ float3 HikariEvaluateAmbientIbl(
             float3 r = normalize(reflect(-v, n));
             float probeRadius = max(0.001f, gReflectionProbeRadius);
             float dist = length(worldPos - gReflectionProbePosition);
-            float probeWeight = saturate(1.0f - dist / probeRadius);
-            probeWeight = probeWeight * probeWeight * (3.0f - 2.0f * probeWeight);
-            probeWeight *= max(0.0f, gReflectionProbeSpecularIntensity);
+            float probeInfluence = saturate(1.0f - dist / probeRadius);
+            probeInfluence = probeInfluence * probeInfluence * (3.0f - 2.0f * probeInfluence);
+            probeInfluence = saturate(probeInfluence * max(0.0f, gReflectionProbeSpecularIntensity));
 
             float probeMipCount = max(1.0f, gReflectionProbeMipCount);
             float probeMip = roughness * (probeMipCount - 1.0f);
@@ -306,8 +306,8 @@ float3 HikariEvaluateAmbientIbl(
                 probeSpecular = probePrefiltered * (F * brdf.x + brdf.y);
             }
 
-            // Sky IBL と local probe は加算ではなく正規化 blend にする。
-            specular = (skySpecular + probeSpecular * probeWeight) / max(1.0f + probeWeight, 0.0001f);
+            // Local probe は加算や平均ではなく、影響範囲内で Sky IBL を置き換える。
+            specular = lerp(skySpecular, probeSpecular, probeInfluence);
         }
 
         float materialAo = saturate(occlusion);

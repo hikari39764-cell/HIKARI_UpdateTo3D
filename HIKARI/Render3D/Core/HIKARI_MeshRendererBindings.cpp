@@ -1,5 +1,6 @@
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 
+#include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Services.h"
@@ -188,6 +189,12 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE shSrv = ResolveLightProbeShSrv();
         if (shSrv.ptr != 0) {
             ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::LightProbeSh, shSrv);
+        } else {
+            static bool sWarnedMissingLightProbeSrv = false;
+            if (!sWarnedMissingLightProbeSrv) {
+                HIKARI_LOG_WARN("[LightProbe] missing t14 fallback SRV.");
+                sWarnedMissingLightProbeSrv = true;
+            }
         }
     }
 

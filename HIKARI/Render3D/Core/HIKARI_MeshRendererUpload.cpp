@@ -169,25 +169,26 @@ namespace HIKARI::MESHRENDERER {
             std::clamp(environment.ambientOcclusion.specularStrength, 0.0f, 1.0f),
             0.0f
         };
+        const bool lightProbeValid = RENDER3D::LIGHTPROBE::IsValid();
         const RENDER3D::LIGHTPROBE::LightProbeVolumeRuntimeData& lightProbe =
             RENDER3D::LIGHTPROBE::GetRuntimeData();
         out.lightProbeVolumeOrigin = {
             lightProbe.origin.x,
             lightProbe.origin.y,
             lightProbe.origin.z,
-            lightProbe.valid ? 1.0f : 0.0f
+            lightProbeValid ? 1.0f : 0.0f
         };
         out.lightProbeVolumeSpacing = {
             std::max(0.0001f, lightProbe.spacing.x),
             std::max(0.0001f, lightProbe.spacing.y),
             std::max(0.0001f, lightProbe.spacing.z),
-            std::max(0.0f, lightProbe.intensity)
+            lightProbeValid ? std::max(0.0f, lightProbe.intensity) : 0.0f
         };
         out.lightProbeVolumeCounts = {
-            static_cast<float>(lightProbe.countX),
-            static_cast<float>(lightProbe.countY),
-            static_cast<float>(lightProbe.countZ),
-            static_cast<float>(lightProbe.probeCount)
+            lightProbeValid ? static_cast<float>(lightProbe.countX) : 0.0f,
+            lightProbeValid ? static_cast<float>(lightProbe.countY) : 0.0f,
+            lightProbeValid ? static_cast<float>(lightProbe.countZ) : 0.0f,
+            lightProbeValid ? static_cast<float>(lightProbe.probeCount) : 0.0f
         };
 
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();

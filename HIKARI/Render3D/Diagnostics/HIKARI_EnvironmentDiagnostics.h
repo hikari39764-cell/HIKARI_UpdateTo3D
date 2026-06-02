@@ -67,7 +67,14 @@ namespace HIKARI {
             uint32_t bakedLightmapCount = 0;
             std::string lightingRuntimeSource{};
             bool lightProbeVolumeValid = false;
+            bool lightProbeVolumeSrvReady = false;
+            bool lightProbeVolumeHasGpuBuffer = false;
             uint32_t lightProbeVolumeProbeCount = 0;
+            uint32_t lightProbeVolumeCountX = 0;
+            uint32_t lightProbeVolumeCountY = 0;
+            uint32_t lightProbeVolumeCountZ = 0;
+            uint64_t lightProbeVolumeSrvHeapPtr = 0;
+            uint64_t lightProbeVolumeBufferPtr = 0;
             std::string lightProbeVolumePath{};
 
             bool ssaoEnabled = false;

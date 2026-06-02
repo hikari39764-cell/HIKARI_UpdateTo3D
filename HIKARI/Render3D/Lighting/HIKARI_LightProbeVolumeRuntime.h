@@ -28,6 +28,19 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
         std::string sourcePath{};
     };
 
+    struct LightProbeVolumeDebugState {
+        bool valid = false;
+        bool srvReady = false;
+        bool hasBuffer = false;
+        uint32_t probeCount = 0;
+        uint32_t countX = 0;
+        uint32_t countY = 0;
+        uint32_t countZ = 0;
+        uint64_t srvHeapPtr = 0;
+        uint64_t bufferPtr = 0;
+        std::string sourcePath{};
+    };
+
     void Reset();
 
     bool LoadLightProbeVolume(
@@ -51,6 +64,10 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
     };
 
     D3D12_GPU_DESCRIPTOR_HANDLE GetShBufferSrv();
+
+    bool HasGpuBuffer();
+    bool IsSrvReady();
+    LightProbeVolumeDebugState GetDebugState();
 
     bool IsValid();
 

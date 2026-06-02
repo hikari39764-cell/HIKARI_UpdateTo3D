@@ -72,7 +72,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             uint32_t bakedLightmapCount = 0;
             std::string lightingRuntimeSource{};
             bool lightProbeVolumeValid = false;
+            bool lightProbeVolumeSrvReady = false;
+            bool lightProbeVolumeHasGpuBuffer = false;
             uint32_t lightProbeVolumeProbeCount = 0;
+            uint32_t lightProbeVolumeCountX = 0;
+            uint32_t lightProbeVolumeCountY = 0;
+            uint32_t lightProbeVolumeCountZ = 0;
+            uint64_t lightProbeVolumeSrvHeapPtr = 0;
+            uint64_t lightProbeVolumeBufferPtr = 0;
             std::string lightProbeVolumePath{};
 
             bool ssaoEnabled = false;
@@ -150,7 +157,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.bakedLightmapCount == rhs.bakedLightmapCount &&
                 lhs.lightingRuntimeSource == rhs.lightingRuntimeSource &&
                 lhs.lightProbeVolumeValid == rhs.lightProbeVolumeValid &&
+                lhs.lightProbeVolumeSrvReady == rhs.lightProbeVolumeSrvReady &&
+                lhs.lightProbeVolumeHasGpuBuffer == rhs.lightProbeVolumeHasGpuBuffer &&
                 lhs.lightProbeVolumeProbeCount == rhs.lightProbeVolumeProbeCount &&
+                lhs.lightProbeVolumeCountX == rhs.lightProbeVolumeCountX &&
+                lhs.lightProbeVolumeCountY == rhs.lightProbeVolumeCountY &&
+                lhs.lightProbeVolumeCountZ == rhs.lightProbeVolumeCountZ &&
+                lhs.lightProbeVolumeSrvHeapPtr == rhs.lightProbeVolumeSrvHeapPtr &&
+                lhs.lightProbeVolumeBufferPtr == rhs.lightProbeVolumeBufferPtr &&
                 lhs.lightProbeVolumePath == rhs.lightProbeVolumePath &&
                 lhs.ssaoEnabled == rhs.ssaoEnabled &&
                 lhs.ssaoValid == rhs.ssaoValid &&
@@ -246,7 +260,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.bakedLightmapCount = snapshot.bakedLightmapCount;
             key.lightingRuntimeSource = snapshot.lightingRuntimeSource;
             key.lightProbeVolumeValid = snapshot.lightProbeVolumeValid;
+            key.lightProbeVolumeSrvReady = snapshot.lightProbeVolumeSrvReady;
+            key.lightProbeVolumeHasGpuBuffer = snapshot.lightProbeVolumeHasGpuBuffer;
             key.lightProbeVolumeProbeCount = snapshot.lightProbeVolumeProbeCount;
+            key.lightProbeVolumeCountX = snapshot.lightProbeVolumeCountX;
+            key.lightProbeVolumeCountY = snapshot.lightProbeVolumeCountY;
+            key.lightProbeVolumeCountZ = snapshot.lightProbeVolumeCountZ;
+            key.lightProbeVolumeSrvHeapPtr = snapshot.lightProbeVolumeSrvHeapPtr;
+            key.lightProbeVolumeBufferPtr = snapshot.lightProbeVolumeBufferPtr;
             key.lightProbeVolumePath = snapshot.lightProbeVolumePath;
 
             key.ssaoEnabled = snapshot.ssaoEnabled;
@@ -334,9 +355,16 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.bakedLightProbeCount = lighting.bakedLightProbeCount;
         snapshot.bakedLightmapCount = lighting.bakedLightmapCount;
         snapshot.lightingRuntimeSource = LIGHTING::ToString(lighting.source);
-        const LIGHTPROBE::LightProbeVolumeRuntimeData& lightProbe = LIGHTPROBE::GetRuntimeData();
+        const LIGHTPROBE::LightProbeVolumeDebugState lightProbe = LIGHTPROBE::GetDebugState();
         snapshot.lightProbeVolumeValid = lightProbe.valid;
+        snapshot.lightProbeVolumeSrvReady = lightProbe.srvReady;
+        snapshot.lightProbeVolumeHasGpuBuffer = lightProbe.hasBuffer;
         snapshot.lightProbeVolumeProbeCount = lightProbe.probeCount;
+        snapshot.lightProbeVolumeCountX = lightProbe.countX;
+        snapshot.lightProbeVolumeCountY = lightProbe.countY;
+        snapshot.lightProbeVolumeCountZ = lightProbe.countZ;
+        snapshot.lightProbeVolumeSrvHeapPtr = lightProbe.srvHeapPtr;
+        snapshot.lightProbeVolumeBufferPtr = lightProbe.bufferPtr;
         snapshot.lightProbeVolumePath = lightProbe.sourcePath;
 
         const SCREENSPACE::SsaoDebugState& ssao = SCREENSPACE::GetSsaoDebugState();
@@ -470,7 +498,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             std::ostringstream oss;
             oss << "[EnvironmentDiagnostics][LightProbe]"
                 << " valid=" << BoolText(snapshot.lightProbeVolumeValid)
+                << " srvReady=" << BoolText(snapshot.lightProbeVolumeSrvReady)
+                << " hasBuffer=" << BoolText(snapshot.lightProbeVolumeHasGpuBuffer)
                 << " probes=" << snapshot.lightProbeVolumeProbeCount
+                << " grid=" << snapshot.lightProbeVolumeCountX << "x"
+                << snapshot.lightProbeVolumeCountY << "x"
+                << snapshot.lightProbeVolumeCountZ
+                << " srvHeap=0x" << std::hex << snapshot.lightProbeVolumeSrvHeapPtr
+                << " buffer=0x" << snapshot.lightProbeVolumeBufferPtr << std::dec
                 << " path=" << snapshot.lightProbeVolumePath;
             LogInfoLine(oss.str());
         }

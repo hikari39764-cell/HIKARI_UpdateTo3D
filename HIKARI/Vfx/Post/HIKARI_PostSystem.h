@@ -112,6 +112,7 @@ namespace HIKARI {
             static void RefreshEditorViewportSrvDescriptor();
             static void EnsureSceneColorSnapshotRTSize();
             static void RefreshSceneColorSrvDescriptor();
+            static bool IsEditorViewportTextureCurrent();
             static RenderTarget2D* EndSceneCaptureAndResolveFinal();
             static bool DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
             static void BindBackBufferFullViewport();

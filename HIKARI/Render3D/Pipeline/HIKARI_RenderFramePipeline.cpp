@@ -19,10 +19,12 @@ namespace HIKARI::RENDER3D::PIPELINE {
             context.sceneDepthSrv = SERVICES::gCtx.sceneDepthSrv;
             context.depthReadable = context.sceneDepthSrv.ptr != 0;
 
-            int width = POST::PostSystem::GetSceneColorWidth();
-            int height = POST::PostSystem::GetSceneColorHeight();
+            int width = 0;
+            int height = 0;
+            POST::PostSystem::GetSceneCaptureSize(width, height);
             if (width <= 0 || height <= 0) {
-                POST::PostSystem::GetSceneCaptureSize(width, height);
+                width = POST::PostSystem::GetSceneColorWidth();
+                height = POST::PostSystem::GetSceneColorHeight();
             }
             context.width = static_cast<uint32_t>(std::max(1, width));
             context.height = static_cast<uint32_t>(std::max(1, height));

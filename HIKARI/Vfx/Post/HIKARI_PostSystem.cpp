@@ -526,13 +526,30 @@ namespace HIKARI {
         void PostSystem::SetSceneCaptureSize(int width, int height)
         {
             if (width <= 0 || height <= 0) {
+                const bool changed =
+                    requestedSceneCaptureWidth_ != 0 ||
+                    requestedSceneCaptureHeight_ != 0;
                 requestedSceneCaptureWidth_ = 0;
                 requestedSceneCaptureHeight_ = 0;
+                if (changed) {
+                    editorViewportReady_ = false;
+                    sceneColorReady_ = false;
+                }
                 return;
             }
 
-            requestedSceneCaptureWidth_ = std::clamp(width, kMinEditorViewportSize, kMaxEditorViewportSize);
-            requestedSceneCaptureHeight_ = std::clamp(height, kMinEditorViewportSize, kMaxEditorViewportSize);
+            const int clampedWidth = std::clamp(width, kMinEditorViewportSize, kMaxEditorViewportSize);
+            const int clampedHeight = std::clamp(height, kMinEditorViewportSize, kMaxEditorViewportSize);
+            if (requestedSceneCaptureWidth_ == clampedWidth &&
+                requestedSceneCaptureHeight_ == clampedHeight) {
+                return;
+            }
+
+            requestedSceneCaptureWidth_ = clampedWidth;
+            requestedSceneCaptureHeight_ = clampedHeight;
+            // GameView のサイズ変更中は古い SRV を表示・参照しない。
+            editorViewportReady_ = false;
+            sceneColorReady_ = false;
         }
 
         void PostSystem::GetSceneCaptureSize(int& outWidth, int& outHeight)
@@ -543,7 +560,10 @@ namespace HIKARI {
 
         bool PostSystem::IsEditorViewportReady()
         {
-            return editorViewportReady_ && editorViewportSrvGpu_.ptr != 0 && editorViewportRT_.GetResource() != nullptr;
+            return editorViewportReady_ &&
+                editorViewportSrvGpu_.ptr != 0 &&
+                editorViewportRT_.GetResource() != nullptr &&
+                IsEditorViewportTextureCurrent();
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::GetEditorViewportSrv()
@@ -706,6 +726,16 @@ namespace HIKARI {
 
             device->CreateShaderResourceView(resource, &srv, editorViewportSrvCpu_);
             editorViewportReady_ = true;
+        }
+
+        bool PostSystem::IsEditorViewportTextureCurrent()
+        {
+            if (requestedSceneCaptureWidth_ <= 0 || requestedSceneCaptureHeight_ <= 0) {
+                return true;
+            }
+
+            return editorViewportRT_.GetWidth() == requestedSceneCaptureWidth_ &&
+                editorViewportRT_.GetHeight() == requestedSceneCaptureHeight_;
         }
 
         void PostSystem::EnsureSceneColorSnapshotRTSize()
@@ -1112,7 +1142,9 @@ namespace HIKARI {
             editorViewportRT_.EndCapture();
             RefreshEditorViewportSrvDescriptor();
             BindBackBufferFullViewport();
-            editorViewportReady_ = drew && editorViewportSrvGpu_.ptr != 0;
+            editorViewportReady_ = drew &&
+                editorViewportSrvGpu_.ptr != 0 &&
+                IsEditorViewportTextureCurrent();
             return editorViewportReady_;
         }
 

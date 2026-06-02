@@ -34,7 +34,13 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
         LightProbeVolumeRuntimeData gData{};
         Microsoft::WRL::ComPtr<ID3D12Resource> gShBuffer{};
         Microsoft::WRL::ComPtr<ID3D12Resource> gUploadBuffer{};
+        std::vector<GpuShCoeff> gCpuPayload{};
         D3D12_GPU_DESCRIPTOR_HANDLE gShBufferSrv{};
+        uint32_t gShCoeffElementCount = 0;
+        ID3D12Device* gBufferDevice = nullptr;
+        ID3D12Device* gSrvDevice = nullptr;
+        ID3D12DescriptorHeap* gSrvHeap = nullptr;
+        bool gHasValidSrvDescriptor = false;
         int gSamplingSuppressDepth = 0;
 
         void SetMessage(std::string* outMessage, std::string message) {
@@ -73,12 +79,27 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::LightProbeSh));
         }
 
-        void WriteNullSrv() {
+        void ClearSrvDescriptorState() {
+            gShBufferSrv = {};
+            gSrvDevice = nullptr;
+            gSrvHeap = nullptr;
+            gHasValidSrvDescriptor = false;
+        }
+
+        bool IsSrvContextCurrent() {
+            return gSrvDevice == SERVICES::gCtx.device &&
+                gSrvHeap == SERVICES::gCtx.srvHeap &&
+                gShBufferSrv.ptr != 0 &&
+                gHasValidSrvDescriptor;
+        }
+
+        bool WriteNullSrv() {
             ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = SERVICES::gCtx.srvHeap;
             const D3D12_CPU_DESCRIPTOR_HANDLE cpu = LightProbeSrvCpu();
-            if (device == nullptr || cpu.ptr == 0) {
-                gShBufferSrv = {};
-                return;
+            if (device == nullptr || heap == nullptr || cpu.ptr == 0) {
+                ClearSrvDescriptorState();
+                return false;
             }
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
@@ -90,6 +111,73 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
             srv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
             device->CreateShaderResourceView(nullptr, &srv, cpu);
             gShBufferSrv = LightProbeSrvGpu();
+            gSrvDevice = device;
+            gSrvHeap = heap;
+            gHasValidSrvDescriptor = gShBufferSrv.ptr != 0;
+            return gHasValidSrvDescriptor;
+        }
+
+        bool WriteShBufferSrv() {
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = SERVICES::gCtx.srvHeap;
+            const D3D12_CPU_DESCRIPTOR_HANDLE cpu = LightProbeSrvCpu();
+            if (device == nullptr ||
+                heap == nullptr ||
+                cpu.ptr == 0 ||
+                !gShBuffer ||
+                gShCoeffElementCount == 0u ||
+                gBufferDevice != device) {
+                ClearSrvDescriptorState();
+                return false;
+            }
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+            srv.Format = DXGI_FORMAT_UNKNOWN;
+            srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srv.Buffer.NumElements = gShCoeffElementCount;
+            srv.Buffer.StructureByteStride = sizeof(GpuShCoeff);
+            srv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            device->CreateShaderResourceView(gShBuffer.Get(), &srv, cpu);
+            gShBufferSrv = LightProbeSrvGpu();
+            gSrvDevice = device;
+            gSrvHeap = heap;
+            gHasValidSrvDescriptor = gShBufferSrv.ptr != 0;
+            return gHasValidSrvDescriptor;
+        }
+
+        bool UploadPayload(
+            const std::vector<GpuShCoeff>& payload,
+            std::string* outMessage);
+
+        bool EnsureLightProbeSrvDescriptor() {
+            if (SERVICES::gCtx.device == nullptr || SERVICES::gCtx.srvHeap == nullptr) {
+                ClearSrvDescriptorState();
+                return false;
+            }
+
+            if (!gShBuffer || gShCoeffElementCount == 0u) {
+                // Resize や heap 再作成後でも t14 に安全な descriptor を用意する。
+                WriteNullSrv();
+                return false;
+            }
+
+            if (gBufferDevice != SERVICES::gCtx.device) {
+                if (!gCpuPayload.empty()) {
+                    // device 再作成時は保持している SH から GPU buffer を張り直す。
+                    if (UploadPayload(gCpuPayload, nullptr)) {
+                        return true;
+                    }
+                }
+                WriteNullSrv();
+                return false;
+            }
+
+            if (!IsSrvContextCurrent()) {
+                return WriteShBufferSrv();
+            }
+
+            return true;
         }
 
         std::vector<GpuShCoeff> BuildGpuPayload(
@@ -218,35 +306,28 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 }
             }
 
-            const D3D12_CPU_DESCRIPTOR_HANDLE cpu = LightProbeSrvCpu();
-            if (cpu.ptr == 0) {
+            gShBuffer = std::move(shBuffer);
+            gUploadBuffer = std::move(uploadBuffer);
+            gShCoeffElementCount = static_cast<uint32_t>(payload.size());
+            gBufferDevice = device;
+            if (!WriteShBufferSrv()) {
                 SetMessage(outMessage, "Light probe SRV descriptor is missing.");
                 return false;
             }
-
-            D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
-            srv.Format = DXGI_FORMAT_UNKNOWN;
-            srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-            srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srv.Buffer.NumElements = static_cast<UINT>(payload.size());
-            srv.Buffer.StructureByteStride = sizeof(GpuShCoeff);
-            srv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-            device->CreateShaderResourceView(shBuffer.Get(), &srv, cpu);
-
-            gShBuffer = std::move(shBuffer);
-            gUploadBuffer = std::move(uploadBuffer);
-            gShBufferSrv = LightProbeSrvGpu();
-            return gShBufferSrv.ptr != 0;
+            gCpuPayload = payload;
+            return true;
         }
 
         void RefreshValidity() {
+            const bool srvReady = EnsureLightProbeSrvDescriptor();
             gData.valid = gData.enabled &&
                 gSamplingSuppressDepth <= 0 &&
                 gData.probeCount > 0u &&
                 gData.countX >= 2u &&
                 gData.countY >= 1u &&
                 gData.countZ >= 2u &&
-                gShBufferSrv.ptr != 0 &&
+                gShBuffer != nullptr &&
+                srvReady &&
                 gData.intensity > 0.0f;
         }
 
@@ -269,6 +350,9 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
         gData = {};
         gShBuffer.Reset();
         gUploadBuffer.Reset();
+        gCpuPayload.clear();
+        gShCoeffElementCount = 0;
+        gBufferDevice = nullptr;
         WriteNullSrv();
         RefreshValidity();
     }
@@ -334,10 +418,36 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE GetShBufferSrv() {
-        if (gShBufferSrv.ptr == 0) {
-            WriteNullSrv();
-        }
+        EnsureLightProbeSrvDescriptor();
         return gShBufferSrv;
+    }
+
+    bool HasGpuBuffer() {
+        return gShBuffer != nullptr &&
+            gShCoeffElementCount > 0u &&
+            gBufferDevice == SERVICES::gCtx.device;
+    }
+
+    bool IsSrvReady() {
+        return EnsureLightProbeSrvDescriptor();
+    }
+
+    LightProbeVolumeDebugState GetDebugState() {
+        const bool srvReady = EnsureLightProbeSrvDescriptor();
+        RefreshValidity();
+
+        LightProbeVolumeDebugState state{};
+        state.valid = gData.valid;
+        state.srvReady = srvReady;
+        state.hasBuffer = HasGpuBuffer();
+        state.probeCount = gData.probeCount;
+        state.countX = gData.countX;
+        state.countY = gData.countY;
+        state.countZ = gData.countZ;
+        state.srvHeapPtr = reinterpret_cast<uint64_t>(gSrvHeap);
+        state.bufferPtr = reinterpret_cast<uint64_t>(gShBuffer.Get());
+        state.sourcePath = gData.sourcePath;
+        return state;
     }
 
     bool IsValid() {
