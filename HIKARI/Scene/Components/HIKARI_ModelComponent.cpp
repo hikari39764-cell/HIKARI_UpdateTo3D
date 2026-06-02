@@ -267,6 +267,14 @@ namespace HIKARI {
         return receiveShadow_;
     }
 
+    void ModelComponent::SetRenderStatic(bool enabled) {
+        renderStatic_ = enabled;
+    }
+
+    bool ModelComponent::IsRenderStatic() const {
+        return renderStatic_;
+    }
+
     void ModelComponent::SetSourceKind(ModelSourceKind kind) { sourceKind_ = kind; }
     ModelSourceKind ModelComponent::GetSourceKind() const { return sourceKind_; }
     void ModelComponent::SetProceduralSettings(const ProceduralModelSettings& settings) { procedural_ = settings; }
@@ -519,6 +527,7 @@ namespace HIKARI {
         out["skeletonDebugXRay"] = skeletonDebugXRay_;
         out["castShadow"] = castShadow_;
         out["receiveShadow"] = receiveShadow_;
+        out["renderStatic"] = renderStatic_;
         out["sourceKind"] = ToString(sourceKind_);
         out["procedural"] = {
             { "kind", ToString(procedural_.kind) },
@@ -565,6 +574,7 @@ namespace HIKARI {
         skeletonDebugXRay_ = in.value("skeletonDebugXRay", skeletonDebugXRay_);
         castShadow_ = in.value("castShadow", castShadow_);
         receiveShadow_ = in.value("receiveShadow", receiveShadow_);
+        renderStatic_ = in.value("renderStatic", renderStatic_);
         sourceKind_ = ParseModelSourceKind(in.value("sourceKind", nlohmann::json{}), sourceKind_);
         if (in.contains("procedural") && in["procedural"].is_object()) {
             const auto& node = in["procedural"];
@@ -631,6 +641,7 @@ namespace HIKARI {
         builder.Bool("Visible", visible_);
         builder.Bool("Cast Shadow", castShadow_);
         builder.Bool("Receive Shadow", receiveShadow_);
+        builder.Bool("Render Static", renderStatic_);
         int sourceKind = static_cast<int>(sourceKind_);
         if (builder.Int("Source Kind (0=Asset, 1=Procedural)", sourceKind)) {
             sourceKind_ = static_cast<ModelSourceKind>((std::clamp)(sourceKind, 0, 1));
@@ -851,6 +862,7 @@ namespace HIKARI {
         if (ImGui::TreeNodeEx("Shadow")) {
             ImGui::Checkbox("Cast Shadow", &castShadow_);
             ImGui::Checkbox("Receive Shadow", &receiveShadow_);
+            ImGui::Checkbox("Render Static", &renderStatic_);
             ImGui::TreePop();
         }
 

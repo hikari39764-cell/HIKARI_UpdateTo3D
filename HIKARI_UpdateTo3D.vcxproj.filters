@@ -1011,6 +1011,9 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1646,6 +1649,9 @@
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h">

@@ -77,6 +77,8 @@ namespace HIKARI {
         bool GetCastShadow() const;
         void SetReceiveShadow(bool enabled);
         bool GetReceiveShadow() const;
+        void SetRenderStatic(bool enabled);
+        bool IsRenderStatic() const;
         void SetSourceKind(ModelSourceKind kind);
         ModelSourceKind GetSourceKind() const;
         void SetProceduralSettings(const ProceduralModelSettings& settings);
@@ -127,6 +129,7 @@ namespace HIKARI {
         bool skeletonDebugXRay_ = false;
         bool castShadow_ = true;
         bool receiveShadow_ = true;
+        bool renderStatic_ = false;
         ModelSourceKind sourceKind_ = ModelSourceKind::Asset;
         ProceduralModelSettings procedural_{};
         ModelRenderDebugMode debugRenderMode_ = ModelRenderDebugMode::Normal;

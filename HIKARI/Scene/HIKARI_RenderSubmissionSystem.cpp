@@ -1,5 +1,6 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
+#include "Core/HIKARI_FrameContext.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/HIKARI_Camera3D.h"
@@ -17,6 +18,8 @@ namespace HIKARI {
 
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
+    RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
+    SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
 
     void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
         sActiveRenderCamera_ = camera;
@@ -26,9 +29,15 @@ namespace HIKARI {
         return sDebugStats_;
     }
 
-    void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
-        (void)frame;
+    const RENDER3D::RUNTIME::SceneRenderCache& RenderSubmissionSystem::GetSceneRenderCache() {
+        return sSceneRenderCache_;
+    }
 
+    const RENDER3D::RUNTIME::SceneRenderCache::Stats& RenderSubmissionSystem::GetSceneRenderCacheStats() {
+        return sSceneRenderCache_.GetStats();
+    }
+
+    void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.scannedModelCount = 0;
         sDebugStats_.hiddenModelCount = 0;
@@ -37,6 +46,13 @@ namespace HIKARI {
         sDebugStats_.skinnedCullSkippedCount = 0;
         sDebugStats_.fallbackWireCount = 0;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
+
+        sSceneRenderCacheSync_.Sync(
+            world,
+            MODELRENDERER::GetRenderModelCache(),
+            sSceneRenderCache_,
+            frame.frameIndex);
+
         MESHWIREDEBUG::BeginFrame();
 
         world.ForEachObjectWith<ModelComponent>([](GameObject& object, ModelComponent& model) {

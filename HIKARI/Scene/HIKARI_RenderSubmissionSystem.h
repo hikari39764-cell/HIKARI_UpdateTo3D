@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
+#include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
 namespace HIKARI {
@@ -25,10 +27,14 @@ namespace HIKARI {
 
         static void SetActiveRenderCamera(const Camera3D* camera);
         static const RenderSubmissionDebugStats& GetDebugStats();
+        static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
+        static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
 
     private:
         static RenderSubmissionDebugStats sDebugStats_;
         static const Camera3D* sActiveRenderCamera_;
+        static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
+        static SceneRenderCacheSync sSceneRenderCacheSync_;
     };
 
 } // namespace HIKARI

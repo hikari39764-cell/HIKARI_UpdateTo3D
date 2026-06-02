@@ -90,6 +90,7 @@ namespace HIKARI::MODELRENDERER {
         uint32_t height,
         ModelRendererFrameKind kind = ModelRendererFrameKind::ReflectionProbeCapture);
     const ModelRendererDebugStats& GetDebugStats();
+    RENDER3D::RUNTIME::RenderModelCache& GetRenderModelCache();
     const RENDER3D::RUNTIME::RenderModelCache::Stats& GetRenderModelCacheStats();
 
 }

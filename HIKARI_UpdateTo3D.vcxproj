@@ -239,6 +239,7 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp" />
@@ -579,6 +580,7 @@
     <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
     <ClInclude Include="HIKARI\Matrix3x3.h" />
   </ItemGroup>

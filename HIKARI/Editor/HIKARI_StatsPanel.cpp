@@ -10,6 +10,7 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
+#include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Scene/HIKARI_World.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 #if defined(_DEBUG)
@@ -66,6 +67,8 @@ namespace HIKARI {
         const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
         const MODELRENDERER::ModelRendererFrameStats& modelFrameStats = modelStats.frame;
         const MODELRENDERER::ModelRendererCacheStats& modelCacheStats = modelStats.cache;
+        const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneRenderCacheStats =
+            RenderSubmissionSystem::GetSceneRenderCacheStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
@@ -89,6 +92,25 @@ namespace HIKARI {
                     modelFrameStats.structuredNodeSubmittedCount,
                     modelFrameStats.structuredNodeCulledCount);
                 ImGui::Text("Structured Missing Bounds: %u", modelFrameStats.structuredCullBoundsMissingCount);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNodeEx("Scene Render Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Text("Objects: %u", sceneRenderCacheStats.renderObjectCount);
+                ImGui::Text("Visible / Hidden: %u / %u",
+                    sceneRenderCacheStats.visibleObjectCount,
+                    sceneRenderCacheStats.hiddenObjectCount);
+                ImGui::Text("Static / Dynamic: %u / %u",
+                    sceneRenderCacheStats.staticObjectCount,
+                    sceneRenderCacheStats.dynamicObjectCount);
+                ImGui::Text("Dirty: %u", sceneRenderCacheStats.dirtyObjectCount);
+                ImGui::Text("Inserted / Updated / Removed: %u / %u / %u",
+                    sceneRenderCacheStats.insertedCount,
+                    sceneRenderCacheStats.updatedCount,
+                    sceneRenderCacheStats.removedCount);
+                ImGui::Text("Invalid Desc: %u", sceneRenderCacheStats.invalidDescCount);
+                ImGui::Text("RenderModel Valid / Invalid: %u / %u",
+                    sceneRenderCacheStats.renderModelValidCount,
+                    sceneRenderCacheStats.renderModelInvalidCount);
                 ImGui::TreePop();
             }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);

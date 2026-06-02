@@ -875,6 +875,10 @@ namespace HIKARI::MODELRENDERER {
         return gDebugStats;
     }
 
+    RENDER3D::RUNTIME::RenderModelCache& GetRenderModelCache() {
+        return gRenderModelCache;
+    }
+
     const RENDER3D::RUNTIME::RenderModelCache::Stats& GetRenderModelCacheStats() {
         return gRenderModelCache.GetStats();
     }
