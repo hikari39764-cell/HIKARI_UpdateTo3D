@@ -41,6 +41,21 @@ namespace HIKARI {
             const std::filesystem::path& outputDirectory,
             const std::filesystem::path& sharedGeneratedDirectory,
             const IblBakeSettings& settings);
+
+        static bool BakePrefilteredCubemapOnly(
+            const std::filesystem::path& sourceCubemapDds,
+            const std::filesystem::path& outputPrefilteredDds,
+            uint32_t prefilteredSize,
+            uint32_t prefilteredMipCount,
+            uint32_t sampleCount,
+            std::string* outMessage = nullptr);
+
+        static bool EnsureSharedBrdfLut(
+            const std::filesystem::path& outputBrdfLutDds,
+            uint32_t brdfLutSize,
+            uint32_t sampleCount,
+            bool forceRebake,
+            std::string* outMessage = nullptr);
     };
 
 } // namespace HIKARI

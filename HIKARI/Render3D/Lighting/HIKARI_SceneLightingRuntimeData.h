@@ -8,7 +8,8 @@ namespace HIKARI::RENDER3D::LIGHTING {
     enum class LightingRuntimeSource {
         None,
         AuthoringFallback,
-        BakeManifest,
+        BakeManifestDiscovered,
+        BakedRuntime,
     };
 
     struct SceneLightingRuntimeData {

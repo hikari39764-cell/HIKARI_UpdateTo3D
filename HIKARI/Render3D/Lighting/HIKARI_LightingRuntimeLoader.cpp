@@ -23,6 +23,12 @@ namespace HIKARI::RENDER3D::LIGHTING {
         bool HasAnyRuntimeResource(const SceneLightingRuntimeData& data) {
             return data.skyLoaded || data.globalIblLoaded || data.reflectionProbeLoaded;
         }
+
+        std::string ResolveSharedBrdfPath(const std::string& manifestBrdfPath) {
+            return manifestBrdfPath.empty()
+                ? std::string{ kSharedBrdfLutPath }
+                : manifestBrdfPath;
+        }
     } // namespace
 
     const char* ToString(LightingRuntimeSource source) {
@@ -31,8 +37,10 @@ namespace HIKARI::RENDER3D::LIGHTING {
             return "None";
         case LightingRuntimeSource::AuthoringFallback:
             return "AuthoringFallback";
-        case LightingRuntimeSource::BakeManifest:
-            return "BakeManifest";
+        case LightingRuntimeSource::BakeManifestDiscovered:
+            return "BakeManifestDiscovered";
+        case LightingRuntimeSource::BakedRuntime:
+            return "BakedRuntime";
         default:
             return "Unknown";
         }
@@ -54,11 +62,11 @@ namespace HIKARI::RENDER3D::LIGHTING {
         LightingRuntimeLoadResult result{};
         result.runtimeData.source = LightingRuntimeSource::None;
 
-        if (request.preferBakeManifest) {
-            TryLoadBakeManifest(request, result.runtimeData, result.messages);
-        }
+        const bool manifestLoaded = request.preferBakeManifest
+            ? TryLoadBakeManifest(request, result.runtimeData, result.messages)
+            : false;
 
-        // Lighting resource の詳細ロードはここへ集約する。
+        // Sky/IBL は authoring asset から読み込む。
         LoadSkyLightingFromAssets(
             request,
             assetRegistry,
@@ -66,16 +74,22 @@ namespace HIKARI::RENDER3D::LIGHTING {
             result.runtimeData,
             result.messages);
 
-        LoadReflectionProbeFromAuthoringSource(
-            request,
-            assetRegistry,
-            result.runtimeData,
-            result.messages);
+        if (!result.runtimeData.reflectionProbeLoaded) {
+            LoadReflectionProbeFromAuthoringSource(
+                request,
+                assetRegistry,
+                result.runtimeData,
+                result.messages);
+        }
 
-        if (HasAnyRuntimeResource(result.runtimeData)) {
+        if (result.runtimeData.reflectionProbeLoaded &&
+            result.runtimeData.source != LightingRuntimeSource::BakedRuntime) {
             result.runtimeData.source = LightingRuntimeSource::AuthoringFallback;
-        } else if (result.runtimeData.bakeManifestLoaded) {
-            result.runtimeData.source = LightingRuntimeSource::BakeManifest;
+        } else if (!result.runtimeData.reflectionProbeLoaded && manifestLoaded) {
+            result.runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+        } else if (result.runtimeData.source == LightingRuntimeSource::None &&
+            HasAnyRuntimeResource(result.runtimeData)) {
+            result.runtimeData.source = LightingRuntimeSource::AuthoringFallback;
         }
 
         SetLastLightingRuntimeData(result.runtimeData);
@@ -105,7 +119,6 @@ namespace HIKARI::RENDER3D::LIGHTING {
             return false;
         }
 
-        // Phase 7 では manifest の存在確認だけを行う。
         runtimeData.bakeManifestLoaded = true;
         runtimeData.bakedReflectionProbeCount =
             static_cast<uint32_t>(manifest.reflectionProbes.size());
@@ -119,6 +132,55 @@ namespace HIKARI::RENDER3D::LIGHTING {
             " probes=" + std::to_string(runtimeData.bakedReflectionProbeCount) +
             " lightProbes=" + std::to_string(runtimeData.bakedLightProbeCount) +
             " lightmaps=" + std::to_string(runtimeData.bakedLightmapCount));
+
+        if (!manifest.reflectionProbes.empty()) {
+            const ASSETS::LIGHTING::ReflectionProbeBakeRecord& record =
+                manifest.reflectionProbes.front();
+
+            if (record.prefilteredCubemapPath.empty()) {
+                AppendMessage(messages, "[LightingRuntimeLoader][BakeManifest] baked probe has no prefiltered cubemap.");
+                runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+                return true;
+            }
+
+            const int prefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                "reflection_probe/baked/" + record.id,
+                record.prefilteredCubemapPath,
+                DXTEX::TextureColorSpace::Linear);
+
+            const std::string brdfLutPath = ResolveSharedBrdfPath(record.brdfLutPath);
+            const int brdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                "reflection_probe/brdf_lut",
+                brdfLutPath);
+
+            // Bake manifest の probe を runtime probe として優先する。
+            REFLECTION::SetActiveProbe(
+                true,
+                prefiltered,
+                brdf,
+                record.prefilteredMipCount,
+                record.position,
+                record.radius,
+                record.intensity,
+                record.id,
+                record.prefilteredCubemapPath,
+                brdfLutPath);
+
+            runtimeData.reflectionProbeLoaded = REFLECTION::GetActiveProbe().valid;
+            runtimeData.activeReflectionProbeSourceAssetId = record.id;
+            runtimeData.source = runtimeData.reflectionProbeLoaded
+                ? LightingRuntimeSource::BakedRuntime
+                : LightingRuntimeSource::BakeManifestDiscovered;
+
+            HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] loaded baked probe id=" +
+                record.id +
+                " prefiltered=" + std::to_string(prefiltered) +
+                " brdf=" + std::to_string(brdf) +
+                " valid=" + std::string(runtimeData.reflectionProbeLoaded ? "true" : "false"));
+        } else {
+            runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+        }
+
         return true;
     }
 
@@ -243,7 +305,7 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 probeBrdfPath);
         }
 
-        // Authoring fallback は正式 bake までの単一 probe 入力として扱う。
+        // 未 bake 時だけ authoring cubemap を fallback として使う。
         REFLECTION::SetActiveProbe(
             request.reflectionProbeEnabled,
             probePrefiltered,
@@ -256,12 +318,13 @@ namespace HIKARI::RENDER3D::LIGHTING {
             probeDescriptor->prefilteredPath,
             probeBrdfPath);
 
-        runtimeData.reflectionProbeLoaded = probePrefiltered >= 0 || probeBrdf >= 0;
+        runtimeData.reflectionProbeLoaded = REFLECTION::GetActiveProbe().valid;
         runtimeData.activeReflectionProbeSourceAssetId = probeDescriptor->id.value;
         HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] loaded authoring fallback source=" +
             probeDescriptor->id.value +
             " prefiltered=" + std::to_string(probePrefiltered) +
-            " brdf=" + std::to_string(probeBrdf));
+            " brdf=" + std::to_string(probeBrdf) +
+            " valid=" + std::string(runtimeData.reflectionProbeLoaded ? "true" : "false"));
     }
 
 } // namespace HIKARI::RENDER3D::LIGHTING

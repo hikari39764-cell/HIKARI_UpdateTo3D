@@ -223,6 +223,7 @@ namespace HIKARI {
         if (DrawDebugHelpers()) {
             LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
             LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
+            reflectionProbeGizmoRenderer_.Submit(activeEnvironment, true);
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);

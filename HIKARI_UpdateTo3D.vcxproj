@@ -176,6 +176,7 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
@@ -214,6 +215,7 @@
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
@@ -426,6 +428,7 @@
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
@@ -508,6 +511,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h" />
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />

@@ -579,6 +579,9 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp">
+      <Filter>Source Files\Editor\Gizmos</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
@@ -1082,6 +1085,9 @@
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp">
+      <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -1252,6 +1258,9 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h">
+      <Filter>Header Files\Editor\Gizmos</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
       <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
@@ -1358,6 +1367,9 @@
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">

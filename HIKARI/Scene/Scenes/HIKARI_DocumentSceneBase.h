@@ -9,6 +9,7 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
+#include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -127,6 +128,7 @@ namespace HIKARI {
         SceneDocument sceneDocument_{};
         AssetGuid currentSceneAssetGuid_{};
         bool sceneDocumentDirty_ = false;
+        EDITOR::ReflectionProbeGizmoRenderer reflectionProbeGizmoRenderer_{};
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         ViewportOverlayState viewportOverlayState_{};

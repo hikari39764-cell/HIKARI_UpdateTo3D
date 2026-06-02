@@ -634,6 +634,87 @@ namespace HIKARI {
             }
             return true;
         }
+
+        void SetMessage(std::string* outMessage, std::string message) {
+            if (outMessage) {
+                *outMessage = std::move(message);
+            }
+        }
+    }
+
+    bool IblBaker::BakePrefilteredCubemapOnly(
+        const std::filesystem::path& sourceCubemapDds,
+        const std::filesystem::path& outputPrefilteredDds,
+        uint32_t prefilteredSize,
+        uint32_t prefilteredMipCount,
+        uint32_t sampleCount,
+        std::string* outMessage) {
+
+        const uint32_t size = ClampPowerOfTwoSize(prefilteredSize, 32, 256);
+        const uint32_t mipCount = std::clamp(prefilteredMipCount, 1u, MaxMipCount(size));
+        const uint32_t samples = std::clamp(sampleCount, 32u, 256u);
+
+        std::string error{};
+        CubemapImage source{};
+        {
+            ScopedTimer timer("load reflection probe cubemap");
+            source = LoadCubemapAsFloat4(sourceCubemapDds, error);
+        }
+        if (source.faces.empty()) {
+            SetMessage(outMessage, error.empty() ? "failed to load probe cubemap" : error);
+            return false;
+        }
+
+        {
+            ScopedTimer timer("bake reflection probe prefiltered size=" + std::to_string(size) +
+                " mips=" + std::to_string(mipCount) +
+                " samples=" + std::to_string(samples));
+            const CubemapImage prefiltered =
+                GeneratePrefilteredCubemap(source, size, mipCount, samples);
+            if (!SaveCubemapToDds(prefiltered, outputPrefilteredDds, DXGI_FORMAT_R16G16B16A16_FLOAT, error)) {
+                SetMessage(outMessage, "prefiltered probe save failed: " + error);
+                return false;
+            }
+        }
+
+        SetMessage(outMessage, "prefiltered reflection probe baked: " + outputPrefilteredDds.generic_string());
+        HIKARI_LOG_INFO("[IblBaker] baked reflection probe prefiltered: " +
+            outputPrefilteredDds.generic_string());
+        return true;
+    }
+
+    bool IblBaker::EnsureSharedBrdfLut(
+        const std::filesystem::path& outputBrdfLutDds,
+        uint32_t brdfLutSize,
+        uint32_t sampleCount,
+        bool forceRebake,
+        std::string* outMessage) {
+
+        if (!forceRebake && std::filesystem::exists(outputBrdfLutDds)) {
+            SetMessage(outMessage, "BRDF LUT reused: " + outputBrdfLutDds.generic_string());
+            return true;
+        }
+
+        const uint32_t size = ClampPowerOfTwoSize(brdfLutSize, 64, 256);
+        const uint32_t samples = std::clamp(sampleCount, 64u, 512u);
+        std::string error{};
+        {
+            ScopedTimer timer("bake shared brdf lut size=" + std::to_string(size) +
+                " samples=" + std::to_string(samples));
+            DirectX::ScratchImage brdf = GenerateBrdfLutImage(size, samples);
+            if (brdf.GetImageCount() == 0) {
+                SetMessage(outMessage, "BRDF LUT generation failed");
+                return false;
+            }
+            if (!SaveScratchToDds(brdf, outputBrdfLutDds, DXGI_FORMAT_R16G16B16A16_FLOAT, error)) {
+                SetMessage(outMessage, "BRDF LUT save failed: " + error);
+                return false;
+            }
+        }
+
+        SetMessage(outMessage, "BRDF LUT ready: " + outputBrdfLutDds.generic_string());
+        HIKARI_LOG_INFO("[IblBaker] brdf lut ready: " + outputBrdfLutDds.generic_string());
+        return true;
     }
 
     IblBakeResult IblBaker::BakeSkyCubemapToIbl(

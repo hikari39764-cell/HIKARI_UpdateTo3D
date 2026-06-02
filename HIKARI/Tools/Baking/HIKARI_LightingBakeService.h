@@ -8,6 +8,7 @@
 
 namespace HIKARI {
 
+    class DocumentSceneBase;
     struct SceneDocument;
 
     namespace TOOLS::BAKING {
@@ -26,6 +27,7 @@ namespace HIKARI {
         public:
             LightingBakeReport ValidateLightingBakeSetup(const LightingBakeRequest& request) const;
             LightingBakeReport PrepareLightingBakeManifest(const LightingBakeRequest& request) const;
+            LightingBakeReport BakeReflectionProbesOnly(DocumentSceneBase& scene) const;
             LightingBakeReport ClearLightingBake(const LightingBakeRequest& request) const;
 
         private:

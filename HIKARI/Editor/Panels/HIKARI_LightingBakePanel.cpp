@@ -109,7 +109,7 @@ namespace HIKARI {
         ImGui::TextUnformatted("Bake Actions");
         ImGui::Separator();
 
-        // Bake UI は runtime へ直接依存を増やさず、Service 経由で操作する。
+        // Bake UI は service 経由で実行し、runtime 依存を広げない。
         TOOLS::BAKING::LightingBakeService service{};
         if (ImGui::Button("Validate Lighting Bake Setup")) {
             lastReport_ = service.ValidateLightingBakeSetup(request);
@@ -122,6 +122,13 @@ namespace HIKARI {
             scene.RefreshLightingRuntime();
             RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
                 "LightingBake.PrepareManifest",
+                &scene.GetSceneEnvironment());
+        }
+        if (ImGui::Button("Bake Reflection Probes Only")) {
+            lastReport_ = service.BakeReflectionProbesOnly(scene);
+            hasReport_ = true;
+            RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
+                "LightingBake.ReflectionProbe",
                 &scene.GetSceneEnvironment());
         }
         if (ImGui::Button("Clear Lighting Bake")) {
@@ -147,7 +154,7 @@ namespace HIKARI {
         ImGui::Spacing();
         ImGui::TextUnformatted("Future Bake Targets");
         ImGui::Separator();
-        ImGui::BulletText("Reflection Probe Baker: Not Implemented");
+        ImGui::BulletText("Reflection Probe Baker: Basic Single Probe");
         ImGui::BulletText("Light Probe Baker: Not Implemented");
         ImGui::BulletText("Lightmap Baker: Not Implemented");
 
@@ -165,9 +172,21 @@ namespace HIKARI {
             ImGui::Text("Manifest Written: %s", lastReport_.manifestWritten ? "Yes" : "No");
             ImGui::Text("Folder Created: %s", lastReport_.bakeFolderCreated ? "Yes" : "No");
             ImGui::Text("Folder Cleared: %s", lastReport_.bakeFolderCleared ? "Yes" : "No");
+            ImGui::Text("Probe Capture Written: %s", lastReport_.reflectionProbeCaptured ? "Yes" : "No");
+            ImGui::Text("Probe Prefiltered: %s", lastReport_.reflectionProbePrefiltered ? "Yes" : "No");
+            ImGui::Text("Probe Record Written: %s", lastReport_.reflectionProbeRecordWritten ? "Yes" : "No");
             ImGui::Text("Reflection Probe Records: %u", lastReport_.reflectionProbeRecordCount);
             ImGui::Text("Light Probe Records: %u", lastReport_.lightProbeRecordCount);
             ImGui::Text("Lightmap Records: %u", lastReport_.lightmapRecordCount);
+            if (!lastReport_.reflectionProbeCapturePath.empty()) {
+                ImGui::TextWrapped("Probe Capture: %s", lastReport_.reflectionProbeCapturePath.generic_string().c_str());
+            }
+            if (!lastReport_.reflectionProbePrefilteredPath.empty()) {
+                ImGui::TextWrapped("Probe Prefiltered: %s", lastReport_.reflectionProbePrefilteredPath.generic_string().c_str());
+            }
+            if (!lastReport_.reflectionProbeBrdfLutPath.empty()) {
+                ImGui::TextWrapped("Probe BRDF LUT: %s", lastReport_.reflectionProbeBrdfLutPath.generic_string().c_str());
+            }
 
             const std::string& lastMessage = LastText(lastReport_.messages);
             if (!lastMessage.empty()) {
