@@ -18,6 +18,7 @@ namespace HIKARI::TOOLS::BAKING {
         PrepareManifest,
         ClearBake,
         BakeReflectionProbes,
+        BakeLightProbes,
         ValidateOnly,
     };
 
@@ -26,6 +27,8 @@ namespace HIKARI::TOOLS::BAKING {
         Requested,
         Capturing,
         WaitingGpu,
+        ProjectingSH,
+        Saving,
         Finalizing,
         Completed,
         Failed,
@@ -43,6 +46,11 @@ namespace HIKARI::TOOLS::BAKING {
         bool reflectionProbeUsedSourceOverride = false;
         bool reflectionProbeCaptureValidated = false;
         bool reflectionProbePrefilterValidated = false;
+        bool lightProbeBaked = false;
+        bool lightProbeRuntimeLoaded = false;
+        bool lightProbeVolumeWritten = false;
+        bool lightProbeRecordWritten = false;
+        bool lightProbeDebugJsonWritten = false;
         LightingBakeAction action = LightingBakeAction::ValidateOnly;
         LightingBakeTarget target = LightingBakeTarget::All;
         LightingBakeJobState jobState = LightingBakeJobState::Idle;
@@ -51,6 +59,8 @@ namespace HIKARI::TOOLS::BAKING {
         std::filesystem::path reflectionProbeCapturePath{};
         std::filesystem::path reflectionProbePrefilteredPath{};
         std::filesystem::path reflectionProbeBrdfLutPath{};
+        std::filesystem::path lightProbeVolumePath{};
+        std::filesystem::path lightProbeDebugJsonPath{};
         std::string reflectionProbeCaptureMode{};
         uint64_t gpuFenceValue = 0;
         uint32_t reflectionProbeCapturedFaceCount = 0;
@@ -63,7 +73,14 @@ namespace HIKARI::TOOLS::BAKING {
         uint32_t reflectionProbeRecordCount = 0;
         uint32_t lightProbeRecordCount = 0;
         uint32_t lightmapRecordCount = 0;
+        uint32_t lightProbeProbeCount = 0;
+        uint32_t lightProbeCaptureResolution = 0;
+        uint32_t lightProbeCapturedFaceCount = 0;
+        uint32_t lightProbeQueuedReadbackFaceCount = 0;
+        uint32_t lightProbeCurrentProbeIndex = 0;
+        uint32_t lightProbeCurrentFaceIndex = 0;
         std::vector<std::string> reflectionProbeFaceSummaries{};
+        std::vector<std::string> lightProbeMessages{};
         std::vector<std::string> messages{};
         std::vector<std::string> warnings{};
         std::vector<std::string> errors{};
@@ -92,6 +109,8 @@ namespace HIKARI::TOOLS::BAKING {
             return "ClearBake";
         case LightingBakeAction::BakeReflectionProbes:
             return "BakeReflectionProbes";
+        case LightingBakeAction::BakeLightProbes:
+            return "BakeLightProbes";
         case LightingBakeAction::ValidateOnly:
             return "ValidateOnly";
         default:
@@ -109,6 +128,10 @@ namespace HIKARI::TOOLS::BAKING {
             return "Capturing";
         case LightingBakeJobState::WaitingGpu:
             return "WaitingGpu";
+        case LightingBakeJobState::ProjectingSH:
+            return "ProjectingSH";
+        case LightingBakeJobState::Saving:
+            return "Saving";
         case LightingBakeJobState::Finalizing:
             return "Finalizing";
         case LightingBakeJobState::Completed:

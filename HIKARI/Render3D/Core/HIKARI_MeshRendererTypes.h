@@ -91,6 +91,9 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 reflectionProbeParams{};
         MATH::Vec4 reflectionProbeIntensity{};
         MATH::Vec4 aoParams{};
+        MATH::Vec4 lightProbeVolumeOrigin{};
+        MATH::Vec4 lightProbeVolumeSpacing{};
+        MATH::Vec4 lightProbeVolumeCounts{};
     };
 
     struct ShadowCB {

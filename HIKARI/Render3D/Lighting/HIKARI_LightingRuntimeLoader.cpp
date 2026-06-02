@@ -6,6 +6,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 
@@ -21,7 +22,10 @@ namespace HIKARI::RENDER3D::LIGHTING {
         }
 
         bool HasAnyRuntimeResource(const SceneLightingRuntimeData& data) {
-            return data.skyLoaded || data.globalIblLoaded || data.reflectionProbeLoaded;
+            return data.skyLoaded ||
+                data.globalIblLoaded ||
+                data.reflectionProbeLoaded ||
+                data.lightProbeVolumeLoaded;
         }
 
         std::string ResolveSharedBrdfPath(const std::string& manifestBrdfPath) {
@@ -61,6 +65,7 @@ namespace HIKARI::RENDER3D::LIGHTING {
 
         LightingRuntimeLoadResult result{};
         result.runtimeData.source = LightingRuntimeSource::None;
+        LIGHTPROBE::Reset();
 
         const bool manifestLoaded = request.preferBakeManifest
             ? TryLoadBakeManifest(request, result.runtimeData, result.messages)
@@ -85,7 +90,9 @@ namespace HIKARI::RENDER3D::LIGHTING {
         if (result.runtimeData.reflectionProbeLoaded &&
             result.runtimeData.source != LightingRuntimeSource::BakedRuntime) {
             result.runtimeData.source = LightingRuntimeSource::AuthoringFallback;
-        } else if (!result.runtimeData.reflectionProbeLoaded && manifestLoaded) {
+        } else if (!result.runtimeData.reflectionProbeLoaded &&
+            !result.runtimeData.lightProbeVolumeLoaded &&
+            manifestLoaded) {
             result.runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
         } else if (result.runtimeData.source == LightingRuntimeSource::None &&
             HasAnyRuntimeResource(result.runtimeData)) {
@@ -133,13 +140,56 @@ namespace HIKARI::RENDER3D::LIGHTING {
             " lightProbes=" + std::to_string(runtimeData.bakedLightProbeCount) +
             " lightmaps=" + std::to_string(runtimeData.bakedLightmapCount));
 
+        if (request.lightProbeVolumeEnabled && !manifest.lightProbes.empty()) {
+            const ASSETS::LIGHTING::LightProbeBakeRecord* volumeRecord = nullptr;
+            for (const ASSETS::LIGHTING::LightProbeBakeRecord& record : manifest.lightProbes) {
+                if (record.type.empty() || record.type == "VolumeGrid") {
+                    volumeRecord = &record;
+                    break;
+                }
+            }
+
+            if (volumeRecord != nullptr && !volumeRecord->shDataPath.empty()) {
+                const std::filesystem::path shPath =
+                    volumeRecord->shDataPath.empty()
+                        ? std::filesystem::path{}
+                        : (request.projectRoot / volumeRecord->shDataPath).lexically_normal();
+                std::string lightProbeMessage{};
+                if (LIGHTPROBE::LoadLightProbeVolume(shPath, &lightProbeMessage)) {
+                    LIGHTPROBE::SetLightProbeVolumeIntensity(request.lightProbeVolumeIntensity);
+                    runtimeData.lightProbeVolumeLoaded = LIGHTPROBE::IsValid();
+                    runtimeData.activeLightProbeVolumePath = volumeRecord->shDataPath;
+                    runtimeData.bakedLightProbeCount = volumeRecord->probeCount > 0
+                        ? volumeRecord->probeCount
+                        : runtimeData.bakedLightProbeCount;
+                    runtimeData.source = LightingRuntimeSource::BakedRuntime;
+                    AppendMessage(messages, "[LightingRuntimeLoader][LightProbe] " + lightProbeMessage);
+                    HIKARI_LOG_INFO("[LightingRuntimeLoader][LightProbe] loaded valid=true probes=" +
+                        std::to_string(runtimeData.bakedLightProbeCount) +
+                        " path=" + volumeRecord->shDataPath);
+                } else {
+                    LIGHTPROBE::Reset();
+                    AppendMessage(messages, "[LightingRuntimeLoader][LightProbe][WARN] " + lightProbeMessage);
+                    HIKARI_LOG_WARN("[LightingRuntimeLoader][LightProbe][WARN] failed to load HLPV path=" +
+                        volumeRecord->shDataPath +
+                        " message=" + lightProbeMessage);
+                }
+            } else {
+                AppendMessage(messages, "[LightingRuntimeLoader][LightProbe] volume grid record not found.");
+            }
+        } else if (!request.lightProbeVolumeEnabled) {
+            LIGHTPROBE::SetLightProbeVolumeEnabled(false);
+        }
+
         if (!manifest.reflectionProbes.empty()) {
             const ASSETS::LIGHTING::ReflectionProbeBakeRecord& record =
                 manifest.reflectionProbes.front();
 
             if (record.prefilteredCubemapPath.empty()) {
                 AppendMessage(messages, "[LightingRuntimeLoader][BakeManifest] baked probe has no prefiltered cubemap.");
-                runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+                if (!runtimeData.lightProbeVolumeLoaded) {
+                    runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+                }
                 return true;
             }
 
@@ -168,9 +218,11 @@ namespace HIKARI::RENDER3D::LIGHTING {
 
             runtimeData.reflectionProbeLoaded = REFLECTION::GetActiveProbe().valid;
             runtimeData.activeReflectionProbeSourceAssetId = record.id;
-            runtimeData.source = runtimeData.reflectionProbeLoaded
-                ? LightingRuntimeSource::BakedRuntime
-                : LightingRuntimeSource::BakeManifestDiscovered;
+            if (runtimeData.reflectionProbeLoaded) {
+                runtimeData.source = LightingRuntimeSource::BakedRuntime;
+            } else if (!runtimeData.lightProbeVolumeLoaded) {
+                runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
+            }
 
             if (runtimeData.reflectionProbeLoaded) {
                 HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] baked probe activation valid=true source=BakedRuntime path=" +
@@ -183,7 +235,7 @@ namespace HIKARI::RENDER3D::LIGHTING {
                     " prefiltered=" + std::to_string(prefiltered) +
                     " brdf=" + std::to_string(brdf));
             }
-        } else {
+        } else if (!runtimeData.lightProbeVolumeLoaded) {
             runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
         }
 

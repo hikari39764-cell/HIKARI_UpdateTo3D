@@ -135,7 +135,7 @@ namespace HIKARI::TOOLS::BAKING {
         }
 
         AppendSceneAuthoringSummary(request, report);
-        report.messages.push_back("Phase 9 prepares manifest only. Reflection probe bake is now a separate action.");
+        report.messages.push_back("Lighting bake manifest can be prepared independently from GPU bake jobs.");
 
         HIKARI_LOG_INFO("[LightingBake] validate scene=" + request.sceneGuid +
             " success=" + std::string(report.success ? "true" : "false"));
@@ -195,6 +195,29 @@ namespace HIKARI::TOOLS::BAKING {
                 return scene.GetLastLightingBakeReport();
             }
             AddError(report, "Failed to request reflection probe scene capture.");
+            return report;
+        }
+        if (scene.HasLastLightingBakeReport()) {
+            return scene.GetLastLightingBakeReport();
+        }
+        return report;
+    }
+
+    LightingBakeReport LightingBakeService::BakeLightProbesOnly(DocumentSceneBase& scene) const {
+        const LightingBakeRequest request =
+            BuildRequestFromScene(scene, LightingBakeTarget::LightProbesOnly);
+
+        LightingBakeReport report{};
+        report.action = LightingBakeAction::BakeLightProbes;
+        report.target = request.target;
+        FillBakePaths(request, report);
+
+        // Scene capture bake は GPU job として Scene 側に委譲する。
+        if (!scene.RequestLightProbeBake()) {
+            if (scene.HasLastLightingBakeReport()) {
+                return scene.GetLastLightingBakeReport();
+            }
+            AddError(report, "Failed to request light probe volume scene capture.");
             return report;
         }
         if (scene.HasLastLightingBakeReport()) {
@@ -284,6 +307,21 @@ namespace HIKARI::TOOLS::BAKING {
         if (environment.reflectionProbe.enabled && environment.reflectionProbe.radius <= 0.0f) {
             report.warnings.push_back("Reflection probe radius should be greater than zero.");
         }
+
+        LightProbeVolumeSettings lightProbeVolume = request.sceneDocument->lightingBake.lightProbeVolume;
+        ClampLightProbeVolumeSettings(lightProbeVolume);
+        if (lightProbeVolume.enabled) {
+            report.messages.push_back("Light probe volume grid: " +
+                std::to_string(lightProbeVolume.countX) + "x" +
+                std::to_string(lightProbeVolume.countY) + "x" +
+                std::to_string(lightProbeVolume.countZ) +
+                " probes=" + std::to_string(GetLightProbeVolumeProbeCount(lightProbeVolume)));
+            report.messages.push_back("Light probe capture resolution: " +
+                std::to_string(lightProbeVolume.captureResolution));
+        } else {
+            report.warnings.push_back("Light probe volume is disabled.");
+        }
+
         if (environment.ambientOcclusion.enabled) {
             if (environment.ambientOcclusion.radius <= 0.0f) {
                 report.warnings.push_back("Ambient occlusion radius should be greater than zero.");

@@ -97,6 +97,9 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gReflectionProbeParams;
     float4 gReflectionProbeIntensity;
     float4 gAoParams;
+    float4 gLightProbeVolumeOrigin;
+    float4 gLightProbeVolumeSpacing;
+    float4 gLightProbeVolumeCounts;
 };
 
 #define gSkyZenithColor gSkyZenithExposure.rgb
@@ -123,6 +126,14 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSsaoEnabled gAoParams.x
 #define gSsaoDiffuseStrength gAoParams.y
 #define gSsaoSpecularStrength gAoParams.z
+#define gLightProbeEnabled gLightProbeVolumeOrigin.w
+#define gLightProbeOrigin gLightProbeVolumeOrigin.xyz
+#define gLightProbeSpacing gLightProbeVolumeSpacing.xyz
+#define gLightProbeIntensity gLightProbeVolumeSpacing.w
+#define gLightProbeCountX ((uint)(gLightProbeVolumeCounts.x + 0.5f))
+#define gLightProbeCountY ((uint)(gLightProbeVolumeCounts.y + 0.5f))
+#define gLightProbeCountZ ((uint)(gLightProbeVolumeCounts.z + 0.5f))
+#define gLightProbeProbeCount ((uint)(gLightProbeVolumeCounts.w + 0.5f))
 
 Texture2D gBaseColorTex : register(t0);
 Texture2D gNormalTex : register(t1);
@@ -138,6 +149,7 @@ TextureCube gIblPrefilteredTex : register(t10);
 Texture2D gIblBrdfLutTex : register(t11);
 TextureCube gReflectionProbePrefilteredTex : register(t12);
 Texture2D gSsaoTex : register(t13);
+StructuredBuffer<float4> gLightProbeSh : register(t14);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 

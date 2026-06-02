@@ -4,6 +4,7 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -70,6 +71,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             uint32_t bakedLightProbeCount = 0;
             uint32_t bakedLightmapCount = 0;
             std::string lightingRuntimeSource{};
+            bool lightProbeVolumeValid = false;
+            uint32_t lightProbeVolumeProbeCount = 0;
+            std::string lightProbeVolumePath{};
 
             bool ssaoEnabled = false;
             bool ssaoValid = false;
@@ -145,6 +149,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.bakedLightProbeCount == rhs.bakedLightProbeCount &&
                 lhs.bakedLightmapCount == rhs.bakedLightmapCount &&
                 lhs.lightingRuntimeSource == rhs.lightingRuntimeSource &&
+                lhs.lightProbeVolumeValid == rhs.lightProbeVolumeValid &&
+                lhs.lightProbeVolumeProbeCount == rhs.lightProbeVolumeProbeCount &&
+                lhs.lightProbeVolumePath == rhs.lightProbeVolumePath &&
                 lhs.ssaoEnabled == rhs.ssaoEnabled &&
                 lhs.ssaoValid == rhs.ssaoValid &&
                 lhs.ssaoWidth == rhs.ssaoWidth &&
@@ -238,6 +245,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.bakedLightProbeCount = snapshot.bakedLightProbeCount;
             key.bakedLightmapCount = snapshot.bakedLightmapCount;
             key.lightingRuntimeSource = snapshot.lightingRuntimeSource;
+            key.lightProbeVolumeValid = snapshot.lightProbeVolumeValid;
+            key.lightProbeVolumeProbeCount = snapshot.lightProbeVolumeProbeCount;
+            key.lightProbeVolumePath = snapshot.lightProbeVolumePath;
 
             key.ssaoEnabled = snapshot.ssaoEnabled;
             key.ssaoValid = snapshot.ssaoValid;
@@ -324,6 +334,10 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.bakedLightProbeCount = lighting.bakedLightProbeCount;
         snapshot.bakedLightmapCount = lighting.bakedLightmapCount;
         snapshot.lightingRuntimeSource = LIGHTING::ToString(lighting.source);
+        const LIGHTPROBE::LightProbeVolumeRuntimeData& lightProbe = LIGHTPROBE::GetRuntimeData();
+        snapshot.lightProbeVolumeValid = lightProbe.valid;
+        snapshot.lightProbeVolumeProbeCount = lightProbe.probeCount;
+        snapshot.lightProbeVolumePath = lightProbe.sourcePath;
 
         const SCREENSPACE::SsaoDebugState& ssao = SCREENSPACE::GetSsaoDebugState();
         snapshot.ssaoEnabled = ssao.enabled;
@@ -450,6 +464,14 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " bakedProbes=" << snapshot.bakedReflectionProbeCount
                 << " bakedLightProbes=" << snapshot.bakedLightProbeCount
                 << " bakedLightmaps=" << snapshot.bakedLightmapCount;
+            LogInfoLine(oss.str());
+        }
+        {
+            std::ostringstream oss;
+            oss << "[EnvironmentDiagnostics][LightProbe]"
+                << " valid=" << BoolText(snapshot.lightProbeVolumeValid)
+                << " probes=" << snapshot.lightProbeVolumeProbeCount
+                << " path=" << snapshot.lightProbeVolumePath;
             LogInfoLine(oss.str());
         }
         {

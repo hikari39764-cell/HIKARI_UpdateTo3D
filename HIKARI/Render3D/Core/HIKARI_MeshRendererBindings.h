@@ -45,6 +45,7 @@ namespace HIKARI::MESHRENDERER {
     void BindIblResources(const MeshBindingContext& ctx);
     void BindReflectionProbeResources(const MeshBindingContext& ctx);
     void BindSsao(const MeshBindingContext& ctx);
+    void BindLightProbeResources(const MeshBindingContext& ctx);
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool depthAwarePhase, int fallbackTextureHandle);
@@ -54,5 +55,6 @@ namespace HIKARI::MESHRENDERER {
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblBrdfLutSrv(int fallbackTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveReflectionProbePrefilteredSrv(int fallbackCubeTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSsaoSrv(D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle);
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveLightProbeShSrv();
 
 } // namespace HIKARI::MESHRENDERER

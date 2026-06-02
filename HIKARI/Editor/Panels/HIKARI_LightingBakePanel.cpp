@@ -1,6 +1,7 @@
 #include "HIKARI_LightingBakePanel.h"
 
 #include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
+#include "Assets/Lighting/HIKARI_LightProbeVolumeFormat.h"
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Diagnostics/HIKARI_EnvironmentDiagnostics.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -9,6 +10,8 @@
 #if defined(_DEBUG)
 #include "imgui.h"
 #endif
+
+#include <algorithm>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -48,6 +51,117 @@ namespace HIKARI {
                 ImGui::TextColored(color, "%s", line.c_str());
             }
             ImGui::Unindent();
+        }
+
+        bool IsBakeJobBusy(TOOLS::BAKING::LightingBakeJobState state) {
+            switch (state) {
+            case TOOLS::BAKING::LightingBakeJobState::Requested:
+            case TOOLS::BAKING::LightingBakeJobState::Capturing:
+            case TOOLS::BAKING::LightingBakeJobState::WaitingGpu:
+            case TOOLS::BAKING::LightingBakeJobState::ProjectingSH:
+            case TOOLS::BAKING::LightingBakeJobState::Saving:
+            case TOOLS::BAKING::LightingBakeJobState::Finalizing:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        int CaptureResolutionToIndex(uint32_t resolution) {
+            const uint32_t normalized = NormalizeLightProbeCaptureResolution(resolution);
+            if (normalized == 16u) {
+                return 0;
+            }
+            if (normalized == 32u) {
+                return 1;
+            }
+            return 2;
+        }
+
+        uint32_t CaptureResolutionFromIndex(int index) {
+            static constexpr uint32_t kResolutions[] = { 16u, 32u, 64u };
+            return kResolutions[std::clamp(index, 0, 2)];
+        }
+
+        void DrawLightProbeVolumeSettings(
+            DocumentSceneBase& scene,
+            const std::filesystem::path& volumePath) {
+
+            SceneDocument& document = scene.GetSceneDocument();
+            LightProbeVolumeSettings& settings = document.lightingBake.lightProbeVolume;
+            ClampLightProbeVolumeSettings(settings);
+
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Light Probe Volume");
+            ImGui::Separator();
+
+            bool changed = false;
+            bool runtimeChanged = false;
+
+            bool enabled = settings.enabled;
+            if (ImGui::Checkbox("Enabled##LightProbeVolume", &enabled)) {
+                settings.enabled = enabled;
+                changed = true;
+                runtimeChanged = true;
+            }
+
+            float origin[3] = { settings.origin.x, settings.origin.y, settings.origin.z };
+            if (ImGui::DragFloat3("Origin##LightProbeVolume", origin, 0.05f)) {
+                settings.origin = { origin[0], origin[1], origin[2] };
+                changed = true;
+            }
+
+            float size[3] = { settings.size.x, settings.size.y, settings.size.z };
+            if (ImGui::DragFloat3("Size##LightProbeVolume", size, 0.05f, 0.1f, 100.0f)) {
+                settings.size = { size[0], size[1], size[2] };
+                changed = true;
+            }
+
+            int countX = static_cast<int>(settings.countX);
+            int countY = static_cast<int>(settings.countY);
+            int countZ = static_cast<int>(settings.countZ);
+            if (ImGui::InputInt("Count X##LightProbeVolume", &countX)) {
+                settings.countX = static_cast<uint32_t>((std::max)(0, countX));
+                changed = true;
+            }
+            if (ImGui::InputInt("Count Y##LightProbeVolume", &countY)) {
+                settings.countY = static_cast<uint32_t>((std::max)(0, countY));
+                changed = true;
+            }
+            if (ImGui::InputInt("Count Z##LightProbeVolume", &countZ)) {
+                settings.countZ = static_cast<uint32_t>((std::max)(0, countZ));
+                changed = true;
+            }
+
+            const char* resolutionLabels[] = { "16", "32", "64" };
+            int resolutionIndex = CaptureResolutionToIndex(settings.captureResolution);
+            if (ImGui::Combo(
+                    "Capture Resolution##LightProbeVolume",
+                    &resolutionIndex,
+                    resolutionLabels,
+                    3)) {
+                settings.captureResolution = CaptureResolutionFromIndex(resolutionIndex);
+                changed = true;
+            }
+
+            float intensity = settings.intensity;
+            if (ImGui::DragFloat("Intensity##LightProbeVolume", &intensity, 0.01f, 0.0f, 4.0f)) {
+                settings.intensity = intensity;
+                changed = true;
+                runtimeChanged = true;
+            }
+
+            if (changed) {
+                ClampLightProbeVolumeSettings(settings);
+                scene.SetUnsavedSceneChanges(true);
+                if (runtimeChanged) {
+                    scene.RefreshLightingRuntime();
+                }
+            }
+
+            ImGui::Text("Probe Count: %u", GetLightProbeVolumeProbeCount(settings));
+            ImGui::Text("Estimated Capture Faces: %u", GetLightProbeVolumeProbeCount(settings) * 6u);
+            ImGui::TextWrapped("Volume Output: %s", volumePath.generic_string().c_str());
         }
 #endif
 
@@ -96,6 +210,9 @@ namespace HIKARI {
         const std::filesystem::path manifestPath = ASSETS::LIGHTING::BuildLightingBakeManifestPath(
             request.projectRoot,
             request.sceneGuid);
+        const std::filesystem::path lightProbeVolumePath = ASSETS::LIGHTING::BuildLightProbeVolumeOutputPath(
+            request.projectRoot,
+            request.sceneGuid);
 
         ImGui::TextUnformatted("Current Scene");
         ImGui::Separator();
@@ -105,12 +222,15 @@ namespace HIKARI {
         ImGui::TextWrapped("Bake Root: %s", bakeRoot.generic_string().c_str());
         ImGui::TextWrapped("Manifest Path: %s", manifestPath.generic_string().c_str());
 
+        DrawLightProbeVolumeSettings(scene, lightProbeVolumePath);
+
         ImGui::Spacing();
         ImGui::TextUnformatted("Bake Actions");
         ImGui::Separator();
 
         // Bake UI は service 経由で実行し、runtime 依存を広げない。
         TOOLS::BAKING::LightingBakeService service{};
+        const bool bakeBusy = IsBakeJobBusy(scene.GetLightingBakeJobState());
         if (ImGui::Button("Validate Lighting Bake Setup")) {
             lastReport_ = service.ValidateLightingBakeSetup(request);
             hasReport_ = true;
@@ -124,14 +244,22 @@ namespace HIKARI {
                 "LightingBake.PrepareManifest",
                 &scene.GetSceneEnvironment());
         }
+        if (bakeBusy) {
+            ImGui::TextDisabled("Bake job is running.");
+            ImGui::BeginDisabled();
+        }
         if (ImGui::Button("Bake Reflection Probes Only")) {
-            scene.RequestReflectionProbeBake();
-            if (scene.HasLastLightingBakeReport()) {
-                lastReport_ = scene.GetLastLightingBakeReport();
-            }
+            lastReport_ = service.BakeReflectionProbesOnly(scene);
             hasReport_ = true;
             RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
                 "LightingBake.ReflectionProbe",
+                &scene.GetSceneEnvironment());
+        }
+        if (ImGui::Button("Bake Light Probes Only")) {
+            lastReport_ = service.BakeLightProbesOnly(scene);
+            hasReport_ = true;
+            RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
+                "LightingBake.LightProbe",
                 &scene.GetSceneEnvironment());
         }
         if (ImGui::Button("Clear Lighting Bake")) {
@@ -141,6 +269,9 @@ namespace HIKARI {
             RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
                 "LightingBake.Clear",
                 &scene.GetSceneEnvironment());
+        }
+        if (bakeBusy) {
+            ImGui::EndDisabled();
         }
         ImGui::SameLine();
         if (ImGui::Button("Open Bake Folder")) {
@@ -158,7 +289,7 @@ namespace HIKARI {
         ImGui::TextUnformatted("Future Bake Targets");
         ImGui::Separator();
         ImGui::BulletText("Reflection Probe Baker: Basic Single Probe");
-        ImGui::BulletText("Light Probe Baker: Not Implemented");
+        ImGui::BulletText("Light Probe Baker: SH Volume Grid");
         ImGui::BulletText("Lightmap Baker: Not Implemented");
 
         ImGui::Spacing();
@@ -187,6 +318,10 @@ namespace HIKARI {
             ImGui::Text("Probe Record Written: %s", lastReport_.reflectionProbeRecordWritten ? "Yes" : "No");
             ImGui::Text("Capture Validated: %s", lastReport_.reflectionProbeCaptureValidated ? "Yes" : "No");
             ImGui::Text("Prefilter Validated: %s", lastReport_.reflectionProbePrefilterValidated ? "Yes" : "No");
+            ImGui::Text("Light Probe Baked: %s", lastReport_.lightProbeBaked ? "Yes" : "No");
+            ImGui::Text("Light Probe Volume Written: %s", lastReport_.lightProbeVolumeWritten ? "Yes" : "No");
+            ImGui::Text("Light Probe Record Written: %s", lastReport_.lightProbeRecordWritten ? "Yes" : "No");
+            ImGui::Text("Light Probe Runtime Loaded: %s", lastReport_.lightProbeRuntimeLoaded ? "Yes" : "No");
             if (lastReport_.reflectionProbeCapturedFaceCount > 0 ||
                 lastReport_.reflectionProbeQueuedReadbackFaceCount > 0) {
                 ImGui::Text(
@@ -194,8 +329,25 @@ namespace HIKARI {
                     lastReport_.reflectionProbeCapturedFaceCount,
                     lastReport_.reflectionProbeQueuedReadbackFaceCount);
             }
+            if (lastReport_.lightProbeCapturedFaceCount > 0 ||
+                lastReport_.lightProbeQueuedReadbackFaceCount > 0) {
+                ImGui::Text(
+                    "Light Probe Faces: %u / Queued Readback: %u",
+                    lastReport_.lightProbeCapturedFaceCount,
+                    lastReport_.lightProbeQueuedReadbackFaceCount);
+                ImGui::Text(
+                    "Light Probe Cursor: probe %u face %u",
+                    lastReport_.lightProbeCurrentProbeIndex,
+                    lastReport_.lightProbeCurrentFaceIndex);
+            }
             if (lastReport_.reflectionProbeCaptureResolution > 0) {
                 ImGui::Text("Capture Resolution: %u", lastReport_.reflectionProbeCaptureResolution);
+            }
+            if (lastReport_.lightProbeCaptureResolution > 0) {
+                ImGui::Text("Light Probe Capture Resolution: %u", lastReport_.lightProbeCaptureResolution);
+            }
+            if (lastReport_.lightProbeProbeCount > 0) {
+                ImGui::Text("Light Probe Count: %u", lastReport_.lightProbeProbeCount);
             }
             if (!lastReport_.reflectionProbeCaptureFormat.empty()) {
                 ImGui::Text("Capture Format: %s", lastReport_.reflectionProbeCaptureFormat.c_str());
@@ -227,12 +379,19 @@ namespace HIKARI {
             if (!lastReport_.reflectionProbeBrdfLutPath.empty()) {
                 ImGui::TextWrapped("Probe BRDF LUT: %s", lastReport_.reflectionProbeBrdfLutPath.generic_string().c_str());
             }
+            if (!lastReport_.lightProbeVolumePath.empty()) {
+                ImGui::TextWrapped("Light Probe Volume: %s", lastReport_.lightProbeVolumePath.generic_string().c_str());
+            }
+            if (!lastReport_.lightProbeDebugJsonPath.empty()) {
+                ImGui::TextWrapped("Light Probe Debug JSON: %s", lastReport_.lightProbeDebugJsonPath.generic_string().c_str());
+            }
 
             const std::string& lastMessage = LastText(lastReport_.messages);
             if (!lastMessage.empty()) {
                 ImGui::TextWrapped("Last Message: %s", lastMessage.c_str());
             }
 
+            DrawReportLines("Light Probe Messages", lastReport_.lightProbeMessages, ImVec4(0.65f, 0.84f, 1.0f, 1.0f));
             DrawReportLines("Warnings", lastReport_.warnings, ImVec4(1.0f, 0.82f, 0.35f, 1.0f));
             DrawReportLines("Errors", lastReport_.errors, ImVec4(1.0f, 0.42f, 0.35f, 1.0f));
         }

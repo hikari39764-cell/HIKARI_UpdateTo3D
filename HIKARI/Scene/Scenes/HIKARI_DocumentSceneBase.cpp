@@ -10,6 +10,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <initializer_list>
 #include <sstream>
 
 #include "HIKARI_3D.h"
@@ -24,6 +25,7 @@
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
+#include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/HIKARI_AnimationSystem.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
@@ -41,6 +43,7 @@
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Tools/Baking/HIKARI_ProbeCubemapCaptureTarget.h"
+#include "Tools/Baking/HIKARI_LightProbeBaker.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeBaker.h"
 #include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
 
@@ -142,12 +145,53 @@ namespace HIKARI {
             report.errors.push_back(std::move(message));
         }
 
+        bool IsBakeStateRunning(TOOLS::BAKING::LightingBakeJobState state) {
+            switch (state) {
+            case TOOLS::BAKING::LightingBakeJobState::Requested:
+            case TOOLS::BAKING::LightingBakeJobState::Capturing:
+            case TOOLS::BAKING::LightingBakeJobState::WaitingGpu:
+            case TOOLS::BAKING::LightingBakeJobState::ProjectingSH:
+            case TOOLS::BAKING::LightingBakeJobState::Saving:
+            case TOOLS::BAKING::LightingBakeJobState::Finalizing:
+                return true;
+            default:
+                return false;
+            }
+        }
+
         std::filesystem::path ReflectionProbeOutputDirectory(
             const std::filesystem::path& projectRoot,
             const std::string& sceneGuid) {
 
             return (ASSETS::LIGHTING::BuildLightingBakeRoot(projectRoot, sceneGuid) /
                 "reflection_probes").lexically_normal();
+        }
+
+        std::filesystem::path LightProbeOutputDirectory(
+            const std::filesystem::path& projectRoot,
+            const std::string& sceneGuid) {
+
+            return (ASSETS::LIGHTING::BuildLightingBakeRoot(projectRoot, sceneGuid) /
+                "light_probes").lexically_normal();
+        }
+
+        std::filesystem::path LightProbeCaptureDirectory(
+            const std::filesystem::path& projectRoot,
+            const std::string& sceneGuid) {
+
+            return (LightProbeOutputDirectory(projectRoot, sceneGuid) /
+                "captures").lexically_normal();
+        }
+
+        std::filesystem::path LightProbeCapturePath(
+            const std::filesystem::path& projectRoot,
+            const std::string& sceneGuid,
+            uint32_t probeIndex) {
+
+            std::ostringstream filename{};
+            filename << "probe_" << std::setfill('0') << std::setw(3) << probeIndex << "_capture.dds";
+            return (LightProbeCaptureDirectory(projectRoot, sceneGuid) /
+                filename.str()).lexically_normal();
         }
 
         std::string MakeProjectRelativeString(
@@ -175,6 +219,79 @@ namespace HIKARI {
             std::ostringstream oss{};
             oss << "bake_" << std::put_time(&local, "%Y%m%d_%H%M%S");
             return oss.str();
+        }
+
+        ASSETS::LIGHTING::LightingBakeManifest LoadOrCreateLightingBakeManifest(
+            const std::filesystem::path& manifestPath,
+            const std::filesystem::path& projectRoot,
+            const std::string& sceneGuid,
+            std::vector<std::string>& warnings) {
+
+            ASSETS::LIGHTING::LightingBakeManifest manifest{};
+            std::string loadMessage{};
+            if (!manifestPath.empty() &&
+                std::filesystem::exists(manifestPath) &&
+                !ASSETS::LIGHTING::LoadLightingBakeManifest(manifestPath, manifest, &loadMessage)) {
+                warnings.push_back(loadMessage);
+                manifest = {};
+            }
+
+            manifest.version = ASSETS::LIGHTING::kLightingBakeManifestVersion;
+            manifest.sceneGuid = sceneGuid;
+            if (manifest.bakeGuid.empty()) {
+                manifest.bakeGuid = MakeBakeGuid();
+            }
+            manifest.bakeVersion = 1;
+            manifest.generatedRoot = MakeProjectRelativeString(
+                projectRoot,
+                ASSETS::LIGHTING::BuildLightingBakeRoot(projectRoot, sceneGuid));
+            return manifest;
+        }
+
+        void ReplaceReflectionProbeRecord(
+            ASSETS::LIGHTING::LightingBakeManifest& manifest,
+            const ASSETS::LIGHTING::ReflectionProbeBakeRecord& record) {
+
+            manifest.reflectionProbes.clear();
+            manifest.reflectionProbes.push_back(record);
+        }
+
+        void ReplaceLightProbeVolumeRecord(
+            ASSETS::LIGHTING::LightingBakeManifest& manifest,
+            const ASSETS::LIGHTING::LightProbeBakeRecord& record) {
+
+            manifest.lightProbes.erase(
+                std::remove_if(
+                    manifest.lightProbes.begin(),
+                    manifest.lightProbes.end(),
+                    [](const ASSETS::LIGHTING::LightProbeBakeRecord& existing) {
+                        return existing.type.empty() ||
+                            existing.type == "VolumeGrid" ||
+                            existing.id == "light_probe_volume_000";
+                    }),
+                manifest.lightProbes.end());
+            manifest.lightProbes.push_back(record);
+        }
+
+        uint32_t GetLightProbeCaptureFaceCount(const LightProbeVolumeSettings& settings) {
+            return GetLightProbeVolumeProbeCount(settings) * 6u;
+        }
+
+        MATH::Vec3 GetLightProbePositionByIndex(
+            const LightProbeVolumeSettings& settings,
+            uint32_t probeIndex) {
+
+            const uint32_t xyCount = settings.countX * settings.countY;
+            const uint32_t z = xyCount > 0u ? probeIndex / xyCount : 0u;
+            const uint32_t xy = xyCount > 0u ? probeIndex % xyCount : 0u;
+            const uint32_t y = settings.countX > 0u ? xy / settings.countX : 0u;
+            const uint32_t x = settings.countX > 0u ? xy % settings.countX : 0u;
+            return GetLightProbeVolumeProbePosition(settings, x, y, z);
+        }
+
+        float GetLightProbeCaptureFarPlane(const LightProbeVolumeSettings& settings) {
+            const float xyMax = (std::max)(settings.size.x * 1.5f, settings.size.y * 1.5f);
+            return (std::max)((std::max)(4.0f, xyMax), settings.size.z * 1.5f);
         }
 
         void SetBakeJobState(
@@ -206,13 +323,13 @@ namespace HIKARI {
                 { 0.0f, 1.0f, 0.0f },
             };
 
-            const uint32_t face = std::min(faceIndex, 5u);
+            const uint32_t face = (std::min)(faceIndex, 5u);
             Camera3D camera{};
             camera.SetPerspective(
                 std::numbers::pi_v<float> * 0.5f,
                 1.0f,
                 0.05f,
-                std::max(1.0f, farPlane));
+                (std::max)(1.0f, farPlane));
             camera.SetLookAt(position, position + kDirections[face], kUps[face]);
             return camera;
         }
@@ -227,6 +344,18 @@ namespace HIKARI {
         TOOLS::BAKING::ProbeCubemapCaptureTarget captureTarget{};
         uint64_t fenceValue = 0;
         uint32_t nextFaceIndex = 0;
+    };
+
+    struct LightProbeBakeJob {
+        TOOLS::BAKING::LightingBakeJobState state =
+            TOOLS::BAKING::LightingBakeJobState::Idle;
+        TOOLS::BAKING::LightProbeBakeRequest request{};
+        TOOLS::BAKING::LightingBakeReport report{};
+        TOOLS::BAKING::ProbeCubemapCaptureTarget captureTarget{};
+        uint64_t fenceValue = 0;
+        uint32_t nextProbeIndex = 0;
+        uint32_t nextFaceIndex = 0;
+        std::vector<std::filesystem::path> probeCapturePaths{};
     };
     
     DocumentSceneBase::DocumentSceneBase(std::string sceneId)
@@ -280,6 +409,9 @@ namespace HIKARI {
         }
 
         if (ProcessReflectionProbeBakeJob()) {
+            return;
+        }
+        if (ProcessLightProbeBakeJob()) {
             return;
         }
 
@@ -336,6 +468,7 @@ namespace HIKARI {
             LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
             LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
             reflectionProbeGizmoRenderer_.Submit(activeEnvironment, true);
+            lightProbeVolumeGizmoRenderer_.Submit(sceneDocument_.lightingBake.lightProbeVolume, true);
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
@@ -707,6 +840,10 @@ namespace HIKARI {
             deps.reflectionProbeRadius = environment_.reflectionProbe.radius;
             deps.reflectionProbeIntensity = environment_.reflectionProbe.intensity;
         }
+        LightProbeVolumeSettings lightProbe = sceneDocument_.lightingBake.lightProbeVolume;
+        ClampLightProbeVolumeSettings(lightProbe);
+        deps.lightProbeVolumeEnabled = lightProbe.enabled;
+        deps.lightProbeVolumeIntensity = lightProbe.intensity;
 
         const bool ok = runtimeBuilder_.PreloadDependencies(
             deps,
@@ -877,13 +1014,15 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBase::RequestReflectionProbeBake() {
-        if (reflectionProbeBakeJob_ &&
-            (reflectionProbeBakeJob_->state == TOOLS::BAKING::LightingBakeJobState::Requested ||
-             reflectionProbeBakeJob_->state == TOOLS::BAKING::LightingBakeJobState::Capturing ||
-             reflectionProbeBakeJob_->state == TOOLS::BAKING::LightingBakeJobState::WaitingGpu ||
-             reflectionProbeBakeJob_->state == TOOLS::BAKING::LightingBakeJobState::Finalizing)) {
+        if (reflectionProbeBakeJob_ && IsBakeStateRunning(reflectionProbeBakeJob_->state)) {
             lastLightingBakeReport_ = reflectionProbeBakeJob_->report;
             lastLightingBakeReport_.warnings.push_back("Reflection probe bake is already running.");
+            hasLastLightingBakeReport_ = true;
+            return false;
+        }
+        if (lightProbeBakeJob_ && IsBakeStateRunning(lightProbeBakeJob_->state)) {
+            lastLightingBakeReport_ = lightProbeBakeJob_->report;
+            lastLightingBakeReport_.warnings.push_back("Light probe volume bake is already running.");
             hasLastLightingBakeReport_ = true;
             return false;
         }
@@ -961,8 +1100,92 @@ namespace HIKARI {
         return true;
     }
 
+    bool DocumentSceneBase::RequestLightProbeBake() {
+        if (lightProbeBakeJob_ && IsBakeStateRunning(lightProbeBakeJob_->state)) {
+            lastLightingBakeReport_ = lightProbeBakeJob_->report;
+            lastLightingBakeReport_.warnings.push_back("Light probe volume bake is already running.");
+            hasLastLightingBakeReport_ = true;
+            return false;
+        }
+        if (reflectionProbeBakeJob_ && IsBakeStateRunning(reflectionProbeBakeJob_->state)) {
+            lastLightingBakeReport_ = reflectionProbeBakeJob_->report;
+            lastLightingBakeReport_.warnings.push_back("Reflection probe bake is already running.");
+            hasLastLightingBakeReport_ = true;
+            return false;
+        }
+
+        TOOLS::BAKING::LightingBakeReport report{};
+        report.action = TOOLS::BAKING::LightingBakeAction::BakeLightProbes;
+        report.target = TOOLS::BAKING::LightingBakeTarget::LightProbesOnly;
+        SetBakeJobState(report, TOOLS::BAKING::LightingBakeJobState::Requested);
+
+        if (assetDatabase_.GetProjectRoot().empty()) {
+            assetDatabase_.Initialize(std::filesystem::current_path());
+        }
+
+        const std::filesystem::path projectRoot = assetDatabase_.GetProjectRoot();
+        LightProbeVolumeSettings settings = sceneDocument_.lightingBake.lightProbeVolume;
+        ClampLightProbeVolumeSettings(settings);
+
+        if (projectRoot.empty()) {
+            AddBakeError(report, "Project root is empty.");
+        }
+        if (!currentSceneAssetGuid_.IsValid()) {
+            AddBakeError(report, "Current scene has no stable asset GUID. Save scene before baking.");
+        }
+        if (!settings.enabled) {
+            AddBakeError(report, "Light probe volume is disabled in the current scene.");
+        }
+
+        const uint32_t probeCount = GetLightProbeVolumeProbeCount(settings);
+        report.bakeRoot = ASSETS::LIGHTING::BuildLightingBakeRoot(
+            projectRoot,
+            currentSceneAssetGuid_.value);
+        report.manifestPath = ASSETS::LIGHTING::BuildLightingBakeManifestPath(
+            projectRoot,
+            currentSceneAssetGuid_.value);
+        report.lightProbeVolumePath = ASSETS::LIGHTING::BuildLightProbeVolumeOutputPath(
+            projectRoot,
+            currentSceneAssetGuid_.value);
+        report.lightProbeProbeCount = probeCount;
+        report.lightProbeCaptureResolution = settings.captureResolution;
+        report.lightProbeMessages.push_back(
+            "Light probe volume requested: probes=" + std::to_string(probeCount) +
+            " faces=" + std::to_string(GetLightProbeCaptureFaceCount(settings)));
+
+        if (!report.errors.empty()) {
+            SetBakeJobState(report, TOOLS::BAKING::LightingBakeJobState::Failed);
+            lastLightingBakeReport_ = report;
+            hasLastLightingBakeReport_ = true;
+            HIKARI_LOG_WARN("[LightingBake] light probe bake request failed.");
+            return false;
+        }
+
+        auto job = std::make_unique<LightProbeBakeJob>();
+        job->state = TOOLS::BAKING::LightingBakeJobState::Requested;
+        job->request.projectRoot = projectRoot;
+        job->request.sceneGuid = currentSceneAssetGuid_.value;
+        job->request.sceneName = GetCurrentSceneDisplayName();
+        job->request.settings = settings;
+        job->request.forceRebake = true;
+        job->probeCapturePaths.reserve(probeCount);
+        job->report = report;
+        job->report.messages.push_back("Light probe volume scene capture requested.");
+
+        lightProbeBakeJob_ = std::move(job);
+        lastLightingBakeReport_ = lightProbeBakeJob_->report;
+        hasLastLightingBakeReport_ = true;
+        HIKARI_LOG_INFO("[LightingBake] light probe volume scene capture requested scene=" +
+            currentSceneAssetGuid_.value +
+            " probes=" + std::to_string(probeCount));
+        return true;
+    }
+
     TOOLS::BAKING::LightingBakeJobState DocumentSceneBase::GetLightingBakeJobState() const {
-        if (reflectionProbeBakeJob_) {
+        if (lightProbeBakeJob_ && IsBakeStateRunning(lightProbeBakeJob_->state)) {
+            return lightProbeBakeJob_->state;
+        }
+        if (reflectionProbeBakeJob_ && IsBakeStateRunning(reflectionProbeBakeJob_->state)) {
             return reflectionProbeBakeJob_->state;
         }
         return hasLastLightingBakeReport_
@@ -1012,6 +1235,44 @@ namespace HIKARI {
             reflectionProbeBakeJob_->captureTarget.GetResolution());
 
         reflectionProbeBakeJob_->captureTarget.EndFace(faceIndex);
+        return true;
+    }
+
+    bool DocumentSceneBase::RenderSceneForLightProbeCaptureFace(
+        const Camera3D& faceCamera,
+        const SceneEnvironment& captureEnvironment,
+        uint32_t faceIndex) {
+
+        if (!lightProbeBakeJob_ ||
+            !lightProbeBakeJob_->captureTarget.BeginFace(faceIndex, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f)) {
+            return false;
+        }
+
+        const std::string eventName =
+            "LightProbe.CaptureFace" + std::string(ProbeFaceName(faceIndex));
+        GFX::PIX::ScopedGpuEvent pixFace(
+            SERVICES::gCtx.cmdList,
+            GFX::PIX::kColorRender,
+            eventName.c_str());
+
+        REFLECTION::ScopedReflectionProbeSamplingSuppress reflectionSuppress{};
+        RENDER3D::LIGHTPROBE::ScopedLightProbeVolumeSamplingSuppress lightProbeSuppress{};
+
+        RENDERER3D::Reset();
+        MODELRENDERER::Reset();
+        SKYRENDERER::Reset();
+
+        const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        systemScheduler_.PreRender(world_, frame);
+
+        SKYRENDERER::Render(faceCamera, captureEnvironment, modelManager_, skyManager_);
+        MODELRENDERER::RenderOpaqueForReflectionProbeCapture(
+            faceCamera,
+            captureEnvironment,
+            lightProbeBakeJob_->captureTarget.GetResolution(),
+            lightProbeBakeJob_->captureTarget.GetResolution());
+
+        lightProbeBakeJob_->captureTarget.EndFace(faceIndex);
         return true;
     }
 
@@ -1066,7 +1327,7 @@ namespace HIKARI {
             const Camera3D faceCamera = MakeProbeFaceCamera(
                 job.request.position,
                 face,
-                std::max(4.0f, job.request.radius));
+                (std::max)(4.0f, job.request.radius));
             bool captureOk = RenderSceneForReflectionProbeCaptureFace(
                 faceCamera,
                 captureEnvironment,
@@ -1097,7 +1358,7 @@ namespace HIKARI {
             job.report.reflectionProbeSceneCaptured = true;
             job.report.reflectionProbeUsedSourceOverride = false;
             job.report.reflectionProbeCapturedFaceCount =
-                std::max(job.report.reflectionProbeCapturedFaceCount, face + 1u);
+                (std::max)(job.report.reflectionProbeCapturedFaceCount, face + 1u);
             ++job.report.reflectionProbeQueuedReadbackFaceCount;
             job.report.messages.push_back(readbackMessage);
             job.report.messages.push_back("Face " + std::string(ProbeFaceName(face)) + " captured.");
@@ -1182,17 +1443,13 @@ namespace HIKARI {
                 return false;
             }
 
-            ASSETS::LIGHTING::LightingBakeManifest manifest{};
-            manifest.version = ASSETS::LIGHTING::kLightingBakeManifestVersion;
-            manifest.sceneGuid = job.request.sceneGuid;
-            manifest.bakeGuid = MakeBakeGuid();
-            manifest.bakeVersion = 1;
-            manifest.generatedRoot = MakeProjectRelativeString(
-                job.request.projectRoot,
-                ASSETS::LIGHTING::BuildLightingBakeRoot(
+            ASSETS::LIGHTING::LightingBakeManifest manifest =
+                LoadOrCreateLightingBakeManifest(
+                    job.report.manifestPath,
                     job.request.projectRoot,
-                    job.request.sceneGuid));
-            manifest.reflectionProbes.push_back(bake.record);
+                    job.request.sceneGuid,
+                    job.report.warnings);
+            ReplaceReflectionProbeRecord(manifest, bake.record);
 
             std::string manifestMessage{};
             if (!ASSETS::LIGHTING::SaveLightingBakeManifest(
@@ -1227,6 +1484,234 @@ namespace HIKARI {
             SetBakeJobState(job.report, job.state);
             lastLightingBakeReport_ = job.report;
             HIKARI_LOG_INFO("[LightingBake] reflection probe scene capture finalized scene=" +
+                job.request.sceneGuid +
+                " manifest=" + job.report.manifestPath.generic_string());
+        }
+
+        return false;
+    }
+
+    bool DocumentSceneBase::ProcessLightProbeBakeJob() {
+        if (!lightProbeBakeJob_) {
+            return false;
+        }
+
+        LightProbeBakeJob& job = *lightProbeBakeJob_;
+        LightProbeVolumeSettings settings = job.request.settings;
+        ClampLightProbeVolumeSettings(settings);
+
+        if (job.state == TOOLS::BAKING::LightingBakeJobState::Requested) {
+            job.state = TOOLS::BAKING::LightingBakeJobState::Capturing;
+            job.nextProbeIndex = 0;
+            job.nextFaceIndex = 0;
+            job.probeCapturePaths.clear();
+            SetBakeJobState(job.report, job.state);
+            lastLightingBakeReport_ = job.report;
+            hasLastLightingBakeReport_ = true;
+
+            const uint32_t resolution = NormalizeLightProbeCaptureResolution(settings.captureResolution);
+            if (!job.captureTarget.Initialize(resolution, DXGI_FORMAT_R16G16B16A16_FLOAT)) {
+                AddBakeError(job.report, "Failed to initialize light probe capture target.");
+                job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+            job.report.lightProbeCaptureResolution = resolution;
+            job.report.lightProbeProbeCount = GetLightProbeVolumeProbeCount(settings);
+            job.report.lightProbeMessages.push_back(
+                "Capture exclusions: reflection/light probe sampling suppressed; SSAO/post/debug/VFX helpers excluded.");
+        }
+
+        if (job.state == TOOLS::BAKING::LightingBakeJobState::Capturing) {
+            const uint32_t probeCount = GetLightProbeVolumeProbeCount(settings);
+            if (job.nextProbeIndex >= probeCount) {
+                job.state = TOOLS::BAKING::LightingBakeJobState::ProjectingSH;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+            } else {
+                SceneEnvironment captureEnvironment = environment_;
+                captureEnvironment.reflectionProbe.enabled = false;
+                captureEnvironment.ambientOcclusion.enabled = false;
+                captureEnvironment.bloom.enabled = false;
+                captureEnvironment.toneMapping.enabled = false;
+                captureEnvironment.post.enabled = false;
+                captureEnvironment.directionalShadow.enabled = false;
+                captureEnvironment.debugView = RenderDebugView::None;
+                captureEnvironment.showLightDebug = false;
+                captureEnvironment.showPointLightMarkers = false;
+                captureEnvironment.showSkyDebugInfo = false;
+
+                const uint32_t probe = job.nextProbeIndex;
+                const uint32_t face = job.nextFaceIndex;
+                const Camera3D faceCamera = MakeProbeFaceCamera(
+                    GetLightProbePositionByIndex(settings, probe),
+                    face,
+                    GetLightProbeCaptureFarPlane(settings));
+                bool captureOk = RenderSceneForLightProbeCaptureFace(
+                    faceCamera,
+                    captureEnvironment,
+                    face);
+
+                std::string readbackMessage{};
+                if (captureOk) {
+                    captureOk = job.captureTarget.QueueReadbackFace(face, &readbackMessage);
+                }
+
+                POST::PostSystem::RebindCurrentRenderTarget();
+                RENDERER3D::Reset();
+                MODELRENDERER::Reset();
+                SKYRENDERER::Reset();
+
+                if (!captureOk) {
+                    AddBakeError(job.report, readbackMessage.empty()
+                        ? "Failed to render light probe volume scene capture."
+                        : readbackMessage);
+                    job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                    SetBakeJobState(job.report, job.state);
+                    lastLightingBakeReport_ = job.report;
+                    return true;
+                }
+
+                job.fenceValue = SERVICES::gCtx.currentFrameRetireFenceValue;
+                job.report.gpuFenceValue = job.fenceValue;
+                job.report.lightProbeCurrentProbeIndex = probe;
+                job.report.lightProbeCurrentFaceIndex = face;
+                ++job.report.lightProbeCapturedFaceCount;
+                ++job.report.lightProbeQueuedReadbackFaceCount;
+                job.report.lightProbeMessages.push_back(
+                    "Probe " + std::to_string(probe) +
+                    " face " + std::string(ProbeFaceName(face)) +
+                    " captured.");
+                ++job.nextFaceIndex;
+
+                if (job.nextFaceIndex >= 6u) {
+                    job.report.lightProbeMessages.push_back(
+                        "Light probe GPU capture submitted. probe=" +
+                        std::to_string(probe) +
+                        " fence=" + std::to_string(job.fenceValue));
+                    job.state = TOOLS::BAKING::LightingBakeJobState::WaitingGpu;
+                }
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                HIKARI_LOG_INFO("[LightingBake] light probe capture face submitted probe=" +
+                    std::to_string(probe) +
+                    " face=" + std::to_string(face) +
+                    " fence=" + std::to_string(job.fenceValue));
+                // Capture 中は通常描画で CameraCB を上書きしない。
+                return true;
+            }
+        }
+
+        if (job.state == TOOLS::BAKING::LightingBakeJobState::WaitingGpu) {
+            if (!SERVICES::gCore.IsFenceComplete(job.fenceValue)) {
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
+            const uint32_t probe = job.nextProbeIndex;
+            const std::filesystem::path capturePath =
+                LightProbeCapturePath(job.request.projectRoot, job.request.sceneGuid, probe);
+
+            std::string saveMessage{};
+            if (!job.captureTarget.SaveReadbackToCubemapDds(capturePath, &saveMessage)) {
+                AddBakeError(job.report, saveMessage);
+                job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
+            job.probeCapturePaths.push_back(capturePath);
+            job.report.lightProbeMessages.push_back(saveMessage);
+            job.report.bakeFolderCreated = true;
+            ++job.nextProbeIndex;
+            job.nextFaceIndex = 0;
+
+            if (job.nextProbeIndex < GetLightProbeVolumeProbeCount(settings)) {
+                job.state = TOOLS::BAKING::LightingBakeJobState::Capturing;
+                job.report.lightProbeCurrentProbeIndex = job.nextProbeIndex;
+                job.report.lightProbeCurrentFaceIndex = 0;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
+            job.state = TOOLS::BAKING::LightingBakeJobState::ProjectingSH;
+            SetBakeJobState(job.report, job.state);
+            lastLightingBakeReport_ = job.report;
+        }
+
+        if (job.state == TOOLS::BAKING::LightingBakeJobState::ProjectingSH) {
+            TOOLS::BAKING::LightProbeBaker baker{};
+            const TOOLS::BAKING::LightProbeBakeResult bake =
+                baker.FinalizeCapturedVolume(job.request, job.probeCapturePaths);
+
+            job.report.lightProbeBaked = bake.success;
+            job.report.lightProbeVolumeWritten = bake.volumeWritten;
+            job.report.lightProbeDebugJsonWritten = bake.debugJsonWritten;
+            job.report.lightProbeProbeCount = bake.probeCount;
+            job.report.lightProbeCaptureResolution = bake.captureResolution;
+            job.report.lightProbeVolumePath = bake.volumePath;
+            job.report.lightProbeDebugJsonPath = bake.debugJsonPath;
+            job.report.lightProbeMessages.insert(
+                job.report.lightProbeMessages.end(),
+                bake.messages.begin(),
+                bake.messages.end());
+            job.report.warnings.insert(job.report.warnings.end(), bake.warnings.begin(), bake.warnings.end());
+            job.report.errors.insert(job.report.errors.end(), bake.errors.begin(), bake.errors.end());
+
+            if (!bake.success) {
+                job.report.success = false;
+                job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
+            job.state = TOOLS::BAKING::LightingBakeJobState::Saving;
+            SetBakeJobState(job.report, job.state);
+            lastLightingBakeReport_ = job.report;
+
+            ASSETS::LIGHTING::LightingBakeManifest manifest =
+                LoadOrCreateLightingBakeManifest(
+                    job.report.manifestPath,
+                    job.request.projectRoot,
+                    job.request.sceneGuid,
+                    job.report.warnings);
+            ReplaceLightProbeVolumeRecord(manifest, bake.record);
+
+            std::string manifestMessage{};
+            if (!ASSETS::LIGHTING::SaveLightingBakeManifest(
+                    job.report.manifestPath,
+                    manifest,
+                    &manifestMessage)) {
+                AddBakeError(job.report, manifestMessage);
+                job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
+            job.report.manifestWritten = true;
+            job.report.lightProbeRecordWritten = true;
+            job.report.reflectionProbeRecordCount =
+                static_cast<uint32_t>(manifest.reflectionProbes.size());
+            job.report.lightProbeRecordCount =
+                static_cast<uint32_t>(manifest.lightProbes.size());
+            job.report.lightmapRecordCount =
+                static_cast<uint32_t>(manifest.lightmaps.size());
+            job.report.messages.push_back(manifestMessage);
+            job.report.messages.push_back("Light probe volume bake manifest updated: " +
+                job.report.manifestPath.generic_string());
+
+            RefreshLightingRuntime();
+            job.report.lightProbeRuntimeLoaded = RENDER3D::LIGHTPROBE::IsValid();
+
+            job.state = TOOLS::BAKING::LightingBakeJobState::Completed;
+            SetBakeJobState(job.report, job.state);
+            lastLightingBakeReport_ = job.report;
+            HIKARI_LOG_INFO("[LightingBake] light probe volume scene capture finalized scene=" +
                 job.request.sceneGuid +
                 " manifest=" + job.report.manifestPath.generic_string());
         }

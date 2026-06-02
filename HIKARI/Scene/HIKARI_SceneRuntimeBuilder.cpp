@@ -83,6 +83,10 @@ namespace HIKARI {
             deps.reflectionProbeRadius = document.environment.reflectionProbe.radius;
             deps.reflectionProbeIntensity = document.environment.reflectionProbe.intensity;
         }
+        LightProbeVolumeSettings lightProbe = document.lightingBake.lightProbeVolume;
+        ClampLightProbeVolumeSettings(lightProbe);
+        deps.lightProbeVolumeEnabled = lightProbe.enabled;
+        deps.lightProbeVolumeIntensity = lightProbe.intensity;
 
         for (const SceneObjectData& object : document.objects) {
             for (const SceneComponentData& component : object.components) {
@@ -147,6 +151,8 @@ namespace HIKARI {
         request.reflectionProbePosition = dependencies.reflectionProbePosition;
         request.reflectionProbeRadius = dependencies.reflectionProbeRadius;
         request.reflectionProbeIntensity = dependencies.reflectionProbeIntensity;
+        request.lightProbeVolumeEnabled = dependencies.lightProbeVolumeEnabled;
+        request.lightProbeVolumeIntensity = dependencies.lightProbeVolumeIntensity;
 
         // 照明リソースは runtime loader に委譲する。
         RENDER3D::LIGHTING::LightingRuntimeLoader loader{};

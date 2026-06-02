@@ -558,6 +558,9 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp">
       <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
@@ -580,6 +583,9 @@
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp">
+      <Filter>Source Files\Editor\Gizmos</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
@@ -622,6 +628,9 @@
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp">
+      <Filter>Source Files\Assets\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.cpp">
       <Filter>Source Files\Assets\Lighting</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp">
@@ -1094,6 +1103,9 @@
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp">
+      <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -1267,6 +1279,9 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h">
+      <Filter>Header Files\Editor\Gizmos</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
       <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
@@ -1283,6 +1298,9 @@
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h">
@@ -1369,6 +1387,9 @@
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h">
       <Filter>Header Files\Assets\Lighting</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.h">
+      <Filter>Header Files\Assets\Lighting</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
@@ -1382,6 +1403,9 @@
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">

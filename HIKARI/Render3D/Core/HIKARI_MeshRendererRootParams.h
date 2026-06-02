@@ -42,7 +42,9 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT ReflectionProbePrefiltered = 17;
     // SSAO texture -> t13
     constexpr UINT Ssao = 18;
+    // LightProbe SH buffer -> t14
+    constexpr UINT LightProbeSh = 19;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 19;
+    constexpr UINT JointPalette = 20;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

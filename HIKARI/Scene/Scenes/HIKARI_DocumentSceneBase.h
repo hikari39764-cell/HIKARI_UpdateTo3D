@@ -10,6 +10,7 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
+#include "Editor/Gizmos/HIKARI_LightProbeVolumeGizmoRenderer.h"
 #include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_IScene.h"
@@ -25,6 +26,7 @@ namespace HIKARI {
 
     struct PbrMaterialAssetData;
     struct ReflectionProbeBakeJob;
+    struct LightProbeBakeJob;
 
     class DocumentSceneBase : public IScene {
     public:
@@ -87,6 +89,7 @@ namespace HIKARI {
             const AssetGuid& materialGuid,
             const PbrMaterialAssetData& data);
         bool RequestReflectionProbeBake();
+        bool RequestLightProbeBake();
         TOOLS::BAKING::LightingBakeJobState GetLightingBakeJobState() const;
         bool HasLastLightingBakeReport() const;
         const TOOLS::BAKING::LightingBakeReport& GetLastLightingBakeReport() const;
@@ -109,7 +112,12 @@ namespace HIKARI {
         virtual bool UseEnvironmentLighting() const;
         void ConfigureModelTextureResolver();
         bool ProcessReflectionProbeBakeJob();
+        bool ProcessLightProbeBakeJob();
         bool RenderSceneForReflectionProbeCaptureFace(
+            const Camera3D& faceCamera,
+            const SceneEnvironment& captureEnvironment,
+            uint32_t faceIndex);
+        bool RenderSceneForLightProbeCaptureFace(
             const Camera3D& faceCamera,
             const SceneEnvironment& captureEnvironment,
             uint32_t faceIndex);
@@ -142,11 +150,13 @@ namespace HIKARI {
         AssetGuid currentSceneAssetGuid_{};
         bool sceneDocumentDirty_ = false;
         EDITOR::ReflectionProbeGizmoRenderer reflectionProbeGizmoRenderer_{};
+        EDITOR::LightProbeVolumeGizmoRenderer lightProbeVolumeGizmoRenderer_{};
         ComponentGizmoRenderer componentGizmoRenderer_{};
         ComponentGizmoState componentGizmoState_{};
         ViewportOverlayState viewportOverlayState_{};
         SceneObjectId selectedGizmoObjectId_{};
         std::unique_ptr<ReflectionProbeBakeJob> reflectionProbeBakeJob_{};
+        std::unique_ptr<LightProbeBakeJob> lightProbeBakeJob_{};
         TOOLS::BAKING::LightingBakeReport lastLightingBakeReport_{};
         bool hasLastLightingBakeReport_ = false;
     };

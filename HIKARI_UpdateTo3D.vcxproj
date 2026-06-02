@@ -161,6 +161,7 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.cpp" />
@@ -176,6 +177,7 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
@@ -195,6 +197,7 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
+    <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.cpp" />
@@ -215,6 +218,7 @@
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp" />
@@ -430,6 +434,7 @@
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
@@ -440,6 +445,7 @@
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h" />
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h" />
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h" />
@@ -472,6 +478,7 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
+    <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.h" />
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h" />
@@ -513,6 +520,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h" />

@@ -335,6 +335,61 @@ namespace HIKARI {
             }
         }
 
+        void SerializeLightingBakeSettings(const SceneLightingBakeSettings& settings, json& out) {
+            LightProbeVolumeSettings lightProbe = settings.lightProbeVolume;
+            ClampLightProbeVolumeSettings(lightProbe);
+
+            // Bake 用の authoring 設定は SceneDocument 側に持たせる。
+            out["lightProbeVolume"]["enabled"] = lightProbe.enabled;
+            out["lightProbeVolume"]["origin"] = ToVec3(lightProbe.origin);
+            out["lightProbeVolume"]["size"] = ToVec3(lightProbe.size);
+            out["lightProbeVolume"]["count"] = json::array({
+                lightProbe.countX,
+                lightProbe.countY,
+                lightProbe.countZ
+            });
+            out["lightProbeVolume"]["intensity"] = lightProbe.intensity;
+            out["lightProbeVolume"]["captureResolution"] = lightProbe.captureResolution;
+            out["lightProbeVolume"]["shOrder"] = lightProbe.shOrder;
+        }
+
+        void DeserializeLightingBakeSettings(const json& in, SceneLightingBakeSettings& settings) {
+            if (!in.is_object()) {
+                ClampLightProbeVolumeSettings(settings.lightProbeVolume);
+                return;
+            }
+
+            if (in.contains("lightProbeVolume") && in["lightProbeVolume"].is_object()) {
+                const json& lightProbe = in["lightProbeVolume"];
+                LightProbeVolumeSettings& out = settings.lightProbeVolume;
+                out.enabled = lightProbe.value("enabled", out.enabled);
+                out.origin = FromVec3(lightProbe.value("origin", json::array()), out.origin);
+                out.size = FromVec3(lightProbe.value("size", json::array()), out.size);
+                if (lightProbe.contains("count") && lightProbe["count"].is_array() && lightProbe["count"].size() >= 3) {
+                    const json& count = lightProbe["count"];
+                    const auto readCount = [](const json& value, uint32_t fallback) {
+                        if (!value.is_number_integer()) {
+                            return fallback;
+                        }
+                        const int64_t signedValue = value.get<int64_t>();
+                        return signedValue >= 0 ? static_cast<uint32_t>(signedValue) : fallback;
+                    };
+                    out.countX = readCount(count[0], out.countX);
+                    out.countY = readCount(count[1], out.countY);
+                    out.countZ = readCount(count[2], out.countZ);
+                } else {
+                    out.countX = lightProbe.value("countX", out.countX);
+                    out.countY = lightProbe.value("countY", out.countY);
+                    out.countZ = lightProbe.value("countZ", out.countZ);
+                }
+                out.intensity = lightProbe.value("intensity", out.intensity);
+                out.captureResolution = lightProbe.value("captureResolution", out.captureResolution);
+                out.shOrder = lightProbe.value("shOrder", out.shOrder);
+            }
+
+            ClampLightProbeVolumeSettings(settings.lightProbeVolume);
+        }
+
         std::vector<SceneSystemData> CreateDefaultSceneSystems() {
             return {
                 SceneSystemData{ "TransformSystem", true, 0, json::object() },
@@ -413,6 +468,8 @@ namespace HIKARI {
             DeserializeEnvironment(root["environment"], outDocument.environment);
         }
 
+        DeserializeLightingBakeSettings(root.value("lightingBake", json::object()), outDocument.lightingBake);
+
         DeserializeSystems(root.value("systems", json{}), outDocument);
 
         if (root.contains("objects") && root["objects"].is_array()) {
@@ -464,6 +521,7 @@ namespace HIKARI {
         root["sceneName"] = document.sceneName;
 
         SerializeEnvironment(document.environment, root["environment"]);
+        SerializeLightingBakeSettings(document.lightingBake, root["lightingBake"]);
         SerializeSystems(document, root["systems"]);
 
         root["objects"] = json::array();

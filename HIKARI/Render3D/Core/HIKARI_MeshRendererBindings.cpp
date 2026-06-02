@@ -5,6 +5,7 @@
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
@@ -179,6 +180,17 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindLightProbeResources(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE shSrv = ResolveLightProbeShSrv();
+        if (shSrv.ptr != 0) {
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::LightProbeSh, shSrv);
+        }
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle) {
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
         if (skyData.valid && skyData.hasCubemap && skyData.cubemapSrv.ptr != 0) {
@@ -259,6 +271,10 @@ namespace HIKARI::MESHRENDERER {
         }
 
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackAoTextureHandle);
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveLightProbeShSrv() {
+        return RENDER3D::LIGHTPROBE::GetShBufferSrv();
     }
 
 } // namespace HIKARI::MESHRENDERER

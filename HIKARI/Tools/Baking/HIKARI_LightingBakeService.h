@@ -28,6 +28,7 @@ namespace HIKARI {
             LightingBakeReport ValidateLightingBakeSetup(const LightingBakeRequest& request) const;
             LightingBakeReport PrepareLightingBakeManifest(const LightingBakeRequest& request) const;
             LightingBakeReport BakeReflectionProbesOnly(DocumentSceneBase& scene) const;
+            LightingBakeReport BakeLightProbesOnly(DocumentSceneBase& scene) const;
             LightingBakeReport ClearLightingBake(const LightingBakeRequest& request) const;
 
         private:

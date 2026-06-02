@@ -58,7 +58,16 @@ namespace HIKARI::ASSETS::LIGHTING {
             }
 
             record.id = node.value("id", std::string{});
+            record.name = node.value("name", std::string{});
+            record.type = node.value("type", std::string{ "VolumeGrid" });
             record.position = ReadVec3(node.value("position", nlohmann::json::array()));
+            record.origin = ReadVec3(node.value("origin", nlohmann::json::array()));
+            record.size = ReadVec3(node.value("size", nlohmann::json::array()));
+            record.countX = node.value("countX", 0u);
+            record.countY = node.value("countY", 0u);
+            record.countZ = node.value("countZ", 0u);
+            record.shOrder = node.value("shOrder", 3u);
+            record.probeCount = node.value("probeCount", 0u);
             record.shDataPath = node.value("shDataPath", std::string{});
             return record;
         }
@@ -93,7 +102,16 @@ namespace HIKARI::ASSETS::LIGHTING {
         nlohmann::json ToJson(const LightProbeBakeRecord& record) {
             return nlohmann::json{
                 { "id", record.id },
+                { "name", record.name },
+                { "type", record.type },
                 { "position", ToJson(record.position) },
+                { "origin", ToJson(record.origin) },
+                { "size", ToJson(record.size) },
+                { "countX", record.countX },
+                { "countY", record.countY },
+                { "countZ", record.countZ },
+                { "shOrder", record.shOrder },
+                { "probeCount", record.probeCount },
                 { "shDataPath", record.shDataPath },
             };
         }

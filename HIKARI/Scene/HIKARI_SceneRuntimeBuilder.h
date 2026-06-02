@@ -25,6 +25,8 @@ namespace HIKARI {
         MATH::Vec3 reflectionProbePosition{ 0.0f, 2.0f, 0.0f };
         float reflectionProbeRadius = 8.0f;
         float reflectionProbeIntensity = 1.0f;
+        bool lightProbeVolumeEnabled = false;
+        float lightProbeVolumeIntensity = 1.0f;
     };
 
     class SceneRuntimeBuilder {

@@ -25,7 +25,16 @@ namespace HIKARI::ASSETS::LIGHTING {
 
     struct LightProbeBakeRecord {
         std::string id{};
+        std::string name{};
+        std::string type{ "VolumeGrid" };
         MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
+        MATH::Vec3 origin{ 0.0f, 0.0f, 0.0f };
+        MATH::Vec3 size{ 0.0f, 0.0f, 0.0f };
+        uint32_t countX = 0;
+        uint32_t countY = 0;
+        uint32_t countZ = 0;
+        uint32_t shOrder = 3;
+        uint32_t probeCount = 0;
         std::string shDataPath{};
     };
 

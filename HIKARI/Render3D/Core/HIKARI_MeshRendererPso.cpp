@@ -336,7 +336,14 @@ namespace HIKARI::MESHRENDERER {
         ssaoRange.RegisterSpace = 0;
         ssaoRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[19]{};
+        D3D12_DESCRIPTOR_RANGE lightProbeShRange{};
+        lightProbeShRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        lightProbeShRange.NumDescriptors = 1;
+        lightProbeShRange.BaseShaderRegister = 14;
+        lightProbeShRange.RegisterSpace = 0;
+        lightProbeShRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[20]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -432,6 +439,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::Ssao].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::Ssao].DescriptorTable.pDescriptorRanges = &ssaoRange;
 
+        params[ROOT_PARAM::LightProbeSh].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::LightProbeSh].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        params[ROOT_PARAM::LightProbeSh].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::LightProbeSh].DescriptorTable.pDescriptorRanges = &lightProbeShRange;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -476,7 +488,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[20]{};
+        D3D12_ROOT_PARAMETER skinnedParams[21]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

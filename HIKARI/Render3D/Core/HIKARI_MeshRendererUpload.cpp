@@ -6,6 +6,7 @@
 
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
+#include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
@@ -167,6 +168,26 @@ namespace HIKARI::MESHRENDERER {
             std::clamp(environment.ambientOcclusion.diffuseStrength, 0.0f, 1.0f),
             std::clamp(environment.ambientOcclusion.specularStrength, 0.0f, 1.0f),
             0.0f
+        };
+        const RENDER3D::LIGHTPROBE::LightProbeVolumeRuntimeData& lightProbe =
+            RENDER3D::LIGHTPROBE::GetRuntimeData();
+        out.lightProbeVolumeOrigin = {
+            lightProbe.origin.x,
+            lightProbe.origin.y,
+            lightProbe.origin.z,
+            lightProbe.valid ? 1.0f : 0.0f
+        };
+        out.lightProbeVolumeSpacing = {
+            std::max(0.0001f, lightProbe.spacing.x),
+            std::max(0.0001f, lightProbe.spacing.y),
+            std::max(0.0001f, lightProbe.spacing.z),
+            std::max(0.0f, lightProbe.intensity)
+        };
+        out.lightProbeVolumeCounts = {
+            static_cast<float>(lightProbe.countX),
+            static_cast<float>(lightProbe.countY),
+            static_cast<float>(lightProbe.countZ),
+            static_cast<float>(lightProbe.probeCount)
         };
 
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();

@@ -275,6 +275,7 @@ namespace HIKARI::MESHRENDERER {
                     BindIblResources(ctx.binding);
                     BindReflectionProbeResources(ctx.binding);
                     BindSsao(ctx.binding);
+                    BindLightProbeResources(ctx.binding);
 
                     D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                     D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -353,6 +354,7 @@ namespace HIKARI::MESHRENDERER {
             BindIblResources(ctx.binding);
             BindReflectionProbeResources(ctx.binding);
             BindSsao(ctx.binding);
+            BindLightProbeResources(ctx.binding);
 
             const Mesh* mesh = item.asset->GetMesh();
             D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
