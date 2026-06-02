@@ -1,4 +1,4 @@
-#include "HIKARI_ReflectionProbeBaker.h"
+﻿#include "HIKARI_ReflectionProbeBaker.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -73,7 +73,7 @@ namespace HIKARI::TOOLS::BAKING {
             return result;
         }
         if (request.sourceCubemapPath.empty()) {
-            AddError(result, "Reflection probe source cubemap is empty.");
+            AddError(result, "Manual reflection probe source override path is empty.");
             return result;
         }
         if (request.radius <= 0.0f) {
@@ -103,11 +103,9 @@ namespace HIKARI::TOOLS::BAKING {
             return result;
         }
 
-        // 現段階では authoring cubemap を capture 入力として使う。
+        // Manual override は外部 cubemap を capture 入力として扱う。
         result.warnings.push_back(
-            "Offscreen scene cubemap capture is not implemented yet; using authoring source cubemap.");
-        result.warnings.push_back(
-            "Static geometry filtering is reserved for the capture pipeline phase.");
+            "Manual source cubemap override used for reflection probe bake.");
 
         std::filesystem::copy_file(
             sourceCubemap,
@@ -120,6 +118,57 @@ namespace HIKARI::TOOLS::BAKING {
         }
         result.captured = true;
         result.messages.push_back("Probe capture cubemap written: " + result.capturePath.generic_string());
+
+        return FinalizeCapturedProbe(request, result.capturePath);
+    }
+
+    ReflectionProbeBakeResult ReflectionProbeBaker::FinalizeCapturedProbe(
+        const ReflectionProbeBakeRequest& request,
+        const std::filesystem::path& capturePath) const {
+
+        ReflectionProbeBakeResult result{};
+        result.success = false;
+
+        if (request.projectRoot.empty()) {
+            AddError(result, "Project root is empty.");
+            return result;
+        }
+        if (request.sceneGuid.empty()) {
+            AddError(result, "Scene GUID is empty.");
+            return result;
+        }
+        if (capturePath.empty()) {
+            AddError(result, "Reflection probe capture path is empty.");
+            return result;
+        }
+        if (request.radius <= 0.0f) {
+            AddError(result, "Reflection probe radius must be greater than zero.");
+            return result;
+        }
+
+        result.capturePath = MakeAbsoluteNormalized(request.projectRoot, capturePath);
+        std::error_code ec{};
+        if (!std::filesystem::exists(result.capturePath, ec)) {
+            AddError(result, "Reflection probe capture DDS does not exist: " +
+                result.capturePath.generic_string());
+            return result;
+        }
+
+        const std::filesystem::path outputDirectory =
+            ReflectionProbeOutputDirectory(request.projectRoot, request.sceneGuid);
+        result.prefilteredPath = outputDirectory / "probe_000_prefiltered.dds";
+        result.brdfLutPath = (request.projectRoot / "Library" / "Generated" /
+            "IBL" / "brdf_lut.dds").lexically_normal();
+
+        std::filesystem::create_directories(outputDirectory, ec);
+        if (ec) {
+            AddError(result, "Failed to create reflection probe output folder: " + ec.message());
+            return result;
+        }
+
+        result.captured = true;
+        result.messages.push_back("Probe scene capture cubemap ready: " +
+            result.capturePath.generic_string());
 
         const uint32_t resolution = std::clamp(request.resolution, 32u, 256u);
         const uint32_t mipCount = std::clamp(request.prefilteredMipCount, 1u, 9u);

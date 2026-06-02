@@ -54,6 +54,17 @@ namespace HIKARI::REFLECTION {
 
     const ReflectionProbeRuntimeData& GetActiveProbe();
 
+    bool IsReflectionProbeSamplingSuppressed();
+
+    class ScopedReflectionProbeSamplingSuppress {
+    public:
+        ScopedReflectionProbeSamplingSuppress();
+        ~ScopedReflectionProbeSamplingSuppress();
+
+        ScopedReflectionProbeSamplingSuppress(const ScopedReflectionProbeSamplingSuppress&) = delete;
+        ScopedReflectionProbeSamplingSuppress& operator=(const ScopedReflectionProbeSamplingSuppress&) = delete;
+    };
+
     D3D12_GPU_DESCRIPTOR_HANDLE GetPrefilteredSrv();
     D3D12_GPU_DESCRIPTOR_HANDLE GetBrdfLutSrv();
 

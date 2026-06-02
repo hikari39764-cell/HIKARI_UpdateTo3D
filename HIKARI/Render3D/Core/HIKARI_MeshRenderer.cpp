@@ -141,7 +141,11 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool PrepareMeshFrame(const Camera3D& camera, const SceneEnvironment& environment) {
+        bool PrepareMeshFrame(
+            const Camera3D& camera,
+            const SceneEnvironment& environment,
+            uint32_t overrideScreenWidth = 0,
+            uint32_t overrideScreenHeight = 0) {
             if (g.cameraMapped == nullptr || g.lightMapped == nullptr || g.shadowMapped == nullptr || g.skyEnvironmentMapped == nullptr) {
                 return false;
             }
@@ -153,14 +157,18 @@ namespace HIKARI::MESHRENDERER {
             const FrameContext& frame = TIME::GetFrameContext();
             g.elapsedTimeSec += std::max(0.0f, frame.unscaledDt);
             g.cameraMapped->timeParams = { g.elapsedTimeSec, frame.unscaledDt, frame.gameDt, static_cast<float>(frame.frameIndex) };
-            int screenW = POST::PostSystem::GetSceneColorWidth();
-            int screenH = POST::PostSystem::GetSceneColorHeight();
+            int screenW = static_cast<int>(overrideScreenWidth);
+            int screenH = static_cast<int>(overrideScreenHeight);
             if (screenW <= 0 || screenH <= 0) {
-                POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
-            }
-            if (screenW <= 0 || screenH <= 0) {
-                screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
-                screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
+                screenW = POST::PostSystem::GetSceneColorWidth();
+                screenH = POST::PostSystem::GetSceneColorHeight();
+                if (screenW <= 0 || screenH <= 0) {
+                    POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
+                }
+                if (screenW <= 0 || screenH <= 0) {
+                    screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
+                    screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
+                }
             }
             g.cameraMapped->screenParams = {
                 static_cast<float>(screenW),
@@ -423,6 +431,36 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
         if (!PrepareMeshFrame(camera, environment)) {
+            return false;
+        }
+
+        ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+        if (cmd == nullptr || g.objectMapped == nullptr || g.objectCB == nullptr) {
+            return false;
+        }
+
+        g.frameObjectIndex = 0;
+        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
+        if (srvHeap != nullptr) {
+            ID3D12DescriptorHeap* heaps[] = { srvHeap };
+            cmd->SetDescriptorHeaps(1, heaps);
+        }
+
+        return true;
+    }
+
+    bool BeginFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        uint32_t screenWidth,
+        uint32_t screenHeight) {
+
+        if (!EnsureInitialized()) {
+            return false;
+        }
+        // Capture 用の固定解像度を camera constants に反映する。
+        if (!PrepareMeshFrame(camera, environment, screenWidth, screenHeight)) {
             return false;
         }
 

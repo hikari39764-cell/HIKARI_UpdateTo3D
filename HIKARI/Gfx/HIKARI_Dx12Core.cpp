@@ -455,6 +455,10 @@ ID3D12Resource* Dx12Core::CurrentBackBuffer() {
 size_t Dx12Core::GetPendingDeferredReleaseCount() const {
     return deferredReleaseQueue_.GetPendingCount();
 }
+// GPU fence の完了状態をポーリングする。
+bool Dx12Core::IsFenceComplete(uint64_t fenceValue) const {
+    return fence_ != nullptr && fence_->GetCompletedValue() >= fenceValue;
+}
 // 現在のコンテキストを構築して返す。Context には、コマンドリストやリソースのハンドルなど、描画に必要な情報が含まれる。
 Context Dx12Core::BuildContext() const {
     Context ctx{};

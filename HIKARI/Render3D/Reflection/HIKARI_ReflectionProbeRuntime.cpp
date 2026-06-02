@@ -44,6 +44,7 @@ namespace HIKARI::REFLECTION {
         bool gHasLastKey = false;
         ReflectionProbeStateKey gLastKey{};
         uint32_t gRequestedMipCount = 1;
+        int gSamplingSuppressDepth = 0;
 
         bool operator==(const ReflectionProbeStateKey& lhs, const ReflectionProbeStateKey& rhs) {
             return lhs.enabled == rhs.enabled &&
@@ -211,13 +212,31 @@ namespace HIKARI::REFLECTION {
         return gData;
     }
 
+    bool IsReflectionProbeSamplingSuppressed() {
+        return gSamplingSuppressDepth > 0;
+    }
+
+    ScopedReflectionProbeSamplingSuppress::ScopedReflectionProbeSamplingSuppress() {
+        ++gSamplingSuppressDepth;
+    }
+
+    ScopedReflectionProbeSamplingSuppress::~ScopedReflectionProbeSamplingSuppress() {
+        gSamplingSuppressDepth = std::max(0, gSamplingSuppressDepth - 1);
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE GetPrefilteredSrv() {
+        if (IsReflectionProbeSamplingSuppressed()) {
+            return {};
+        }
         RefreshResolvedHandles();
         LogStateIfChanged();
         return gData.prefilteredSrv;
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE GetBrdfLutSrv() {
+        if (IsReflectionProbeSamplingSuppressed()) {
+            return {};
+        }
         RefreshResolvedHandles();
         LogStateIfChanged();
         return gData.brdfLutSrv;

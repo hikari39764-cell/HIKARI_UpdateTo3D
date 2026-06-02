@@ -24,6 +24,7 @@ namespace HIKARI::MESHRENDERER {
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     bool HasSubmittedItems();
     bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment);
+    bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment, uint32_t screenWidth, uint32_t screenHeight);
     const RENDER3D::RenderQueue& BuildRenderQueue();
     const CameraCB* GetCameraConstants();
     bool RenderGeometryBufferPass(const RENDER3D::RenderQueue& queue, RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer);

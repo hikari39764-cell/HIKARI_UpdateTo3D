@@ -1,4 +1,4 @@
-#include "HIKARI_LightingBakeService.h"
+﻿#include "HIKARI_LightingBakeService.h"
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
@@ -148,6 +148,7 @@ namespace HIKARI::TOOLS::BAKING {
         report.target = request.target;
         FillBakePaths(request, report);
 
+        // Scene capture bake は GPU job として Scene 側に委譲する。
         if (!ValidateStableSceneForPrepare(request, report)) {
             AppendSceneAuthoringSummary(request, report);
             return report;
@@ -163,7 +164,7 @@ namespace HIKARI::TOOLS::BAKING {
 
         const ASSETS::LIGHTING::LightingBakeManifest manifest = BuildEmptyManifest(request);
         std::string saveMessage{};
-        // 空の manifest を作成し、bake 出力先を確定する。
+        // 空の manifest を保存して bake 出力先を確定する。
         if (!ASSETS::LIGHTING::SaveLightingBakeManifest(report.manifestPath, manifest, &saveMessage)) {
             AddError(report, saveMessage);
             return report;
@@ -188,111 +189,17 @@ namespace HIKARI::TOOLS::BAKING {
         report.target = request.target;
         FillBakePaths(request, report);
 
-        if (!ValidateStableSceneForPrepare(request, report)) {
-            AppendSceneAuthoringSummary(request, report);
+        // Scene capture bake は GPU job として Scene 側に委譲する。
+        if (!scene.RequestReflectionProbeBake()) {
+            if (scene.HasLastLightingBakeReport()) {
+                return scene.GetLastLightingBakeReport();
+            }
+            AddError(report, "Failed to request reflection probe scene capture.");
             return report;
         }
-
-        const ReflectionProbeSettings& settings =
-            request.sceneDocument->environment.reflectionProbe;
-        if (!settings.enabled) {
-            AddError(report, "Reflection probe is disabled in the current scene.");
-            AppendSceneAuthoringSummary(request, report);
-            return report;
+        if (scene.HasLastLightingBakeReport()) {
+            return scene.GetLastLightingBakeReport();
         }
-        if (settings.sourceCubemapAsset.empty()) {
-            AddError(report, "Reflection probe source cubemap asset is empty.");
-            AppendSceneAuthoringSummary(request, report);
-            return report;
-        }
-
-        const auto* descriptor = scene.GetAssetRegistry().FindAs<SkyAssetDescriptor>(
-            AssetId{ settings.sourceCubemapAsset });
-        if (!descriptor) {
-            AddError(report, "Reflection probe source cubemap asset is not registered: " +
-                settings.sourceCubemapAsset);
-            AppendSceneAuthoringSummary(request, report);
-            return report;
-        }
-        if (descriptor->sourcePath.empty()) {
-            AddError(report, "Reflection probe source cubemap path is empty: " +
-                descriptor->id.value);
-            AppendSceneAuthoringSummary(request, report);
-            return report;
-        }
-
-        ReflectionProbeBakeRequest bakeRequest{};
-        bakeRequest.projectRoot = request.projectRoot;
-        bakeRequest.sceneGuid = request.sceneGuid;
-        bakeRequest.sceneName = request.sceneName;
-        bakeRequest.position = settings.position;
-        bakeRequest.radius = settings.radius;
-        bakeRequest.intensity = settings.intensity;
-        bakeRequest.resolution = 128;
-        bakeRequest.prefilteredMipCount = 7;
-        bakeRequest.prefilteredSampleCount = 128;
-        bakeRequest.brdfLutSize = 256;
-        bakeRequest.brdfSampleCount = 256;
-        bakeRequest.forceRebake = request.force;
-        bakeRequest.sourceCubemapPath = descriptor->sourcePath;
-
-        ReflectionProbeBaker baker{};
-        const ReflectionProbeBakeResult bake = baker.BakeSingleProbe(scene, bakeRequest);
-
-        report.reflectionProbeCaptured = bake.captured;
-        report.reflectionProbePrefiltered = bake.prefiltered;
-        report.bakeFolderCreated = bake.success;
-        report.reflectionProbeCapturePath = bake.capturePath;
-        report.reflectionProbePrefilteredPath = bake.prefilteredPath;
-        report.reflectionProbeBrdfLutPath = bake.brdfLutPath;
-        report.messages.insert(report.messages.end(), bake.messages.begin(), bake.messages.end());
-        report.warnings.insert(report.warnings.end(), bake.warnings.begin(), bake.warnings.end());
-        report.errors.insert(report.errors.end(), bake.errors.begin(), bake.errors.end());
-
-        if (!bake.success) {
-            report.success = false;
-            AppendSceneAuthoringSummary(request, report);
-            return report;
-        }
-
-        ASSETS::LIGHTING::LightingBakeManifest manifest{};
-        std::string manifestMessage{};
-        if (!ASSETS::LIGHTING::LoadLightingBakeManifest(report.manifestPath, manifest, &manifestMessage)) {
-            manifest = BuildEmptyManifest(request);
-            report.messages.push_back("Created new bake manifest because existing manifest was missing.");
-        }
-
-        manifest.sceneGuid = request.sceneGuid;
-        manifest.generatedRoot = MakeProjectRelativeString(
-            request.projectRoot,
-            ASSETS::LIGHTING::BuildLightingBakeRoot(request.projectRoot, request.sceneGuid));
-        manifest.reflectionProbes.clear();
-        manifest.reflectionProbes.push_back(bake.record);
-
-        std::string saveMessage{};
-        if (!ASSETS::LIGHTING::SaveLightingBakeManifest(report.manifestPath, manifest, &saveMessage)) {
-            AddError(report, saveMessage);
-            AppendSceneAuthoringSummary(request, report);
-            return report;
-        }
-
-        report.manifestWritten = true;
-        report.reflectionProbeRecordWritten = true;
-        report.reflectionProbeRecordCount =
-            static_cast<uint32_t>(manifest.reflectionProbes.size());
-        report.lightProbeRecordCount =
-            static_cast<uint32_t>(manifest.lightProbes.size());
-        report.lightmapRecordCount =
-            static_cast<uint32_t>(manifest.lightmaps.size());
-        report.messages.push_back(saveMessage);
-        report.messages.push_back("Reflection probe bake manifest updated: " +
-            report.manifestPath.generic_string());
-
-        scene.RefreshTextureRuntimeByPath(bake.record.prefilteredCubemapPath);
-        scene.RefreshTextureRuntimeByPath(bake.record.brdfLutPath);
-        scene.RefreshLightingRuntime();
-        HIKARI_LOG_INFO("[LightingBake] reflection probe baked scene=" + request.sceneGuid +
-            " manifest=" + report.manifestPath.generic_string());
         return report;
     }
 
@@ -372,7 +279,7 @@ namespace HIKARI::TOOLS::BAKING {
             report.warnings.push_back("Sky is enabled but sky asset is empty.");
         }
         if (environment.reflectionProbe.enabled && environment.reflectionProbe.sourceCubemapAsset.empty()) {
-            report.warnings.push_back("Reflection probe is enabled but source cubemap asset is empty.");
+            report.messages.push_back("Reflection probe source cubemap override is empty; scene capture will be used.");
         }
         if (environment.reflectionProbe.enabled && environment.reflectionProbe.radius <= 0.0f) {
             report.warnings.push_back("Reflection probe radius should be greater than zero.");

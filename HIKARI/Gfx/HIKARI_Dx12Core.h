@@ -35,6 +35,7 @@ public:
     ID3D12Resource* SceneDepthResource() const;
     ID3D12Resource* CurrentBackBuffer();
     size_t GetPendingDeferredReleaseCount() const;
+    bool IsFenceComplete(uint64_t fenceValue) const;
 
     Context BuildContext() const;
 

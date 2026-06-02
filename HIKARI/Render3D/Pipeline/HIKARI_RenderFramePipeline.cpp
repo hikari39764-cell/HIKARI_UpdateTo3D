@@ -80,4 +80,33 @@ namespace HIKARI::RENDER3D::PIPELINE {
         return opaqueOk && depthAwareOk;
     }
 
+    bool RenderMeshCaptureOpaqueFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        uint32_t width,
+        uint32_t height) {
+
+        if (!MESHRENDERER::HasSubmittedItems()) {
+            return true;
+        }
+
+        GFX::PIX::ScopedGpuEvent pixFrame(
+            SERVICES::gCtx.cmdList,
+            GFX::PIX::kColorRender,
+            "RenderFrame.ReflectionProbeCaptureOpaque");
+
+        if (!MESHRENDERER::BeginFrame(camera, environment, width, height)) {
+            MESHRENDERER::EndFrame();
+            return false;
+        }
+
+        const RENDER3D::RenderQueue& queue = MESHRENDERER::BuildRenderQueue();
+        MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(false);
+
+        // Capture は後処理と depth-aware phase を含めない。
+        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(queue, {}, -1);
+        MESHRENDERER::EndFrame();
+        return opaqueOk;
+    }
+
 } // namespace HIKARI::RENDER3D::PIPELINE

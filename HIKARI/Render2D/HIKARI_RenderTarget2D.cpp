@@ -14,7 +14,8 @@ namespace HIKARI {
         int height,
         DXGI_FORMAT format,
         bool withDepth,
-        const std::array<float, 4>& optimizedClearColor)
+        const std::array<float, 4>& optimizedClearColor,
+        bool publishDepthSrv)
     {
         if (initialized_) {
             return true;
@@ -24,6 +25,7 @@ namespace HIKARI {
         height_ = height;
         format_ = format;
         hasDepth_ = withDepth;
+        publishDepthSrv_ = publishDepthSrv;
         optimizedClearColor_ = optimizedClearColor;
 
         if (!CreateResources()) {
@@ -65,6 +67,7 @@ namespace HIKARI {
 
         initialized_ = false;
         hasDepth_ = false;
+        publishDepthSrv_ = true;
     }
 
     void RenderTarget2D::SetDebugName(std::string name)
@@ -236,7 +239,8 @@ bool RenderTarget2D::CreateResources()
         readOnlyDsvView.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
         device->CreateDepthStencilView(depthTex_.Get(), &readOnlyDsvView, readOnlyDsvHandle_);
 
-        if (context_.sceneDepthSrvCpu.ptr != 0 && context_.sceneDepthSrv.ptr != 0) {
+        // Capture 専用 RT はメイン SceneDepth SRV を上書きしない。
+        if (publishDepthSrv_ && context_.sceneDepthSrvCpu.ptr != 0 && context_.sceneDepthSrv.ptr != 0) {
             D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvView{};
             depthSrvView.Format = DXGI_FORMAT_R32_FLOAT;
             depthSrvView.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;

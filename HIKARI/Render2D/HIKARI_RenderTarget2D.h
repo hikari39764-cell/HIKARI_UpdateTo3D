@@ -22,7 +22,8 @@ namespace HIKARI {
             int height,
             DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
             bool withDepth = false,
-            const std::array<float, 4>& optimizedClearColor = { 0.0f, 0.0f, 0.0f, 0.0f }
+            const std::array<float, 4>& optimizedClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
+            bool publishDepthSrv = true
         );
 
         void UpdateContext(const HIKARI::GFX::Context& ctx);
@@ -85,6 +86,7 @@ namespace HIKARI {
         DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM;
         bool initialized_ = false;
         bool hasDepth_ = false;
+        bool publishDepthSrv_ = true;
         std::string debugName_ = "RenderTarget2D";
         HIKARI::GFX::Context context_{};
 

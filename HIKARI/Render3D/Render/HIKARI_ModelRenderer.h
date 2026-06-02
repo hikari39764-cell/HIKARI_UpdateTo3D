@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Math3D.h"
@@ -44,6 +45,11 @@ namespace HIKARI::MODELRENDERER {
     void Reset();
     void SubmitModel(const ModelRenderItem& item);
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
+    void RenderOpaqueForReflectionProbeCapture(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        uint32_t width,
+        uint32_t height);
     const ModelRendererDebugStats& GetDebugStats();
 
 }

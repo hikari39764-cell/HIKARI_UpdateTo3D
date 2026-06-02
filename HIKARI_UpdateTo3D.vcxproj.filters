@@ -1085,6 +1085,9 @@
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp">
+      <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
@@ -1367,6 +1370,9 @@
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h">

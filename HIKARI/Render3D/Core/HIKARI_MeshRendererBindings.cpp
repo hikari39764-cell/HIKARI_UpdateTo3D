@@ -230,15 +230,21 @@ namespace HIKARI::MESHRENDERER {
             return srv;
         }
 
-        const D3D12_GPU_DESCRIPTOR_HANDLE probeSrv = REFLECTION::GetBrdfLutSrv();
-        if (probeSrv.ptr != 0) {
-            return probeSrv;
+        if (!REFLECTION::IsReflectionProbeSamplingSuppressed()) {
+            const D3D12_GPU_DESCRIPTOR_HANDLE probeSrv = REFLECTION::GetBrdfLutSrv();
+            if (probeSrv.ptr != 0) {
+                return probeSrv;
+            }
         }
 
         return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveReflectionProbePrefilteredSrv(int fallbackCubeTextureHandle) {
+        if (REFLECTION::IsReflectionProbeSamplingSuppressed()) {
+            return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackCubeTextureHandle);
+        }
+
         const REFLECTION::ReflectionProbeRuntimeData& probe = REFLECTION::GetActiveProbe();
         if (probe.valid && probe.hasPrefiltered && probe.prefilteredSrv.ptr != 0) {
             return probe.prefilteredSrv;

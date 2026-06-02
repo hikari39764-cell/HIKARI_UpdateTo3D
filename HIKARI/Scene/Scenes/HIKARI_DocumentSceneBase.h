@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
@@ -18,14 +19,17 @@
 #include "Scene/HIKARI_World.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Tools/Baking/HIKARI_LightingBakeReport.h"
 
 namespace HIKARI {
 
     struct PbrMaterialAssetData;
+    struct ReflectionProbeBakeJob;
 
     class DocumentSceneBase : public IScene {
     public:
         explicit DocumentSceneBase(std::string sceneId);
+        ~DocumentSceneBase() override;
 
         void OnEnter() override;
         void OnExit() override;
@@ -82,6 +86,10 @@ namespace HIKARI {
         int ApplyRuntimeMaterialOverridePreview(
             const AssetGuid& materialGuid,
             const PbrMaterialAssetData& data);
+        bool RequestReflectionProbeBake();
+        TOOLS::BAKING::LightingBakeJobState GetLightingBakeJobState() const;
+        bool HasLastLightingBakeReport() const;
+        const TOOLS::BAKING::LightingBakeReport& GetLastLightingBakeReport() const;
         bool SaveCurrentSceneDocument();
         bool SaveCurrentSceneDocumentAs(const AssetGuid& sceneGuid);
         const AssetGuid& GetCurrentSceneAssetGuid() const;
@@ -100,6 +108,11 @@ namespace HIKARI {
         virtual bool DrawDebugHelpers() const;
         virtual bool UseEnvironmentLighting() const;
         void ConfigureModelTextureResolver();
+        bool ProcessReflectionProbeBakeJob();
+        bool RenderSceneForReflectionProbeCaptureFace(
+            const Camera3D& faceCamera,
+            const SceneEnvironment& captureEnvironment,
+            uint32_t faceIndex);
         std::string ResolveModelTexturePathFromAssets(
             const std::string& sourceTexturePath,
             ModelTextureUsage usage) const;
@@ -133,6 +146,9 @@ namespace HIKARI {
         ComponentGizmoState componentGizmoState_{};
         ViewportOverlayState viewportOverlayState_{};
         SceneObjectId selectedGizmoObjectId_{};
+        std::unique_ptr<ReflectionProbeBakeJob> reflectionProbeBakeJob_{};
+        TOOLS::BAKING::LightingBakeReport lastLightingBakeReport_{};
+        bool hasLastLightingBakeReport_ = false;
     };
 
 } // namespace HIKARI

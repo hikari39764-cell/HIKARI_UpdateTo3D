@@ -125,7 +125,10 @@ namespace HIKARI {
                 &scene.GetSceneEnvironment());
         }
         if (ImGui::Button("Bake Reflection Probes Only")) {
-            lastReport_ = service.BakeReflectionProbesOnly(scene);
+            scene.RequestReflectionProbeBake();
+            if (scene.HasLastLightingBakeReport()) {
+                lastReport_ = scene.GetLastLightingBakeReport();
+            }
             hasReport_ = true;
             RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshotIfChanged(
                 "LightingBake.ReflectionProbe",
@@ -161,11 +164,16 @@ namespace HIKARI {
         ImGui::Spacing();
         ImGui::TextUnformatted("Last Report");
         ImGui::Separator();
+        if (scene.HasLastLightingBakeReport()) {
+            lastReport_ = scene.GetLastLightingBakeReport();
+            hasReport_ = true;
+        }
         if (!hasReport_) {
             ImGui::TextDisabled("No bake action has been run.");
         } else {
             ImGui::Text("Action: %s", TOOLS::BAKING::ToString(lastReport_.action));
             ImGui::Text("Target: %s", TOOLS::BAKING::ToString(lastReport_.target));
+            ImGui::Text("Job State: %s", TOOLS::BAKING::ToString(lastReport_.jobState));
             ImGui::Text("Result: %s", lastReport_.success ? "Success" : "Failed");
             ImGui::Text("Warnings: %zu", lastReport_.warnings.size());
             ImGui::Text("Errors: %zu", lastReport_.errors.size());
@@ -173,8 +181,16 @@ namespace HIKARI {
             ImGui::Text("Folder Created: %s", lastReport_.bakeFolderCreated ? "Yes" : "No");
             ImGui::Text("Folder Cleared: %s", lastReport_.bakeFolderCleared ? "Yes" : "No");
             ImGui::Text("Probe Capture Written: %s", lastReport_.reflectionProbeCaptured ? "Yes" : "No");
+            ImGui::Text("Probe Scene Captured: %s", lastReport_.reflectionProbeSceneCaptured ? "Yes" : "No");
+            ImGui::Text("Source Override Used: %s", lastReport_.reflectionProbeUsedSourceOverride ? "Yes" : "No");
             ImGui::Text("Probe Prefiltered: %s", lastReport_.reflectionProbePrefiltered ? "Yes" : "No");
             ImGui::Text("Probe Record Written: %s", lastReport_.reflectionProbeRecordWritten ? "Yes" : "No");
+            if (!lastReport_.reflectionProbeCaptureMode.empty()) {
+                ImGui::Text("Capture Mode: %s", lastReport_.reflectionProbeCaptureMode.c_str());
+            }
+            if (lastReport_.gpuFenceValue != 0) {
+                ImGui::Text("GPU Fence: %llu", static_cast<unsigned long long>(lastReport_.gpuFenceValue));
+            }
             ImGui::Text("Reflection Probe Records: %u", lastReport_.reflectionProbeRecordCount);
             ImGui::Text("Light Probe Records: %u", lastReport_.lightProbeRecordCount);
             ImGui::Text("Lightmap Records: %u", lastReport_.lightmapRecordCount);

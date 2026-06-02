@@ -215,6 +215,7 @@
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
@@ -511,6 +512,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h" />
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />

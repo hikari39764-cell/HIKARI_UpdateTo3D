@@ -21,6 +21,16 @@ namespace HIKARI::TOOLS::BAKING {
         ValidateOnly,
     };
 
+    enum class LightingBakeJobState {
+        Idle,
+        Requested,
+        Capturing,
+        WaitingGpu,
+        Finalizing,
+        Completed,
+        Failed,
+    };
+
     struct LightingBakeReport {
         bool success = true;
         bool manifestWritten = false;
@@ -29,13 +39,18 @@ namespace HIKARI::TOOLS::BAKING {
         bool reflectionProbeCaptured = false;
         bool reflectionProbePrefiltered = false;
         bool reflectionProbeRecordWritten = false;
+        bool reflectionProbeSceneCaptured = false;
+        bool reflectionProbeUsedSourceOverride = false;
         LightingBakeAction action = LightingBakeAction::ValidateOnly;
         LightingBakeTarget target = LightingBakeTarget::All;
+        LightingBakeJobState jobState = LightingBakeJobState::Idle;
         std::filesystem::path bakeRoot{};
         std::filesystem::path manifestPath{};
         std::filesystem::path reflectionProbeCapturePath{};
         std::filesystem::path reflectionProbePrefilteredPath{};
         std::filesystem::path reflectionProbeBrdfLutPath{};
+        std::string reflectionProbeCaptureMode{};
+        uint64_t gpuFenceValue = 0;
         uint32_t reflectionProbeRecordCount = 0;
         uint32_t lightProbeRecordCount = 0;
         uint32_t lightmapRecordCount = 0;
@@ -69,6 +84,27 @@ namespace HIKARI::TOOLS::BAKING {
             return "BakeReflectionProbes";
         case LightingBakeAction::ValidateOnly:
             return "ValidateOnly";
+        default:
+            return "Unknown";
+        }
+    }
+
+    inline const char* ToString(LightingBakeJobState state) {
+        switch (state) {
+        case LightingBakeJobState::Idle:
+            return "Idle";
+        case LightingBakeJobState::Requested:
+            return "Requested";
+        case LightingBakeJobState::Capturing:
+            return "Capturing";
+        case LightingBakeJobState::WaitingGpu:
+            return "WaitingGpu";
+        case LightingBakeJobState::Finalizing:
+            return "Finalizing";
+        case LightingBakeJobState::Completed:
+            return "Completed";
+        case LightingBakeJobState::Failed:
+            return "Failed";
         default:
             return "Unknown";
         }

@@ -49,6 +49,10 @@ namespace HIKARI {
             ReflectionProbeBakeResult BakeSingleProbe(
                 DocumentSceneBase& scene,
                 const ReflectionProbeBakeRequest& request) const;
+
+            ReflectionProbeBakeResult FinalizeCapturedProbe(
+                const ReflectionProbeBakeRequest& request,
+                const std::filesystem::path& capturePath) const;
         };
 
     } // namespace TOOLS::BAKING

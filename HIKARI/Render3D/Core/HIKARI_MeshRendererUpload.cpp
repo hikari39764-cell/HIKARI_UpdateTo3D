@@ -140,8 +140,10 @@ namespace HIKARI::MESHRENDERER {
             iblData.hasBrdfLut ? 1.0f : 0.0f,
             static_cast<float>(std::max<uint32_t>(1u, iblData.prefilteredMipCount))
         };
-        const REFLECTION::ReflectionProbeRuntimeData& probeData = REFLECTION::GetActiveProbe();
-        const bool hasSharedBrdf = probeData.hasBrdfLut || iblData.hasBrdfLut;
+        const bool probeSuppressed = REFLECTION::IsReflectionProbeSamplingSuppressed();
+        const REFLECTION::ReflectionProbeRuntimeData probeData =
+            probeSuppressed ? REFLECTION::ReflectionProbeRuntimeData{} : REFLECTION::GetActiveProbe();
+        const bool hasSharedBrdf = (!probeSuppressed && probeData.hasBrdfLut) || iblData.hasBrdfLut;
         out.reflectionProbePositionRadius = {
             probeData.position.x,
             probeData.position.y,

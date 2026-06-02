@@ -11,6 +11,7 @@
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #undef max
@@ -559,7 +560,10 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        bool SubmitStructuredModelNodes(const ModelRenderItem& item, const Camera3D& camera) {
+        bool SubmitStructuredModelNodes(
+            const ModelRenderItem& item,
+            const Camera3D& camera,
+            bool submitShadow) {
             if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
                 return false;
             }
@@ -640,7 +644,9 @@ namespace HIKARI::MODELRENDERER {
                                 item.receiveShadow,
                                 ToMeshRenderDebugMode(item.geometryDebugMode),
                                 item.materialOverride);
-                            SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
+                            if (submitShadow) {
+                                SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
+                            }
                             submittedSkinned = true;
                             submitted = true;
                         }
@@ -669,7 +675,9 @@ namespace HIKARI::MODELRENDERER {
                     item.receiveShadow,
                     ToMeshRenderDebugMode(item.geometryDebugMode),
                     item.materialOverride);
-                SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
+                if (submitShadow) {
+                    SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
+                }
                 submitted = true;
             }
             return submitted;
@@ -700,7 +708,7 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
-            if (SubmitStructuredModelNodes(item, camera)) {
+            if (SubmitStructuredModelNodes(item, camera, true)) {
                 continue;
             }
 
@@ -720,6 +728,45 @@ namespace HIKARI::MODELRENDERER {
 
         SHADOW::RenderDirectionalShadowMap();
         MESHRENDERER::RenderAll(camera, environment);
+        gQueue.clear();
+        PrunePoseCache();
+    }
+
+    void RenderOpaqueForReflectionProbeCapture(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        uint32_t width,
+        uint32_t height) {
+
+        ++gFrameIndex;
+        for (const ModelRenderItem& item : gQueue) {
+            if (!item.model) {
+                continue;
+            }
+
+            if (SubmitStructuredModelNodes(item, camera, false)) {
+                continue;
+            }
+
+            const Transform3D animatedTransform = BuildAnimatedTransform(item);
+            MESHRENDERER::SubmitStaticMesh(
+                *item.model,
+                animatedTransform,
+                item.materialFxProfileId,
+                item.postGroupMask,
+                item.materialFxParamValues,
+                item.materialFxValuesInitialized,
+                item.receiveShadow,
+                ToMeshRenderDebugMode(item.geometryDebugMode),
+                item.materialOverride);
+        }
+
+        // Probe capture は shadow / SSAO / depth-aware を含めない。
+        (void)RENDER3D::PIPELINE::RenderMeshCaptureOpaqueFrame(
+            camera,
+            environment,
+            width,
+            height);
         gQueue.clear();
         PrunePoseCache();
     }
