@@ -19,6 +19,7 @@ namespace HIKARI {
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
     RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
+    RENDER3D::RUNTIME::StaticDrawRecordCache RenderSubmissionSystem::sStaticDrawRecordCache_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
 
     void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
@@ -37,6 +38,14 @@ namespace HIKARI {
         return sSceneRenderCache_.GetStats();
     }
 
+    const RENDER3D::RUNTIME::StaticDrawRecordCache& RenderSubmissionSystem::GetStaticDrawRecordCache() {
+        return sStaticDrawRecordCache_;
+    }
+
+    const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& RenderSubmissionSystem::GetStaticDrawRecordCacheStats() {
+        return sStaticDrawRecordCache_.GetStats();
+    }
+
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.scannedModelCount = 0;
@@ -52,6 +61,8 @@ namespace HIKARI {
             MODELRENDERER::GetRenderModelCache(),
             sSceneRenderCache_,
             frame.frameIndex);
+        // 旧描画経路を変えず、静的 draw record だけ先に検証する。
+        sStaticDrawRecordCache_.SyncFromSceneRenderCache(sSceneRenderCache_);
 
         MESHWIREDEBUG::BeginFrame();
 

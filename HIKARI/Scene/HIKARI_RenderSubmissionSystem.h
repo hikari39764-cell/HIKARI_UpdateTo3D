@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
+#include "Render3D/Runtime/HIKARI_StaticDrawRecordCache.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
@@ -29,11 +30,14 @@ namespace HIKARI {
         static const RenderSubmissionDebugStats& GetDebugStats();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
+        static const RENDER3D::RUNTIME::StaticDrawRecordCache& GetStaticDrawRecordCache();
+        static const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& GetStaticDrawRecordCacheStats();
 
     private:
         static RenderSubmissionDebugStats sDebugStats_;
         static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
+        static RENDER3D::RUNTIME::StaticDrawRecordCache sStaticDrawRecordCache_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
     };
 

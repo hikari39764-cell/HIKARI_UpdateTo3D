@@ -69,6 +69,8 @@ namespace HIKARI {
         const MODELRENDERER::ModelRendererCacheStats& modelCacheStats = modelStats.cache;
         const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneRenderCacheStats =
             RenderSubmissionSystem::GetSceneRenderCacheStats();
+        const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& staticDrawRecordCacheStats =
+            RenderSubmissionSystem::GetStaticDrawRecordCacheStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
@@ -111,6 +113,21 @@ namespace HIKARI {
                 ImGui::Text("RenderModel Valid / Invalid: %u / %u",
                     sceneRenderCacheStats.renderModelValidCount,
                     sceneRenderCacheStats.renderModelInvalidCount);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNodeEx("Static Draw Record Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Text("Static Objects: %u", staticDrawRecordCacheStats.staticObjectCount);
+                ImGui::Text("Cached Objects: %u", staticDrawRecordCacheStats.cachedObjectCount);
+                ImGui::Text("Cached Records: %u", staticDrawRecordCacheStats.cachedRecordCount);
+                ImGui::Text("Rebuilt / Reused / Removed: %u / %u / %u",
+                    staticDrawRecordCacheStats.rebuiltObjectCount,
+                    staticDrawRecordCacheStats.reusedObjectCount,
+                    staticDrawRecordCacheStats.removedObjectCount);
+                ImGui::Text("Skipped Dynamic: %u", staticDrawRecordCacheStats.skippedDynamicObjectCount);
+                ImGui::Text("Skipped Invisible: %u", staticDrawRecordCacheStats.skippedInvisibleObjectCount);
+                ImGui::Text("Skipped Invalid Object: %u", staticDrawRecordCacheStats.skippedInvalidObjectCount);
+                ImGui::Text("Skipped Invalid RenderModel: %u", staticDrawRecordCacheStats.skippedInvalidRenderModelCount);
+                ImGui::Text("Skipped Skinned Submesh: %u", staticDrawRecordCacheStats.skippedSkinnedSubmeshCount);
                 ImGui::TreePop();
             }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
