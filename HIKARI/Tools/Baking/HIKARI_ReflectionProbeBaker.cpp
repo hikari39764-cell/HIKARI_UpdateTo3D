@@ -7,6 +7,7 @@
 #include "Assets/Importers/HIKARI_IblBaker.h"
 #include "Core/HIKARI_Logger.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Tools/Baking/HIKARI_ReflectionProbeCaptureValidator.h"
 
 namespace HIKARI::TOOLS::BAKING {
 
@@ -18,6 +19,41 @@ namespace HIKARI::TOOLS::BAKING {
         void AddError(ReflectionProbeBakeResult& result, std::string message) {
             result.errors.push_back(std::move(message));
             result.success = false;
+        }
+
+        const char* FormatName(DXGI_FORMAT format) {
+            switch (format) {
+            case DXGI_FORMAT_R16G16B16A16_FLOAT:
+                return "R16G16B16A16_FLOAT";
+            case DXGI_FORMAT_R32G32B32A32_FLOAT:
+                return "R32G32B32A32_FLOAT";
+            case DXGI_FORMAT_R11G11B10_FLOAT:
+                return "R11G11B10_FLOAT";
+            case DXGI_FORMAT_BC6H_UF16:
+                return "BC6H_UF16";
+            case DXGI_FORMAT_BC6H_SF16:
+                return "BC6H_SF16";
+            default:
+                return "DXGI_FORMAT_OTHER";
+            }
+        }
+
+        void MergeValidationMessages(
+            ReflectionProbeBakeResult& result,
+            const ReflectionProbeCaptureValidationResult& validation) {
+
+            result.messages.insert(
+                result.messages.end(),
+                validation.messages.begin(),
+                validation.messages.end());
+            result.warnings.insert(
+                result.warnings.end(),
+                validation.warnings.begin(),
+                validation.warnings.end());
+            result.errors.insert(
+                result.errors.end(),
+                validation.errors.begin(),
+                validation.errors.end());
         }
 
         std::filesystem::path MakeAbsoluteNormalized(
@@ -170,6 +206,20 @@ namespace HIKARI::TOOLS::BAKING {
         result.messages.push_back("Probe scene capture cubemap ready: " +
             result.capturePath.generic_string());
 
+        const ReflectionProbeCaptureValidationResult captureValidation =
+            ValidateReflectionProbeCaptureDds(result.capturePath);
+        MergeValidationMessages(result, captureValidation);
+        result.captureValidated = captureValidation.success;
+        result.capturedFaceCount = captureValidation.arraySize;
+        result.captureResolution = captureValidation.width;
+        result.captureMipCount = captureValidation.mipCount;
+        result.captureFormat = FormatName(captureValidation.format);
+        result.faceSummaries = captureValidation.faceSummaries;
+        if (!captureValidation.success) {
+            result.success = false;
+            return result;
+        }
+
         const uint32_t resolution = std::clamp(request.resolution, 32u, 256u);
         const uint32_t mipCount = std::clamp(request.prefilteredMipCount, 1u, 9u);
         const uint32_t sampleCount = std::clamp(request.prefilteredSampleCount, 32u, 256u);
@@ -187,6 +237,17 @@ namespace HIKARI::TOOLS::BAKING {
         }
         result.prefiltered = true;
         result.messages.push_back(message);
+
+        const ReflectionProbeCaptureValidationResult prefilterValidation =
+            ValidateReflectionProbePrefilteredDds(result.prefilteredPath);
+        MergeValidationMessages(result, prefilterValidation);
+        result.prefilterValidated = prefilterValidation.success;
+        result.prefilteredMipCount = prefilterValidation.mipCount;
+        result.prefilteredFormat = FormatName(prefilterValidation.format);
+        if (!prefilterValidation.success) {
+            result.success = false;
+            return result;
+        }
 
         if (!IblBaker::EnsureSharedBrdfLut(
                 result.brdfLutPath,

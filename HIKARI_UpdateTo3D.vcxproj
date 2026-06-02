@@ -216,6 +216,7 @@
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp" />
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
@@ -513,10 +514,10 @@
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h" />
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />

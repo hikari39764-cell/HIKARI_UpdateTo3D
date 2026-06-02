@@ -185,6 +185,30 @@ namespace HIKARI {
             ImGui::Text("Source Override Used: %s", lastReport_.reflectionProbeUsedSourceOverride ? "Yes" : "No");
             ImGui::Text("Probe Prefiltered: %s", lastReport_.reflectionProbePrefiltered ? "Yes" : "No");
             ImGui::Text("Probe Record Written: %s", lastReport_.reflectionProbeRecordWritten ? "Yes" : "No");
+            ImGui::Text("Capture Validated: %s", lastReport_.reflectionProbeCaptureValidated ? "Yes" : "No");
+            ImGui::Text("Prefilter Validated: %s", lastReport_.reflectionProbePrefilterValidated ? "Yes" : "No");
+            if (lastReport_.reflectionProbeCapturedFaceCount > 0 ||
+                lastReport_.reflectionProbeQueuedReadbackFaceCount > 0) {
+                ImGui::Text(
+                    "Captured Faces: %u / Queued Readback: %u",
+                    lastReport_.reflectionProbeCapturedFaceCount,
+                    lastReport_.reflectionProbeQueuedReadbackFaceCount);
+            }
+            if (lastReport_.reflectionProbeCaptureResolution > 0) {
+                ImGui::Text("Capture Resolution: %u", lastReport_.reflectionProbeCaptureResolution);
+            }
+            if (!lastReport_.reflectionProbeCaptureFormat.empty()) {
+                ImGui::Text("Capture Format: %s", lastReport_.reflectionProbeCaptureFormat.c_str());
+            }
+            if (lastReport_.reflectionProbeCaptureMipCount > 0) {
+                ImGui::Text("Capture Mips: %u", lastReport_.reflectionProbeCaptureMipCount);
+            }
+            if (lastReport_.reflectionProbePrefilteredMipCount > 0) {
+                ImGui::Text("Prefiltered Mips: %u", lastReport_.reflectionProbePrefilteredMipCount);
+            }
+            if (!lastReport_.reflectionProbePrefilteredFormat.empty()) {
+                ImGui::Text("Prefiltered Format: %s", lastReport_.reflectionProbePrefilteredFormat.c_str());
+            }
             if (!lastReport_.reflectionProbeCaptureMode.empty()) {
                 ImGui::Text("Capture Mode: %s", lastReport_.reflectionProbeCaptureMode.c_str());
             }

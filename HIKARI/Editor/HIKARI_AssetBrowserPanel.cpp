@@ -27,8 +27,6 @@
 #include "HIKARI_EditorSelection.h"
 #include "Platform/HIKARI_Win32Window.h"
 #include "Project/HIKARI_ProjectSettings.h"
-#include "Render3D/Core/HIKARI_Material.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
 
 #if defined(_DEBUG)
 #include "imgui.h"
@@ -37,30 +35,6 @@
 namespace HIKARI {
 
     namespace {
-        const char* ToStateText(ModelAsset::State state) {
-            switch (state) {
-            case ModelAsset::State::Unloaded:
-                return "Unloaded";
-            case ModelAsset::State::Loaded:
-                return "Loaded";
-            case ModelAsset::State::Failed:
-                return "Failed";
-            default:
-                return "Unknown";
-            }
-        }
-
-        const char* GetSourceType(const std::string& sourcePath) {
-            if (sourcePath == "builtin:cube") {
-                return "builtin";
-            }
-            const size_t dot = sourcePath.find_last_of('.');
-            if (dot == std::string::npos) {
-                return "unknown";
-            }
-            return sourcePath.c_str() + dot + 1;
-        }
-
         const char* ToAssetTypeText(AssetType type) {
             switch (type) {
             case AssetType::Model: return "Model";
@@ -1977,59 +1951,6 @@ namespace HIKARI {
                 ImGui::EndPopup();
             }
         }
-#endif
-    }
-
-    void AssetBrowserPanel::Draw(ModelManager& modelManager, EditorSelection& selection) const {
-#if defined(_DEBUG)
-        if (!ImGui::Begin("Asset Browser")) {
-            ImGui::End();
-            return;
-        }
-
-        for (const auto& asset : modelManager.GetAssets()) {
-            ModelAsset* assetPtr = asset.get();
-            const bool isSelected = (selection.selectedAsset == assetPtr);
-            if (ImGui::Selectable(assetPtr->GetName().c_str(), isSelected)) {
-                selection.selectedAsset = assetPtr;
-            }
-            ImGui::Text("  Source: %s", assetPtr->GetSourcePath().c_str());
-            ImGui::Text("  Type: %s | State: %s | Mesh: %s",
-                GetSourceType(assetPtr->GetSourcePath()),
-                ToStateText(assetPtr->GetState()),
-                assetPtr->GetMesh() ? "Yes" : "No");
-            if (const Material* material = assetPtr->GetMaterial()) {
-                auto drawSlot = [](const char* label, const RuntimeTextureSlot& slot) {
-                    const char* source = slot.sourcePath.empty() ? "<none>" : slot.sourcePath.c_str();
-                    const char* resolved = slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str();
-                    const bool isHtex = EndsWithCaseInsensitive(slot.resolvedPath, ".htex");
-                    ImGui::Text("  %s: %s handle=%d", label, slot.IsValid() ? (isHtex ? "HTEX" : "RAW") : "Not Loaded", slot.handle);
-                    ImGui::Text("    source: %s", source);
-                    ImGui::Text("    resolved: %s", resolved);
-                };
-                drawSlot("BaseColor", material->GetTextureSlot(ModelTextureUsage::BaseColor));
-                drawSlot("Normal", material->GetTextureSlot(ModelTextureUsage::Normal));
-                drawSlot("MetallicRoughness", material->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
-                drawSlot("Occlusion", material->GetTextureSlot(ModelTextureUsage::Occlusion));
-                drawSlot("Emissive", material->GetTextureSlot(ModelTextureUsage::Emissive));
-            } else {
-                ImGui::TextUnformatted("  Texture Path: <no material>");
-            }
-        }
-
-        const ModelTextureResolveStats& resolveStats = modelManager.GetTextureResolveStats();
-        ImGui::Separator();
-        ImGui::Text("Model Texture Resolve: Total=%d HTEX=%d RAW=%d Missing=%d Ambiguous=%d",
-            resolveStats.total,
-            resolveStats.resolvedHtex,
-            resolveStats.fallbackRaw,
-            resolveStats.missing,
-            resolveStats.ambiguous);
-
-        ImGui::End();
-#else
-        (void)modelManager;
-        (void)selection;
 #endif
     }
 

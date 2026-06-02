@@ -172,11 +172,17 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 ? LightingRuntimeSource::BakedRuntime
                 : LightingRuntimeSource::BakeManifestDiscovered;
 
-            HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] loaded baked probe id=" +
-                record.id +
-                " prefiltered=" + std::to_string(prefiltered) +
-                " brdf=" + std::to_string(brdf) +
-                " valid=" + std::string(runtimeData.reflectionProbeLoaded ? "true" : "false"));
+            if (runtimeData.reflectionProbeLoaded) {
+                HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] baked probe activation valid=true source=BakedRuntime path=" +
+                    record.prefilteredCubemapPath +
+                    " prefiltered=" + std::to_string(prefiltered) +
+                    " brdf=" + std::to_string(brdf));
+            } else {
+                HIKARI_LOG_WARN("[LightingRuntimeLoader][ReflectionProbe][WARN] baked probe invalid, fallback to authoring source. path=" +
+                    record.prefilteredCubemapPath +
+                    " prefiltered=" + std::to_string(prefiltered) +
+                    " brdf=" + std::to_string(brdf));
+            }
         } else {
             runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
         }

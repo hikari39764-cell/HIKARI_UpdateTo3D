@@ -11,7 +11,6 @@ namespace HIKARI {
     class AssetDatabase;
     struct AssetUsageSummary;
     struct EditorSelection;
-    class ModelManager;
 
     enum class AssetBrowserScope {
         Project,
@@ -34,7 +33,6 @@ namespace HIKARI {
 
     class AssetBrowserPanel {
     public:
-        void Draw(ModelManager& modelManager, EditorSelection& selection) const;
         void Draw(AssetDatabase& assetDatabase, EditorSelection& selection) const;
         void DrawContents(AssetDatabase& assetDatabase, EditorSelection& selection) const;
         void DrawContents(

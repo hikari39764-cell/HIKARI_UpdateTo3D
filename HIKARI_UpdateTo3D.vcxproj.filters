@@ -1088,6 +1088,9 @@
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.cpp">
+      <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
@@ -1375,6 +1378,9 @@
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h">
       <Filter>Header Files\Tools\Baking</Filter>
     </ClInclude>
@@ -1458,9 +1464,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
       <Filter>Header Files\App</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h">
-      <Filter>Header Files\Render3D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h">
       <Filter>Header Files\Render3D\Animation</Filter>

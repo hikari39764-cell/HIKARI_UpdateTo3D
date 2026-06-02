@@ -41,6 +41,8 @@ namespace HIKARI::TOOLS::BAKING {
         bool reflectionProbeRecordWritten = false;
         bool reflectionProbeSceneCaptured = false;
         bool reflectionProbeUsedSourceOverride = false;
+        bool reflectionProbeCaptureValidated = false;
+        bool reflectionProbePrefilterValidated = false;
         LightingBakeAction action = LightingBakeAction::ValidateOnly;
         LightingBakeTarget target = LightingBakeTarget::All;
         LightingBakeJobState jobState = LightingBakeJobState::Idle;
@@ -51,9 +53,17 @@ namespace HIKARI::TOOLS::BAKING {
         std::filesystem::path reflectionProbeBrdfLutPath{};
         std::string reflectionProbeCaptureMode{};
         uint64_t gpuFenceValue = 0;
+        uint32_t reflectionProbeCapturedFaceCount = 0;
+        uint32_t reflectionProbeQueuedReadbackFaceCount = 0;
+        uint32_t reflectionProbeCaptureResolution = 0;
+        uint32_t reflectionProbeCaptureMipCount = 0;
+        std::string reflectionProbeCaptureFormat{};
+        uint32_t reflectionProbePrefilteredMipCount = 0;
+        std::string reflectionProbePrefilteredFormat{};
         uint32_t reflectionProbeRecordCount = 0;
         uint32_t lightProbeRecordCount = 0;
         uint32_t lightmapRecordCount = 0;
+        std::vector<std::string> reflectionProbeFaceSummaries{};
         std::vector<std::string> messages{};
         std::vector<std::string> warnings{};
         std::vector<std::string> errors{};

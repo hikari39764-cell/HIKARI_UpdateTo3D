@@ -130,6 +130,13 @@ namespace HIKARI {
                 before.intensity != after.intensity;
         }
 
+        const char* ProbeFaceName(uint32_t faceIndex) {
+            static constexpr const char* kFaceNames[6] = {
+                "+X", "-X", "+Y", "-Y", "+Z", "-Z"
+            };
+            return faceIndex < 6u ? kFaceNames[faceIndex] : "?";
+        }
+
         void AddBakeError(TOOLS::BAKING::LightingBakeReport& report, std::string message) {
             report.success = false;
             report.errors.push_back(std::move(message));
@@ -910,17 +917,18 @@ namespace HIKARI {
         report.manifestPath = ASSETS::LIGHTING::BuildLightingBakeManifestPath(
             projectRoot,
             currentSceneAssetGuid_.value);
-        report.reflectionProbeCapturePath =
-            ReflectionProbeOutputDirectory(projectRoot, currentSceneAssetGuid_.value) /
-            "probe_000_capture.dds";
+            report.reflectionProbeCapturePath =
+                ReflectionProbeOutputDirectory(projectRoot, currentSceneAssetGuid_.value) /
+                "probe_000_capture.dds";
         report.reflectionProbePrefilteredPath =
             ReflectionProbeOutputDirectory(projectRoot, currentSceneAssetGuid_.value) /
             "probe_000_prefiltered.dds";
-        report.reflectionProbeBrdfLutPath =
-            (projectRoot / "Library" / "Generated" / "IBL" / "brdf_lut.dds").lexically_normal();
-        report.reflectionProbeCaptureMode = "SceneCapture";
+            report.reflectionProbeBrdfLutPath =
+                (projectRoot / "Library" / "Generated" / "IBL" / "brdf_lut.dds").lexically_normal();
+            report.reflectionProbeCaptureMode = "SceneCapture";
+            report.reflectionProbeCaptureResolution = 128;
 
-        if (!report.errors.empty()) {
+            if (!report.errors.empty()) {
             SetBakeJobState(report, TOOLS::BAKING::LightingBakeJobState::Failed);
             lastLightingBakeReport_ = report;
             hasLastLightingBakeReport_ = true;
@@ -970,17 +978,18 @@ namespace HIKARI {
         return lastLightingBakeReport_;
     }
 
-    bool DocumentSceneBase::RenderSceneForReflectionProbeCaptureFace(
-        const Camera3D& faceCamera,
-        const SceneEnvironment& captureEnvironment,
-        uint32_t faceIndex) {
+        bool DocumentSceneBase::RenderSceneForReflectionProbeCaptureFace(
+            const Camera3D& faceCamera,
+            const SceneEnvironment& captureEnvironment,
+            uint32_t faceIndex) {
 
         if (!reflectionProbeBakeJob_ ||
             !reflectionProbeBakeJob_->captureTarget.BeginFace(faceIndex, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f)) {
             return false;
         }
 
-        const std::string eventName = "ReflectionProbe.CaptureFace" + std::to_string(faceIndex);
+        const std::string eventName =
+            "ReflectionProbe.CaptureFace" + std::string(ProbeFaceName(faceIndex));
         GFX::PIX::ScopedGpuEvent pixFace(
             SERVICES::gCtx.cmdList,
             GFX::PIX::kColorRender,
@@ -1027,6 +1036,10 @@ namespace HIKARI {
                 lastLightingBakeReport_ = job.report;
                 return false;
             }
+            job.report.reflectionProbeCaptureResolution = resolution;
+            job.report.reflectionProbeCaptureFormat = "R16G16B16A16_FLOAT";
+            job.report.messages.push_back(
+                "Capture exclusions: reflection probe sampling suppressed; SSAO/post/debug/VFX helpers excluded.");
         }
 
         if (job.state == TOOLS::BAKING::LightingBakeJobState::Capturing) {
@@ -1083,9 +1096,11 @@ namespace HIKARI {
             job.report.gpuFenceValue = job.fenceValue;
             job.report.reflectionProbeSceneCaptured = true;
             job.report.reflectionProbeUsedSourceOverride = false;
+            job.report.reflectionProbeCapturedFaceCount =
+                std::max(job.report.reflectionProbeCapturedFaceCount, face + 1u);
+            ++job.report.reflectionProbeQueuedReadbackFaceCount;
             job.report.messages.push_back(readbackMessage);
-            job.report.messages.push_back("Reflection probe capture face submitted: " +
-                std::to_string(face));
+            job.report.messages.push_back("Face " + std::string(ProbeFaceName(face)) + " captured.");
             ++job.nextFaceIndex;
 
             if (job.nextFaceIndex >= 6u) {
@@ -1112,6 +1127,15 @@ namespace HIKARI {
             SetBakeJobState(job.report, job.state);
             lastLightingBakeReport_ = job.report;
 
+            if (job.report.reflectionProbeCapturedFaceCount != 6u ||
+                job.report.reflectionProbeQueuedReadbackFaceCount != 6u) {
+                AddBakeError(job.report, "Reflection probe capture did not queue all six faces.");
+                job.state = TOOLS::BAKING::LightingBakeJobState::Failed;
+                SetBakeJobState(job.report, job.state);
+                lastLightingBakeReport_ = job.report;
+                return false;
+            }
+
             std::string saveMessage{};
             if (!job.captureTarget.SaveReadbackToCubemapDds(
                     job.report.reflectionProbeCapturePath,
@@ -1133,6 +1157,15 @@ namespace HIKARI {
 
             job.report.reflectionProbeCaptured = bake.captured;
             job.report.reflectionProbePrefiltered = bake.prefiltered;
+            job.report.reflectionProbeCaptureValidated = bake.captureValidated;
+            job.report.reflectionProbePrefilterValidated = bake.prefilterValidated;
+            job.report.reflectionProbeCapturedFaceCount = bake.capturedFaceCount;
+            job.report.reflectionProbeCaptureResolution = bake.captureResolution;
+            job.report.reflectionProbeCaptureMipCount = bake.captureMipCount;
+            job.report.reflectionProbeCaptureFormat = bake.captureFormat;
+            job.report.reflectionProbePrefilteredMipCount = bake.prefilteredMipCount;
+            job.report.reflectionProbePrefilteredFormat = bake.prefilteredFormat;
+            job.report.reflectionProbeFaceSummaries = bake.faceSummaries;
             job.report.bakeFolderCreated = bake.success;
             job.report.reflectionProbeCapturePath = bake.capturePath;
             job.report.reflectionProbePrefilteredPath = bake.prefilteredPath;
