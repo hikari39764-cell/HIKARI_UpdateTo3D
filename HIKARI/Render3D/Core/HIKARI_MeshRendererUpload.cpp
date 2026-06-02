@@ -20,6 +20,47 @@
 
 namespace HIKARI::MESHRENDERER {
 
+    namespace {
+        MATH::Vec3 ClampProbeBoxSize(const MATH::Vec3& size) {
+            return {
+                std::max(0.001f, size.x),
+                std::max(0.001f, size.y),
+                std::max(0.001f, size.z)
+            };
+        }
+
+        void WriteProbeBoxMinMax(
+            const MATH::Vec3& center,
+            const MATH::Vec3& size,
+            MATH::Vec4& outMin,
+            MATH::Vec4& outMax) {
+
+            // Box は shader 側で min/max として扱う。
+            const MATH::Vec3 safeSize = ClampProbeBoxSize(size);
+            const MATH::Vec3 halfSize = safeSize * 0.5f;
+            outMin = {
+                center.x - halfSize.x,
+                center.y - halfSize.y,
+                center.z - halfSize.z,
+                0.0f
+            };
+            outMax = {
+                center.x + halfSize.x,
+                center.y + halfSize.y,
+                center.z + halfSize.z,
+                0.0f
+            };
+        }
+
+        float InfluenceShapeValue(REFLECTION::RuntimeReflectionProbeInfluenceShape shape) {
+            return shape == REFLECTION::RuntimeReflectionProbeInfluenceShape::Box ? 1.0f : 0.0f;
+        }
+
+        float ProjectionShapeValue(REFLECTION::RuntimeReflectionProbeProjectionShape shape) {
+            return shape == REFLECTION::RuntimeReflectionProbeProjectionShape::Box ? 1.0f : 0.0f;
+        }
+    }
+
     void FillLightCB(const SceneEnvironment& environment, LightCB& out, MeshRendererDebugStats& stats) {
         out = {};
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
@@ -162,6 +203,22 @@ namespace HIKARI::MESHRENDERER {
             0.0f,
             0.0f,
             0.0f
+        };
+        WriteProbeBoxMinMax(
+            probeData.influenceBoxCenter,
+            probeData.influenceBoxSize,
+            out.reflectionProbeInfluenceBoxMin,
+            out.reflectionProbeInfluenceBoxMax);
+        WriteProbeBoxMinMax(
+            probeData.projectionBoxCenter,
+            probeData.projectionBoxSize,
+            out.reflectionProbeProjectionBoxMin,
+            out.reflectionProbeProjectionBoxMax);
+        out.reflectionProbeShapeParams = {
+            InfluenceShapeValue(probeData.influenceShape),
+            ProjectionShapeValue(probeData.projectionShape),
+            std::max(0.0f, probeData.blendDistance),
+            static_cast<float>(probeData.priority)
         };
         out.aoParams = {
             environment.ambientOcclusion.enabled ? 1.0f : 0.0f,

@@ -130,7 +130,23 @@ namespace HIKARI {
                 before.sourceCubemapAsset != after.sourceCubemapAsset ||
                 !EqualVec3(before.position, after.position) ||
                 before.radius != after.radius ||
-                before.intensity != after.intensity;
+                before.intensity != after.intensity ||
+                before.influenceShape != after.influenceShape ||
+                before.projectionShape != after.projectionShape ||
+                !EqualVec3(before.influenceBoxCenter, after.influenceBoxCenter) ||
+                !EqualVec3(before.influenceBoxSize, after.influenceBoxSize) ||
+                !EqualVec3(before.projectionBoxCenter, after.projectionBoxCenter) ||
+                !EqualVec3(before.projectionBoxSize, after.projectionBoxSize) ||
+                before.blendDistance != after.blendDistance ||
+                before.priority != after.priority;
+        }
+
+        const char* ReflectionProbeInfluenceShapeName(ReflectionProbeInfluenceShape shape) {
+            return shape == ReflectionProbeInfluenceShape::Box ? "Box" : "Sphere";
+        }
+
+        const char* ReflectionProbeProjectionShapeName(ReflectionProbeProjectionShape shape) {
+            return shape == ReflectionProbeProjectionShape::Box ? "Box" : "Infinite";
         }
 
         const char* ProbeFaceName(uint32_t faceIndex) {
@@ -839,6 +855,14 @@ namespace HIKARI {
             deps.reflectionProbePosition = environment_.reflectionProbe.position;
             deps.reflectionProbeRadius = environment_.reflectionProbe.radius;
             deps.reflectionProbeIntensity = environment_.reflectionProbe.intensity;
+            deps.reflectionProbeInfluenceShape = environment_.reflectionProbe.influenceShape;
+            deps.reflectionProbeProjectionShape = environment_.reflectionProbe.projectionShape;
+            deps.reflectionProbeInfluenceBoxCenter = environment_.reflectionProbe.influenceBoxCenter;
+            deps.reflectionProbeInfluenceBoxSize = environment_.reflectionProbe.influenceBoxSize;
+            deps.reflectionProbeProjectionBoxCenter = environment_.reflectionProbe.projectionBoxCenter;
+            deps.reflectionProbeProjectionBoxSize = environment_.reflectionProbe.projectionBoxSize;
+            deps.reflectionProbeBlendDistance = environment_.reflectionProbe.blendDistance;
+            deps.reflectionProbePriority = environment_.reflectionProbe.priority;
         }
         LightProbeVolumeSettings lightProbe = sceneDocument_.lightingBake.lightProbeVolume;
         ClampLightProbeVolumeSettings(lightProbe);
@@ -1083,6 +1107,14 @@ namespace HIKARI {
         job->request.position = environment_.reflectionProbe.position;
         job->request.radius = environment_.reflectionProbe.radius;
         job->request.intensity = environment_.reflectionProbe.intensity;
+        job->request.influenceShape = ReflectionProbeInfluenceShapeName(environment_.reflectionProbe.influenceShape);
+        job->request.influenceBoxCenter = environment_.reflectionProbe.influenceBoxCenter;
+        job->request.influenceBoxSize = environment_.reflectionProbe.influenceBoxSize;
+        job->request.projectionShape = ReflectionProbeProjectionShapeName(environment_.reflectionProbe.projectionShape);
+        job->request.projectionBoxCenter = environment_.reflectionProbe.projectionBoxCenter;
+        job->request.projectionBoxSize = environment_.reflectionProbe.projectionBoxSize;
+        job->request.blendDistance = environment_.reflectionProbe.blendDistance;
+        job->request.priority = environment_.reflectionProbe.priority;
         job->request.resolution = 128;
         job->request.prefilteredMipCount = 7;
         job->request.prefilteredSampleCount = 128;

@@ -96,6 +96,11 @@ cbuffer SkyEnvironmentCB : register(b5)
     float4 gReflectionProbePositionRadius;
     float4 gReflectionProbeParams;
     float4 gReflectionProbeIntensity;
+    float4 gReflectionProbeInfluenceBoxMin;
+    float4 gReflectionProbeInfluenceBoxMax;
+    float4 gReflectionProbeProjectionBoxMin;
+    float4 gReflectionProbeProjectionBoxMax;
+    float4 gReflectionProbeShapeParams;
     float4 gAoParams;
     float4 gLightProbeVolumeOrigin;
     float4 gLightProbeVolumeSpacing;
@@ -123,6 +128,10 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gReflectionProbeHasBrdfLut gReflectionProbeParams.z
 #define gReflectionProbeMipCount gReflectionProbeParams.w
 #define gReflectionProbeSpecularIntensity gReflectionProbeIntensity.x
+#define gReflectionProbeInfluenceShape gReflectionProbeShapeParams.x
+#define gReflectionProbeProjectionShape gReflectionProbeShapeParams.y
+#define gReflectionProbeBlendDistance gReflectionProbeShapeParams.z
+#define gReflectionProbePriority gReflectionProbeShapeParams.w
 #define gSsaoEnabled gAoParams.x
 #define gSsaoDiffuseStrength gAoParams.y
 #define gSsaoSpecularStrength gAoParams.z

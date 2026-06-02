@@ -90,6 +90,11 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 reflectionProbePositionRadius{};
         MATH::Vec4 reflectionProbeParams{};
         MATH::Vec4 reflectionProbeIntensity{};
+        MATH::Vec4 reflectionProbeInfluenceBoxMin{};
+        MATH::Vec4 reflectionProbeInfluenceBoxMax{};
+        MATH::Vec4 reflectionProbeProjectionBoxMin{};
+        MATH::Vec4 reflectionProbeProjectionBoxMax{};
+        MATH::Vec4 reflectionProbeShapeParams{};
         MATH::Vec4 aoParams{};
         MATH::Vec4 lightProbeVolumeOrigin{};
         MATH::Vec4 lightProbeVolumeSpacing{};

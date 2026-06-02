@@ -7,6 +7,7 @@
 
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 
 namespace HIKARI {
 
@@ -24,6 +25,16 @@ namespace HIKARI {
             MATH::Vec3 reflectionProbePosition{ 0.0f, 2.0f, 0.0f };
             float reflectionProbeRadius = 8.0f;
             float reflectionProbeIntensity = 1.0f;
+            REFLECTION::RuntimeReflectionProbeInfluenceShape reflectionProbeInfluenceShape =
+                REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
+            REFLECTION::RuntimeReflectionProbeProjectionShape reflectionProbeProjectionShape =
+                REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
+            MATH::Vec3 reflectionProbeInfluenceBoxCenter{ 0.0f, 2.0f, 0.0f };
+            MATH::Vec3 reflectionProbeInfluenceBoxSize{ 8.0f, 4.0f, 8.0f };
+            MATH::Vec3 reflectionProbeProjectionBoxCenter{ 0.0f, 2.0f, 0.0f };
+            MATH::Vec3 reflectionProbeProjectionBoxSize{ 8.0f, 4.0f, 8.0f };
+            float reflectionProbeBlendDistance = 1.0f;
+            int reflectionProbePriority = 0;
             bool lightProbeVolumeEnabled = false;
             float lightProbeVolumeIntensity = 1.0f;
             bool allowAuthoringReflectionProbeFallback = true;

@@ -10,6 +10,7 @@
 #include "Render3D/Lighting/HIKARI_LightingRuntimeLoader.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/Components/HIKARI_IComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -67,6 +68,22 @@ namespace HIKARI {
                 return;
             }
         }
+
+        REFLECTION::RuntimeReflectionProbeInfluenceShape ToRuntimeInfluenceShape(
+            ReflectionProbeInfluenceShape shape) {
+
+            return shape == ReflectionProbeInfluenceShape::Box
+                ? REFLECTION::RuntimeReflectionProbeInfluenceShape::Box
+                : REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
+        }
+
+        REFLECTION::RuntimeReflectionProbeProjectionShape ToRuntimeProjectionShape(
+            ReflectionProbeProjectionShape shape) {
+
+            return shape == ReflectionProbeProjectionShape::Box
+                ? REFLECTION::RuntimeReflectionProbeProjectionShape::Box
+                : REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
+        }
     }
 
     SceneDependencySet SceneRuntimeBuilder::CollectDependencies(const SceneDocument& document) const {
@@ -82,6 +99,14 @@ namespace HIKARI {
             deps.reflectionProbePosition = document.environment.reflectionProbe.position;
             deps.reflectionProbeRadius = document.environment.reflectionProbe.radius;
             deps.reflectionProbeIntensity = document.environment.reflectionProbe.intensity;
+            deps.reflectionProbeInfluenceShape = document.environment.reflectionProbe.influenceShape;
+            deps.reflectionProbeProjectionShape = document.environment.reflectionProbe.projectionShape;
+            deps.reflectionProbeInfluenceBoxCenter = document.environment.reflectionProbe.influenceBoxCenter;
+            deps.reflectionProbeInfluenceBoxSize = document.environment.reflectionProbe.influenceBoxSize;
+            deps.reflectionProbeProjectionBoxCenter = document.environment.reflectionProbe.projectionBoxCenter;
+            deps.reflectionProbeProjectionBoxSize = document.environment.reflectionProbe.projectionBoxSize;
+            deps.reflectionProbeBlendDistance = document.environment.reflectionProbe.blendDistance;
+            deps.reflectionProbePriority = document.environment.reflectionProbe.priority;
         }
         LightProbeVolumeSettings lightProbe = document.lightingBake.lightProbeVolume;
         ClampLightProbeVolumeSettings(lightProbe);
@@ -151,6 +176,14 @@ namespace HIKARI {
         request.reflectionProbePosition = dependencies.reflectionProbePosition;
         request.reflectionProbeRadius = dependencies.reflectionProbeRadius;
         request.reflectionProbeIntensity = dependencies.reflectionProbeIntensity;
+        request.reflectionProbeInfluenceShape = ToRuntimeInfluenceShape(dependencies.reflectionProbeInfluenceShape);
+        request.reflectionProbeProjectionShape = ToRuntimeProjectionShape(dependencies.reflectionProbeProjectionShape);
+        request.reflectionProbeInfluenceBoxCenter = dependencies.reflectionProbeInfluenceBoxCenter;
+        request.reflectionProbeInfluenceBoxSize = dependencies.reflectionProbeInfluenceBoxSize;
+        request.reflectionProbeProjectionBoxCenter = dependencies.reflectionProbeProjectionBoxCenter;
+        request.reflectionProbeProjectionBoxSize = dependencies.reflectionProbeProjectionBoxSize;
+        request.reflectionProbeBlendDistance = dependencies.reflectionProbeBlendDistance;
+        request.reflectionProbePriority = dependencies.reflectionProbePriority;
         request.lightProbeVolumeEnabled = dependencies.lightProbeVolumeEnabled;
         request.lightProbeVolumeIntensity = dependencies.lightProbeVolumeIntensity;
 

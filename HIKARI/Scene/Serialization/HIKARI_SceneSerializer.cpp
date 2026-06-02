@@ -74,6 +74,61 @@ namespace HIKARI {
             return fallback;
         }
 
+        const char* ToString(ReflectionProbeInfluenceShape shape) {
+            switch (shape) {
+            case ReflectionProbeInfluenceShape::Box: return "Box";
+            case ReflectionProbeInfluenceShape::Sphere:
+            default: return "Sphere";
+            }
+        }
+
+        const char* ToString(ReflectionProbeProjectionShape shape) {
+            switch (shape) {
+            case ReflectionProbeProjectionShape::Box: return "Box";
+            case ReflectionProbeProjectionShape::Infinite:
+            default: return "Infinite";
+            }
+        }
+
+        ReflectionProbeInfluenceShape ParseReflectionProbeInfluenceShape(
+            const json& in,
+            ReflectionProbeInfluenceShape fallback) {
+
+            if (in.is_number_integer()) {
+                const int value = in.get<int>();
+                return value == 1 ? ReflectionProbeInfluenceShape::Box : fallback;
+            }
+            if (!in.is_string()) {
+                return fallback;
+            }
+            const std::string value = in.get<std::string>();
+            if (value == "Box") return ReflectionProbeInfluenceShape::Box;
+            if (value == "Sphere") return ReflectionProbeInfluenceShape::Sphere;
+            return fallback;
+        }
+
+        ReflectionProbeProjectionShape ParseReflectionProbeProjectionShape(
+            const json& in,
+            ReflectionProbeProjectionShape fallback) {
+
+            if (in.is_number_integer()) {
+                const int value = in.get<int>();
+                return value == 1 ? ReflectionProbeProjectionShape::Box : fallback;
+            }
+            if (!in.is_string()) {
+                return fallback;
+            }
+            const std::string value = in.get<std::string>();
+            if (value == "Box") return ReflectionProbeProjectionShape::Box;
+            if (value == "Infinite") return ReflectionProbeProjectionShape::Infinite;
+            return fallback;
+        }
+
+        MATH::Vec3 ReflectionProbeRadiusBoxSize(float radius) {
+            const float diameter = std::max(0.01f, radius * 2.0f);
+            return { diameter, diameter, diameter };
+        }
+
         void SerializeEnvironment(const SceneEnvironment& environment, json& out) {
             out["ambient"]["color"] = ToVec3(environment.ambient.color);
             out["ambient"]["intensity"] = environment.ambient.intensity;
@@ -135,6 +190,14 @@ namespace HIKARI {
             out["reflectionProbe"]["position"] = ToVec3(environment.reflectionProbe.position);
             out["reflectionProbe"]["radius"] = environment.reflectionProbe.radius;
             out["reflectionProbe"]["intensity"] = environment.reflectionProbe.intensity;
+            out["reflectionProbe"]["influenceShape"] = ToString(environment.reflectionProbe.influenceShape);
+            out["reflectionProbe"]["influenceBoxCenter"] = ToVec3(environment.reflectionProbe.influenceBoxCenter);
+            out["reflectionProbe"]["influenceBoxSize"] = ToVec3(environment.reflectionProbe.influenceBoxSize);
+            out["reflectionProbe"]["projectionShape"] = ToString(environment.reflectionProbe.projectionShape);
+            out["reflectionProbe"]["projectionBoxCenter"] = ToVec3(environment.reflectionProbe.projectionBoxCenter);
+            out["reflectionProbe"]["projectionBoxSize"] = ToVec3(environment.reflectionProbe.projectionBoxSize);
+            out["reflectionProbe"]["blendDistance"] = environment.reflectionProbe.blendDistance;
+            out["reflectionProbe"]["priority"] = environment.reflectionProbe.priority;
 
             out["ambientOcclusion"]["enabled"] = environment.ambientOcclusion.enabled;
             out["ambientOcclusion"]["radius"] = environment.ambientOcclusion.radius;
@@ -258,6 +321,33 @@ namespace HIKARI {
                 environment.reflectionProbe.position = FromVec3(probe.value("position", json::array()), environment.reflectionProbe.position);
                 environment.reflectionProbe.radius = probe.value("radius", environment.reflectionProbe.radius);
                 environment.reflectionProbe.intensity = probe.value("intensity", environment.reflectionProbe.intensity);
+                environment.reflectionProbe.influenceShape = ParseReflectionProbeInfluenceShape(
+                    probe.value("influenceShape", json{}),
+                    environment.reflectionProbe.influenceShape);
+                environment.reflectionProbe.projectionShape = ParseReflectionProbeProjectionShape(
+                    probe.value("projectionShape", json{}),
+                    environment.reflectionProbe.projectionShape);
+
+                const MATH::Vec3 radiusBoxSize = ReflectionProbeRadiusBoxSize(environment.reflectionProbe.radius);
+                const bool hasInfluenceBoxCenter = probe.contains("influenceBoxCenter");
+                const bool hasInfluenceBoxSize = probe.contains("influenceBoxSize");
+                const bool hasProjectionBoxCenter = probe.contains("projectionBoxCenter");
+                const bool hasProjectionBoxSize = probe.contains("projectionBoxSize");
+
+                environment.reflectionProbe.influenceBoxCenter = FromVec3(
+                    probe.value("influenceBoxCenter", json::array()),
+                    hasInfluenceBoxCenter ? environment.reflectionProbe.influenceBoxCenter : environment.reflectionProbe.position);
+                environment.reflectionProbe.influenceBoxSize = FromVec3(
+                    probe.value("influenceBoxSize", json::array()),
+                    hasInfluenceBoxSize ? environment.reflectionProbe.influenceBoxSize : radiusBoxSize);
+                environment.reflectionProbe.projectionBoxCenter = FromVec3(
+                    probe.value("projectionBoxCenter", json::array()),
+                    hasProjectionBoxCenter ? environment.reflectionProbe.projectionBoxCenter : environment.reflectionProbe.position);
+                environment.reflectionProbe.projectionBoxSize = FromVec3(
+                    probe.value("projectionBoxSize", json::array()),
+                    hasProjectionBoxSize ? environment.reflectionProbe.projectionBoxSize : radiusBoxSize);
+                environment.reflectionProbe.blendDistance = probe.value("blendDistance", environment.reflectionProbe.blendDistance);
+                environment.reflectionProbe.priority = probe.value("priority", environment.reflectionProbe.priority);
             }
 
             if (in.contains("ambientOcclusion") && in["ambientOcclusion"].is_object()) {

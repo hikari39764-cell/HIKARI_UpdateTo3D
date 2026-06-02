@@ -161,6 +161,113 @@ float3 HikariBlendLightProbeDiffuse(float3 fallbackDiffuse, float3 worldPos, flo
     return lerp(fallbackDiffuse, localDiffuse, saturate(gLightProbeIntensity));
 }
 
+float HikariSmoothProbeWeight(float value)
+{
+    value = saturate(value);
+    return value * value * (3.0f - 2.0f * value);
+}
+
+float HikariEvaluateSphereReflectionProbeInfluence(float3 worldPos)
+{
+    float radius = max(0.001f, gReflectionProbeRadius);
+    float blendDistance = min(max(0.001f, gReflectionProbeBlendDistance), radius);
+    float dist = length(worldPos - gReflectionProbePosition);
+    return HikariSmoothProbeWeight((radius - dist) / blendDistance);
+}
+
+float HikariEvaluateBoxReflectionProbeInfluence(float3 worldPos)
+{
+    if (any(worldPos < gReflectionProbeInfluenceBoxMin.xyz) ||
+        any(worldPos > gReflectionProbeInfluenceBoxMax.xyz))
+    {
+        return 0.0f;
+    }
+
+    float3 toMin = worldPos - gReflectionProbeInfluenceBoxMin.xyz;
+    float3 toMax = gReflectionProbeInfluenceBoxMax.xyz - worldPos;
+    float edgeDistance = min(min(toMin.x, toMin.y), toMin.z);
+    edgeDistance = min(edgeDistance, min(min(toMax.x, toMax.y), toMax.z));
+
+    float3 boxSize = max(
+        gReflectionProbeInfluenceBoxMax.xyz - gReflectionProbeInfluenceBoxMin.xyz,
+        0.001f.xxx);
+    float halfMinSize = max(0.001f, min(min(boxSize.x, boxSize.y), boxSize.z) * 0.5f);
+    float blendDistance = min(max(0.001f, gReflectionProbeBlendDistance), halfMinSize);
+    return HikariSmoothProbeWeight(edgeDistance / blendDistance);
+}
+
+float HikariEvaluateReflectionProbeInfluence(float3 worldPos)
+{
+    float influence = (gReflectionProbeInfluenceShape > 0.5f)
+        ? HikariEvaluateBoxReflectionProbeInfluence(worldPos)
+        : HikariEvaluateSphereReflectionProbeInfluence(worldPos);
+    return saturate(influence * max(0.0f, gReflectionProbeSpecularIntensity));
+}
+
+float3 HikariSafeProbeDirection(float3 dir)
+{
+    float lenSq = dot(dir, dir);
+    return (lenSq > 1e-8f) ? (dir * rsqrt(lenSq)) : float3(0.0f, 1.0f, 0.0f);
+}
+
+float3 HikariSafeRayDirection(float3 dir)
+{
+    return float3(
+        (abs(dir.x) > 1e-5f) ? dir.x : ((dir.x < 0.0f) ? -1e-5f : 1e-5f),
+        (abs(dir.y) > 1e-5f) ? dir.y : ((dir.y < 0.0f) ? -1e-5f : 1e-5f),
+        (abs(dir.z) > 1e-5f) ? dir.z : ((dir.z < 0.0f) ? -1e-5f : 1e-5f)
+    );
+}
+
+bool HikariRayIntersectsBox(
+    float3 origin,
+    float3 dir,
+    float3 boxMin,
+    float3 boxMax,
+    out float hitT)
+{
+    float3 safeDir = HikariSafeRayDirection(dir);
+    float3 t0 = (boxMin - origin) / safeDir;
+    float3 t1 = (boxMax - origin) / safeDir;
+    float3 tNear3 = min(t0, t1);
+    float3 tFar3 = max(t0, t1);
+
+    float tNear = max(max(tNear3.x, tNear3.y), tNear3.z);
+    float tFar = min(min(tFar3.x, tFar3.y), tFar3.z);
+    bool inside = all(origin >= boxMin) && all(origin <= boxMax);
+    hitT = inside ? tFar : tNear;
+    return tFar >= max(tNear, 0.0f) && hitT >= 0.0f;
+}
+
+float3 HikariComputeReflectionProbeSampleDirection(float3 worldPos, float3 reflectionDir)
+{
+    if (gReflectionProbeProjectionShape < 0.5f)
+    {
+        return reflectionDir;
+    }
+
+    float3 boxSize = gReflectionProbeProjectionBoxMax.xyz - gReflectionProbeProjectionBoxMin.xyz;
+    if (any(boxSize <= 0.001f.xxx))
+    {
+        return reflectionDir;
+    }
+
+    float hitT = 0.0f;
+    if (!HikariRayIntersectsBox(
+        worldPos,
+        reflectionDir,
+        gReflectionProbeProjectionBoxMin.xyz,
+        gReflectionProbeProjectionBoxMax.xyz,
+        hitT))
+    {
+        return reflectionDir;
+    }
+
+    // Box Projection は cubemap の捕獲位置から hit 点へ向けて補正する。
+    float3 hitPos = worldPos + reflectionDir * hitT;
+    return HikariSafeProbeDirection(hitPos - gReflectionProbePosition);
+}
+
 float3 HikariEvaluateAmbientIblApprox(
     float3 baseColor,
     float metallic,
@@ -289,16 +396,13 @@ float3 HikariEvaluateAmbientIbl(
         float3 specular = skySpecular;
         if (hasLocalProbe)
         {
-            float3 r = normalize(reflect(-v, n));
-            float probeRadius = max(0.001f, gReflectionProbeRadius);
-            float dist = length(worldPos - gReflectionProbePosition);
-            float probeInfluence = saturate(1.0f - dist / probeRadius);
-            probeInfluence = probeInfluence * probeInfluence * (3.0f - 2.0f * probeInfluence);
-            probeInfluence = saturate(probeInfluence * max(0.0f, gReflectionProbeSpecularIntensity));
+            float3 r = HikariSafeProbeDirection(reflect(-v, n));
+            float3 probeDir = HikariComputeReflectionProbeSampleDirection(worldPos, r);
+            float probeInfluence = HikariEvaluateReflectionProbeInfluence(worldPos);
 
             float probeMipCount = max(1.0f, gReflectionProbeMipCount);
             float probeMip = roughness * (probeMipCount - 1.0f);
-            float3 probePrefiltered = gReflectionProbePrefilteredTex.SampleLevel(gLinearWrap, r, probeMip).rgb;
+            float3 probePrefiltered = gReflectionProbePrefilteredTex.SampleLevel(gLinearWrap, probeDir, probeMip).rgb;
             float3 probeSpecular = probePrefiltered * F;
             if (gReflectionProbeHasBrdfLut > 0.5f)
             {

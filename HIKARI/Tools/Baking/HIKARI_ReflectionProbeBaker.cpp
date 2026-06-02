@@ -266,6 +266,14 @@ namespace HIKARI::TOOLS::BAKING {
         result.record.position = request.position;
         result.record.radius = request.radius;
         result.record.intensity = request.intensity;
+        result.record.influenceShape = request.influenceShape;
+        result.record.influenceBoxCenter = request.influenceBoxCenter;
+        result.record.influenceBoxSize = request.influenceBoxSize;
+        result.record.projectionShape = request.projectionShape;
+        result.record.projectionBoxCenter = request.projectionBoxCenter;
+        result.record.projectionBoxSize = request.projectionBoxSize;
+        result.record.blendDistance = request.blendDistance;
+        result.record.priority = request.priority;
         result.record.captureCubemapPath =
             MakeProjectRelativeString(request.projectRoot, result.capturePath);
         result.record.prefilteredCubemapPath =
@@ -273,6 +281,24 @@ namespace HIKARI::TOOLS::BAKING {
         result.record.brdfLutPath =
             MakeProjectRelativeString(request.projectRoot, result.brdfLutPath);
         result.record.prefilteredMipCount = mipCount;
+        result.messages.push_back("Reflection probe influenceShape=" + result.record.influenceShape);
+        result.messages.push_back("Reflection probe projectionShape=" + result.record.projectionShape);
+        result.messages.push_back(
+            "Influence box center/size=" +
+            std::to_string(result.record.influenceBoxCenter.x) + "," +
+            std::to_string(result.record.influenceBoxCenter.y) + "," +
+            std::to_string(result.record.influenceBoxCenter.z) + " / " +
+            std::to_string(result.record.influenceBoxSize.x) + "," +
+            std::to_string(result.record.influenceBoxSize.y) + "," +
+            std::to_string(result.record.influenceBoxSize.z));
+        result.messages.push_back(
+            "Projection box center/size=" +
+            std::to_string(result.record.projectionBoxCenter.x) + "," +
+            std::to_string(result.record.projectionBoxCenter.y) + "," +
+            std::to_string(result.record.projectionBoxCenter.z) + " / " +
+            std::to_string(result.record.projectionBoxSize.x) + "," +
+            std::to_string(result.record.projectionBoxSize.y) + "," +
+            std::to_string(result.record.projectionBoxSize.z));
 
         result.success = true;
         HIKARI_LOG_INFO("[ReflectionProbeBaker] baked single probe scene=" +

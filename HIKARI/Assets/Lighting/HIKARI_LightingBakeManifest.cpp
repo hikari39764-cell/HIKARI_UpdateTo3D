@@ -1,5 +1,6 @@
 #include "HIKARI_LightingBakeManifest.h"
 
+#include <algorithm>
 #include <fstream>
 #include <utility>
 
@@ -33,6 +34,19 @@ namespace HIKARI::ASSETS::LIGHTING {
             return MATH::Vec3{};
         }
 
+        std::string NormalizeInfluenceShape(std::string value) {
+            return value == "Box" ? "Box" : "Sphere";
+        }
+
+        std::string NormalizeProjectionShape(std::string value) {
+            return value == "Box" ? "Box" : "Infinite";
+        }
+
+        MATH::Vec3 RadiusBoxSize(float radius) {
+            const float diameter = std::max(0.01f, radius * 2.0f);
+            return { diameter, diameter, diameter };
+        }
+
         ReflectionProbeBakeRecord ReadReflectionProbe(const nlohmann::json& node) {
             ReflectionProbeBakeRecord record{};
             if (!node.is_object()) {
@@ -44,6 +58,22 @@ namespace HIKARI::ASSETS::LIGHTING {
             record.position = ReadVec3(node.value("position", nlohmann::json::array()));
             record.radius = node.value("radius", 0.0f);
             record.intensity = node.value("intensity", 1.0f);
+            record.influenceShape = NormalizeInfluenceShape(node.value("influenceShape", std::string{ "Sphere" }));
+            record.influenceBoxCenter = node.contains("influenceBoxCenter")
+                ? ReadVec3(node["influenceBoxCenter"])
+                : record.position;
+            record.influenceBoxSize = node.contains("influenceBoxSize")
+                ? ReadVec3(node["influenceBoxSize"])
+                : RadiusBoxSize(record.radius);
+            record.projectionShape = NormalizeProjectionShape(node.value("projectionShape", std::string{ "Infinite" }));
+            record.projectionBoxCenter = node.contains("projectionBoxCenter")
+                ? ReadVec3(node["projectionBoxCenter"])
+                : record.position;
+            record.projectionBoxSize = node.contains("projectionBoxSize")
+                ? ReadVec3(node["projectionBoxSize"])
+                : RadiusBoxSize(record.radius);
+            record.blendDistance = node.value("blendDistance", 1.0f);
+            record.priority = node.value("priority", 0);
             record.captureCubemapPath = node.value("captureCubemapPath", std::string{});
             record.prefilteredCubemapPath = node.value("prefilteredCubemapPath", std::string{});
             record.brdfLutPath = node.value("brdfLutPath", std::string{});
@@ -92,6 +122,14 @@ namespace HIKARI::ASSETS::LIGHTING {
                 { "position", ToJson(record.position) },
                 { "radius", record.radius },
                 { "intensity", record.intensity },
+                { "influenceShape", NormalizeInfluenceShape(record.influenceShape) },
+                { "influenceBoxCenter", ToJson(record.influenceBoxCenter) },
+                { "influenceBoxSize", ToJson(record.influenceBoxSize) },
+                { "projectionShape", NormalizeProjectionShape(record.projectionShape) },
+                { "projectionBoxCenter", ToJson(record.projectionBoxCenter) },
+                { "projectionBoxSize", ToJson(record.projectionBoxSize) },
+                { "blendDistance", record.blendDistance },
+                { "priority", record.priority },
                 { "captureCubemapPath", record.captureCubemapPath },
                 { "prefilteredCubemapPath", record.prefilteredCubemapPath },
                 { "brdfLutPath", record.brdfLutPath },

@@ -122,7 +122,59 @@ namespace HIKARI {
                 lhs.sourceCubemapAsset == rhs.sourceCubemapAsset &&
                 EqualVec3(lhs.position, rhs.position) &&
                 lhs.radius == rhs.radius &&
-                lhs.intensity == rhs.intensity;
+                lhs.intensity == rhs.intensity &&
+                lhs.influenceShape == rhs.influenceShape &&
+                EqualVec3(lhs.influenceBoxCenter, rhs.influenceBoxCenter) &&
+                EqualVec3(lhs.influenceBoxSize, rhs.influenceBoxSize) &&
+                lhs.projectionShape == rhs.projectionShape &&
+                EqualVec3(lhs.projectionBoxCenter, rhs.projectionBoxCenter) &&
+                EqualVec3(lhs.projectionBoxSize, rhs.projectionBoxSize) &&
+                lhs.blendDistance == rhs.blendDistance &&
+                lhs.priority == rhs.priority;
+        }
+
+        MATH::Vec3 ReflectionProbeRadiusBoxSize(float radius) {
+            const float diameter = (std::max)(0.01f, radius * 2.0f);
+            return { diameter, diameter, diameter };
+        }
+
+        void ClampReflectionProbeBoxSize(MATH::Vec3& size) {
+            size.x = (std::max)(0.001f, size.x);
+            size.y = (std::max)(0.001f, size.y);
+            size.z = (std::max)(0.001f, size.z);
+        }
+
+        void FitReflectionProbeBoxFromRadius(MATH::Vec3& center, MATH::Vec3& size, const ReflectionProbeSettings& probe) {
+            center = probe.position;
+            size = ReflectionProbeRadiusBoxSize(probe.radius);
+        }
+
+        const char* ReflectionProbeInfluenceShapeName(ReflectionProbeInfluenceShape shape) {
+            return shape == ReflectionProbeInfluenceShape::Box ? "Box" : "Sphere";
+        }
+
+        const char* ReflectionProbeProjectionShapeName(ReflectionProbeProjectionShape shape) {
+            return shape == ReflectionProbeProjectionShape::Box ? "Box" : "Infinite";
+        }
+
+        bool DrawReflectionProbeInfluenceShapeCombo(ReflectionProbeInfluenceShape& shape) {
+            const char* names[] = { "Sphere", "Box" };
+            int index = shape == ReflectionProbeInfluenceShape::Box ? 1 : 0;
+            if (!ImGui::Combo("Influence Shape", &index, names, static_cast<int>(std::size(names)))) {
+                return false;
+            }
+            shape = index == 1 ? ReflectionProbeInfluenceShape::Box : ReflectionProbeInfluenceShape::Sphere;
+            return true;
+        }
+
+        bool DrawReflectionProbeProjectionShapeCombo(ReflectionProbeProjectionShape& shape) {
+            const char* names[] = { "Infinite", "Box" };
+            int index = shape == ReflectionProbeProjectionShape::Box ? 1 : 0;
+            if (!ImGui::Combo("Projection Shape", &index, names, static_cast<int>(std::size(names)))) {
+                return false;
+            }
+            shape = index == 1 ? ReflectionProbeProjectionShape::Box : ReflectionProbeProjectionShape::Infinite;
+            return true;
         }
 
         bool EqualAmbientOcclusionSettings(const AmbientOcclusionSettings& lhs, const AmbientOcclusionSettings& rhs) {
@@ -806,11 +858,61 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Reflection Probe")) {
-            ImGui::Checkbox("Enabled", &environment.reflectionProbe.enabled);
-            DrawReflectionProbeAssetPicker(assetRegistry, assetDatabase, environment.reflectionProbe.sourceCubemapAsset);
-            ImGui::DragFloat3("Position", &environment.reflectionProbe.position.x, 0.02f);
-            ImGui::DragFloat("Radius", &environment.reflectionProbe.radius, 0.05f, 0.01f, 500.0f);
-            ImGui::DragFloat("Intensity", &environment.reflectionProbe.intensity, 0.01f, 0.0f, 8.0f);
+            ReflectionProbeSettings& probe = environment.reflectionProbe;
+            ImGui::Checkbox("Enabled", &probe.enabled);
+            DrawReflectionProbeAssetPicker(assetRegistry, assetDatabase, probe.sourceCubemapAsset);
+            ImGui::DragFloat3("Position", &probe.position.x, 0.02f);
+            ImGui::DragFloat("Radius", &probe.radius, 0.05f, 0.01f, 500.0f);
+            probe.radius = (std::max)(0.01f, probe.radius);
+            ImGui::DragFloat("Intensity", &probe.intensity, 0.01f, 0.0f, 8.0f);
+            probe.intensity = (std::max)(0.0f, probe.intensity);
+
+            const ReflectionProbeInfluenceShape previousInfluenceShape = probe.influenceShape;
+            if (DrawReflectionProbeInfluenceShapeCombo(probe.influenceShape) &&
+                previousInfluenceShape != ReflectionProbeInfluenceShape::Box &&
+                probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
+                // Shape 変更時は sphere 設定から box 初期値を作る。
+                FitReflectionProbeBoxFromRadius(probe.influenceBoxCenter, probe.influenceBoxSize, probe);
+            }
+            if (probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
+                ImGui::DragFloat3("Influence Box Center", &probe.influenceBoxCenter.x, 0.02f);
+                ImGui::DragFloat3("Influence Box Size", &probe.influenceBoxSize.x, 0.02f, 0.001f, 1000.0f);
+                ClampReflectionProbeBoxSize(probe.influenceBoxSize);
+            } else {
+                ImGui::TextDisabled("Influence Shape: %s radius %.2f",
+                    ReflectionProbeInfluenceShapeName(probe.influenceShape),
+                    probe.radius);
+            }
+
+            const ReflectionProbeProjectionShape previousProjectionShape = probe.projectionShape;
+            if (DrawReflectionProbeProjectionShapeCombo(probe.projectionShape) &&
+                previousProjectionShape != ReflectionProbeProjectionShape::Box &&
+                probe.projectionShape == ReflectionProbeProjectionShape::Box) {
+                // Projection proxy も capture 位置から初期化する。
+                FitReflectionProbeBoxFromRadius(probe.projectionBoxCenter, probe.projectionBoxSize, probe);
+            }
+            if (probe.projectionShape == ReflectionProbeProjectionShape::Box) {
+                ImGui::DragFloat3("Projection Box Center", &probe.projectionBoxCenter.x, 0.02f);
+                ImGui::DragFloat3("Projection Box Size", &probe.projectionBoxSize.x, 0.02f, 0.001f, 1000.0f);
+                ClampReflectionProbeBoxSize(probe.projectionBoxSize);
+            } else {
+                ImGui::TextDisabled("Projection Shape: %s",
+                    ReflectionProbeProjectionShapeName(probe.projectionShape));
+            }
+
+            ImGui::DragFloat("Blend Distance", &probe.blendDistance, 0.02f, 0.0f, 500.0f);
+            probe.blendDistance = (std::max)(0.0f, probe.blendDistance);
+            ImGui::DragInt("Priority", &probe.priority, 1.0f, -1000, 1000);
+
+            if (ImGui::Button("Copy Position To Boxes")) {
+                probe.influenceBoxCenter = probe.position;
+                probe.projectionBoxCenter = probe.position;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Fit Boxes From Radius")) {
+                probe.influenceBoxSize = ReflectionProbeRadiusBoxSize(probe.radius);
+                probe.projectionBoxSize = probe.influenceBoxSize;
+            }
             ImGui::TextDisabled("Runtime Probe: %s",
                 RENDER3D::DIAGNOSTICS::ResolveReflectionProbeSummaryLabel(runtimeSnapshot));
             ImGui::TreePop();

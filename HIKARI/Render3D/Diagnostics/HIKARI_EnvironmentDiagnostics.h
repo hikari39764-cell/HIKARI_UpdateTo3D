@@ -59,6 +59,24 @@ namespace HIKARI {
             float reflectionProbePositionX = 0.0f;
             float reflectionProbePositionY = 0.0f;
             float reflectionProbePositionZ = 0.0f;
+            std::string reflectionProbeInfluenceShape{ "Sphere" };
+            std::string reflectionProbeProjectionShape{ "Infinite" };
+            bool reflectionProbeInfluenceBoxValid = true;
+            bool reflectionProbeProjectionBoxValid = true;
+            float reflectionProbeInfluenceBoxCenterX = 0.0f;
+            float reflectionProbeInfluenceBoxCenterY = 0.0f;
+            float reflectionProbeInfluenceBoxCenterZ = 0.0f;
+            float reflectionProbeInfluenceBoxSizeX = 0.0f;
+            float reflectionProbeInfluenceBoxSizeY = 0.0f;
+            float reflectionProbeInfluenceBoxSizeZ = 0.0f;
+            float reflectionProbeProjectionBoxCenterX = 0.0f;
+            float reflectionProbeProjectionBoxCenterY = 0.0f;
+            float reflectionProbeProjectionBoxCenterZ = 0.0f;
+            float reflectionProbeProjectionBoxSizeX = 0.0f;
+            float reflectionProbeProjectionBoxSizeY = 0.0f;
+            float reflectionProbeProjectionBoxSizeZ = 0.0f;
+            float reflectionProbeBlendDistance = 0.0f;
+            int reflectionProbePriority = 0;
 
             bool lightingBakeManifestFound = false;
             std::string lightingBakeManifestPath{};

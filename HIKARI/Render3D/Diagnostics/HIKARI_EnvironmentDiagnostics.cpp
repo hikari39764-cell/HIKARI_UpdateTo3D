@@ -64,6 +64,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             float reflectionProbePositionX = 0.0f;
             float reflectionProbePositionY = 0.0f;
             float reflectionProbePositionZ = 0.0f;
+            std::string reflectionProbeInfluenceShape{ "Sphere" };
+            std::string reflectionProbeProjectionShape{ "Infinite" };
+            bool reflectionProbeInfluenceBoxValid = true;
+            bool reflectionProbeProjectionBoxValid = true;
+            float reflectionProbeInfluenceBoxCenterX = 0.0f;
+            float reflectionProbeInfluenceBoxCenterY = 0.0f;
+            float reflectionProbeInfluenceBoxCenterZ = 0.0f;
+            float reflectionProbeInfluenceBoxSizeX = 0.0f;
+            float reflectionProbeInfluenceBoxSizeY = 0.0f;
+            float reflectionProbeInfluenceBoxSizeZ = 0.0f;
+            float reflectionProbeProjectionBoxCenterX = 0.0f;
+            float reflectionProbeProjectionBoxCenterY = 0.0f;
+            float reflectionProbeProjectionBoxCenterZ = 0.0f;
+            float reflectionProbeProjectionBoxSizeX = 0.0f;
+            float reflectionProbeProjectionBoxSizeY = 0.0f;
+            float reflectionProbeProjectionBoxSizeZ = 0.0f;
+            float reflectionProbeBlendDistance = 0.0f;
+            int reflectionProbePriority = 0;
 
             bool lightingBakeManifestFound = false;
             std::string lightingBakeManifestPath{};
@@ -150,6 +168,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.reflectionProbePositionX == rhs.reflectionProbePositionX &&
                 lhs.reflectionProbePositionY == rhs.reflectionProbePositionY &&
                 lhs.reflectionProbePositionZ == rhs.reflectionProbePositionZ &&
+                lhs.reflectionProbeInfluenceShape == rhs.reflectionProbeInfluenceShape &&
+                lhs.reflectionProbeProjectionShape == rhs.reflectionProbeProjectionShape &&
+                lhs.reflectionProbeInfluenceBoxValid == rhs.reflectionProbeInfluenceBoxValid &&
+                lhs.reflectionProbeProjectionBoxValid == rhs.reflectionProbeProjectionBoxValid &&
+                lhs.reflectionProbeInfluenceBoxCenterX == rhs.reflectionProbeInfluenceBoxCenterX &&
+                lhs.reflectionProbeInfluenceBoxCenterY == rhs.reflectionProbeInfluenceBoxCenterY &&
+                lhs.reflectionProbeInfluenceBoxCenterZ == rhs.reflectionProbeInfluenceBoxCenterZ &&
+                lhs.reflectionProbeInfluenceBoxSizeX == rhs.reflectionProbeInfluenceBoxSizeX &&
+                lhs.reflectionProbeInfluenceBoxSizeY == rhs.reflectionProbeInfluenceBoxSizeY &&
+                lhs.reflectionProbeInfluenceBoxSizeZ == rhs.reflectionProbeInfluenceBoxSizeZ &&
+                lhs.reflectionProbeProjectionBoxCenterX == rhs.reflectionProbeProjectionBoxCenterX &&
+                lhs.reflectionProbeProjectionBoxCenterY == rhs.reflectionProbeProjectionBoxCenterY &&
+                lhs.reflectionProbeProjectionBoxCenterZ == rhs.reflectionProbeProjectionBoxCenterZ &&
+                lhs.reflectionProbeProjectionBoxSizeX == rhs.reflectionProbeProjectionBoxSizeX &&
+                lhs.reflectionProbeProjectionBoxSizeY == rhs.reflectionProbeProjectionBoxSizeY &&
+                lhs.reflectionProbeProjectionBoxSizeZ == rhs.reflectionProbeProjectionBoxSizeZ &&
+                lhs.reflectionProbeBlendDistance == rhs.reflectionProbeBlendDistance &&
+                lhs.reflectionProbePriority == rhs.reflectionProbePriority &&
                 lhs.lightingBakeManifestFound == rhs.lightingBakeManifestFound &&
                 lhs.lightingBakeManifestPath == rhs.lightingBakeManifestPath &&
                 lhs.bakedReflectionProbeCount == rhs.bakedReflectionProbeCount &&
@@ -191,6 +227,18 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
 
         const char* BoolText(bool value) {
             return value ? "true" : "false";
+        }
+
+        const char* ReflectionProbeInfluenceShapeText(REFLECTION::RuntimeReflectionProbeInfluenceShape shape) {
+            return shape == REFLECTION::RuntimeReflectionProbeInfluenceShape::Box ? "Box" : "Sphere";
+        }
+
+        const char* ReflectionProbeProjectionShapeText(REFLECTION::RuntimeReflectionProbeProjectionShape shape) {
+            return shape == REFLECTION::RuntimeReflectionProbeProjectionShape::Box ? "Box" : "Infinite";
+        }
+
+        bool HasUsableBoxSize(float x, float y, float z) {
+            return x > 0.001f && y > 0.001f && z > 0.001f;
         }
 
         const char* ReasonText(const char* reason) {
@@ -252,6 +300,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.reflectionProbePositionX = snapshot.reflectionProbePositionX;
             key.reflectionProbePositionY = snapshot.reflectionProbePositionY;
             key.reflectionProbePositionZ = snapshot.reflectionProbePositionZ;
+            key.reflectionProbeInfluenceShape = snapshot.reflectionProbeInfluenceShape;
+            key.reflectionProbeProjectionShape = snapshot.reflectionProbeProjectionShape;
+            key.reflectionProbeInfluenceBoxValid = snapshot.reflectionProbeInfluenceBoxValid;
+            key.reflectionProbeProjectionBoxValid = snapshot.reflectionProbeProjectionBoxValid;
+            key.reflectionProbeInfluenceBoxCenterX = snapshot.reflectionProbeInfluenceBoxCenterX;
+            key.reflectionProbeInfluenceBoxCenterY = snapshot.reflectionProbeInfluenceBoxCenterY;
+            key.reflectionProbeInfluenceBoxCenterZ = snapshot.reflectionProbeInfluenceBoxCenterZ;
+            key.reflectionProbeInfluenceBoxSizeX = snapshot.reflectionProbeInfluenceBoxSizeX;
+            key.reflectionProbeInfluenceBoxSizeY = snapshot.reflectionProbeInfluenceBoxSizeY;
+            key.reflectionProbeInfluenceBoxSizeZ = snapshot.reflectionProbeInfluenceBoxSizeZ;
+            key.reflectionProbeProjectionBoxCenterX = snapshot.reflectionProbeProjectionBoxCenterX;
+            key.reflectionProbeProjectionBoxCenterY = snapshot.reflectionProbeProjectionBoxCenterY;
+            key.reflectionProbeProjectionBoxCenterZ = snapshot.reflectionProbeProjectionBoxCenterZ;
+            key.reflectionProbeProjectionBoxSizeX = snapshot.reflectionProbeProjectionBoxSizeX;
+            key.reflectionProbeProjectionBoxSizeY = snapshot.reflectionProbeProjectionBoxSizeY;
+            key.reflectionProbeProjectionBoxSizeZ = snapshot.reflectionProbeProjectionBoxSizeZ;
+            key.reflectionProbeBlendDistance = snapshot.reflectionProbeBlendDistance;
+            key.reflectionProbePriority = snapshot.reflectionProbePriority;
 
             key.lightingBakeManifestFound = snapshot.lightingBakeManifestFound;
             key.lightingBakeManifestPath = snapshot.lightingBakeManifestPath;
@@ -347,6 +413,28 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.reflectionProbePositionX = probe.position.x;
         snapshot.reflectionProbePositionY = probe.position.y;
         snapshot.reflectionProbePositionZ = probe.position.z;
+        snapshot.reflectionProbeInfluenceShape = ReflectionProbeInfluenceShapeText(probe.influenceShape);
+        snapshot.reflectionProbeProjectionShape = ReflectionProbeProjectionShapeText(probe.projectionShape);
+        snapshot.reflectionProbeInfluenceBoxValid =
+            probe.influenceShape != REFLECTION::RuntimeReflectionProbeInfluenceShape::Box ||
+            HasUsableBoxSize(probe.influenceBoxSize.x, probe.influenceBoxSize.y, probe.influenceBoxSize.z);
+        snapshot.reflectionProbeProjectionBoxValid =
+            probe.projectionShape != REFLECTION::RuntimeReflectionProbeProjectionShape::Box ||
+            HasUsableBoxSize(probe.projectionBoxSize.x, probe.projectionBoxSize.y, probe.projectionBoxSize.z);
+        snapshot.reflectionProbeInfluenceBoxCenterX = probe.influenceBoxCenter.x;
+        snapshot.reflectionProbeInfluenceBoxCenterY = probe.influenceBoxCenter.y;
+        snapshot.reflectionProbeInfluenceBoxCenterZ = probe.influenceBoxCenter.z;
+        snapshot.reflectionProbeInfluenceBoxSizeX = probe.influenceBoxSize.x;
+        snapshot.reflectionProbeInfluenceBoxSizeY = probe.influenceBoxSize.y;
+        snapshot.reflectionProbeInfluenceBoxSizeZ = probe.influenceBoxSize.z;
+        snapshot.reflectionProbeProjectionBoxCenterX = probe.projectionBoxCenter.x;
+        snapshot.reflectionProbeProjectionBoxCenterY = probe.projectionBoxCenter.y;
+        snapshot.reflectionProbeProjectionBoxCenterZ = probe.projectionBoxCenter.z;
+        snapshot.reflectionProbeProjectionBoxSizeX = probe.projectionBoxSize.x;
+        snapshot.reflectionProbeProjectionBoxSizeY = probe.projectionBoxSize.y;
+        snapshot.reflectionProbeProjectionBoxSizeZ = probe.projectionBoxSize.z;
+        snapshot.reflectionProbeBlendDistance = probe.blendDistance;
+        snapshot.reflectionProbePriority = probe.priority;
 
         const LIGHTING::SceneLightingRuntimeData& lighting = LIGHTING::GetLastLightingRuntimeData();
         snapshot.lightingBakeManifestFound = lighting.bakeManifestLoaded;
@@ -479,6 +567,24 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " position=" << snapshot.reflectionProbePositionX << ","
                 << snapshot.reflectionProbePositionY << ","
                 << snapshot.reflectionProbePositionZ
+                << " influenceShape=" << snapshot.reflectionProbeInfluenceShape
+                << " projectionShape=" << snapshot.reflectionProbeProjectionShape
+                << " influenceBoxValid=" << BoolText(snapshot.reflectionProbeInfluenceBoxValid)
+                << " projectionBoxValid=" << BoolText(snapshot.reflectionProbeProjectionBoxValid)
+                << " influenceBox=" << snapshot.reflectionProbeInfluenceBoxCenterX << ","
+                << snapshot.reflectionProbeInfluenceBoxCenterY << ","
+                << snapshot.reflectionProbeInfluenceBoxCenterZ << "/"
+                << snapshot.reflectionProbeInfluenceBoxSizeX << ","
+                << snapshot.reflectionProbeInfluenceBoxSizeY << ","
+                << snapshot.reflectionProbeInfluenceBoxSizeZ
+                << " projectionBox=" << snapshot.reflectionProbeProjectionBoxCenterX << ","
+                << snapshot.reflectionProbeProjectionBoxCenterY << ","
+                << snapshot.reflectionProbeProjectionBoxCenterZ << "/"
+                << snapshot.reflectionProbeProjectionBoxSizeX << ","
+                << snapshot.reflectionProbeProjectionBoxSizeY << ","
+                << snapshot.reflectionProbeProjectionBoxSizeZ
+                << " blendDistance=" << snapshot.reflectionProbeBlendDistance
+                << " priority=" << snapshot.reflectionProbePriority
                 << " source=" << snapshot.reflectionProbeSourceAssetId
                 << " prefilteredPath=" << snapshot.reflectionProbePrefilteredPath;
             LogInfoLine(oss.str());
@@ -581,6 +687,12 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (snapshot.reflectionProbeEnabled && !snapshot.reflectionProbeValid) {
             LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] reflection probe is enabled but invalid.");
         }
+        if (!snapshot.reflectionProbeInfluenceBoxValid) {
+            LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] influence box size is invalid.");
+        }
+        if (!snapshot.reflectionProbeProjectionBoxValid) {
+            LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] projection box size is invalid.");
+        }
         if (snapshot.reflectionProbeMipMismatch) {
             LogWarnLine("[EnvironmentDiagnostics][ReflectionProbe] prefiltered mip count mismatch.");
         }
@@ -648,6 +760,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         }
         if (snapshot.reflectionProbeMipMismatch) {
             return "Probe Mip Mismatch";
+        }
+        if (!snapshot.reflectionProbeInfluenceBoxValid || !snapshot.reflectionProbeProjectionBoxValid) {
+            return "Probe Box Invalid";
         }
         if (snapshot.reflectionProbeValid) {
             return "Probe Ready";

@@ -17,6 +17,14 @@ namespace HIKARI::ASSETS::LIGHTING {
         MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
         float radius = 0.0f;
         float intensity = 1.0f;
+        std::string influenceShape{ "Sphere" };
+        MATH::Vec3 influenceBoxCenter{ 0.0f, 0.0f, 0.0f };
+        MATH::Vec3 influenceBoxSize{ 0.0f, 0.0f, 0.0f };
+        std::string projectionShape{ "Infinite" };
+        MATH::Vec3 projectionBoxCenter{ 0.0f, 0.0f, 0.0f };
+        MATH::Vec3 projectionBoxSize{ 0.0f, 0.0f, 0.0f };
+        float blendDistance = 1.0f;
+        int priority = 0;
         std::string captureCubemapPath{};
         std::string prefilteredCubemapPath{};
         std::string brdfLutPath{};

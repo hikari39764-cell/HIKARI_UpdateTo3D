@@ -5,16 +5,13 @@
 #include <numbers>
 
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
-#include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 
 namespace HIKARI::EDITOR {
 
     namespace {
 
-        unsigned int ResolveProbeColor() {
-            const RENDER3D::LIGHTING::SceneLightingRuntimeData& lighting =
-                RENDER3D::LIGHTING::GetLastLightingRuntimeData();
+        unsigned int ResolveProbeColor(unsigned int validColor) {
             const REFLECTION::ReflectionProbeRuntimeData& probe =
                 REFLECTION::GetActiveProbe();
 
@@ -24,10 +21,11 @@ namespace HIKARI::EDITOR {
             if (!probe.valid) {
                 return 0xFF8A4CFF;
             }
-            if (lighting.source == RENDER3D::LIGHTING::LightingRuntimeSource::BakedRuntime) {
-                return 0x61E6A8FF;
-            }
-            return 0x5EC7FFFF;
+            return validColor;
+        }
+
+        bool HasUsableBoxSize(const MATH::Vec3& size) {
+            return size.x > 0.001f && size.y > 0.001f && size.z > 0.001f;
         }
 
         MATH::Vec3 CirclePoint(
@@ -62,6 +60,57 @@ namespace HIKARI::EDITOR {
                 RENDERER3D::DEBUG::SubmitLine3D({
                     CirclePoint(center, radius, axis, t0),
                     CirclePoint(center, radius, axis, t1),
+                    color,
+                    RENDERER3D::DEBUG::DebugDepthMode::XRay
+                });
+            }
+        }
+
+        MATH::Vec3 BoxMin(const MATH::Vec3& center, const MATH::Vec3& size) {
+            const MATH::Vec3 halfSize = size * 0.5f;
+            return {
+                center.x - halfSize.x,
+                center.y - halfSize.y,
+                center.z - halfSize.z
+            };
+        }
+
+        MATH::Vec3 BoxMax(const MATH::Vec3& center, const MATH::Vec3& size) {
+            const MATH::Vec3 halfSize = size * 0.5f;
+            return {
+                center.x + halfSize.x,
+                center.y + halfSize.y,
+                center.z + halfSize.z
+            };
+        }
+
+        void SubmitBox(
+            const MATH::Vec3& center,
+            const MATH::Vec3& size,
+            unsigned int color) {
+
+            const MATH::Vec3 bmin = BoxMin(center, size);
+            const MATH::Vec3 bmax = BoxMax(center, size);
+            const MATH::Vec3 corners[8] = {
+                { bmin.x, bmin.y, bmin.z },
+                { bmax.x, bmin.y, bmin.z },
+                { bmax.x, bmin.y, bmax.z },
+                { bmin.x, bmin.y, bmax.z },
+                { bmin.x, bmax.y, bmin.z },
+                { bmax.x, bmax.y, bmin.z },
+                { bmax.x, bmax.y, bmax.z },
+                { bmin.x, bmax.y, bmax.z },
+            };
+            const int edges[12][2] = {
+                { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+                { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+                { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+            };
+
+            for (const auto& edge : edges) {
+                RENDERER3D::DEBUG::SubmitLine3D({
+                    corners[edge[0]],
+                    corners[edge[1]],
                     color,
                     RENDERER3D::DEBUG::DebugDepthMode::XRay
                 });
@@ -104,15 +153,29 @@ namespace HIKARI::EDITOR {
             return;
         }
 
-        const MATH::Vec3 center = environment.reflectionProbe.position;
-        const float radius = (std::max)(0.01f, environment.reflectionProbe.radius);
-        const unsigned int color = ResolveProbeColor();
+        const ReflectionProbeSettings& probe = environment.reflectionProbe;
+        const MATH::Vec3 center = probe.position;
+        const float radius = (std::max)(0.01f, probe.radius);
+        const unsigned int centerColor = ResolveProbeColor(0x61E6A8FF);
+        const unsigned int influenceColor = HasUsableBoxSize(probe.influenceBoxSize)
+            ? ResolveProbeColor(0x5EC7FFFF)
+            : 0xFF8A4CFF;
+        const unsigned int projectionColor = HasUsableBoxSize(probe.projectionBoxSize)
+            ? ResolveProbeColor(0xFFD166FF)
+            : 0xFF8A4CFF;
 
-        // Probe 範囲を editor overlay に描画する。
-        SubmitCenterCross(center, radius, color);
-        SubmitCircle(center, radius, 0, color);
-        SubmitCircle(center, radius, 1, color);
-        SubmitCircle(center, radius, 2, color);
+        // Probe の中心と authoring volume を editor overlay に描画する。
+        SubmitCenterCross(center, radius, centerColor);
+        if (probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
+            SubmitBox(probe.influenceBoxCenter, probe.influenceBoxSize, influenceColor);
+        } else {
+            SubmitCircle(center, radius, 0, influenceColor);
+            SubmitCircle(center, radius, 1, influenceColor);
+            SubmitCircle(center, radius, 2, influenceColor);
+        }
+        if (probe.projectionShape == ReflectionProbeProjectionShape::Box) {
+            SubmitBox(probe.projectionBoxCenter, probe.projectionBoxSize, projectionColor);
+        }
     }
 
 } // namespace HIKARI::EDITOR

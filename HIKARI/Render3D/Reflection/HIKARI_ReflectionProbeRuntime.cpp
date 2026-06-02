@@ -1,6 +1,7 @@
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 #include <utility>
 
@@ -39,6 +40,14 @@ namespace HIKARI::REFLECTION {
             MATH::Vec3 position{};
             float radius = 0.0f;
             float intensity = 0.0f;
+            RuntimeReflectionProbeInfluenceShape influenceShape = RuntimeReflectionProbeInfluenceShape::Sphere;
+            RuntimeReflectionProbeProjectionShape projectionShape = RuntimeReflectionProbeProjectionShape::Infinite;
+            MATH::Vec3 influenceBoxCenter{};
+            MATH::Vec3 influenceBoxSize{};
+            MATH::Vec3 projectionBoxCenter{};
+            MATH::Vec3 projectionBoxSize{};
+            float blendDistance = 0.0f;
+            int priority = 0;
         };
 
         bool gHasLastKey = false;
@@ -66,11 +75,47 @@ namespace HIKARI::REFLECTION {
                 lhs.position.y == rhs.position.y &&
                 lhs.position.z == rhs.position.z &&
                 lhs.radius == rhs.radius &&
-                lhs.intensity == rhs.intensity;
+                lhs.intensity == rhs.intensity &&
+                lhs.influenceShape == rhs.influenceShape &&
+                lhs.projectionShape == rhs.projectionShape &&
+                lhs.influenceBoxCenter.x == rhs.influenceBoxCenter.x &&
+                lhs.influenceBoxCenter.y == rhs.influenceBoxCenter.y &&
+                lhs.influenceBoxCenter.z == rhs.influenceBoxCenter.z &&
+                lhs.influenceBoxSize.x == rhs.influenceBoxSize.x &&
+                lhs.influenceBoxSize.y == rhs.influenceBoxSize.y &&
+                lhs.influenceBoxSize.z == rhs.influenceBoxSize.z &&
+                lhs.projectionBoxCenter.x == rhs.projectionBoxCenter.x &&
+                lhs.projectionBoxCenter.y == rhs.projectionBoxCenter.y &&
+                lhs.projectionBoxCenter.z == rhs.projectionBoxCenter.z &&
+                lhs.projectionBoxSize.x == rhs.projectionBoxSize.x &&
+                lhs.projectionBoxSize.y == rhs.projectionBoxSize.y &&
+                lhs.projectionBoxSize.z == rhs.projectionBoxSize.z &&
+                lhs.blendDistance == rhs.blendDistance &&
+                lhs.priority == rhs.priority;
         }
 
         const char* BoolText(bool value) {
             return value ? "true" : "false";
+        }
+
+        const char* ShapeText(RuntimeReflectionProbeInfluenceShape shape) {
+            return shape == RuntimeReflectionProbeInfluenceShape::Box ? "Box" : "Sphere";
+        }
+
+        const char* ShapeText(RuntimeReflectionProbeProjectionShape shape) {
+            return shape == RuntimeReflectionProbeProjectionShape::Box ? "Box" : "Infinite";
+        }
+
+        bool HasUsableBoxSize(const MATH::Vec3& size) {
+            return size.x > 0.001f && size.y > 0.001f && size.z > 0.001f;
+        }
+
+        MATH::Vec3 SanitizeBoxSize(const MATH::Vec3& size) {
+            return {
+                std::max(0.0f, size.x),
+                std::max(0.0f, size.y),
+                std::max(0.0f, size.z)
+            };
         }
 
         bool IsValidSrv(D3D12_GPU_DESCRIPTOR_HANDLE handle) {
@@ -97,6 +142,14 @@ namespace HIKARI::REFLECTION {
             key.position = gData.position;
             key.radius = gData.radius;
             key.intensity = gData.intensity;
+            key.influenceShape = gData.influenceShape;
+            key.projectionShape = gData.projectionShape;
+            key.influenceBoxCenter = gData.influenceBoxCenter;
+            key.influenceBoxSize = gData.influenceBoxSize;
+            key.projectionBoxCenter = gData.projectionBoxCenter;
+            key.projectionBoxSize = gData.projectionBoxSize;
+            key.blendDistance = gData.blendDistance;
+            key.priority = gData.priority;
             return key;
         }
 
@@ -129,7 +182,20 @@ namespace HIKARI::REFLECTION {
                 gData.prefilteredMipMismatch = false;
             }
 
-            gData.valid = gData.enabled && gData.hasPrefiltered && gData.radius > 0.001f && gData.intensity > 0.0f;
+            const bool influenceBoxValid =
+                gData.influenceShape != RuntimeReflectionProbeInfluenceShape::Box ||
+                HasUsableBoxSize(gData.influenceBoxSize);
+            const bool projectionBoxValid =
+                gData.projectionShape != RuntimeReflectionProbeProjectionShape::Box ||
+                HasUsableBoxSize(gData.projectionBoxSize);
+
+            gData.valid =
+                gData.enabled &&
+                gData.hasPrefiltered &&
+                gData.radius > 0.001f &&
+                gData.intensity > 0.0f &&
+                influenceBoxValid &&
+                projectionBoxValid;
         }
 
         void LogStateIfChanged() {
@@ -155,6 +221,14 @@ namespace HIKARI::REFLECTION {
                 << " position=" << gData.position.x << "," << gData.position.y << "," << gData.position.z
                 << " radius=" << gData.radius
                 << " intensity=" << gData.intensity
+                << " influenceShape=" << ShapeText(gData.influenceShape)
+                << " projectionShape=" << ShapeText(gData.projectionShape)
+                << " influenceBox=" << gData.influenceBoxCenter.x << "," << gData.influenceBoxCenter.y << "," << gData.influenceBoxCenter.z
+                << "/" << gData.influenceBoxSize.x << "," << gData.influenceBoxSize.y << "," << gData.influenceBoxSize.z
+                << " projectionBox=" << gData.projectionBoxCenter.x << "," << gData.projectionBoxCenter.y << "," << gData.projectionBoxCenter.z
+                << "/" << gData.projectionBoxSize.x << "," << gData.projectionBoxSize.y << "," << gData.projectionBoxSize.z
+                << " blendDistance=" << gData.blendDistance
+                << " priority=" << gData.priority
                 << " source=" << gData.sourceAssetId
                 << " prefilteredPath=" << gData.prefilteredPath
                 << " brdfPath=" << gData.brdfLutPath;
@@ -187,6 +261,14 @@ namespace HIKARI::REFLECTION {
         const MATH::Vec3& position,
         float radius,
         float intensity,
+        RuntimeReflectionProbeInfluenceShape influenceShape,
+        RuntimeReflectionProbeProjectionShape projectionShape,
+        const MATH::Vec3& influenceBoxCenter,
+        const MATH::Vec3& influenceBoxSize,
+        const MATH::Vec3& projectionBoxCenter,
+        const MATH::Vec3& projectionBoxSize,
+        float blendDistance,
+        int priority,
         std::string sourceAssetId,
         std::string prefilteredPath,
         std::string brdfLutPath) {
@@ -198,6 +280,14 @@ namespace HIKARI::REFLECTION {
         gData.position = position;
         gData.radius = std::max(0.0f, radius);
         gData.intensity = std::max(0.0f, intensity);
+        gData.influenceShape = influenceShape;
+        gData.projectionShape = projectionShape;
+        gData.influenceBoxCenter = influenceBoxCenter;
+        gData.influenceBoxSize = SanitizeBoxSize(influenceBoxSize);
+        gData.projectionBoxCenter = projectionBoxCenter;
+        gData.projectionBoxSize = SanitizeBoxSize(projectionBoxSize);
+        gData.blendDistance = std::max(0.0f, blendDistance);
+        gData.priority = priority;
         gData.sourceAssetId = std::move(sourceAssetId);
         gData.prefilteredPath = std::move(prefilteredPath);
         gData.brdfLutPath = std::move(brdfLutPath);

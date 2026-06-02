@@ -33,6 +33,18 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 ? std::string{ kSharedBrdfLutPath }
                 : manifestBrdfPath;
         }
+
+        REFLECTION::RuntimeReflectionProbeInfluenceShape ParseInfluenceShape(const std::string& value) {
+            return value == "Box"
+                ? REFLECTION::RuntimeReflectionProbeInfluenceShape::Box
+                : REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
+        }
+
+        REFLECTION::RuntimeReflectionProbeProjectionShape ParseProjectionShape(const std::string& value) {
+            return value == "Box"
+                ? REFLECTION::RuntimeReflectionProbeProjectionShape::Box
+                : REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
+        }
     } // namespace
 
     const char* ToString(LightingRuntimeSource source) {
@@ -212,6 +224,14 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 record.position,
                 record.radius,
                 record.intensity,
+                ParseInfluenceShape(record.influenceShape),
+                ParseProjectionShape(record.projectionShape),
+                record.influenceBoxCenter,
+                record.influenceBoxSize,
+                record.projectionBoxCenter,
+                record.projectionBoxSize,
+                record.blendDistance,
+                record.priority,
                 record.id,
                 record.prefilteredCubemapPath,
                 brdfLutPath);
@@ -372,6 +392,14 @@ namespace HIKARI::RENDER3D::LIGHTING {
             request.reflectionProbePosition,
             request.reflectionProbeRadius,
             request.reflectionProbeIntensity,
+            request.reflectionProbeInfluenceShape,
+            request.reflectionProbeProjectionShape,
+            request.reflectionProbeInfluenceBoxCenter,
+            request.reflectionProbeInfluenceBoxSize,
+            request.reflectionProbeProjectionBoxCenter,
+            request.reflectionProbeProjectionBoxSize,
+            request.reflectionProbeBlendDistance,
+            request.reflectionProbePriority,
             probeDescriptor->id.value,
             probeDescriptor->prefilteredPath,
             probeBrdfPath);
