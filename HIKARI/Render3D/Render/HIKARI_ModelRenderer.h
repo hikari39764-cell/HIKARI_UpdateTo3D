@@ -11,58 +11,84 @@
 
 namespace HIKARI::MODELRENDERER {
 
-    struct ModelRendererDebugStats {
-        size_t skinnedNodeCount = 0;
-        size_t builtPaletteCount = 0;
-        size_t totalJointMatrixCount = 0;
-        size_t submittedModelItemCount = 0;
-        size_t structuredModelCount = 0;
-        size_t animatedLocalBuildCount = 0;
-        size_t sampledChannelCount = 0;
-        size_t sampledKeySearchCount = 0;
-        size_t nodeGlobalMatrixBuildCount = 0;
-        size_t nodeGlobalMatrixCount = 0;
-        size_t jointPaletteBuildCount = 0;
-        size_t jointPaletteMatrixCount = 0;
-        size_t expandedMeshCacheHitCount = 0;
-        size_t expandedMeshCacheMissCount = 0;
-        size_t skeletonDebugLineCount = 0;
-        size_t poseCacheHitCount = 0;
-        size_t poseCacheMissCount = 0;
-        size_t poseUpdatedCount = 0;
-        size_t poseReusedCount = 0;
-        size_t lodNearCount = 0;
-        size_t lodMidCount = 0;
-        size_t lodFarCount = 0;
-        size_t lodVeryFarCount = 0;
-        size_t jointPaletteCacheHitCount = 0;
-        size_t jointPaletteCacheMissCount = 0;
-        size_t structuredNodeSubmittedCount = 0;
-        size_t structuredNodeCulledCount = 0;
-        size_t structuredCullBoundsMissingCount = 0;
+    enum class ModelRendererFrameKind {
+        None,
+        MainView,
+        ReflectionProbeCapture,
+        LightProbeCapture,
+    };
+
+    const char* ToString(ModelRendererFrameKind kind);
+
+    struct ModelRendererFrameStats {
+        uint32_t submittedModelItemCount = 0;
+        uint32_t structuredModelCount = 0;
+        uint32_t structuredNodeSubmittedCount = 0;
+        uint32_t structuredNodeCulledCount = 0;
+        uint32_t structuredCullBoundsMissingCount = 0;
+
+        uint32_t renderModelValidRequestCount = 0;
+        uint32_t renderModelInvalidRequestCount = 0;
+        uint32_t renderModelRequestedSubmeshCount = 0;
+
+        uint32_t skinnedNodeCount = 0;
+        uint32_t builtPaletteCount = 0;
+        uint32_t totalJointMatrixCount = 0;
+        uint32_t skeletonDebugLineCount = 0;
+
+        uint32_t animatedLocalBuildCount = 0;
+        uint32_t sampledChannelCount = 0;
+        uint32_t sampledKeySearchCount = 0;
+        uint32_t nodeGlobalMatrixBuildCount = 0;
+        uint32_t nodeGlobalMatrixCount = 0;
+        uint32_t jointPaletteBuildCount = 0;
+        uint32_t jointPaletteMatrixCount = 0;
+        uint32_t lodNearCount = 0;
+        uint32_t lodMidCount = 0;
+        uint32_t lodFarCount = 0;
+        uint32_t lodVeryFarCount = 0;
+
+        int lastSkinIndex = -1;
+        uint32_t lastPaletteJointCount = 0;
+        bool hasFirstJointMatrix = false;
+        MATH::Mat4 firstJointMatrix{};
+    };
+
+    struct ModelRendererCacheStats {
         uint32_t renderModelCacheRequestCount = 0;
         uint32_t renderModelCacheHitCount = 0;
         uint32_t renderModelCacheMissCount = 0;
         uint32_t renderModelCacheInvalidCount = 0;
         uint32_t renderModelCachedModelCount = 0;
         uint32_t renderModelCachedSubmeshCount = 0;
-        uint32_t renderModelValidRequestCount = 0;
-        uint32_t renderModelInvalidRequestCount = 0;
-        uint32_t renderModelRequestedSubmeshCount = 0;
-        int lastSkinIndex = -1;
-        size_t lastPaletteJointCount = 0;
-        bool hasFirstJointMatrix = false;
-        MATH::Mat4 firstJointMatrix{};
+
+        uint32_t poseCacheHitCount = 0;
+        uint32_t poseCacheMissCount = 0;
+        uint32_t poseUpdatedCount = 0;
+        uint32_t poseReusedCount = 0;
+        uint32_t expandedMeshCacheHitCount = 0;
+        uint32_t expandedMeshCacheMissCount = 0;
+        uint32_t jointPaletteCacheHitCount = 0;
+        uint32_t jointPaletteCacheMissCount = 0;
+    };
+
+    struct ModelRendererDebugStats {
+        ModelRendererFrameKind frameKind = ModelRendererFrameKind::None;
+        ModelRendererFrameStats frame{};
+        ModelRendererCacheStats cache{};
     };
 
     void Reset();
+    void ResetModelRendererFrameStats();
+    void BeginModelRendererFrame(ModelRendererFrameKind kind);
     void SubmitModel(const ModelRenderItem& item);
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
     void RenderOpaqueForReflectionProbeCapture(
         const Camera3D& camera,
         const SceneEnvironment& environment,
         uint32_t width,
-        uint32_t height);
+        uint32_t height,
+        ModelRendererFrameKind kind = ModelRendererFrameKind::ReflectionProbeCapture);
     const ModelRendererDebugStats& GetDebugStats();
     const RENDER3D::RUNTIME::RenderModelCache::Stats& GetRenderModelCacheStats();
 

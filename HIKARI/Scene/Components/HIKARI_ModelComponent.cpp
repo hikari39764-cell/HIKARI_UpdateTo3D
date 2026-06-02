@@ -1021,22 +1021,24 @@ namespace HIKARI {
         }
 
         const MODELRENDERER::ModelRendererDebugStats& rendererStats = MODELRENDERER::GetDebugStats();
+        const MODELRENDERER::ModelRendererFrameStats& rendererFrameStats = rendererStats.frame;
+        const MODELRENDERER::ModelRendererCacheStats& rendererCacheStats = rendererStats.cache;
         const MESHRENDERER::MeshRendererDebugStats& meshRendererStats = MESHRENDERER::GetDebugStats();
 
         if (ImGui::TreeNode("Runtime Skinning")) {
-            ImGui::Text("Joint Palette Built: %s", rendererStats.builtPaletteCount > 0 ? "Yes" : "No");
-            ImGui::Text("Skinned Nodes Rendered: %zu", rendererStats.skinnedNodeCount);
-            ImGui::Text("Built Palettes: %zu", rendererStats.builtPaletteCount);
-            ImGui::Text("Total Joint Matrices: %zu", rendererStats.totalJointMatrixCount);
-            ImGui::Text("Last Skin Index: %d", rendererStats.lastSkinIndex);
-            ImGui::Text("Last Palette Joint Count: %zu", rendererStats.lastPaletteJointCount);
+            ImGui::Text("Joint Palette Built: %s", rendererFrameStats.builtPaletteCount > 0 ? "Yes" : "No");
+            ImGui::Text("Skinned Nodes Rendered: %u", rendererFrameStats.skinnedNodeCount);
+            ImGui::Text("Built Palettes: %u", rendererFrameStats.builtPaletteCount);
+            ImGui::Text("Total Joint Matrices: %u", rendererFrameStats.totalJointMatrixCount);
+            ImGui::Text("Last Skin Index: %d", rendererFrameStats.lastSkinIndex);
+            ImGui::Text("Last Palette Joint Count: %u", rendererFrameStats.lastPaletteJointCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshRendererStats.skinnedGpuDrawCount);
             ImGui::Text("Skinned Fallbacks: %zu", meshRendererStats.skinnedFallbackCount);
             ImGui::Text("Uploaded Joints: %zu", meshRendererStats.uploadedJointCount);
             ImGui::Text("Max Joint Count: %zu", meshRendererStats.maxJointCount);
             ImGui::Text("Last Skinned Vertex Count: %zu", meshRendererStats.lastSkinnedVertexCount);
-            if (rendererStats.hasFirstJointMatrix) {
-                const MATH::Mat4& m = rendererStats.firstJointMatrix;
+            if (rendererFrameStats.hasFirstJointMatrix) {
+                const MATH::Mat4& m = rendererFrameStats.firstJointMatrix;
                 ImGui::Text("First Joint Matrix:");
                 ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0]);
                 ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1]);
@@ -1048,33 +1050,34 @@ namespace HIKARI {
 
         if (ImGui::TreeNode("Performance Stats")) {
             ImGui::TextUnformatted("ModelRenderer:");
-            ImGui::Text("Submitted Model Items: %zu", rendererStats.submittedModelItemCount);
-            ImGui::Text("Structured Models: %zu", rendererStats.structuredModelCount);
-            ImGui::Text("Animated Local Builds: %zu", rendererStats.animatedLocalBuildCount);
-            ImGui::Text("Sampled Channels: %zu", rendererStats.sampledChannelCount);
-            ImGui::Text("Sampled Key Searches: %zu", rendererStats.sampledKeySearchCount);
-            ImGui::Text("Node Global Matrix Builds: %zu", rendererStats.nodeGlobalMatrixBuildCount);
-            ImGui::Text("Node Global Matrix Count: %zu", rendererStats.nodeGlobalMatrixCount);
-            ImGui::Text("Joint Palette Builds: %zu", rendererStats.jointPaletteBuildCount);
-            ImGui::Text("Joint Palette Matrix Count: %zu", rendererStats.jointPaletteMatrixCount);
-            ImGui::Text("Expanded Mesh Cache Hit / Miss: %zu / %zu",
-                rendererStats.expandedMeshCacheHitCount,
-                rendererStats.expandedMeshCacheMissCount);
-            ImGui::Text("Skeleton Debug Lines: %zu", rendererStats.skeletonDebugLineCount);
-            ImGui::Text("Pose Cache Hit / Miss: %zu / %zu",
-                rendererStats.poseCacheHitCount,
-                rendererStats.poseCacheMissCount);
-            ImGui::Text("Pose Updated / Reused: %zu / %zu",
-                rendererStats.poseUpdatedCount,
-                rendererStats.poseReusedCount);
-            ImGui::Text("Animation LOD Near / Mid / Far / Very Far: %zu / %zu / %zu / %zu",
-                rendererStats.lodNearCount,
-                rendererStats.lodMidCount,
-                rendererStats.lodFarCount,
-                rendererStats.lodVeryFarCount);
-            ImGui::Text("Joint Palette Cache Hit / Miss: %zu / %zu",
-                rendererStats.jointPaletteCacheHitCount,
-                rendererStats.jointPaletteCacheMissCount);
+            ImGui::Text("Frame Kind: %s", MODELRENDERER::ToString(rendererStats.frameKind));
+            ImGui::Text("Submitted Model Items: %u", rendererFrameStats.submittedModelItemCount);
+            ImGui::Text("Structured Models: %u", rendererFrameStats.structuredModelCount);
+            ImGui::Text("Animated Local Builds: %u", rendererFrameStats.animatedLocalBuildCount);
+            ImGui::Text("Sampled Channels: %u", rendererFrameStats.sampledChannelCount);
+            ImGui::Text("Sampled Key Searches: %u", rendererFrameStats.sampledKeySearchCount);
+            ImGui::Text("Node Global Matrix Builds: %u", rendererFrameStats.nodeGlobalMatrixBuildCount);
+            ImGui::Text("Node Global Matrix Count: %u", rendererFrameStats.nodeGlobalMatrixCount);
+            ImGui::Text("Joint Palette Builds: %u", rendererFrameStats.jointPaletteBuildCount);
+            ImGui::Text("Joint Palette Matrix Count: %u", rendererFrameStats.jointPaletteMatrixCount);
+            ImGui::Text("Expanded Mesh Cache Hit / Miss: %u / %u",
+                rendererCacheStats.expandedMeshCacheHitCount,
+                rendererCacheStats.expandedMeshCacheMissCount);
+            ImGui::Text("Skeleton Debug Lines: %u", rendererFrameStats.skeletonDebugLineCount);
+            ImGui::Text("Pose Cache Hit / Miss: %u / %u",
+                rendererCacheStats.poseCacheHitCount,
+                rendererCacheStats.poseCacheMissCount);
+            ImGui::Text("Pose Updated / Reused: %u / %u",
+                rendererCacheStats.poseUpdatedCount,
+                rendererCacheStats.poseReusedCount);
+            ImGui::Text("Animation LOD Near / Mid / Far / Very Far: %u / %u / %u / %u",
+                rendererFrameStats.lodNearCount,
+                rendererFrameStats.lodMidCount,
+                rendererFrameStats.lodFarCount,
+                rendererFrameStats.lodVeryFarCount);
+            ImGui::Text("Joint Palette Cache Hit / Miss: %u / %u",
+                rendererCacheStats.jointPaletteCacheHitCount,
+                rendererCacheStats.jointPaletteCacheMissCount);
 
             ImGui::Separator();
             ImGui::TextUnformatted("MeshRenderer:");

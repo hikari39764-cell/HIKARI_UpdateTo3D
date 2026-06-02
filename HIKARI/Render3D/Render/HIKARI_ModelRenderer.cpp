@@ -22,6 +22,20 @@
 
 namespace HIKARI::MODELRENDERER {
 
+    const char* ToString(ModelRendererFrameKind kind) {
+        switch (kind) {
+        case ModelRendererFrameKind::MainView:
+            return "MainView";
+        case ModelRendererFrameKind::ReflectionProbeCapture:
+            return "ReflectionProbeCapture";
+        case ModelRendererFrameKind::LightProbeCapture:
+            return "LightProbeCapture";
+        case ModelRendererFrameKind::None:
+        default:
+            return "None";
+        }
+    }
+
     namespace {
         std::vector<ModelRenderItem> gQueue;
         ModelRendererDebugStats gDebugStats;
@@ -132,18 +146,18 @@ namespace HIKARI::MODELRENDERER {
             auto found = gExpandedNodeMeshCache.find(key);
             if (found != gExpandedNodeMeshCache.end()) {
                 if (found->second.asset != nullptr) {
-                    ++gDebugStats.expandedMeshCacheHitCount;
+                    ++gDebugStats.cache.expandedMeshCacheHitCount;
                     return found->second.asset.get();
                 }
 
-                ++gDebugStats.expandedMeshCacheMissCount;
+                ++gDebugStats.cache.expandedMeshCacheMissCount;
                 found->second.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
                 return found->second.asset.get();
             }
 
-            // Expanded node mesh assets are treated as immutable after model load.
-            // If runtime asset hot-reload is added later, invalidate this cache explicitly.
-            ++gDebugStats.expandedMeshCacheMissCount;
+            // load 後の node mesh は不変として扱う。
+            // hot reload 時は明示的に破棄する。
+            ++gDebugStats.cache.expandedMeshCacheMissCount;
             ExpandedNodeMeshCacheEntry entry{};
             entry.asset = BuildSingleMeshExpandedAsset(source, meshIndex);
             if (!entry.asset) {
@@ -172,22 +186,26 @@ namespace HIKARI::MODELRENDERER {
             return static_cast<uint32_t>((std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
         }
 
-        void AddRenderModelRequestedSubmeshCount(size_t value) {
+        void AddUint32Saturated(uint32_t& target, size_t value) {
             const uint64_t sum =
-                static_cast<uint64_t>(gDebugStats.renderModelRequestedSubmeshCount) +
+                static_cast<uint64_t>(target) +
                 static_cast<uint64_t>(ClampToUint32(value));
-            gDebugStats.renderModelRequestedSubmeshCount = static_cast<uint32_t>(
+            target = static_cast<uint32_t>(
                 (std::min)(sum, static_cast<uint64_t>((std::numeric_limits<uint32_t>::max)())));
+        }
+
+        void AddRenderModelRequestedSubmeshCount(size_t value) {
+            AddUint32Saturated(gDebugStats.frame.renderModelRequestedSubmeshCount, value);
         }
 
         void SyncRenderModelCacheStats() {
             const RENDER3D::RUNTIME::RenderModelCache::Stats& cacheStats = gRenderModelCache.GetStats();
-            gDebugStats.renderModelCacheRequestCount = cacheStats.requestCount;
-            gDebugStats.renderModelCacheHitCount = cacheStats.hitCount;
-            gDebugStats.renderModelCacheMissCount = cacheStats.missCount;
-            gDebugStats.renderModelCacheInvalidCount = cacheStats.invalidModelCount;
-            gDebugStats.renderModelCachedModelCount = cacheStats.cachedModelCount;
-            gDebugStats.renderModelCachedSubmeshCount = cacheStats.cachedSubmeshCount;
+            gDebugStats.cache.renderModelCacheRequestCount = cacheStats.requestCount;
+            gDebugStats.cache.renderModelCacheHitCount = cacheStats.hitCount;
+            gDebugStats.cache.renderModelCacheMissCount = cacheStats.missCount;
+            gDebugStats.cache.renderModelCacheInvalidCount = cacheStats.invalidModelCount;
+            gDebugStats.cache.renderModelCachedModelCount = cacheStats.cachedModelCount;
+            gDebugStats.cache.renderModelCachedSubmeshCount = cacheStats.cachedSubmeshCount;
         }
 
         const RENDER3D::RUNTIME::RenderModelAsset* ResolveRenderModelForDebug(const ModelRenderItem& item) {
@@ -198,11 +216,11 @@ namespace HIKARI::MODELRENDERER {
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel = gRenderModelCache.GetOrCreate(*item.model);
             SyncRenderModelCacheStats();
             if (renderModel == nullptr || !renderModel->valid) {
-                ++gDebugStats.renderModelInvalidRequestCount;
+                ++gDebugStats.frame.renderModelInvalidRequestCount;
                 return renderModel;
             }
 
-            ++gDebugStats.renderModelValidRequestCount;
+            ++gDebugStats.frame.renderModelValidRequestCount;
             AddRenderModelRequestedSubmeshCount(renderModel->submeshes.size());
             return renderModel;
         }
@@ -237,17 +255,17 @@ namespace HIKARI::MODELRENDERER {
         uint32_t ResolveAnimationUpdateInterval(AnimationLodTier tier) {
             switch (tier) {
             case AnimationLodTier::Near:
-                ++gDebugStats.lodNearCount;
+                ++gDebugStats.frame.lodNearCount;
                 return std::max<uint32_t>(1, gAnimationLodSettings.nearUpdateInterval);
             case AnimationLodTier::Mid:
-                ++gDebugStats.lodMidCount;
+                ++gDebugStats.frame.lodMidCount;
                 return std::max<uint32_t>(1, gAnimationLodSettings.midUpdateInterval);
             case AnimationLodTier::Far:
-                ++gDebugStats.lodFarCount;
+                ++gDebugStats.frame.lodFarCount;
                 return std::max<uint32_t>(1, gAnimationLodSettings.farUpdateInterval);
             case AnimationLodTier::VeryFar:
             default:
-                ++gDebugStats.lodVeryFarCount;
+                ++gDebugStats.frame.lodVeryFarCount;
                 return std::max<uint32_t>(1, gAnimationLodSettings.veryFarUpdateInterval);
             }
         }
@@ -296,7 +314,7 @@ namespace HIKARI::MODELRENDERER {
                 return keys.back().value;
             }
 
-            ++gDebugStats.sampledKeySearchCount;
+            ++gDebugStats.frame.sampledKeySearchCount;
             const auto it = std::lower_bound(
                 keys.begin(),
                 keys.end(),
@@ -345,7 +363,7 @@ namespace HIKARI::MODELRENDERER {
 
             const float sampleTime = ResolveAnimationSampleTime(item, *clip);
             for (const NodeAnimationChannel& channel : clip->channels) {
-                // Legacy single-mesh path: keep previous behavior by applying the first node track to object transform.
+                // 旧 single mesh 経路は先頭 node track だけを反映する。
                 if (channel.targetNode > 0) {
                     continue;
                 }
@@ -366,7 +384,7 @@ namespace HIKARI::MODELRENDERER {
                 return;
             }
 
-            ++gDebugStats.animatedLocalBuildCount;
+            ++gDebugStats.frame.animatedLocalBuildCount;
             outLocals.reserve(item.model->nodes.size());
             for (const ModelNode& node : item.model->nodes) {
                 outLocals.push_back(node.localTransform);
@@ -379,7 +397,7 @@ namespace HIKARI::MODELRENDERER {
 
             const float sampleTime = ResolveAnimationSampleTime(item, *clip);
             for (const NodeAnimationChannel& channel : clip->channels) {
-                ++gDebugStats.sampledChannelCount;
+                ++gDebugStats.frame.sampledChannelCount;
                 if (channel.targetNode < 0 || channel.targetNode >= static_cast<int>(outLocals.size())) {
                     continue;
                 }
@@ -428,8 +446,8 @@ namespace HIKARI::MODELRENDERER {
                 return;
             }
 
-            ++gDebugStats.nodeGlobalMatrixBuildCount;
-            gDebugStats.nodeGlobalMatrixCount += model.nodes.size();
+            ++gDebugStats.frame.nodeGlobalMatrixBuildCount;
+            AddUint32Saturated(gDebugStats.frame.nodeGlobalMatrixCount, model.nodes.size());
             outGlobals.assign(model.nodes.size(), rootWorld);
             visited.assign(model.nodes.size(), 0);
 
@@ -477,8 +495,8 @@ namespace HIKARI::MODELRENDERER {
                 return false;
             }
 
-            ++gDebugStats.jointPaletteBuildCount;
-            gDebugStats.jointPaletteMatrixCount += skin->joints.size();
+            ++gDebugStats.frame.jointPaletteBuildCount;
+            AddUint32Saturated(gDebugStats.frame.jointPaletteMatrixCount, skin->joints.size());
             outPalette.resize(skin->joints.size(), MATH::Mat4::Identity());
             for (size_t jointIndex = 0; jointIndex < skin->joints.size(); ++jointIndex) {
                 const SkeletonJoint& joint = skin->joints[jointIndex];
@@ -494,13 +512,13 @@ namespace HIKARI::MODELRENDERER {
         }
 
         void RecordBuiltJointPalette(int skinIndex, const std::vector<MATH::Mat4>& palette) {
-            ++gDebugStats.builtPaletteCount;
-            gDebugStats.totalJointMatrixCount += palette.size();
-            gDebugStats.lastSkinIndex = skinIndex;
-            gDebugStats.lastPaletteJointCount = palette.size();
+            ++gDebugStats.frame.builtPaletteCount;
+            AddUint32Saturated(gDebugStats.frame.totalJointMatrixCount, palette.size());
+            gDebugStats.frame.lastSkinIndex = skinIndex;
+            gDebugStats.frame.lastPaletteJointCount = ClampToUint32(palette.size());
             if (!palette.empty()) {
-                gDebugStats.firstJointMatrix = palette.front();
-                gDebugStats.hasFirstJointMatrix = true;
+                gDebugStats.frame.firstJointMatrix = palette.front();
+                gDebugStats.frame.hasFirstJointMatrix = true;
             }
         }
 
@@ -521,10 +539,10 @@ namespace HIKARI::MODELRENDERER {
             const uint64_t cacheKey = item.instanceKey != 0 ? item.instanceKey : reinterpret_cast<uint64_t>(item.model);
             auto found = gPoseCache.find(cacheKey);
             if (found == gPoseCache.end()) {
-                ++gDebugStats.poseCacheMissCount;
+                ++gDebugStats.cache.poseCacheMissCount;
                 found = gPoseCache.emplace(cacheKey, CachedSkinPose{}).first;
             } else {
-                ++gDebugStats.poseCacheHitCount;
+                ++gDebugStats.cache.poseCacheHitCount;
             }
 
             CachedSkinPose& cache = found->second;
@@ -549,9 +567,9 @@ namespace HIKARI::MODELRENDERER {
                 BuildNodeGlobalMatricesWithRoot(*item.model, cache.animatedLocals, MATH::Mat4::Identity(), cache.localNodeGlobals, scratch.visited);
                 cache.jointPalettes.clear();
                 cache.valid = true;
-                ++gDebugStats.poseUpdatedCount;
+                ++gDebugStats.cache.poseUpdatedCount;
             } else {
-                ++gDebugStats.poseReusedCount;
+                ++gDebugStats.cache.poseReusedCount;
             }
 
             // World globals depend on the object transform, so rebuild them each frame even when the pose is reused.
@@ -599,7 +617,7 @@ namespace HIKARI::MODELRENDERER {
                     color,
                     mode
                 });
-                ++gDebugStats.skeletonDebugLineCount;
+                ++gDebugStats.frame.skeletonDebugLineCount;
             }
         }
 
@@ -611,7 +629,7 @@ namespace HIKARI::MODELRENDERER {
                 return false;
             }
 
-            ++gDebugStats.structuredModelCount;
+            ++gDebugStats.frame.structuredModelCount;
             ModelPoseEvaluationScratch scratch;
             scratch.animatedLocals.reserve(item.model->nodes.size());
             scratch.nodeGlobals.reserve(item.model->nodes.size());
@@ -646,12 +664,12 @@ namespace HIKARI::MODELRENDERER {
                 if (staticNodeCullable) {
                     const MATH::Mat4 localToClip = camera.GetViewProj() * nodeGlobals[nodeIndex];
                     if (!BOUNDS::IntersectsClipFrustum(sourceMesh.bounds, localToClip)) {
-                        ++gDebugStats.structuredNodeCulledCount;
+                        ++gDebugStats.frame.structuredNodeCulledCount;
                         continue;
                     }
                 } else if (node.skinIndex < 0 && !sourceMeshBoundsUsable) {
                     // 旧アセットの bounds 欠落時は安全側で描画する。
-                    ++gDebugStats.structuredCullBoundsMissingCount;
+                    ++gDebugStats.frame.structuredCullBoundsMissingCount;
                 }
 
                 bool submittedSkinned = false;
@@ -662,24 +680,24 @@ namespace HIKARI::MODELRENDERER {
                         }
                     }
 
-                    ++gDebugStats.skinnedNodeCount;
+                    ++gDebugStats.frame.skinnedNodeCount;
                     const std::vector<MATH::Mat4>* jointPalette = nullptr;
                     if (poseCache != nullptr) {
                         auto paletteIt = poseCache->jointPalettes.find(node.skinIndex);
                         if (paletteIt != poseCache->jointPalettes.end() && !paletteIt->second.empty()) {
-                            ++gDebugStats.jointPaletteCacheHitCount;
+                            ++gDebugStats.cache.jointPaletteCacheHitCount;
                             jointPalette = &paletteIt->second;
                         } else {
-                            ++gDebugStats.jointPaletteCacheMissCount;
+                            ++gDebugStats.cache.jointPaletteCacheMissCount;
                             std::vector<MATH::Mat4>& cachedPalette = poseCache->jointPalettes[node.skinIndex];
-                            // Palette is built from model-local node globals. The skinned VS then applies object world once.
+                            // palette は model local で作り、VS 側で world を一度だけ掛ける。
                             if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, cachedPalette)) {
                                 jointPalette = &cachedPalette;
                             }
                         }
                     } else {
                         scratch.jointPalette.clear();
-                        // Palette is built from model-local node globals. The skinned VS then applies object world once.
+                        // palette は model local で作り、VS 側で world を一度だけ掛ける。
                         if (BuildJointPalette(*item.model, node.skinIndex, localNodeGlobals, scratch.jointPalette)) {
                             jointPalette = &scratch.jointPalette;
                         }
@@ -704,7 +722,7 @@ namespace HIKARI::MODELRENDERER {
                             if (submitShadow) {
                                 SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             }
-                            ++gDebugStats.structuredNodeSubmittedCount;
+                            ++gDebugStats.frame.structuredNodeSubmittedCount;
                             submittedSkinned = true;
                             submitted = true;
                         }
@@ -733,7 +751,7 @@ namespace HIKARI::MODELRENDERER {
                     item.receiveShadow,
                     ToMeshRenderDebugMode(item.geometryDebugMode),
                     item.materialOverride);
-                ++gDebugStats.structuredNodeSubmittedCount;
+                ++gDebugStats.frame.structuredNodeSubmittedCount;
                 if (submitShadow) {
                     SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
                 }
@@ -743,9 +761,22 @@ namespace HIKARI::MODELRENDERER {
         }
     }
 
+    void ResetModelRendererFrameStats() {
+        gDebugStats.frame = {};
+    }
+
+    void BeginModelRendererFrame(ModelRendererFrameKind kind) {
+        // frame 内だけの統計を描画開始時に戻す。
+        ResetModelRendererFrameStats();
+        gDebugStats.frameKind = kind;
+        SyncRenderModelCacheStats();
+    }
+
     void Reset() {
         gQueue.clear();
-        gDebugStats = {};
+        ResetModelRendererFrameStats();
+        gDebugStats.frameKind = ModelRendererFrameKind::None;
+        SyncRenderModelCacheStats();
         MESHRENDERER::Reset();
         SHADOW::Reset();
     }
@@ -754,18 +785,19 @@ namespace HIKARI::MODELRENDERER {
         if (!item.model) {
             return;
         }
-        ++gDebugStats.submittedModelItemCount;
         gQueue.push_back(item);
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
         ++gFrameIndex;
+        BeginModelRendererFrame(ModelRendererFrameKind::MainView);
         SHADOW::BeginFrame(environment, camera);
 
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
             }
+            ++gDebugStats.frame.submittedModelItemCount;
 
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
                 ResolveRenderModelForDebug(item);
@@ -798,13 +830,16 @@ namespace HIKARI::MODELRENDERER {
         const Camera3D& camera,
         const SceneEnvironment& environment,
         uint32_t width,
-        uint32_t height) {
+        uint32_t height,
+        ModelRendererFrameKind kind) {
 
         ++gFrameIndex;
+        BeginModelRendererFrame(kind);
         for (const ModelRenderItem& item : gQueue) {
             if (!item.model) {
                 continue;
             }
+            ++gDebugStats.frame.submittedModelItemCount;
 
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
                 ResolveRenderModelForDebug(item);

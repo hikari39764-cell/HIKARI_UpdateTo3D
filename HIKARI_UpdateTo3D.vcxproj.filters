@@ -1097,6 +1097,9 @@
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp">
+      <Filter>Source Files\Render3D\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp">
       <Filter>Source Files\Render3D\Material</Filter>
     </ClCompile>
@@ -1630,6 +1633,9 @@
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_FramePhase.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_Logger.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
@@ -1728,6 +1734,9 @@
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h">

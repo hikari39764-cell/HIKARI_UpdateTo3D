@@ -1324,7 +1324,8 @@ namespace HIKARI {
             faceCamera,
             captureEnvironment,
             reflectionProbeBakeJob_->captureTarget.GetResolution(),
-            reflectionProbeBakeJob_->captureTarget.GetResolution());
+            reflectionProbeBakeJob_->captureTarget.GetResolution(),
+            MODELRENDERER::ModelRendererFrameKind::ReflectionProbeCapture);
 
         reflectionProbeBakeJob_->captureTarget.EndFace(faceIndex);
         return true;
@@ -1364,7 +1365,8 @@ namespace HIKARI {
             faceCamera,
             captureEnvironment,
             lightProbeBakeJob_->captureTarget.GetResolution(),
-            lightProbeBakeJob_->captureTarget.GetResolution());
+            lightProbeBakeJob_->captureTarget.GetResolution(),
+            MODELRENDERER::ModelRendererFrameKind::LightProbeCapture);
 
         lightProbeBakeJob_->captureTarget.EndFace(faceIndex);
         return true;
