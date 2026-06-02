@@ -6,6 +6,7 @@
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 #include "HIKARI_ModelRenderItem.h"
 
 namespace HIKARI::MODELRENDERER {
@@ -54,5 +55,6 @@ namespace HIKARI::MODELRENDERER {
         uint32_t width,
         uint32_t height);
     const ModelRendererDebugStats& GetDebugStats();
+    const RENDER3D::RUNTIME::RenderModelCache::Stats& GetRenderModelCacheStats();
 
 }

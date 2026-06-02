@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/838e8afd68fff9cc81387bdd06a0a3cc/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/838e8afd68fff9cc81387bdd06a0a3cc/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "TexturesCom_DoorsRollup0044_M_diffuse",
   "guid": "838e8afd68fff9cc81387bdd06a0a3cc",

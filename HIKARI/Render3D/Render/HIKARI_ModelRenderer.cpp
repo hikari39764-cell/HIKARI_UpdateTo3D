@@ -13,6 +13,7 @@
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
+#include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #undef max
@@ -23,6 +24,7 @@ namespace HIKARI::MODELRENDERER {
     namespace {
         std::vector<ModelRenderItem> gQueue;
         ModelRendererDebugStats gDebugStats;
+        RENDER3D::RUNTIME::RenderModelCache gRenderModelCache;
         uint64_t gFrameIndex = 0;
 
         MESHRENDERER::MeshRenderDebugMode ToMeshRenderDebugMode(ModelGeometryDebugMode mode) {
@@ -163,6 +165,14 @@ namespace HIKARI::MODELRENDERER {
                 }
             }
             return false;
+        }
+
+        void TouchRenderModelCache(const ModelRenderItem& item) {
+            if (item.model == nullptr) {
+                return;
+            }
+            // R0.1 では描画経路を変えず、runtime cache の構築だけを行う。
+            (void)gRenderModelCache.GetOrCreate(*item.model);
         }
 
         bool ShouldUsePoseCache(const ModelRenderItem& item) {
@@ -725,6 +735,7 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
+            TouchRenderModelCache(item);
             if (SubmitStructuredModelNodes(item, camera, true)) {
                 continue;
             }
@@ -761,6 +772,7 @@ namespace HIKARI::MODELRENDERER {
                 continue;
             }
 
+            TouchRenderModelCache(item);
             if (SubmitStructuredModelNodes(item, camera, false)) {
                 continue;
             }
@@ -790,6 +802,10 @@ namespace HIKARI::MODELRENDERER {
 
     const ModelRendererDebugStats& GetDebugStats() {
         return gDebugStats;
+    }
+
+    const RENDER3D::RUNTIME::RenderModelCache::Stats& GetRenderModelCacheStats() {
+        return gRenderModelCache.GetStats();
     }
 
 }

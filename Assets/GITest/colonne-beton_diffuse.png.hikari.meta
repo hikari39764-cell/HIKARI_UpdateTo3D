@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/27d00a2411eb860acc585ba24a4c945e/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/27d00a2411eb860acc585ba24a4c945e/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "colonne-beton_diffuse",
   "guid": "27d00a2411eb860acc585ba24a4c945e",

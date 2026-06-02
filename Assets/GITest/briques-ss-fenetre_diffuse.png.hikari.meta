@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/ee6a9274b02ce7025d0c787162ef9210/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/ee6a9274b02ce7025d0c787162ef9210/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "briques-ss-fenetre_diffuse",
   "guid": "ee6a9274b02ce7025d0c787162ef9210",

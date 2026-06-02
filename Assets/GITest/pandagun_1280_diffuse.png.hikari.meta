@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/4eb909fb9653291c5e80034a31720b23/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/4eb909fb9653291c5e80034a31720b23/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "pandagun_1280_diffuse",
   "guid": "4eb909fb9653291c5e80034a31720b23",

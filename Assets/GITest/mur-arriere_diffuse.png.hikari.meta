@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/9e45199c848481e4989bf206757ed9cd/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/9e45199c848481e4989bf206757ed9cd/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "mur-arriere_diffuse",
   "guid": "9e45199c848481e4989bf206757ed9cd",

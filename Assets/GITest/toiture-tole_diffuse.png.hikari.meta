@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/b2019a1b3abb681e50bff08bcd796c48/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/b2019a1b3abb681e50bff08bcd796c48/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "toiture-tole_diffuse",
   "guid": "b2019a1b3abb681e50bff08bcd796c48",

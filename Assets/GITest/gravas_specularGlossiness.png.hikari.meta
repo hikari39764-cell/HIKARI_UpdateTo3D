@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/d0c3d9b6a5161eb2745c495afb05e5a3/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/d0c3d9b6a5161eb2745c495afb05e5a3/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "gravas_specularGlossiness",
   "guid": "d0c3d9b6a5161eb2745c495afb05e5a3",

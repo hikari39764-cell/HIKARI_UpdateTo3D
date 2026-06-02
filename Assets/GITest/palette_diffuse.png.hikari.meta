@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/18ddf7bc28f21e5c2d6529ff90c8f865/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/18ddf7bc28f21e5c2d6529ff90c8f865/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "palette_diffuse",
   "guid": "18ddf7bc28f21e5c2d6529ff90c8f865",

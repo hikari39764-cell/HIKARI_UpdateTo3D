@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/66d09620057d4ab405a8f9afba1cc11b/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/66d09620057d4ab405a8f9afba1cc11b/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "fenetre.005_specularGlossiness-1",
   "guid": "66d09620057d4ab405a8f9afba1cc11b",

@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/5af0bc936a41258bc14c202b87cb9ceb/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/5af0bc936a41258bc14c202b87cb9ceb/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "poutre-toit.001_diffuse",
   "guid": "5af0bc936a41258bc14c202b87cb9ceb",

@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/eac8a0f129fced5044290088ac0ca3c2/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/eac8a0f129fced5044290088ac0ca3c2/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "DM_Watch_Your_Step_graffiti_diffuse",
   "guid": "eac8a0f129fced5044290088ac0ca3c2",

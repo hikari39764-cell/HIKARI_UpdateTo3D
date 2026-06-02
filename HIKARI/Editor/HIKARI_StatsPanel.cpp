@@ -64,9 +64,18 @@ namespace HIKARI {
         }
 
         const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
+        const RENDER3D::RUNTIME::RenderModelCache::Stats& renderModelCacheStats = MODELRENDERER::GetRenderModelCacheStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Submitted Model Items: %zu", modelStats.submittedModelItemCount);
+            ImGui::Text("RenderModel Cache Request / Hit / Miss: %u / %u / %u",
+                renderModelCacheStats.requestCount,
+                renderModelCacheStats.hitCount,
+                renderModelCacheStats.missCount);
+            ImGui::Text("RenderModel Cached Models / Submeshes: %u / %u",
+                renderModelCacheStats.cachedModelCount,
+                renderModelCacheStats.cachedSubmeshCount);
+            ImGui::Text("RenderModel Invalid Models: %u", renderModelCacheStats.invalidModelCount);
             ImGui::Text("Structured Nodes Submitted / Culled: %zu / %zu",
                 modelStats.structuredNodeSubmittedCount,
                 modelStats.structuredNodeCulledCount);

@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/338678f172459684c3f04959f3a8528a/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/338678f172459684c3f04959f3a8528a/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "TexturesCom_CardboardPlain0022_2_alphamasked_S_diffuse",
   "guid": "338678f172459684c3f04959f3a8528a",
