@@ -179,6 +179,7 @@
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
@@ -212,6 +213,7 @@
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
@@ -502,7 +504,10 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Model.h" />

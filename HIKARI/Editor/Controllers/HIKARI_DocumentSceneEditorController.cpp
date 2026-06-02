@@ -148,6 +148,7 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Scene Workspace", leftNode);
                 ImGui::DockBuilderDockWindow("Environment", rightEnvironmentNode);
                 ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
+                ImGui::DockBuilderDockWindow("Lighting Bake", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
 
                 // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
@@ -302,6 +303,9 @@ namespace HIKARI {
                 scene.ApplyEnvironmentRuntimeChanges();
                 context_.sceneDirty = true;
             }
+        }
+        if (context_.windows.resources.showLightingBake) {
+            lightingBakePanel_.Draw(scene, context_.windows.resources.showLightingBake);
         }
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);

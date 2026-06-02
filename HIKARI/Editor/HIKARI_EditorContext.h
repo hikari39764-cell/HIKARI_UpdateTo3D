@@ -67,6 +67,7 @@ namespace HIKARI {
     struct ResourceWindowState {
         bool showAssetBrowser = true;
         bool showEnvironment = true;
+        bool showLightingBake = false;
     };
 
     struct RuntimeDebugWindowState {

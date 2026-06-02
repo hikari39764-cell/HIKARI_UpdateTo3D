@@ -7,6 +7,7 @@
 #include "Editor/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
+#include "Editor/Panels/HIKARI_LightingBakePanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
@@ -37,6 +38,7 @@ namespace HIKARI {
         ResourceWorkspacePanel resourceWorkspacePanel_{};
         StatsPanel statsPanel_{};
         EnvironmentPanel environmentPanel_{};
+        LightingBakePanel lightingBakePanel_{};
         DebugCameraPanel debugCameraPanel_{};
         EDITOR::EditorTransformGizmo transformGizmo_{};
 

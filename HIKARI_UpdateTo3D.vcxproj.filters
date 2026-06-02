@@ -145,6 +145,12 @@
     <Filter Include="Header Files\ThirdParty\ImGuizmo">
       <UniqueIdentifier>{2D5BD914-6A91-4521-8F75-E5D892C05E65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Tools">
+      <UniqueIdentifier>{1702F989-0B1A-4E2F-B881-11441E8700D1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Tools\Baking">
+      <UniqueIdentifier>{DB8E6705-8A25-465A-8B62-0639518FEAD7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Vfx">
       <UniqueIdentifier>{E5E496B5-9BAD-53F3-9451-E7C2FED7FBCA}</UniqueIdentifier>
     </Filter>
@@ -367,6 +373,12 @@
     <Filter Include="Source Files\ThirdParty\ImGuizmo">
       <UniqueIdentifier>{87BE430E-317D-43F9-BDF2-A7D9FE8CE71B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Tools">
+      <UniqueIdentifier>{A2B18E50-A536-43D9-866C-F48EC0F15C80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Tools\Baking">
+      <UniqueIdentifier>{C13C544A-21A5-462C-8F80-243C4EAB59D9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Vfx">
       <UniqueIdentifier>{743EC9F5-0053-50E6-A9ED-33AFF1E33CB2}</UniqueIdentifier>
     </Filter>
@@ -571,6 +583,9 @@
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp">
@@ -1064,6 +1079,9 @@
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp">
       <Filter>Source Files\Render3D\Material</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp">
+      <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -1336,6 +1354,12 @@
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h">
       <Filter>Header Files\Assets\Lighting</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h">
+      <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">
       <Filter>Header Files\Assets\Formats</Filter>
     </ClInclude>
@@ -1598,6 +1622,9 @@
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h">
