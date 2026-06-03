@@ -7,6 +7,7 @@
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordCache.h"
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordSubmitter.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
+#include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
@@ -47,7 +48,7 @@ namespace HIKARI {
     class RenderSubmissionSystem final : public ISystem {
     public:
         struct ClusteredCpuPreviewTarget {
-            bool enabled = false;
+            RENDER3D::CLUSTER::ClusteredRenderMode mode = RENDER3D::CLUSTER::ClusteredRenderMode::Off;
             const AssetRegistry* assetRegistry = nullptr;
             std::filesystem::path projectRoot{};
             uint64_t selectedObjectId = 0;
@@ -60,7 +61,7 @@ namespace HIKARI {
 
         static void SetActiveRenderCamera(const Camera3D* camera);
         static void SetClusteredCpuPreviewTarget(
-            bool enabled,
+            RENDER3D::CLUSTER::ClusteredRenderMode mode,
             const AssetRegistry* assetRegistry,
             std::filesystem::path projectRoot,
             uint64_t selectedObjectId,

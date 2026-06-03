@@ -5,6 +5,7 @@
 
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
+#include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 
 namespace HIKARI {
@@ -81,7 +82,7 @@ namespace HIKARI {
     };
 
     struct ClusteredGeometryPreviewState {
-        bool cpuReferencePreviewSelectedObject = false;
+        RENDER3D::CLUSTER::ClusteredRenderMode renderMode = RENDER3D::CLUSTER::ClusteredRenderMode::Off;
         RENDER3D::CLUSTER::ClusterDebugOptions debugOptions{};
     };
 

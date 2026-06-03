@@ -219,12 +219,20 @@ namespace HIKARI {
                 clusteredGeometryStats.skippedMorphPrimitiveCount,
                 clusteredGeometryStats.skippedInvalidPrimitiveCount);
             ImGui::Text("Unsupported OBJ / glTF Features: %u", clusteredGeometryStats.unsupportedFeatureCount);
-            ImGui::SeparatorText("CPU Reference Preview");
+            ImGui::SeparatorText("CPU Reference");
+            ImGui::Text("Mode: %s", RENDER3D::CLUSTER::ToString(clusteredPreviewStats.mode));
             ImGui::Text("Enabled: %s", clusteredPreviewStats.enabled ? "On" : "Off");
+            ImGui::Text("Candidates: %u", clusteredPreviewStats.candidateObjectCount);
             ImGui::Text("Submitted Objects / Surfaces: %u / %u",
                 clusteredPreviewStats.submittedObjectCount,
                 clusteredPreviewStats.submittedSurfaceCount);
-            ImGui::Text("Fallback Surfaces: %u", clusteredPreviewStats.fallbackSurfaceCount);
+            ImGui::Text("Selected Preview Objects: %u", clusteredPreviewStats.selectedPreviewObjectCount);
+            ImGui::Text("Fallback Objects / Surfaces: %u / %u",
+                clusteredPreviewStats.fallbackObjectCount,
+                clusteredPreviewStats.fallbackSurfaceCount);
+            ImGui::Text("Transparent / Unsupported Surfaces: %u / %u",
+                clusteredPreviewStats.transparentFallbackSurfaceCount,
+                clusteredPreviewStats.unsupportedFallbackSurfaceCount);
             ImGui::Text("Cached / Rebuilt Preview Models: %u / %u",
                 clusteredPreviewStats.cachedPreviewModelCount,
                 clusteredPreviewStats.rebuiltPreviewModelCount);

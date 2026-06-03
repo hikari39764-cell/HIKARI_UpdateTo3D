@@ -14,6 +14,34 @@ namespace HIKARI::RENDER3D::CLUSTER {
     namespace {
         ClusteredCpuPreviewRenderer gPreviewRenderer{};
 
+        bool IsReferenceSupportedSurface(const ClusterSurface& surface) {
+            return !HasFlag(surface.flags, ClusterSurfaceFlags::Skinned) &&
+                !HasFlag(surface.flags, ClusterSurfaceFlags::Unsupported) &&
+                !HasFlag(surface.flags, ClusterSurfaceFlags::Transparent) &&
+                surface.indexCount > 0u &&
+                surface.vertexCount > 0u;
+        }
+
+        uint32_t CountUnsupportedReferenceSurfaces(const ClusteredGeometryAsset& asset) {
+            uint32_t count = 0;
+            for (const ClusterSurface& surface : asset.surfaces) {
+                if (!IsReferenceSupportedSurface(surface)) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+
+        uint32_t CountTransparentSurfaces(const ClusteredGeometryAsset& asset) {
+            uint32_t count = 0;
+            for (const ClusterSurface& surface : asset.surfaces) {
+                if (HasFlag(surface.flags, ClusterSurfaceFlags::Transparent)) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+
         Vertex3D ToVertex3D(const ClusterVertex& source) {
             Vertex3D out{};
             out.position = source.position;
@@ -25,9 +53,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return out;
         }
 
-        void CopyMaterials(const ModelAsset* sourceModel, ModelAsset& outModel, size_t minimumCount) {
+        size_t GetRequiredMaterialCount(const ClusteredGeometryAsset& clusteredGeometry) {
+            size_t requiredCount = clusteredGeometry.materialSlotMapping.size();
+            for (const ClusterSurface& surface : clusteredGeometry.surfaces) {
+                requiredCount = (std::max)(requiredCount, static_cast<size_t>(surface.materialIndex) + 1u);
+            }
+            return requiredCount;
+        }
+
+        void CopyMaterialResources(const ModelAsset* sourceModel, ModelAsset& outModel, size_t minimumCount) {
             if (sourceModel != nullptr && !sourceModel->materials.empty()) {
                 outModel.materials = sourceModel->materials;
+            }
+            if (sourceModel != nullptr && !sourceModel->textures.empty()) {
+                // CPU参照用モデルでも元モデルのテクスチャ表を保持する。
+                outModel.textures = sourceModel->textures;
             }
             while (outModel.materials.size() < minimumCount) {
                 MaterialAsset material{};
@@ -41,8 +81,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             const ClusterSurface& surface,
             MeshPrimitive& outPrimitive) {
 
-            if (HasFlag(surface.flags, ClusterSurfaceFlags::Skinned) ||
-                HasFlag(surface.flags, ClusterSurfaceFlags::Unsupported) ||
+            if (!IsReferenceSupportedSurface(surface) ||
                 surface.indexCount == 0u ||
                 surface.firstIndex + surface.indexCount > clusteredGeometry.packedIndices.size()) {
                 return false;
@@ -76,13 +115,26 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
     }
 
+    void ClusteredCpuPreviewRenderer::SetMode(ClusteredRenderMode mode) {
+        mode_ = mode;
+        stats_.mode = mode_;
+        stats_.enabled = mode_ != ClusteredRenderMode::Off;
+    }
+
+    ClusteredRenderMode ClusteredCpuPreviewRenderer::GetMode() const {
+        return mode_;
+    }
+
     void ClusteredCpuPreviewRenderer::SetEnabled(bool enabled) {
-        enabled_ = enabled;
-        stats_.enabled = enabled_;
+        SetMode(enabled ? ClusteredRenderMode::SelectedPreview : ClusteredRenderMode::Off);
     }
 
     bool ClusteredCpuPreviewRenderer::IsEnabled() const {
-        return enabled_;
+        return mode_ != ClusteredRenderMode::Off;
+    }
+
+    bool ClusteredCpuPreviewRenderer::IsCpuReferenceMode() const {
+        return mode_ == ClusteredRenderMode::CpuReference;
     }
 
     bool ClusteredCpuPreviewRenderer::SubmitSelectedObjectPreview(
@@ -93,8 +145,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             MESHRENDERER::MeshRenderDebugMode debugMode,
             const Material* materialOverride) {
 
-        stats_.enabled = enabled_;
-        if (!enabled_ || !clusteredGeometry.valid) {
+        stats_.mode = mode_;
+        stats_.enabled = IsEnabled();
+        if (mode_ != ClusteredRenderMode::SelectedPreview || !clusteredGeometry.valid) {
             return false;
         }
 
@@ -116,15 +169,83 @@ namespace HIKARI::RENDER3D::CLUSTER {
             materialOverride);
 
         ++stats_.submittedObjectCount;
+        ++stats_.selectedPreviewObjectCount;
         stats_.submittedSurfaceCount += static_cast<uint32_t>(previewModel->meshes[0].primitives.size());
         return true;
     }
 
+    bool ClusteredCpuPreviewRenderer::CanSubmitCompleteReference(const ClusteredGeometryAsset& clusteredGeometry) const {
+        return clusteredGeometry.valid &&
+            !clusteredGeometry.surfaces.empty() &&
+            clusteredGeometry.skippedPrimitiveCount == 0u &&
+            clusteredGeometry.skippedSkinnedPrimitiveCount == 0u &&
+            clusteredGeometry.skippedMorphPrimitiveCount == 0u &&
+            clusteredGeometry.skippedInvalidPrimitiveCount == 0u &&
+            CountUnsupportedReferenceSurfaces(clusteredGeometry) == 0u;
+    }
+
+    bool ClusteredCpuPreviewRenderer::SubmitReferenceObject(
+        const ClusteredGeometryAsset& clusteredGeometry,
+        const Transform3D& transform,
+        const ModelAsset* sourceModel,
+        const std::string& materialFxProfileId,
+        uint32_t postGroupMask,
+        const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount],
+        bool materialFxValuesInitialized,
+        bool receiveShadow,
+        MESHRENDERER::MeshRenderDebugMode debugMode,
+        const Material* materialOverride) {
+
+        stats_.mode = mode_;
+        stats_.enabled = IsEnabled();
+        if (mode_ != ClusteredRenderMode::CpuReference) {
+            return false;
+        }
+
+        if (!CanSubmitCompleteReference(clusteredGeometry)) {
+            RecordFallbackObject(static_cast<uint32_t>(clusteredGeometry.surfaces.size()));
+            stats_.transparentFallbackSurfaceCount += CountTransparentSurfaces(clusteredGeometry);
+            stats_.unsupportedFallbackSurfaceCount += CountUnsupportedReferenceSurfaces(clusteredGeometry);
+            return false;
+        }
+
+        ModelAsset* previewModel = GetOrBuildPreviewModel(clusteredGeometry, sourceModel);
+        if (previewModel == nullptr || previewModel->meshes.empty()) {
+            RecordFallbackObject(static_cast<uint32_t>(clusteredGeometry.surfaces.size()));
+            return false;
+        }
+
+        MESHRENDERER::SubmitStaticMesh(
+            *previewModel,
+            transform,
+            materialFxProfileId,
+            postGroupMask,
+            materialFxParamValues,
+            materialFxValuesInitialized,
+            receiveShadow,
+            debugMode,
+            materialOverride);
+
+        ++stats_.submittedObjectCount;
+        stats_.submittedSurfaceCount += static_cast<uint32_t>(previewModel->meshes[0].primitives.size());
+        return true;
+    }
+
+    void ClusteredCpuPreviewRenderer::RecordReferenceCandidate() {
+        ++stats_.candidateObjectCount;
+    }
+
+    void ClusteredCpuPreviewRenderer::RecordFallbackObject(uint32_t surfaceCount) {
+        ++stats_.fallbackObjectCount;
+        stats_.fallbackSurfaceCount += surfaceCount;
+    }
+
     void ClusteredCpuPreviewRenderer::ResetFrameStats() {
-        const bool wasEnabled = enabled_;
+        const ClusteredRenderMode mode = mode_;
         const uint32_t cachedCount = static_cast<uint32_t>(previewModels_.size());
         stats_ = {};
-        stats_.enabled = wasEnabled;
+        stats_.mode = mode;
+        stats_.enabled = mode != ClusteredRenderMode::Off;
         stats_.cachedPreviewModelCount = cachedCount;
     }
 
@@ -150,7 +271,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         previewModel->SetName("HCMESH CPU Preview");
         previewModel->SetSourcePath(clusteredGeometry.sourceModelPath);
         previewModel->SetState(ModelAsset::State::Loaded);
-        CopyMaterials(sourceModel, *previewModel, clusteredGeometry.materialSlotMapping.size());
+        CopyMaterialResources(sourceModel, *previewModel, GetRequiredMaterialCount(clusteredGeometry));
 
         MeshAsset mesh{};
         mesh.name = "HCMESH CPU Preview Mesh";

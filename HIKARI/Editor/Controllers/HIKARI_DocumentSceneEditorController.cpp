@@ -1274,10 +1274,24 @@ namespace HIKARI {
             }
             if (ImGui::BeginTabItem("Cluster")) {
                 ImGui::SeparatorText("Clustered Geometry");
-                ImGui::TextDisabled("CPU reference preview is isolated from the official renderer path.");
-                ImGui::Checkbox(
-                    "CPU Preview Selected Object",
-                    &context_.clusteredGeometry.cpuReferencePreviewSelectedObject);
+                ImGui::TextDisabled("CPU reference keeps the legacy renderer as fallback.");
+                RENDER3D::CLUSTER::ClusteredRenderMode& clusteredMode =
+                    context_.clusteredGeometry.renderMode;
+                if (ImGui::BeginCombo("Render Mode", RENDER3D::CLUSTER::ToString(clusteredMode))) {
+                    const RENDER3D::CLUSTER::ClusteredRenderMode modes[] = {
+                        RENDER3D::CLUSTER::ClusteredRenderMode::Off,
+                        RENDER3D::CLUSTER::ClusteredRenderMode::SelectedPreview,
+                        RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference,
+                    };
+                    for (RENDER3D::CLUSTER::ClusteredRenderMode mode : modes) {
+                        if (ImGui::Selectable(
+                                RENDER3D::CLUSTER::ToString(mode),
+                                clusteredMode == mode)) {
+                            clusteredMode = mode;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
                 if (context_.selection.selectedObject) {
                     ImGui::Text("Selected: %s", context_.selection.selectedObject->GetName().c_str());
                 } else {
@@ -1324,10 +1338,18 @@ namespace HIKARI {
 
                 const RENDER3D::CLUSTER::ClusteredCpuPreviewStats& previewStats =
                     RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().GetStats();
-                ImGui::SeparatorText("Preview Frame");
+                ImGui::SeparatorText("CPU Reference Frame");
+                ImGui::Text("Mode: %s", RENDER3D::CLUSTER::ToString(previewStats.mode));
+                ImGui::Text("Candidates: %u", previewStats.candidateObjectCount);
                 ImGui::Text("Submitted Objects: %u", previewStats.submittedObjectCount);
                 ImGui::Text("Submitted Surfaces: %u", previewStats.submittedSurfaceCount);
-                ImGui::Text("Fallback Surfaces: %u", previewStats.fallbackSurfaceCount);
+                ImGui::Text("Selected Preview Objects: %u", previewStats.selectedPreviewObjectCount);
+                ImGui::Text("Fallback Objects / Surfaces: %u / %u",
+                    previewStats.fallbackObjectCount,
+                    previewStats.fallbackSurfaceCount);
+                ImGui::Text("Transparent / Unsupported Surfaces: %u / %u",
+                    previewStats.transparentFallbackSurfaceCount,
+                    previewStats.unsupportedFallbackSurfaceCount);
                 ImGui::Text("Cached Preview Models: %u", previewStats.cachedPreviewModelCount);
 
                 const RENDER3D::CLUSTER::ClusteredGeometryManagerStats& clusterStats =

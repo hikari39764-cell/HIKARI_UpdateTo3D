@@ -45,28 +45,41 @@ namespace HIKARI {
             return path;
         }
 
-        bool TrySubmitClusteredTools(
+        bool IsSelectedClusterTarget(
+            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
+            const GameObject& object) {
+
+            return target.selectedObjectId != 0u &&
+                object.GetDocumentId().value == target.selectedObjectId;
+        }
+
+        const RENDER3D::CLUSTER::ClusteredGeometryAsset* LoadClusteredGeometryForObject(
+            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
+            const ModelComponent& model) {
+
+            const std::filesystem::path hcmeshPath = ResolvePreviewHcmeshPath(target, model);
+            if (hcmeshPath.empty()) {
+                return nullptr;
+            }
+            return RENDER3D::CLUSTER::GetClusteredGeometryManager().LoadOrGet(hcmeshPath);
+        }
+
+        bool TrySubmitSelectedClusterTools(
             const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
             const GameObject& object,
             const ModelComponent& model,
             const ModelAsset& asset) {
 
-            const bool wantsPreview = target.enabled;
+            const bool wantsPreview =
+                target.mode == RENDER3D::CLUSTER::ClusteredRenderMode::SelectedPreview;
             const bool wantsDebug =
                 target.debugOptions.mode != RENDER3D::CLUSTER::ClusterDebugViewMode::Off;
-            if ((!wantsPreview && !wantsDebug) ||
-                target.selectedObjectId == 0u ||
-                object.GetDocumentId().value != target.selectedObjectId) {
-                return false;
-            }
-
-            const std::filesystem::path hcmeshPath = ResolvePreviewHcmeshPath(target, model);
-            if (hcmeshPath.empty()) {
+            if ((!wantsPreview && !wantsDebug) || !IsSelectedClusterTarget(target, object)) {
                 return false;
             }
 
             const RENDER3D::CLUSTER::ClusteredGeometryAsset* clusteredGeometry =
-                RENDER3D::CLUSTER::GetClusteredGeometryManager().LoadOrGet(hcmeshPath);
+                LoadClusteredGeometryForObject(target, model);
             if (clusteredGeometry == nullptr) {
                 return false;
             }
@@ -89,6 +102,51 @@ namespace HIKARI {
                 MESHRENDERER::MeshRenderDebugMode::WireOverlay,
                 model.GetRuntimeMaterialOverride());
         }
+
+        bool TrySubmitClusteredCpuReference(
+            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
+            const GameObject& object,
+            const ModelComponent& model,
+            const ModelAsset& asset,
+            ModelRenderDebugMode debugMode) {
+
+            if (target.mode != RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference ||
+                !model.IsRenderStatic()) {
+                return false;
+            }
+
+            RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& referenceRenderer =
+                RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer();
+            referenceRenderer.RecordReferenceCandidate();
+
+            if (model.GetSourceKind() != ModelSourceKind::Asset ||
+                model.GetAssetId().empty() ||
+                debugMode != ModelRenderDebugMode::Normal ||
+                asset.HasSkinnedMesh()) {
+                referenceRenderer.RecordFallbackObject();
+                return false;
+            }
+
+            const RENDER3D::CLUSTER::ClusteredGeometryAsset* clusteredGeometry =
+                LoadClusteredGeometryForObject(target, model);
+            if (clusteredGeometry == nullptr || !clusteredGeometry->valid) {
+                referenceRenderer.RecordFallbackObject();
+                return false;
+            }
+
+            return referenceRenderer.SubmitReferenceObject(
+                *clusteredGeometry,
+                object.Transform(),
+                &asset,
+                model.GetMaterialFxProfileId(),
+                model.GetPostGroupMask(),
+                model.GetMaterialFxParamValues(),
+                model.AreMaterialFxValuesInitialized(),
+                model.GetReceiveShadow(),
+                MESHRENDERER::MeshRenderDebugMode::Normal,
+                model.GetRuntimeMaterialOverride());
+        }
+
         RENDER3D::RUNTIME::SceneRenderObjectId ResolveSceneRenderObjectId(const GameObject& object) {
             RENDER3D::RUNTIME::SceneRenderObjectId id{ object.GetDocumentId().value };
             if (!id.IsValid()) {
@@ -114,13 +172,13 @@ namespace HIKARI {
     }
 
     void RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
-        bool enabled,
+        RENDER3D::CLUSTER::ClusteredRenderMode mode,
         const AssetRegistry* assetRegistry,
         std::filesystem::path projectRoot,
         uint64_t selectedObjectId,
         RENDER3D::CLUSTER::ClusterDebugOptions debugOptions) {
 
-        sClusteredCpuPreviewTarget_.enabled = enabled;
+        sClusteredCpuPreviewTarget_.mode = mode;
         sClusteredCpuPreviewTarget_.assetRegistry = assetRegistry;
         sClusteredCpuPreviewTarget_.projectRoot = std::move(projectRoot);
         sClusteredCpuPreviewTarget_.selectedObjectId = selectedObjectId;
@@ -208,7 +266,7 @@ namespace HIKARI {
 
         RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& clusteredPreview =
             RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer();
-        clusteredPreview.SetEnabled(sClusteredCpuPreviewTarget_.enabled);
+        clusteredPreview.SetMode(sClusteredCpuPreviewTarget_.mode);
         clusteredPreview.ResetFrameStats();
 
         sSceneRenderCacheSync_.Sync(
@@ -220,9 +278,14 @@ namespace HIKARI {
         sStaticDrawRecordCache_.SyncFromSceneRenderCache(sSceneRenderCache_);
 
         sStaticRecordSubmitOptions_ = {};
+        const bool clusteredCpuReferenceActive =
+            sClusteredCpuPreviewTarget_.mode == RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference;
         if (sOptions_.useStaticDrawRecordCache) {
-            sStaticRecordSubmitOptions_.useCachedStaticForward = sOptions_.useCachedStaticForward;
-            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit = sOptions_.skipOldStaticForwardWhenCached;
+            // CPU Reference 中は forward を HCMESH 側で比較する。
+            sStaticRecordSubmitOptions_.useCachedStaticForward =
+                sOptions_.useCachedStaticForward && !clusteredCpuReferenceActive;
+            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit =
+                sOptions_.skipOldStaticForwardWhenCached && !clusteredCpuReferenceActive;
             sStaticRecordSubmitOptions_.useCachedStaticShadow = sOptions_.useCachedStaticShadow;
             sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit = sOptions_.skipOldStaticShadowWhenCached;
             sStaticRecordSubmitOptions_.enableFrustumCulling = true;
@@ -328,11 +391,22 @@ namespace HIKARI {
                     return;
                 }
 
+                const bool clusteredForwardHandled = TrySubmitClusteredCpuReference(
+                    sClusteredCpuPreviewTarget_,
+                    object,
+                    model,
+                    *asset,
+                    debugMode);
+                TrySubmitSelectedClusterTools(sClusteredCpuPreviewTarget_, object, model, *asset);
+
                 if (forwardHandledByCache &&
                     shadowHandledByCacheOrNotNeeded &&
                     sOptions_.bypassOldStaticModelRendererWhenFullyCached) {
-                    TrySubmitClusteredTools(sClusteredCpuPreviewTarget_, object, model, *asset);
                     ++sDebugStats_.staticCachedBypassOldModelRendererCount;
+                    return;
+                }
+
+                if (clusteredForwardHandled && !model.GetCastShadow()) {
                     return;
                 }
 
@@ -351,6 +425,9 @@ namespace HIKARI {
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
                 if (forwardHandledByCache) {
+                    item.submitForward = false;
+                }
+                if (clusteredForwardHandled) {
                     item.submitForward = false;
                 }
                 if (canUseCachedShadow && sOptions_.skipOldStaticShadowWhenCached) {
@@ -373,8 +450,11 @@ namespace HIKARI {
                     item.animationLoop = animator->GetLoop();
                 }
 
+                if (!item.submitForward && !item.submitShadow) {
+                    return;
+                }
+
                 MODELRENDERER::SubmitModel(item);
-                TrySubmitClusteredTools(sClusteredCpuPreviewTarget_, object, model, *asset);
                 ++sDebugStats_.submittedModelCount;
             } else {
                 ++sDebugStats_.fallbackWireCount;

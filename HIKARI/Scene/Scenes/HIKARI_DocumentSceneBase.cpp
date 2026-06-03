@@ -481,7 +481,7 @@ namespace HIKARI {
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         RenderSubmissionSystem::SetActiveRenderCamera(&camera_);
         RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
-            clusteredGeometryPreviewState_.cpuReferencePreviewSelectedObject,
+            clusteredGeometryPreviewState_.renderMode,
             &assetRegistry_,
             assetDatabase_.GetProjectRoot(),
             selectedGizmoObjectId_.value,
