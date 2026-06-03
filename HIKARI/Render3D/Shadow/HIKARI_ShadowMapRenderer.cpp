@@ -18,6 +18,7 @@
 #include "HIKARI_Services.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -754,6 +755,7 @@ namespace HIKARI::SHADOW {
             g.acceptingFrameSubmissions = false;
             return;
         }
+        GFX::GPU_PROFILE::ScopedGpuTimer gpuShadow(cmd, GFX::GPU_PROFILE::Pass::ShadowMap);
 
         if (g.shadowState != D3D12_RESOURCE_STATE_DEPTH_WRITE) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(g.shadowMap.Get(), g.shadowState, D3D12_RESOURCE_STATE_DEPTH_WRITE);

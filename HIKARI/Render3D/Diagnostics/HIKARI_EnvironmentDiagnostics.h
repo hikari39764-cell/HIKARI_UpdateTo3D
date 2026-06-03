@@ -98,6 +98,7 @@ namespace HIKARI {
             bool ssaoEnabled = false;
             bool ssaoValid = false;
             bool ssaoSuppressed = false;
+            std::string ssaoMode{};
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
             uint32_t ssaoSampleCount = 0;

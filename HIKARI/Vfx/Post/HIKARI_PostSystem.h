@@ -136,6 +136,7 @@ namespace HIKARI {
             // [新增] 专门用于画光的 RT
             static RenderTarget2D lightRT_;
             static float ambientColor_[3];
+            static float lightRTClearColor_[3];
             static bool useLighting_;
 
             static PostChain globalChain_;

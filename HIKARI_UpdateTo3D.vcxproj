@@ -116,6 +116,7 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_DXCheck.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_PixProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
@@ -552,6 +553,7 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_PixProfiler.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />

@@ -2,6 +2,7 @@ cbuffer SsaoPassCB : register(b0)
 {
     float4x4 gViewProj;
     float4x4 gInvViewProj;
+    float4 gCameraPos;
     float4 gScreenParams;
     float4 gAoParams0;
     float4 gAoParams1;
@@ -55,6 +56,31 @@ float PSMain(VSOut input) : SV_TARGET
         float depthWeight = exp(-abs(depth - centerDepth) * 64.0f);
         float kernelWeight = (i == 0) ? 0.34f : ((abs(i) == 1) ? 0.22f : 0.10f);
         float weight = kernelWeight * normalWeight * depthWeight;
+        sum += ao * weight;
+        weightSum += weight;
+    }
+
+    return sum / max(weightSum, 1e-4f);
+}
+
+// Depth-only AO 用の軽量 blur。
+float PSMainDepthOnly(VSOut input) : SV_TARGET
+{
+    float2 texel = gScreenParams.zw * gBlurParams.xy;
+    float centerDepth = gSceneDepthTex.SampleLevel(gPointClamp, input.uv, 0).r;
+
+    float sum = 0.0f;
+    float weightSum = 0.0f;
+
+    [unroll]
+    for (int i = -1; i <= 1; ++i)
+    {
+        float2 uv = saturate(input.uv + texel * float(i));
+        float ao = gAoTex.SampleLevel(gLinearClamp, uv, 0).r;
+        float depth = gSceneDepthTex.SampleLevel(gPointClamp, uv, 0).r;
+        float depthWeight = exp(-abs(depth - centerDepth) * 96.0f);
+        float kernelWeight = (i == 0) ? 0.50f : 0.25f;
+        float weight = kernelWeight * depthWeight;
         sum += ao * weight;
         weightSum += weight;
     }

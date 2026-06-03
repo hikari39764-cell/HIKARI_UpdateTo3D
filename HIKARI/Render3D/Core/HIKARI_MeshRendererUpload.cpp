@@ -220,8 +220,11 @@ namespace HIKARI::MESHRENDERER {
             std::max(0.0f, probeData.blendDistance),
             static_cast<float>(probeData.priority)
         };
+        const bool ssaoConfiguredEnabled =
+            environment.ambientOcclusion.enabled &&
+            environment.ambientOcclusion.mode != SsaoMode::Off;
         out.aoParams = {
-            environment.ambientOcclusion.enabled ? 1.0f : 0.0f,
+            ssaoConfiguredEnabled ? 1.0f : 0.0f,
             std::clamp(environment.ambientOcclusion.diffuseStrength, 0.0f, 1.0f),
             std::clamp(environment.ambientOcclusion.specularStrength, 0.0f, 1.0f),
             0.0f

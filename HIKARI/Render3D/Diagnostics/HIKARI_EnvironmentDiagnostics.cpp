@@ -104,6 +104,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             bool ssaoEnabled = false;
             bool ssaoValid = false;
             bool ssaoSuppressed = false;
+            std::string ssaoMode{};
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
             uint32_t ssaoSampleCount = 0;
@@ -207,6 +208,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.ssaoEnabled == rhs.ssaoEnabled &&
                 lhs.ssaoValid == rhs.ssaoValid &&
                 lhs.ssaoSuppressed == rhs.ssaoSuppressed &&
+                lhs.ssaoMode == rhs.ssaoMode &&
                 lhs.ssaoWidth == rhs.ssaoWidth &&
                 lhs.ssaoHeight == rhs.ssaoHeight &&
                 lhs.ssaoSampleCount == rhs.ssaoSampleCount &&
@@ -356,6 +358,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.ssaoEnabled = snapshot.ssaoEnabled;
             key.ssaoValid = snapshot.ssaoValid;
             key.ssaoSuppressed = snapshot.ssaoSuppressed;
+            key.ssaoMode = snapshot.ssaoMode;
             key.ssaoWidth = snapshot.ssaoWidth;
             key.ssaoHeight = snapshot.ssaoHeight;
             key.ssaoSampleCount = snapshot.ssaoSampleCount;
@@ -477,6 +480,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.ssaoEnabled = ssao.enabled;
         snapshot.ssaoValid = ssao.valid;
         snapshot.ssaoSuppressed = ssao.suppressed;
+        snapshot.ssaoMode = SCREENSPACE::ToString(ssao.mode);
         snapshot.ssaoWidth = ssao.width;
         snapshot.ssaoHeight = ssao.height;
         snapshot.ssaoSampleCount = ssao.sampleCount;
@@ -650,6 +654,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " enabled=" << BoolText(snapshot.ssaoEnabled)
                 << " valid=" << BoolText(snapshot.ssaoValid)
                 << " suppressed=" << BoolText(snapshot.ssaoSuppressed)
+                << " mode=" << snapshot.ssaoMode
                 << " size=" << snapshot.ssaoWidth << "x" << snapshot.ssaoHeight
                 << " samples=" << snapshot.ssaoSampleCount
                 << " blur=" << snapshot.ssaoBlurIterations

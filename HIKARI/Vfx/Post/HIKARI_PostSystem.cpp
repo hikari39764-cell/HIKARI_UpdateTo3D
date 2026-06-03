@@ -9,6 +9,7 @@
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
+#include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Core.h"
 
 namespace HIKARI {
@@ -74,6 +75,7 @@ namespace HIKARI {
         float PostSystem::elapsedTime_ = 0.0f;
         std::stack<PostSystem::LayerInfo> PostSystem::rtStack_{};
         float PostSystem::ambientColor_[3] = { 1.0f, 1.0f, 1.0f };
+        float PostSystem::lightRTClearColor_[3] = { 1.0f, 1.0f, 1.0f };
         bool PostSystem::useLighting_ = false;
         std::string PostSystem::activeGlobalProfileId_{};
         PostProfile PostSystem::activeGlobalProfile_{};
@@ -641,17 +643,26 @@ namespace HIKARI {
                 }
             }
 
+            const bool lightClearChanged =
+                lightRTClearColor_[0] != ambientColor_[0] ||
+                lightRTClearColor_[1] != ambientColor_[1] ||
+                lightRTClearColor_[2] != ambientColor_[2];
             if (!lightRT_.GetResource() ||
                 lightRT_.GetWidth() != w ||
                 lightRT_.GetHeight() != h ||
-                lightRT_.GetFormat() != DXGI_FORMAT_R16G16B16A16_FLOAT) {
+                lightRT_.GetFormat() != DXGI_FORMAT_R16G16B16A16_FLOAT ||
+                lightClearChanged) {
                 lightRT_.Finalize();
                 lightRT_.SetDebugName("Post.LightRT.HDR");
+                // ClearRTV の値と optimized clear を一致させる。
+                lightRTClearColor_[0] = ambientColor_[0];
+                lightRTClearColor_[1] = ambientColor_[1];
+                lightRTClearColor_[2] = ambientColor_[2];
                 lightRT_.Init(
                     w, h,
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     false,
-                    { 1.0f, 1.0f, 1.0f, 1.0f }   // lightRT 默认 ambientColor 初始值就是白
+                    { lightRTClearColor_[0], lightRTClearColor_[1], lightRTClearColor_[2], 1.0f }
                 );
             }
         }
@@ -974,6 +985,9 @@ namespace HIKARI {
             }
 
             RenderTarget2D* currentRT = rtStack_.top().rt;
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuPostResolve(
+                context_.cmdList,
+                GFX::GPU_PROFILE::Pass::PostResolve);
             currentRT->EndCapture();
             rtStack_.pop();
 
@@ -1137,6 +1151,9 @@ namespace HIKARI {
                 return false;
             }
 
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuGameViewResolve(
+                context_.cmdList,
+                GFX::GPU_PROFILE::Pass::GameViewResolve);
             editorViewportRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
             const bool drew = DrawFinalSceneToCurrentTarget(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
             editorViewportRT_.EndCapture();

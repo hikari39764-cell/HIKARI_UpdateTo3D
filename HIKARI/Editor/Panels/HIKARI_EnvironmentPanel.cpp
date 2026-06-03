@@ -177,8 +177,32 @@ namespace HIKARI {
             return true;
         }
 
+        int SsaoModeIndex(const AmbientOcclusionSettings& settings) {
+            if (!settings.enabled || settings.mode == SsaoMode::Off) {
+                return 0;
+            }
+            switch (settings.mode) {
+            case SsaoMode::Reference: return 1;
+            case SsaoMode::OptimizedHigh: return 2;
+            case SsaoMode::Balanced: return 3;
+            case SsaoMode::Off:
+            default: return 0;
+            }
+        }
+
+        SsaoMode SsaoModeFromIndex(int index) {
+            switch (index) {
+            case 1: return SsaoMode::Reference;
+            case 2: return SsaoMode::OptimizedHigh;
+            case 3: return SsaoMode::Balanced;
+            case 0:
+            default: return SsaoMode::Off;
+            }
+        }
+
         bool EqualAmbientOcclusionSettings(const AmbientOcclusionSettings& lhs, const AmbientOcclusionSettings& rhs) {
             return lhs.enabled == rhs.enabled &&
+                lhs.mode == rhs.mode &&
                 lhs.radius == rhs.radius &&
                 lhs.bias == rhs.bias &&
                 lhs.strength == rhs.strength &&
@@ -919,43 +943,12 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Ambient Occlusion")) {
-            int qualityIndex = 0;
-            if (environment.ambientOcclusion.enabled) {
-                if (environment.ambientOcclusion.sampleCount <= 8u &&
-                    environment.ambientOcclusion.blurIterations <= 1u) {
-                    qualityIndex = 1;
-                } else if (environment.ambientOcclusion.sampleCount <= 16u &&
-                    environment.ambientOcclusion.blurIterations <= 2u) {
-                    qualityIndex = 2;
-                } else {
-                    qualityIndex = 3;
-                }
+            int ssaoModeIndex = SsaoModeIndex(environment.ambientOcclusion);
+            const char* ssaoModeNames[] = { "Off", "Reference", "OptimizedHigh", "Balanced" };
+            if (ImGui::Combo("SSAO Mode", &ssaoModeIndex, ssaoModeNames, static_cast<int>(std::size(ssaoModeNames)))) {
+                environment.ambientOcclusion.mode = SsaoModeFromIndex(ssaoModeIndex);
+                environment.ambientOcclusion.enabled = environment.ambientOcclusion.mode != SsaoMode::Off;
             }
-            const char* qualityNames[] = { "Off", "Low", "Medium", "High" };
-            if (ImGui::Combo("SSAO Quality", &qualityIndex, qualityNames, static_cast<int>(std::size(qualityNames)))) {
-                switch (qualityIndex) {
-                case 1:
-                    environment.ambientOcclusion.enabled = true;
-                    environment.ambientOcclusion.sampleCount = 8u;
-                    environment.ambientOcclusion.blurIterations = 1u;
-                    break;
-                case 2:
-                    environment.ambientOcclusion.enabled = true;
-                    environment.ambientOcclusion.sampleCount = 16u;
-                    environment.ambientOcclusion.blurIterations = 2u;
-                    break;
-                case 3:
-                    environment.ambientOcclusion.enabled = true;
-                    environment.ambientOcclusion.sampleCount = 32u;
-                    environment.ambientOcclusion.blurIterations = 4u;
-                    break;
-                case 0:
-                default:
-                    environment.ambientOcclusion.enabled = false;
-                    break;
-                }
-            }
-            ImGui::Checkbox("Enabled", &environment.ambientOcclusion.enabled);
             ImGui::DragFloat("Radius", &environment.ambientOcclusion.radius, 0.01f, 0.01f, 10.0f);
             ImGui::DragFloat("Bias", &environment.ambientOcclusion.bias, 0.001f, 0.0f, 0.5f, "%.4f");
             ImGui::DragFloat("Strength", &environment.ambientOcclusion.strength, 0.01f, 0.0f, 4.0f);
@@ -976,6 +969,11 @@ namespace HIKARI {
             int blurIterations = static_cast<int>(environment.ambientOcclusion.blurIterations);
             if (ImGui::SliderInt("Blur Iterations", &blurIterations, 0, 4)) {
                 environment.ambientOcclusion.blurIterations = static_cast<uint32_t>(std::clamp(blurIterations, 0, 4));
+            }
+            if (environment.ambientOcclusion.mode == SsaoMode::OptimizedHigh) {
+                ImGui::TextDisabled("Runtime: OptimizedHigh caps samples to 16-24 and blur to 2.");
+            } else if (environment.ambientOcclusion.mode == SsaoMode::Balanced) {
+                ImGui::TextDisabled("Runtime: Balanced caps samples to 16 and blur to 1; uses GeometryBuffer.");
             }
             ImGui::TextDisabled("Runtime AO: %s",
                 RENDER3D::DIAGNOSTICS::ResolveSsaoSummaryLabel(runtimeSnapshot));

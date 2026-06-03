@@ -3,10 +3,12 @@
 namespace HIKARI::GFX {
 
     struct GfxDebugConfig {
-        bool enableDebugLayer = false;
+        bool enableDebugLayer = true;
         bool enableGpuBasedValidation = false;
+        bool enableGpuFrameProfiler = true;
+        bool enableGpuFrameProfilerWithDebugLayer = false;
         bool enableInfoQueueBreakOnError = true;
-        bool enableInfoQueueBreakOnWarning = true;
+        bool enableInfoQueueBreakOnWarning = false;
         bool dumpInfoQueueOnFrameEnd = false;
         bool verboseRenderTargetLog = false;
         bool verbosePostLog = false;

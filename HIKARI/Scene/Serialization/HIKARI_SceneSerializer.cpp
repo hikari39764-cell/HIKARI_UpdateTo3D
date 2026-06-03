@@ -124,6 +124,36 @@ namespace HIKARI {
             return fallback;
         }
 
+        const char* ToString(SsaoMode mode) {
+            switch (mode) {
+            case SsaoMode::Reference: return "Reference";
+            case SsaoMode::OptimizedHigh: return "OptimizedHigh";
+            case SsaoMode::Balanced: return "Balanced";
+            case SsaoMode::Off:
+            default: return "Off";
+            }
+        }
+
+        SsaoMode ParseSsaoMode(const json& in, SsaoMode fallback) {
+            if (in.is_number_integer()) {
+                const int value = in.get<int>();
+                if (value >= static_cast<int>(SsaoMode::Off) &&
+                    value <= static_cast<int>(SsaoMode::Balanced)) {
+                    return static_cast<SsaoMode>(value);
+                }
+                return fallback;
+            }
+            if (!in.is_string()) {
+                return fallback;
+            }
+            const std::string value = in.get<std::string>();
+            if (value == "Off") return SsaoMode::Off;
+            if (value == "Reference") return SsaoMode::Reference;
+            if (value == "OptimizedHigh") return SsaoMode::OptimizedHigh;
+            if (value == "Balanced") return SsaoMode::Balanced;
+            return fallback;
+        }
+
         MATH::Vec3 ReflectionProbeRadiusBoxSize(float radius) {
             const float diameter = std::max(0.01f, radius * 2.0f);
             return { diameter, diameter, diameter };
@@ -200,6 +230,7 @@ namespace HIKARI {
             out["reflectionProbe"]["priority"] = environment.reflectionProbe.priority;
 
             out["ambientOcclusion"]["enabled"] = environment.ambientOcclusion.enabled;
+            out["ambientOcclusion"]["mode"] = ToString(environment.ambientOcclusion.mode);
             out["ambientOcclusion"]["radius"] = environment.ambientOcclusion.radius;
             out["ambientOcclusion"]["bias"] = environment.ambientOcclusion.bias;
             out["ambientOcclusion"]["strength"] = environment.ambientOcclusion.strength;
@@ -352,7 +383,19 @@ namespace HIKARI {
 
             if (in.contains("ambientOcclusion") && in["ambientOcclusion"].is_object()) {
                 const json& ao = in["ambientOcclusion"];
-                environment.ambientOcclusion.enabled = ao.value("enabled", environment.ambientOcclusion.enabled);
+                const bool hasSsaoMode = ao.contains("mode");
+                const bool legacyEnabled = ao.value("enabled", environment.ambientOcclusion.enabled);
+                if (hasSsaoMode) {
+                    environment.ambientOcclusion.mode = ParseSsaoMode(
+                        ao.value("mode", json{}),
+                        environment.ambientOcclusion.mode);
+                    environment.ambientOcclusion.enabled =
+                        environment.ambientOcclusion.mode != SsaoMode::Off;
+                } else {
+                    environment.ambientOcclusion.enabled = legacyEnabled;
+                    environment.ambientOcclusion.mode =
+                        legacyEnabled ? environment.ambientOcclusion.mode : SsaoMode::Off;
+                }
                 environment.ambientOcclusion.radius = ao.value("radius", environment.ambientOcclusion.radius);
                 environment.ambientOcclusion.bias = ao.value("bias", environment.ambientOcclusion.bias);
                 environment.ambientOcclusion.strength = ao.value("strength", environment.ambientOcclusion.strength);

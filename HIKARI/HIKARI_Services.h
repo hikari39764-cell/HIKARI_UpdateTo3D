@@ -16,6 +16,7 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_Dx12Core.h"
+#include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Audio/HIKARI_Audio.h"
@@ -359,20 +360,32 @@ namespace HIKARI {
             }
             {
                 GFX::PIX::ScopedGpuEvent pixScene(gCtx.cmdList, GFX::PIX::kColorRender, "Scene Layers");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuScene(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::SceneLayers);
                 HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
             }
             {
                 GFX::PIX::ScopedGpuEvent pixPost(gCtx.cmdList, GFX::PIX::kColorPost, "PostSystem");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuPost(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::PostResolve);
                 HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
             }
             {
                 GFX::PIX::ScopedGpuEvent pixUi(gCtx.cmdList, GFX::PIX::kColorEditor, "UI and Debug Layers");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuUi(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::UiLayers);
                 HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
             }
 
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
 #if defined(_DEBUG)
                 GFX::PIX::ScopedGpuEvent pixImGui(gCtx.cmdList, GFX::PIX::kColorEditor, "ImGui");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuImGui(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::ImGui);
                 auto* cmd = gCtx.cmdList;
                 ID3D12DescriptorHeap* heaps[] = { gCtx.srvHeap };
                 cmd->SetDescriptorHeaps(1, heaps);

@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "Gfx/HIKARI_PixProfiler.h"
+#include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
@@ -66,12 +67,23 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
         MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(screenResult.ssaoRendered);
 
-        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(
-            queue,
-            screenResult.aoSrv,
-            screenResult.fallbackAoTextureHandle);
+        bool opaqueOk = false;
+        {
+            GFX::PIX::ScopedGpuEvent pixForward(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "ForwardOpaque");
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuForward(
+                SERVICES::gCtx.cmdList,
+                GFX::GPU_PROFILE::Pass::ForwardOpaque);
+            opaqueOk = MESHRENDERER::RenderForwardOpaquePass(
+                queue,
+                screenResult.aoSrv,
+                screenResult.fallbackAoTextureHandle);
+        }
         bool depthAwareOk = true;
         if (opaqueOk) {
+            GFX::PIX::ScopedGpuEvent pixDepthAware(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "DepthAware");
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuDepthAware(
+                SERVICES::gCtx.cmdList,
+                GFX::GPU_PROFILE::Pass::DepthAware);
             depthAwareOk = MESHRENDERER::RenderDepthAwarePass(
                 queue,
                 screenResult.aoSrv,

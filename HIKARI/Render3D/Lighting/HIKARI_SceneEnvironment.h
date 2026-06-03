@@ -101,8 +101,16 @@ namespace HIKARI {
         int priority = 0;
     };
 
+    enum class SsaoMode {
+        Off = 0,
+        Reference,
+        OptimizedHigh,
+        Balanced,
+    };
+
     struct AmbientOcclusionSettings {
         bool enabled = false;
+        SsaoMode mode = SsaoMode::Reference;
         float radius = 0.6f;
         float bias = 0.025f;
         float strength = 1.0f;
