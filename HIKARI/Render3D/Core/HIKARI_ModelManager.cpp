@@ -1,4 +1,5 @@
 #include "Render3D/HIKARI_ModelManager.h"
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <string_view>
 #include <utility>
 #include <unordered_map>
 #include <vector>
@@ -46,6 +48,12 @@ namespace HIKARI {
             std::string name;
             MATH::Vec4 baseColor{ 1.0f, 1.0f, 1.0f, 1.0f };
             std::string baseColorMapPath;
+            std::string normalMapPath;
+            std::string roughnessMapPath;
+            float metallic = 0.0f;
+            float roughness = 1.0f;
+            float alpha = 1.0f;
+            bool hasAlpha = false;
         };
 
         const char* ToModelTextureUsageText(ModelTextureUsage usage) {
@@ -120,22 +128,6 @@ namespace HIKARI {
             return &asset.textures[static_cast<size_t>(slot.textureIndex)];
         }
 
-        bool ParseObjIndexToken(const std::string& token, ObjKey& key) {
-            std::stringstream ss(token);
-            std::string part;
-
-            if (!std::getline(ss, part, '/')) return false;
-            key.pos = part.empty() ? -1 : std::stoi(part) - 1;
-
-            if (std::getline(ss, part, '/')) {
-                key.uv = part.empty() ? -1 : std::stoi(part) - 1;
-            }
-            if (std::getline(ss, part, '/')) {
-                key.normal = part.empty() ? -1 : std::stoi(part) - 1;
-            }
-            return key.pos >= 0;
-        }
-
         const char* GetFileExt(const std::string& path) {
             const size_t dot = path.find_last_of('.');
             if (dot == std::string::npos) {
@@ -158,6 +150,130 @@ namespace HIKARI {
 
         std::string NormalizePathString(const std::filesystem::path& path) {
             return path.lexically_normal().generic_string();
+        }
+
+        int DecodeBase64Value(char c) {
+            if (c >= 'A' && c <= 'Z') return c - 'A';
+            if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+            if (c >= '0' && c <= '9') return c - '0' + 52;
+            if (c == '+') return 62;
+            if (c == '/') return 63;
+            return -1;
+        }
+
+        bool DecodeBase64(std::string_view input, std::vector<uint8_t>& out) {
+            out.clear();
+            int value = 0;
+            int bits = -8;
+            for (char c : input) {
+                if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+                    continue;
+                }
+                if (c == '=') {
+                    break;
+                }
+                const int decoded = DecodeBase64Value(c);
+                if (decoded < 0) {
+                    return false;
+                }
+                value = (value << 6) | decoded;
+                bits += 6;
+                if (bits >= 0) {
+                    out.push_back(static_cast<uint8_t>((value >> bits) & 0xFF));
+                    bits -= 8;
+                }
+            }
+            return true;
+        }
+
+        bool DecodeDataUriBytes(const std::string& uri, std::vector<uint8_t>& out) {
+            const size_t comma = uri.find(',');
+            if (comma == std::string::npos) {
+                return false;
+            }
+            const std::string header = uri.substr(0, comma);
+            if (header.find(";base64") == std::string::npos) {
+                return false;
+            }
+            return DecodeBase64(std::string_view(uri).substr(comma + 1u), out);
+        }
+
+        bool MaterialHasNormalTexture(const ModelAsset& asset, uint32_t materialIndex) {
+            return materialIndex < asset.materials.size() &&
+                asset.materials[materialIndex].normalTexture.textureIndex >= 0;
+        }
+
+        void GenerateStaticPrimitiveNormals(MeshPrimitive& primitive) {
+            for (Vertex3D& vertex : primitive.staticVertices) {
+                vertex.normal = {};
+            }
+            for (size_t i = 0; i + 2u < primitive.indices.size(); i += 3u) {
+                const uint32_t i0 = primitive.indices[i + 0u];
+                const uint32_t i1 = primitive.indices[i + 1u];
+                const uint32_t i2 = primitive.indices[i + 2u];
+                if (i0 >= primitive.staticVertices.size() ||
+                    i1 >= primitive.staticVertices.size() ||
+                    i2 >= primitive.staticVertices.size()) {
+                    continue;
+                }
+
+                const MATH::Vec3 p0 = primitive.staticVertices[i0].position;
+                const MATH::Vec3 p1 = primitive.staticVertices[i1].position;
+                const MATH::Vec3 p2 = primitive.staticVertices[i2].position;
+                const MATH::Vec3 normal = MATH::Normalize(MATH::Cross(p1 - p0, p2 - p0));
+                if (MATH::Length(normal) <= 1.0e-6f) {
+                    continue;
+                }
+                primitive.staticVertices[i0].normal = primitive.staticVertices[i0].normal + normal;
+                primitive.staticVertices[i1].normal = primitive.staticVertices[i1].normal + normal;
+                primitive.staticVertices[i2].normal = primitive.staticVertices[i2].normal + normal;
+            }
+
+            for (Vertex3D& vertex : primitive.staticVertices) {
+                vertex.normal = MATH::Normalize(vertex.normal);
+                if (MATH::Length(vertex.normal) <= 1.0e-6f) {
+                    vertex.normal = { 0.0f, 1.0f, 0.0f };
+                }
+            }
+        }
+
+        void GenerateStaticPrimitiveTangents(MeshPrimitive& primitive) {
+            std::vector<MATH::Vec3> accum(primitive.staticVertices.size());
+            for (size_t i = 0; i + 2u < primitive.indices.size(); i += 3u) {
+                const uint32_t i0 = primitive.indices[i + 0u];
+                const uint32_t i1 = primitive.indices[i + 1u];
+                const uint32_t i2 = primitive.indices[i + 2u];
+                if (i0 >= primitive.staticVertices.size() ||
+                    i1 >= primitive.staticVertices.size() ||
+                    i2 >= primitive.staticVertices.size()) {
+                    continue;
+                }
+
+                const Vertex3D& v0 = primitive.staticVertices[i0];
+                const Vertex3D& v1 = primitive.staticVertices[i1];
+                const Vertex3D& v2 = primitive.staticVertices[i2];
+                const MATH::Vec3 e1 = v1.position - v0.position;
+                const MATH::Vec3 e2 = v2.position - v0.position;
+                const MATH::Vec2 duv1 = v1.uv0 - v0.uv0;
+                const MATH::Vec2 duv2 = v2.uv0 - v0.uv0;
+                const float denom = duv1.x * duv2.y - duv1.y * duv2.x;
+                if (std::fabs(denom) <= 1.0e-8f) {
+                    continue;
+                }
+                const float inv = 1.0f / denom;
+                const MATH::Vec3 tangent = (e1 * duv2.y - e2 * duv1.y) * inv;
+                accum[i0] = accum[i0] + tangent;
+                accum[i1] = accum[i1] + tangent;
+                accum[i2] = accum[i2] + tangent;
+            }
+
+            for (size_t i = 0; i < primitive.staticVertices.size(); ++i) {
+                MATH::Vec3 tangent = MATH::Normalize(accum[i]);
+                if (MATH::Length(tangent) <= 1.0e-6f) {
+                    tangent = { 1.0f, 0.0f, 0.0f };
+                }
+                primitive.staticVertices[i].tangent = { tangent.x, tangent.y, tangent.z, 1.0f };
+            }
         }
 
         MATH::Mat4 ReadGltfNodeMatrix(const json& matrixNode) {
@@ -526,64 +642,45 @@ namespace HIKARI {
             return ifs.read(reinterpret_cast<char*>(out.data()), size).good();
         }
 
-        void SanitizeAndFixNormalOrientation(std::vector<VertexStatic3D>& vertices, const std::vector<uint32_t>& indices) {
-            if (vertices.empty()) {
-                return;
+        std::string ExtractMtlTexturePath(std::stringstream& ss) {
+            std::vector<std::string> tokens;
+            std::string token;
+            while (ss >> token) {
+                tokens.push_back(token);
             }
-
-            int comparedTriangleCount = 0;
-            int opposedTriangleCount = 0;
-            for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-                const uint32_t i0 = indices[i + 0];
-                const uint32_t i1 = indices[i + 1];
-                const uint32_t i2 = indices[i + 2];
-                if (i0 >= vertices.size() || i1 >= vertices.size() || i2 >= vertices.size()) {
-                    continue;
-                }
-
-                const MATH::Vec3 p0 = vertices[i0].position;
-                const MATH::Vec3 p1 = vertices[i1].position;
-                const MATH::Vec3 p2 = vertices[i2].position;
-                const MATH::Vec3 faceNormal = MATH::Normalize(MATH::Cross(p1 - p0, p2 - p0));
-                if (MATH::Length(faceNormal) <= 1e-6f) {
-                    continue;
-                }
-
-                const MATH::Vec3 avgNormal = MATH::Normalize((vertices[i0].normal + vertices[i1].normal + vertices[i2].normal) * (1.0f / 3.0f));
-                if (MATH::Length(avgNormal) <= 1e-6f) {
-                    continue;
-                }
-
-                ++comparedTriangleCount;
-                if (MATH::Dot(avgNormal, faceNormal) < 0.0f) {
-                    ++opposedTriangleCount;
+            while (!tokens.empty() && !tokens.front().empty() && tokens.front()[0] == '-') {
+                tokens.erase(tokens.begin());
+                if (!tokens.empty()) {
+                    tokens.erase(tokens.begin());
                 }
             }
-
-            const bool shouldFlipAllNormals = (comparedTriangleCount > 0) && (opposedTriangleCount * 2 > comparedTriangleCount);
-            for (auto& v : vertices) {
-                MATH::Vec3 n = v.normal;
-                if (shouldFlipAllNormals) {
-                    n = n * -1.0f;
-                }
-
-                const float len = MATH::Length(n);
-                if (len <= 1e-6f) {
-                    v.normal = { 0.0f, 1.0f, 0.0f };
-                } else {
-                    v.normal = n * (1.0f / len);
-                }
+            if (tokens.empty()) {
+                return {};
             }
+
+            std::string path = tokens.front();
+            for (size_t i = 1; i < tokens.size(); ++i) {
+                path += " " + tokens[i];
+            }
+            return Trim(path);
         }
 
-        bool ParseMtlMaterial(const std::filesystem::path& mtlPath, const std::string& targetMtlName, ObjMaterialInfo& outInfo) {
+        float RoughnessFromNs(float ns) {
+            ns = (std::max)(0.0f, ns);
+            return (std::clamp)(std::sqrt(2.0f / (ns + 2.0f)), 0.04f, 1.0f);
+        }
+
+        bool ParseMtlLibrary(
+            const std::filesystem::path& mtlPath,
+            std::unordered_map<std::string, ObjMaterialInfo>& outMaterials) {
+
+            outMaterials.clear();
             std::ifstream mtlFile(mtlPath);
             if (!mtlFile.is_open()) {
                 return false;
             }
 
-            bool inTargetMaterial = false;
-            bool foundTargetMaterial = false;
+            ObjMaterialInfo* current = nullptr;
             std::string line;
             while (std::getline(mtlFile, line)) {
                 std::stringstream ss(line);
@@ -596,31 +693,55 @@ namespace HIKARI {
                 if (tag == "newmtl") {
                     std::string materialName;
                     ss >> materialName;
-                    inTargetMaterial = materialName == targetMtlName;
-                    if (inTargetMaterial) {
-                        outInfo = ObjMaterialInfo{};
-                        outInfo.name = materialName;
-                        foundTargetMaterial = true;
-                    } else if (foundTargetMaterial) {
-                        break;
+                    if (materialName.empty()) {
+                        current = nullptr;
+                        continue;
                     }
-                } else if (inTargetMaterial && tag == "Kd") {
-                    float r = 1.0f;
-                    float g = 1.0f;
-                    float b = 1.0f;
-                    ss >> r >> g >> b;
-                    outInfo.baseColor = { r, g, b, 1.0f };
-                } else if (inTargetMaterial && tag == "map_Kd") {
-                    std::string mapValue;
-                    std::getline(ss, mapValue);
-                    mapValue = Trim(mapValue);
-                    if (!mapValue.empty()) {
-                        const std::filesystem::path mapPath = mtlPath.parent_path() / mapValue;
-                        outInfo.baseColorMapPath = NormalizePathString(mapPath);
+                    ObjMaterialInfo info{};
+                    info.name = materialName;
+                    auto [it, _] = outMaterials.emplace(materialName, std::move(info));
+                    current = &it->second;
+                    continue;
+                }
+                if (current == nullptr) {
+                    continue;
+                }
+
+                if (tag == "Kd") {
+                    ss >> current->baseColor.x >> current->baseColor.y >> current->baseColor.z;
+                } else if (tag == "d") {
+                    ss >> current->alpha;
+                    current->alpha = (std::clamp)(current->alpha, 0.0f, 1.0f);
+                    current->baseColor.w = current->alpha;
+                    current->hasAlpha = current->alpha < 0.999f;
+                } else if (tag == "Tr") {
+                    float tr = 0.0f;
+                    ss >> tr;
+                    current->alpha = (std::clamp)(1.0f - tr, 0.0f, 1.0f);
+                    current->baseColor.w = current->alpha;
+                    current->hasAlpha = current->alpha < 0.999f;
+                } else if (tag == "Ns") {
+                    float ns = 0.0f;
+                    ss >> ns;
+                    current->roughness = RoughnessFromNs(ns);
+                } else if (tag == "map_Kd") {
+                    const std::string texture = ExtractMtlTexturePath(ss);
+                    if (!texture.empty()) {
+                        current->baseColorMapPath = NormalizePathString(mtlPath.parent_path() / texture);
+                    }
+                } else if (tag == "map_Bump" || tag == "bump") {
+                    const std::string texture = ExtractMtlTexturePath(ss);
+                    if (!texture.empty()) {
+                        current->normalMapPath = NormalizePathString(mtlPath.parent_path() / texture);
+                    }
+                } else if (tag == "map_Ns" || tag == "map_Pr") {
+                    const std::string texture = ExtractMtlTexturePath(ss);
+                    if (!texture.empty()) {
+                        current->roughnessMapPath = NormalizePathString(mtlPath.parent_path() / texture);
                     }
                 }
             }
-            return foundTargetMaterial;
+            return !outMaterials.empty();
         }
     }
 
@@ -1128,6 +1249,8 @@ namespace HIKARI {
             return false;
         }
 
+        asset.importDiagnostics = {};
+
         const json& buffers = root["buffers"];
         const json& bufferViews = root["bufferViews"];
         const json& accessors = root["accessors"];
@@ -1136,10 +1259,18 @@ namespace HIKARI {
         std::vector<std::vector<uint8_t>> loadedBuffers(buffers.size());
         for (size_t i = 0; i < buffers.size(); ++i) {
             const std::string uri = buffers[i].value("uri", "");
-            if (uri.empty() || uri.rfind("data:", 0) == 0) {
+            if (uri.empty()) {
+                asset.importDiagnostics.messages.push_back("[glTF] buffer without uri is unsupported outside GLB");
+                ++asset.importDiagnostics.unsupportedFeatureCount;
                 return false;
             }
-            if (!ReadBinaryFile(gltfPath.parent_path() / uri, loadedBuffers[i])) {
+            if (uri.rfind("data:", 0) == 0) {
+                if (!DecodeDataUriBytes(uri, loadedBuffers[i])) {
+                    asset.importDiagnostics.messages.push_back("[glTF] data uri buffer decode failed");
+                    ++asset.importDiagnostics.unsupportedFeatureCount;
+                    return false;
+                }
+            } else if (!ReadBinaryFile(gltfPath.parent_path() / uri, loadedBuffers[i])) {
                 return false;
             }
         }
@@ -1183,6 +1314,62 @@ namespace HIKARI {
                     return false;
                 }
                 std::memcpy(out.data() + static_cast<size_t>(i * components), bufferData.data() + srcOffset, static_cast<size_t>(components * 4));
+            }
+            return true;
+        };
+
+        auto readAccessorNormalizedFloats = [&](int accessorIndex, int expectedComponents, std::vector<float>& out, int* outCount = nullptr) -> bool {
+            if (accessorIndex < 0 || accessorIndex >= static_cast<int>(accessors.size())) return false;
+            const json& accessor = accessors[static_cast<size_t>(accessorIndex)];
+            const int bufferViewIndex = accessor.value("bufferView", -1);
+            if (bufferViewIndex < 0 || bufferViewIndex >= static_cast<int>(bufferViews.size())) return false;
+            const json& view = bufferViews[static_cast<size_t>(bufferViewIndex)];
+            const int bufferIndex = view.value("buffer", -1);
+            if (bufferIndex < 0 || bufferIndex >= static_cast<int>(loadedBuffers.size())) return false;
+
+            const int componentType = accessor.value("componentType", 0);
+            const int components = accessorCompCount(accessor.value("type", ""));
+            if (components != expectedComponents) return false;
+
+            const int count = accessor.value("count", 0);
+            if (count <= 0) return false;
+            if (outCount) *outCount = count;
+
+            const size_t componentSize =
+                (componentType == 5126) ? 4u :
+                ((componentType == 5121) ? 1u :
+                ((componentType == 5123) ? 2u : 0u));
+            if (componentSize == 0u) return false;
+
+            const bool normalized = accessor.value("normalized", componentType != 5126);
+            const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
+            const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
+            const size_t elementSize = componentSize * static_cast<size_t>(components);
+            const size_t stride = static_cast<size_t>(view.value("byteStride", static_cast<int>(elementSize)));
+            if (stride < elementSize) return false;
+
+            const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
+            out.resize(static_cast<size_t>(count) * static_cast<size_t>(components));
+            for (int i = 0; i < count; ++i) {
+                const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
+                if (srcOffset + elementSize > bufferData.size()) {
+                    return false;
+                }
+                for (int c = 0; c < components; ++c) {
+                    const size_t componentOffset = srcOffset + componentSize * static_cast<size_t>(c);
+                    float value = 0.0f;
+                    if (componentType == 5126) {
+                        std::memcpy(&value, bufferData.data() + componentOffset, sizeof(float));
+                    } else if (componentType == 5121) {
+                        const uint8_t raw = bufferData[componentOffset];
+                        value = normalized ? static_cast<float>(raw) / 255.0f : static_cast<float>(raw);
+                    } else {
+                        uint16_t raw = 0;
+                        std::memcpy(&raw, bufferData.data() + componentOffset, sizeof(uint16_t));
+                        value = normalized ? static_cast<float>(raw) / 65535.0f : static_cast<float>(raw);
+                    }
+                    out[static_cast<size_t>(i * components + c)] = value;
+                }
             }
             return true;
         };
@@ -1231,7 +1418,10 @@ namespace HIKARI {
             if (count <= 0) return false;
             const size_t accessorOffset = static_cast<size_t>(accessor.value("byteOffset", 0));
             const size_t viewOffset = static_cast<size_t>(view.value("byteOffset", 0));
-            const size_t strideDefault = (componentType == 5123) ? 2u : ((componentType == 5125) ? 4u : 0u);
+            const size_t strideDefault =
+                (componentType == 5121) ? 1u :
+                ((componentType == 5123) ? 2u :
+                ((componentType == 5125) ? 4u : 0u));
             if (strideDefault == 0u) return false;
             const size_t stride = static_cast<size_t>(view.value("byteStride", static_cast<int>(strideDefault)));
             const std::vector<uint8_t>& bufferData = loadedBuffers[static_cast<size_t>(bufferIndex)];
@@ -1240,7 +1430,9 @@ namespace HIKARI {
             for (int i = 0; i < count; ++i) {
                 const size_t srcOffset = viewOffset + accessorOffset + stride * static_cast<size_t>(i);
                 if (srcOffset + strideDefault > bufferData.size()) return false;
-                if (componentType == 5123) {
+                if (componentType == 5121) {
+                    out[static_cast<size_t>(i)] = static_cast<uint32_t>(bufferData[srcOffset]);
+                } else if (componentType == 5123) {
                     uint16_t v = 0;
                     std::memcpy(&v, bufferData.data() + srcOffset, sizeof(uint16_t));
                     out[static_cast<size_t>(i)] = static_cast<uint32_t>(v);
@@ -1261,12 +1453,30 @@ namespace HIKARI {
         asset.animations.clear();
         asset.defaultSceneRootNode = 0;
 
+        if (root.contains("extensionsUsed") && root["extensionsUsed"].is_array()) {
+            for (const auto& extensionNode : root["extensionsUsed"]) {
+                if (!extensionNode.is_string()) {
+                    continue;
+                }
+                const std::string extension = extensionNode.get<std::string>();
+                if (extension == "KHR_materials_unlit" ||
+                    extension == "KHR_materials_emissive_strength") {
+                    continue;
+                }
+                ++asset.importDiagnostics.unsupportedFeatureCount;
+                asset.importDiagnostics.messages.push_back("[glTF] unsupported extension: " + extension);
+            }
+        }
+
         if (root.contains("images") && root["images"].is_array()) {
             for (const auto& img : root["images"]) {
                 TextureAsset3D tex{};
                 tex.name = img.value("name", "");
                 const std::string uri = img.value("uri", "");
-                if (!uri.empty()) {
+                if (uri.rfind("data:", 0) == 0 || img.contains("bufferView")) {
+                    ++asset.importDiagnostics.unsupportedFeatureCount;
+                    asset.importDiagnostics.messages.push_back("[glTF] embedded image requires HTEX source extraction: " + tex.name);
+                } else if (!uri.empty()) {
                     tex.sourcePath = NormalizePathString(gltfPath.parent_path() / uri);
                 }
                 asset.textures.push_back(std::move(tex));
@@ -1282,6 +1492,11 @@ namespace HIKARI {
                     slot.textureIndex = imageIndex;
                 }
                 slot.texCoord = textureInfo.value("texCoord", 0);
+                if (textureInfo.contains("extensions") && textureInfo["extensions"].is_object() &&
+                    textureInfo["extensions"].contains("KHR_texture_transform")) {
+                    ++asset.importDiagnostics.unsupportedFeatureCount;
+                    asset.importDiagnostics.messages.push_back("[glTF] KHR_texture_transform is recorded as unsupported for now");
+                }
             };
 
             for (const auto& matNode : root["materials"]) {
@@ -1345,6 +1560,14 @@ namespace HIKARI {
                     if (extensions.contains("KHR_materials_emissive_strength") && extensions["KHR_materials_emissive_strength"].is_object()) {
                         mat.emissiveStrength = extensions["KHR_materials_emissive_strength"].value("emissiveStrength", mat.emissiveStrength);
                     }
+                    for (auto it = extensions.begin(); it != extensions.end(); ++it) {
+                        if (it.key() == "KHR_materials_unlit" ||
+                            it.key() == "KHR_materials_emissive_strength") {
+                            continue;
+                        }
+                        ++asset.importDiagnostics.unsupportedFeatureCount;
+                        asset.importDiagnostics.messages.push_back("[glTF] unsupported material extension: " + it.key());
+                    }
                 }
 
                 const bool hasEmissiveFactor =
@@ -1381,6 +1604,16 @@ namespace HIKARI {
             const json& primitives = meshNode["primitives"];
             for (size_t primitiveIndex = 0; primitiveIndex < primitives.size(); ++primitiveIndex) {
                 const json& primitive = primitives[primitiveIndex];
+                const int primitiveMode = primitive.value("mode", 4);
+                if (primitiveMode != 4) {
+                    ++asset.importDiagnostics.unsupportedPrimitiveModeCount;
+                    asset.importDiagnostics.messages.push_back(
+                        "[glTF] unsupported primitive mode skipped: mesh=" +
+                        std::to_string(meshIndex) +
+                        " primitive=" + std::to_string(primitiveIndex) +
+                        " mode=" + std::to_string(primitiveMode));
+                    continue;
+                }
                 if (!primitive.contains("attributes") || !primitive["attributes"].is_object()) {
                     continue;
                 }
@@ -1389,21 +1622,28 @@ namespace HIKARI {
                 std::vector<float> positions;
                 std::vector<float> normals;
                 std::vector<float> texcoords;
+                std::vector<float> texcoords1;
                 std::vector<float> tangents;
+                std::vector<float> colors4;
+                std::vector<float> colors3;
                 int vertexCount = 0;
                 if (!readAccessorFloats(attributes.value("POSITION", -1), 3, positions, &vertexCount)) {
                     continue;
                 }
-                if (!readAccessorFloats(attributes.value("NORMAL", -1), 3, normals, nullptr)) {
+                const bool hasNormals = readAccessorFloats(attributes.value("NORMAL", -1), 3, normals, nullptr);
+                if (!hasNormals) {
                     normals.assign(static_cast<size_t>(vertexCount) * 3u, 0.0f);
-                    for (int i = 0; i < vertexCount; ++i) {
-                        normals[static_cast<size_t>(i) * 3u + 1u] = 1.0f;
-                    }
                 }
-                if (!readAccessorFloats(attributes.value("TEXCOORD_0", -1), 2, texcoords, nullptr)) {
+                if (!readAccessorNormalizedFloats(attributes.value("TEXCOORD_0", -1), 2, texcoords, nullptr)) {
                     texcoords.assign(static_cast<size_t>(vertexCount) * 2u, 0.0f);
                 }
+                if (!readAccessorNormalizedFloats(attributes.value("TEXCOORD_1", -1), 2, texcoords1, nullptr)) {
+                    texcoords1.assign(static_cast<size_t>(vertexCount) * 2u, 0.0f);
+                }
                 readAccessorFloats(attributes.value("TANGENT", -1), 4, tangents, nullptr);
+                const bool hasColor4 = readAccessorNormalizedFloats(attributes.value("COLOR_0", -1), 4, colors4, nullptr);
+                const bool hasColor3 = !hasColor4 &&
+                    readAccessorNormalizedFloats(attributes.value("COLOR_0", -1), 3, colors3, nullptr);
 
                 std::vector<uint32_t> indices;
                 if (!readIndices(primitive.value("indices", -1), indices)) {
@@ -1412,15 +1652,58 @@ namespace HIKARI {
                         indices[static_cast<size_t>(i)] = static_cast<uint32_t>(i);
                     }
                 }
+                if (indices.size() < 3u || (indices.size() % 3u) != 0u) {
+                    ++asset.importDiagnostics.unsupportedFeatureCount;
+                    asset.importDiagnostics.messages.push_back(
+                        "[glTF] triangle index count is invalid: mesh=" +
+                        std::to_string(meshIndex) +
+                        " primitive=" + std::to_string(primitiveIndex));
+                    continue;
+                }
+                bool indicesInRange = true;
+                for (uint32_t index : indices) {
+                    if (index >= static_cast<uint32_t>(vertexCount)) {
+                        indicesInRange = false;
+                        break;
+                    }
+                }
+                if (!indicesInRange) {
+                    ++asset.importDiagnostics.unsupportedFeatureCount;
+                    asset.importDiagnostics.messages.push_back(
+                        "[glTF] index accessor references missing vertex: mesh=" +
+                        std::to_string(meshIndex) +
+                        " primitive=" + std::to_string(primitiveIndex));
+                    continue;
+                }
 
                 MeshPrimitive primitiveAsset{};
                 primitiveAsset.name = "Primitive" + std::to_string(primitiveIndex);
                 primitiveAsset.layout = VertexLayoutKind::StaticPNTT;
-                primitiveAsset.materialIndex = static_cast<uint32_t>(std::max(0, primitive.value("material", 0)));
+                const int materialIndex = primitive.value("material", 0);
+                primitiveAsset.materialIndex = materialIndex >= 0 &&
+                    materialIndex < static_cast<int>(asset.materials.size())
+                    ? static_cast<uint32_t>(materialIndex)
+                    : 0u;
                 primitiveAsset.indices = indices;
+                primitiveAsset.hasMorphTargets =
+                    primitive.contains("targets") &&
+                    primitive["targets"].is_array() &&
+                    !primitive["targets"].empty();
+                if (primitiveAsset.hasMorphTargets) {
+                    ++asset.importDiagnostics.skippedMorphPrimitiveCount;
+                    asset.importDiagnostics.messages.push_back(
+                        "[glTF] morph target primitive uses legacy fallback only: mesh=" +
+                        std::to_string(meshIndex) +
+                        " primitive=" + std::to_string(primitiveIndex));
+                }
+                if (primitive.contains("extensions") && primitive["extensions"].is_object()) {
+                    for (auto it = primitive["extensions"].begin(); it != primitive["extensions"].end(); ++it) {
+                        ++asset.importDiagnostics.unsupportedFeatureCount;
+                        asset.importDiagnostics.messages.push_back("[glTF] unsupported primitive extension: " + it.key());
+                    }
+                }
                 primitiveAsset.staticVertices.reserve(static_cast<size_t>(vertexCount));
 
-                const uint32_t legacyBaseVertex = static_cast<uint32_t>(legacyVertices.size());
                 for (int i = 0; i < vertexCount; ++i) {
                     const size_t p = static_cast<size_t>(i) * 3u;
                     const size_t t = static_cast<size_t>(i) * 2u;
@@ -1428,14 +1711,32 @@ namespace HIKARI {
                     out.position = { positions[p + 0], positions[p + 1], positions[p + 2] };
                     out.normal = { normals[p + 0], normals[p + 1], normals[p + 2] };
                     out.uv0 = { texcoords[t + 0], texcoords[t + 1] };
+                    out.uv1 = { texcoords1[t + 0], texcoords1[t + 1] };
                     if (!tangents.empty()) {
                         const size_t tg = static_cast<size_t>(i) * 4u;
                         out.tangent = { tangents[tg + 0], tangents[tg + 1], tangents[tg + 2], tangents[tg + 3] };
                     } else {
                         out.tangent = { 1.0f, 0.0f, 0.0f, 1.0f };
                     }
+                    if (hasColor4) {
+                        const size_t c = static_cast<size_t>(i) * 4u;
+                        out.color0 = { colors4[c + 0], colors4[c + 1], colors4[c + 2], colors4[c + 3] };
+                    } else if (hasColor3) {
+                        const size_t c = static_cast<size_t>(i) * 3u;
+                        out.color0 = { colors3[c + 0], colors3[c + 1], colors3[c + 2], 1.0f };
+                    }
                     primitiveAsset.staticVertices.push_back(out);
+                }
 
+                if (!hasNormals) {
+                    GenerateStaticPrimitiveNormals(primitiveAsset);
+                }
+                if (tangents.empty() && MaterialHasNormalTexture(asset, primitiveAsset.materialIndex)) {
+                    GenerateStaticPrimitiveTangents(primitiveAsset);
+                }
+
+                const uint32_t legacyBaseVertex = static_cast<uint32_t>(legacyVertices.size());
+                for (const Vertex3D& out : primitiveAsset.staticVertices) {
                     VertexStatic3D legacy{};
                     legacy.position = out.position;
                     legacy.normal = out.normal;
@@ -1615,14 +1916,101 @@ namespace HIKARI {
         std::vector<MATH::Vec3> positions;
         std::vector<MATH::Vec3> normals;
         std::vector<std::array<float, 2>> uvs;
+        std::vector<std::filesystem::path> mtllibPaths;
 
-        std::vector<VertexStatic3D> vertices;
-        std::vector<uint32_t> indices;
-        std::unordered_map<ObjKey, uint32_t, ObjKeyHash> uniqueMap;
-        bool hasAnyFaceNormalRef = false;
-        bool allFaceNormalsValid = true;
-        std::string mtllibPath;
-        std::string firstUsedMaterialName;
+        struct ObjPrimitiveBuilder {
+            std::string objectName;
+            std::string groupName;
+            std::string materialName;
+            std::vector<Vertex3D> vertices;
+            std::vector<uint32_t> indices;
+            std::unordered_map<ObjKey, uint32_t, ObjKeyHash> uniqueMap;
+            bool missingNormal = false;
+        };
+
+        std::vector<ObjPrimitiveBuilder> builders;
+        std::unordered_map<std::string, size_t> builderByKey;
+        std::string currentObject = "Object";
+        std::string currentGroup = "Group";
+        std::string currentMaterial = "Default";
+        bool smoothingEnabled = true;
+
+        auto resolveObjIndex = [](int raw, size_t count) -> int {
+            if (raw > 0) {
+                return raw - 1;
+            }
+            if (raw < 0) {
+                const int resolved = static_cast<int>(count) + raw;
+                return resolved >= 0 ? resolved : -1;
+            }
+            return -1;
+        };
+
+        auto parseObjToken = [&](const std::string& token, ObjKey& key) -> bool {
+            std::stringstream ss(token);
+            std::string part;
+            try {
+                if (!std::getline(ss, part, '/')) return false;
+                key.pos = part.empty() ? -1 : resolveObjIndex(std::stoi(part), positions.size());
+
+                if (std::getline(ss, part, '/')) {
+                    key.uv = part.empty() ? -1 : resolveObjIndex(std::stoi(part), uvs.size());
+                }
+                if (std::getline(ss, part, '/')) {
+                    key.normal = part.empty() ? -1 : resolveObjIndex(std::stoi(part), normals.size());
+                }
+            } catch (...) {
+                return false;
+            }
+            return key.pos >= 0;
+        };
+
+        auto getBuilder = [&]() -> ObjPrimitiveBuilder& {
+            const std::string key = currentObject + "\n" + currentGroup + "\n" + currentMaterial;
+            auto found = builderByKey.find(key);
+            if (found != builderByKey.end()) {
+                return builders[found->second];
+            }
+
+            ObjPrimitiveBuilder builder{};
+            builder.objectName = currentObject;
+            builder.groupName = currentGroup;
+            builder.materialName = currentMaterial;
+            const size_t index = builders.size();
+            builders.push_back(std::move(builder));
+            builderByKey.emplace(key, index);
+            return builders.back();
+        };
+
+        auto appendVertex = [&](ObjPrimitiveBuilder& builder, const ObjKey& key, const MATH::Vec3& faceNormal) -> uint32_t {
+            const bool forceUnique = !smoothingEnabled && key.normal < 0;
+            if (!forceUnique) {
+                auto found = builder.uniqueMap.find(key);
+                if (found != builder.uniqueMap.end()) {
+                    return found->second;
+                }
+            }
+
+            Vertex3D vertex{};
+            vertex.position = positions[static_cast<size_t>(key.pos)];
+            if (key.normal >= 0 && key.normal < static_cast<int>(normals.size())) {
+                vertex.normal = normals[static_cast<size_t>(key.normal)];
+            } else {
+                builder.missingNormal = true;
+                vertex.normal = smoothingEnabled ? MATH::Vec3{} : faceNormal;
+            }
+            if (key.uv >= 0 && key.uv < static_cast<int>(uvs.size())) {
+                vertex.uv0 = { uvs[static_cast<size_t>(key.uv)][0], 1.0f - uvs[static_cast<size_t>(key.uv)][1] };
+            }
+            vertex.tangent = { 1.0f, 0.0f, 0.0f, 1.0f };
+
+            const uint32_t newIndex = static_cast<uint32_t>(builder.vertices.size());
+            builder.vertices.push_back(vertex);
+            if (!forceUnique) {
+                builder.uniqueMap.emplace(key, newIndex);
+            }
+            return newIndex;
+        };
 
         std::string line;
         while (std::getline(file, line)) {
@@ -1636,23 +2024,33 @@ namespace HIKARI {
                 ss >> p.x >> p.y >> p.z;
                 positions.push_back(p);
             } else if (tag == "mtllib") {
-                if (mtllibPath.empty()) {
-                    std::string mtlName;
-                    std::getline(ss, mtlName);
-                    mtlName = Trim(mtlName);
-                    if (!mtlName.empty()) {
-                        const std::filesystem::path objPath(asset.GetSourcePath());
-                        mtllibPath = NormalizePathString(objPath.parent_path() / mtlName);
-                    }
+                std::string mtlName;
+                std::getline(ss, mtlName);
+                mtlName = Trim(mtlName);
+                if (!mtlName.empty()) {
+                    const std::filesystem::path objPath(asset.GetSourcePath());
+                    mtllibPaths.push_back((objPath.parent_path() / mtlName).lexically_normal());
                 }
             } else if (tag == "usemtl") {
-                if (firstUsedMaterialName.empty()) {
-                    std::string mtlName;
-                    ss >> mtlName;
-                    if (!mtlName.empty()) {
-                        firstUsedMaterialName = mtlName;
-                    }
+                std::string mtlName;
+                ss >> mtlName;
+                if (!mtlName.empty()) {
+                    currentMaterial = mtlName;
                 }
+            } else if (tag == "o") {
+                std::string name;
+                std::getline(ss, name);
+                name = Trim(name);
+                currentObject = name.empty() ? "Object" : name;
+            } else if (tag == "g") {
+                std::string name;
+                std::getline(ss, name);
+                name = Trim(name);
+                currentGroup = name.empty() ? "Group" : name;
+            } else if (tag == "s") {
+                std::string smoothing;
+                ss >> smoothing;
+                smoothingEnabled = !(smoothing == "off" || smoothing == "0");
             } else if (tag == "vn") {
                 MATH::Vec3 n{};
                 ss >> n.x >> n.y >> n.z;
@@ -1666,76 +2064,7 @@ namespace HIKARI {
                 std::string token;
                 while (ss >> token) {
                     ObjKey key{};
-                    if (ParseObjIndexToken(token, key)) {
-                        faceKeys.push_back(key);
-                        if (key.normal >= 0) {
-                            hasAnyFaceNormalRef = true;
-                            if (key.normal >= static_cast<int>(normals.size())) {
-                                allFaceNormalsValid = false;
-                            }
-                        } else {
-                            allFaceNormalsValid = false;
-                        }
-                    }
-                }
-                if (faceKeys.size() < 3) {
-                    continue;
-                }
-
-                for (size_t i = 1; i + 1 < faceKeys.size(); ++i) {
-                    const ObjKey tri[3] = { faceKeys[0], faceKeys[i], faceKeys[i + 1] };
-                    for (const ObjKey& key : tri) {
-                        auto it = uniqueMap.find(key);
-                        if (it != uniqueMap.end()) {
-                            indices.push_back(it->second);
-                            continue;
-                        }
-
-                        if (key.pos < 0 || key.pos >= static_cast<int>(positions.size())) {
-                            return false;
-                        }
-
-                        VertexStatic3D v{};
-                        v.position = positions[static_cast<size_t>(key.pos)];
-                        if (key.normal >= 0 && key.normal < static_cast<int>(normals.size())) {
-                            v.normal = normals[static_cast<size_t>(key.normal)];
-                        }
-                        if (key.uv >= 0 && key.uv < static_cast<int>(uvs.size())) {
-                            v.u = uvs[static_cast<size_t>(key.uv)][0];
-                            v.v = 1.0f - uvs[static_cast<size_t>(key.uv)][1];
-                        }
-
-                        const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
-                        vertices.push_back(v);
-                        uniqueMap[key] = newIndex;
-                        indices.push_back(newIndex);
-                    }
-                }
-            }
-        }
-
-        const bool useFlatNormalFallback = !hasAnyFaceNormalRef || !allFaceNormalsValid;
-        if (useFlatNormalFallback) {
-            file.clear();
-            file.seekg(0, std::ios::beg);
-            vertices.clear();
-            indices.clear();
-            uniqueMap.clear();
-
-            while (std::getline(file, line)) {
-                if (line.size() < 2) continue;
-                std::stringstream ss(line);
-                std::string tag;
-                ss >> tag;
-                if (tag != "f") {
-                    continue;
-                }
-
-                std::vector<ObjKey> faceKeys;
-                std::string token;
-                while (ss >> token) {
-                    ObjKey key{};
-                    if (ParseObjIndexToken(token, key)) {
+                    if (parseObjToken(token, key)) {
                         faceKeys.push_back(key);
                     }
                 }
@@ -1743,51 +2072,49 @@ namespace HIKARI {
                     continue;
                 }
 
+                ObjPrimitiveBuilder& builder = getBuilder();
                 for (size_t i = 1; i + 1 < faceKeys.size(); ++i) {
                     const ObjKey tri[3] = { faceKeys[0], faceKeys[i], faceKeys[i + 1] };
-                    const int p0 = tri[0].pos;
-                    const int p1 = tri[1].pos;
-                    const int p2 = tri[2].pos;
-                    if (p0 < 0 || p0 >= static_cast<int>(positions.size()) ||
-                        p1 < 0 || p1 >= static_cast<int>(positions.size()) ||
-                        p2 < 0 || p2 >= static_cast<int>(positions.size())) {
+                    if (tri[0].pos < 0 || tri[0].pos >= static_cast<int>(positions.size()) ||
+                        tri[1].pos < 0 || tri[1].pos >= static_cast<int>(positions.size()) ||
+                        tri[2].pos < 0 || tri[2].pos >= static_cast<int>(positions.size())) {
                         return false;
                     }
 
-                    const MATH::Vec3 pos0 = positions[static_cast<size_t>(p0)];
-                    const MATH::Vec3 pos1 = positions[static_cast<size_t>(p1)];
-                    const MATH::Vec3 pos2 = positions[static_cast<size_t>(p2)];
-                    MATH::Vec3 faceNormal = MATH::Normalize(MATH::Cross(pos1 - pos0, pos2 - pos0));
-                    if (MATH::Length(faceNormal) <= 1e-6f) {
+                    const MATH::Vec3 p0 = positions[static_cast<size_t>(tri[0].pos)];
+                    const MATH::Vec3 p1 = positions[static_cast<size_t>(tri[1].pos)];
+                    const MATH::Vec3 p2 = positions[static_cast<size_t>(tri[2].pos)];
+                    MATH::Vec3 faceNormal = MATH::Normalize(MATH::Cross(p1 - p0, p2 - p0));
+                    if (MATH::Length(faceNormal) <= 1.0e-6f) {
                         faceNormal = { 0.0f, 1.0f, 0.0f };
                     }
-
-                    for (int j = 0; j < 3; ++j) {
-                        VertexStatic3D v{};
-                        v.position = positions[static_cast<size_t>(tri[j].pos)];
-                        v.normal = faceNormal;
-                        if (tri[j].uv >= 0 && tri[j].uv < static_cast<int>(uvs.size())) {
-                            v.u = uvs[static_cast<size_t>(tri[j].uv)][0];
-                            v.v = 1.0f - uvs[static_cast<size_t>(tri[j].uv)][1];
-                        }
-                        const uint32_t newIndex = static_cast<uint32_t>(vertices.size());
-                        vertices.push_back(v);
-                        indices.push_back(newIndex);
+                    for (const ObjKey& key : tri) {
+                        builder.indices.push_back(appendVertex(builder, key, faceNormal));
                     }
                 }
             }
         }
 
-        if (vertices.empty() || indices.empty()) {
+        bool hasGeometry = false;
+        for (const ObjPrimitiveBuilder& builder : builders) {
+            hasGeometry = hasGeometry || (!builder.vertices.empty() && !builder.indices.empty());
+        }
+        if (!hasGeometry) {
             return false;
         }
 
-        SanitizeAndFixNormalOrientation(vertices, indices);
-
-        ObjMaterialInfo materialInfo{};
-        materialInfo.name = firstUsedMaterialName;
-        if (!mtllibPath.empty() && !firstUsedMaterialName.empty()) {
-            ParseMtlMaterial(std::filesystem::path(mtllibPath), firstUsedMaterialName, materialInfo);
+        asset.importDiagnostics = {};
+        std::unordered_map<std::string, ObjMaterialInfo> mtlMaterials;
+        for (const std::filesystem::path& mtlPath : mtllibPaths) {
+            std::unordered_map<std::string, ObjMaterialInfo> parsed;
+            if (ParseMtlLibrary(mtlPath, parsed)) {
+                for (auto& pair : parsed) {
+                    mtlMaterials[pair.first] = std::move(pair.second);
+                }
+            } else {
+                ++asset.importDiagnostics.unsupportedFeatureCount;
+                asset.importDiagnostics.messages.push_back("[OBJ] mtllib not found or empty: " + mtlPath.generic_string());
+            }
         }
 
         asset.nodes.clear();
@@ -1803,43 +2130,133 @@ namespace HIKARI {
         rootNode.meshIndex = 0;
         asset.nodes.push_back(std::move(rootNode));
 
-        MeshPrimitive primitive{};
-        primitive.name = "OBJ Primitive";
-        primitive.layout = VertexLayoutKind::StaticPNTT;
-        primitive.indices = indices;
-        primitive.staticVertices.reserve(vertices.size());
-        for (const VertexStatic3D& source : vertices) {
-            Vertex3D vertex{};
-            vertex.position = source.position;
-            vertex.normal = source.normal;
-            vertex.tangent = source.tangent;
-            vertex.uv0 = { source.u, source.v };
-            primitive.staticVertices.push_back(vertex);
-        }
-        primitive.bounds = BOUNDS::ComputePrimitiveBounds(primitive);
+        std::unordered_map<std::string, int> textureIndexByPath;
+        auto addTexture = [&](const std::string& path, const std::string& name) -> int {
+            if (path.empty()) {
+                return -1;
+            }
+            auto found = textureIndexByPath.find(path);
+            if (found != textureIndexByPath.end()) {
+                return found->second;
+            }
+
+            TextureAsset3D texture{};
+            texture.name = name;
+            texture.sourcePath = path;
+            const int index = static_cast<int>(asset.textures.size());
+            asset.textures.push_back(std::move(texture));
+            textureIndexByPath.emplace(path, index);
+            return index;
+        };
+
+        std::unordered_map<std::string, uint32_t> materialIndexByName;
+        auto resolveMaterialIndex = [&](const std::string& materialName) -> uint32_t {
+            const std::string name = materialName.empty() ? "Default" : materialName;
+            auto found = materialIndexByName.find(name);
+            if (found != materialIndexByName.end()) {
+                return found->second;
+            }
+
+            ObjMaterialInfo info{};
+            info.name = name;
+            if (auto mtl = mtlMaterials.find(name); mtl != mtlMaterials.end()) {
+                info = mtl->second;
+            }
+
+            MaterialAsset materialAsset{};
+            materialAsset.name = info.name.empty() ? name : info.name;
+            materialAsset.baseColorFactor = info.baseColor;
+            materialAsset.roughnessFactor = info.roughness;
+            materialAsset.metallicFactor = info.metallic;
+            if (info.hasAlpha) {
+                materialAsset.alphaMode = AlphaMode::Blend;
+            }
+            const int baseColorIndex = addTexture(info.baseColorMapPath, materialAsset.name + "_baseColor");
+            if (baseColorIndex >= 0) {
+                materialAsset.baseColorTexture.textureIndex = baseColorIndex;
+            }
+            const int normalIndex = addTexture(info.normalMapPath, materialAsset.name + "_normal");
+            if (normalIndex >= 0) {
+                materialAsset.normalTexture.textureIndex = normalIndex;
+            }
+            const int roughnessIndex = addTexture(info.roughnessMapPath, materialAsset.name + "_roughness");
+            if (roughnessIndex >= 0) {
+                materialAsset.metallicRoughnessTexture.textureIndex = roughnessIndex;
+            }
+
+            const uint32_t index = static_cast<uint32_t>(asset.materials.size());
+            asset.materials.push_back(std::move(materialAsset));
+            materialIndexByName.emplace(name, index);
+            return index;
+        };
 
         MeshAsset meshAsset{};
         meshAsset.name = asset.GetName().empty() ? "OBJ Mesh" : asset.GetName();
-        meshAsset.primitives.push_back(std::move(primitive));
+        std::vector<VertexStatic3D> legacyVertices;
+        std::vector<uint32_t> legacyIndices;
+        for (ObjPrimitiveBuilder& builder : builders) {
+            if (builder.vertices.empty() || builder.indices.empty()) {
+                continue;
+            }
+
+            MeshPrimitive primitive{};
+            primitive.name = builder.objectName + "/" + builder.groupName + "/" + builder.materialName;
+            primitive.layout = VertexLayoutKind::StaticPNTT;
+            primitive.materialIndex = resolveMaterialIndex(builder.materialName);
+            primitive.indices = std::move(builder.indices);
+            primitive.staticVertices = std::move(builder.vertices);
+            if (builder.missingNormal) {
+                GenerateStaticPrimitiveNormals(primitive);
+            }
+            if (MaterialHasNormalTexture(asset, primitive.materialIndex)) {
+                GenerateStaticPrimitiveTangents(primitive);
+            }
+            primitive.bounds = BOUNDS::ComputePrimitiveBounds(primitive);
+
+            const uint32_t legacyBaseVertex = static_cast<uint32_t>(legacyVertices.size());
+            for (const Vertex3D& source : primitive.staticVertices) {
+                VertexStatic3D legacy{};
+                legacy.position = source.position;
+                legacy.normal = source.normal;
+                legacy.tangent = source.tangent;
+                legacy.u = source.uv0.x;
+                legacy.v = source.uv0.y;
+                legacyVertices.push_back(legacy);
+            }
+            for (uint32_t index : primitive.indices) {
+                legacyIndices.push_back(legacyBaseVertex + index);
+            }
+            meshAsset.primitives.push_back(std::move(primitive));
+        }
+
+        if (meshAsset.primitives.empty()) {
+            return false;
+        }
         meshAsset.bounds = BOUNDS::ComputeMeshBounds(meshAsset);
         asset.meshes.push_back(std::move(meshAsset));
-
-        MaterialAsset materialAsset{};
-        materialAsset.name = materialInfo.name.empty() ? "Default" : materialInfo.name;
-        materialAsset.baseColorFactor = materialInfo.baseColor;
-        if (!materialInfo.baseColorMapPath.empty()) {
-            TextureAsset3D texture{};
-            texture.name = materialAsset.name + "_baseColor";
-            texture.sourcePath = materialInfo.baseColorMapPath;
-            asset.textures.push_back(std::move(texture));
-            materialAsset.baseColorTexture.textureIndex = 0;
+        if (asset.materials.empty()) {
+            resolveMaterialIndex("Default");
         }
-        asset.materials.push_back(std::move(materialAsset));
 
         ResolvePbrTexturePaths(asset);
         BOUNDS::EnsureModelBounds(asset);
 
-        return buildRuntimeResources ? BuildRuntimeResources(asset) : true;
+        if (!buildRuntimeResources) {
+            return true;
+        }
+
+        auto mesh = std::make_unique<Mesh>();
+        if (!mesh->CreateStatic(SERVICES::gCtx.device, legacyVertices, legacyIndices)) {
+            return false;
+        }
+
+        auto material = std::make_unique<Material>();
+        const MaterialAsset& primaryMat = asset.materials.front();
+        material->SetBaseColor(primaryMat.baseColorFactor);
+        LoadPbrTextureSlots(asset, primaryMat, *material, asset.GetName() + "/obj");
+        asset.SetMesh(std::move(mesh));
+        asset.SetMaterial(std::move(material));
+        return true;
     }
 
 } // namespace HIKARI

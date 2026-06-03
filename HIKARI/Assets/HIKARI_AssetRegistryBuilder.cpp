@@ -203,6 +203,8 @@ namespace HIKARI {
                 if (descriptor->sourcePath.empty()) {
                     descriptor->sourcePath = record->sourcePath.generic_string();
                 }
+                descriptor->clusteredGeometryPath =
+                    FindArtifactPathByFormat(*record, "ClusteredGeometry", "HCMESH");
                 descriptor->version = record->meta.importerVersion;
                 descriptor->importer = GuessModelImporter(record->sourcePath);
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;

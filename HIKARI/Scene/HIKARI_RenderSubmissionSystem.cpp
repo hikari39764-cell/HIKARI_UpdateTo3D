@@ -1,7 +1,12 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
+#include "Assets/HIKARI_AssetRegistry.h"
+#include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_FrameContext.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
+#include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
+#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
+#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
@@ -14,9 +19,76 @@
 #include "Scene/HIKARI_World.h"
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
+#include <utility>
+
 namespace HIKARI {
 
     namespace {
+        std::filesystem::path ResolvePreviewHcmeshPath(
+            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
+            const ModelComponent& model) {
+
+            if (!target.assetRegistry || model.GetAssetId().empty()) {
+                return {};
+            }
+
+            const auto* descriptor =
+                target.assetRegistry->FindAs<ModelAssetDescriptor>(AssetId{ model.GetAssetId() });
+            if (descriptor == nullptr || descriptor->clusteredGeometryPath.empty()) {
+                return {};
+            }
+
+            std::filesystem::path path = descriptor->clusteredGeometryPath;
+            if (!path.is_absolute() && !target.projectRoot.empty()) {
+                path = (target.projectRoot / path).lexically_normal();
+            }
+            return path;
+        }
+
+        bool TrySubmitClusteredTools(
+            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
+            const GameObject& object,
+            const ModelComponent& model,
+            const ModelAsset& asset) {
+
+            const bool wantsPreview = target.enabled;
+            const bool wantsDebug =
+                target.debugOptions.mode != RENDER3D::CLUSTER::ClusterDebugViewMode::Off;
+            if ((!wantsPreview && !wantsDebug) ||
+                target.selectedObjectId == 0u ||
+                object.GetDocumentId().value != target.selectedObjectId) {
+                return false;
+            }
+
+            const std::filesystem::path hcmeshPath = ResolvePreviewHcmeshPath(target, model);
+            if (hcmeshPath.empty()) {
+                return false;
+            }
+
+            const RENDER3D::CLUSTER::ClusteredGeometryAsset* clusteredGeometry =
+                RENDER3D::CLUSTER::GetClusteredGeometryManager().LoadOrGet(hcmeshPath);
+            if (clusteredGeometry == nullptr) {
+                return false;
+            }
+
+            if (wantsDebug) {
+                RENDER3D::CLUSTER::SubmitClusterDebugOverlay(
+                    *clusteredGeometry,
+                    object.Transform(),
+                    target.debugOptions);
+            }
+            if (!wantsPreview) {
+                return true;
+            }
+
+            return RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
+                *clusteredGeometry,
+                object.Transform(),
+                &asset,
+                model.GetReceiveShadow(),
+                MESHRENDERER::MeshRenderDebugMode::WireOverlay,
+                model.GetRuntimeMaterialOverride());
+        }
         RENDER3D::RUNTIME::SceneRenderObjectId ResolveSceneRenderObjectId(const GameObject& object) {
             RENDER3D::RUNTIME::SceneRenderObjectId id{ object.GetDocumentId().value };
             if (!id.IsValid()) {
@@ -35,9 +107,28 @@ namespace HIKARI {
     RENDER3D::RUNTIME::StaticDrawRecordSubmitter RenderSubmissionSystem::sStaticDrawRecordSubmitter_{};
     RENDER3D::RUNTIME::StaticDrawRecordSubmitStats RenderSubmissionSystem::sStaticDrawRecordSubmitStats_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
+    RenderSubmissionSystem::ClusteredCpuPreviewTarget RenderSubmissionSystem::sClusteredCpuPreviewTarget_{};
 
     void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
         sActiveRenderCamera_ = camera;
+    }
+
+    void RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
+        bool enabled,
+        const AssetRegistry* assetRegistry,
+        std::filesystem::path projectRoot,
+        uint64_t selectedObjectId,
+        RENDER3D::CLUSTER::ClusterDebugOptions debugOptions) {
+
+        sClusteredCpuPreviewTarget_.enabled = enabled;
+        sClusteredCpuPreviewTarget_.assetRegistry = assetRegistry;
+        sClusteredCpuPreviewTarget_.projectRoot = std::move(projectRoot);
+        sClusteredCpuPreviewTarget_.selectedObjectId = selectedObjectId;
+        sClusteredCpuPreviewTarget_.debugOptions = debugOptions;
+    }
+
+    void RenderSubmissionSystem::ClearClusteredCpuPreviewTarget() {
+        sClusteredCpuPreviewTarget_ = {};
     }
 
     const RenderSubmissionDebugStats& RenderSubmissionSystem::GetDebugStats() {
@@ -114,6 +205,11 @@ namespace HIKARI {
         sDebugStats_.staticCachedSubmittedForwardRecordCount = 0;
         sDebugStats_.staticCachedSubmittedShadowRecordCount = 0;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
+
+        RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& clusteredPreview =
+            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer();
+        clusteredPreview.SetEnabled(sClusteredCpuPreviewTarget_.enabled);
+        clusteredPreview.ResetFrameStats();
 
         sSceneRenderCacheSync_.Sync(
             world,
@@ -235,6 +331,7 @@ namespace HIKARI {
                 if (forwardHandledByCache &&
                     shadowHandledByCacheOrNotNeeded &&
                     sOptions_.bypassOldStaticModelRendererWhenFullyCached) {
+                    TrySubmitClusteredTools(sClusteredCpuPreviewTarget_, object, model, *asset);
                     ++sDebugStats_.staticCachedBypassOldModelRendererCount;
                     return;
                 }
@@ -277,6 +374,7 @@ namespace HIKARI {
                 }
 
                 MODELRENDERER::SubmitModel(item);
+                TrySubmitClusteredTools(sClusteredCpuPreviewTarget_, object, model, *asset);
                 ++sDebugStats_.submittedModelCount;
             } else {
                 ++sDebugStats_.fallbackWireCount;

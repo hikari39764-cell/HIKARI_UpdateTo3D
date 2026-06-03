@@ -157,6 +157,10 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp" />
@@ -203,6 +207,9 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp" />
     <ClCompile Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.cpp" />
@@ -465,6 +472,10 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.h" />
@@ -492,6 +503,9 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h" />
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h" />
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.h" />
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.h" />
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h" />
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmatFormat.h" />

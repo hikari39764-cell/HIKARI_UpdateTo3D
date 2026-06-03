@@ -12,6 +12,9 @@
 
 #include <json.hpp>
 
+#include "Assets/Geometry/HIKARI_ClusteredGeometryCooker.h"
+#include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
+#include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
@@ -55,6 +58,7 @@ namespace HIKARI {
         bool ReplaceFileWithTemp(
             const std::filesystem::path& tempPath,
             const std::filesystem::path& finalPath,
+            const char* artifactLabel,
             std::string& outMessage) {
 
             const BOOL moved = MoveFileExW(
@@ -67,7 +71,7 @@ namespace HIKARI {
                 std::filesystem::remove(tempPath, removeEc);
 
                 std::ostringstream oss;
-                oss << "[AssetImporter] failed to replace HMODEL artifact. error=" << error
+                oss << "[AssetImporter] failed to replace " << artifactLabel << " artifact. error=" << error
                     << " temp=" << tempPath.generic_string()
                     << " final=" << finalPath.generic_string();
                 outMessage = oss.str();
@@ -140,7 +144,11 @@ namespace HIKARI {
             const ModelAsset& model,
             const std::vector<TextureCookDiagnostic>& textureDiagnostics,
             int htexReferenceCount,
-            int fallbackTextureCount) {
+            int fallbackTextureCount,
+            const RENDER3D::CLUSTER::ClusteredGeometryBuildReport* clusteredReport,
+            const ASSETS::GEOMETRY::ClusteredGeometryValidationResult* clusteredValidation,
+            bool hcmeshReady,
+            const std::string& hcmeshMessage) {
 
             int primitiveCount = 0;
             int staticVertexCount = 0;
@@ -190,7 +198,12 @@ namespace HIKARI {
                 });
             }
 
-            return nlohmann::json{
+            nlohmann::json importMessages = nlohmann::json::array();
+            for (const std::string& message : model.importDiagnostics.messages) {
+                importMessages.push_back(message);
+            }
+
+            nlohmann::json diagnostics{
                 { "format", "HMODEL" },
                 { "summary", {
                     { "nodes", model.nodes.size() },
@@ -205,10 +218,57 @@ namespace HIKARI {
                     { "indices", indexCount },
                     { "htexRefs", htexReferenceCount },
                     { "fallbackTextures", fallbackTextureCount },
+                    { "skippedMorphPrimitives", model.importDiagnostics.skippedMorphPrimitiveCount },
+                    { "unsupportedPrimitiveModes", model.importDiagnostics.unsupportedPrimitiveModeCount },
+                    { "unsupportedFeatures", model.importDiagnostics.unsupportedFeatureCount },
                 } },
+                { "importMessages", std::move(importMessages) },
                 { "textures", std::move(textures) },
                 { "materials", std::move(materials) },
             };
+
+            nlohmann::json clusterJson{
+                { "format", "HCMESH" },
+                { "ready", hcmeshReady },
+                { "message", hcmeshMessage },
+            };
+            if (clusteredReport != nullptr) {
+                nlohmann::json messages = nlohmann::json::array();
+                for (const std::string& message : clusteredReport->messages) {
+                    messages.push_back(message);
+                }
+                clusterJson["summary"] = {
+                    { "surfaces", clusteredReport->surfaceCount },
+                    { "clusters", clusteredReport->clusterCount },
+                    { "pages", clusteredReport->pageCount },
+                    { "triangles", clusteredReport->triangleCount },
+                    { "vertices", clusteredReport->vertexCount },
+                    { "maxVerticesPerCluster", clusteredReport->maxVerticesPerCluster },
+                    { "skippedSkinnedPrimitives", clusteredReport->skippedSkinnedPrimitiveCount },
+                    { "skippedMorphPrimitives", clusteredReport->skippedMorphPrimitiveCount },
+                    { "skippedInvalidPrimitives", clusteredReport->skippedInvalidPrimitiveCount },
+                    { "unsupportedPrimitiveModes", clusteredReport->unsupportedPrimitiveModeCount },
+                    { "unsupportedFeatures", clusteredReport->unsupportedFeatureCount },
+                };
+                clusterJson["messages"] = std::move(messages);
+            }
+            if (clusteredValidation != nullptr) {
+                nlohmann::json validationMessages = nlohmann::json::array();
+                for (const std::string& message : clusteredValidation->messages) {
+                    validationMessages.push_back(message);
+                }
+                clusterJson["validation"] = {
+                    { "valid", clusteredValidation->valid },
+                    { "invalidSurfaces", clusteredValidation->invalidSurfaceCount },
+                    { "invalidClusters", clusteredValidation->invalidClusterCount },
+                    { "invalidPages", clusteredValidation->invalidPageCount },
+                    { "invalidBounds", clusteredValidation->invalidBoundsCount },
+                    { "invalidMaterials", clusteredValidation->invalidMaterialCount },
+                    { "messages", std::move(validationMessages) },
+                };
+            }
+            diagnostics["clusteredGeometry"] = std::move(clusterJson);
+            return diagnostics;
         }
 
         bool ResolveTextureToHtex(
@@ -266,7 +326,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 2;
+        return 3;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -290,7 +350,7 @@ namespace HIKARI {
             { "sourceFormat", sourcePath.extension().string() },
             { "cookModel", true },
             { "outputFormat", "HMODEL" },
-            { "futureMeshFormat", "HMESH" },
+            { "futureMeshFormat", "HCMESH" },
             { "loadMaterials", true },
             { "loadTextures", true },
         }.dump(2);
@@ -375,8 +435,52 @@ namespace HIKARI {
             return result;
         }
 
-        if (!ReplaceFileWithTemp(tempPath, finalPath, result.message)) {
+        if (!ReplaceFileWithTemp(tempPath, finalPath, "HMODEL", result.message)) {
             return result;
+        }
+
+        bool hcmeshReady = false;
+        std::string hcmeshMessage{};
+        RENDER3D::CLUSTER::ClusteredGeometryBuildReport clusteredReport{};
+        ASSETS::GEOMETRY::ClusteredGeometryValidationResult clusteredValidation{};
+        RENDER3D::CLUSTER::ClusteredGeometryAsset clusteredGeometry{};
+        ASSETS::GEOMETRY::ClusterCookSettings clusterSettings{};
+        clusterSettings.maxTrianglesPerCluster = 64u;
+        clusterSettings.maxVerticesPerCluster = 128u;
+        clusterSettings.maxClustersPerPage = 64u;
+        if (ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
+                model,
+                record.guid,
+                clusterSettings,
+                clusteredGeometry,
+                clusteredReport)) {
+            clusteredValidation = ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(clusteredGeometry);
+            if (clusteredValidation.valid) {
+                const std::filesystem::path finalHcmeshPath = context.importedDirectory / "clustered_mesh.hcmesh";
+                const std::filesystem::path tempHcmeshPath = context.importedDirectory / "clustered_mesh.importing.hcmesh";
+                std::error_code removeHcmeshEc{};
+                std::filesystem::remove(tempHcmeshPath, removeHcmeshEc);
+                if (removeHcmeshEc) {
+                    hcmeshMessage = "[AssetImporter] failed to clear stale temporary HCMESH: " +
+                        tempHcmeshPath.generic_string();
+                } else if (ASSETS::GEOMETRY::WriteHcmeshFile(tempHcmeshPath, clusteredGeometry, hcmeshMessage) &&
+                    ReplaceFileWithTemp(tempHcmeshPath, finalHcmeshPath, "HCMESH", hcmeshMessage)) {
+                    hcmeshReady = true;
+                    result.artifacts.push_back(AssetArtifactDesc{
+                        "ClusteredGeometry",
+                        MakeProjectRelative(context.projectRoot, finalHcmeshPath).generic_string(),
+                        "HCMESH"
+                    });
+                }
+            } else {
+                hcmeshMessage = clusteredValidation.messages.empty()
+                    ? "[AssetImporter] HCMESH validation failed"
+                    : clusteredValidation.messages.front();
+            }
+        } else {
+            hcmeshMessage = clusteredReport.messages.empty()
+                ? "[AssetImporter] HCMESH cook produced no clusterable primitive"
+                : clusteredReport.messages.front();
         }
 
         result.success = true;
@@ -385,12 +489,17 @@ namespace HIKARI {
             " materials=" + std::to_string(model.materials.size()) +
             " textures=" + std::to_string(model.textures.size()) +
             " htexRefs=" + std::to_string(htexReferenceCount) +
-            " fallbackTextures=" + std::to_string(fallbackTextureCount);
+            " fallbackTextures=" + std::to_string(fallbackTextureCount) +
+            " hcmesh=" + (hcmeshReady ? "ready" : "fallback");
         result.diagnosticsJson = BuildModelDiagnostics(
             model,
             textureDiagnostics,
             htexReferenceCount,
-            fallbackTextureCount).dump(2);
+            fallbackTextureCount,
+            &clusteredReport,
+            &clusteredValidation,
+            hcmeshReady,
+            hcmeshMessage).dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainModel",
             MakeProjectRelative(context.projectRoot, finalPath).generic_string(),

@@ -1,6 +1,11 @@
 {
   "artifacts": [
     {
+      "format": "HCMESH",
+      "path": "Library/Imported/e6f6bfb64447d7f0ba6acd728cfe316d/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
       "format": "HMODEL",
       "path": "Library/Imported/e6f6bfb64447d7f0ba6acd728cfe316d/model.hmodel",
       "role": "MainModel"
@@ -18,7 +23,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Models/meta.gltf",
   "type": "Model"

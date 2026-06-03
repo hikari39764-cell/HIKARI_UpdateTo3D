@@ -103,6 +103,7 @@ namespace HIKARI {
     struct ModelAssetDescriptor final : AssetDescriptor {
         ModelImporterKind importer = ModelImporterKind::Gltf;
         bool preload = true;
+        std::string clusteredGeometryPath{};
         ModelImportOptions importOptions{};
         std::vector<ModelMaterialOverrideDesc> materialOverrides{};
         ModelAnimationImportDesc animation{};
@@ -169,6 +170,7 @@ namespace HIKARI {
         HTEX,
         HMODEL,
         HMESH,
+        HCMESH,
         HMAT,
         HSKY,
         HIBL,

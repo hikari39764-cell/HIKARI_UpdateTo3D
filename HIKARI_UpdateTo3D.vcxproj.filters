@@ -16,6 +16,9 @@
     <Filter Include="Header Files\Assets\Formats">
       <UniqueIdentifier>{4B30B5B4-EF24-4D76-86F5-3E3E2D6E8F3D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Geometry">
+      <UniqueIdentifier>{2A7B6D31-7E7D-43F7-BE56-FA1348F2D1EF}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Assets\Material">
       <UniqueIdentifier>{2C8932E7-7A66-4B6D-9E91-1B7ED8D7F2F1}</UniqueIdentifier>
     </Filter>
@@ -90,6 +93,9 @@
     </Filter>
     <Filter Include="Header Files\Render3D\Core">
       <UniqueIdentifier>{EB1D1491-6FFB-5A82-8554-7EAE3383EE47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Cluster">
+      <UniqueIdentifier>{07AE88EF-98D9-443D-A5E8-4C94D5F1128B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Render3D\Debug">
       <UniqueIdentifier>{D4230920-B950-5BD9-8A44-DC7AD29218A5}</UniqueIdentifier>
@@ -247,6 +253,9 @@
     <Filter Include="Source Files\Assets\Formats">
       <UniqueIdentifier>{2D3D2691-AEB2-4D03-94A1-E68C32A0A7C5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Geometry">
+      <UniqueIdentifier>{887BC03A-331F-42B2-8F04-25D88029705F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Assets\Material">
       <UniqueIdentifier>{7D0947F2-F49E-46F2-BC96-43F427AB6C60}</UniqueIdentifier>
     </Filter>
@@ -318,6 +327,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Core">
       <UniqueIdentifier>{14D0B891-F99E-54D3-99C1-947942082058}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Cluster">
+      <UniqueIdentifier>{87491D43-B4C7-4D08-8A94-65F075579BBE}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Debug">
       <UniqueIdentifier>{6BB723E5-CA24-58C7-A93A-C9ABF89FE291}</UniqueIdentifier>
@@ -635,6 +647,15 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
       <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp">
+      <Filter>Source Files\Assets\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp">
+      <Filter>Source Files\Assets\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.cpp">
+      <Filter>Source Files\Assets\Geometry</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp">
       <Filter>Source Files\Assets\Lighting</Filter>
@@ -1099,6 +1120,18 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
@@ -1416,6 +1449,15 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">
       <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h">
+      <Filter>Header Files\Assets\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h">
+      <Filter>Header Files\Assets\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.h">
+      <Filter>Header Files\Assets\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h">
       <Filter>Header Files\Assets\Lighting</Filter>
@@ -1752,6 +1794,18 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.h">

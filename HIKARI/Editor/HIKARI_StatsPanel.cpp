@@ -8,6 +8,8 @@
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
+#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -77,6 +79,10 @@ namespace HIKARI {
         const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& staticDrawRecordSubmitStats =
             RenderSubmissionSystem::GetStaticDrawRecordSubmitStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
+        const RENDER3D::CLUSTER::ClusteredGeometryManagerStats& clusteredGeometryStats =
+            RENDER3D::CLUSTER::GetClusteredGeometryManager().GetStats();
+        const RENDER3D::CLUSTER::ClusteredCpuPreviewStats& clusteredPreviewStats =
+            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().GetStats();
         const bool staticCacheEnabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
         const bool cachedForwardEnabled = RenderSubmissionSystem::IsUseCachedStaticForwardEnabled();
         const bool cachedShadowEnabled = RenderSubmissionSystem::IsUseCachedStaticShadowEnabled();
@@ -189,6 +195,43 @@ namespace HIKARI {
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
             ImGui::Text("NormalMapped Primitives: %zu", meshStats.normalMappedPrimitiveCount);
             ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu", meshStats.normalTextureCacheHitCount, meshStats.normalTextureCacheMissCount);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("Clustered Geometry", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("HCMESH Requests / Hits / Misses: %u / %u / %u",
+                clusteredGeometryStats.requestCount,
+                clusteredGeometryStats.hitCount,
+                clusteredGeometryStats.missCount);
+            ImGui::Text("Valid / Invalid HCMESH: %u / %u",
+                clusteredGeometryStats.validAssetCount,
+                clusteredGeometryStats.invalidAssetCount);
+            ImGui::Text("Surfaces / Clusters / Pages: %u / %u / %u",
+                clusteredGeometryStats.surfaceCount,
+                clusteredGeometryStats.clusterCount,
+                clusteredGeometryStats.pageCount);
+            ImGui::Text("Triangles / Vertices: %u / %u",
+                clusteredGeometryStats.totalTriangleCount,
+                clusteredGeometryStats.totalVertexCount);
+            ImGui::Text("Max Vertices / Cluster: %u", clusteredGeometryStats.maxVerticesPerCluster);
+            ImGui::Text("Skipped Skinned / Morph / Invalid: %u / %u / %u",
+                clusteredGeometryStats.skippedSkinnedPrimitiveCount,
+                clusteredGeometryStats.skippedMorphPrimitiveCount,
+                clusteredGeometryStats.skippedInvalidPrimitiveCount);
+            ImGui::Text("Unsupported OBJ / glTF Features: %u", clusteredGeometryStats.unsupportedFeatureCount);
+            ImGui::SeparatorText("CPU Reference Preview");
+            ImGui::Text("Enabled: %s", clusteredPreviewStats.enabled ? "On" : "Off");
+            ImGui::Text("Submitted Objects / Surfaces: %u / %u",
+                clusteredPreviewStats.submittedObjectCount,
+                clusteredPreviewStats.submittedSurfaceCount);
+            ImGui::Text("Fallback Surfaces: %u", clusteredPreviewStats.fallbackSurfaceCount);
+            ImGui::Text("Cached / Rebuilt Preview Models: %u / %u",
+                clusteredPreviewStats.cachedPreviewModelCount,
+                clusteredPreviewStats.rebuiltPreviewModelCount);
+            ImGui::TextWrapped("Last Load: %s",
+                RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().empty()
+                    ? "<none>"
+                    : RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().c_str());
             ImGui::TreePop();
         }
 

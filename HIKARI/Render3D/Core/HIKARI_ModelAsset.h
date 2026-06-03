@@ -97,6 +97,14 @@ namespace HIKARI {
         std::vector<uint32_t> indices;
         uint32_t materialIndex = 0;
         Bounds bounds{};
+        bool hasMorphTargets = false;
+    };
+
+    struct ModelImportDiagnostics {
+        uint32_t skippedMorphPrimitiveCount = 0;
+        uint32_t unsupportedPrimitiveModeCount = 0;
+        uint32_t unsupportedFeatureCount = 0;
+        std::vector<std::string> messages{};
     };
 
     struct MeshAsset {
@@ -209,6 +217,7 @@ namespace HIKARI {
         std::vector<TextureAsset3D> textures;
         std::vector<SkeletonAsset> skins;
         std::vector<AnimationClip> animations;
+        ModelImportDiagnostics importDiagnostics{};
         int defaultSceneRootNode = -1;
         Bounds bounds{};
 

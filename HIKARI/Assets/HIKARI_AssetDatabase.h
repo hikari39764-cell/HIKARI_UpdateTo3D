@@ -17,6 +17,14 @@ namespace HIKARI {
         int failed = 0;
     };
 
+    enum class ClusteredGeometryArtifactState {
+        Missing,
+        Exists,
+        Valid,
+        Invalid,
+        Outdated,
+    };
+
     class AssetDatabase {
     public:
         bool Initialize(const std::filesystem::path& projectRoot);
@@ -50,6 +58,8 @@ namespace HIKARI {
 
         std::filesystem::path GetMetaPathForSource(const std::filesystem::path& sourcePath) const;
         std::filesystem::path GetImportedDirectory(const AssetGuid& guid) const;
+        ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetRecord& record) const;
+        ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetGuid& guid) const;
 
     private:
         AssetRecord BuildRecordForSource(const std::filesystem::path& sourcePath, bool createMissingMeta);

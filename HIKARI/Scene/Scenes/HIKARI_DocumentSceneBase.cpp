@@ -480,7 +480,14 @@ namespace HIKARI {
         world_.Render();
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         RenderSubmissionSystem::SetActiveRenderCamera(&camera_);
+        RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
+            clusteredGeometryPreviewState_.cpuReferencePreviewSelectedObject,
+            &assetRegistry_,
+            assetDatabase_.GetProjectRoot(),
+            selectedGizmoObjectId_.value,
+            clusteredGeometryPreviewState_.debugOptions);
         systemScheduler_.PreRender(world_, frame);
+        RenderSubmissionSystem::ClearClusteredCpuPreviewTarget();
         RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
         systemScheduler_.Render(world_, frame);
         systemScheduler_.PostRender(world_, frame);
@@ -606,6 +613,9 @@ namespace HIKARI {
     }
     void DocumentSceneBase::SetViewportPerformanceState(const ViewportPerformanceState& state) {
         viewportPerformanceState_ = state;
+    }
+    void DocumentSceneBase::SetClusteredGeometryPreviewState(const ClusteredGeometryPreviewState& state) {
+        clusteredGeometryPreviewState_ = state;
     }
     void DocumentSceneBase::SetViewportGizmoInteracting(bool interacting) {
         viewportGizmoInteracting_ = interacting;

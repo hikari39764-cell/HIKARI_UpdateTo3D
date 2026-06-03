@@ -1,13 +1,18 @@
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
+
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordCache.h"
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordSubmitter.h"
+#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
 namespace HIKARI {
 
+    class AssetRegistry;
     class Camera3D;
 
     struct RenderSubmissionDebugStats {
@@ -41,11 +46,26 @@ namespace HIKARI {
 
     class RenderSubmissionSystem final : public ISystem {
     public:
+        struct ClusteredCpuPreviewTarget {
+            bool enabled = false;
+            const AssetRegistry* assetRegistry = nullptr;
+            std::filesystem::path projectRoot{};
+            uint64_t selectedObjectId = 0;
+            RENDER3D::CLUSTER::ClusterDebugOptions debugOptions{};
+        };
+
         std::string_view GetName() const override { return "RenderSubmissionSystem"; }
 
         void PreRender(World& world, const FrameContext& frame) override;
 
         static void SetActiveRenderCamera(const Camera3D* camera);
+        static void SetClusteredCpuPreviewTarget(
+            bool enabled,
+            const AssetRegistry* assetRegistry,
+            std::filesystem::path projectRoot,
+            uint64_t selectedObjectId,
+            RENDER3D::CLUSTER::ClusterDebugOptions debugOptions);
+        static void ClearClusteredCpuPreviewTarget();
         static const RenderSubmissionDebugStats& GetDebugStats();
         static void SetUseStaticDrawRecordCache(bool enabled);
         static bool IsUseStaticDrawRecordCacheEnabled();
@@ -71,6 +91,8 @@ namespace HIKARI {
         static RENDER3D::RUNTIME::StaticDrawRecordSubmitter sStaticDrawRecordSubmitter_;
         static RENDER3D::RUNTIME::StaticDrawRecordSubmitStats sStaticDrawRecordSubmitStats_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
+
+        static ClusteredCpuPreviewTarget sClusteredCpuPreviewTarget_;
     };
 
 } // namespace HIKARI
