@@ -12,6 +12,13 @@
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
+    enum class StaticDrawCoverageStatus {
+        None,
+        Full,
+        Partial,
+        Invalid,
+    };
+
     struct StaticDrawRecord {
         SceneRenderObjectId objectId{};
         uint64_t objectVersion = 0;
@@ -45,12 +52,40 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool materialFxValuesInitialized = false;
     };
 
+    struct StaticDrawRecordValidationResult {
+        bool invalidObject = false;
+        bool invalidRenderModel = false;
+        bool invalidBounds = false;
+        bool missingDrawMatrix = false;
+        bool invalidPrimitiveIndex = false;
+
+        bool IsValid() const {
+            return
+                !invalidObject &&
+                !invalidRenderModel &&
+                !invalidBounds &&
+                !missingDrawMatrix &&
+                !invalidPrimitiveIndex;
+        }
+    };
+
     struct StaticDrawObjectEntry {
         SceneRenderObjectId objectId{};
         uint64_t sourceVersion = 0;
 
         bool valid = false;
+        uint32_t expectedForwardSubmeshCount = 0;
+        uint32_t validForwardRecordCount = 0;
+
         uint32_t skippedSkinnedSubmeshCount = 0;
+        uint32_t skippedInvalidRecordCount = 0;
+        uint32_t skippedUnsupportedSubmeshCount = 0;
+
+        uint32_t invalidRecordBoundsCount = 0;
+        uint32_t missingDrawMatrixCount = 0;
+        uint32_t invalidPrimitiveIndexCount = 0;
+
+        StaticDrawCoverageStatus coverageStatus = StaticDrawCoverageStatus::None;
         std::vector<StaticDrawRecord> records{};
     };
 
@@ -75,6 +110,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t missingDrawMatrixCount = 0;
             uint32_t invalidPrimitiveIndexCount = 0;
             uint32_t validRecordCount = 0;
+
+            uint32_t fullCoverageObjectCount = 0;
+            uint32_t partialCoverageObjectCount = 0;
+            uint32_t noCoverageObjectCount = 0;
+            uint32_t invalidCoverageObjectCount = 0;
+
+            uint32_t expectedForwardSubmeshCount = 0;
+            uint32_t validForwardRecordCount = 0;
         };
 
         void Clear();
@@ -83,9 +126,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const std::vector<StaticDrawRecord>& GetRecords() const;
         const Stats& GetStats() const;
         bool HasValidRecordsForObject(SceneRenderObjectId objectId) const;
+        bool HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const;
+        StaticDrawCoverageStatus GetCoverageStatusForObject(SceneRenderObjectId objectId) const;
 
     private:
-        bool ValidateStaticDrawRecord(const StaticDrawRecord& record);
+        StaticDrawRecordValidationResult ValidateStaticDrawRecord(const StaticDrawRecord& record) const;
         void RebuildObjectRecords(const SceneRenderObject& object, StaticDrawObjectEntry& entry);
         void RebuildFlatRecordList();
 

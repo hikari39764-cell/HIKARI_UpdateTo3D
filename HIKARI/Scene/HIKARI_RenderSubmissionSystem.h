@@ -18,6 +18,8 @@ namespace HIKARI {
         int missingBoundsCount = 0;
         int skinnedCullSkippedCount = 0;
         int fallbackWireCount = 0;
+        int staticCachedForwardSkipCount = 0;
+        int staticCachedFallbackCount = 0;
         bool frustumCullingEnabled = false;
     };
 

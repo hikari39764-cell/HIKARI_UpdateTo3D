@@ -138,12 +138,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             if (!inserted && entry.valid && entry.sourceVersion == object.version) {
                 ++stats_.reusedObjectCount;
-                stats_.skippedSkinnedSubmeshCount += entry.skippedSkinnedSubmeshCount;
                 continue;
             }
 
             RebuildObjectRecords(object, entry);
-            stats_.skippedSkinnedSubmeshCount += entry.skippedSkinnedSubmeshCount;
             ++stats_.rebuiltObjectCount;
         }
 
@@ -176,24 +174,46 @@ namespace HIKARI::RENDER3D::RUNTIME {
         });
     }
 
-    bool StaticDrawRecordCache::ValidateStaticDrawRecord(const StaticDrawRecord& record) {
-        bool valid = true;
+    bool StaticDrawRecordCache::HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = entries_.find(objectId.value);
+        if (found == entries_.end()) {
+            return false;
+        }
 
+        const StaticDrawObjectEntry& entry = found->second;
+        return
+            entry.valid &&
+            entry.coverageStatus == StaticDrawCoverageStatus::Full &&
+            entry.validForwardRecordCount > 0;
+    }
+
+    StaticDrawCoverageStatus StaticDrawRecordCache::GetCoverageStatusForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return StaticDrawCoverageStatus::None;
+        }
+        const auto found = entries_.find(objectId.value);
+        if (found == entries_.end()) {
+            return StaticDrawCoverageStatus::None;
+        }
+        return found->second.coverageStatus;
+    }
+
+    StaticDrawRecordValidationResult StaticDrawRecordCache::ValidateStaticDrawRecord(const StaticDrawRecord& record) const {
+        StaticDrawRecordValidationResult result{};
         if (!record.objectId.IsValid() || record.model == nullptr) {
-            ++stats_.skippedInvalidObjectCount;
-            valid = false;
+            result.invalidObject = true;
         }
         if (record.renderModel == nullptr || !record.renderModel->valid) {
-            ++stats_.skippedInvalidRenderModelCount;
-            valid = false;
+            result.invalidRenderModel = true;
         }
         if (!record.hasDrawWorldMatrix) {
-            ++stats_.missingDrawMatrixCount;
-            valid = false;
+            result.missingDrawMatrix = true;
         }
         if (!BOUNDS::IsUsable(record.worldBounds)) {
-            ++stats_.invalidRecordBoundsCount;
-            valid = false;
+            result.invalidBounds = true;
         }
 
         bool primitiveIndexValid = false;
@@ -202,21 +222,25 @@ namespace HIKARI::RENDER3D::RUNTIME {
             primitiveIndexValid = record.primitiveIndex < mesh.primitives.size();
         }
         if (!primitiveIndexValid) {
-            ++stats_.invalidPrimitiveIndexCount;
-            valid = false;
+            result.invalidPrimitiveIndex = true;
         }
 
-        if (valid) {
-            ++stats_.validRecordCount;
-        }
-        return valid;
+        return result;
     }
 
     void StaticDrawRecordCache::RebuildObjectRecords(const SceneRenderObject& object, StaticDrawObjectEntry& entry) {
         entry.objectId = object.desc.id;
         entry.sourceVersion = object.version;
         entry.valid = true;
+        entry.expectedForwardSubmeshCount = 0;
+        entry.validForwardRecordCount = 0;
         entry.skippedSkinnedSubmeshCount = 0;
+        entry.skippedInvalidRecordCount = 0;
+        entry.skippedUnsupportedSubmeshCount = 0;
+        entry.invalidRecordBoundsCount = 0;
+        entry.missingDrawMatrixCount = 0;
+        entry.invalidPrimitiveIndexCount = 0;
+        entry.coverageStatus = StaticDrawCoverageStatus::None;
         entry.records.clear();
 
         const RenderModelAsset& renderModel = *object.desc.renderModel;
@@ -226,8 +250,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         entry.records.reserve(renderModel.submeshes.size());
         for (size_t submeshIndex = 0; submeshIndex < renderModel.submeshes.size(); ++submeshIndex) {
             const RenderSubmeshRecord& submesh = renderModel.submeshes[submeshIndex];
+            ++entry.expectedForwardSubmeshCount;
             if (submesh.skinningMode == RenderSubmeshSkinningMode::Skinned) {
                 ++entry.skippedSkinnedSubmeshCount;
+                ++entry.skippedUnsupportedSubmeshCount;
                 continue;
             }
 
@@ -266,7 +292,33 @@ namespace HIKARI::RENDER3D::RUNTIME {
             record.materialFxValuesInitialized = object.desc.materialFxValuesInitialized;
             CopyMaterialFxValues(object.desc, record);
 
+            const StaticDrawRecordValidationResult validation = ValidateStaticDrawRecord(record);
+            if (!validation.IsValid()) {
+                ++entry.skippedInvalidRecordCount;
+                if (validation.invalidBounds) {
+                    ++entry.invalidRecordBoundsCount;
+                }
+                if (validation.missingDrawMatrix) {
+                    ++entry.missingDrawMatrixCount;
+                }
+                if (validation.invalidPrimitiveIndex) {
+                    ++entry.invalidPrimitiveIndexCount;
+                }
+                continue;
+            }
+
             entry.records.push_back(std::move(record));
+            ++entry.validForwardRecordCount;
+        }
+
+        if (entry.expectedForwardSubmeshCount == 0) {
+            entry.coverageStatus = StaticDrawCoverageStatus::None;
+        } else if (entry.validForwardRecordCount == entry.expectedForwardSubmeshCount) {
+            entry.coverageStatus = StaticDrawCoverageStatus::Full;
+        } else if (entry.validForwardRecordCount > 0) {
+            entry.coverageStatus = StaticDrawCoverageStatus::Partial;
+        } else {
+            entry.coverageStatus = StaticDrawCoverageStatus::Invalid;
         }
     }
 
@@ -282,7 +334,31 @@ namespace HIKARI::RENDER3D::RUNTIME {
             if (!entry.valid) {
                 continue;
             }
-            recordCount += entry.records.size();
+            ++stats_.cachedObjectCount;
+            stats_.skippedSkinnedSubmeshCount += entry.skippedSkinnedSubmeshCount;
+            stats_.invalidRecordBoundsCount += entry.invalidRecordBoundsCount;
+            stats_.missingDrawMatrixCount += entry.missingDrawMatrixCount;
+            stats_.invalidPrimitiveIndexCount += entry.invalidPrimitiveIndexCount;
+            stats_.validRecordCount += entry.validForwardRecordCount;
+            stats_.expectedForwardSubmeshCount += entry.expectedForwardSubmeshCount;
+            stats_.validForwardRecordCount += entry.validForwardRecordCount;
+
+            switch (entry.coverageStatus) {
+            case StaticDrawCoverageStatus::Full:
+                ++stats_.fullCoverageObjectCount;
+                recordCount += entry.records.size();
+                break;
+            case StaticDrawCoverageStatus::Partial:
+                ++stats_.partialCoverageObjectCount;
+                break;
+            case StaticDrawCoverageStatus::Invalid:
+                ++stats_.invalidCoverageObjectCount;
+                break;
+            case StaticDrawCoverageStatus::None:
+            default:
+                ++stats_.noCoverageObjectCount;
+                break;
+            }
         }
         records_.reserve(static_cast<size_t>((std::min)(recordCount, static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))));
 
@@ -293,16 +369,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 continue;
             }
             const StaticDrawObjectEntry& entry = found->second;
-            if (!entry.valid) {
+            if (!entry.valid || entry.coverageStatus != StaticDrawCoverageStatus::Full) {
                 continue;
             }
-            for (const StaticDrawRecord& record : entry.records) {
-                if (!ValidateStaticDrawRecord(record)) {
-                    continue;
-                }
-                records_.push_back(record);
-            }
-            ++stats_.cachedObjectCount;
+            records_.insert(records_.end(), entry.records.begin(), entry.records.end());
         }
         stats_.cachedRecordCount = ClampToUint32(records_.size());
     }

@@ -80,6 +80,8 @@ namespace HIKARI {
         sDebugStats_.missingBoundsCount = 0;
         sDebugStats_.skinnedCullSkippedCount = 0;
         sDebugStats_.fallbackWireCount = 0;
+        sDebugStats_.staticCachedForwardSkipCount = 0;
+        sDebugStats_.staticCachedFallbackCount = 0;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
 
         sSceneRenderCacheSync_.Sync(
@@ -160,12 +162,15 @@ namespace HIKARI {
                 if (model.IsRenderStatic()) {
                     const RENDER3D::RUNTIME::SceneRenderObjectId renderObjectId =
                         ResolveSceneRenderObjectId(object);
-                    const bool hasCachedRecords =
-                        sStaticDrawRecordCache_.HasValidRecordsForObject(renderObjectId);
-                    if (hasCachedRecords && sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit) {
+                    const bool hasFullForwardCoverage =
+                        sStaticDrawRecordCache_.HasFullForwardCoverageForObject(renderObjectId);
+                    if (hasFullForwardCoverage && sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit) {
                         item.submitForward = false;
+                        ++sDebugStats_.staticCachedForwardSkipCount;
+                    } else if (sOptions_.useStaticDrawRecordCache) {
+                        ++sDebugStats_.staticCachedFallbackCount;
                     }
-                    if (hasCachedRecords && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
+                    if (hasFullForwardCoverage && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
                         item.submitShadow = false;
                     }
                 }
