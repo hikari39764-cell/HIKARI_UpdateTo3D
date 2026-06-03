@@ -194,8 +194,8 @@ namespace HIKARI::MODELRENDERER {
                 (std::min)(sum, static_cast<uint64_t>((std::numeric_limits<uint32_t>::max)())));
         }
 
-        void AddRenderModelRequestedSubmeshCount(size_t value) {
-            AddUint32Saturated(gDebugStats.frame.renderModelRequestedSubmeshCount, value);
+        void AddRenderModelRequestedSurfaceCount(size_t value) {
+            AddUint32Saturated(gDebugStats.frame.renderModelRequestedSurfaceCount, value);
         }
 
         void SyncRenderModelCacheStats() {
@@ -205,7 +205,7 @@ namespace HIKARI::MODELRENDERER {
             gDebugStats.cache.renderModelCacheMissCount = cacheStats.missCount;
             gDebugStats.cache.renderModelCacheInvalidCount = cacheStats.invalidModelCount;
             gDebugStats.cache.renderModelCachedModelCount = cacheStats.cachedModelCount;
-            gDebugStats.cache.renderModelCachedSubmeshCount = cacheStats.cachedSubmeshCount;
+            gDebugStats.cache.renderModelCachedSurfaceCount = cacheStats.cachedSurfaceCount;
         }
 
         const RENDER3D::RUNTIME::RenderModelAsset* ResolveRenderModelForDebug(const ModelRenderItem& item) {
@@ -221,7 +221,7 @@ namespace HIKARI::MODELRENDERER {
             }
 
             ++gDebugStats.frame.renderModelValidRequestCount;
-            AddRenderModelRequestedSubmeshCount(renderModel->submeshes.size());
+            AddRenderModelRequestedSurfaceCount(renderModel->surfaces.size());
             return renderModel;
         }
 

@@ -16,7 +16,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t missCount = 0;
             uint32_t invalidModelCount = 0;
             uint32_t cachedModelCount = 0;
-            uint32_t cachedSubmeshCount = 0;
+            uint32_t cachedSurfaceCount = 0;
         };
 
         const RenderModelAsset* GetOrCreate(const ModelAsset& source);

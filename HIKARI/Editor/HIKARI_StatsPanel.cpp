@@ -8,8 +8,6 @@
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
-#include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -70,24 +68,9 @@ namespace HIKARI {
         const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
         const MODELRENDERER::ModelRendererFrameStats& modelFrameStats = modelStats.frame;
         const MODELRENDERER::ModelRendererCacheStats& modelCacheStats = modelStats.cache;
-        const RenderSubmissionDebugStats& renderSubmissionStats =
-            RenderSubmissionSystem::GetDebugStats();
         const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneRenderCacheStats =
             RenderSubmissionSystem::GetSceneRenderCacheStats();
-        const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& staticDrawRecordCacheStats =
-            RenderSubmissionSystem::GetStaticDrawRecordCacheStats();
-        const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& staticDrawRecordSubmitStats =
-            RenderSubmissionSystem::GetStaticDrawRecordSubmitStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
-        const RENDER3D::CLUSTER::ClusteredGeometryManagerStats& clusteredGeometryStats =
-            RENDER3D::CLUSTER::GetClusteredGeometryManager().GetStats();
-        const RENDER3D::CLUSTER::ClusteredCpuPreviewStats& clusteredPreviewStats =
-            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().GetStats();
-        const bool staticCacheEnabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
-        const bool cachedForwardEnabled = RenderSubmissionSystem::IsUseCachedStaticForwardEnabled();
-        const bool cachedShadowEnabled = RenderSubmissionSystem::IsUseCachedStaticShadowEnabled();
-        const bool bypassOldModelRendererEnabled =
-            RenderSubmissionSystem::IsBypassOldStaticModelRendererEnabled();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
             ImGui::Text("Submitted Model Items: %u", modelFrameStats.submittedModelItemCount);
@@ -97,7 +80,7 @@ namespace HIKARI {
                     modelCacheStats.renderModelCacheHitCount,
                     modelCacheStats.renderModelCacheMissCount);
                 ImGui::Text("Cached Models: %u", modelCacheStats.renderModelCachedModelCount);
-                ImGui::Text("Cached Submeshes: %u", modelCacheStats.renderModelCachedSubmeshCount);
+                ImGui::Text("Cached Surfaces: %u", modelCacheStats.renderModelCachedSurfaceCount);
                 ImGui::Text("Invalid Cached Models: %u", modelCacheStats.renderModelCacheInvalidCount);
                 ImGui::TreePop();
             }
@@ -105,7 +88,7 @@ namespace HIKARI {
                 ImGui::Text("Valid / Invalid Requests: %u / %u",
                     modelFrameStats.renderModelValidRequestCount,
                     modelFrameStats.renderModelInvalidRequestCount);
-                ImGui::Text("Requested Submeshes: %u", modelFrameStats.renderModelRequestedSubmeshCount);
+                ImGui::Text("Requested Surfaces: %u", modelFrameStats.renderModelRequestedSurfaceCount);
                 ImGui::Text("Structured Nodes Submitted / Culled: %u / %u",
                     modelFrameStats.structuredNodeSubmittedCount,
                     modelFrameStats.structuredNodeCulledCount);
@@ -131,63 +114,6 @@ namespace HIKARI {
                     sceneRenderCacheStats.renderModelInvalidCount);
                 ImGui::TreePop();
             }
-            if (ImGui::TreeNodeEx("Static Draw Record Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Static Objects: %u", staticDrawRecordCacheStats.staticObjectCount);
-                ImGui::Text("Cached Objects: %u", staticDrawRecordCacheStats.cachedObjectCount);
-                ImGui::Text("Cached Records: %u", staticDrawRecordCacheStats.cachedRecordCount);
-                ImGui::Text("Rebuilt / Reused / Removed: %u / %u / %u",
-                    staticDrawRecordCacheStats.rebuiltObjectCount,
-                    staticDrawRecordCacheStats.reusedObjectCount,
-                    staticDrawRecordCacheStats.removedObjectCount);
-                ImGui::Text("Skipped Dynamic: %u", staticDrawRecordCacheStats.skippedDynamicObjectCount);
-                ImGui::Text("Skipped Invisible: %u", staticDrawRecordCacheStats.skippedInvisibleObjectCount);
-                ImGui::Text("Skipped Invalid Object: %u", staticDrawRecordCacheStats.skippedInvalidObjectCount);
-                ImGui::Text("Skipped Invalid RenderModel: %u", staticDrawRecordCacheStats.skippedInvalidRenderModelCount);
-                ImGui::Text("Skipped Skinned Submesh: %u", staticDrawRecordCacheStats.skippedSkinnedSubmeshCount);
-                ImGui::Text("Skipped Animated Objects: %u", staticDrawRecordCacheStats.skippedAnimatedObjectCount);
-                ImGui::Text("Skipped Debug Mode Objects: %u", staticDrawRecordCacheStats.skippedDebugModeObjectCount);
-                ImGui::Text("Valid Records: %u", staticDrawRecordCacheStats.validRecordCount);
-                ImGui::Text("Invalid Record Bounds: %u", staticDrawRecordCacheStats.invalidRecordBoundsCount);
-                ImGui::Text("Missing Draw Matrix: %u", staticDrawRecordCacheStats.missingDrawMatrixCount);
-                ImGui::Text("Invalid Primitive Index: %u", staticDrawRecordCacheStats.invalidPrimitiveIndexCount);
-                ImGui::Text("Full Coverage Objects: %u", staticDrawRecordCacheStats.fullCoverageObjectCount);
-                ImGui::Text("Partial Coverage Objects: %u", staticDrawRecordCacheStats.partialCoverageObjectCount);
-                ImGui::Text("No Coverage Objects: %u", staticDrawRecordCacheStats.noCoverageObjectCount);
-                ImGui::Text("Invalid Coverage Objects: %u", staticDrawRecordCacheStats.invalidCoverageObjectCount);
-                ImGui::Text("Expected Forward Submeshes: %u", staticDrawRecordCacheStats.expectedForwardSubmeshCount);
-                ImGui::Text("Valid Forward Records: %u", staticDrawRecordCacheStats.validForwardRecordCount);
-                ImGui::TreePop();
-            }
-            if (ImGui::TreeNodeEx("Static Draw Record Submit", ImGuiTreeNodeFlags_DefaultOpen)) {
-                bool enabled = staticCacheEnabled;
-                if (ImGui::Checkbox("Enabled", &enabled)) {
-                    RenderSubmissionSystem::SetUseStaticDrawRecordCache(enabled);
-                }
-                bool cachedForward = cachedForwardEnabled;
-                if (ImGui::Checkbox("Cached Forward", &cachedForward)) {
-                    RenderSubmissionSystem::SetUseCachedStaticForward(cachedForward);
-                }
-                bool cachedShadow = cachedShadowEnabled;
-                if (ImGui::Checkbox("Cached Shadow", &cachedShadow)) {
-                    RenderSubmissionSystem::SetUseCachedStaticShadow(cachedShadow);
-                }
-                bool bypassOldModelRenderer = bypassOldModelRendererEnabled;
-                if (ImGui::Checkbox("Bypass Old ModelRenderer", &bypassOldModelRenderer)) {
-                    RenderSubmissionSystem::SetBypassOldStaticModelRenderer(bypassOldModelRenderer);
-                }
-                ImGui::Text("Candidates: %d", renderSubmissionStats.staticCachedCandidateCount);
-                ImGui::Text("Skip Old Forward Objects: %d", renderSubmissionStats.staticCachedForwardSkipCount);
-                ImGui::Text("Skip Old Shadow Objects: %d", renderSubmissionStats.staticCachedShadowSkipCount);
-                ImGui::Text("Bypass Old ModelRenderer Objects: %d", renderSubmissionStats.staticCachedBypassOldModelRendererCount);
-                ImGui::Text("Fallback Objects: %d", renderSubmissionStats.staticCachedFallbackCount);
-                ImGui::Text("Submitted Forward Records: %d", renderSubmissionStats.staticCachedSubmittedForwardRecordCount);
-                ImGui::Text("Submitted Shadow Records: %d", renderSubmissionStats.staticCachedSubmittedShadowRecordCount);
-                ImGui::Text("Culled Forward Records: %d", renderSubmissionStats.staticCachedCulledRecordCount);
-                ImGui::Text("Shadow Cull Skipped Records: %u", staticDrawRecordSubmitStats.shadowCullSkippedCount);
-                ImGui::Text("Skipped Invalid Records: %u", staticDrawRecordSubmitStats.skippedInvalidRecordCount);
-                ImGui::Text("Skipped Unsupported Records: %u", staticDrawRecordSubmitStats.skippedUnsupportedRecordCount);
-                ImGui::TreePop();
-            }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
             ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu", meshStats.wireDrawItemCount, meshStats.wireGpuDrawCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
@@ -195,51 +121,6 @@ namespace HIKARI {
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
             ImGui::Text("NormalMapped Primitives: %zu", meshStats.normalMappedPrimitiveCount);
             ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu", meshStats.normalTextureCacheHitCount, meshStats.normalTextureCacheMissCount);
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNodeEx("Clustered Geometry", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("HCMESH Requests / Hits / Misses: %u / %u / %u",
-                clusteredGeometryStats.requestCount,
-                clusteredGeometryStats.hitCount,
-                clusteredGeometryStats.missCount);
-            ImGui::Text("Valid / Invalid HCMESH: %u / %u",
-                clusteredGeometryStats.validAssetCount,
-                clusteredGeometryStats.invalidAssetCount);
-            ImGui::Text("Surfaces / Clusters / Pages: %u / %u / %u",
-                clusteredGeometryStats.surfaceCount,
-                clusteredGeometryStats.clusterCount,
-                clusteredGeometryStats.pageCount);
-            ImGui::Text("Triangles / Vertices: %u / %u",
-                clusteredGeometryStats.totalTriangleCount,
-                clusteredGeometryStats.totalVertexCount);
-            ImGui::Text("Max Vertices / Cluster: %u", clusteredGeometryStats.maxVerticesPerCluster);
-            ImGui::Text("Skipped Skinned / Morph / Invalid: %u / %u / %u",
-                clusteredGeometryStats.skippedSkinnedPrimitiveCount,
-                clusteredGeometryStats.skippedMorphPrimitiveCount,
-                clusteredGeometryStats.skippedInvalidPrimitiveCount);
-            ImGui::Text("Unsupported OBJ / glTF Features: %u", clusteredGeometryStats.unsupportedFeatureCount);
-            ImGui::SeparatorText("CPU Reference");
-            ImGui::Text("Mode: %s", RENDER3D::CLUSTER::ToString(clusteredPreviewStats.mode));
-            ImGui::Text("Enabled: %s", clusteredPreviewStats.enabled ? "On" : "Off");
-            ImGui::Text("Candidates: %u", clusteredPreviewStats.candidateObjectCount);
-            ImGui::Text("Submitted Objects / Surfaces: %u / %u",
-                clusteredPreviewStats.submittedObjectCount,
-                clusteredPreviewStats.submittedSurfaceCount);
-            ImGui::Text("Selected Preview Objects: %u", clusteredPreviewStats.selectedPreviewObjectCount);
-            ImGui::Text("Fallback Objects / Surfaces: %u / %u",
-                clusteredPreviewStats.fallbackObjectCount,
-                clusteredPreviewStats.fallbackSurfaceCount);
-            ImGui::Text("Transparent / Unsupported Surfaces: %u / %u",
-                clusteredPreviewStats.transparentFallbackSurfaceCount,
-                clusteredPreviewStats.unsupportedFallbackSurfaceCount);
-            ImGui::Text("Cached / Rebuilt Preview Models: %u / %u",
-                clusteredPreviewStats.cachedPreviewModelCount,
-                clusteredPreviewStats.rebuiltPreviewModelCount);
-            ImGui::TextWrapped("Last Load: %s",
-                RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().empty()
-                    ? "<none>"
-                    : RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().c_str());
             ImGui::TreePop();
         }
 

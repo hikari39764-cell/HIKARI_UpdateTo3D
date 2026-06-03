@@ -11,6 +11,7 @@
 #include <string_view>
 #include <utility>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <json.hpp>
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
@@ -1452,6 +1453,7 @@ namespace HIKARI {
         asset.skins.clear();
         asset.animations.clear();
         asset.defaultSceneRootNode = 0;
+        asset.importDiagnostics.sourceFormat = "glTF";
 
         if (root.contains("extensionsUsed") && root["extensionsUsed"].is_array()) {
             for (const auto& extensionNode : root["extensionsUsed"]) {
@@ -1464,6 +1466,7 @@ namespace HIKARI {
                     continue;
                 }
                 ++asset.importDiagnostics.unsupportedFeatureCount;
+                asset.importDiagnostics.unsupportedExtensions.push_back(extension);
                 asset.importDiagnostics.messages.push_back("[glTF] unsupported extension: " + extension);
             }
         }
@@ -1566,6 +1569,7 @@ namespace HIKARI {
                             continue;
                         }
                         ++asset.importDiagnostics.unsupportedFeatureCount;
+                        asset.importDiagnostics.unsupportedExtensions.push_back(it.key());
                         asset.importDiagnostics.messages.push_back("[glTF] unsupported material extension: " + it.key());
                     }
                 }
@@ -1607,6 +1611,7 @@ namespace HIKARI {
                 const int primitiveMode = primitive.value("mode", 4);
                 if (primitiveMode != 4) {
                     ++asset.importDiagnostics.unsupportedPrimitiveModeCount;
+                    ++asset.importDiagnostics.fallbackPrimitiveCount;
                     asset.importDiagnostics.messages.push_back(
                         "[glTF] unsupported primitive mode skipped: mesh=" +
                         std::to_string(meshIndex) +
@@ -1691,6 +1696,7 @@ namespace HIKARI {
                     !primitive["targets"].empty();
                 if (primitiveAsset.hasMorphTargets) {
                     ++asset.importDiagnostics.skippedMorphPrimitiveCount;
+                    ++asset.importDiagnostics.fallbackPrimitiveCount;
                     asset.importDiagnostics.messages.push_back(
                         "[glTF] morph target primitive uses legacy fallback only: mesh=" +
                         std::to_string(meshIndex) +
@@ -1699,6 +1705,8 @@ namespace HIKARI {
                 if (primitive.contains("extensions") && primitive["extensions"].is_object()) {
                     for (auto it = primitive["extensions"].begin(); it != primitive["extensions"].end(); ++it) {
                         ++asset.importDiagnostics.unsupportedFeatureCount;
+                        ++asset.importDiagnostics.fallbackPrimitiveCount;
+                        asset.importDiagnostics.unsupportedExtensions.push_back(it.key());
                         asset.importDiagnostics.messages.push_back("[glTF] unsupported primitive extension: " + it.key());
                     }
                 }
@@ -1730,9 +1738,11 @@ namespace HIKARI {
 
                 if (!hasNormals) {
                     GenerateStaticPrimitiveNormals(primitiveAsset);
+                    ++asset.importDiagnostics.missingNormalGeneratedCount;
                 }
                 if (tangents.empty() && MaterialHasNormalTexture(asset, primitiveAsset.materialIndex)) {
                     GenerateStaticPrimitiveTangents(primitiveAsset);
+                    ++asset.importDiagnostics.missingTangentGeneratedCount;
                 }
 
                 const uint32_t legacyBaseVertex = static_cast<uint32_t>(legacyVertices.size());
@@ -1778,6 +1788,7 @@ namespace HIKARI {
 
                 primitiveAsset.bounds = BOUNDS::ComputePrimitiveBounds(primitiveAsset);
                 meshAsset.primitives.push_back(std::move(primitiveAsset));
+                ++asset.importDiagnostics.clusteredStaticPrimitiveCount;
             }
 
             if (!meshAsset.primitives.empty()) {
@@ -1933,6 +1944,10 @@ namespace HIKARI {
         std::string currentObject = "Object";
         std::string currentGroup = "Group";
         std::string currentMaterial = "Default";
+        std::unordered_set<std::string> objectNames{ currentObject };
+        std::unordered_set<std::string> groupNames{ currentGroup };
+        uint32_t triangulatedPolygonCount = 0;
+        uint32_t malformedFaceCount = 0;
         bool smoothingEnabled = true;
 
         auto resolveObjIndex = [](int raw, size_t count) -> int {
@@ -2042,11 +2057,13 @@ namespace HIKARI {
                 std::getline(ss, name);
                 name = Trim(name);
                 currentObject = name.empty() ? "Object" : name;
+                objectNames.insert(currentObject);
             } else if (tag == "g") {
                 std::string name;
                 std::getline(ss, name);
                 name = Trim(name);
                 currentGroup = name.empty() ? "Group" : name;
+                groupNames.insert(currentGroup);
             } else if (tag == "s") {
                 std::string smoothing;
                 ss >> smoothing;
@@ -2069,10 +2086,12 @@ namespace HIKARI {
                     }
                 }
                 if (faceKeys.size() < 3) {
+                    ++malformedFaceCount;
                     continue;
                 }
 
                 ObjPrimitiveBuilder& builder = getBuilder();
+                triangulatedPolygonCount += static_cast<uint32_t>(faceKeys.size() - 2u);
                 for (size_t i = 1; i + 1 < faceKeys.size(); ++i) {
                     const ObjKey tri[3] = { faceKeys[0], faceKeys[i], faceKeys[i + 1] };
                     if (tri[0].pos < 0 || tri[0].pos >= static_cast<int>(positions.size()) ||
@@ -2104,6 +2123,14 @@ namespace HIKARI {
         }
 
         asset.importDiagnostics = {};
+        asset.importDiagnostics.sourceFormat = "OBJ";
+        asset.importDiagnostics.objectCount = static_cast<uint32_t>(objectNames.size());
+        asset.importDiagnostics.groupCount = static_cast<uint32_t>(groupNames.size());
+        asset.importDiagnostics.triangulatedPolygonCount = triangulatedPolygonCount;
+        if (malformedFaceCount > 0u) {
+            asset.importDiagnostics.unsupportedFeatureCount += malformedFaceCount;
+            asset.importDiagnostics.messages.push_back("[OBJ] malformed faces skipped: " + std::to_string(malformedFaceCount));
+        }
         std::unordered_map<std::string, ObjMaterialInfo> mtlMaterials;
         for (const std::filesystem::path& mtlPath : mtllibPaths) {
             std::unordered_map<std::string, ObjMaterialInfo> parsed;
@@ -2207,9 +2234,11 @@ namespace HIKARI {
             primitive.staticVertices = std::move(builder.vertices);
             if (builder.missingNormal) {
                 GenerateStaticPrimitiveNormals(primitive);
+                ++asset.importDiagnostics.missingNormalGeneratedCount;
             }
             if (MaterialHasNormalTexture(asset, primitive.materialIndex)) {
                 GenerateStaticPrimitiveTangents(primitive);
+                ++asset.importDiagnostics.missingTangentGeneratedCount;
             }
             primitive.bounds = BOUNDS::ComputePrimitiveBounds(primitive);
 
@@ -2227,6 +2256,7 @@ namespace HIKARI {
                 legacyIndices.push_back(legacyBaseVertex + index);
             }
             meshAsset.primitives.push_back(std::move(primitive));
+            ++asset.importDiagnostics.clusteredStaticPrimitiveCount;
         }
 
         if (meshAsset.primitives.empty()) {
@@ -2239,6 +2269,11 @@ namespace HIKARI {
         }
 
         ResolvePbrTexturePaths(asset);
+        for (const TextureAsset3D& texture : asset.textures) {
+            if (!texture.sourcePath.empty() && !std::filesystem::exists(texture.sourcePath)) {
+                ++asset.importDiagnostics.unresolvedTextureCount;
+            }
+        }
         BOUNDS::EnsureModelBounds(asset);
 
         if (!buildRuntimeResources) {

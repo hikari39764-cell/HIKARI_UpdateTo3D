@@ -11,6 +11,8 @@
 namespace HIKARI::RENDER3D::CLUSTER {
 
     constexpr uint32_t kInvalidClusterIndex = (std::numeric_limits<uint32_t>::max)();
+    constexpr uint32_t kHcmeshMaxTrianglesPerCluster = 64u;
+    constexpr uint32_t kHcmeshMaxVerticesPerCluster = 128u;
     constexpr uint32_t kHcmeshMaxClustersPerPage = 64u;
 
     enum class ClusterSurfaceFlags : uint32_t {
@@ -32,6 +34,25 @@ namespace HIKARI::RENDER3D::CLUSTER {
     }
 
     inline void AddFlag(uint32_t& flags, ClusterSurfaceFlags value) {
+        flags |= ToBits(value);
+    }
+
+    enum class ClusteredGeometryFlags : uint32_t {
+        None = 0,
+        NodeTransformBaked = 1u << 0,
+        ClusterLocalIndices = 1u << 1,
+        SourceMapping = 1u << 2,
+    };
+
+    inline uint32_t ToBits(ClusteredGeometryFlags value) {
+        return static_cast<uint32_t>(value);
+    }
+
+    inline bool HasFlag(uint32_t flags, ClusteredGeometryFlags value) {
+        return (flags & ToBits(value)) != 0u;
+    }
+
+    inline void AddFlag(uint32_t& flags, ClusteredGeometryFlags value) {
         flags |= ToBits(value);
     }
 
@@ -102,12 +123,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
     struct ClusteredGeometryAsset {
         AssetGuid sourceModelGuid{};
         std::string sourceModelPath{};
+        // 頂点空間と source mapping の前提を固定する。
+        uint32_t flags = 0;
 
         std::vector<ClusterSurface> surfaces{};
         std::vector<MeshCluster> clusters{};
         std::vector<ClusterPage> pages{};
 
         std::vector<ClusterVertex> packedVertices{};
+        // index は各 cluster の firstVertex からの局所 index。
         std::vector<uint32_t> packedIndices{};
         std::vector<uint32_t> materialSlotMapping{};
 

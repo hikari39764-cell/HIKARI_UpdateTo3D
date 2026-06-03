@@ -463,11 +463,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 for (uint32_t sourceIndex : sourceIndices) {
                     auto it = vertexRemap.find(sourceIndex);
                     if (it == vertexRemap.end()) {
-                        const uint32_t packedIndex = static_cast<uint32_t>(asset.packedVertices.size());
-                        vertexRemap[sourceIndex] = packedIndex;
+                        const uint32_t localIndex =
+                            static_cast<uint32_t>(asset.packedVertices.size()) - cluster.firstVertex;
+                        vertexRemap[sourceIndex] = localIndex;
                         asset.packedVertices.push_back(work.vertices[sourceIndex]);
                         EncapsulatePoint(bounds, hasBounds, work.vertices[sourceIndex].position);
-                        asset.packedIndices.push_back(packedIndex);
+                        // cluster 内 index は meshlet と同じく局所 index として保存する。
+                        asset.packedIndices.push_back(localIndex);
                     } else {
                         asset.packedIndices.push_back(it->second);
                     }
@@ -713,6 +715,16 @@ namespace HIKARI::ASSETS::GEOMETRY {
         outReport = {};
         outAsset.sourceModelGuid = sourceGuid;
         outAsset.sourceModelPath = model.sourcePath;
+        // HCMESH は node 行列を焼き込んだ model local 頂点を持つ。
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::NodeTransformBaked);
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::ClusterLocalIndices);
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::SourceMapping);
         AppendMaterialSlots(model, outAsset);
 
         if (model.meshes.empty()) {

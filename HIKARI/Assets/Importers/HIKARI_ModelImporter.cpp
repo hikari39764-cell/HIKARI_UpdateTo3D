@@ -33,6 +33,10 @@ namespace HIKARI {
             return ext == ".gltf" || ext == ".obj";
         }
 
+        const char* ToSupportedModelExtensionsText() {
+            return ".gltf, .obj";
+        }
+
         std::filesystem::path ResolveProjectPath(
             const std::filesystem::path& projectRoot,
             const std::filesystem::path& path) {
@@ -202,6 +206,26 @@ namespace HIKARI {
             for (const std::string& message : model.importDiagnostics.messages) {
                 importMessages.push_back(message);
             }
+            nlohmann::json unsupportedExtensions = nlohmann::json::array();
+            for (const std::string& extension : model.importDiagnostics.unsupportedExtensions) {
+                unsupportedExtensions.push_back(extension);
+            }
+
+            nlohmann::json formatReport = {
+                { "sourceFormat", model.importDiagnostics.sourceFormat },
+                { "objectCount", model.importDiagnostics.objectCount },
+                { "groupCount", model.importDiagnostics.groupCount },
+                { "triangulatedPolygonCount", model.importDiagnostics.triangulatedPolygonCount },
+                { "missingNormalGeneratedCount", model.importDiagnostics.missingNormalGeneratedCount },
+                { "missingTangentGeneratedCount", model.importDiagnostics.missingTangentGeneratedCount },
+                { "unresolvedTextureCount", model.importDiagnostics.unresolvedTextureCount },
+                { "unsupportedFeatureCount", model.importDiagnostics.unsupportedFeatureCount },
+                { "unsupportedPrimitiveModeCount", model.importDiagnostics.unsupportedPrimitiveModeCount },
+                { "unsupportedExtensions", unsupportedExtensions },
+                { "skippedMorphPrimitiveCount", model.importDiagnostics.skippedMorphPrimitiveCount },
+                { "clusteredStaticPrimitiveCount", model.importDiagnostics.clusteredStaticPrimitiveCount },
+                { "fallbackPrimitiveCount", model.importDiagnostics.fallbackPrimitiveCount },
+            };
 
             nlohmann::json diagnostics{
                 { "format", "HMODEL" },
@@ -218,11 +242,20 @@ namespace HIKARI {
                     { "indices", indexCount },
                     { "htexRefs", htexReferenceCount },
                     { "fallbackTextures", fallbackTextureCount },
+                    { "objectCount", model.importDiagnostics.objectCount },
+                    { "groupCount", model.importDiagnostics.groupCount },
+                    { "triangulatedPolygonCount", model.importDiagnostics.triangulatedPolygonCount },
+                    { "missingNormalGeneratedCount", model.importDiagnostics.missingNormalGeneratedCount },
+                    { "missingTangentGeneratedCount", model.importDiagnostics.missingTangentGeneratedCount },
+                    { "unresolvedTextureCount", model.importDiagnostics.unresolvedTextureCount },
+                    { "clusteredStaticPrimitiveCount", model.importDiagnostics.clusteredStaticPrimitiveCount },
+                    { "fallbackPrimitiveCount", model.importDiagnostics.fallbackPrimitiveCount },
                     { "skippedMorphPrimitives", model.importDiagnostics.skippedMorphPrimitiveCount },
                     { "unsupportedPrimitiveModes", model.importDiagnostics.unsupportedPrimitiveModeCount },
                     { "unsupportedFeatures", model.importDiagnostics.unsupportedFeatureCount },
                 } },
                 { "importMessages", std::move(importMessages) },
+                { "formatReport", std::move(formatReport) },
                 { "textures", std::move(textures) },
                 { "materials", std::move(materials) },
             };
@@ -244,6 +277,12 @@ namespace HIKARI {
                     { "triangles", clusteredReport->triangleCount },
                     { "vertices", clusteredReport->vertexCount },
                     { "maxVerticesPerCluster", clusteredReport->maxVerticesPerCluster },
+                    { "avgTrianglesPerCluster", clusteredReport->clusterCount > 0u
+                        ? static_cast<double>(clusteredReport->triangleCount) / static_cast<double>(clusteredReport->clusterCount)
+                        : 0.0 },
+                    { "avgVerticesPerCluster", clusteredReport->clusterCount > 0u
+                        ? static_cast<double>(clusteredReport->vertexCount) / static_cast<double>(clusteredReport->clusterCount)
+                        : 0.0 },
                     { "skippedSkinnedPrimitives", clusteredReport->skippedSkinnedPrimitiveCount },
                     { "skippedMorphPrimitives", clusteredReport->skippedMorphPrimitiveCount },
                     { "skippedInvalidPrimitives", clusteredReport->skippedInvalidPrimitiveCount },
@@ -326,12 +365,12 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 3;
+        return 4;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
         const std::string ext = ToLowerCopy(sourcePath.extension().string());
-        return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj";
+        return IsCookableModelExtension(ext);
     }
 
     AssetMeta ModelImporter::CreateDefaultMeta(
@@ -364,7 +403,9 @@ namespace HIKARI {
         AssetImportResult result{};
         const std::string ext = ToLowerCopy(record.sourcePath.extension().string());
         if (!IsCookableModelExtension(ext)) {
-            result.message = "[AssetImporter] HMODEL cook currently supports .gltf and .obj only. source=" +
+            result.message = "[AssetImporter] HMODEL cook supports " +
+                std::string(ToSupportedModelExtensionsText()) +
+                " only. source=" +
                 record.sourcePath.generic_string();
             HIKARI_LOG_ERROR(result.message);
             return result;

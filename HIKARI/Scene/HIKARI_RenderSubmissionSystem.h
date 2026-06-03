@@ -6,6 +6,7 @@
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordCache.h"
 #include "Render3D/Runtime/HIKARI_StaticDrawRecordSubmitter.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
 #include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
@@ -78,6 +79,8 @@ namespace HIKARI {
         static bool IsBypassOldStaticModelRendererEnabled();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
+        static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder();
+        static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& GetSurfaceDrawPacketStats();
         static const RENDER3D::RUNTIME::StaticDrawRecordCache& GetStaticDrawRecordCache();
         static const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& GetStaticDrawRecordCacheStats();
         static const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& GetStaticDrawRecordSubmitStats();
@@ -87,6 +90,7 @@ namespace HIKARI {
         static RenderSubmissionOptions sOptions_;
         static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketBuilder sSurfaceDrawPacketBuilder_;
         static RENDER3D::RUNTIME::StaticDrawRecordCache sStaticDrawRecordCache_;
         static RENDER3D::RUNTIME::StaticRecordSubmitOptions sStaticRecordSubmitOptions_;
         static RENDER3D::RUNTIME::StaticDrawRecordSubmitter sStaticDrawRecordSubmitter_;

@@ -5,9 +5,9 @@
 namespace HIKARI::ASSETS::GEOMETRY {
 
     struct ClusterCookSettings {
-        uint32_t maxTrianglesPerCluster = 64;
-        uint32_t maxVerticesPerCluster = 128;
-        uint32_t maxClustersPerPage = 64;
+        uint32_t maxTrianglesPerCluster = RENDER3D::CLUSTER::kHcmeshMaxTrianglesPerCluster;
+        uint32_t maxVerticesPerCluster = RENDER3D::CLUSTER::kHcmeshMaxVerticesPerCluster;
+        uint32_t maxClustersPerPage = RENDER3D::CLUSTER::kHcmeshMaxClustersPerPage;
 
         bool buildAdjacency = true;
         bool buildNormalCone = true;

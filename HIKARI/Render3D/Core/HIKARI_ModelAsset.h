@@ -101,9 +101,19 @@ namespace HIKARI {
     };
 
     struct ModelImportDiagnostics {
+        std::string sourceFormat;
+        uint32_t objectCount = 0;
+        uint32_t groupCount = 0;
+        uint32_t triangulatedPolygonCount = 0;
+        uint32_t missingNormalGeneratedCount = 0;
+        uint32_t missingTangentGeneratedCount = 0;
+        uint32_t unresolvedTextureCount = 0;
+        uint32_t clusteredStaticPrimitiveCount = 0;
+        uint32_t fallbackPrimitiveCount = 0;
         uint32_t skippedMorphPrimitiveCount = 0;
         uint32_t unsupportedPrimitiveModeCount = 0;
         uint32_t unsupportedFeatureCount = 0;
+        std::vector<std::string> unsupportedExtensions{};
         std::vector<std::string> messages{};
     };
 

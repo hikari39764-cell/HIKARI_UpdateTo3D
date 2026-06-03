@@ -10,6 +10,7 @@
 #include "Editor/Panels/HIKARI_LightingBakePanel.h"
 #include "Editor/Panels/HIKARI_PerformanceAuditPanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
+#include "Editor/Panels/HIKARI_ValidationLabPanel.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
@@ -39,6 +40,7 @@ namespace HIKARI {
         ResourceWorkspacePanel resourceWorkspacePanel_{};
         StatsPanel statsPanel_{};
         PerformanceAuditPanel performanceAuditPanel_{};
+        ValidationLabPanel validationLabPanel_{};
         EnvironmentPanel environmentPanel_{};
         LightingBakePanel lightingBakePanel_{};
         DebugCameraPanel debugCameraPanel_{};

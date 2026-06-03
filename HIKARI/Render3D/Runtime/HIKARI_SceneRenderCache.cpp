@@ -1,12 +1,19 @@
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
+#include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
     namespace {
+        uint32_t ClampToUint32(size_t value) {
+            return static_cast<uint32_t>(
+                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+        }
+
         bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
             return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
         }
@@ -99,10 +106,80 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
             return !BOUNDS::IsUsable(desc.localBounds) || !BOUNDS::IsUsable(desc.worldBounds);
         }
+
+        void CopyMaterialFxValues(const SceneRenderObjectDesc& desc, SceneSurfaceInstance& instance) {
+            for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                instance.materialFxParamValues[i] = desc.materialFxParamValues[i];
+            }
+        }
+
+        bool IsSurfaceSourceUsable(const SceneRenderObject& object) {
+            return
+                object.valid &&
+                object.desc.id.IsValid() &&
+                object.desc.model != nullptr &&
+                object.desc.renderModel != nullptr &&
+                object.desc.renderModel->valid;
+        }
+
+        SceneSurfaceInstance BuildSurfaceInstance(
+            const SceneRenderObject& object,
+            uint32_t objectIndex,
+            const RenderSurfaceRecord& surface,
+            uint32_t surfaceIndex,
+            const std::vector<MATH::Mat4>& nodeGlobals) {
+
+            SceneSurfaceInstance instance{};
+            instance.objectId = object.desc.id;
+            instance.objectVersion = object.version;
+            instance.objectIndex = objectIndex;
+            instance.surfaceIndex = surfaceIndex;
+            instance.model = object.desc.model;
+            instance.renderModel = object.desc.renderModel;
+            instance.surface = &surface;
+            instance.nodeIndex = surface.nodeIndex;
+            instance.meshIndex = surface.meshIndex;
+            instance.primitiveIndex = surface.primitiveIndex;
+            instance.materialIndex = surface.materialIndex;
+            instance.objectWorldTransform = object.desc.worldTransform;
+            instance.localBounds = surface.localBounds;
+            instance.visible = object.desc.visible;
+            instance.isStatic = object.desc.isStatic;
+            instance.castShadow = object.desc.castShadow && surface.castShadowDefault;
+            instance.receiveShadow = object.desc.receiveShadow && surface.receiveShadowDefault;
+            instance.hasRuntimeAnimation = object.desc.hasRuntimeAnimation;
+            instance.hasSpecialRenderDebug = object.desc.hasSpecialRenderDebug;
+            instance.allowStaticCachedForward = object.desc.allowStaticCachedForward;
+            instance.skinned = surface.IsSkinned();
+            instance.materialOverride = object.desc.materialOverride;
+            instance.materialFxProfileId = object.desc.materialFxProfileId;
+            instance.postGroupMask = object.desc.postGroupMask;
+            instance.materialFxValuesInitialized = object.desc.materialFxValuesInitialized;
+            CopyMaterialFxValues(object.desc, instance);
+
+            instance.hasDrawWorldMatrix = ResolveRenderSurfaceDrawWorldMatrix(
+                object.desc.worldTransform,
+                surface,
+                nodeGlobals,
+                instance.drawWorldMatrix);
+            instance.worldBounds = ResolveRenderSurfaceWorldBounds(
+                object.desc.worldBounds,
+                surface,
+                instance.drawWorldMatrix,
+                instance.hasDrawWorldMatrix);
+
+            instance.valid =
+                IsSurfaceSourceUsable(object) &&
+                HasValidRenderSurfacePrimitive(object.desc.model, surface) &&
+                instance.hasDrawWorldMatrix &&
+                BOUNDS::IsUsable(instance.worldBounds);
+            return instance;
+        }
     }
 
     void SceneRenderCache::Clear() {
         objects_.clear();
+        surfaceInstances_.clear();
         indexById_.clear();
         frameStats_ = {};
         currentSyncFrame_ = 0;
@@ -180,6 +257,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
         RemoveAt(found->second);
         ++frameStats_.removedCount;
+        RebuildSurfaceInstances();
         RefreshStats();
     }
 
@@ -199,11 +277,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
             object.modelDirty = true;
             ++object.version;
         }
+        RebuildSurfaceInstances();
         RefreshStats();
     }
 
     void SceneRenderCache::PreRenderSync() {
-        // R0.3 で dirty object から draw record を作る。
+        // draw packet ではなく scene 上の surface instance だけを展開する。
+        RebuildSurfaceInstances();
+        RefreshStats();
     }
 
     const SceneRenderObject* SceneRenderCache::Find(SceneRenderObjectId id) const {
@@ -219,6 +300,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     const std::vector<SceneRenderObject>& SceneRenderCache::GetObjects() const {
         return objects_;
+    }
+
+    const std::vector<SceneSurfaceInstance>& SceneRenderCache::GetSurfaceInstances() const {
+        return surfaceInstances_;
     }
 
     const SceneRenderCache::Stats& SceneRenderCache::GetStats() const {
@@ -238,6 +323,38 @@ namespace HIKARI::RENDER3D::RUNTIME {
         for (size_t i = 0; i < objects_.size(); ++i) {
             if (objects_[i].desc.id.IsValid()) {
                 indexById_[objects_[i].desc.id.value] = i;
+            }
+        }
+    }
+
+    void SceneRenderCache::RebuildSurfaceInstances() {
+        surfaceInstances_.clear();
+
+        uint64_t reserveCount = 0;
+        for (const SceneRenderObject& object : objects_) {
+            if (object.desc.renderModel != nullptr && object.desc.renderModel->valid) {
+                reserveCount += object.desc.renderModel->surfaces.size();
+            }
+        }
+        surfaceInstances_.reserve(static_cast<size_t>(
+            (std::min)(reserveCount, static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))));
+
+        for (size_t objectIndex = 0; objectIndex < objects_.size(); ++objectIndex) {
+            const SceneRenderObject& object = objects_[objectIndex];
+            if (!IsSurfaceSourceUsable(object)) {
+                continue;
+            }
+
+            const RenderModelAsset& renderModel = *object.desc.renderModel;
+            const std::vector<MATH::Mat4> nodeGlobals = BuildRenderModelNodeGlobals(renderModel);
+            for (size_t surfaceIndex = 0; surfaceIndex < renderModel.surfaces.size(); ++surfaceIndex) {
+                const RenderSurfaceRecord& surface = renderModel.surfaces[surfaceIndex];
+                surfaceInstances_.push_back(BuildSurfaceInstance(
+                    object,
+                    ClampToUint32(objectIndex),
+                    surface,
+                    ClampToUint32(surfaceIndex),
+                    nodeGlobals));
             }
         }
     }
@@ -276,6 +393,34 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
             if (IsInvalidStoredDesc(object.desc)) {
                 ++stats.invalidDescCount;
+            }
+        }
+
+        stats.surfaceInstanceCount = ClampToUint32(surfaceInstances_.size());
+        for (const SceneSurfaceInstance& instance : surfaceInstances_) {
+            if (instance.visible) {
+                ++stats.visibleSurfaceInstanceCount;
+            } else {
+                ++stats.hiddenSurfaceInstanceCount;
+            }
+            if (instance.isStatic) {
+                ++stats.staticSurfaceInstanceCount;
+            } else {
+                ++stats.dynamicSurfaceInstanceCount;
+            }
+            if (instance.skinned) {
+                ++stats.skinnedSurfaceInstanceCount;
+            } else {
+                ++stats.staticGeometrySurfaceInstanceCount;
+            }
+            if (!instance.valid) {
+                ++stats.invalidSurfaceInstanceCount;
+            }
+            if (!instance.hasDrawWorldMatrix) {
+                ++stats.missingSurfaceMatrixCount;
+            }
+            if (!BOUNDS::IsUsable(instance.worldBounds)) {
+                ++stats.invalidSurfaceBoundsCount;
             }
         }
 

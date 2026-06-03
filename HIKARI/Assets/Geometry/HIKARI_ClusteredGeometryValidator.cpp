@@ -1,5 +1,7 @@
 #include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
 
+#include <cmath>
+
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
@@ -9,6 +11,80 @@ namespace HIKARI::ASSETS::GEOMETRY {
             const uint64_t begin = first;
             const uint64_t end = begin + count;
             return end <= static_cast<uint64_t>(size);
+        }
+
+        bool RangeContains(uint32_t outerFirst, uint32_t outerCount, uint32_t innerFirst, uint32_t innerCount) {
+            const uint64_t outerBegin = outerFirst;
+            const uint64_t outerEnd = outerBegin + outerCount;
+            const uint64_t innerBegin = innerFirst;
+            const uint64_t innerEnd = innerBegin + innerCount;
+            return innerBegin >= outerBegin && innerEnd <= outerEnd;
+        }
+
+        bool IsFinite(float value) {
+            return std::isfinite(value);
+        }
+
+        bool IsFiniteVec2(const MATH::Vec2& value) {
+            return IsFinite(value.x) && IsFinite(value.y);
+        }
+
+        bool IsFiniteVec3(const MATH::Vec3& value) {
+            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
+        }
+
+        bool IsFiniteVec4(const MATH::Vec4& value) {
+            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z) && IsFinite(value.w);
+        }
+
+        bool IsFiniteBounds(const Bounds& bounds) {
+            return IsFiniteVec3(bounds.min) && IsFiniteVec3(bounds.max);
+        }
+
+        uint32_t CountAlphaFlags(uint32_t flags) {
+            uint32_t count = 0;
+            count += RENDER3D::CLUSTER::HasFlag(flags, RENDER3D::CLUSTER::ClusterSurfaceFlags::Opaque) ? 1u : 0u;
+            count += RENDER3D::CLUSTER::HasFlag(flags, RENDER3D::CLUSTER::ClusterSurfaceFlags::AlphaMask) ? 1u : 0u;
+            count += RENDER3D::CLUSTER::HasFlag(flags, RENDER3D::CLUSTER::ClusterSurfaceFlags::Transparent) ? 1u : 0u;
+            return count;
+        }
+
+        bool VertexFinite(const RENDER3D::CLUSTER::ClusterVertex& vertex) {
+            return IsFiniteVec3(vertex.position) &&
+                IsFiniteVec3(vertex.normal) &&
+                IsFiniteVec4(vertex.tangent) &&
+                IsFiniteVec2(vertex.uv0) &&
+                IsFiniteVec2(vertex.uv1) &&
+                IsFiniteVec4(vertex.color);
+        }
+
+        bool ClusterMicroIndicesValid(
+            const RENDER3D::CLUSTER::ClusteredGeometryAsset& asset,
+            const RENDER3D::CLUSTER::MeshCluster& cluster) {
+
+            if (!RangeValid(cluster.firstIndex, cluster.indexCount, asset.packedIndices.size())) {
+                return false;
+            }
+
+            for (uint32_t i = 0; i < cluster.indexCount; ++i) {
+                const uint32_t localIndex = asset.packedIndices[cluster.firstIndex + i];
+                if (localIndex >= cluster.vertexCount) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool RequiredAssetFlagsValid(const RENDER3D::CLUSTER::ClusteredGeometryAsset& asset) {
+            using RENDER3D::CLUSTER::ClusteredGeometryFlags;
+            return RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::NodeTransformBaked) &&
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::ClusterLocalIndices) &&
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::SourceMapping);
+        }
+
+        bool SurfaceSourceMappingValid(const RENDER3D::CLUSTER::ClusterSurface& surface) {
+            return surface.meshIndex != RENDER3D::CLUSTER::kInvalidClusterIndex &&
+                surface.primitiveIndex != RENDER3D::CLUSTER::kInvalidClusterIndex;
         }
 
         void AddMessage(
@@ -24,6 +100,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         const RENDER3D::CLUSTER::ClusteredGeometryAsset& asset) {
 
         ClusteredGeometryValidationResult result{};
+        bool assetMetadataValid = true;
 
         if (asset.surfaces.empty()) {
             AddMessage(result, "no surfaces");
@@ -37,11 +114,39 @@ namespace HIKARI::ASSETS::GEOMETRY {
         if (asset.packedIndices.empty()) {
             AddMessage(result, "no packed indices");
         }
+        if (!asset.sourceModelGuid.IsValid()) {
+            assetMetadataValid = false;
+            AddMessage(result, "missing source model guid");
+        }
+        if (asset.sourceModelPath.empty()) {
+            assetMetadataValid = false;
+            AddMessage(result, "missing source model path");
+        }
+        if (!RequiredAssetFlagsValid(asset)) {
+            assetMetadataValid = false;
+            AddMessage(result, "missing clustered geometry asset flags");
+        }
+        if (!IsFiniteBounds(asset.localBounds) || !BOUNDS::IsUsable(asset.localBounds)) {
+            ++result.invalidBoundsCount;
+            AddMessage(result, "invalid asset bounds");
+        }
+
+        for (size_t i = 0; i < asset.packedVertices.size(); ++i) {
+            if (!VertexFinite(asset.packedVertices[i])) {
+                ++result.invalidBoundsCount;
+                AddMessage(result, "invalid packed vertex " + std::to_string(i));
+                break;
+            }
+        }
 
         for (size_t i = 0; i < asset.surfaces.size(); ++i) {
             const RENDER3D::CLUSTER::ClusterSurface& surface = asset.surfaces[i];
             bool surfaceValid = true;
-            if (!RangeValid(surface.firstCluster, surface.clusterCount, asset.clusters.size()) ||
+            if (surface.clusterCount == 0u ||
+                surface.indexCount == 0u ||
+                surface.vertexCount == 0u ||
+                (surface.indexCount % 3u) != 0u ||
+                !RangeValid(surface.firstCluster, surface.clusterCount, asset.clusters.size()) ||
                 !RangeValid(surface.firstIndex, surface.indexCount, asset.packedIndices.size()) ||
                 !RangeValid(surface.firstVertex, surface.vertexCount, asset.packedVertices.size())) {
                 surfaceValid = false;
@@ -50,9 +155,28 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 ++result.invalidMaterialCount;
                 surfaceValid = false;
             }
-            if (!BOUNDS::IsUsable(surface.localBounds)) {
+            if (!SurfaceSourceMappingValid(surface)) {
+                surfaceValid = false;
+                AddMessage(result, "missing source mapping surface " + std::to_string(i));
+            }
+            if (CountAlphaFlags(surface.flags) != 1u) {
+                surfaceValid = false;
+            }
+            if (!IsFiniteBounds(surface.localBounds) || !BOUNDS::IsUsable(surface.localBounds)) {
                 ++result.invalidBoundsCount;
                 surfaceValid = false;
+            }
+            if (surfaceValid) {
+                for (uint32_t clusterOffset = 0; clusterOffset < surface.clusterCount; ++clusterOffset) {
+                    const RENDER3D::CLUSTER::MeshCluster& cluster =
+                        asset.clusters[surface.firstCluster + clusterOffset];
+                    if (cluster.surfaceIndex != i ||
+                        !RangeContains(surface.firstIndex, surface.indexCount, cluster.firstIndex, cluster.indexCount) ||
+                        !RangeContains(surface.firstVertex, surface.vertexCount, cluster.firstVertex, cluster.vertexCount)) {
+                        surfaceValid = false;
+                        break;
+                    }
+                }
             }
             if (!surfaceValid) {
                 ++result.invalidSurfaceCount;
@@ -65,12 +189,22 @@ namespace HIKARI::ASSETS::GEOMETRY {
             bool clusterValid = true;
             if (cluster.surfaceIndex >= asset.surfaces.size() ||
                 cluster.triangleCount == 0u ||
+                cluster.triangleCount > RENDER3D::CLUSTER::kHcmeshMaxTrianglesPerCluster ||
+                cluster.vertexCount == 0u ||
+                cluster.vertexCount > RENDER3D::CLUSTER::kHcmeshMaxVerticesPerCluster ||
                 cluster.indexCount != cluster.triangleCount * 3u ||
                 !RangeValid(cluster.firstIndex, cluster.indexCount, asset.packedIndices.size()) ||
-                !RangeValid(cluster.firstVertex, cluster.vertexCount, asset.packedVertices.size())) {
+                !RangeValid(cluster.firstVertex, cluster.vertexCount, asset.packedVertices.size()) ||
+                !ClusterMicroIndicesValid(asset, cluster)) {
                 clusterValid = false;
             }
-            if (!BOUNDS::IsUsable(cluster.localBounds) || cluster.sphereRadius <= 0.0f) {
+            if (!IsFiniteBounds(cluster.localBounds) ||
+                !BOUNDS::IsUsable(cluster.localBounds) ||
+                !IsFiniteVec3(cluster.sphereCenter) ||
+                !IsFiniteVec3(cluster.coneAxis) ||
+                !IsFinite(cluster.sphereRadius) ||
+                !IsFinite(cluster.coneCutoff) ||
+                cluster.sphereRadius <= 0.0f) {
                 ++result.invalidBoundsCount;
                 clusterValid = false;
             }
@@ -90,9 +224,20 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 !RangeValid(page.firstVertex, page.vertexCount, asset.packedVertices.size())) {
                 pageValid = false;
             }
-            if (!BOUNDS::IsUsable(page.localBounds)) {
+            if (!IsFiniteBounds(page.localBounds) || !BOUNDS::IsUsable(page.localBounds)) {
                 ++result.invalidBoundsCount;
                 pageValid = false;
+            }
+            if (pageValid) {
+                for (uint32_t clusterOffset = 0; clusterOffset < page.clusterCount; ++clusterOffset) {
+                    const RENDER3D::CLUSTER::MeshCluster& cluster =
+                        asset.clusters[page.firstCluster + clusterOffset];
+                    if (!RangeContains(page.firstIndex, page.indexCount, cluster.firstIndex, cluster.indexCount) ||
+                        !RangeContains(page.firstVertex, page.vertexCount, cluster.firstVertex, cluster.vertexCount)) {
+                        pageValid = false;
+                        break;
+                    }
+                }
             }
             if (!pageValid) {
                 ++result.invalidPageCount;
@@ -102,6 +247,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         result.valid =
             asset.valid &&
+            assetMetadataValid &&
             !asset.surfaces.empty() &&
             !asset.clusters.empty() &&
             !asset.packedVertices.empty() &&

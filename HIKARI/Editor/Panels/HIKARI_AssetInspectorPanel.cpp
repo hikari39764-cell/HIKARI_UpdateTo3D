@@ -41,6 +41,17 @@ namespace HIKARI {
             }
         }
 
+        const char* ToClusteredGeometryArtifactStateText(ClusteredGeometryArtifactState state) {
+            switch (state) {
+            case ClusteredGeometryArtifactState::Exists: return "Exists";
+            case ClusteredGeometryArtifactState::Valid: return "Valid";
+            case ClusteredGeometryArtifactState::Invalid: return "Invalid";
+            case ClusteredGeometryArtifactState::Outdated: return "Outdated";
+            case ClusteredGeometryArtifactState::Missing:
+            default: return "Missing";
+            }
+        }
+
         const char* TextureUsageItems[] = {
             "Auto", "BaseColor", "Normal", "MetallicRoughness", "Occlusion", "Emissive",
             "Mask", "UI", "SkyCubemap", "IblIrradiance", "IblPrefiltered", "BrdfLut"
@@ -167,7 +178,34 @@ namespace HIKARI {
             ImGui::Text("%s: %s", label, path.generic_string().c_str());
         }
 
-        void DrawModelDiagnostics(const AssetRecord& record) {
+        void DrawClusteredGeometryArtifactInfo(const AssetDatabase& assetDatabase, const AssetRecord& record) {
+            const ClusteredGeometryArtifactInfo info = assetDatabase.GetClusteredGeometryArtifactInfo(record);
+            ImGui::SeparatorText("ClusteredGeometry Artifact");
+            ImGui::Text("State: %s", ToClusteredGeometryArtifactStateText(info.state));
+            ImGui::Text("Path: %s", info.path.empty() ? "<none>" : info.path.generic_string().c_str());
+            ImGui::Text("Message: %s", info.message.empty() ? "<none>" : info.message.c_str());
+            if (info.state == ClusteredGeometryArtifactState::Invalid ||
+                info.state == ClusteredGeometryArtifactState::Valid ||
+                info.state == ClusteredGeometryArtifactState::Outdated) {
+                ImGui::Text("Validation: %s", info.validationValid ? "Valid" : "Invalid");
+                ImGui::Text("Invalid S/C/P/B/M: %u / %u / %u / %u / %u",
+                    info.invalidSurfaceCount,
+                    info.invalidClusterCount,
+                    info.invalidPageCount,
+                    info.invalidBoundsCount,
+                    info.invalidMaterialCount);
+            }
+            if (!info.validationMessages.empty() && ImGui::TreeNode("Validation Messages")) {
+                for (const std::string& message : info.validationMessages) {
+                    ImGui::BulletText("%s", message.c_str());
+                }
+                ImGui::TreePop();
+            }
+        }
+
+        void DrawModelDiagnostics(const AssetDatabase& assetDatabase, const AssetRecord& record) {
+            DrawClusteredGeometryArtifactInfo(assetDatabase, record);
+
             nlohmann::json report;
             if (!ReadJsonFile(record.importedDirectory / "import_report.json", report) ||
                 !report.contains("diagnostics") ||
@@ -192,6 +230,77 @@ namespace HIKARI {
                 ImGui::Text("HTEX Refs: %d  Fallback Textures: %d",
                     summary.value("htexRefs", 0),
                     summary.value("fallbackTextures", 0));
+                ImGui::Text("Generated N/T: %d / %d  Unresolved Textures: %d",
+                    summary.value("missingNormalGeneratedCount", 0),
+                    summary.value("missingTangentGeneratedCount", 0),
+                    summary.value("unresolvedTextureCount", 0));
+                ImGui::Text("Cluster Static / Fallback Prim: %d / %d",
+                    summary.value("clusteredStaticPrimitiveCount", 0),
+                    summary.value("fallbackPrimitiveCount", 0));
+            }
+
+            if (diagnostics.contains("formatReport") && diagnostics["formatReport"].is_object()) {
+                const nlohmann::json& formatReport = diagnostics["formatReport"];
+                ImGui::SeparatorText("OBJ / glTF Support Report");
+                ImGui::Text("Source Format: %s", formatReport.value("sourceFormat", "<unknown>").c_str());
+                ImGui::Text("Object / Group / Triangulated: %d / %d / %d",
+                    formatReport.value("objectCount", 0),
+                    formatReport.value("groupCount", 0),
+                    formatReport.value("triangulatedPolygonCount", 0));
+                ImGui::Text("Unsupported Modes / Features: %d / %d",
+                    formatReport.value("unsupportedPrimitiveModeCount", 0),
+                    formatReport.value("unsupportedFeatureCount", 0));
+                ImGui::Text("Generated Normals / Tangents: %d / %d",
+                    formatReport.value("missingNormalGeneratedCount", 0),
+                    formatReport.value("missingTangentGeneratedCount", 0));
+                ImGui::Text("Cluster Static / Fallback Prim: %d / %d",
+                    formatReport.value("clusteredStaticPrimitiveCount", 0),
+                    formatReport.value("fallbackPrimitiveCount", 0));
+                if (formatReport.contains("unsupportedExtensions") &&
+                    formatReport["unsupportedExtensions"].is_array() &&
+                    !formatReport["unsupportedExtensions"].empty() &&
+                    ImGui::TreeNode("Unsupported Extensions")) {
+                    for (const nlohmann::json& extension : formatReport["unsupportedExtensions"]) {
+                        if (extension.is_string()) {
+                            ImGui::BulletText("%s", extension.get<std::string>().c_str());
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+            }
+
+            if (diagnostics.contains("clusteredGeometry") && diagnostics["clusteredGeometry"].is_object()) {
+                const nlohmann::json& cluster = diagnostics["clusteredGeometry"];
+                ImGui::SeparatorText("HCMESH Diagnostics");
+                ImGui::Text("Ready: %s", cluster.value("ready", false) ? "Yes" : "No");
+                ImGui::Text("Message: %s", cluster.value("message", "").c_str());
+                if (cluster.contains("summary") && cluster["summary"].is_object()) {
+                    const nlohmann::json& summary = cluster["summary"];
+                    ImGui::Text("Surfaces / Clusters / Pages: %d / %d / %d",
+                        summary.value("surfaces", 0),
+                        summary.value("clusters", 0),
+                        summary.value("pages", 0));
+                    ImGui::Text("Triangles / Vertices: %d / %d",
+                        summary.value("triangles", 0),
+                        summary.value("vertices", 0));
+                    ImGui::Text("Avg Tri / Vert per Cluster: %.2f / %.2f",
+                        summary.value("avgTrianglesPerCluster", 0.0),
+                        summary.value("avgVerticesPerCluster", 0.0));
+                    ImGui::Text("Skipped Skin / Morph / Invalid: %d / %d / %d",
+                        summary.value("skippedSkinnedPrimitives", 0),
+                        summary.value("skippedMorphPrimitives", 0),
+                        summary.value("skippedInvalidPrimitives", 0));
+                }
+                if (cluster.contains("validation") && cluster["validation"].is_object()) {
+                    const nlohmann::json& validation = cluster["validation"];
+                    ImGui::Text("Validation: %s", validation.value("valid", false) ? "Valid" : "Invalid");
+                    ImGui::Text("Invalid S/C/P/B/M: %d / %d / %d / %d / %d",
+                        validation.value("invalidSurfaces", 0),
+                        validation.value("invalidClusters", 0),
+                        validation.value("invalidPages", 0),
+                        validation.value("invalidBounds", 0),
+                        validation.value("invalidMaterials", 0));
+                }
             }
 
             if (diagnostics.contains("textures") &&
@@ -624,7 +733,7 @@ namespace HIKARI {
                     }
                 } else if (record->type == AssetType::Model) {
                     DrawPathRow("Model Source", record->sourcePath);
-                    DrawModelDiagnostics(*record);
+                    DrawModelDiagnostics(assetDatabase, *record);
                 } else if (record->type == AssetType::Scene) {
                     DrawPathRow("Scene Source", record->sourcePath);
                     ImGui::TextDisabled("Scene is managed as a project asset; runtime scene switching still uses the scene catalog.");

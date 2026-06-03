@@ -134,17 +134,9 @@ namespace HIKARI {
                 return false;
             }
 
-            return referenceRenderer.SubmitReferenceObject(
-                *clusteredGeometry,
-                object.Transform(),
-                &asset,
-                model.GetMaterialFxProfileId(),
-                model.GetPostGroupMask(),
-                model.GetMaterialFxParamValues(),
-                model.AreMaterialFxValuesInitialized(),
-                model.GetReceiveShadow(),
-                MESHRENDERER::MeshRenderDebugMode::Normal,
-                model.GetRuntimeMaterialOverride());
+            // CPU reference は HCMESH 描画が安定するまで旧描画を維持する。
+            referenceRenderer.RecordFallbackObject(static_cast<uint32_t>(clusteredGeometry->surfaces.size()));
+            return false;
         }
 
         RENDER3D::RUNTIME::SceneRenderObjectId ResolveSceneRenderObjectId(const GameObject& object) {
@@ -160,6 +152,7 @@ namespace HIKARI {
     RenderSubmissionOptions RenderSubmissionSystem::sOptions_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
     RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
+    RENDER3D::RUNTIME::SurfaceDrawPacketBuilder RenderSubmissionSystem::sSurfaceDrawPacketBuilder_{};
     RENDER3D::RUNTIME::StaticDrawRecordCache RenderSubmissionSystem::sStaticDrawRecordCache_{};
     RENDER3D::RUNTIME::StaticRecordSubmitOptions RenderSubmissionSystem::sStaticRecordSubmitOptions_{};
     RENDER3D::RUNTIME::StaticDrawRecordSubmitter RenderSubmissionSystem::sStaticDrawRecordSubmitter_{};
@@ -233,6 +226,14 @@ namespace HIKARI {
         return sSceneRenderCache_.GetStats();
     }
 
+    const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder& RenderSubmissionSystem::GetSurfaceDrawPacketBuilder() {
+        return sSurfaceDrawPacketBuilder_;
+    }
+
+    const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& RenderSubmissionSystem::GetSurfaceDrawPacketStats() {
+        return sSurfaceDrawPacketBuilder_.GetStats();
+    }
+
     const RENDER3D::RUNTIME::StaticDrawRecordCache& RenderSubmissionSystem::GetStaticDrawRecordCache() {
         return sStaticDrawRecordCache_;
     }
@@ -274,6 +275,8 @@ namespace HIKARI {
             MODELRENDERER::GetRenderModelCache(),
             sSceneRenderCache_,
             frame.frameIndex);
+        // scene surface から draw packet 候補だけを構築する。
+        sSurfaceDrawPacketBuilder_.BuildFromSceneRenderCache(sSceneRenderCache_);
         // 旧描画経路を変えず、静的 draw record だけを同期する。
         sStaticDrawRecordCache_.SyncFromSceneRenderCache(sSceneRenderCache_);
 

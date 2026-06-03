@@ -22,12 +22,11 @@ namespace HIKARI {
     namespace {
 
         struct AuditSnapshot {
-            int pathHealth = 0;
+            int cpuSubmissionHeadroom = 0;
+            int passHeadroom = 0;
             int performanceHeadroom = 0;
-            int staticCacheGainOutlook = 0;
 
-            int staticCoverage = 0;
-            int cachedTakeover = 0;
+            int sceneSubmissionHeadroom = 0;
             int modelRendererHeadroom = 0;
             int forwardHeadroom = 0;
             int shadowHeadroom = 0;
@@ -38,20 +37,14 @@ namespace HIKARI {
             int dominantRisk = 0;
 
             float fpsRaw = 0.0f;
-            float staticObjectCoverageRatio = 0.0f;
-            float forwardRecordCoverageRatio = 0.0f;
-            float bypassRatio = 0.0f;
-            float forwardSkipRatio = 0.0f;
-            float shadowSkipRatio = 0.0f;
-            float fallbackRatio = 0.0f;
-            float staticForwardCullRatio = 0.0f;
-            float shadowToForwardRatio = 0.0f;
-
-            int candidateCount = 0;
+            int scannedModelCount = 0;
+            int hiddenModelCount = 0;
+            int culledModelCount = 0;
+            int missingBoundsCount = 0;
+            int skinnedCullSkippedCount = 0;
             int submittedModelCount = 0;
             int structuredNodeCount = 0;
             int matrixBuildCount = 0;
-            int missingBoundsCount = 0;
             size_t forwardDrawCount = 0;
             size_t shadowDrawCount = 0;
             size_t estimatedGpuDrawCount = 0;
@@ -60,6 +53,8 @@ namespace HIKARI {
             uint32_t lightProbeDrawnPoints = 0;
             uint32_t lightProbeTotalPoints = 0;
             bool lightProbeCapped = false;
+            bool frustumCullingEnabled = false;
+
             bool ssaoEnabled = false;
             bool ssaoValid = false;
             bool ssaoSuppressed = false;
@@ -81,11 +76,7 @@ namespace HIKARI {
             float ssaoBlurCpuMs = 0.0f;
             float ssaoCompositeCpuMs = 0.0f;
             float ssaoTotalCpuMs = 0.0f;
-            bool staticCacheEnabled = false;
-            bool cachedForwardEnabled = false;
-            bool cachedShadowEnabled = false;
-            bool bypassOldModelRendererEnabled = false;
-            bool frustumCullingEnabled = false;
+            float shadowToForwardRatio = 0.0f;
             GFX::GPU_PROFILE::FrameSnapshot gpuProfile{};
         };
 
@@ -142,26 +133,6 @@ namespace HIKARI {
             return ImVec4(0.95f, 0.34f, 0.32f, 1.0f);
         }
 
-        const char* GainBandText(int score) {
-            if (score >= 65) {
-                return "High";
-            }
-            if (score >= 35) {
-                return "Medium";
-            }
-            return "Low";
-        }
-
-        ImVec4 GainBandColor(int score) {
-            if (score >= 65) {
-                return ImVec4(0.35f, 0.82f, 0.92f, 1.0f);
-            }
-            if (score >= 35) {
-                return ImVec4(0.95f, 0.72f, 0.25f, 1.0f);
-            }
-            return ImVec4(0.58f, 0.62f, 0.68f, 1.0f);
-        }
-
         const char* SsaoInputText(const AuditSnapshot& audit) {
             if (!audit.ssaoEnabled || audit.ssaoSuppressed || audit.ssaoMode == SsaoMode::Off) {
                 return "Off";
@@ -199,32 +170,6 @@ namespace HIKARI {
             ImGui::TextWrapped("%s", detail);
         }
 
-        void DrawRiskVerdict(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("Verdict");
-            ImGui::Text("Dominant Risk: ");
-            ImGui::SameLine();
-            ImGui::TextColored(ScoreBandColor(100 - audit.dominantRisk), "%s (%d)", audit.dominantRiskName, audit.dominantRisk);
-
-            if (audit.pathHealth >= 80 && audit.staticCacheGainOutlook < 35) {
-                ImGui::BulletText("Static cache path is healthy, but current counters do not point to it as the FPS bottleneck.");
-            }
-            if (audit.ssaoEnabled && !audit.ssaoSuppressed && audit.ssaoHeadroom < 60) {
-                ImGui::BulletText("SSAO is running with relatively heavy settings for the editor viewport.");
-            }
-            if (audit.shadowToForwardRatio > 1.20f) {
-                ImGui::BulletText("Shadow pass draw pressure is higher than the forward pass.");
-            }
-            if (audit.forwardDrawCount > 0u && audit.estimatedGpuDrawCount >= audit.forwardDrawCount * 2u) {
-                ImGui::BulletText("Frame work is duplicated across passes; reducing draw sources may matter more than submission caching.");
-            }
-            if (audit.debugOverlayHeadroom < 70) {
-                ImGui::BulletText("Debug overlays are visible enough to affect editor measurements.");
-            }
-            if (audit.dominantRisk < 20) {
-                ImGui::BulletText("No strong counter-based risk is visible; use PIX/timers for finer pass timing.");
-            }
-        }
-
         void UpdateDominantRisk(
             const char*& outName,
             int& outRisk,
@@ -242,10 +187,6 @@ namespace HIKARI {
             const MODELRENDERER::ModelRendererFrameStats& modelFrameStats = modelStats.frame;
             const RenderSubmissionDebugStats& renderSubmissionStats =
                 RenderSubmissionSystem::GetDebugStats();
-            const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& staticCacheStats =
-                RenderSubmissionSystem::GetStaticDrawRecordCacheStats();
-            const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& submitStats =
-                RenderSubmissionSystem::GetStaticDrawRecordSubmitStats();
             const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
             const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
             const RENDERER3D::DEBUG::DebugRendererFrameStats& debugStats =
@@ -256,77 +197,34 @@ namespace HIKARI {
             AuditSnapshot audit{};
             audit.gpuProfile = GFX::GPU_PROFILE::GetLatestSnapshot();
             audit.fpsRaw = frame.rawDt > 0.0f ? (1.0f / frame.rawDt) : 0.0f;
-            audit.staticCacheEnabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
-            audit.cachedForwardEnabled = RenderSubmissionSystem::IsUseCachedStaticForwardEnabled();
-            audit.cachedShadowEnabled = RenderSubmissionSystem::IsUseCachedStaticShadowEnabled();
-            audit.bypassOldModelRendererEnabled =
-                RenderSubmissionSystem::IsBypassOldStaticModelRendererEnabled();
             audit.frustumCullingEnabled = renderSubmissionStats.frustumCullingEnabled;
-            audit.candidateCount = renderSubmissionStats.staticCachedCandidateCount;
+            audit.scannedModelCount = renderSubmissionStats.scannedModelCount;
+            audit.hiddenModelCount = renderSubmissionStats.hiddenModelCount;
+            audit.culledModelCount = renderSubmissionStats.culledModelCount;
+            audit.missingBoundsCount = renderSubmissionStats.missingBoundsCount;
+            audit.skinnedCullSkippedCount = renderSubmissionStats.skinnedCullSkippedCount;
             audit.submittedModelCount = modelFrameStats.submittedModelItemCount;
             audit.structuredNodeCount = modelFrameStats.structuredNodeSubmittedCount;
             audit.matrixBuildCount = modelFrameStats.nodeGlobalMatrixBuildCount;
-            audit.missingBoundsCount =
-                renderSubmissionStats.missingBoundsCount +
-                static_cast<int>(staticCacheStats.invalidRecordBoundsCount);
 
-            audit.staticObjectCoverageRatio = staticCacheStats.staticObjectCount > 0u ?
-                SafeRatio(staticCacheStats.fullCoverageObjectCount, staticCacheStats.staticObjectCount) :
-                1.0f;
-            audit.forwardRecordCoverageRatio = staticCacheStats.expectedForwardSubmeshCount > 0u ?
-                SafeRatio(staticCacheStats.validForwardRecordCount, staticCacheStats.expectedForwardSubmeshCount) :
-                1.0f;
-
-            float staticCoverageValue =
-                audit.staticObjectCoverageRatio * 0.45f +
-                audit.forwardRecordCoverageRatio * 0.55f;
-            audit.staticCoverage = ClampScore(staticCoverageValue * 100.0f);
-            audit.staticCoverage -= RatioPenalty(
-                SafeRatio(
-                    staticCacheStats.noCoverageObjectCount + staticCacheStats.invalidCoverageObjectCount,
-                    staticCacheStats.staticObjectCount),
-                45);
-            audit.staticCoverage -= RatioPenalty(
-                SafeRatio(staticCacheStats.partialCoverageObjectCount, staticCacheStats.staticObjectCount),
-                15);
-            audit.staticCoverage = ClampScore(static_cast<float>(audit.staticCoverage));
-
-            audit.forwardSkipRatio = SafeRatio(
-                renderSubmissionStats.staticCachedForwardSkipCount,
-                renderSubmissionStats.staticCachedCandidateCount);
-            audit.shadowSkipRatio = SafeRatio(
-                renderSubmissionStats.staticCachedShadowSkipCount,
-                renderSubmissionStats.staticCachedCandidateCount);
-            audit.bypassRatio = SafeRatio(
-                renderSubmissionStats.staticCachedBypassOldModelRendererCount,
-                renderSubmissionStats.staticCachedCandidateCount);
-            audit.fallbackRatio = SafeRatio(
-                renderSubmissionStats.staticCachedFallbackCount,
-                renderSubmissionStats.staticCachedCandidateCount);
-
-            audit.cachedTakeover = 85;
-            if (!audit.staticCacheEnabled) {
-                audit.cachedTakeover = 35;
-            } else if (audit.candidateCount <= 0) {
-                audit.cachedTakeover = staticCacheStats.staticObjectCount > 0u ? 50 : 85;
-            } else {
-                audit.cachedTakeover = ClampScore(
-                    (audit.bypassRatio * 0.35f +
-                        audit.forwardSkipRatio * 0.25f +
-                        audit.shadowSkipRatio * 0.20f +
-                        (1.0f - audit.fallbackRatio) * 0.20f) *
-                    100.0f);
-                if (!audit.cachedForwardEnabled) {
-                    audit.cachedTakeover -= 12;
-                }
-                if (!audit.cachedShadowEnabled) {
-                    audit.cachedTakeover -= 10;
-                }
-                if (!audit.bypassOldModelRendererEnabled) {
-                    audit.cachedTakeover -= 12;
-                }
-            }
-            audit.cachedTakeover = ClampScore(static_cast<float>(audit.cachedTakeover));
+            audit.sceneSubmissionHeadroom = 100;
+            audit.sceneSubmissionHeadroom -= PenaltyAbove(
+                static_cast<float>(audit.scannedModelCount),
+                64.0f,
+                512.0f,
+                20);
+            audit.sceneSubmissionHeadroom -= audit.frustumCullingEnabled ? 0 : 12;
+            audit.sceneSubmissionHeadroom -= PenaltyAbove(
+                static_cast<float>(audit.missingBoundsCount),
+                0.0f,
+                16.0f,
+                22);
+            audit.sceneSubmissionHeadroom -= PenaltyAbove(
+                static_cast<float>(audit.skinnedCullSkippedCount),
+                0.0f,
+                32.0f,
+                8);
+            audit.sceneSubmissionHeadroom = ClampScore(static_cast<float>(audit.sceneSubmissionHeadroom));
 
             audit.modelRendererHeadroom = 100;
             audit.modelRendererHeadroom -= PenaltyAbove(
@@ -348,19 +246,10 @@ namespace HIKARI {
             audit.modelRendererHeadroom -= audit.missingBoundsCount > 0 ? 10 : 0;
             audit.modelRendererHeadroom = ClampScore(static_cast<float>(audit.modelRendererHeadroom));
 
-            audit.pathHealth = WeightedAverage(
-                audit.staticCoverage * 1.05f +
-                    audit.cachedTakeover * 1.20f +
-                    audit.modelRendererHeadroom * 0.75f,
-                3.00f);
-
-            const uint32_t consideredForwardRecords =
-                static_cast<uint32_t>(
-                    renderSubmissionStats.staticCachedSubmittedForwardRecordCount +
-                    renderSubmissionStats.staticCachedCulledRecordCount);
-            audit.staticForwardCullRatio = SafeRatio(
-                renderSubmissionStats.staticCachedCulledRecordCount,
-                consideredForwardRecords);
+            audit.cpuSubmissionHeadroom = WeightedAverage(
+                audit.sceneSubmissionHeadroom * 0.90f +
+                    audit.modelRendererHeadroom * 1.10f,
+                2.00f);
 
             audit.forwardDrawCount = meshStats.staticDrawItemCount + meshStats.skinnedDrawItemCount;
             audit.shadowDrawCount = shadowStats.totalPrimitiveCasterDrawCount;
@@ -386,9 +275,6 @@ namespace HIKARI {
                 audit.shadowHeadroom -= PenaltyAbove(static_cast<float>(audit.shadowDrawCount), 32.0f, 160.0f, 25);
                 audit.shadowHeadroom -= RatioPenalty(
                     SafeRatio(shadowStats.alphaMaskCasterDrawCount, audit.shadowDrawCount),
-                    12);
-                audit.shadowHeadroom -= RatioPenalty(
-                    SafeRatio(submitStats.shadowCullSkippedCount, audit.shadowDrawCount),
                     12);
             }
             audit.shadowHeadroom = ClampScore(static_cast<float>(audit.shadowHeadroom));
@@ -437,29 +323,26 @@ namespace HIKARI {
             }
             audit.ssaoHeadroom = ClampScore(static_cast<float>(audit.ssaoHeadroom));
 
-            audit.performanceHeadroom = WeightedAverage(
-                audit.forwardHeadroom * 1.10f +
-                    audit.shadowHeadroom * 1.20f +
+            audit.passHeadroom = WeightedAverage(
+                audit.forwardHeadroom * 1.05f +
+                    audit.shadowHeadroom * 1.15f +
                     audit.ssaoHeadroom * 1.00f +
-                    audit.debugOverlayHeadroom * 0.60f +
-                    audit.modelRendererHeadroom * 0.50f,
-                4.40f);
-
-            const int oldSubmissionRisk = 100 - audit.modelRendererHeadroom;
-            const int gpuDominanceRisk = ClampScore(
-                (100 - audit.forwardHeadroom) * 0.30f +
-                    (100 - audit.shadowHeadroom) * 0.35f +
-                    (100 - audit.ssaoHeadroom) * 0.35f);
-            audit.staticCacheGainOutlook = ClampScore(
-                oldSubmissionRisk * 0.80f +
-                    PenaltyAbove(static_cast<float>(audit.structuredNodeCount), 64.0f, 256.0f, 35) +
-                    PenaltyAbove(static_cast<float>(audit.matrixBuildCount), 8.0f, 64.0f, 20) -
-                    gpuDominanceRisk * 0.45f);
+                    audit.debugOverlayHeadroom * 0.55f,
+                3.75f);
+            audit.performanceHeadroom = WeightedAverage(
+                audit.cpuSubmissionHeadroom * 0.85f +
+                    audit.passHeadroom * 1.15f,
+                2.00f);
 
             UpdateDominantRisk(
                 audit.dominantRiskName,
                 audit.dominantRisk,
-                "CPU Submission",
+                "Scene Submission",
+                100 - audit.sceneSubmissionHeadroom);
+            UpdateDominantRisk(
+                audit.dominantRiskName,
+                audit.dominantRisk,
+                "ModelRenderer Residual",
                 100 - audit.modelRendererHeadroom);
             UpdateDominantRisk(
                 audit.dominantRiskName,
@@ -489,26 +372,55 @@ namespace HIKARI {
             if (ImGui::BeginTable("PerformanceAuditSummary", 3, ImGuiTableFlags_SizingStretchSame)) {
                 ImGui::TableNextColumn();
                 DrawScoreMeter(
-                    "Path Health",
-                    audit.pathHealth,
-                    ScoreBandText(audit.pathHealth),
-                    ScoreBandColor(audit.pathHealth),
-                    "Cache coverage and old-path takeover correctness.");
+                    "CPU Submission",
+                    audit.cpuSubmissionHeadroom,
+                    ScoreBandText(audit.cpuSubmissionHeadroom),
+                    ScoreBandColor(audit.cpuSubmissionHeadroom),
+                    "Scene iteration and legacy ModelRenderer residual work.");
                 ImGui::TableNextColumn();
                 DrawScoreMeter(
-                    "Performance Headroom",
+                    "Pass Headroom",
+                    audit.passHeadroom,
+                    ScoreBandText(audit.passHeadroom),
+                    ScoreBandColor(audit.passHeadroom),
+                    "Forward, shadow, SSAO and debug overlay counter pressure.");
+                ImGui::TableNextColumn();
+                DrawScoreMeter(
+                    "Overall Headroom",
                     audit.performanceHeadroom,
                     ScoreBandText(audit.performanceHeadroom),
                     ScoreBandColor(audit.performanceHeadroom),
-                    "How light the current frame counters look.");
-                ImGui::TableNextColumn();
-                DrawScoreMeter(
-                    "Static Cache Gain",
-                    audit.staticCacheGainOutlook,
-                    GainBandText(audit.staticCacheGainOutlook),
-                    GainBandColor(audit.staticCacheGainOutlook),
-                    "Expected FPS impact from static-cache toggles.");
+                    "Stable frame-cost signals without migration-path takeover scoring.");
                 ImGui::EndTable();
+            }
+        }
+
+        void DrawRiskVerdict(const AuditSnapshot& audit) {
+            ImGui::SeparatorText("Verdict");
+            ImGui::Text("Dominant Risk: ");
+            ImGui::SameLine();
+            ImGui::TextColored(ScoreBandColor(100 - audit.dominantRisk), "%s (%d)", audit.dominantRiskName, audit.dominantRisk);
+
+            if (!audit.frustumCullingEnabled) {
+                ImGui::BulletText("Scene submission is running without an active render camera for culling.");
+            }
+            if (audit.cpuSubmissionHeadroom < 60) {
+                ImGui::BulletText("CPU-side submission counters are high enough to inspect scene iteration and ModelRenderer work.");
+            }
+            if (audit.ssaoEnabled && !audit.ssaoSuppressed && audit.ssaoHeadroom < 60) {
+                ImGui::BulletText("SSAO is running with relatively heavy settings for the editor viewport.");
+            }
+            if (audit.shadowToForwardRatio > 1.20f) {
+                ImGui::BulletText("Shadow pass draw pressure is higher than the forward pass.");
+            }
+            if (audit.forwardDrawCount > 0u && audit.estimatedGpuDrawCount >= audit.forwardDrawCount * 2u) {
+                ImGui::BulletText("Frame work is duplicated across passes; pass count may matter more than submit caching.");
+            }
+            if (audit.debugOverlayHeadroom < 70) {
+                ImGui::BulletText("Debug overlays are visible enough to affect editor measurements.");
+            }
+            if (audit.dominantRisk < 20) {
+                ImGui::BulletText("No strong counter-based risk is visible; use PIX/timers for finer pass timing.");
             }
         }
 
@@ -525,25 +437,17 @@ namespace HIKARI {
                 ImGui::TableSetupColumn("Signal");
                 ImGui::TableHeadersRow();
 
-                char detail[192]{};
+                char detail[224]{};
                 std::snprintf(
                     detail,
                     sizeof(detail),
-                    "Objects %.1f%%, forward records %.1f%%",
-                    audit.staticObjectCoverageRatio * 100.0f,
-                    audit.forwardRecordCoverageRatio * 100.0f);
-                DrawScoreRow("Static Coverage", audit.staticCoverage, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Candidates %d, bypass %.1f%%, forward skip %.1f%%, shadow skip %.1f%%, fallback %.1f%%",
-                    audit.candidateCount,
-                    audit.bypassRatio * 100.0f,
-                    audit.forwardSkipRatio * 100.0f,
-                    audit.shadowSkipRatio * 100.0f,
-                    audit.fallbackRatio * 100.0f);
-                DrawScoreRow("Cached Takeover", audit.cachedTakeover, detail);
+                    "Scanned %d, hidden %d, culled %d, frustum %s, missing bounds %d",
+                    audit.scannedModelCount,
+                    audit.hiddenModelCount,
+                    audit.culledModelCount,
+                    audit.frustumCullingEnabled ? "on" : "off",
+                    audit.missingBoundsCount);
+                DrawScoreRow("Scene Submission", audit.sceneSubmissionHeadroom, detail);
 
                 std::snprintf(
                     detail,
@@ -557,11 +461,9 @@ namespace HIKARI {
                 std::snprintf(
                     detail,
                     sizeof(detail),
-                    "Estimated draws %zu, forward draws %zu, frustum %s, culled %.1f%%",
+                    "Estimated draws %zu, forward draws %zu, PSO miss and texture miss are included",
                     audit.estimatedGpuDrawCount,
-                    audit.forwardDrawCount,
-                    audit.frustumCullingEnabled ? "on" : "off",
-                    audit.staticForwardCullRatio * 100.0f);
+                    audit.forwardDrawCount);
                 DrawScoreRow("Forward / Binding", audit.forwardHeadroom, detail);
 
                 std::snprintf(
@@ -725,16 +627,6 @@ namespace HIKARI {
             ImGui::TextDisabled("Composite is applied in ForwardOpaque; no standalone SSAO composite pass is inserted.");
         }
 
-        void DrawSwitchState(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("Static Cache Switches");
-            ImGui::Text("Enabled: %s", audit.staticCacheEnabled ? "On" : "Off");
-            ImGui::Text("Cached Forward / Shadow: %s / %s",
-                audit.cachedForwardEnabled ? "On" : "Off",
-                audit.cachedShadowEnabled ? "On" : "Off");
-            ImGui::Text("Bypass Old ModelRenderer: %s",
-                audit.bypassOldModelRendererEnabled ? "On" : "Off");
-        }
-
     } // namespace
 #endif
 
@@ -769,7 +661,6 @@ namespace HIKARI {
         DrawStageTable(audit);
         DrawGpuTimingEvidence(audit);
         DrawSsaoEvidence(audit);
-        DrawSwitchState(audit);
 #endif
     }
 

@@ -128,6 +128,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         header.vertexCount = static_cast<uint32_t>(asset.packedVertices.size());
         header.indexCount = static_cast<uint32_t>(asset.packedIndices.size());
         header.materialSlotCount = static_cast<uint32_t>(asset.materialSlotMapping.size());
+        header.flags = asset.flags;
 
         // section 順序は version で固定する。
         const bool ok =
@@ -179,6 +180,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         }
 
         RENDER3D::CLUSTER::ClusteredGeometryAsset asset{};
+        asset.flags = header.flags;
         if (!ReadString(ifs, asset.sourceModelGuid.value) ||
             !ReadString(ifs, asset.sourceModelPath) ||
             !ReadPod(ifs, asset.localBounds) ||

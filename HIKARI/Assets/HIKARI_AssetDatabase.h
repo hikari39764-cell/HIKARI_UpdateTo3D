@@ -25,6 +25,19 @@ namespace HIKARI {
         Outdated,
     };
 
+    struct ClusteredGeometryArtifactInfo {
+        ClusteredGeometryArtifactState state = ClusteredGeometryArtifactState::Missing;
+        std::filesystem::path path{};
+        std::string message{};
+        bool validationValid = false;
+        uint32_t invalidSurfaceCount = 0;
+        uint32_t invalidClusterCount = 0;
+        uint32_t invalidPageCount = 0;
+        uint32_t invalidBoundsCount = 0;
+        uint32_t invalidMaterialCount = 0;
+        std::vector<std::string> validationMessages{};
+    };
+
     class AssetDatabase {
     public:
         bool Initialize(const std::filesystem::path& projectRoot);
@@ -60,6 +73,8 @@ namespace HIKARI {
         std::filesystem::path GetImportedDirectory(const AssetGuid& guid) const;
         ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetRecord& record) const;
         ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetGuid& guid) const;
+        ClusteredGeometryArtifactInfo GetClusteredGeometryArtifactInfo(const AssetRecord& record) const;
+        ClusteredGeometryArtifactInfo GetClusteredGeometryArtifactInfo(const AssetGuid& guid) const;
 
     private:
         AssetRecord BuildRecordForSource(const std::filesystem::path& sourcePath, bool createMissingMeta);

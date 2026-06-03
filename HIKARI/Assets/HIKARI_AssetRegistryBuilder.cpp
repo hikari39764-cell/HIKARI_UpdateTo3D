@@ -152,10 +152,10 @@ namespace HIKARI {
 
         ModelImporterKind GuessModelImporter(const std::filesystem::path& sourcePath) {
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
-            if (ext == ".gltf" || ext == ".glb") {
+            if (ext == ".gltf") {
                 return ModelImporterKind::Gltf;
             }
-            if (ext == ".fbx" || ext == ".obj") {
+            if (ext == ".obj") {
                 return ModelImporterKind::Assimp;
             }
             return ModelImporterKind::Gltf;

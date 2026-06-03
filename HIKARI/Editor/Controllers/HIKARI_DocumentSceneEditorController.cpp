@@ -8,8 +8,6 @@
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/HIKARI_ProjectSettings.h"
-#include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
@@ -691,6 +689,9 @@ namespace HIKARI {
         if (context_.windows.runtime.showPerformanceAudit) {
             performanceAuditPanel_.Draw(context_.windows.runtime.showPerformanceAudit);
         }
+        if (context_.windows.runtime.showValidationLab) {
+            validationLabPanel_.Draw(context_, context_.windows.runtime.showValidationLab);
+        }
         DrawPendingSceneOpenModal(scene);
 #else
         (void)scene;
@@ -1270,106 +1271,6 @@ namespace HIKARI {
                 if (ImGui::CollapsingHeader("Debug Camera")) {
                     debugCameraPanel_.DrawContents(scene.GetDebugCamera());
                 }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Cluster")) {
-                ImGui::SeparatorText("Clustered Geometry");
-                ImGui::TextDisabled("CPU reference keeps the legacy renderer as fallback.");
-                RENDER3D::CLUSTER::ClusteredRenderMode& clusteredMode =
-                    context_.clusteredGeometry.renderMode;
-                if (ImGui::BeginCombo("Render Mode", RENDER3D::CLUSTER::ToString(clusteredMode))) {
-                    const RENDER3D::CLUSTER::ClusteredRenderMode modes[] = {
-                        RENDER3D::CLUSTER::ClusteredRenderMode::Off,
-                        RENDER3D::CLUSTER::ClusteredRenderMode::SelectedPreview,
-                        RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference,
-                    };
-                    for (RENDER3D::CLUSTER::ClusteredRenderMode mode : modes) {
-                        if (ImGui::Selectable(
-                                RENDER3D::CLUSTER::ToString(mode),
-                                clusteredMode == mode)) {
-                            clusteredMode = mode;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-                if (context_.selection.selectedObject) {
-                    ImGui::Text("Selected: %s", context_.selection.selectedObject->GetName().c_str());
-                } else {
-                    ImGui::TextDisabled("Selected: <none>");
-                }
-
-                RENDER3D::CLUSTER::ClusterDebugOptions& clusterDebug =
-                    context_.clusteredGeometry.debugOptions;
-                if (ImGui::BeginCombo("Debug View", RENDER3D::CLUSTER::ToString(clusterDebug.mode))) {
-                    const RENDER3D::CLUSTER::ClusterDebugViewMode modes[] = {
-                        RENDER3D::CLUSTER::ClusterDebugViewMode::Off,
-                        RENDER3D::CLUSTER::ClusterDebugViewMode::SelectedObjectSummary,
-                        RENDER3D::CLUSTER::ClusterDebugViewMode::SelectedSurfaceBounds,
-                        RENDER3D::CLUSTER::ClusterDebugViewMode::FirstNClusterBounds,
-                        RENDER3D::CLUSTER::ClusterDebugViewMode::ClusterPageBounds,
-                    };
-                    for (RENDER3D::CLUSTER::ClusterDebugViewMode mode : modes) {
-                        if (ImGui::Selectable(
-                                RENDER3D::CLUSTER::ToString(mode),
-                                clusterDebug.mode == mode)) {
-                            clusterDebug.mode = mode;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-                if (clusterDebug.mode == RENDER3D::CLUSTER::ClusterDebugViewMode::SelectedSurfaceBounds) {
-                    int surfaceIndex = static_cast<int>(clusterDebug.selectedSurfaceIndex);
-                    if (ImGui::DragInt("Surface Index", &surfaceIndex, 1.0f, 0, 4096)) {
-                        clusterDebug.selectedSurfaceIndex = static_cast<uint32_t>((std::max)(0, surfaceIndex));
-                    }
-                }
-                if (clusterDebug.mode == RENDER3D::CLUSTER::ClusterDebugViewMode::FirstNClusterBounds) {
-                    int clusterLimit = static_cast<int>(clusterDebug.firstClusterLimit);
-                    if (ImGui::DragInt("Cluster Limit", &clusterLimit, 1.0f, 1, 256)) {
-                        clusterDebug.firstClusterLimit = static_cast<uint32_t>((std::clamp)(clusterLimit, 1, 256));
-                    }
-                }
-                if (clusterDebug.mode == RENDER3D::CLUSTER::ClusterDebugViewMode::ClusterPageBounds) {
-                    int pageLimit = static_cast<int>(clusterDebug.pageLimit);
-                    if (ImGui::DragInt("Page Limit", &pageLimit, 1.0f, 1, 128)) {
-                        clusterDebug.pageLimit = static_cast<uint32_t>((std::clamp)(pageLimit, 1, 128));
-                    }
-                }
-
-                const RENDER3D::CLUSTER::ClusteredCpuPreviewStats& previewStats =
-                    RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().GetStats();
-                ImGui::SeparatorText("CPU Reference Frame");
-                ImGui::Text("Mode: %s", RENDER3D::CLUSTER::ToString(previewStats.mode));
-                ImGui::Text("Candidates: %u", previewStats.candidateObjectCount);
-                ImGui::Text("Submitted Objects: %u", previewStats.submittedObjectCount);
-                ImGui::Text("Submitted Surfaces: %u", previewStats.submittedSurfaceCount);
-                ImGui::Text("Selected Preview Objects: %u", previewStats.selectedPreviewObjectCount);
-                ImGui::Text("Fallback Objects / Surfaces: %u / %u",
-                    previewStats.fallbackObjectCount,
-                    previewStats.fallbackSurfaceCount);
-                ImGui::Text("Transparent / Unsupported Surfaces: %u / %u",
-                    previewStats.transparentFallbackSurfaceCount,
-                    previewStats.unsupportedFallbackSurfaceCount);
-                ImGui::Text("Cached Preview Models: %u", previewStats.cachedPreviewModelCount);
-
-                const RENDER3D::CLUSTER::ClusteredGeometryManagerStats& clusterStats =
-                    RENDER3D::CLUSTER::GetClusteredGeometryManager().GetStats();
-                ImGui::SeparatorText("Runtime Cache");
-                ImGui::Text("Requests / Hits / Misses: %u / %u / %u",
-                    clusterStats.requestCount,
-                    clusterStats.hitCount,
-                    clusterStats.missCount);
-                ImGui::Text("Valid / Invalid: %u / %u",
-                    clusterStats.validAssetCount,
-                    clusterStats.invalidAssetCount);
-                ImGui::Text("Surfaces / Clusters / Pages: %u / %u / %u",
-                    clusterStats.surfaceCount,
-                    clusterStats.clusterCount,
-                    clusterStats.pageCount);
-                ImGui::TextWrapped("Last Load: %s",
-                    RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().empty()
-                        ? "<none>"
-                        : RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().c_str());
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Time")) {

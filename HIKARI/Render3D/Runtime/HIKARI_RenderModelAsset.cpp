@@ -1,5 +1,6 @@
 #include "Render3D/Runtime/HIKARI_RenderModelAsset.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
@@ -27,26 +28,21 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 : BOUNDS::ComputeMeshBounds(mesh);
         }
 
-        void AccumulateBounds(Bounds& bounds, bool& hasBounds, const Bounds& value) {
-            if (!BOUNDS::IsUsable(value)) {
-                return;
-            }
-            if (!hasBounds) {
-                bounds = value;
-                hasBounds = true;
-                return;
-            }
-            BOUNDS::Encapsulate(bounds, value);
+        uint32_t ClampToSurfaceIndex(size_t value) {
+            return static_cast<uint32_t>(
+                (std::min)(value, static_cast<size_t>(kInvalidRenderSurfaceIndex - 1u)));
         }
 
-        RenderSubmeshRecord BuildSubmeshRecord(
+        RenderSurfaceRecord BuildSurfaceRecord(
+            uint32_t surfaceIndex,
             uint32_t nodeIndex,
             uint32_t meshIndex,
             uint32_t primitiveIndex,
             int skinIndex,
             const MeshPrimitive& primitive) {
 
-            RenderSubmeshRecord record{};
+            RenderSurfaceRecord record{};
+            record.surfaceIndex = surfaceIndex;
             record.nodeIndex = nodeIndex;
             record.meshIndex = meshIndex;
             record.primitiveIndex = primitiveIndex;
@@ -54,12 +50,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
             record.localBounds = ResolvePrimitiveBounds(primitive);
             record.skinIndex = skinIndex;
             record.skinningMode = IsPrimitiveSkinned(primitive)
-                ? RenderSubmeshSkinningMode::Skinned
-                : RenderSubmeshSkinningMode::Static;
+                ? RenderSurfaceSkinningMode::Skinned
+                : RenderSurfaceSkinningMode::Static;
             return record;
         }
 
-        void AppendSubmesh(
+        void AppendSurface(
             RenderModelAsset& out,
             uint32_t nodeIndex,
             uint32_t meshIndex,
@@ -67,19 +63,20 @@ namespace HIKARI::RENDER3D::RUNTIME {
             int skinIndex,
             const MeshPrimitive& primitive) {
 
-            RenderSubmeshRecord record = BuildSubmeshRecord(
+            RenderSurfaceRecord record = BuildSurfaceRecord(
+                ClampToSurfaceIndex(out.surfaces.size()),
                 nodeIndex,
                 meshIndex,
                 primitiveIndex,
                 skinIndex,
                 primitive);
 
-            if (record.skinningMode == RenderSubmeshSkinningMode::Skinned) {
-                out.hasSkinnedSubmeshes = true;
+            if (record.skinningMode == RenderSurfaceSkinningMode::Skinned) {
+                out.hasSkinnedSurfaces = true;
             } else {
-                out.hasStaticSubmeshes = true;
+                out.hasStaticSurfaces = true;
             }
-            out.submeshes.push_back(std::move(record));
+            out.surfaces.push_back(std::move(record));
         }
 
         void BuildNodeRecords(const ModelAsset& source, RenderModelAsset& out) {
@@ -102,7 +99,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     const MeshAsset& mesh = source.meshes[static_cast<size_t>(sourceNode.meshIndex)];
                     nodeRecord.localBounds = ResolveMeshBounds(mesh);
                     for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
-                        AppendSubmesh(
+                        AppendSurface(
                             out,
                             static_cast<uint32_t>(nodeIndex),
                             static_cast<uint32_t>(sourceNode.meshIndex),
@@ -116,11 +113,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
         }
 
-        void BuildLegacySubmeshes(const ModelAsset& source, RenderModelAsset& out) {
+        void BuildLegacySurfaces(const ModelAsset& source, RenderModelAsset& out) {
             for (size_t meshIndex = 0; meshIndex < source.meshes.size(); ++meshIndex) {
                 const MeshAsset& mesh = source.meshes[meshIndex];
                 for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
-                    AppendSubmesh(
+                    AppendSurface(
                         out,
                         kInvalidRenderModelIndex,
                         static_cast<uint32_t>(meshIndex),
@@ -152,17 +149,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
         if (!source.nodes.empty()) {
             BuildNodeRecords(source, out);
         } else {
-            // 旧形式は node 無しで submesh だけを作る。
-            BuildLegacySubmeshes(source, out);
+            // 旧形式は node 無しでも surface 契約だけを作る。
+            BuildLegacySurfaces(source, out);
         }
 
         out.localBounds = ResolveModelBounds(source);
-        out.valid = !out.submeshes.empty();
+        out.valid = !out.surfaces.empty();
 
         if (outMessage != nullptr) {
             *outMessage = out.valid
                 ? std::string{}
-                : "RenderModelAsset has no submesh records.";
+                : "RenderModelAsset has no surface records.";
         }
         return out.valid;
     }

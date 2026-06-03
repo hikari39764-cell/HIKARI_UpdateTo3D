@@ -1086,6 +1086,9 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ValidationLabPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1139,6 +1142,9 @@
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderSurfaceResolver.cpp">
+      <Filter>Source Files\Render3D\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
@@ -1146,6 +1152,9 @@
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.cpp">
+      <Filter>Source Files\Render3D\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp">
@@ -1762,6 +1771,9 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ValidationLabPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h">
       <Filter>Header Files\ThirdParty\ImGuizmo</Filter>
     </ClInclude>
@@ -1817,6 +1829,12 @@
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderSurfaceContract.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderSurfaceResolver.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
@@ -1824,6 +1842,9 @@
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h">

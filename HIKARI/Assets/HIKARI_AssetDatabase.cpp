@@ -66,7 +66,7 @@ namespace HIKARI {
         }
 
         bool IsModelExtension(const std::string& ext) {
-            return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj";
+            return ext == ".gltf" || ext == ".obj";
         }
 
         bool IsVfxExtension(const std::string& ext) {
@@ -733,47 +733,86 @@ namespace HIKARI {
     }
 
     ClusteredGeometryArtifactState AssetDatabase::GetClusteredGeometryArtifactState(const AssetRecord& record) const {
+        return GetClusteredGeometryArtifactInfo(record).state;
+    }
+
+    ClusteredGeometryArtifactState AssetDatabase::GetClusteredGeometryArtifactState(const AssetGuid& guid) const {
+        return GetClusteredGeometryArtifactInfo(guid).state;
+    }
+
+    ClusteredGeometryArtifactInfo AssetDatabase::GetClusteredGeometryArtifactInfo(const AssetRecord& record) const {
+        ClusteredGeometryArtifactInfo info{};
         const AssetArtifactDesc* artifact = FindArtifactByRoleAndFormat(record, "ClusteredGeometry", "HCMESH");
         if (artifact == nullptr) {
-            return ClusteredGeometryArtifactState::Missing;
+            info.state = ClusteredGeometryArtifactState::Missing;
+            info.message = "HCMESH artifact is not recorded in meta";
+            return info;
         }
 
         const std::filesystem::path hcmeshPath = ResolveProjectPath(projectRoot_, artifact->path);
+        info.path = hcmeshPath;
         std::error_code ec{};
         if (!std::filesystem::exists(hcmeshPath, ec) || ec) {
-            return ClusteredGeometryArtifactState::Missing;
-        }
-
-        if (record.sourceExists) {
-            const std::filesystem::path sourcePath = ResolveProjectPath(projectRoot_, record.sourcePath);
-            const auto sourceTime = std::filesystem::last_write_time(sourcePath, ec);
-            if (!ec) {
-                const auto hcmeshTime = std::filesystem::last_write_time(hcmeshPath, ec);
-                if (!ec && sourceTime > hcmeshTime) {
-                    return ClusteredGeometryArtifactState::Outdated;
-                }
-            }
+            info.state = ClusteredGeometryArtifactState::Missing;
+            info.message = "HCMESH artifact file is missing";
+            return info;
         }
 
         RENDER3D::CLUSTER::ClusteredGeometryAsset asset{};
         std::string message{};
         if (!ASSETS::GEOMETRY::ReadHcmeshFile(hcmeshPath, asset, message)) {
-            return ClusteredGeometryArtifactState::Invalid;
+            info.state = ClusteredGeometryArtifactState::Invalid;
+            info.message = message.empty() ? "HCMESH read failed" : message;
+            return info;
         }
 
         const ASSETS::GEOMETRY::ClusteredGeometryValidationResult validation =
             ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(asset);
-        return validation.valid
-            ? ClusteredGeometryArtifactState::Valid
-            : ClusteredGeometryArtifactState::Invalid;
+        info.validationValid = validation.valid;
+        info.invalidSurfaceCount = validation.invalidSurfaceCount;
+        info.invalidClusterCount = validation.invalidClusterCount;
+        info.invalidPageCount = validation.invalidPageCount;
+        info.invalidBoundsCount = validation.invalidBoundsCount;
+        info.invalidMaterialCount = validation.invalidMaterialCount;
+        info.validationMessages = validation.messages;
+
+        if (!validation.valid) {
+            info.state = ClusteredGeometryArtifactState::Invalid;
+            info.message = validation.messages.empty() ? "HCMESH validation failed" : validation.messages.front();
+            return info;
+        }
+
+        bool sourceNewerThanArtifact = false;
+        if (record.sourceExists) {
+            const std::filesystem::path sourcePath = ResolveProjectPath(projectRoot_, record.sourcePath);
+            const auto sourceTime = std::filesystem::last_write_time(sourcePath, ec);
+            if (!ec) {
+                const auto hcmeshTime = std::filesystem::last_write_time(hcmeshPath, ec);
+                sourceNewerThanArtifact = !ec && sourceTime > hcmeshTime;
+            }
+        }
+        if (sourceNewerThanArtifact || record.importOutdated) {
+            info.state = ClusteredGeometryArtifactState::Outdated;
+            info.message = sourceNewerThanArtifact
+                ? "Source model is newer than HCMESH"
+                : "Importer version or artifact state is outdated";
+            return info;
+        }
+
+        info.state = ClusteredGeometryArtifactState::Valid;
+        info.message = message.empty() ? "HCMESH valid" : message;
+        return info;
     }
 
-    ClusteredGeometryArtifactState AssetDatabase::GetClusteredGeometryArtifactState(const AssetGuid& guid) const {
+    ClusteredGeometryArtifactInfo AssetDatabase::GetClusteredGeometryArtifactInfo(const AssetGuid& guid) const {
         const AssetRecord* record = FindByGuid(guid);
         if (record == nullptr) {
-            return ClusteredGeometryArtifactState::Missing;
+            ClusteredGeometryArtifactInfo info{};
+            info.state = ClusteredGeometryArtifactState::Missing;
+            info.message = "Asset record is missing";
+            return info;
         }
-        return GetClusteredGeometryArtifactState(*record);
+        return GetClusteredGeometryArtifactInfo(*record);
     }
 
     AssetRecord AssetDatabase::BuildRecordForSource(const std::filesystem::path& sourcePath, bool createMissingMeta) {

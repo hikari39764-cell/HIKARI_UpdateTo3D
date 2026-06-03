@@ -70,6 +70,45 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint64_t version = 0;
     };
 
+    struct SceneSurfaceInstance {
+        SceneRenderObjectId objectId{};
+        uint64_t objectVersion = 0;
+        uint32_t objectIndex = 0;
+        uint32_t surfaceIndex = kInvalidRenderSurfaceIndex;
+
+        const ModelAsset* model = nullptr;
+        const RenderModelAsset* renderModel = nullptr;
+        const RenderSurfaceRecord* surface = nullptr;
+
+        uint32_t nodeIndex = kInvalidRenderSurfaceIndex;
+        uint32_t meshIndex = kInvalidRenderSurfaceIndex;
+        uint32_t primitiveIndex = kInvalidRenderSurfaceIndex;
+        uint32_t materialIndex = 0;
+
+        Transform3D objectWorldTransform{};
+        MATH::Mat4 drawWorldMatrix{};
+        bool hasDrawWorldMatrix = false;
+
+        Bounds localBounds{};
+        Bounds worldBounds{};
+
+        bool valid = false;
+        bool visible = true;
+        bool isStatic = false;
+        bool castShadow = true;
+        bool receiveShadow = true;
+        bool hasRuntimeAnimation = false;
+        bool hasSpecialRenderDebug = false;
+        bool allowStaticCachedForward = true;
+        bool skinned = false;
+
+        const Material* materialOverride = nullptr;
+        std::string materialFxProfileId{};
+        uint32_t postGroupMask = 0;
+        DirectX::XMFLOAT4 materialFxParamValues[VFX::kMaterialFxUserCount]{};
+        bool materialFxValuesInitialized = false;
+    };
+
     class SceneRenderCache {
     public:
         struct Stats {
@@ -88,6 +127,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             uint32_t renderModelValidCount = 0;
             uint32_t renderModelInvalidCount = 0;
+
+            uint32_t surfaceInstanceCount = 0;
+            uint32_t visibleSurfaceInstanceCount = 0;
+            uint32_t hiddenSurfaceInstanceCount = 0;
+            uint32_t staticSurfaceInstanceCount = 0;
+            uint32_t dynamicSurfaceInstanceCount = 0;
+            uint32_t skinnedSurfaceInstanceCount = 0;
+            uint32_t staticGeometrySurfaceInstanceCount = 0;
+            uint32_t invalidSurfaceInstanceCount = 0;
+            uint32_t missingSurfaceMatrixCount = 0;
+            uint32_t invalidSurfaceBoundsCount = 0;
         };
 
         void Clear();
@@ -104,14 +154,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         const SceneRenderObject* Find(SceneRenderObjectId id) const;
         const std::vector<SceneRenderObject>& GetObjects() const;
+        const std::vector<SceneSurfaceInstance>& GetSurfaceInstances() const;
         const Stats& GetStats() const;
 
     private:
         void RemoveAt(size_t index);
         void RebuildIndex();
+        void RebuildSurfaceInstances();
         void RefreshStats();
 
         std::vector<SceneRenderObject> objects_{};
+        std::vector<SceneSurfaceInstance> surfaceInstances_{};
         std::unordered_map<uint64_t, size_t> indexById_{};
 
         Stats frameStats_{};

@@ -6,83 +6,20 @@
 #include <utility>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
+#include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
     namespace {
         uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>((std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+            return static_cast<uint32_t>(
+                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
         }
 
         void CopyMaterialFxValues(const SceneRenderObjectDesc& desc, StaticDrawRecord& record) {
             for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 record.materialFxParamValues[i] = desc.materialFxParamValues[i];
             }
-        }
-
-        MATH::Mat4 BuildNodeGlobalRecursive(
-            const RenderModelAsset& renderModel,
-            size_t nodeIndex,
-            std::vector<MATH::Mat4>& globals,
-            std::vector<uint8_t>& visited) {
-
-            if (nodeIndex >= renderModel.nodes.size()) {
-                return MATH::Mat4::Identity();
-            }
-            if (visited[nodeIndex]) {
-                return globals[nodeIndex];
-            }
-
-            const RenderModelNodeRecord& node = renderModel.nodes[nodeIndex];
-            MATH::Mat4 parent = MATH::Mat4::Identity();
-            if (node.parentIndex >= 0 && node.parentIndex < static_cast<int>(renderModel.nodes.size())) {
-                parent = BuildNodeGlobalRecursive(renderModel, static_cast<size_t>(node.parentIndex), globals, visited);
-            }
-
-            globals[nodeIndex] = parent * node.localMatrix;
-            visited[nodeIndex] = 1u;
-            return globals[nodeIndex];
-        }
-
-        std::vector<MATH::Mat4> BuildNodeGlobals(const RenderModelAsset& renderModel) {
-            std::vector<MATH::Mat4> globals(renderModel.nodes.size(), MATH::Mat4::Identity());
-            std::vector<uint8_t> visited(renderModel.nodes.size(), 0u);
-            for (size_t nodeIndex = 0; nodeIndex < renderModel.nodes.size(); ++nodeIndex) {
-                (void)BuildNodeGlobalRecursive(renderModel, nodeIndex, globals, visited);
-            }
-            return globals;
-        }
-
-        bool ResolveRecordDrawWorldMatrix(
-            const SceneRenderObject& object,
-            const RenderSubmeshRecord& submesh,
-            const std::vector<MATH::Mat4>& nodeGlobals,
-            MATH::Mat4& outDrawWorldMatrix) {
-
-            outDrawWorldMatrix = object.desc.worldTransform.GetWorldMatrix();
-            if (submesh.nodeIndex == kInvalidRenderModelIndex) {
-                return true;
-            }
-            if (submesh.nodeIndex >= nodeGlobals.size()) {
-                return false;
-            }
-
-            outDrawWorldMatrix = outDrawWorldMatrix * nodeGlobals[submesh.nodeIndex];
-            return true;
-        }
-
-        Bounds ResolveRecordWorldBounds(
-            const SceneRenderObject& object,
-            const RenderSubmeshRecord& submesh,
-            const MATH::Mat4& drawWorldMatrix,
-            bool hasDrawWorldMatrix) {
-
-            if (!hasDrawWorldMatrix || !BOUNDS::IsUsable(submesh.localBounds)) {
-                return object.desc.worldBounds;
-            }
-
-            const Bounds worldBounds = BOUNDS::TransformBounds(submesh.localBounds, drawWorldMatrix);
-            return BOUNDS::IsUsable(worldBounds) ? worldBounds : object.desc.worldBounds;
         }
 
         bool IsStaticCacheCandidate(const SceneRenderObject& object) {
@@ -217,9 +154,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         bool primitiveIndexValid = false;
-        if (record.model != nullptr && record.meshIndex < record.model->meshes.size()) {
-            const MeshAsset& mesh = record.model->meshes[record.meshIndex];
-            primitiveIndexValid = record.primitiveIndex < mesh.primitives.size();
+        if (record.renderModel != nullptr &&
+            record.submeshIndex < record.renderModel->surfaces.size()) {
+            primitiveIndexValid = HasValidRenderSurfacePrimitive(
+                record.model,
+                record.renderModel->surfaces[record.submeshIndex]);
         }
         if (!primitiveIndexValid) {
             result.invalidPrimitiveIndex = true;
@@ -247,7 +186,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         const RenderModelAsset& renderModel = *object.desc.renderModel;
         if (!object.desc.allowStaticCachedForward) {
-            entry.expectedForwardSubmeshCount = ClampToUint32(renderModel.submeshes.size());
+            entry.expectedForwardSubmeshCount = ClampToUint32(renderModel.surfaces.size());
             entry.skippedAnimatedObject = object.desc.hasRuntimeAnimation;
             entry.skippedDebugModeObject = object.desc.hasSpecialRenderDebug;
             entry.coverageStatus = entry.expectedForwardSubmeshCount > 0
@@ -256,14 +195,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return;
         }
 
-        const std::vector<MATH::Mat4> nodeGlobals = BuildNodeGlobals(renderModel);
+        const std::vector<MATH::Mat4> nodeGlobals = BuildRenderModelNodeGlobals(renderModel);
 
-        // 静的描画だけを次段階用に平坦化する。
-        entry.records.reserve(renderModel.submeshes.size());
-        for (size_t submeshIndex = 0; submeshIndex < renderModel.submeshes.size(); ++submeshIndex) {
-            const RenderSubmeshRecord& submesh = renderModel.submeshes[submeshIndex];
+        // 静的描画互換 cache は surface 契約を draw record に畳む。
+        entry.records.reserve(renderModel.surfaces.size());
+        for (size_t surfaceIndex = 0; surfaceIndex < renderModel.surfaces.size(); ++surfaceIndex) {
+            const RenderSurfaceRecord& surface = renderModel.surfaces[surfaceIndex];
             ++entry.expectedForwardSubmeshCount;
-            if (submesh.skinningMode == RenderSubmeshSkinningMode::Skinned) {
+            if (surface.skinningMode == RenderSurfaceSkinningMode::Skinned) {
                 ++entry.skippedSkinnedSubmeshCount;
                 ++entry.skippedUnsupportedSubmeshCount;
                 continue;
@@ -274,26 +213,26 @@ namespace HIKARI::RENDER3D::RUNTIME {
             record.objectVersion = object.version;
             record.model = object.desc.model;
             record.renderModel = object.desc.renderModel;
-            record.submeshIndex = ClampToUint32(submeshIndex);
-            record.nodeIndex = submesh.nodeIndex;
-            record.meshIndex = submesh.meshIndex;
-            record.primitiveIndex = submesh.primitiveIndex;
-            record.materialIndex = submesh.materialIndex;
+            record.submeshIndex = ClampToUint32(surfaceIndex);
+            record.nodeIndex = surface.nodeIndex;
+            record.meshIndex = surface.meshIndex;
+            record.primitiveIndex = surface.primitiveIndex;
+            record.materialIndex = surface.materialIndex;
             record.objectWorldTransform = object.desc.worldTransform;
             record.drawTransform = object.desc.worldTransform;
-            record.hasDrawWorldMatrix = ResolveRecordDrawWorldMatrix(
-                object,
-                submesh,
+            record.hasDrawWorldMatrix = ResolveRenderSurfaceDrawWorldMatrix(
+                object.desc.worldTransform,
+                surface,
                 nodeGlobals,
                 record.drawWorldMatrix);
-            if (record.hasDrawWorldMatrix && submesh.nodeIndex != kInvalidRenderModelIndex) {
+            if (record.hasDrawWorldMatrix && surface.nodeIndex != kInvalidRenderModelIndex) {
                 // static record は node 変換込みの最終行列を保持する。
                 record.drawTransform.useExplicitMatrix = true;
                 record.drawTransform.explicitMatrix = record.drawWorldMatrix;
             }
-            record.worldBounds = ResolveRecordWorldBounds(
-                object,
-                submesh,
+            record.worldBounds = ResolveRenderSurfaceWorldBounds(
+                object.desc.worldBounds,
+                surface,
                 record.drawWorldMatrix,
                 record.hasDrawWorldMatrix);
             record.castShadow = object.desc.castShadow;
@@ -378,7 +317,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 break;
             }
         }
-        records_.reserve(static_cast<size_t>((std::min)(recordCount, static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))));
+        records_.reserve(static_cast<size_t>(
+            (std::min)(recordCount, static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))));
 
         // SceneRenderCache の順序を保ったまま平坦化する。
         for (const uint64_t objectId : activeObjectIds_) {

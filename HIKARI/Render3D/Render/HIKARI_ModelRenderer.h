@@ -29,7 +29,7 @@ namespace HIKARI::MODELRENDERER {
 
         uint32_t renderModelValidRequestCount = 0;
         uint32_t renderModelInvalidRequestCount = 0;
-        uint32_t renderModelRequestedSubmeshCount = 0;
+        uint32_t renderModelRequestedSurfaceCount = 0;
 
         uint32_t skinnedNodeCount = 0;
         uint32_t builtPaletteCount = 0;
@@ -60,7 +60,7 @@ namespace HIKARI::MODELRENDERER {
         uint32_t renderModelCacheMissCount = 0;
         uint32_t renderModelCacheInvalidCount = 0;
         uint32_t renderModelCachedModelCount = 0;
-        uint32_t renderModelCachedSubmeshCount = 0;
+        uint32_t renderModelCachedSurfaceCount = 0;
 
         uint32_t poseCacheHitCount = 0;
         uint32_t poseCacheMissCount = 0;

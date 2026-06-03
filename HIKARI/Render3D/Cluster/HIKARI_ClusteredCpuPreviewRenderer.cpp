@@ -82,8 +82,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             MeshPrimitive& outPrimitive) {
 
             if (!IsReferenceSupportedSurface(surface) ||
-                surface.indexCount == 0u ||
-                surface.firstIndex + surface.indexCount > clusteredGeometry.packedIndices.size()) {
+                surface.clusterCount == 0u ||
+                surface.firstCluster + surface.clusterCount > clusteredGeometry.clusters.size()) {
                 return false;
             }
 
@@ -94,19 +94,31 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
             std::unordered_map<uint32_t, uint32_t> remap{};
             remap.reserve(surface.indexCount);
-            for (uint32_t i = 0; i < surface.indexCount; ++i) {
-                const uint32_t packedIndex = clusteredGeometry.packedIndices[surface.firstIndex + i];
-                if (packedIndex >= clusteredGeometry.packedVertices.size()) {
+            for (uint32_t clusterOffset = 0; clusterOffset < surface.clusterCount; ++clusterOffset) {
+                const MeshCluster& cluster = clusteredGeometry.clusters[surface.firstCluster + clusterOffset];
+                if (cluster.firstIndex + cluster.indexCount > clusteredGeometry.packedIndices.size() ||
+                    cluster.firstVertex + cluster.vertexCount > clusteredGeometry.packedVertices.size()) {
                     return false;
                 }
-                auto it = remap.find(packedIndex);
-                if (it == remap.end()) {
-                    const uint32_t localIndex = static_cast<uint32_t>(outPrimitive.staticVertices.size());
-                    remap[packedIndex] = localIndex;
-                    outPrimitive.staticVertices.push_back(ToVertex3D(clusteredGeometry.packedVertices[packedIndex]));
-                    outPrimitive.indices.push_back(localIndex);
-                } else {
-                    outPrimitive.indices.push_back(it->second);
+
+                for (uint32_t i = 0; i < cluster.indexCount; ++i) {
+                    const uint32_t clusterLocalIndex =
+                        clusteredGeometry.packedIndices[cluster.firstIndex + i];
+                    if (clusterLocalIndex >= cluster.vertexCount) {
+                        return false;
+                    }
+
+                    const uint32_t packedVertexIndex = cluster.firstVertex + clusterLocalIndex;
+                    auto it = remap.find(packedVertexIndex);
+                    if (it == remap.end()) {
+                        const uint32_t primitiveLocalIndex = static_cast<uint32_t>(outPrimitive.staticVertices.size());
+                        remap[packedVertexIndex] = primitiveLocalIndex;
+                        outPrimitive.staticVertices.push_back(
+                            ToVertex3D(clusteredGeometry.packedVertices[packedVertexIndex]));
+                        outPrimitive.indices.push_back(primitiveLocalIndex);
+                    } else {
+                        outPrimitive.indices.push_back(it->second);
+                    }
                 }
             }
 
@@ -217,6 +229,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         MESHRENDERER::SubmitStaticMesh(
             *previewModel,
+            // HCMESH 頂点は node bake 済みなので object transform のみ掛ける。
             transform,
             materialFxProfileId,
             postGroupMask,
