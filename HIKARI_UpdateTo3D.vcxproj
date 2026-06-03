@@ -273,6 +273,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
@@ -530,6 +531,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.h" />

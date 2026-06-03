@@ -1059,6 +1059,9 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1706,6 +1709,9 @@
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h">

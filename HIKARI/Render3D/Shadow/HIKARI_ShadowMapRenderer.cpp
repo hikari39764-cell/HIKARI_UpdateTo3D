@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -54,6 +55,9 @@ namespace HIKARI::SHADOW {
             const ModelAsset* asset = nullptr;
             Transform3D transform{};
             std::vector<MATH::Mat4> jointPalette{};
+            bool usePrimitiveFilter = false;
+            uint32_t meshIndexFilter = 0;
+            uint32_t primitiveIndexFilter = 0;
         };
 
         struct State {
@@ -80,8 +84,12 @@ namespace HIKARI::SHADOW {
             ShadowObjectCB* objectMapped = nullptr;
             JointPaletteCB* jointPaletteMapped = nullptr;
 
+            bool acceptingFrameSubmissions = false;
             std::vector<DrawItem> staticItems;
             std::vector<DrawItem> skinnedItems;
+            std::vector<DrawItem> pendingStaticItems;
+            std::vector<DrawItem> pendingSkinnedItems;
+            size_t pendingSkippedNoCastShadowCount = 0;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, int> materialTextureCache;
@@ -572,16 +580,77 @@ namespace HIKARI::SHADOW {
             cmd->RSSetViewports(1, &viewport);
             cmd->RSSetScissorRects(1, &scissor);
         }
+
+        void ClearFrameSubmissions() {
+            g.staticItems.clear();
+            g.skinnedItems.clear();
+            g.debugStats = {};
+            g.acceptingFrameSubmissions = false;
+        }
+
+        void ClearPendingSubmissions() {
+            g.pendingStaticItems.clear();
+            g.pendingSkinnedItems.clear();
+            g.pendingSkippedNoCastShadowCount = 0;
+        }
+
+        void FlushPendingSubmissions() {
+            if (!g.pendingStaticItems.empty()) {
+                g.debugStats.submittedCasterCount += g.pendingStaticItems.size();
+                g.staticItems.insert(
+                    g.staticItems.end(),
+                    std::make_move_iterator(g.pendingStaticItems.begin()),
+                    std::make_move_iterator(g.pendingStaticItems.end()));
+                g.pendingStaticItems.clear();
+            }
+            if (!g.pendingSkinnedItems.empty()) {
+                g.debugStats.submittedCasterCount += g.pendingSkinnedItems.size();
+                g.skinnedItems.insert(
+                    g.skinnedItems.end(),
+                    std::make_move_iterator(g.pendingSkinnedItems.begin()),
+                    std::make_move_iterator(g.pendingSkinnedItems.end()));
+                g.pendingSkinnedItems.clear();
+            }
+            if (g.pendingSkippedNoCastShadowCount > 0) {
+                g.debugStats.skippedNoCastShadowCount += g.pendingSkippedNoCastShadowCount;
+                g.pendingSkippedNoCastShadowCount = 0;
+            }
+        }
+
+        void QueueStaticItem(DrawItem&& item) {
+            if (g.acceptingFrameSubmissions && g.frameEnabled) {
+                g.staticItems.push_back(std::move(item));
+                ++g.debugStats.submittedCasterCount;
+                return;
+            }
+            g.pendingStaticItems.push_back(std::move(item));
+        }
+
+        void QueueSkinnedItem(DrawItem&& item) {
+            if (g.acceptingFrameSubmissions && g.frameEnabled) {
+                g.skinnedItems.push_back(std::move(item));
+                ++g.debugStats.submittedCasterCount;
+                return;
+            }
+            g.pendingSkinnedItems.push_back(std::move(item));
+        }
+
+        void CountSkippedNoCastShadow() {
+            if (g.acceptingFrameSubmissions && g.frameEnabled) {
+                ++g.debugStats.skippedNoCastShadowCount;
+                return;
+            }
+            ++g.pendingSkippedNoCastShadowCount;
+        }
     }
 
     void Reset() {
-        g.staticItems.clear();
-        g.skinnedItems.clear();
-        g.debugStats = {};
+        ClearFrameSubmissions();
+        ClearPendingSubmissions();
     }
 
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera) {
-        Reset();
+        ClearFrameSubmissions();
         g.frameEnabled = environment.directional.enabled && environment.directionalShadow.enabled;
         g.debugStats.enabled = g.frameEnabled;
         g.debugStats.resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
@@ -595,11 +664,13 @@ namespace HIKARI::SHADOW {
         g.debugStats.normalBias = environment.directionalShadow.normalBias;
         g.debugStats.strength = environment.directionalShadow.strength;
         if (!g.frameEnabled) {
+            ClearPendingSubmissions();
             return;
         }
         if (!EnsureInitialized()) {
             g.frameEnabled = false;
             g.debugStats.enabled = false;
+            ClearPendingSubmissions();
             return;
         }
 
@@ -608,6 +679,7 @@ namespace HIKARI::SHADOW {
             if (!CreateShadowMap(resolution)) {
                 g.frameEnabled = false;
                 g.debugStats.enabled = false;
+                ClearPendingSubmissions();
                 return;
             }
             g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
@@ -617,45 +689,69 @@ namespace HIKARI::SHADOW {
         if (g.cameraMapped != nullptr) {
             g.cameraMapped->lightViewProj = g.lightViewProj;
         }
+        g.acceptingFrameSubmissions = true;
+        FlushPendingSubmissions();
     }
 
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow) {
-        if (!g.frameEnabled) {
-            return;
-        }
         if (!castShadow) {
-            ++g.debugStats.skippedNoCastShadowCount;
+            CountSkippedNoCastShadow();
             return;
         }
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
-        g.staticItems.push_back(std::move(item));
-        ++g.debugStats.submittedCasterCount;
+        QueueStaticItem(std::move(item));
+    }
+
+    void SubmitStaticSubmesh(
+        const ModelAsset& asset,
+        const Transform3D& transform,
+        uint32_t meshIndex,
+        uint32_t primitiveIndex,
+        bool castShadow) {
+
+        if (!castShadow) {
+            CountSkippedNoCastShadow();
+            return;
+        }
+        if (meshIndex >= asset.meshes.size()) {
+            return;
+        }
+        const MeshAsset& mesh = asset.meshes[meshIndex];
+        if (primitiveIndex >= mesh.primitives.size()) {
+            return;
+        }
+
+        DrawItem item{};
+        item.asset = &asset;
+        item.transform = transform;
+        item.usePrimitiveFilter = true;
+        item.meshIndexFilter = meshIndex;
+        item.primitiveIndexFilter = primitiveIndex;
+        QueueStaticItem(std::move(item));
     }
 
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, bool castShadow) {
-        if (!g.frameEnabled) {
-            return;
-        }
         if (!castShadow) {
-            ++g.debugStats.skippedNoCastShadowCount;
+            CountSkippedNoCastShadow();
             return;
         }
         DrawItem item{};
         item.asset = &asset;
         item.transform = transform;
         item.jointPalette = jointPalette;
-        g.skinnedItems.push_back(std::move(item));
-        ++g.debugStats.submittedCasterCount;
+        QueueSkinnedItem(std::move(item));
     }
 
     void RenderDirectionalShadowMap() {
         if (!g.frameEnabled || g.shadowMap == nullptr) {
+            g.acceptingFrameSubmissions = false;
             return;
         }
         auto* cmd = SERVICES::gCtx.cmdList;
         if (cmd == nullptr) {
+            g.acceptingFrameSubmissions = false;
             return;
         }
 
@@ -734,12 +830,23 @@ namespace HIKARI::SHADOW {
                 continue;
             }
             if (!item.asset->meshes.empty()) {
-                for (const MeshAsset& meshAsset : item.asset->meshes) {
-                    for (const MeshPrimitive& primitive : meshAsset.primitives) {
+                for (size_t meshIndex = 0; meshIndex < item.asset->meshes.size(); ++meshIndex) {
+                    if (item.usePrimitiveFilter && meshIndex != item.meshIndexFilter) {
+                        continue;
+                    }
+                    const MeshAsset& meshAsset = item.asset->meshes[meshIndex];
+                    for (size_t primitiveIndex = 0; primitiveIndex < meshAsset.primitives.size(); ++primitiveIndex) {
+                        if (item.usePrimitiveFilter && primitiveIndex != item.primitiveIndexFilter) {
+                            continue;
+                        }
+                        const MeshPrimitive& primitive = meshAsset.primitives[primitiveIndex];
                         drawPrimitive(item, primitive, GetOrCreatePrimitiveMesh(primitive), false);
                     }
                 }
             } else if (const Mesh* legacyMesh = item.asset->GetMesh()) {
+                if (item.usePrimitiveFilter) {
+                    continue;
+                }
                 if (objectIndex >= kMaxCasterObjects || !legacyMesh->IsValid()) {
                     continue;
                 }
@@ -787,6 +894,7 @@ namespace HIKARI::SHADOW {
             g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         }
         RestoreMainRenderTarget();
+        g.acceptingFrameSubmissions = false;
     }
 
     bool IsDirectionalShadowEnabled() {

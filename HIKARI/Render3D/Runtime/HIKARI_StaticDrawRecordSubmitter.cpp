@@ -2,6 +2,7 @@
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
@@ -51,31 +52,42 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 continue;
             }
 
-            if (IsRecordCulledByCamera(record, options)) {
-                ++outStats.culledRecordCount;
-                continue;
+            bool forwardVisible = true;
+            if (options.useCachedStaticForward) {
+                forwardVisible = !IsRecordCulledByCamera(record, options);
+                if (!forwardVisible) {
+                    ++outStats.culledRecordCount;
+                } else {
+                    // cached record は primitive 単位で既存の MeshRenderer に渡す。
+                    MESHRENDERER::SubmitStaticSubmesh(
+                        *record.model,
+                        record.drawTransform,
+                        record.meshIndex,
+                        record.primitiveIndex,
+                        record.materialFxProfileId,
+                        record.postGroupMask,
+                        record.materialFxParamValues,
+                        record.materialFxValuesInitialized,
+                        record.receiveShadow,
+                        MESHRENDERER::MeshRenderDebugMode::Normal,
+                        record.materialOverride);
+                    ++outStats.submittedRecordCount;
+                    ++outStats.submittedAfterCullCount;
+                    ++outStats.submittedForwardRecordCount;
+                }
             }
 
-            if (options.useCachedStaticForward) {
-                // cached record は primitive 単位で既存の MeshRenderer に渡す。
-                MESHRENDERER::SubmitStaticSubmesh(
+            if (options.useCachedStaticShadow && record.castShadow) {
+                if (!forwardVisible) {
+                    ++outStats.shadowCullSkippedCount;
+                }
+                SHADOW::SubmitStaticSubmesh(
                     *record.model,
                     record.drawTransform,
                     record.meshIndex,
                     record.primitiveIndex,
-                    record.materialFxProfileId,
-                    record.postGroupMask,
-                    record.materialFxParamValues,
-                    record.materialFxValuesInitialized,
-                    record.receiveShadow,
-                    MESHRENDERER::MeshRenderDebugMode::Normal,
-                    record.materialOverride);
-                ++outStats.submittedRecordCount;
-                ++outStats.submittedAfterCullCount;
-            }
-
-            if (options.useCachedStaticShadow) {
-                ++outStats.skippedUnsupportedRecordCount;
+                    record.castShadow);
+                ++outStats.submittedShadowRecordCount;
             }
         }
     }

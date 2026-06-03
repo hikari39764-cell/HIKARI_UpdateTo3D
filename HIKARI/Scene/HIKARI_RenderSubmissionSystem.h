@@ -19,15 +19,24 @@ namespace HIKARI {
         int skinnedCullSkippedCount = 0;
         int fallbackWireCount = 0;
         int staticCachedForwardSkipCount = 0;
+        int staticCachedShadowSkipCount = 0;
+        int staticCachedBypassOldModelRendererCount = 0;
         int staticCachedFallbackCount = 0;
         int staticCachedCandidateCount = 0;
         int staticCachedCulledRecordCount = 0;
         int staticCachedSubmittedRecordCount = 0;
+        int staticCachedSubmittedForwardRecordCount = 0;
+        int staticCachedSubmittedShadowRecordCount = 0;
         bool frustumCullingEnabled = false;
     };
 
     struct RenderSubmissionOptions {
         bool useStaticDrawRecordCache = false;
+        bool useCachedStaticForward = true;
+        bool useCachedStaticShadow = true;
+        bool skipOldStaticForwardWhenCached = true;
+        bool skipOldStaticShadowWhenCached = true;
+        bool bypassOldStaticModelRendererWhenFullyCached = true;
     };
 
     class RenderSubmissionSystem final : public ISystem {
@@ -40,6 +49,12 @@ namespace HIKARI {
         static const RenderSubmissionDebugStats& GetDebugStats();
         static void SetUseStaticDrawRecordCache(bool enabled);
         static bool IsUseStaticDrawRecordCacheEnabled();
+        static void SetUseCachedStaticForward(bool enabled);
+        static bool IsUseCachedStaticForwardEnabled();
+        static void SetUseCachedStaticShadow(bool enabled);
+        static bool IsUseCachedStaticShadowEnabled();
+        static void SetBypassOldStaticModelRenderer(bool enabled);
+        static bool IsBypassOldStaticModelRendererEnabled();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
         static const RENDER3D::RUNTIME::StaticDrawRecordCache& GetStaticDrawRecordCache();

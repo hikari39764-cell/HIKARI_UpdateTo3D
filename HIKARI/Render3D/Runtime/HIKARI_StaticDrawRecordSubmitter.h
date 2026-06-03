@@ -25,6 +25,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t submittedShadowRecordCount = 0;
         uint32_t culledRecordCount = 0;
         uint32_t submittedAfterCullCount = 0;
+        uint32_t submittedForwardRecordCount = 0;
+        uint32_t shadowCullSkippedCount = 0;
     };
 
     class StaticDrawRecordSubmitter {

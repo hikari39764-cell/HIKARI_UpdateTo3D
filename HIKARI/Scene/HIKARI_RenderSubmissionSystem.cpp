@@ -2,12 +2,12 @@
 
 #include "Core/HIKARI_FrameContext.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
-#include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
+#include "Render3D/HIKARI_Renderer3D.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
-#include "Render3D/HIKARI_Renderer3D.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -52,6 +52,30 @@ namespace HIKARI {
         return sOptions_.useStaticDrawRecordCache;
     }
 
+    void RenderSubmissionSystem::SetUseCachedStaticForward(bool enabled) {
+        sOptions_.useCachedStaticForward = enabled;
+    }
+
+    bool RenderSubmissionSystem::IsUseCachedStaticForwardEnabled() {
+        return sOptions_.useCachedStaticForward;
+    }
+
+    void RenderSubmissionSystem::SetUseCachedStaticShadow(bool enabled) {
+        sOptions_.useCachedStaticShadow = enabled;
+    }
+
+    bool RenderSubmissionSystem::IsUseCachedStaticShadowEnabled() {
+        return sOptions_.useCachedStaticShadow;
+    }
+
+    void RenderSubmissionSystem::SetBypassOldStaticModelRenderer(bool enabled) {
+        sOptions_.bypassOldStaticModelRendererWhenFullyCached = enabled;
+    }
+
+    bool RenderSubmissionSystem::IsBypassOldStaticModelRendererEnabled() {
+        return sOptions_.bypassOldStaticModelRendererWhenFullyCached;
+    }
+
     const RENDER3D::RUNTIME::SceneRenderCache& RenderSubmissionSystem::GetSceneRenderCache() {
         return sSceneRenderCache_;
     }
@@ -81,10 +105,14 @@ namespace HIKARI {
         sDebugStats_.skinnedCullSkippedCount = 0;
         sDebugStats_.fallbackWireCount = 0;
         sDebugStats_.staticCachedForwardSkipCount = 0;
+        sDebugStats_.staticCachedShadowSkipCount = 0;
+        sDebugStats_.staticCachedBypassOldModelRendererCount = 0;
         sDebugStats_.staticCachedFallbackCount = 0;
         sDebugStats_.staticCachedCandidateCount = 0;
         sDebugStats_.staticCachedCulledRecordCount = 0;
         sDebugStats_.staticCachedSubmittedRecordCount = 0;
+        sDebugStats_.staticCachedSubmittedForwardRecordCount = 0;
+        sDebugStats_.staticCachedSubmittedShadowRecordCount = 0;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
 
         sSceneRenderCacheSync_.Sync(
@@ -97,10 +125,10 @@ namespace HIKARI {
 
         sStaticRecordSubmitOptions_ = {};
         if (sOptions_.useStaticDrawRecordCache) {
-            sStaticRecordSubmitOptions_.useCachedStaticForward = true;
-            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit = true;
-            sStaticRecordSubmitOptions_.useCachedStaticShadow = false;
-            sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit = false;
+            sStaticRecordSubmitOptions_.useCachedStaticForward = sOptions_.useCachedStaticForward;
+            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit = sOptions_.skipOldStaticForwardWhenCached;
+            sStaticRecordSubmitOptions_.useCachedStaticShadow = sOptions_.useCachedStaticShadow;
+            sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit = sOptions_.skipOldStaticShadowWhenCached;
             sStaticRecordSubmitOptions_.enableFrustumCulling = true;
             if (sActiveRenderCamera_ != nullptr) {
                 // Runtime 層へ Camera3D を渡さず、必要な行列だけを渡す。
@@ -116,7 +144,11 @@ namespace HIKARI {
         sDebugStats_.staticCachedCulledRecordCount =
             static_cast<int>(sStaticDrawRecordSubmitStats_.culledRecordCount);
         sDebugStats_.staticCachedSubmittedRecordCount =
-            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedAfterCullCount);
+            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedForwardRecordCount);
+        sDebugStats_.staticCachedSubmittedForwardRecordCount =
+            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedForwardRecordCount);
+        sDebugStats_.staticCachedSubmittedShadowRecordCount =
+            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedShadowRecordCount);
 
         MESHWIREDEBUG::BeginFrame();
 
@@ -138,8 +170,42 @@ namespace HIKARI {
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
                 const bool isStaticModel = model.IsRenderStatic();
-                if (sOptions_.useStaticDrawRecordCache && isStaticModel) {
+                const bool useCachedStaticPath = sOptions_.useStaticDrawRecordCache && isStaticModel;
+                bool canUseCachedForward = false;
+                bool canUseCachedShadow = false;
+                bool forwardHandledByCache = false;
+                bool shadowHandledByCacheOrNotNeeded = !model.GetCastShadow();
+
+                if (useCachedStaticPath) {
                     ++sDebugStats_.staticCachedCandidateCount;
+                    const RENDER3D::RUNTIME::SceneRenderObjectId renderObjectId =
+                        ResolveSceneRenderObjectId(object);
+                    const bool fullCoverage =
+                        sStaticDrawRecordCache_.HasFullForwardCoverageForObject(renderObjectId);
+                    canUseCachedForward =
+                        sOptions_.useCachedStaticForward &&
+                        fullCoverage;
+                    canUseCachedShadow =
+                        sOptions_.useCachedStaticShadow &&
+                        fullCoverage &&
+                        model.GetCastShadow();
+
+                    forwardHandledByCache =
+                        canUseCachedForward &&
+                        sOptions_.skipOldStaticForwardWhenCached;
+                    shadowHandledByCacheOrNotNeeded =
+                        !model.GetCastShadow() ||
+                        (canUseCachedShadow && sOptions_.skipOldStaticShadowWhenCached);
+
+                    if (forwardHandledByCache) {
+                        ++sDebugStats_.staticCachedForwardSkipCount;
+                    }
+                    if (canUseCachedShadow && sOptions_.skipOldStaticShadowWhenCached) {
+                        ++sDebugStats_.staticCachedShadowSkipCount;
+                    }
+                    if (!fullCoverage) {
+                        ++sDebugStats_.staticCachedFallbackCount;
+                    }
                 }
 
                 if (sActiveRenderCamera_ != nullptr) {
@@ -159,29 +225,17 @@ namespace HIKARI {
                     }
                 }
 
-                bool skipOldForwardForCached = false;
-                bool skipOldShadowForCached = false;
-                if (isStaticModel) {
-                    const RENDER3D::RUNTIME::SceneRenderObjectId renderObjectId =
-                        ResolveSceneRenderObjectId(object);
-                    const bool canUseCachedForward =
-                        sOptions_.useStaticDrawRecordCache &&
-                        sStaticDrawRecordCache_.HasFullForwardCoverageForObject(renderObjectId);
-                    if (canUseCachedForward && sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit) {
-                        skipOldForwardForCached = true;
-                        ++sDebugStats_.staticCachedForwardSkipCount;
-                    } else if (sOptions_.useStaticDrawRecordCache) {
-                        ++sDebugStats_.staticCachedFallbackCount;
-                    }
-                    if (canUseCachedForward && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
-                        skipOldShadowForCached = true;
-                    }
-                }
-
                 const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
                 if (debugMode == ModelRenderDebugMode::BoundsOnly) {
                     MESHWIREDEBUG::SubmitModelBounds(*asset, object.Transform(), model.GetWireColor());
                     ++sDebugStats_.submittedModelCount;
+                    return;
+                }
+
+                if (forwardHandledByCache &&
+                    shadowHandledByCacheOrNotNeeded &&
+                    sOptions_.bypassOldStaticModelRendererWhenFullyCached) {
+                    ++sDebugStats_.staticCachedBypassOldModelRendererCount;
                     return;
                 }
 
@@ -199,10 +253,10 @@ namespace HIKARI {
                 item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
-                if (skipOldForwardForCached) {
+                if (forwardHandledByCache) {
                     item.submitForward = false;
                 }
-                if (skipOldShadowForCached) {
+                if (canUseCachedShadow && sOptions_.skipOldStaticShadowWhenCached) {
                     item.submitShadow = false;
                 }
                 if (debugMode == ModelRenderDebugMode::WireOnly) {

@@ -36,6 +36,7 @@ namespace HIKARI::SHADOW {
     void Reset();
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera);
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow);
+    void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, bool castShadow);
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, bool castShadow);
     void RenderDirectionalShadowMap();
 

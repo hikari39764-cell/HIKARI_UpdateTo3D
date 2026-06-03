@@ -522,6 +522,7 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Lighting Bake", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
+                ImGui::DockBuilderDockWindow("Performance Audit", rightDebugNode);
 
                 // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
                 ImGui::DockBuilderDockWindow("Asset Browser", rightResourceNode);
@@ -683,6 +684,9 @@ namespace HIKARI {
         }
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);
+        }
+        if (context_.windows.runtime.showPerformanceAudit) {
+            performanceAuditPanel_.Draw(context_.windows.runtime.showPerformanceAudit);
         }
         DrawPendingSceneOpenModal(scene);
 #else

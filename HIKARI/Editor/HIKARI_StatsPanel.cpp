@@ -17,6 +17,7 @@
 #include "imgui.h"
 #endif
 #include "Scene/HIKARI_GameObject.h"
+
 namespace HIKARI {
 
     void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
@@ -76,6 +77,11 @@ namespace HIKARI {
         const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& staticDrawRecordSubmitStats =
             RenderSubmissionSystem::GetStaticDrawRecordSubmitStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
+        const bool staticCacheEnabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
+        const bool cachedForwardEnabled = RenderSubmissionSystem::IsUseCachedStaticForwardEnabled();
+        const bool cachedShadowEnabled = RenderSubmissionSystem::IsUseCachedStaticShadowEnabled();
+        const bool bypassOldModelRendererEnabled =
+            RenderSubmissionSystem::IsBypassOldStaticModelRendererEnabled();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
             ImGui::Text("Submitted Model Items: %u", modelFrameStats.submittedModelItemCount);
@@ -147,18 +153,33 @@ namespace HIKARI {
                 ImGui::TreePop();
             }
             if (ImGui::TreeNodeEx("Static Draw Record Submit", ImGuiTreeNodeFlags_DefaultOpen)) {
-                bool enabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
+                bool enabled = staticCacheEnabled;
                 if (ImGui::Checkbox("Enabled", &enabled)) {
                     RenderSubmissionSystem::SetUseStaticDrawRecordCache(enabled);
                 }
+                bool cachedForward = cachedForwardEnabled;
+                if (ImGui::Checkbox("Cached Forward", &cachedForward)) {
+                    RenderSubmissionSystem::SetUseCachedStaticForward(cachedForward);
+                }
+                bool cachedShadow = cachedShadowEnabled;
+                if (ImGui::Checkbox("Cached Shadow", &cachedShadow)) {
+                    RenderSubmissionSystem::SetUseCachedStaticShadow(cachedShadow);
+                }
+                bool bypassOldModelRenderer = bypassOldModelRendererEnabled;
+                if (ImGui::Checkbox("Bypass Old ModelRenderer", &bypassOldModelRenderer)) {
+                    RenderSubmissionSystem::SetBypassOldStaticModelRenderer(bypassOldModelRenderer);
+                }
                 ImGui::Text("Candidates: %d", renderSubmissionStats.staticCachedCandidateCount);
                 ImGui::Text("Skip Old Forward Objects: %d", renderSubmissionStats.staticCachedForwardSkipCount);
+                ImGui::Text("Skip Old Shadow Objects: %d", renderSubmissionStats.staticCachedShadowSkipCount);
+                ImGui::Text("Bypass Old ModelRenderer Objects: %d", renderSubmissionStats.staticCachedBypassOldModelRendererCount);
                 ImGui::Text("Fallback Objects: %d", renderSubmissionStats.staticCachedFallbackCount);
-                ImGui::Text("Submitted Records: %d", renderSubmissionStats.staticCachedSubmittedRecordCount);
-                ImGui::Text("Culled Records: %d", renderSubmissionStats.staticCachedCulledRecordCount);
+                ImGui::Text("Submitted Forward Records: %d", renderSubmissionStats.staticCachedSubmittedForwardRecordCount);
+                ImGui::Text("Submitted Shadow Records: %d", renderSubmissionStats.staticCachedSubmittedShadowRecordCount);
+                ImGui::Text("Culled Forward Records: %d", renderSubmissionStats.staticCachedCulledRecordCount);
+                ImGui::Text("Shadow Cull Skipped Records: %u", staticDrawRecordSubmitStats.shadowCullSkippedCount);
                 ImGui::Text("Skipped Invalid Records: %u", staticDrawRecordSubmitStats.skippedInvalidRecordCount);
                 ImGui::Text("Skipped Unsupported Records: %u", staticDrawRecordSubmitStats.skippedUnsupportedRecordCount);
-                ImGui::Text("Submitted Shadow Records: %u", staticDrawRecordSubmitStats.submittedShadowRecordCount);
                 ImGui::TreePop();
             }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
