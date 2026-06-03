@@ -39,6 +39,8 @@ namespace HIKARI {
 
         bool castShadow = true;
         bool receiveShadow = true;
+        bool submitForward = true;
+        bool submitShadow = true;
         ModelGeometryDebugMode geometryDebugMode = ModelGeometryDebugMode::Normal;
     };
 }

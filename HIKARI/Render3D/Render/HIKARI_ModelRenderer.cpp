@@ -624,6 +624,7 @@ namespace HIKARI::MODELRENDERER {
         bool SubmitStructuredModelNodes(
             const ModelRenderItem& item,
             const Camera3D& camera,
+            bool submitForward,
             bool submitShadow) {
             if (!item.model || item.model->nodes.empty() || item.model->meshes.empty()) {
                 return false;
@@ -708,17 +709,19 @@ namespace HIKARI::MODELRENDERER {
                         ModelAsset* expandedAsset = GetOrCreateSingleMeshExpandedAsset(*item.model, node.meshIndex);
                         if (expandedAsset != nullptr && !expandedAsset->meshes.empty() && MeshHasSkinnedPrimitives(*item.model, node.meshIndex)) {
                             Transform3D skinnedTransform = item.worldTransform;
-                            MESHRENDERER::SubmitSkinnedMesh(
-                                *expandedAsset,
-                                skinnedTransform,
-                                *jointPalette,
-                                item.materialFxProfileId,
-                                item.postGroupMask,
-                                item.materialFxParamValues,
-                                item.materialFxValuesInitialized,
-                                item.receiveShadow,
-                                ToMeshRenderDebugMode(item.geometryDebugMode),
-                                item.materialOverride);
+                            if (submitForward) {
+                                MESHRENDERER::SubmitSkinnedMesh(
+                                    *expandedAsset,
+                                    skinnedTransform,
+                                    *jointPalette,
+                                    item.materialFxProfileId,
+                                    item.postGroupMask,
+                                    item.materialFxParamValues,
+                                    item.materialFxValuesInitialized,
+                                    item.receiveShadow,
+                                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                                    item.materialOverride);
+                            }
                             if (submitShadow) {
                                 SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
                             }
@@ -741,16 +744,18 @@ namespace HIKARI::MODELRENDERER {
                 nodeTransform.useExplicitMatrix = true;
                 nodeTransform.explicitMatrix = nodeGlobals[nodeIndex];
 
-                MESHRENDERER::SubmitStaticMesh(
-                    *expandedAsset,
-                    nodeTransform,
-                    item.materialFxProfileId,
-                    item.postGroupMask,
-                    item.materialFxParamValues,
-                    item.materialFxValuesInitialized,
-                    item.receiveShadow,
-                    ToMeshRenderDebugMode(item.geometryDebugMode),
-                    item.materialOverride);
+                if (submitForward) {
+                    MESHRENDERER::SubmitStaticMesh(
+                        *expandedAsset,
+                        nodeTransform,
+                        item.materialFxProfileId,
+                        item.postGroupMask,
+                        item.materialFxParamValues,
+                        item.materialFxValuesInitialized,
+                        item.receiveShadow,
+                        ToMeshRenderDebugMode(item.geometryDebugMode),
+                        item.materialOverride);
+                }
                 ++gDebugStats.frame.structuredNodeSubmittedCount;
                 if (submitShadow) {
                     SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
@@ -802,22 +807,26 @@ namespace HIKARI::MODELRENDERER {
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
                 ResolveRenderModelForDebug(item);
             (void)renderModel;
-            if (SubmitStructuredModelNodes(item, camera, true)) {
+            if (SubmitStructuredModelNodes(item, camera, item.submitForward, item.submitShadow)) {
                 continue;
             }
 
             const Transform3D animatedTransform = BuildAnimatedTransform(item);
-            MESHRENDERER::SubmitStaticMesh(
-                *item.model,
-                animatedTransform,
-                item.materialFxProfileId,
-                item.postGroupMask,
-                item.materialFxParamValues,
-                item.materialFxValuesInitialized,
-                item.receiveShadow,
-                ToMeshRenderDebugMode(item.geometryDebugMode),
-                item.materialOverride);
-            SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
+            if (item.submitForward) {
+                MESHRENDERER::SubmitStaticMesh(
+                    *item.model,
+                    animatedTransform,
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
+            }
+            if (item.submitShadow) {
+                SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
+            }
         }
 
         SHADOW::RenderDirectionalShadowMap();
@@ -844,7 +853,7 @@ namespace HIKARI::MODELRENDERER {
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel =
                 ResolveRenderModelForDebug(item);
             (void)renderModel;
-            if (SubmitStructuredModelNodes(item, camera, false)) {
+            if (SubmitStructuredModelNodes(item, camera, true, false)) {
                 continue;
             }
 

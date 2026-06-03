@@ -177,8 +177,18 @@ namespace HIKARI::MESHRENDERER {
             const MATH::Mat4 world = item.transform.GetWorldMatrix();
             const MATH::Mat4 normalMatrix = BuildNormalMatrix(item.transform);
 
-            for (const MeshAsset& meshAsset : item.asset->meshes) {
-                for (const MeshPrimitive& primitive : meshAsset.primitives) {
+            for (size_t meshIndex = 0; meshIndex < item.asset->meshes.size(); ++meshIndex) {
+                if (item.usePrimitiveFilter && meshIndex != item.meshIndexFilter) {
+                    continue;
+                }
+
+                const MeshAsset& meshAsset = item.asset->meshes[meshIndex];
+                for (size_t primitiveIndex = 0; primitiveIndex < meshAsset.primitives.size(); ++primitiveIndex) {
+                    if (item.usePrimitiveFilter && primitiveIndex != item.primitiveIndexFilter) {
+                        continue;
+                    }
+
+                    const MeshPrimitive& primitive = meshAsset.primitives[primitiveIndex];
                     if (objectIndex >= kMaxObjectCount) {
                         break;
                     }

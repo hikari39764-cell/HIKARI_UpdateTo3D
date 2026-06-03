@@ -138,6 +138,9 @@ namespace HIKARI::MESHRENDERER {
         bool materialFxValuesInitialized = false;
         bool hasResolvedMaterialFxProfile = false;
         MaterialFxProfile resolvedMaterialFxProfile{};
+        bool usePrimitiveFilter = false;
+        uint32_t meshIndexFilter = 0;
+        uint32_t primitiveIndexFilter = 0;
         bool receiveShadow = true;
         MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal;
     };

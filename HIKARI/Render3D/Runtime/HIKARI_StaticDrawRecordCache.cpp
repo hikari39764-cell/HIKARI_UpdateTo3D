@@ -53,22 +53,35 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return globals;
         }
 
+        bool ResolveRecordDrawWorldMatrix(
+            const SceneRenderObject& object,
+            const RenderSubmeshRecord& submesh,
+            const std::vector<MATH::Mat4>& nodeGlobals,
+            MATH::Mat4& outDrawWorldMatrix) {
+
+            outDrawWorldMatrix = object.desc.worldTransform.GetWorldMatrix();
+            if (submesh.nodeIndex == kInvalidRenderModelIndex) {
+                return true;
+            }
+            if (submesh.nodeIndex >= nodeGlobals.size()) {
+                return false;
+            }
+
+            outDrawWorldMatrix = outDrawWorldMatrix * nodeGlobals[submesh.nodeIndex];
+            return true;
+        }
+
         Bounds ResolveRecordWorldBounds(
             const SceneRenderObject& object,
             const RenderSubmeshRecord& submesh,
-            const std::vector<MATH::Mat4>& nodeGlobals) {
+            const MATH::Mat4& drawWorldMatrix,
+            bool hasDrawWorldMatrix) {
 
-            if (!BOUNDS::IsUsable(submesh.localBounds)) {
+            if (!hasDrawWorldMatrix || !BOUNDS::IsUsable(submesh.localBounds)) {
                 return object.desc.worldBounds;
             }
 
-            MATH::Mat4 localToWorld = object.desc.worldTransform.GetWorldMatrix();
-            if (submesh.nodeIndex != kInvalidRenderModelIndex &&
-                submesh.nodeIndex < nodeGlobals.size()) {
-                localToWorld = localToWorld * nodeGlobals[submesh.nodeIndex];
-            }
-
-            const Bounds worldBounds = BOUNDS::TransformBounds(submesh.localBounds, localToWorld);
+            const Bounds worldBounds = BOUNDS::TransformBounds(submesh.localBounds, drawWorldMatrix);
             return BOUNDS::IsUsable(worldBounds) ? worldBounds : object.desc.worldBounds;
         }
 
@@ -154,6 +167,51 @@ namespace HIKARI::RENDER3D::RUNTIME {
         return stats_;
     }
 
+    bool StaticDrawRecordCache::HasValidRecordsForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        return std::any_of(records_.begin(), records_.end(), [objectId](const StaticDrawRecord& record) {
+            return record.objectId == objectId;
+        });
+    }
+
+    bool StaticDrawRecordCache::ValidateStaticDrawRecord(const StaticDrawRecord& record) {
+        bool valid = true;
+
+        if (!record.objectId.IsValid() || record.model == nullptr) {
+            ++stats_.skippedInvalidObjectCount;
+            valid = false;
+        }
+        if (record.renderModel == nullptr || !record.renderModel->valid) {
+            ++stats_.skippedInvalidRenderModelCount;
+            valid = false;
+        }
+        if (!record.hasDrawWorldMatrix) {
+            ++stats_.missingDrawMatrixCount;
+            valid = false;
+        }
+        if (!BOUNDS::IsUsable(record.worldBounds)) {
+            ++stats_.invalidRecordBoundsCount;
+            valid = false;
+        }
+
+        bool primitiveIndexValid = false;
+        if (record.model != nullptr && record.meshIndex < record.model->meshes.size()) {
+            const MeshAsset& mesh = record.model->meshes[record.meshIndex];
+            primitiveIndexValid = record.primitiveIndex < mesh.primitives.size();
+        }
+        if (!primitiveIndexValid) {
+            ++stats_.invalidPrimitiveIndexCount;
+            valid = false;
+        }
+
+        if (valid) {
+            ++stats_.validRecordCount;
+        }
+        return valid;
+    }
+
     void StaticDrawRecordCache::RebuildObjectRecords(const SceneRenderObject& object, StaticDrawObjectEntry& entry) {
         entry.objectId = object.desc.id;
         entry.sourceVersion = object.version;
@@ -183,8 +241,23 @@ namespace HIKARI::RENDER3D::RUNTIME {
             record.meshIndex = submesh.meshIndex;
             record.primitiveIndex = submesh.primitiveIndex;
             record.materialIndex = submesh.materialIndex;
-            record.worldTransform = object.desc.worldTransform;
-            record.worldBounds = ResolveRecordWorldBounds(object, submesh, nodeGlobals);
+            record.objectWorldTransform = object.desc.worldTransform;
+            record.drawTransform = object.desc.worldTransform;
+            record.hasDrawWorldMatrix = ResolveRecordDrawWorldMatrix(
+                object,
+                submesh,
+                nodeGlobals,
+                record.drawWorldMatrix);
+            if (record.hasDrawWorldMatrix && submesh.nodeIndex != kInvalidRenderModelIndex) {
+                // static record は node 変換込みの最終行列を保持する。
+                record.drawTransform.useExplicitMatrix = true;
+                record.drawTransform.explicitMatrix = record.drawWorldMatrix;
+            }
+            record.worldBounds = ResolveRecordWorldBounds(
+                object,
+                submesh,
+                record.drawWorldMatrix,
+                record.hasDrawWorldMatrix);
             record.castShadow = object.desc.castShadow;
             record.receiveShadow = object.desc.receiveShadow;
             record.materialOverride = object.desc.materialOverride;
@@ -223,7 +296,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
             if (!entry.valid) {
                 continue;
             }
-            records_.insert(records_.end(), entry.records.begin(), entry.records.end());
+            for (const StaticDrawRecord& record : entry.records) {
+                if (!ValidateStaticDrawRecord(record)) {
+                    continue;
+                }
+                records_.push_back(record);
+            }
             ++stats_.cachedObjectCount;
         }
         stats_.cachedRecordCount = ClampToUint32(records_.size());

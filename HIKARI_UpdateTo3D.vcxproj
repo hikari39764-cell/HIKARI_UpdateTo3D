@@ -161,6 +161,7 @@
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordCache.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.cpp" />
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
@@ -468,6 +469,7 @@
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordCache.h" />
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h" />

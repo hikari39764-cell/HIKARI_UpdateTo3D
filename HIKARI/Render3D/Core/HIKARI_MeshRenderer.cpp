@@ -370,6 +370,43 @@ namespace HIKARI::MESHRENDERER {
             D3D12_CPU_DESCRIPTOR_HANDLE writableDsv = SERVICES::gCtx.dsv;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, &writableDsv);
         }
+
+        void SubmitStaticDrawItem(
+            const ModelAsset& asset,
+            const Transform3D& transform,
+            const std::string& materialFxProfileId,
+            uint32_t postGroupMask,
+            const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount],
+            bool materialFxValuesInitialized,
+            bool receiveShadow,
+            MeshRenderDebugMode renderDebugMode,
+            const Material* materialOverride,
+            bool usePrimitiveFilter,
+            uint32_t meshIndex,
+            uint32_t primitiveIndex) {
+
+            DrawItem item{};
+            item.asset = &asset;
+            item.materialOverride = materialOverride;
+            item.transform = transform;
+            item.materialFxProfileId = materialFxProfileId;
+            item.postGroupMask = postGroupMask;
+            for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
+                item.materialFxParamValues[i] = materialFxParamValues[i];
+            }
+            item.materialFxValuesInitialized = materialFxValuesInitialized;
+            item.usePrimitiveFilter = usePrimitiveFilter;
+            item.meshIndexFilter = meshIndex;
+            item.primitiveIndexFilter = primitiveIndex;
+            item.receiveShadow = receiveShadow;
+            item.renderDebugMode = renderDebugMode;
+            ResolveDrawVariant(item);
+            ++g.debugStats.staticDrawItemCount;
+            if (renderDebugMode != MeshRenderDebugMode::Normal) {
+                ++g.debugStats.wireDrawItemCount;
+            }
+            g.drawItems.push_back(std::move(item));
+        }
     }
 
     void Reset() {
@@ -380,24 +417,35 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
-        DrawItem item{};
-        item.asset = &asset;
-        item.materialOverride = materialOverride;
-        item.transform = transform;
-        item.materialFxProfileId = materialFxProfileId;
-        item.postGroupMask = postGroupMask;
-        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-            item.materialFxParamValues[i] = materialFxParamValues[i];
-        }
-        item.materialFxValuesInitialized = materialFxValuesInitialized;
-        item.receiveShadow = receiveShadow;
-        item.renderDebugMode = renderDebugMode;
-        ResolveDrawVariant(item);
-        ++g.debugStats.staticDrawItemCount;
-        if (renderDebugMode != MeshRenderDebugMode::Normal) {
-            ++g.debugStats.wireDrawItemCount;
-        }
-        g.drawItems.push_back(std::move(item));
+        SubmitStaticDrawItem(
+            asset,
+            transform,
+            materialFxProfileId,
+            postGroupMask,
+            materialFxParamValues,
+            materialFxValuesInitialized,
+            receiveShadow,
+            renderDebugMode,
+            materialOverride,
+            false,
+            0,
+            0);
+    }
+
+    void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
+        SubmitStaticDrawItem(
+            asset,
+            transform,
+            materialFxProfileId,
+            postGroupMask,
+            materialFxParamValues,
+            materialFxValuesInitialized,
+            receiveShadow,
+            renderDebugMode,
+            materialOverride,
+            true,
+            meshIndex,
+            primitiveIndex);
     }
 
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {

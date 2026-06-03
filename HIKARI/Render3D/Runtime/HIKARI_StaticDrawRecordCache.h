@@ -25,7 +25,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t primitiveIndex = 0;
         uint32_t materialIndex = 0;
 
-        Transform3D worldTransform{};
+        Transform3D objectWorldTransform{};
+        Transform3D drawTransform{};
+
+        MATH::Mat4 drawWorldMatrix{};
+        bool hasDrawWorldMatrix = false;
+
         Bounds worldBounds{};
 
         bool castShadow = true;
@@ -65,6 +70,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t skippedInvalidObjectCount = 0;
             uint32_t skippedInvalidRenderModelCount = 0;
             uint32_t skippedSkinnedSubmeshCount = 0;
+
+            uint32_t invalidRecordBoundsCount = 0;
+            uint32_t missingDrawMatrixCount = 0;
+            uint32_t invalidPrimitiveIndexCount = 0;
+            uint32_t validRecordCount = 0;
         };
 
         void Clear();
@@ -72,8 +82,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         const std::vector<StaticDrawRecord>& GetRecords() const;
         const Stats& GetStats() const;
+        bool HasValidRecordsForObject(SceneRenderObjectId objectId) const;
 
     private:
+        bool ValidateStaticDrawRecord(const StaticDrawRecord& record);
         void RebuildObjectRecords(const SceneRenderObject& object, StaticDrawObjectEntry& entry);
         void RebuildFlatRecordList();
 

@@ -71,6 +71,8 @@ namespace HIKARI {
             RenderSubmissionSystem::GetSceneRenderCacheStats();
         const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& staticDrawRecordCacheStats =
             RenderSubmissionSystem::GetStaticDrawRecordCacheStats();
+        const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& staticDrawRecordSubmitStats =
+            RenderSubmissionSystem::GetStaticDrawRecordSubmitStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
@@ -128,6 +130,21 @@ namespace HIKARI {
                 ImGui::Text("Skipped Invalid Object: %u", staticDrawRecordCacheStats.skippedInvalidObjectCount);
                 ImGui::Text("Skipped Invalid RenderModel: %u", staticDrawRecordCacheStats.skippedInvalidRenderModelCount);
                 ImGui::Text("Skipped Skinned Submesh: %u", staticDrawRecordCacheStats.skippedSkinnedSubmeshCount);
+                ImGui::Text("Valid Records: %u", staticDrawRecordCacheStats.validRecordCount);
+                ImGui::Text("Invalid Record Bounds: %u", staticDrawRecordCacheStats.invalidRecordBoundsCount);
+                ImGui::Text("Missing Draw Matrix: %u", staticDrawRecordCacheStats.missingDrawMatrixCount);
+                ImGui::Text("Invalid Primitive Index: %u", staticDrawRecordCacheStats.invalidPrimitiveIndexCount);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNodeEx("Static Draw Record Submit", ImGuiTreeNodeFlags_DefaultOpen)) {
+                bool enabled = RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled();
+                if (ImGui::Checkbox("Enabled", &enabled)) {
+                    RenderSubmissionSystem::SetUseStaticDrawRecordCache(enabled);
+                }
+                ImGui::Text("Submitted Records: %u", staticDrawRecordSubmitStats.submittedRecordCount);
+                ImGui::Text("Skipped Invalid Records: %u", staticDrawRecordSubmitStats.skippedInvalidRecordCount);
+                ImGui::Text("Skipped Unsupported Records: %u", staticDrawRecordSubmitStats.skippedUnsupportedRecordCount);
+                ImGui::Text("Submitted Shadow Records: %u", staticDrawRecordSubmitStats.submittedShadowRecordCount);
                 ImGui::TreePop();
             }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);

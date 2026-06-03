@@ -16,10 +16,24 @@
 
 namespace HIKARI {
 
+    namespace {
+        RENDER3D::RUNTIME::SceneRenderObjectId ResolveSceneRenderObjectId(const GameObject& object) {
+            RENDER3D::RUNTIME::SceneRenderObjectId id{ object.GetDocumentId().value };
+            if (!id.IsValid()) {
+                id.value = reinterpret_cast<uint64_t>(&object);
+            }
+            return id;
+        }
+    }
+
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
+    RenderSubmissionOptions RenderSubmissionSystem::sOptions_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
     RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
     RENDER3D::RUNTIME::StaticDrawRecordCache RenderSubmissionSystem::sStaticDrawRecordCache_{};
+    RENDER3D::RUNTIME::StaticRecordSubmitOptions RenderSubmissionSystem::sStaticRecordSubmitOptions_{};
+    RENDER3D::RUNTIME::StaticDrawRecordSubmitter RenderSubmissionSystem::sStaticDrawRecordSubmitter_{};
+    RENDER3D::RUNTIME::StaticDrawRecordSubmitStats RenderSubmissionSystem::sStaticDrawRecordSubmitStats_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
 
     void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
@@ -28,6 +42,14 @@ namespace HIKARI {
 
     const RenderSubmissionDebugStats& RenderSubmissionSystem::GetDebugStats() {
         return sDebugStats_;
+    }
+
+    void RenderSubmissionSystem::SetUseStaticDrawRecordCache(bool enabled) {
+        sOptions_.useStaticDrawRecordCache = enabled;
+    }
+
+    bool RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled() {
+        return sOptions_.useStaticDrawRecordCache;
     }
 
     const RENDER3D::RUNTIME::SceneRenderCache& RenderSubmissionSystem::GetSceneRenderCache() {
@@ -44,6 +66,10 @@ namespace HIKARI {
 
     const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& RenderSubmissionSystem::GetStaticDrawRecordCacheStats() {
         return sStaticDrawRecordCache_.GetStats();
+    }
+
+    const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& RenderSubmissionSystem::GetStaticDrawRecordSubmitStats() {
+        return sStaticDrawRecordSubmitStats_;
     }
 
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
@@ -63,6 +89,17 @@ namespace HIKARI {
             frame.frameIndex);
         // 旧描画経路を変えず、静的 draw record だけ先に検証する。
         sStaticDrawRecordCache_.SyncFromSceneRenderCache(sSceneRenderCache_);
+        sStaticRecordSubmitOptions_ = {};
+        if (sOptions_.useStaticDrawRecordCache) {
+            sStaticRecordSubmitOptions_.useCachedStaticForward = true;
+            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit = true;
+            sStaticRecordSubmitOptions_.useCachedStaticShadow = false;
+            sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit = false;
+        }
+        sStaticDrawRecordSubmitter_.Submit(
+            sStaticDrawRecordCache_,
+            sStaticRecordSubmitOptions_,
+            sStaticDrawRecordSubmitStats_);
 
         MESHWIREDEBUG::BeginFrame();
 
@@ -120,6 +157,18 @@ namespace HIKARI {
                 item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
+                if (model.IsRenderStatic()) {
+                    const RENDER3D::RUNTIME::SceneRenderObjectId renderObjectId =
+                        ResolveSceneRenderObjectId(object);
+                    const bool hasCachedRecords =
+                        sStaticDrawRecordCache_.HasValidRecordsForObject(renderObjectId);
+                    if (hasCachedRecords && sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit) {
+                        item.submitForward = false;
+                    }
+                    if (hasCachedRecords && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
+                        item.submitShadow = false;
+                    }
+                }
                 if (debugMode == ModelRenderDebugMode::WireOnly) {
                     item.geometryDebugMode = ModelGeometryDebugMode::WireOnly;
                     item.castShadow = false;
