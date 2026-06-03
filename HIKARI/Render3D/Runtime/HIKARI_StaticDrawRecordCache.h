@@ -84,6 +84,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t invalidRecordBoundsCount = 0;
         uint32_t missingDrawMatrixCount = 0;
         uint32_t invalidPrimitiveIndexCount = 0;
+        bool skippedAnimatedObject = false;
+        bool skippedDebugModeObject = false;
 
         StaticDrawCoverageStatus coverageStatus = StaticDrawCoverageStatus::None;
         std::vector<StaticDrawRecord> records{};
@@ -110,6 +112,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t missingDrawMatrixCount = 0;
             uint32_t invalidPrimitiveIndexCount = 0;
             uint32_t validRecordCount = 0;
+            uint32_t skippedAnimatedObjectCount = 0;
+            uint32_t skippedDebugModeObjectCount = 0;
 
             uint32_t fullCoverageObjectCount = 0;
             uint32_t partialCoverageObjectCount = 0;

@@ -132,6 +132,8 @@ namespace HIKARI {
                 ImGui::Text("Skipped Invalid Object: %u", staticDrawRecordCacheStats.skippedInvalidObjectCount);
                 ImGui::Text("Skipped Invalid RenderModel: %u", staticDrawRecordCacheStats.skippedInvalidRenderModelCount);
                 ImGui::Text("Skipped Skinned Submesh: %u", staticDrawRecordCacheStats.skippedSkinnedSubmeshCount);
+                ImGui::Text("Skipped Animated Objects: %u", staticDrawRecordCacheStats.skippedAnimatedObjectCount);
+                ImGui::Text("Skipped Debug Mode Objects: %u", staticDrawRecordCacheStats.skippedDebugModeObjectCount);
                 ImGui::Text("Valid Records: %u", staticDrawRecordCacheStats.validRecordCount);
                 ImGui::Text("Invalid Record Bounds: %u", staticDrawRecordCacheStats.invalidRecordBoundsCount);
                 ImGui::Text("Missing Draw Matrix: %u", staticDrawRecordCacheStats.missingDrawMatrixCount);
@@ -149,12 +151,14 @@ namespace HIKARI {
                 if (ImGui::Checkbox("Enabled", &enabled)) {
                     RenderSubmissionSystem::SetUseStaticDrawRecordCache(enabled);
                 }
-                ImGui::Text("Submitted Records: %u", staticDrawRecordSubmitStats.submittedRecordCount);
+                ImGui::Text("Candidates: %d", renderSubmissionStats.staticCachedCandidateCount);
+                ImGui::Text("Skip Old Forward Objects: %d", renderSubmissionStats.staticCachedForwardSkipCount);
+                ImGui::Text("Fallback Objects: %d", renderSubmissionStats.staticCachedFallbackCount);
+                ImGui::Text("Submitted Records: %d", renderSubmissionStats.staticCachedSubmittedRecordCount);
+                ImGui::Text("Culled Records: %d", renderSubmissionStats.staticCachedCulledRecordCount);
                 ImGui::Text("Skipped Invalid Records: %u", staticDrawRecordSubmitStats.skippedInvalidRecordCount);
                 ImGui::Text("Skipped Unsupported Records: %u", staticDrawRecordSubmitStats.skippedUnsupportedRecordCount);
                 ImGui::Text("Submitted Shadow Records: %u", staticDrawRecordSubmitStats.submittedShadowRecordCount);
-                ImGui::Text("Static Cached Forward Skip Objects: %d", renderSubmissionStats.staticCachedForwardSkipCount);
-                ImGui::Text("Static Cached Fallback Objects: %d", renderSubmissionStats.staticCachedFallbackCount);
                 ImGui::TreePop();
             }
             ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);

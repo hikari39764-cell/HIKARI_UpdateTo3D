@@ -12,6 +12,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         bool useCachedStaticShadow = false;
         bool skipOldStaticShadowSubmit = false;
+
+        MATH::Mat4 cameraViewProj{};
+        bool hasCameraViewProj = false;
+        bool enableFrustumCulling = true;
     };
 
     struct StaticDrawRecordSubmitStats {
@@ -19,6 +23,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t skippedInvalidRecordCount = 0;
         uint32_t skippedUnsupportedRecordCount = 0;
         uint32_t submittedShadowRecordCount = 0;
+        uint32_t culledRecordCount = 0;
+        uint32_t submittedAfterCullCount = 0;
     };
 
     class StaticDrawRecordSubmitter {

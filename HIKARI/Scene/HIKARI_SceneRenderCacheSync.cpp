@@ -6,6 +6,7 @@
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
+#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
@@ -68,6 +69,13 @@ namespace HIKARI {
             desc.isStatic = model.IsRenderStatic();
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
+            desc.hasRuntimeAnimation = object.GetComponent<AnimatorComponent>() != nullptr;
+            desc.hasSpecialRenderDebug =
+                model.GetRenderDebugMode() != ModelRenderDebugMode::Normal ||
+                model.IsSkeletonDebugVisible();
+            desc.allowStaticCachedForward =
+                !desc.hasRuntimeAnimation &&
+                !desc.hasSpecialRenderDebug;
             desc.materialOverride = model.GetRuntimeMaterialOverride();
             desc.materialFxProfileId = model.GetMaterialFxProfileId();
             desc.postGroupMask = model.GetPostGroupMask();

@@ -44,6 +44,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool isStatic = false;
         bool castShadow = true;
         bool receiveShadow = true;
+        bool hasRuntimeAnimation = false;
+        bool hasSpecialRenderDebug = false;
+        bool allowStaticCachedForward = true;
 
         const Material* materialOverride = nullptr;
 

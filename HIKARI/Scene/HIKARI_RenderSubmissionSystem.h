@@ -20,6 +20,9 @@ namespace HIKARI {
         int fallbackWireCount = 0;
         int staticCachedForwardSkipCount = 0;
         int staticCachedFallbackCount = 0;
+        int staticCachedCandidateCount = 0;
+        int staticCachedCulledRecordCount = 0;
+        int staticCachedSubmittedRecordCount = 0;
         bool frustumCullingEnabled = false;
     };
 

@@ -85,7 +85,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 oldDesc.visible != newDesc.visible ||
                 oldDesc.isStatic != newDesc.isStatic ||
                 oldDesc.castShadow != newDesc.castShadow ||
-                oldDesc.receiveShadow != newDesc.receiveShadow;
+                oldDesc.receiveShadow != newDesc.receiveShadow ||
+                oldDesc.hasRuntimeAnimation != newDesc.hasRuntimeAnimation ||
+                oldDesc.hasSpecialRenderDebug != newDesc.hasSpecialRenderDebug ||
+                oldDesc.allowStaticCachedForward != newDesc.allowStaticCachedForward;
 
             return flags;
         }

@@ -240,10 +240,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
         entry.invalidRecordBoundsCount = 0;
         entry.missingDrawMatrixCount = 0;
         entry.invalidPrimitiveIndexCount = 0;
+        entry.skippedAnimatedObject = false;
+        entry.skippedDebugModeObject = false;
         entry.coverageStatus = StaticDrawCoverageStatus::None;
         entry.records.clear();
 
         const RenderModelAsset& renderModel = *object.desc.renderModel;
+        if (!object.desc.allowStaticCachedForward) {
+            entry.expectedForwardSubmeshCount = ClampToUint32(renderModel.submeshes.size());
+            entry.skippedAnimatedObject = object.desc.hasRuntimeAnimation;
+            entry.skippedDebugModeObject = object.desc.hasSpecialRenderDebug;
+            entry.coverageStatus = entry.expectedForwardSubmeshCount > 0
+                ? StaticDrawCoverageStatus::Invalid
+                : StaticDrawCoverageStatus::None;
+            return;
+        }
+
         const std::vector<MATH::Mat4> nodeGlobals = BuildNodeGlobals(renderModel);
 
         // 静的描画だけを次段階用に平坦化する。
@@ -340,6 +352,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
             stats_.missingDrawMatrixCount += entry.missingDrawMatrixCount;
             stats_.invalidPrimitiveIndexCount += entry.invalidPrimitiveIndexCount;
             stats_.validRecordCount += entry.validForwardRecordCount;
+            if (entry.skippedAnimatedObject) {
+                ++stats_.skippedAnimatedObjectCount;
+            }
+            if (entry.skippedDebugModeObject) {
+                ++stats_.skippedDebugModeObjectCount;
+            }
             stats_.expectedForwardSubmeshCount += entry.expectedForwardSubmeshCount;
             stats_.validForwardRecordCount += entry.validForwardRecordCount;
 

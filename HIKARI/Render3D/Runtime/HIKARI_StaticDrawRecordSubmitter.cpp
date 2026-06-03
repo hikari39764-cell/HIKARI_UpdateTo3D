@@ -21,6 +21,18 @@ namespace HIKARI::RENDER3D::RUNTIME {
             const MeshAsset& mesh = record.model->meshes[record.meshIndex];
             return record.primitiveIndex < mesh.primitives.size();
         }
+
+        bool IsRecordCulledByCamera(
+            const StaticDrawRecord& record,
+            const StaticRecordSubmitOptions& options) {
+
+            if (!options.enableFrustumCulling || !options.hasCameraViewProj) {
+                return false;
+            }
+
+            // worldBounds は既にワールド空間なので、ViewProjection だけで判定する。
+            return !BOUNDS::IntersectsClipFrustum(record.worldBounds, options.cameraViewProj);
+        }
     }
 
     void StaticDrawRecordSubmitter::Submit(
@@ -39,8 +51,13 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 continue;
             }
 
+            if (IsRecordCulledByCamera(record, options)) {
+                ++outStats.culledRecordCount;
+                continue;
+            }
+
             if (options.useCachedStaticForward) {
-                // cached record は primitive 単位で現在の MeshRenderer に渡す。
+                // cached record は primitive 単位で既存の MeshRenderer に渡す。
                 MESHRENDERER::SubmitStaticSubmesh(
                     *record.model,
                     record.drawTransform,
@@ -54,6 +71,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     MESHRENDERER::MeshRenderDebugMode::Normal,
                     record.materialOverride);
                 ++outStats.submittedRecordCount;
+                ++outStats.submittedAfterCullCount;
             }
 
             if (options.useCachedStaticShadow) {
