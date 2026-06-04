@@ -591,6 +591,9 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
@@ -1117,6 +1120,12 @@
       <Filter>Source Files\Project</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp">
+      <Filter>Source Files\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp">
+      <Filter>Source Files\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp">
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
@@ -1800,6 +1809,18 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h">
       <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h">
+      <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h">
+      <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h">
+      <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Export\HIKARI_GameExporter.h">
+      <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />

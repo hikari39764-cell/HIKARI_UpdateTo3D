@@ -46,8 +46,15 @@ namespace HIKARI {
 #if defined(HIKARI_ENABLE_IMGUI)
         sceneManager_.RenderImGui();
 
+        if (SERVICES::ArePortableObjectToolsEnabled()) {
+            if (auto* docScene = dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene())) {
+                portableObjectToolsPanel_.Draw(*docScene);
+            }
+            return;
+        }
+
 #if defined(HIKARI_WITH_EDITOR)
-        if (!SERVICES::IsEditorUIEnabled()) {
+        if (!SERVICES::IsEditorHost() || !SERVICES::IsEditorUIEnabled()) {
             return;
         }
 

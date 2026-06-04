@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <string>
 
+#include "Core/HIKARI_Logger.h"
 #include "Render2D/HIKARI_DxTexture.h"
 #endif
 
@@ -61,7 +63,10 @@ namespace HIKARI::EDITOR {
 
         bool EnsureIconAtlasLoaded() {
             if (gIconAtlasHandle == -2) {
-                // 繧ｨ繝・ぅ繧ｿ蟆ら畑繧｢繧､繧ｳ繝ｳ縺ｯ AssetDatabase 縺ｫ逋ｻ骭ｲ縺励↑縺・・                gIconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(kIconAtlasTextureId, kIconAtlasPath);
+                gIconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(kIconAtlasTextureId, kIconAtlasPath);
+                if (gIconAtlasHandle < 0) {
+                    HIKARI_LOG_WARN(std::string("[EditorIconManager] failed to load atlas: ") + kIconAtlasPath);
+                }
             }
             return gIconAtlasHandle >= 0;
         }
@@ -80,7 +85,10 @@ namespace HIKARI::EDITOR {
 
             int& handle = gNamedIconHandles[index];
             if (handle == -2) {
-                // 蜊倅ｽ・PNG 縺ｯ繝・・繝ｫ繝舌・繧・嚴螻､逕ｨ縺ｫ驕・ｻｶ繝ｭ繝ｼ繝峨☆繧九・                handle = DXTEX::DxTextureManager::LoadTextureSrgb(id, path);
+                handle = DXTEX::DxTextureManager::LoadTextureSrgb(id, path);
+                if (handle < 0) {
+                    HIKARI_LOG_WARN(std::string("[EditorIconManager] failed to load icon: ") + path);
+                }
             }
             if (handle < 0) {
                 return false;
@@ -141,6 +149,22 @@ namespace HIKARI::EDITOR {
             }
             return TryGetAtlasImage(AtlasIndexForKind(kind), outTexture, outUv0, outUv1);
         }
+
+        bool PreloadNamedIcons() {
+            bool ok = true;
+            for (std::size_t i = 0; i < kIconKindCount; ++i) {
+                const EditorIconKind kind = static_cast<EditorIconKind>(i);
+                if (NamedIconPath(kind) == nullptr) {
+                    continue;
+                }
+
+                ImTextureID texture{};
+                ImVec2 uv0{};
+                ImVec2 uv1{};
+                ok = TryGetNamedIconImage(kind, texture, uv0, uv1) && ok;
+            }
+            return ok;
+        }
 #endif
 
         EditorIconKind ToIconKind(AssetType type) {
@@ -159,7 +183,9 @@ namespace HIKARI::EDITOR {
 
     bool EditorIconManager::Initialize() {
 #if defined(HIKARI_WITH_EDITOR)
-        return EnsureIconAtlasLoaded();
+        const bool atlasLoaded = EnsureIconAtlasLoaded();
+        const bool namedIconsLoaded = PreloadNamedIcons();
+        return atlasLoaded && namedIconsLoaded;
 #else
         return false;
 #endif

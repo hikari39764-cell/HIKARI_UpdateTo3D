@@ -49,6 +49,17 @@ namespace HIKARI {
             return EndsWith(ToLowerCopy(path.filename().string()), ".hikari.meta");
         }
 
+        std::filesystem::path SourcePathFromMetaPath(const std::filesystem::path& metaPath) {
+            constexpr std::string_view kMetaSuffix = ".hikari.meta";
+            std::string filename = metaPath.filename().string();
+            if (!EndsWith(ToLowerCopy(filename), kMetaSuffix)) {
+                return {};
+            }
+
+            filename.resize(filename.size() - kMetaSuffix.size());
+            return metaPath.parent_path() / filename;
+        }
+
         bool IsSkyFolderPath(const std::filesystem::path& path) {
             for (const std::filesystem::path& part : path) {
                 const std::string lower = ToLowerCopy(part.string());
@@ -308,6 +319,40 @@ namespace HIKARI {
             return false;
         }
 
+        auto appendRecordForSource = [&](const std::filesystem::path& sourcePath, bool allowCreateMissingMeta) {
+            std::filesystem::path relativeSource = NormalizeProjectPath(sourcePath);
+            const AssetType guessedType = GuessAssetTypeFromPath(relativeSource);
+            std::error_code metaEc{};
+            const bool hasExistingMeta = std::filesystem::exists(GetMetaPathForSource(relativeSource), metaEc);
+            if (guessedType == AssetType::Unknown && !hasExistingMeta) {
+                return true;
+            }
+
+            AssetRecord record = BuildRecordForSource(relativeSource, allowCreateMissingMeta);
+            const std::string pathKey = MakePathKey(record.sourcePath);
+            if (guidByNormalizedPath_.find(pathKey) != guidByNormalizedPath_.end()) {
+                return true;
+            }
+
+            const size_t index = records_.size();
+            AddDirectoryToCache(record.sourcePath.parent_path());
+
+            if (record.guid.IsValid()) {
+                const auto existing = recordsByGuid_.find(record.guid.value);
+                if (existing != recordsByGuid_.end()) {
+                    record.duplicateGuid = true;
+                    record.lastImportMessage = "[AssetDatabase] duplicate GUID: " + record.guid.value;
+                    HIKARI_LOG_ERROR(record.lastImportMessage + " source=" + record.sourcePath.generic_string());
+                } else {
+                    recordsByGuid_[record.guid.value] = index;
+                }
+            }
+
+            guidByNormalizedPath_[pathKey] = index;
+            records_.push_back(std::move(record));
+            return true;
+        };
+
         std::filesystem::recursive_directory_iterator it(
             assetsRoot_,
             std::filesystem::directory_options::skip_permission_denied,
@@ -336,34 +381,15 @@ namespace HIKARI {
 
             const std::filesystem::path& absoluteSource = entry.path();
             if (IsMetaPath(absoluteSource)) {
-                continue;
-            }
-
-            std::filesystem::path relativeSource = NormalizeProjectPath(absoluteSource);
-            const AssetType guessedType = GuessAssetTypeFromPath(relativeSource);
-            const bool hasExistingMeta = std::filesystem::exists(GetMetaPathForSource(relativeSource), ec);
-            if (guessedType == AssetType::Unknown && !hasExistingMeta) {
-                continue;
-            }
-
-            AssetRecord record = BuildRecordForSource(relativeSource, createMissingMeta);
-            const std::string pathKey = MakePathKey(record.sourcePath);
-            const size_t index = records_.size();
-            AddDirectoryToCache(record.sourcePath.parent_path());
-
-            if (record.guid.IsValid()) {
-                const auto existing = recordsByGuid_.find(record.guid.value);
-                if (existing != recordsByGuid_.end()) {
-                    record.duplicateGuid = true;
-                    record.lastImportMessage = "[AssetDatabase] duplicate GUID: " + record.guid.value;
-                    HIKARI_LOG_ERROR(record.lastImportMessage + " source=" + record.sourcePath.generic_string());
-                } else {
-                    recordsByGuid_[record.guid.value] = index;
+                const std::filesystem::path metaSourcePath = SourcePathFromMetaPath(absoluteSource);
+                std::error_code sourceEc{};
+                if (!metaSourcePath.empty() && !std::filesystem::exists(metaSourcePath, sourceEc) && !sourceEc) {
+                    appendRecordForSource(metaSourcePath, false);
                 }
+                continue;
             }
 
-            guidByNormalizedPath_[pathKey] = index;
-            records_.push_back(std::move(record));
+            appendRecordForSource(absoluteSource, createMissingMeta);
         }
 
         if (ec) {

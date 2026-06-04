@@ -242,7 +242,10 @@ namespace HIKARI {
                 auto descriptor = std::make_unique<MaterialAssetDescriptor>();
                 descriptor->id.value = record->guid.value;
                 descriptor->type = AssetType::Material;
-                descriptor->sourcePath = record->sourcePath.generic_string();
+                descriptor->sourcePath = FindArtifactPathByFormat(*record, "Material", "HMAT");
+                if (descriptor->sourcePath.empty()) {
+                    descriptor->sourcePath = record->sourcePath.generic_string();
+                }
                 descriptor->version = record->meta.importerVersion;
 
                 if (!LoadMaterialDataForRegistry(assetDatabase, *record, descriptor->data)) {

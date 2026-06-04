@@ -1,11 +1,16 @@
 #include "HIKARI/HIKARI_Services.h"
 #include "HIKARI/App/HIKARI_EngineApp.h"
 #include "HIKARI/Core/HIKARI_TimeService.h"
+#include "HIKARI/Runtime/HIKARI_RuntimeLaunchConfig.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	HIKARI::SERVICES::BootstrapConfig servicesCfg{};
+	const HIKARI::RuntimeLaunchConfig runtimeCfg = HIKARI::LoadRuntimeLaunchConfig();
+	HIKARI::ApplyRuntimeWorkingDirectory(runtimeCfg);
+	HIKARI::ApplyRuntimeLaunchConfig(runtimeCfg, servicesCfg);
+
 	if (!HIKARI::SERVICES::Initialize(kWindowTitle, servicesCfg)) {
 		return -1;
 	}
@@ -38,7 +43,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 
-		if (HIKARI::HINPUT::IsPressed("ToggleEditorUI")) {
+		if (HIKARI::SERVICES::IsEditorHost() && HIKARI::HINPUT::IsPressed("ToggleEditorUI")) {
 			HIKARI::SERVICES::SetEditorUIEnabled(!HIKARI::SERVICES::IsEditorUIEnabled());
 		}
 

@@ -81,6 +81,12 @@ namespace HIKARI {
             "Sky",
             assetDatabase,
             summary);
+        AddReference(
+            document.environment.reflectionProbe.sourceCubemapAsset,
+            "Scene Environment",
+            "Reflection Probe Cubemap",
+            assetDatabase,
+            summary);
 
         for (const SceneObjectData& object : document.objects) {
             const std::string owner = object.name.empty()

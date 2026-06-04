@@ -320,6 +320,7 @@
     <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
+    <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
@@ -368,6 +369,8 @@
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp" />
+    <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp" />
@@ -685,7 +688,10 @@
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.h" />
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h" />
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h" />
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h" />
+    <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
     <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h" />
@@ -696,6 +702,7 @@
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.h" />
+    <ClInclude Include="HIKARI\Editor\Export\HIKARI_GameExporter.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugMenuBar.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h" />

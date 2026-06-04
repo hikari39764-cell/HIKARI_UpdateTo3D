@@ -529,7 +529,7 @@ namespace HIKARI {
         VFX::Render(camera_);
     }
     void DocumentSceneBase::RenderImGui() {
-        if (!SERVICES::IsEditorUIEnabled()) {
+        if (!SERVICES::IsEditorUIEnabled() && !SERVICES::ArePortableObjectToolsEnabled()) {
             world_.RenderImGui();
         }
         componentGizmoRenderer_.DrawScreenSpaceGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
@@ -810,6 +810,10 @@ namespace HIKARI {
         if (!sceneGuid.IsValid()) {
             return false;
         }
+        if (!SERVICES::IsRuntimeSceneGuidAllowed(sceneGuid.value)) {
+            HIKARI_LOG_WARN("[SceneAsset] blocked scene outside runtime export set: " + sceneGuid.value);
+            return false;
+        }
         if (assetDatabase_.GetProjectRoot().empty()) {
             assetDatabase_.Initialize(std::filesystem::current_path());
         }
@@ -848,11 +852,18 @@ namespace HIKARI {
         // ProjectSettings 縺ｮ GUID 繧貞━蜈医＠縲∵悴險ｭ螳壹↑繧画怙蛻昴・ Scene Asset 繧呈治逕ｨ縺吶ｋ縲・
         assetDatabase_.ScanAssets(true);
 
+        const std::string& runtimeStartupSceneGuid = SERVICES::GetRuntimeStartupSceneGuid();
+        if (!runtimeStartupSceneGuid.empty() && OpenSceneAssetNow(AssetGuid{ runtimeStartupSceneGuid })) {
+            return true;
+        }
+
         ProjectSettingsService settings{};
         settings.Load(assetDatabase_.GetProjectRoot());
 
         const AssetGuid startupGuid = settings.GetSettings().startupSceneGuid;
-        if (startupGuid.IsValid() && OpenSceneAssetNow(startupGuid)) {
+        if (startupGuid.IsValid() &&
+            SERVICES::IsRuntimeSceneGuidAllowed(startupGuid.value) &&
+            OpenSceneAssetNow(startupGuid)) {
             return true;
         }
 
@@ -868,8 +879,13 @@ namespace HIKARI {
             if (!record || !record->guid.IsValid()) {
                 continue;
             }
-            settings.SetStartupSceneGuid(record->guid);
-            settings.Save();
+            if (!SERVICES::IsRuntimeSceneGuidAllowed(record->guid.value)) {
+                continue;
+            }
+            if (SERVICES::IsEditorHost()) {
+                settings.SetStartupSceneGuid(record->guid);
+                settings.Save();
+            }
             return OpenSceneAssetNow(record->guid);
         }
 

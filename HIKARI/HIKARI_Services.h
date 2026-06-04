@@ -11,6 +11,7 @@
 #include "Core/HIKARI_TimeService.h"
 #include "HIKARI_Particle.h"
 #include "HIKARI_ParticleLab.h"
+#include "Runtime/HIKARI_RuntimeHost.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
@@ -21,6 +22,7 @@
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
+#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Editor/HIKARI_EditorStyle.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #endif
@@ -30,12 +32,16 @@
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
 #endif
 #include <objbase.h>
+#include <algorithm>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace HIKARI {
     namespace SERVICES {
 
         struct BootstrapConfig {
+            RuntimeHostMode hostMode = DefaultRuntimeHostMode();
             const char* inputConfigPath = "input.json";
             bool enableDebugCamera = false;
             bool enableDebugLayer = true;
@@ -52,8 +58,11 @@ namespace HIKARI {
 #else
                 false;
 #endif
+            bool enablePortableObjectTools = false;
             int windowWidth = kScreenW;
             int windowHeight = kScreenH;
+            std::string startupSceneGuid{};
+            std::vector<std::string> exportedSceneGuids{};
         };
 
         inline PLATFORM::Win32Window gWindow{};
@@ -63,14 +72,37 @@ namespace HIKARI {
         inline bool gImGuiInitialized = false;
         inline bool gImGuiBackendInitialized = false;
         inline bool gImGuiFrameBegun = false;
+        inline RuntimeHostMode gRuntimeHostMode = DefaultRuntimeHostMode();
         inline bool gEnableImGui = false;
         inline bool gEnableEditorUI = false;
+        inline bool gEnablePortableObjectTools = false;
+        inline std::string gRuntimeStartupSceneGuid{};
+        inline std::vector<std::string> gRuntimeExportedSceneGuids{};
         inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
         inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
 
+        inline RuntimeHostMode GetRuntimeHostMode() { return gRuntimeHostMode; }
+        inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
+        inline bool IsExportedGameHost() { return IsExportedGameHostMode(gRuntimeHostMode); }
         inline bool IsImGuiEnabled() { return gEnableImGui; }
         inline bool IsEditorUIEnabled() { return gEnableImGui && gEnableEditorUI; }
-        inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = enabled; }
+        inline bool ArePortableObjectToolsEnabled() { return gEnableImGui && gEnablePortableObjectTools; }
+        inline const std::string& GetRuntimeStartupSceneGuid() { return gRuntimeStartupSceneGuid; }
+        inline const std::vector<std::string>& GetRuntimeExportedSceneGuids() { return gRuntimeExportedSceneGuids; }
+        inline bool HasRuntimeExportedSceneFilter() { return !gRuntimeExportedSceneGuids.empty(); }
+        inline bool IsRuntimeSceneGuidAllowed(const std::string& sceneGuid) {
+            if (gRuntimeExportedSceneGuids.empty()) {
+                return true;
+            }
+            return std::find(
+                gRuntimeExportedSceneGuids.begin(),
+                gRuntimeExportedSceneGuids.end(),
+                sceneGuid) != gRuntimeExportedSceneGuids.end();
+        }
+        inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = IsEditorHost() && enabled; }
+        inline void SetPortableObjectToolsEnabled(bool enabled) {
+            gEnablePortableObjectTools = AllowsPortableObjectTools(gRuntimeHostMode) && enabled;
+        }
 
         inline void ConfigureEditorImGuiContext() {
 #if defined(HIKARI_ENABLE_IMGUI)
@@ -136,8 +168,23 @@ namespace HIKARI {
             CORE::InitializeLogger();
             HIKARI_LOG_INFO("HIKARI boot started.");
 
+            gRuntimeHostMode = cfg.hostMode;
             gEnableImGui = cfg.enableImGui;
-            gEnableEditorUI = cfg.enableEditorUI;
+            gEnableEditorUI = IsEditorHostMode(gRuntimeHostMode) && cfg.enableEditorUI;
+            gEnablePortableObjectTools =
+                AllowsPortableObjectTools(gRuntimeHostMode) && cfg.enablePortableObjectTools;
+            gRuntimeStartupSceneGuid = cfg.startupSceneGuid;
+            gRuntimeExportedSceneGuids = cfg.exportedSceneGuids;
+            {
+                std::ostringstream oss;
+                oss << "Runtime host mode=" << RuntimeHostModeName(gRuntimeHostMode)
+                    << " imgui=" << (gEnableImGui ? "true" : "false")
+                    << " editorUI=" << (gEnableEditorUI ? "true" : "false")
+                    << " portableObjectTools=" << (gEnablePortableObjectTools ? "true" : "false")
+                    << " startupSceneGuid=" << (gRuntimeStartupSceneGuid.empty() ? "<project>" : gRuntimeStartupSceneGuid)
+                    << " exportedSceneCount=" << gRuntimeExportedSceneGuids.size();
+                HIKARI_LOG_INFO(oss.str());
+            }
 
             HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
             gComInitialized = SUCCEEDED(coHr);
@@ -191,6 +238,16 @@ namespace HIKARI {
 
             DXTEX::DxTextureManager::Init(gCtx);
             HIKARI_LOG_INFO("TextureManager initialized.");
+#if defined(HIKARI_WITH_EDITOR)
+            if (IsEditorHost() && gEnableImGui) {
+                if (EDITOR::EditorIconManager::Initialize()) {
+                    HIKARI_LOG_INFO("Editor icons initialized.");
+                }
+                else {
+                    HIKARI_LOG_WARN("Editor icon initialization failed.");
+                }
+            }
+#endif
             HIKARI::DefaultPbrResources::Initialize();
             HIKARI_LOG_INFO("Default PBR resources initialized.");
             DX::DxRenderer::Init(gCtx);
@@ -240,6 +297,7 @@ namespace HIKARI {
 #else
                 gEnableImGui = false;
                 gEnableEditorUI = false;
+                gEnablePortableObjectTools = false;
 #endif
             }
             if (gEnableImGui) {
@@ -271,6 +329,9 @@ namespace HIKARI {
             HIKARI_LOG_INFO("DxRenderer finalized.");
             HIKARI::DefaultPbrResources::Shutdown();
             HIKARI_LOG_INFO("Default PBR resources finalized.");
+#if defined(HIKARI_WITH_EDITOR)
+            EDITOR::EditorIconManager::Finalize();
+#endif
             DXTEX::DxTextureManager::Finalize();
             HIKARI_LOG_INFO("TextureManager finalized.");
             HIKARI::VFX::Shutdown();
@@ -287,6 +348,8 @@ namespace HIKARI {
                 gComInitialized = false;
                 HIKARI_LOG_INFO("COM uninitialized.");
             }
+            gRuntimeStartupSceneGuid.clear();
+            gRuntimeExportedSceneGuids.clear();
             HIKARI_LOG_INFO("HIKARI shutdown completed.");
             CORE::ShutdownLogger();
         }
@@ -310,7 +373,7 @@ namespace HIKARI {
             HIKARI::RENDERER::BeginFrame();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
 #if defined(HIKARI_WITH_EDITOR)
-            if (!IsEditorUIEnabled()) {
+            if (!IsEditorHost() || !IsEditorUIEnabled()) {
                 HIKARI::EDITOR::ClearGameViewportInputRect();
                 HIKARI::POST::PostSystem::SetSceneCaptureSize(0, 0);
             }
