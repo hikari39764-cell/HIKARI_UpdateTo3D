@@ -43,9 +43,10 @@ namespace HIKARI {
     }
 
     void EngineApp::RenderImGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
         sceneManager_.RenderImGui();
 
+#if defined(HIKARI_WITH_EDITOR)
         if (!SERVICES::IsEditorUIEnabled()) {
             return;
         }
@@ -53,6 +54,7 @@ namespace HIKARI {
         if (auto* docScene = dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene())) {
             documentSceneEditorController_.Draw(*docScene);
         }
+#endif
 #endif
     }
 

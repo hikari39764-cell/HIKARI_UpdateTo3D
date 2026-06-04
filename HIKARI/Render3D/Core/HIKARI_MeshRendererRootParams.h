@@ -10,49 +10,41 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT Object = 1;
     // Light -> b2
     constexpr UINT Light = 2;
-    // BaseColor -> t0
-    constexpr UINT BaseColor = 3;
-    // Normal -> t1
-    constexpr UINT Normal = 4;
     // ShadowMap -> t2
-    constexpr UINT ShadowMap = 5;
+    constexpr UINT ShadowMap = 3;
     // ShadowCB -> b4
-    constexpr UINT ShadowCB = 6;
-    // Emissive -> t3
-    constexpr UINT Emissive = 7;
-    // MetallicRoughness -> t4
-    constexpr UINT MetallicRoughness = 8;
-    // Occlusion -> t5
-    constexpr UINT Occlusion = 9;
+    constexpr UINT ShadowCB = 4;
     // SkyEnvironment -> b5
-    constexpr UINT SkyEnvironment = 10;
+    constexpr UINT SkyEnvironment = 5;
     // SkyCube -> t6
-    constexpr UINT SkyCube = 11;
+    constexpr UINT SkyCube = 6;
     // SceneDepth -> t7
-    constexpr UINT SceneDepth = 12;
+    constexpr UINT SceneDepth = 7;
     // SceneColor -> t8
-    constexpr UINT SceneColor = 13;
+    constexpr UINT SceneColor = 8;
     // IBL Irradiance Cubemap -> t9
-    constexpr UINT IblIrradiance = 14;
+    constexpr UINT IblIrradiance = 9;
     // IBL Prefiltered Cubemap -> t10
-    constexpr UINT IblPrefiltered = 15;
+    constexpr UINT IblPrefiltered = 10;
     // IBL BRDF LUT -> t11
-    constexpr UINT IblBrdfLut = 16;
+    constexpr UINT IblBrdfLut = 11;
     // Reflection Probe Prefiltered Cubemap -> t12
-    constexpr UINT ReflectionProbePrefiltered = 17;
+    constexpr UINT ReflectionProbePrefiltered = 12;
     // SSAO texture -> t13
-    constexpr UINT Ssao = 18;
+    constexpr UINT Ssao = 13;
     // LightProbe SH buffer -> t14
-    constexpr UINT LightProbeSh = 19;
+    constexpr UINT LightProbeSh = 14;
     // Mesh object data buffer -> t15
-    constexpr UINT ObjectData = 20;
+    constexpr UINT ObjectData = 15;
     // Mesh object data index -> b6
-    constexpr UINT ObjectIndex = 21;
+    constexpr UINT ObjectIndex = 16;
     // Mesh material data buffer -> t16
-    constexpr UINT MaterialData = 22;
+    constexpr UINT MaterialData = 17;
     // Mesh material data index -> b7
-    constexpr UINT MaterialIndex = 23;
+    constexpr UINT MaterialIndex = 18;
+    // 材質テクスチャプール -> t20[]
+    constexpr UINT TexturePool = 19;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 24;
+    constexpr UINT JointPalette = 20;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

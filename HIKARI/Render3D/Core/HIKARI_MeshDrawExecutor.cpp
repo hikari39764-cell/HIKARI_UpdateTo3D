@@ -37,9 +37,12 @@ namespace HIKARI::MESHRENDERER {
             constexpr UINT kObjectStride = AlignConstantBufferSize(sizeof(ObjectCB));
             uint8_t* dst = reinterpret_cast<uint8_t*>(ctx.objectMapped) + static_cast<size_t>(kObjectStride) * objectIndex;
             std::memcpy(dst, &obj, sizeof(ObjectCB));
+            if (ctx.services.stats != nullptr) {
+                ++ctx.services.stats->legacyObjectCbWriteCount;
+            }
         }
 
-        ObjectGpuData BuildObjectGpuData(const ObjectCB& obj) {
+        ObjectGpuData BuildObjectGpuData(const ObjectCB& obj, uint32_t materialDataIndex) {
             ObjectGpuData data{};
             data.world = obj.world;
             data.normalMatrix = obj.normalMatrix;
@@ -66,20 +69,24 @@ namespace HIKARI::MESHRENDERER {
             data.hasMetallicRoughnessTexture = obj.hasMetallicRoughnessTexture;
             data.hasOcclusionTexture = obj.hasOcclusionTexture;
             data.occlusionStrength = obj.occlusionStrength;
+            data.materialDataIndex = materialDataIndex;
             data.pbrPadding[0] = obj.pbrPadding[0];
             data.pbrPadding[1] = obj.pbrPadding[1];
-            data.pbrPadding[2] = obj.pbrPadding[2];
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 data.fxUser[i] = obj.fxUser[i];
             }
             return data;
         }
 
-        void CopyObjectData(const MeshDrawContext& ctx, const ObjectCB& obj, size_t objectIndex) {
+        void CopyObjectData(
+            const MeshDrawContext& ctx,
+            const ObjectCB& obj,
+            size_t objectIndex,
+            uint32_t materialDataIndex = kInvalidMaterialDataIndex) {
             if (ctx.objectDataMapped == nullptr || objectIndex >= kMaxObjectCount) {
                 return;
             }
-            ctx.objectDataMapped[objectIndex] = BuildObjectGpuData(obj);
+            ctx.objectDataMapped[objectIndex] = BuildObjectGpuData(obj, materialDataIndex);
             if (ctx.services.stats != nullptr) {
                 ++ctx.services.stats->objectDataWriteCount;
             }
@@ -437,6 +444,11 @@ namespace HIKARI::MESHRENDERER {
             bool needsLegacyObjectCB = true;
         };
 
+        struct SurfacePacketPreparedObject {
+            ObjectCB object{};
+            uint32_t materialDataIndex = kInvalidMaterialDataIndex;
+        };
+
         Transform3D BuildPacketDrawTransform(const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
             Transform3D transform = packet.objectWorldTransform;
             transform.useExplicitMatrix = true;
@@ -495,18 +507,27 @@ namespace HIKARI::MESHRENDERER {
             };
         }
 
-        void BindRunStaticResources(
-            const MeshDrawContext& ctx,
-            const SurfacePacketRunState& state) {
+        void BindSurfacePacketFrameResourcesInternal(const MeshDrawContext& ctx) {
 
-            BindMaterialTextureSet(ctx.binding, ToMaterialTextureHandles(state.textures));
-            BindSkyCube(ctx.binding);
-            BindSceneDepth(ctx.binding);
-            BindSceneColor(ctx.binding);
-            BindIblResources(ctx.binding);
-            BindReflectionProbeResources(ctx.binding);
-            BindSsao(ctx.binding);
-            BindLightProbeResources(ctx.binding);
+            BindFrameCommonResources(
+                ctx.binding,
+                ctx.staticRootSig,
+                ctx.cameraAddress,
+                ctx.lightAddress,
+                ctx.shadowAddress,
+                ctx.skyEnvironmentAddress);
+            BindObjectDataBuffer(ctx.binding, ctx.objectDataSrv);
+            BindMaterialDataBuffer(ctx.binding, ctx.materialDataSrv);
+            BindShadowMap(ctx.binding);
+            if (ctx.passKind == MeshDrawPassKind::Forward) {
+                BindSkyCube(ctx.binding);
+                BindSceneDepth(ctx.binding);
+                BindSceneColor(ctx.binding);
+                BindIblResources(ctx.binding);
+                BindReflectionProbeResources(ctx.binding);
+                BindSsao(ctx.binding);
+                BindLightProbeResources(ctx.binding);
+            }
         }
 
         bool PrepareSurfacePacketRun(
@@ -533,10 +554,7 @@ namespace HIKARI::MESHRENDERER {
             outState.model = firstPacket.model;
             outState.runtimeMaterial = firstPacket.materialOverride;
             outState.materialAsset = GetPrimitiveMaterial(*firstPacket.model, primitive.materialIndex);
-            outState.textures = ResolvePacketTextures(ctx, firstPacket, outState.materialAsset);
             outState.psoKey = firstPacket.key.psoKey;
-            outState.materialKey = firstPacket.key.materialKey;
-            outState.textureSetKey = firstPacket.key.textureSetKey;
 
             DrawItem variantItem = BuildRunVariantAdapter(firstPacket);
             outState.defaultFxValues = variantItem.fxValues;
@@ -547,42 +565,7 @@ namespace HIKARI::MESHRENDERER {
             outState.needsLegacyObjectCB =
                 !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, outState.variant);
 
-            ObjectCB materialObj{};
-            FillMaterialValues(
-                materialObj,
-                outState.materialAsset,
-                outState.textures.normal,
-                outState.textures.emissive,
-                outState.textures.metallicRoughness,
-                outState.textures.occlusion,
-                ctx.materialFill);
-            if (outState.runtimeMaterial != nullptr) {
-                FillRuntimeMaterialValues(materialObj, *outState.runtimeMaterial);
-            }
-            materialObj.hasBaseColorTexture =
-                (outState.textures.baseColor >= 0 && outState.textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
-            outState.materialData = BuildMaterialGpuData(
-                materialObj,
-                ToMaterialTextureHandles(outState.textures));
-            RecordMaterialTexturePoolStats(ctx, outState.materialData);
-            outState.materialDataIndex = UploadMaterialData(
-                ctx,
-                BuildMaterialDataKey(firstPacket.key.materialKey, outState.materialData),
-                outState.materialData);
-
-            BindFrameCommonResources(
-                ctx.binding,
-                ctx.staticRootSig,
-                ctx.cameraAddress,
-                ctx.lightAddress,
-                ctx.shadowAddress,
-                ctx.skyEnvironmentAddress);
-            BindObjectDataBuffer(ctx.binding, ctx.objectDataSrv);
-            BindMaterialDataBuffer(ctx.binding, ctx.materialDataSrv);
-            BindMaterialDataIndex(
-                ctx.binding,
-                outState.materialDataIndex == kInvalidMaterialDataIndex ? 0u : outState.materialDataIndex);
-            BindRunStaticResources(ctx, outState);
+            BindMaterialDataIndex(ctx.binding, 0u);
 
             ID3D12PipelineState* pso = nullptr;
             if (ctx.passKind == MeshDrawPassKind::GeometryBuffer) {
@@ -607,11 +590,30 @@ namespace HIKARI::MESHRENDERER {
             const SurfacePacketRunState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
 
-            return
-                packet.model == state.model &&
-                packet.key.psoKey == state.psoKey &&
-                packet.key.materialKey == state.materialKey &&
-                packet.key.textureSetKey == state.textureSetKey;
+            return packet.key.psoKey == state.psoKey;
+        }
+
+        Mesh* ResolveSurfacePacketStaticMesh(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+
+            if (packet.model == nullptr ||
+                packet.meshIndex >= packet.model->meshes.size()) {
+                return nullptr;
+            }
+
+            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
+            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+                return nullptr;
+            }
+
+            MeshPrimitiveCache* primitiveCache = ctx.services.primitiveCache;
+            if (primitiveCache == nullptr) {
+                return nullptr;
+            }
+
+            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
+            return primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats);
         }
 
         void FillPacketFxValues(
@@ -634,37 +636,34 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool DrawPreparedSurfacePacket(
+        void FillPacketFxValues(
+            ObjectCB& obj,
+            const DrawItem& variantItem,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+
+            obj.fxFlags = variantItem.fxFlags;
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                obj.fxUser[i] = variantItem.fxValues[i];
+            }
+
+            if (!packet.materialFxValuesInitialized) {
+                return;
+            }
+
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                const DirectX::XMFLOAT4& value = packet.materialFxParamValues[i];
+                obj.fxUser[i] = { value.x, value.y, value.z, value.w };
+            }
+        }
+
+        void FillSurfacePacketObject(
             const MeshDrawContext& ctx,
             const SurfacePacketRunState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
-            const Mesh*& activeMesh,
-            size_t& objectIndex) {
-
-            if (objectIndex >= kMaxObjectCount ||
-                !packet.hasDrawWorldMatrix ||
-                packet.model == nullptr ||
-                packet.meshIndex >= packet.model->meshes.size() ||
-                !IsRunCompatiblePacket(state, packet)) {
-                return false;
-            }
-
-            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
-                return false;
-            }
-
-            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
-            MeshPrimitiveCache* primitiveCache = ctx.services.primitiveCache;
-            Mesh* mesh = primitiveCache != nullptr
-                ? primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats)
-                : nullptr;
-            if (mesh == nullptr || !mesh->IsValid()) {
-                return false;
-            }
+            ObjectCB& obj) {
 
             const Transform3D drawTransform = BuildPacketDrawTransform(packet);
-            ObjectCB obj{};
+            obj = {};
             obj.world = packet.drawWorldMatrix;
             obj.normalMatrix = BuildNormalMatrix(drawTransform);
             FillMaterialValues(
@@ -682,17 +681,91 @@ namespace HIKARI::MESHRENDERER {
                 (state.textures.baseColor >= 0 && state.textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
             obj.receiveShadow = packet.receiveShadow ? 1u : 0u;
             FillPacketFxValues(obj, state, packet);
-            CopyObjectCB(ctx, obj, objectIndex);
-            CopyObjectData(ctx, obj, objectIndex);
+        }
 
-            BindObjectDataIndex(ctx.binding, static_cast<uint32_t>(objectIndex));
-            BindMaterialDataIndex(
-                ctx.binding,
-                state.materialDataIndex == kInvalidMaterialDataIndex ? 0u : state.materialDataIndex);
-            if (state.needsLegacyObjectCB) {
-                BindObjectConstantBuffer(ctx.binding, ObjectAddress(ctx, objectIndex));
+        bool PrepareSurfacePacketObjectData(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
+            SurfacePacketPreparedObject& outPrepared) {
+
+            if (packet.model == nullptr ||
+                packet.meshIndex >= packet.model->meshes.size()) {
+                return false;
             }
 
+            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
+            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+                return false;
+            }
+
+            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
+            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
+            const ResolvedMaterialTextures textures = ResolvePacketTextures(ctx, packet, materialAsset);
+            const DrawItem variantItem = BuildRunVariantAdapter(packet);
+
+            ObjectCB obj{};
+            const Transform3D drawTransform = BuildPacketDrawTransform(packet);
+            obj.world = packet.drawWorldMatrix;
+            obj.normalMatrix = BuildNormalMatrix(drawTransform);
+            FillMaterialValues(
+                obj,
+                materialAsset,
+                textures.normal,
+                textures.emissive,
+                textures.metallicRoughness,
+                textures.occlusion,
+                ctx.materialFill);
+            if (packet.materialOverride != nullptr) {
+                FillRuntimeMaterialValues(obj, *packet.materialOverride);
+            }
+            obj.hasBaseColorTexture =
+                (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
+            obj.receiveShadow = packet.receiveShadow ? 1u : 0u;
+            FillPacketFxValues(obj, variantItem, packet);
+
+            const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
+            const MaterialGpuData materialData = BuildMaterialGpuData(obj, textureHandles);
+            RecordMaterialTexturePoolStats(ctx, materialData);
+            const uint32_t materialDataIndex = UploadMaterialData(
+                ctx,
+                BuildMaterialDataKey(packet.key.materialKey, materialData),
+                materialData);
+
+            outPrepared.object = obj;
+            outPrepared.materialDataIndex =
+                materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
+            return true;
+        }
+
+        bool IsInstanceBatchCompatiblePacket(
+            const MeshDrawContext& ctx,
+            const SurfacePacketRunState& state,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+
+            if (state.needsLegacyObjectCB ||
+                !IsRunCompatiblePacket(state, packet) ||
+                packet.key.geometryKey != firstPacket.key.geometryKey ||
+                packet.meshIndex != firstPacket.meshIndex ||
+                packet.primitiveIndex != firstPacket.primitiveIndex ||
+                packet.receiveShadow != firstPacket.receiveShadow ||
+                packet.materialFxValuesInitialized ||
+                firstPacket.materialFxValuesInitialized) {
+                return false;
+            }
+
+            // 初回は StaticVS + ObjectData の安全な範囲だけを instance 化する。
+            return StaticDrawCanSkipLegacyObjectCB(ctx.passKind, state.variant);
+        }
+
+        bool BindSurfacePacketMesh(
+            const MeshDrawContext& ctx,
+            const Mesh* mesh,
+            const Mesh*& activeMesh) {
+
+            if (mesh == nullptr || !mesh->IsValid()) {
+                return false;
+            }
             if (activeMesh != mesh) {
                 D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
                 D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
@@ -700,9 +773,135 @@ namespace HIKARI::MESHRENDERER {
                 ctx.cmd->IASetIndexBuffer(&ib);
                 activeMesh = mesh;
             }
+            return true;
+        }
+
+        bool DrawPreparedSurfacePacket(
+            const MeshDrawContext& ctx,
+            const SurfacePacketRunState& state,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
+            const Mesh*& activeMesh,
+            size_t& objectIndex) {
+
+            if (objectIndex >= kMaxObjectCount ||
+                !packet.hasDrawWorldMatrix ||
+                packet.model == nullptr ||
+                packet.meshIndex >= packet.model->meshes.size() ||
+                !IsRunCompatiblePacket(state, packet)) {
+                return false;
+            }
+
+            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, packet);
+            if (mesh == nullptr || !mesh->IsValid()) {
+                return false;
+            }
+
+            SurfacePacketPreparedObject prepared{};
+            if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+                return false;
+            }
+            if (state.needsLegacyObjectCB) {
+                CopyObjectCB(ctx, prepared.object, objectIndex);
+            }
+            CopyObjectData(ctx, prepared.object, objectIndex, prepared.materialDataIndex);
+
+            BindObjectDataIndex(ctx.binding, static_cast<uint32_t>(objectIndex));
+            BindMaterialDataIndex(ctx.binding, prepared.materialDataIndex);
+            if (state.needsLegacyObjectCB) {
+                BindObjectConstantBuffer(ctx.binding, ObjectAddress(ctx, objectIndex));
+            }
+
+            if (!BindSurfacePacketMesh(ctx, mesh, activeMesh)) {
+                return false;
+            }
 
             ctx.cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
             ++objectIndex;
+            return true;
+        }
+
+        bool DrawSurfacePacketInstanceBatch(
+            const MeshDrawContext& ctx,
+            const SurfacePacketRunState& state,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+            size_t packetCount,
+            const uint32_t* executablePacketIndices,
+            size_t executablePacketIndexCount,
+            size_t runEnd,
+            size_t& executableIndex,
+            const Mesh*& activeMesh,
+            size_t& objectIndex,
+            SurfacePacketRunDrawResult& result) {
+
+            const uint32_t firstPacketIndex = executablePacketIndices[executableIndex];
+            if (firstPacketIndex >= packetCount) {
+                ++result.skippedPacketCount;
+                return false;
+            }
+
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
+            if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, firstPacket)) {
+                return false;
+            }
+
+            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, firstPacket);
+            if (mesh == nullptr || !mesh->IsValid()) {
+                return false;
+            }
+
+            const size_t batchObjectStart = objectIndex;
+            uint32_t batchMaterialDataIndex = 0u;
+            size_t batchCount = 0;
+            size_t cursor = executableIndex;
+            for (; cursor < runEnd && cursor < executablePacketIndexCount; ++cursor) {
+                const uint32_t packetIndex = executablePacketIndices[cursor];
+                if (packetIndex >= packetCount) {
+                    break;
+                }
+
+                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
+                if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, packet) ||
+                    objectIndex + batchCount >= kMaxObjectCount) {
+                    break;
+                }
+
+                Mesh* packetMesh = ResolveSurfacePacketStaticMesh(ctx, packet);
+                if (packetMesh != mesh) {
+                    break;
+                }
+
+                SurfacePacketPreparedObject prepared{};
+                if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+                    break;
+                }
+                if (batchCount == 0) {
+                    batchMaterialDataIndex = prepared.materialDataIndex;
+                }
+                CopyObjectData(ctx, prepared.object, objectIndex + batchCount, prepared.materialDataIndex);
+                ++batchCount;
+            }
+
+            if (batchCount == 0) {
+                return false;
+            }
+
+            BindObjectDataIndex(ctx.binding, static_cast<uint32_t>(batchObjectStart));
+            BindMaterialDataIndex(ctx.binding, batchMaterialDataIndex);
+            if (!BindSurfacePacketMesh(ctx, mesh, activeMesh)) {
+                return false;
+            }
+
+            // ObjectData は base index + SV_InstanceID で参照する。
+            ctx.cmd->DrawIndexedInstanced(mesh->GetIndexCount(), static_cast<UINT>(batchCount), 0, 0, 0);
+            objectIndex += batchCount;
+            result.submittedPacketCount += batchCount;
+            ++result.drawCallCount;
+            result.maxInstanceCount = (std::max)(result.maxInstanceCount, batchCount);
+            if (batchCount > 1) {
+                ++result.instancedDrawCount;
+                result.instancedPacketCount += batchCount;
+            }
+            executableIndex = cursor - 1;
             return true;
         }
 
@@ -769,6 +968,12 @@ namespace HIKARI::MESHRENDERER {
                         textures.occlusion = ctx.binding.fallbackTextureHandle;
                     }
 
+                    const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(
+                        item,
+                        runtimeMaterial ? nullptr : materialAsset);
+                    const bool bindLegacyObjectCB = drawingSkinned ||
+                        !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, primitiveVariant);
+
                     ObjectCB obj{};
                     obj.world = world;
                     obj.normalMatrix = normalMatrix;
@@ -787,8 +992,9 @@ namespace HIKARI::MESHRENDERER {
                     obj.hasBaseColorTexture = (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
                     obj.receiveShadow = item.receiveShadow ? 1u : 0u;
                     FillFxValues(obj, item);
-                    CopyObjectCB(ctx, obj, objectIndex);
-                    CopyObjectData(ctx, obj, objectIndex);
+                    if (bindLegacyObjectCB) {
+                        CopyObjectCB(ctx, obj, objectIndex);
+                    }
                     const MaterialTextureHandles materialTextureHandles = ToMaterialTextureHandles(textures);
                     const MaterialGpuData materialData = BuildMaterialGpuData(obj, materialTextureHandles);
                     RecordMaterialTexturePoolStats(ctx, materialData);
@@ -796,14 +1002,9 @@ namespace HIKARI::MESHRENDERER {
                         ctx,
                         BuildMaterialDataKey(0u, materialData),
                         materialData);
-
-                    const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(
-                        item,
-                        runtimeMaterial ? nullptr : materialAsset);
+                    CopyObjectData(ctx, obj, objectIndex, materialDataIndex);
 
                     const D3D12_GPU_VIRTUAL_ADDRESS objectAddress = ObjectAddress(ctx, objectIndex);
-                    const bool bindLegacyObjectCB = drawingSkinned ||
-                        !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, primitiveVariant);
                     BindPerDrawCommon(
                         ctx,
                         drawingSkinned ? ctx.skinnedRootSig : ctx.staticRootSig,
@@ -824,7 +1025,7 @@ namespace HIKARI::MESHRENDERER {
                         }
                     }
 
-                    BindMaterialTextureSet(ctx.binding, materialTextureHandles);
+                    BindShadowMap(ctx.binding);
                     BindSkyCube(ctx.binding);
                     BindSceneDepth(ctx.binding);
                     BindSceneColor(ctx.binding);
@@ -891,8 +1092,11 @@ namespace HIKARI::MESHRENDERER {
                 obj.hasBaseColorTexture = 0u;
             }
             FillFxValues(obj, item);
-            CopyObjectCB(ctx, obj, objectIndex);
-            CopyObjectData(ctx, obj, objectIndex);
+            const bool bindLegacyObjectCB =
+                !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, item.variant);
+            if (bindLegacyObjectCB) {
+                CopyObjectCB(ctx, obj, objectIndex);
+            }
 
             MaterialTextureHandles textureHandles{};
             textureHandles = ResolveRuntimeMaterialTextureHandles(
@@ -905,10 +1109,9 @@ namespace HIKARI::MESHRENDERER {
                 ctx,
                 BuildMaterialDataKey(0u, materialData),
                 materialData);
+            CopyObjectData(ctx, obj, objectIndex, materialDataIndex);
 
             const D3D12_GPU_VIRTUAL_ADDRESS objectAddress = ObjectAddress(ctx, objectIndex);
-            const bool bindLegacyObjectCB =
-                !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, item.variant);
             BindPerDrawCommon(
                 ctx,
                 ctx.staticRootSig,
@@ -917,8 +1120,8 @@ namespace HIKARI::MESHRENDERER {
                 materialDataIndex,
                 bindLegacyObjectCB);
 
-            // Legacy mesh でも runtime Material の PBR slot を同じ root table へ流す。
-            BindMaterialTextureSet(ctx.binding, textureHandles);
+            // 材質テクスチャは MaterialData の descriptor index から参照する。
+            BindShadowMap(ctx.binding);
             BindSkyCube(ctx.binding);
             BindSceneDepth(ctx.binding);
             BindSceneColor(ctx.binding);
@@ -966,6 +1169,11 @@ namespace HIKARI::MESHRENDERER {
         }
 
         return DrawLegacyMeshItem(ctx, item, objectIndex);
+    }
+
+    void BindSurfacePacketFrameResources(const MeshDrawContext& ctx) {
+        // SurfacePacket は frame 共通リソースを plan 単位で束縛する。
+        BindSurfacePacketFrameResourcesInternal(ctx);
     }
 
     SurfacePacketRunDrawResult DrawSurfacePacketRun(
@@ -1023,8 +1231,25 @@ namespace HIKARI::MESHRENDERER {
                 continue;
             }
 
+            if (DrawSurfacePacketInstanceBatch(
+                ctx,
+                state,
+                packets,
+                packetCount,
+                executablePacketIndices,
+                executablePacketIndexCount,
+                runEnd,
+                executableIndex,
+                activeMesh,
+                objectIndex,
+                result)) {
+                continue;
+            }
+
             if (DrawPreparedSurfacePacket(ctx, state, packets[packetIndex], activeMesh, objectIndex)) {
                 ++result.submittedPacketCount;
+                ++result.drawCallCount;
+                result.maxInstanceCount = (std::max)(result.maxInstanceCount, size_t{ 1 });
             } else {
                 ++result.skippedPacketCount;
             }

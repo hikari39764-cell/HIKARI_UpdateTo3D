@@ -6,7 +6,7 @@
 
 #include <exception>
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -34,7 +34,7 @@ namespace HIKARI {
             temporaryComponent->BuildInspector(inspectorBuilder);
             temporaryComponent->Serialize(serialized);
         } catch (const std::exception& e) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
             ImGui::TextColored(
                 ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
                 "Component inspector failed for %s: %s",
@@ -45,7 +45,7 @@ namespace HIKARI {
 #endif
             return false;
         } catch (...) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
             ImGui::TextColored(
                 ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
                 "Component inspector failed for %s.",

@@ -13,7 +13,7 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Scene/HIKARI_World.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 #include "Scene/HIKARI_GameObject.h"
@@ -21,7 +21,7 @@
 namespace HIKARI {
 
     void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Data Monitor")) {
             ImGui::End();
             return;
@@ -40,7 +40,7 @@ namespace HIKARI {
     }
 
     void StatsPanel::DrawContents(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (ImGui::TreeNodeEx("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Scene: %s", sceneName ? sceneName : "<none>");
             ImGui::Text("World Objects: %zu", world.GetObjects().size());

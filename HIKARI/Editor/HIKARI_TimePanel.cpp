@@ -2,14 +2,14 @@
 
 #include "Core/HIKARI_TimeService.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
     void TimePanel::DrawContents() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         const FrameContext& frame = TIME::GetFrameContext();
 
         ImGui::Text("Frame Index: %llu", static_cast<unsigned long long>(frame.frameIndex));

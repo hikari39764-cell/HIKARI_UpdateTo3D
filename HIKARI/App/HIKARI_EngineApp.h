@@ -1,10 +1,13 @@
 #pragma once
 #include <memory>
 
-#include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneManager.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
+
+#if defined(HIKARI_WITH_EDITOR)
+#include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
+#endif
 
 namespace HIKARI {
 
@@ -20,7 +23,9 @@ namespace HIKARI {
     private:
         SceneManager sceneManager_{};
         SceneTransitionBus sceneTransitionBus_;
+#if defined(HIKARI_WITH_EDITOR)
         DocumentSceneEditorController documentSceneEditorController_{};
+#endif
     };
 
 } // namespace HIKARI

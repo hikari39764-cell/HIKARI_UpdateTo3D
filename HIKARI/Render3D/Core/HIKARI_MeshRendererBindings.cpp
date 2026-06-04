@@ -4,6 +4,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
@@ -210,6 +211,22 @@ namespace HIKARI::MESHRENDERER {
                 cache->rootConstantValid[rootParam] = true;
             }
         }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveMaterialTexturePoolSrv() {
+            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = DXTEX::DxTextureManager::GetSrvHeap();
+            if (device == nullptr || heap == nullptr) {
+                return handle;
+            }
+
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            return GFX::DESCRIPTOR::GpuAt(
+                heap,
+                descriptorSize,
+                GFX::DESCRIPTOR::kUserSrvBegin);
+        }
     }
 	// フレーム全体で共通のリソースをバインドする。これには、カメラ、ライト、シャドウ、スカイ環境の定数バッファが含まれる。ルートシグネチャも設定される。
     void BindFrameCommonResources(
@@ -228,6 +245,7 @@ namespace HIKARI::MESHRENDERER {
         BindCbvCached(ctx, ROOT_PARAM::Light, lightAddress, false);
         BindCbvCached(ctx, ROOT_PARAM::ShadowCB, shadowAddress, false);
         BindCbvCached(ctx, ROOT_PARAM::SkyEnvironment, skyEnvironmentAddress, false);
+        BindMaterialTexturePool(ctx);
     }
 	// オブジェクト固有の定数バッファをバインドする。これには、モデル行列やマテリアルプロパティなどが含まれる。ルートパラメータのObjectスロットにバインドされる。
     void BindObjectConstantBuffer(
@@ -263,6 +281,17 @@ namespace HIKARI::MESHRENDERER {
         uint32_t materialIndex) {
         BindRootConstantCached(ctx, ROOT_PARAM::MaterialIndex, materialIndex);
     }
+
+    void BindMaterialTexturePool(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv = ResolveMaterialTexturePoolSrv();
+        if (texturePoolSrv.ptr != 0) {
+            BindDescriptorTableCached(ctx, ROOT_PARAM::TexturePool, texturePoolSrv);
+        }
+    }
 	// マテリアルに関連するテクスチャセットをバインドする
     void BindPipelineState(
         const MeshBindingContext& ctx,
@@ -289,24 +318,11 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
-    void BindMaterialTextureSet(
-        const MeshBindingContext& ctx,
-        const MaterialTextureHandles& textures) {
+    // システムテクスチャは材質テクスチャとは分けて束縛する。
+    // シャドウマップは材質ではなくシステムリソースとして束縛する。
+    void BindShadowMap(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;
-        }
-
-        const D3D12_GPU_DESCRIPTOR_HANDLE baseColorSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.baseColor);
-        if (baseColorSrv.ptr != 0) {
-            BindDescriptorTableCached(ctx, ROOT_PARAM::BaseColor, baseColorSrv);
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.normal);
-        if (normalSrv.ptr == 0) {
-            normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackNormalTextureHandle);
-        }
-        if (normalSrv.ptr != 0) {
-            BindDescriptorTableCached(ctx, ROOT_PARAM::Normal, normalSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
@@ -316,32 +332,9 @@ namespace HIKARI::MESHRENDERER {
         if (shadowSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::ShadowMap, shadowSrv);
         }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.emissive);
-        if (emissiveSrv.ptr == 0) {
-            emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackBlackTextureHandle);
-        }
-        if (emissiveSrv.ptr != 0) {
-            BindDescriptorTableCached(ctx, ROOT_PARAM::Emissive, emissiveSrv);
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.metallicRoughness);
-        if (metallicRoughnessSrv.ptr == 0) {
-            metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
-        }
-        if (metallicRoughnessSrv.ptr != 0) {
-            BindDescriptorTableCached(ctx, ROOT_PARAM::MetallicRoughness, metallicRoughnessSrv);
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.occlusion);
-        if (occlusionSrv.ptr == 0) {
-            occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
-        }
-        if (occlusionSrv.ptr != 0) {
-            BindDescriptorTableCached(ctx, ROOT_PARAM::Occlusion, occlusionSrv);
-        }
     }
-	// スカイキューブマップをバインドする。スカイレンダラーから環境データを取得し、キューブマップSRVが有効な場合はそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
+
+    // スカイキューブマップを束縛する。
     void BindSkyCube(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;

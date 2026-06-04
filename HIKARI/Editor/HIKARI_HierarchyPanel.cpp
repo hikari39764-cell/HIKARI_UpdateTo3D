@@ -3,14 +3,14 @@
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
     void HierarchyPanel::Draw(World& world, EditorSelection& selection) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Scene Hierarchy")) {
             ImGui::End();
             return;
@@ -26,7 +26,7 @@ namespace HIKARI {
     }
 
     void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         const auto& objects = world.GetObjects();
         ImGui::TextDisabled("%d objects", static_cast<int>(objects.size()));
         ImGui::Separator();

@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <utility>
 
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
 #include "imgui.h"
 #endif
 
@@ -99,7 +99,7 @@ namespace HIKARI {
             return true;
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
         const char* ToAlphaModeText(AlphaMode mode) {
             switch (mode) {
             case AlphaMode::Opaque: return "Opaque";
@@ -674,7 +674,7 @@ namespace HIKARI {
                 break;
             }
         }
-        // Inspector では slot 0 を主材質として扱い、詳細 debug は折り畳みに逃がす。
+        // Treat slot 0 as the primary material in the inspector.
         if (builder.AssetIdPicker("Material", AssetType::Material, materialOverrideGuid)) {
             if (materialOverrideGuid.empty()) {
                 ClearMaterialOverride(0);
@@ -693,7 +693,7 @@ namespace HIKARI {
     }
 
     void ModelComponent::RenderImGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
         if (ImGui::TreeNodeEx("Model Source")) {
             int sourceKind = static_cast<int>(sourceKind_);
             const char* sourceNames[] = { "Asset", "Procedural" };

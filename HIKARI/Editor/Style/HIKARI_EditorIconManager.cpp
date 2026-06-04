@@ -1,6 +1,6 @@
 #include "HIKARI_EditorIconManager.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -11,7 +11,7 @@
 namespace HIKARI::EDITOR {
 
     namespace {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         constexpr const char* kIconAtlasTextureId = "editor/asset_icon_atlas";
         constexpr const char* kIconAtlasPath = "HIKARI/Icon/hikari_asset_icons.png";
         constexpr int kIconAtlasColumns = 4;
@@ -61,8 +61,7 @@ namespace HIKARI::EDITOR {
 
         bool EnsureIconAtlasLoaded() {
             if (gIconAtlasHandle == -2) {
-                // エディタ専用アイコンは AssetDatabase に登録しない。
-                gIconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(kIconAtlasTextureId, kIconAtlasPath);
+                // 繧ｨ繝・ぅ繧ｿ蟆ら畑繧｢繧､繧ｳ繝ｳ縺ｯ AssetDatabase 縺ｫ逋ｻ骭ｲ縺励↑縺・・                gIconAtlasHandle = DXTEX::DxTextureManager::LoadTextureSrgb(kIconAtlasTextureId, kIconAtlasPath);
             }
             return gIconAtlasHandle >= 0;
         }
@@ -81,8 +80,7 @@ namespace HIKARI::EDITOR {
 
             int& handle = gNamedIconHandles[index];
             if (handle == -2) {
-                // 単体 PNG はツールバーや階層用に遅延ロードする。
-                handle = DXTEX::DxTextureManager::LoadTextureSrgb(id, path);
+                // 蜊倅ｽ・PNG 縺ｯ繝・・繝ｫ繝舌・繧・嚴螻､逕ｨ縺ｫ驕・ｻｶ繝ｭ繝ｼ繝峨☆繧九・                handle = DXTEX::DxTextureManager::LoadTextureSrgb(id, path);
             }
             if (handle < 0) {
                 return false;
@@ -160,7 +158,7 @@ namespace HIKARI::EDITOR {
     }
 
     bool EditorIconManager::Initialize() {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return EnsureIconAtlasLoaded();
 #else
         return false;
@@ -168,13 +166,13 @@ namespace HIKARI::EDITOR {
     }
 
     void EditorIconManager::Finalize() {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         gIconAtlasHandle = -2;
         gNamedIconHandles.fill(-2);
 #endif
     }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     bool EditorIconManager::DrawIcon(EditorIconKind kind, const ImVec2& size) {
         ImTextureID texture{};
         ImVec2 uv0{};
@@ -278,7 +276,7 @@ namespace HIKARI::EDITOR {
     }
 
     int EditorIconManager::GetAtlasIndex(EditorIconKind kind) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return AtlasIndexForKind(kind);
 #else
         (void)kind;

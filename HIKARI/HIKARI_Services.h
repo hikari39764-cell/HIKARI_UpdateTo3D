@@ -20,9 +20,11 @@
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Audio/HIKARI_Audio.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "Editor/HIKARI_EditorStyle.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
+#endif
+#if defined(HIKARI_ENABLE_IMGUI)
 #include "imgui.h"
 #include "../ThirdParty/imgui/imgui_impl_dx12.h"
 #include "../ThirdParty/imgui/imgui_impl_win32.h"
@@ -39,13 +41,13 @@ namespace HIKARI {
             bool enableDebugLayer = true;
             bool resizableWindow = true;
             bool enableImGui =
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 true;
 #else
                 false;
 #endif
             bool enableEditorUI =
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
                 true;
 #else
                 false;
@@ -71,7 +73,7 @@ namespace HIKARI {
         inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = enabled; }
 
         inline void ConfigureEditorImGuiContext() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
             ImGuiIO& io = ImGui::GetIO();
             io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -79,12 +81,14 @@ namespace HIKARI {
             io.ConfigDockingTransparentPayload = true;
             io.ConfigViewportsNoAutoMerge = false;
             io.ConfigViewportsNoTaskBarIcon = false;
+#if defined(HIKARI_WITH_EDITOR)
             EDITOR::ApplyEditorStyle();
+#endif
 #endif
         }
 
         inline void InitializeImGuiBackend() {
-#if !defined(_DEBUG)
+#if !defined(HIKARI_ENABLE_IMGUI)
             return;
 #else
             if (gImGuiBackendInitialized) {
@@ -221,7 +225,7 @@ namespace HIKARI {
             HIKARI_LOG_INFO("Camera initialized.");
 
             if (gEnableImGui && !gImGuiInitialized) {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
                 ConfigureEditorImGuiContext();
@@ -248,7 +252,7 @@ namespace HIKARI {
         inline void FinalizeAll() {
             HIKARI_LOG_INFO("HIKARI shutdown started.");
             if (gImGuiInitialized) {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 if (gImGuiBackendInitialized) {
                     ImGui_ImplDX12_Shutdown();
                     ImGui_ImplWin32_Shutdown();
@@ -305,7 +309,7 @@ namespace HIKARI {
 
             HIKARI::RENDERER::BeginFrame();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
             if (!IsEditorUIEnabled()) {
                 HIKARI::EDITOR::ClearGameViewportInputRect();
                 HIKARI::POST::PostSystem::SetSceneCaptureSize(0, 0);
@@ -318,7 +322,7 @@ namespace HIKARI {
             HIKARI::HINPUT::Update(frame.unscaledDt);
             HIKARI::VFX::BeginFrame(frame.gameDt);
             if (gEnableImGui && gImGuiInitialized) {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 if (!ImGui::GetCurrentContext()) {
                     ImGui::CreateContext();
                     ConfigureEditorImGuiContext();
@@ -353,7 +357,7 @@ namespace HIKARI {
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.EndFrame");
             HIKARI::VFX::EndFrame();
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 ImGui::Render();
                 gImGuiFrameBegun = false;
 #endif
@@ -381,7 +385,7 @@ namespace HIKARI {
             }
 
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
                 GFX::PIX::ScopedGpuEvent pixImGui(gCtx.cmdList, GFX::PIX::kColorEditor, "ImGui");
                 GFX::GPU_PROFILE::ScopedGpuTimer gpuImGui(
                     gCtx.cmdList,

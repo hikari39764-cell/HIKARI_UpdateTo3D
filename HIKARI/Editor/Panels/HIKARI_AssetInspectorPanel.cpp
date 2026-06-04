@@ -19,7 +19,7 @@
 #include "Editor/HIKARI_EditorSelection.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -131,7 +131,7 @@ namespace HIKARI {
             ShellExecuteW(nullptr, L"open", path.wstring().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool DrawComboSetting(
             const char* label,
             nlohmann::json& settings,
@@ -402,7 +402,7 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", materialStatus.c_str());
             }
 
-            // HE 風に、よく触る slot だけを開きやすい折り畳みで並べる。
+            // Keep the material editor close to the engine-facing HE texture slots.
             if (ImGui::CollapsingHeader("Base Color", ImGuiTreeNodeFlags_DefaultOpen)) {
                 changed = EDITOR::DrawMaterialTextureSlot(
                     "Albedo",
@@ -507,7 +507,7 @@ namespace HIKARI {
     }
 
     void AssetInspectorPanel::Draw(AssetDatabase& assetDatabase, AssetRegistry& assetRegistry, EditorSelection& selection) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (selection.selectedAssetGuid.empty()) {
             ImGui::TextDisabled("No Asset selected");
             return;

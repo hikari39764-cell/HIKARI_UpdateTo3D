@@ -314,6 +314,7 @@ namespace HIKARI::MESHRENDERER {
             MeshBindingStateCache bindingCache{};
             MeshDrawContext drawCtx = BuildDrawContext(false, passKind, ssaoSrv, fallbackAoTextureHandle);
             drawCtx.binding.cache = &bindingCache;
+            BindSurfacePacketFrameResources(drawCtx);
 
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
                 g.surfacePacketBuilder->GetPackets();
@@ -343,10 +344,16 @@ namespace HIKARI::MESHRENDERER {
                 g.debugStats.surfacePacketExecutorPacketCount += result.submittedPacketCount;
                 g.debugStats.surfacePacketExecutorSkippedPacketCount += result.skippedPacketCount;
                 if (passKind == MeshDrawPassKind::GeometryBuffer) {
-                    g.debugStats.surfacePacketExecutorGeometryDrawCount += result.submittedPacketCount;
+                    g.debugStats.surfacePacketExecutorGeometryDrawCount += result.drawCallCount;
                 } else {
-                    g.debugStats.surfacePacketExecutorForwardDrawCount += result.submittedPacketCount;
+                    g.debugStats.surfacePacketExecutorForwardDrawCount += result.drawCallCount;
                 }
+                g.debugStats.surfacePacketExecutorInstancedDrawCount += result.instancedDrawCount;
+                g.debugStats.surfacePacketExecutorInstancedPacketCount += result.instancedPacketCount;
+                g.debugStats.surfacePacketExecutorMaxInstanceCount =
+                    (std::max)(
+                        g.debugStats.surfacePacketExecutorMaxInstanceCount,
+                        result.maxInstanceCount);
             }
             return true;
         }

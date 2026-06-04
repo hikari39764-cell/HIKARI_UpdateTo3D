@@ -26,7 +26,8 @@ struct HikariMeshObjectData
     uint hasMetallicRoughnessTexture;
     uint hasOcclusionTexture;
     float occlusionStrength;
-    float3 pbrPadding;
+    uint materialDataIndex;
+    float2 pbrPadding;
     float4 fxUser[8];
 };
 
@@ -37,6 +38,12 @@ cbuffer ObjectIndexCB : register(b6)
     uint gObjectDataIndex;
     uint3 gObjectDataPadding;
 };
+
+// instance 描画では base index + SV_InstanceID で object data を読む。
+HikariMeshObjectData HikariGetMeshObjectData(uint objectDataIndex)
+{
+    return gObjectDataBuffer[objectDataIndex];
+}
 
 #define gObjectData gObjectDataBuffer[gObjectDataIndex]
 #define gWorld gObjectData.world

@@ -3,13 +3,13 @@
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     void DebugMenuBar::Draw(
         DebugWindowState& windows,
         DebugCameraController3D& debugCamera,

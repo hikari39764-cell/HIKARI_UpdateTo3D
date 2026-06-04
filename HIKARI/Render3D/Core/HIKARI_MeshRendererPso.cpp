@@ -7,6 +7,7 @@
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
@@ -218,47 +219,12 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_DESCRIPTOR_RANGE textureRange{};
-        textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        textureRange.NumDescriptors = 1;
-        textureRange.BaseShaderRegister = 0;
-        textureRange.RegisterSpace = 0;
-        textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-        D3D12_DESCRIPTOR_RANGE normalTextureRange{};
-        normalTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        normalTextureRange.NumDescriptors = 1;
-        normalTextureRange.BaseShaderRegister = 1;
-        normalTextureRange.RegisterSpace = 0;
-        normalTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
         D3D12_DESCRIPTOR_RANGE shadowTextureRange{};
         shadowTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         shadowTextureRange.NumDescriptors = 1;
         shadowTextureRange.BaseShaderRegister = 2;
         shadowTextureRange.RegisterSpace = 0;
         shadowTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-        D3D12_DESCRIPTOR_RANGE emissiveTextureRange{};
-        emissiveTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        emissiveTextureRange.NumDescriptors = 1;
-        emissiveTextureRange.BaseShaderRegister = 3;
-        emissiveTextureRange.RegisterSpace = 0;
-        emissiveTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-        D3D12_DESCRIPTOR_RANGE metallicRoughnessTextureRange{};
-        metallicRoughnessTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        metallicRoughnessTextureRange.NumDescriptors = 1;
-        metallicRoughnessTextureRange.BaseShaderRegister = 4;
-        metallicRoughnessTextureRange.RegisterSpace = 0;
-        metallicRoughnessTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-        D3D12_DESCRIPTOR_RANGE occlusionTextureRange{};
-        occlusionTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        occlusionTextureRange.NumDescriptors = 1;
-        occlusionTextureRange.BaseShaderRegister = 5;
-        occlusionTextureRange.RegisterSpace = 0;
-        occlusionTextureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
         D3D12_DESCRIPTOR_RANGE skyCubeTextureRange{};
         skyCubeTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -337,7 +303,14 @@ namespace HIKARI::MESHRENDERER {
         materialDataRange.RegisterSpace = 0;
         materialDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[ROOT_PARAM::MaterialIndex + 1]{};
+        D3D12_DESCRIPTOR_RANGE materialTexturePoolRange{};
+        materialTexturePoolRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        materialTexturePoolRange.NumDescriptors = GFX::DESCRIPTOR::kUserSrvCount;
+        materialTexturePoolRange.BaseShaderRegister = 20;
+        materialTexturePoolRange.RegisterSpace = 0;
+        materialTexturePoolRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[ROOT_PARAM::TexturePool + 1]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -353,16 +326,6 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::Light].Descriptor.ShaderRegister = 2;
         params[ROOT_PARAM::Light].Descriptor.RegisterSpace = 0;
 
-        params[ROOT_PARAM::BaseColor].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::BaseColor].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        params[ROOT_PARAM::BaseColor].DescriptorTable.NumDescriptorRanges = 1;
-        params[ROOT_PARAM::BaseColor].DescriptorTable.pDescriptorRanges = &textureRange;
-
-        params[ROOT_PARAM::Normal].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::Normal].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        params[ROOT_PARAM::Normal].DescriptorTable.NumDescriptorRanges = 1;
-        params[ROOT_PARAM::Normal].DescriptorTable.pDescriptorRanges = &normalTextureRange;
-
         params[ROOT_PARAM::ShadowMap].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         params[ROOT_PARAM::ShadowMap].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
         params[ROOT_PARAM::ShadowMap].DescriptorTable.NumDescriptorRanges = 1;
@@ -372,21 +335,6 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::ShadowCB].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
         params[ROOT_PARAM::ShadowCB].Descriptor.ShaderRegister = 4;
         params[ROOT_PARAM::ShadowCB].Descriptor.RegisterSpace = 0;
-
-        params[ROOT_PARAM::Emissive].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::Emissive].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        params[ROOT_PARAM::Emissive].DescriptorTable.NumDescriptorRanges = 1;
-        params[ROOT_PARAM::Emissive].DescriptorTable.pDescriptorRanges = &emissiveTextureRange;
-
-        params[ROOT_PARAM::MetallicRoughness].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::MetallicRoughness].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        params[ROOT_PARAM::MetallicRoughness].DescriptorTable.NumDescriptorRanges = 1;
-        params[ROOT_PARAM::MetallicRoughness].DescriptorTable.pDescriptorRanges = &metallicRoughnessTextureRange;
-
-        params[ROOT_PARAM::Occlusion].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::Occlusion].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        params[ROOT_PARAM::Occlusion].DescriptorTable.NumDescriptorRanges = 1;
-        params[ROOT_PARAM::Occlusion].DescriptorTable.pDescriptorRanges = &occlusionTextureRange;
 
         params[ROOT_PARAM::SkyEnvironment].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::SkyEnvironment].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -459,6 +407,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::MaterialIndex].Constants.ShaderRegister = 7;
         params[ROOT_PARAM::MaterialIndex].Constants.RegisterSpace = 0;
         params[ROOT_PARAM::MaterialIndex].Constants.Num32BitValues = 1;
+
+        params[ROOT_PARAM::TexturePool].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::TexturePool].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        params[ROOT_PARAM::TexturePool].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::TexturePool].DescriptorTable.pDescriptorRanges = &materialTexturePoolRange;
 
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

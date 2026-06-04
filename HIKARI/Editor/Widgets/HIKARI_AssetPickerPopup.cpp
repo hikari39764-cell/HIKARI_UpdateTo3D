@@ -9,7 +9,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -83,7 +83,7 @@ namespace HIKARI::EDITOR {
         AssetType requiredType,
         std::string& inOutGuid,
         AssetPickerPopupState& state) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool changed = false;
         if (!ImGui::BeginPopup(popupId)) {
             return false;

@@ -25,6 +25,7 @@ struct VSInput
     float3 normal : NORMAL;
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
+    uint instanceId : SV_InstanceID;
 };
 
 struct VSOutput
@@ -34,16 +35,19 @@ struct VSOutput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    nointerpolation uint materialDataIndex : TEXCOORD2;
 };
 
 VSOutput main(VSInput input)
 {
     VSOutput output;
-    float4 worldPos = mul(gWorld, float4(input.position, 1.0f));
+    HikariMeshObjectData objectData = HikariGetMeshObjectData(gObjectDataIndex + input.instanceId);
+    float4 worldPos = mul(objectData.world, float4(input.position, 1.0f));
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
-    output.normalWS = normalize(mul((float3x3)gNormalMatrix, input.normal));
-    output.tangentWS = float4(normalize(mul((float3x3)gNormalMatrix, input.tangent.xyz)), input.tangent.w);
+    output.normalWS = normalize(mul((float3x3)objectData.normalMatrix, input.normal));
+    output.tangentWS = float4(normalize(mul((float3x3)objectData.normalMatrix, input.tangent.xyz)), input.tangent.w);
     output.uv = input.uv;
+    output.materialDataIndex = objectData.materialDataIndex;
     return output;
 }

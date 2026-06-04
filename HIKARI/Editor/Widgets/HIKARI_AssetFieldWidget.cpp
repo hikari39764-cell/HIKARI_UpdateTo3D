@@ -12,14 +12,14 @@
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_AssetPickerPopup.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI::EDITOR {
 
     namespace {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::unordered_map<ImGuiID, AssetPickerPopupState> gPickerStates{};
 
         const char* ToAssetTypeText(AssetType type) {
@@ -78,7 +78,7 @@ namespace HIKARI::EDITOR {
         const AssetFieldOptions& options,
         std::string& inOutGuid,
         EditorSelection* selection) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         const std::string labelText(options.label.empty() ? ToAssetTypeText(options.requiredType) : std::string(options.label));
         if (!assetDatabase) {
             std::array<char, 256> buffer{};

@@ -69,9 +69,15 @@ namespace HIKARI::MESHRENDERER {
         const DrawItem& item,
         size_t& objectIndex);
 
+    void BindSurfacePacketFrameResources(const MeshDrawContext& ctx);
+
     struct SurfacePacketRunDrawResult {
         size_t submittedPacketCount = 0;
         size_t skippedPacketCount = 0;
+        size_t drawCallCount = 0;
+        size_t instancedDrawCount = 0;
+        size_t instancedPacketCount = 0;
+        size_t maxInstanceCount = 0;
     };
 
     SurfacePacketRunDrawResult DrawSurfacePacketRun(

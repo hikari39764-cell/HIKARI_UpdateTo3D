@@ -28,7 +28,7 @@
 #include "Platform/HIKARI_Win32Window.h"
 #include "Project/HIKARI_ProjectSettings.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -273,7 +273,7 @@ namespace HIKARI {
                 data.materialName = "New Material";
             }
 
-            // Material Asset は Texture の GUID を保持し、実際の HTEX は runtime builder が解決する。
+            // Material Asset 縺ｯ Texture 縺ｮ GUID 繧剃ｿ晄戟縺励∝ｮ滄圀縺ｮ HTEX 縺ｯ runtime builder 縺瑚ｧ｣豎ｺ縺吶ｋ縲・
             if (!SavePbrMaterialAssetData(absoluteMaterialPath, data, outError)) {
                 return false;
             }
@@ -835,7 +835,7 @@ namespace HIKARI {
             return "";
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         ImVec4 StateColor(AssetImportState state) {
             switch (state) {
             case AssetImportState::Imported:
@@ -866,7 +866,7 @@ namespace HIKARI {
                 return std::string(text);
             }
 
-            // グリッドでは名前だけを短く表示し、詳細はツールチップ側に任せる。
+            // 繧ｰ繝ｪ繝・ラ縺ｧ縺ｯ蜷榊燕縺縺代ｒ遏ｭ縺剰｡ｨ遉ｺ縺励∬ｩｳ邏ｰ縺ｯ繝・・繝ｫ繝√ャ繝怜・縺ｫ莉ｻ縺帙ｋ縲・
             constexpr const char* kSuffix = "...";
             std::vector<size_t> utf8Ends{};
             for (size_t i = 0; i < text.size();) {
@@ -1090,7 +1090,7 @@ namespace HIKARI {
             const std::filesystem::path oldSource = (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
             const std::filesystem::path desiredSource = (oldSource.parent_path() / (cleanName + ".scene.json")).lexically_normal();
 
-            // 同名リネームではファイルを動かさず、表示名だけ同期する。
+            // 蜷悟錐繝ｪ繝阪・繝縺ｧ縺ｯ繝輔ぃ繧､繝ｫ繧貞虚縺九＆縺壹∬｡ｨ遉ｺ蜷阪□縺大酔譛溘☆繧九・
             if (IsSameFilePath(oldSource, desiredSource)) {
                 if (!UpdateSceneJsonSceneName(oldSource, cleanName, outError)) {
                     LogSceneAssetWarn("rename failed: " + outError);
@@ -1118,7 +1118,7 @@ namespace HIKARI {
 
             bool movedScene = false;
             bool movedMeta = false;
-            // 移動途中で失敗した場合は、可能な範囲で元の配置へ戻す。
+            // 遘ｻ蜍暮比ｸｭ縺ｧ螟ｱ謨励＠縺溷ｴ蜷医・縲∝庄閭ｽ縺ｪ遽・峇縺ｧ蜈・・驟咲ｽｮ縺ｸ謌ｻ縺吶・
             if (!MoveFileSafe(oldSource, newSource, outError)) {
                 outError = "Scene rename failed: " + outError;
                 LogSceneAssetWarn("rename failed: " + outError);
@@ -1233,7 +1233,7 @@ namespace HIKARI {
                 }
             }
 
-            // Startup Scene を削除した場合は、ProjectSettings の参照も同時に外す。
+            // Startup Scene 繧貞炎髯､縺励◆蝣ｴ蜷医・縲￣rojectSettings 縺ｮ蜿ら・繧ょ酔譎ゅ↓螟悶☆縲・
             ProjectSettingsService settings{};
             settings.Load(assetDatabase.GetProjectRoot());
             if (settings.GetSettings().startupSceneGuid == record.guid) {
@@ -1248,7 +1248,7 @@ namespace HIKARI {
             return true;
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         void DrawRecordTooltip(const AssetRecord& record) {
             if (!ImGui::BeginTooltip()) {
                 return;
@@ -1343,7 +1343,7 @@ namespace HIKARI {
             selection.selectedAsset = nullptr;
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         void HandleRecordActivated(
             const AssetRecord& record,
             std::string& lastOperationMessage,
@@ -1955,7 +1955,7 @@ namespace HIKARI {
     }
 
     void AssetBrowserPanel::Draw(AssetDatabase& assetDatabase, EditorSelection& selection) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Asset Browser")) {
             ImGui::End();
             return;
@@ -1978,7 +1978,7 @@ namespace HIKARI {
         const AssetUsageSummary* usageSummary,
         AssetBrowserScope scope,
         const AssetBrowserContext* context) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (currentDirectory_.empty()) {
             currentDirectory_ = "Assets";
         }
@@ -2009,7 +2009,7 @@ namespace HIKARI {
             ImGui::OpenPopup("AssetBrowserCreateMenu");
         }
         if (ImGui::BeginPopup("AssetBrowserCreateMenu")) {
-            // 作成系はメインバーから逃がし、コンテンツ領域の文脈操作として扱う。
+            // 菴懈・邉ｻ縺ｯ繝｡繧､繝ｳ繝舌・縺九ｉ騾・′縺励√さ繝ｳ繝・Φ繝・伜沺縺ｮ譁・ц謫堺ｽ懊→縺励※謇ｱ縺・・
             if (ImGui::MenuItem("Folder")) {
                 CreateFolderFromBrowser(assetDatabase, currentDirectory_, lastOperationMessage_);
             }
@@ -2191,7 +2191,7 @@ namespace HIKARI {
     }
 
     std::string AssetBrowserPanel::ConsumeActivatedSceneGuid() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(activatedSceneGuid_);
         activatedSceneGuid_.clear();
         return value;
@@ -2201,7 +2201,7 @@ namespace HIKARI {
     }
 
     std::string AssetBrowserPanel::ConsumeSaveSceneAsGuid() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(saveSceneAsGuid_);
         saveSceneAsGuid_.clear();
         return value;
@@ -2211,7 +2211,7 @@ namespace HIKARI {
     }
 
     std::string AssetBrowserPanel::ConsumeRefreshRuntimeAssetGuid() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(refreshRuntimeAssetGuid_);
         refreshRuntimeAssetGuid_.clear();
         return value;
@@ -2221,7 +2221,7 @@ namespace HIKARI {
     }
 
     std::string AssetBrowserPanel::ConsumeReimportAndRefreshRuntimeAssetGuid() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(reimportAndRefreshRuntimeAssetGuid_);
         reimportAndRefreshRuntimeAssetGuid_.clear();
         return value;

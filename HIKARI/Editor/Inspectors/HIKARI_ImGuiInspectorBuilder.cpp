@@ -12,7 +12,7 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #include <cstring>
 #endif
@@ -81,7 +81,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::Bool(std::string_view label, bool& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return ImGui::Checkbox(std::string(label).c_str(), &value);
 #else
         (void)label;
@@ -91,7 +91,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::Int(std::string_view label, int& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return ImGui::InputInt(std::string(label).c_str(), &value);
 #else
         (void)label;
@@ -101,7 +101,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::Float(std::string_view label, float& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return ImGui::DragFloat(std::string(label).c_str(), &value, 0.1f);
 #else
         (void)label;
@@ -111,7 +111,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::String(std::string_view label, std::string& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         char buffer[256]{};
         strncpy_s(buffer, value.c_str(), sizeof(buffer) - 1);
         if (ImGui::InputText(std::string(label).c_str(), buffer, sizeof(buffer))) {
@@ -127,7 +127,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::Vec2(std::string_view label, float& x, float& y) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         float values[2]{ x, y };
         if (!ImGui::DragFloat2(std::string(label).c_str(), values, 1.0f)) {
             return false;
@@ -145,7 +145,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::AssetIdPicker(std::string_view label, AssetType assetType, std::string& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (context_.assetDatabase) {
             return EDITOR::DrawAssetField(
                 context_.assetDatabase,
@@ -260,7 +260,7 @@ namespace HIKARI {
     }
 
     bool ImGuiInspectorBuilder::SceneIdPicker(std::string_view label, std::string& value) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!context_.assetDatabase) {
             return String(label, value);
         }
@@ -277,7 +277,7 @@ namespace HIKARI {
         const std::string labelText(label);
         const std::string previewText = value.empty() ? std::string("<none>") : value;
         if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
-            // Scene 遷移先は Scene Asset の GUID で選ぶ。
+            // Scene 驕ｷ遘ｻ蜈医・ Scene Asset 縺ｮ GUID 縺ｧ驕ｸ縺ｶ縲・
             if (ImGui::Selectable("<none>", value.empty())) {
                 value.clear();
                 changed = true;

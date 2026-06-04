@@ -71,14 +71,13 @@ namespace HIKARI::MESHRENDERER {
         const MeshBindingContext& ctx,
         uint32_t materialIndex);
 
+    void BindMaterialTexturePool(const MeshBindingContext& ctx);
+
     void BindPipelineState(
         const MeshBindingContext& ctx,
         ID3D12PipelineState* pso);
 
-    void BindMaterialTextureSet(
-        const MeshBindingContext& ctx,
-        const MaterialTextureHandles& textures);
-
+    void BindShadowMap(const MeshBindingContext& ctx);
     void BindSkyCube(const MeshBindingContext& ctx);
     void BindSceneDepth(const MeshBindingContext& ctx);
     void BindSceneColor(const MeshBindingContext& ctx);

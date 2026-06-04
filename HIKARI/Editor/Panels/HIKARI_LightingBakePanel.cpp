@@ -7,7 +7,7 @@
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_LightingBakeService.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -39,7 +39,7 @@ namespace HIKARI {
             return values.empty() ? empty : values.back();
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         void DrawReportLines(const char* label, const std::vector<std::string>& lines, const ImVec4& color) {
             if (lines.empty()) {
                 return;
@@ -197,7 +197,7 @@ namespace HIKARI {
     } // namespace
 
     void LightingBakePanel::Draw(DocumentSceneBase& scene, bool& open) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Lighting Bake", &open)) {
             ImGui::End();
             return;
@@ -228,7 +228,7 @@ namespace HIKARI {
         ImGui::TextUnformatted("Bake Actions");
         ImGui::Separator();
 
-        // Bake UI は service 経由で実行し、runtime 依存を広げない。
+        // Route bake actions through the service layer to keep runtime coupling narrow.
         TOOLS::BAKING::LightingBakeService service{};
         const bool bakeBusy = IsBakeJobBusy(scene.GetLightingBakeJobState());
         if (ImGui::Button("Validate Lighting Bake Setup")) {

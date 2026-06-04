@@ -10,7 +10,7 @@
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
 #include "imgui.h"
 #endif
 
@@ -30,7 +30,7 @@ namespace HIKARI {
             return model != nullptr ? model->GetModelAsset() : nullptr;
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
         const AnimationClip* FindClip(const ModelAsset* asset, const std::string& clipName) {
             return asset != nullptr ? asset->FindAnimationClip(clipName) : nullptr;
         }
@@ -69,7 +69,7 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::RenderImGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
         const ModelAsset* modelAsset = FindOwnerModelAsset(*this);
         const AnimationClip* currentClip = FindClip(modelAsset, clip_);
         int currentIndex = -1;

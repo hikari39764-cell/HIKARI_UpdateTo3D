@@ -20,6 +20,7 @@ cbuffer CameraCB : register(b0)
     float4 gScreenParams;
 };
 
+#define HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING 1
 #include "Include/HIKARI_MeshObjectData.hlsli"
 
 static const uint MATERIAL_UNLIT = 1u << 0;
@@ -119,12 +120,7 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gLightProbeCountZ ((uint)(gLightProbeVolumeCounts.z + 0.5f))
 #define gLightProbeProbeCount ((uint)(gLightProbeVolumeCounts.w + 0.5f))
 
-Texture2D gBaseColorTex : register(t0);
-Texture2D gNormalTex : register(t1);
 Texture2D gShadowMap : register(t2);
-Texture2D gEmissiveTex : register(t3);
-Texture2D gMetallicRoughnessTex : register(t4);
-Texture2D gOcclusionTex : register(t5);
 TextureCube gSkyCube : register(t6);
 Texture2D gSceneDepthTex : register(t7);
 Texture2D gSceneColorTex : register(t8);
@@ -147,12 +143,13 @@ struct PSInput
     float3 normalWS   : NORMAL;
     float4 tangentWS  : TANGENT;
     float2 uv         : TEXCOORD0;
+    nointerpolation uint materialDataIndex : TEXCOORD2;
 };
 
-float3 ResolveShadingNormal(float3 normalWS, float4 tangentWS, float2 uv)
+float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS, float4 tangentWS, float2 uv)
 {
     float3 n = normalize(normalWS);
-    if (gHasNormalTexture == 0)
+    if (materialData.hasNormalTexture == 0)
     {
         return n;
     }
@@ -172,8 +169,13 @@ float3 ResolveShadingNormal(float3 normalWS, float4 tangentWS, float2 uv)
     t = normalize(t);
     float3 b = normalize(cross(n, t) * tangentWS.w);
 
-    float3 normalTS = gNormalTex.Sample(gLinearWrap, uv).xyz * 2.0f - 1.0f;
-    normalTS.xy *= gNormalScale;
+    float3 normalTS =
+        HikariSampleMaterialTexture(
+            materialData.normalTextureDescriptorIndex,
+            gLinearWrap,
+            uv,
+            float4(0.5f, 0.5f, 1.0f, 1.0f)).xyz * 2.0f - 1.0f;
+    normalTS.xy *= materialData.normalScale;
     normalTS = normalize(normalTS);
     return normalize(normalTS.x * t + normalTS.y * b + normalTS.z * n);
 }
@@ -285,33 +287,45 @@ float3 AccumulatePointLightPbr(
     return sum;
 }
 
-float3 ResolveEmissive(float2 uv)
+float3 ResolveEmissive(HikariMeshMaterialData materialData, float2 uv)
 {
-    float3 emissive = gEmissiveFactor.rgb;
-    if (gHasEmissiveTexture != 0)
+    float3 emissive = materialData.emissiveFactor.rgb;
+    if (materialData.hasEmissiveTexture != 0)
     {
-        emissive *= gEmissiveTex.Sample(gLinearWrap, uv).rgb;
+        emissive *= HikariSampleMaterialTexture(
+            materialData.emissiveTextureDescriptorIndex,
+            gLinearWrap,
+            uv,
+            float4(0.0f, 0.0f, 0.0f, 1.0f)).rgb;
     }
-    return emissive * gEmissiveFactor.a;
+    return emissive * materialData.emissiveFactor.a;
 }
 
-void ResolvePbrInputs(float2 uv, out float metallic, out float roughness, out float occlusion)
+void ResolvePbrInputs(HikariMeshMaterialData materialData, float2 uv, out float metallic, out float roughness, out float occlusion)
 {
-    metallic = saturate(gMetallicFactor);
-    roughness = clamp(gRoughnessFactor, 0.04f, 1.0f);
+    metallic = saturate(materialData.pbrParams.x);
+    roughness = clamp(materialData.pbrParams.y, 0.04f, 1.0f);
     occlusion = 1.0f;
 
-    if (gHasMetallicRoughnessTexture != 0)
+    if (materialData.hasMetallicRoughnessTexture != 0)
     {
-        float4 mr = gMetallicRoughnessTex.Sample(gLinearWrap, uv);
+        float4 mr = HikariSampleMaterialTexture(
+            materialData.metallicRoughnessTextureDescriptorIndex,
+            gLinearWrap,
+            uv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f));
         roughness = clamp(roughness * mr.g, 0.04f, 1.0f);
         metallic = saturate(metallic * mr.b);
     }
 
-    if (gHasOcclusionTexture != 0)
+    if (materialData.hasOcclusionTexture != 0)
     {
-        float ao = gOcclusionTex.Sample(gLinearWrap, uv).r;
-        occlusion = lerp(1.0f, ao, saturate(gOcclusionStrength));
+        float ao = HikariSampleMaterialTexture(
+            materialData.occlusionTextureDescriptorIndex,
+            gLinearWrap,
+            uv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f)).r;
+        occlusion = lerp(1.0f, ao, saturate(materialData.pbrParams.z));
     }
 }
 
@@ -386,7 +400,8 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS)
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float3 n = ResolveShadingNormal(input.normalWS, input.tangentWS, input.uv);
+    HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
+    float3 n = ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv);
     float3 geometricNormal = normalize(input.normalWS);
     float3 l = normalize(-gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
@@ -396,12 +411,16 @@ float4 main(PSInput input) : SV_TARGET
 
     float ndotl = saturate(dot(n, l));
 
-    float4 albedo = gBaseColor;
-    if (gHasBaseColorTexture != 0)
+    float4 albedo = materialData.baseColor;
+    if (materialData.hasBaseColorTexture != 0)
     {
-        albedo *= gBaseColorTex.Sample(gLinearWrap, input.uv);
+        albedo *= HikariSampleMaterialTexture(
+            materialData.baseColorTextureDescriptorIndex,
+            gLinearWrap,
+            input.uv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f));
     }
-    if ((gMaterialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < gAlphaCutoff)
+    if ((materialData.materialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < materialData.pbrParams.w)
     {
         discard;
     }
@@ -410,11 +429,11 @@ float4 main(PSInput input) : SV_TARGET
     float roughness = 1.0f;
     float occlusion = 1.0f;
     float shadowFactor = 1.0f;
-    float3 emissive = ((gMaterialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(input.uv) : 0.0f.xxx;
+    float3 emissive = ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(materialData, input.uv) : 0.0f.xxx;
     float3 lit = albedo.rgb;
-    if ((gMaterialFlags & MATERIAL_UNLIT) == 0)
+    if ((materialData.materialFlags & MATERIAL_UNLIT) == 0)
     {
-        ResolvePbrInputs(input.uv, metallic, roughness, occlusion);
+        ResolvePbrInputs(materialData, input.uv, metallic, roughness, occlusion);
         float screenAo = 1.0f;
         if (gSsaoEnabled > 0.5f)
         {
@@ -466,7 +485,7 @@ float4 main(PSInput input) : SV_TARGET
         lit = albedo.rgb * (ambient + (diffuse + specular) * shadowFactor + pointLightContribution);
 #endif
     }
-    if ((gMaterialFlags & MATERIAL_EMISSIVE) != 0)
+    if ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0)
     {
         lit += emissive;
     }

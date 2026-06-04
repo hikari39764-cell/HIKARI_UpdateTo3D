@@ -88,7 +88,8 @@ namespace HIKARI::MESHRENDERER {
         uint32_t hasMetallicRoughnessTexture = 0;
         uint32_t hasOcclusionTexture = 0;
         float occlusionStrength = 1.0f;
-        float pbrPadding[3]{};
+        uint32_t materialDataIndex = 0xffffffffu;
+        float pbrPadding[2]{};
         MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
     };
 
@@ -277,6 +278,7 @@ namespace HIKARI::MESHRENDERER {
         size_t frameResourceSkipCount = 0;
         size_t objectResourceBindCount = 0;
         size_t objectResourceSkipCount = 0;
+        size_t legacyObjectCbWriteCount = 0;
         size_t objectDataWriteCount = 0;
         size_t objectDataBufferBindCount = 0;
         size_t objectDataBufferSkipCount = 0;
@@ -306,6 +308,9 @@ namespace HIKARI::MESHRENDERER {
         size_t surfacePacketExecutorRunCount = 0;
         size_t surfacePacketExecutorSinglePacketRunCount = 0;
         size_t surfacePacketExecutorMaxRunPacketCount = 0;
+        size_t surfacePacketExecutorInstancedDrawCount = 0;
+        size_t surfacePacketExecutorInstancedPacketCount = 0;
+        size_t surfacePacketExecutorMaxInstanceCount = 0;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;

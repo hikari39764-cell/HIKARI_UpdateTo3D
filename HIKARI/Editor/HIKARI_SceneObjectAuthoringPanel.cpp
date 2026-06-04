@@ -11,7 +11,7 @@
 #include "Scene/Prefab/HIKARI_PrefabDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -36,7 +36,7 @@ namespace HIKARI {
     }
 
     void SceneObjectAuthoringPanel::Draw(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Scene Object Authoring")) {
             ImGui::End();
             return;
@@ -53,7 +53,7 @@ namespace HIKARI {
     }
 
     void SceneObjectAuthoringPanel::DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 
         if (ImGui::Button("Create Object")) {
             EDITOR::CreateObjectRequest request{};

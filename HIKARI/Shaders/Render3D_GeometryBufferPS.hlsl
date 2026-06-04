@@ -1,9 +1,8 @@
+#define HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING 1
 #include "Include/HIKARI_MeshObjectData.hlsli"
 
 static const uint MATERIAL_ALPHA_MASK = 1u << 1;
 
-Texture2D gBaseColorTex : register(t0);
-Texture2D gMetallicRoughnessTex : register(t4);
 SamplerState gLinearWrap : register(s0);
 
 struct PSInput
@@ -13,24 +12,37 @@ struct PSInput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    nointerpolation uint materialDataIndex : TEXCOORD2;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float4 albedo = gBaseColor;
-    if (gHasBaseColorTexture != 0)
+    HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
+    float4 albedo = materialData.baseColor;
+    if (materialData.hasBaseColorTexture != 0)
     {
-        albedo *= gBaseColorTex.Sample(gLinearWrap, input.uv);
+        albedo *= HikariSampleMaterialTexture(
+            materialData.baseColorTextureDescriptorIndex,
+            gLinearWrap,
+            input.uv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f));
     }
-    if ((gMaterialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < gAlphaCutoff)
+    if ((materialData.materialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < materialData.pbrParams.w)
     {
         discard;
     }
 
-    float roughness = clamp(gRoughnessFactor, 0.04f, 1.0f);
-    if (gHasMetallicRoughnessTexture != 0)
+    float roughness = clamp(materialData.pbrParams.y, 0.04f, 1.0f);
+    if (materialData.hasMetallicRoughnessTexture != 0)
     {
-        roughness = clamp(roughness * gMetallicRoughnessTex.Sample(gLinearWrap, input.uv).g, 0.04f, 1.0f);
+        roughness = clamp(
+            roughness * HikariSampleMaterialTexture(
+                materialData.metallicRoughnessTextureDescriptorIndex,
+                gLinearWrap,
+                input.uv,
+                float4(1.0f, 1.0f, 1.0f, 1.0f)).g,
+            0.04f,
+            1.0f);
     }
 
     float3 n = normalize(input.normalWS);

@@ -2,7 +2,7 @@
 
 #include "Assets/HIKARI_AssetTypes.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -39,7 +39,7 @@ namespace HIKARI::EDITOR {
         static bool Initialize();
         static void Finalize();
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         static bool DrawIcon(EditorIconKind kind, const ImVec2& size);
         static bool DrawAssetIcon(AssetType type, const ImVec2& size);
         static bool IconButton(

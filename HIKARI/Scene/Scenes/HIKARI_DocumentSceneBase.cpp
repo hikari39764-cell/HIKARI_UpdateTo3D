@@ -513,12 +513,14 @@ namespace HIKARI {
                 LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
                 LIGHTDEBUGDRAW::SubmitPointLightDebug(activeEnvironment);
             }
+#if defined(HIKARI_WITH_EDITOR)
             if (viewportOverlayState_.showReflectionProbe) {
                 reflectionProbeGizmoRenderer_.Submit(activeEnvironment, viewportOverlayState_, camera_);
             }
             lightProbeVolumeGizmoRenderer_.Submit(
                 sceneDocument_.lightingBake.lightProbeVolume,
                 viewportOverlayState_);
+#endif
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);

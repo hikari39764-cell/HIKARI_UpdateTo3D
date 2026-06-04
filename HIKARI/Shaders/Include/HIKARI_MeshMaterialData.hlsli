@@ -36,6 +36,12 @@ cbuffer MaterialIndexCB : register(b7)
     uint3 gMaterialDataPadding;
 };
 
+// instance ごとの material index から MaterialData を読む。
+HikariMeshMaterialData HikariGetMeshMaterialData(uint materialDataIndex)
+{
+    return gMaterialDataBuffer[materialDataIndex];
+}
+
 #define gMaterialData gMaterialDataBuffer[gMaterialDataIndex]
 #define gBaseColor gMaterialData.baseColor
 #define gMaterialFlags gMaterialData.materialFlags
@@ -50,5 +56,38 @@ cbuffer MaterialIndexCB : register(b7)
 #define gMetallicFactor gMaterialData.pbrParams.x
 #define gRoughnessFactor gMaterialData.pbrParams.y
 #define gOcclusionStrength gMaterialData.pbrParams.z
+#define gBaseColorTextureDescriptorIndex gMaterialData.baseColorTextureDescriptorIndex
+#define gNormalTextureDescriptorIndex gMaterialData.normalTextureDescriptorIndex
+#define gEmissiveTextureDescriptorIndex gMaterialData.emissiveTextureDescriptorIndex
+#define gMetallicRoughnessTextureDescriptorIndex gMaterialData.metallicRoughnessTextureDescriptorIndex
+#define gOcclusionTextureDescriptorIndex gMaterialData.occlusionTextureDescriptorIndex
+
+#if defined(HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING)
+static const uint HIKARI_INVALID_TEXTURE_DESCRIPTOR_INDEX = 0xffffffffu;
+static const uint HIKARI_MATERIAL_TEXTURE_POOL_COUNT = 3968u;
+
+// 材質テクスチャは descriptor index で SRV プールから参照する。
+Texture2D gMaterialTexturePool[HIKARI_MATERIAL_TEXTURE_POOL_COUNT] : register(t20);
+
+bool HikariHasMaterialTexture(uint descriptorIndex)
+{
+    return descriptorIndex != HIKARI_INVALID_TEXTURE_DESCRIPTOR_INDEX &&
+        descriptorIndex < HIKARI_MATERIAL_TEXTURE_POOL_COUNT;
+}
+
+float4 HikariSampleMaterialTexture(
+    uint descriptorIndex,
+    SamplerState samplerState,
+    float2 uv,
+    float4 fallbackValue)
+{
+    if (!HikariHasMaterialTexture(descriptorIndex))
+    {
+        return fallbackValue;
+    }
+
+    return gMaterialTexturePool[NonUniformResourceIndex(descriptorIndex)].Sample(samplerState, uv);
+}
+#endif
 
 #endif

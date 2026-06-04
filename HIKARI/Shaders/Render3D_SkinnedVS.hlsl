@@ -42,6 +42,12 @@ cbuffer JointPaletteCB : register(b3)
     float4x4 gJointMatrices[MAX_JOINTS];
 };
 
+cbuffer MaterialIndexCB : register(b7)
+{
+    uint gMaterialDataIndex;
+    uint3 gMaterialDataPadding;
+};
+
 struct VSInput
 {
     float3 position : POSITION;
@@ -61,6 +67,7 @@ struct VSOutput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    nointerpolation uint materialDataIndex : TEXCOORD2;
 };
 
 float4x4 ResolveJointMatrix(uint jointIndex)
@@ -96,5 +103,6 @@ VSOutput main(VSInput input)
     output.normalWS = normalize(mul((float3x3)gNormalMatrix, normalize(localNormal)));
     output.tangentWS = float4(normalize(mul((float3x3)gNormalMatrix, normalize(localTangent))), input.tangent.w);
     output.uv = input.uv0;
+    output.materialDataIndex = gMaterialDataIndex;
     return output;
 }

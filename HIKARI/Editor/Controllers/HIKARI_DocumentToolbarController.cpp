@@ -6,7 +6,7 @@
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -28,7 +28,7 @@ namespace HIKARI {
     }
 
     void DocumentToolbarController::Draw(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Scene Document")) {
             ImGui::End();
             return;
@@ -45,8 +45,8 @@ namespace HIKARI {
     }
 
     void DocumentToolbarController::DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) const {
-#if defined(_DEBUG)
-        // Scene Asset のファイル操作は Resource Workspace に集約する。
+#if defined(HIKARI_WITH_EDITOR)
+        // Scene asset file actions live in Resource Workspace.
         ImGui::TextUnformatted("Scene file operations are handled in Resource Workspace.");
         ImGui::Separator();
 

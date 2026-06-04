@@ -13,7 +13,7 @@
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_SceneTransitionBus.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -25,7 +25,7 @@
 
 namespace HIKARI {
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     namespace {
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
@@ -657,8 +657,8 @@ namespace HIKARI {
             return false;
         }
 
-        // UI 全体の編集前後を比較し、Preset や配列操作もまとめて検出する。
-        // 編集値は即時に runtime へ反映し、詳細診断は log へ逃がす。
+        // UI 蜈ｨ菴薙・邱ｨ髮・燕蠕後ｒ豈碑ｼ・＠縲￣reset 繧・・蛻玲桃菴懊ｂ縺ｾ縺ｨ繧√※讀懷・縺吶ｋ縲・
+        // 邱ｨ髮・､縺ｯ蜊ｳ譎ゅ↓ runtime 縺ｸ蜿肴丐縺励∬ｩｳ邏ｰ險ｺ譁ｭ縺ｯ log 縺ｸ騾・′縺吶・
         const SceneEnvironment beforeEdit = environment;
 
         ImGui::SeparatorText("Scene Environment");
@@ -895,7 +895,7 @@ namespace HIKARI {
             if (DrawReflectionProbeInfluenceShapeCombo(probe.influenceShape) &&
                 previousInfluenceShape != ReflectionProbeInfluenceShape::Box &&
                 probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
-                // Shape 変更時は sphere 設定から box 初期値を作る。
+                // Shape 螟画峩譎ゅ・ sphere 險ｭ螳壹°繧・box 蛻晄悄蛟､繧剃ｽ懊ｋ縲・
                 FitReflectionProbeBoxFromRadius(probe.influenceBoxCenter, probe.influenceBoxSize, probe);
             }
             if (probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
@@ -912,7 +912,7 @@ namespace HIKARI {
             if (DrawReflectionProbeProjectionShapeCombo(probe.projectionShape) &&
                 previousProjectionShape != ReflectionProbeProjectionShape::Box &&
                 probe.projectionShape == ReflectionProbeProjectionShape::Box) {
-                // Projection proxy も capture 位置から初期化する。
+                // Projection proxy 繧・capture 菴咲ｽｮ縺九ｉ蛻晄悄蛹悶☆繧九・
                 FitReflectionProbeBoxFromRadius(probe.projectionBoxCenter, probe.projectionBoxSize, probe);
             }
             if (probe.projectionShape == ReflectionProbeProjectionShape::Box) {
@@ -1072,7 +1072,7 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.35f, 1.0f), "Render diagnostics contain recent errors.");
             }
 
-            // Debug dump は scene dirty にしない。
+            // Debug dump 縺ｯ scene dirty 縺ｫ縺励↑縺・・
             if (ImGui::Button("Dump Environment Diagnostics")) {
                 RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshot("EnvironmentPanel", &environment);
             }

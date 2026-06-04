@@ -1,6 +1,6 @@
 #include "HIKARI_ParticleLab.h"
 #include "HIKARI_Renderer.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
 #include <imgui.h>
 #endif
 #include <json.hpp>
@@ -13,7 +13,7 @@ using nlohmann::json;
 
 namespace {
 
-    // ---- 生成戦略一覧 ----
+    // ---- 逕滓・謌ｦ逡･荳隕ｧ ----
     struct SpawnPreset {
         const char* name;
         SpawnFunc(*makeFunc)();
@@ -34,7 +34,7 @@ namespace {
     };
     constexpr int kSpawnPresetCount = sizeof(kSpawnPresets) / sizeof(kSpawnPresets[0]);
 
-    // ---- 描画戦略名 ----
+    // ---- 謠冗判謌ｦ逡･蜷・----
     const char* kDrawNames[] = {
         "Circle",
         "Box Fill",
@@ -51,7 +51,7 @@ namespace {
     };
     constexpr int kDrawPresetCount = sizeof(kDrawNames) / sizeof(kDrawNames[0]);
 
-    // ---- RGBAから(ImGui) 変換 ----
+    // ---- RGBA縺九ｉ(ImGui) 螟画鋤 ----
     inline void RGBAu32ToFloat4(unsigned int rgba, float out[4]) {
         float r = float((rgba >> 24) & 0xFF) / 255.0f;
         float g = float((rgba >> 16) & 0xFF) / 255.0f;
@@ -74,7 +74,7 @@ namespace {
 // ==================================================
 
 void LAB::ParticleLab::Init() {
-    // デフォルト
+    // 繝・ヵ繧ｩ繝ｫ繝・
     currentConfig_ = MakeRadialBurstConfig(
         Vector2{ 640.0f, 360.0f },
         256,
@@ -180,7 +180,7 @@ void LAB::ParticleLab::Update(float dt) {
 
 void LAB::ParticleLab::Draw() {
     particleSystem_.Draw();
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
     ImGui::Begin("HIKARI_Particle Lab");
 
     DrawSpawnSelectorGui();
@@ -196,7 +196,7 @@ void LAB::ParticleLab::Draw() {
 // ========================= ImGui =========================
 
 void LAB::ParticleLab::DrawSpawnSelectorGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
     const char* currentName = kSpawnPresets[spawnIndex_].name;
     if (ImGui::BeginCombo("Spawn Strategy", currentName)) {
         for (int i = 0; i < kSpawnPresetCount; ++i) {
@@ -204,7 +204,7 @@ void LAB::ParticleLab::DrawSpawnSelectorGui() {
             if (ImGui::Selectable(kSpawnPresets[i].name, selected)) {
                 spawnIndex_ = i;
                 UpdateCurrentSpawnFromIndex();
-                RebuildEmitter(); // 作り直し
+                RebuildEmitter(); // 菴懊ｊ逶ｴ縺・
             }
             if (selected) {
                 ImGui::SetItemDefaultFocus();
@@ -216,7 +216,7 @@ void LAB::ParticleLab::DrawSpawnSelectorGui() {
 }
 
 void LAB::ParticleLab::DrawDrawSelectorGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
     const char* currentName = kDrawNames[drawIndex_];
     if (ImGui::BeginCombo("Draw Strategy", currentName)) {
         for (int i = 0; i < kDrawPresetCount; ++i) {
@@ -233,7 +233,7 @@ void LAB::ParticleLab::DrawDrawSelectorGui() {
         ImGui::EndCombo();
     }
 
-    // 雷専用パラメータ
+    // 髮ｷ蟆ら畑繝代Λ繝｡繝ｼ繧ｿ
     ImGui::SeparatorText("LightningBolt Params");
     ImGui::DragInt("Segments", &lightningSegments_, 1, 2, 64);
     ImGui::DragFloat("Amplitude", &lightningAmplitude_, 1.0f, 1.0f, 200.0f);
@@ -248,7 +248,7 @@ void LAB::ParticleLab::DrawDrawSelectorGui() {
 }
 
 void LAB::ParticleLab::DrawConfigGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
     ImGui::SeparatorText("Basic Config");
     ImGui::DragInt("Max Particles", &currentConfig_.maxParticles, 1, 1, 4096);
 
@@ -302,7 +302,7 @@ void LAB::ParticleLab::DrawConfigGui() {
 }
 
 void LAB::ParticleLab::DrawControlGui() {
-#if defined(_DEBUG)
+#if defined(HIKARI_ENABLE_IMGUI)
     ImGui::SeparatorText("Control");
 
     if (ImGui::Checkbox("Loop Play", &loopPlay_)) {
@@ -347,12 +347,12 @@ void LAB::ParticleLab::DrawControlGui() {
 }
 
 
-// ========================= JSON 出力 =========================
+// ========================= JSON 蜃ｺ蜉・=========================
 
 void LAB::ParticleLab::ExportCurrentConfigToFile() {
     json j;
 
-    // ---- 基本パラメータ ----
+    // ---- 蝓ｺ譛ｬ繝代Λ繝｡繝ｼ繧ｿ ----
     j["maxParticles"] = currentConfig_.maxParticles;
 
     j["emitRate"] = currentConfig_.emitRate;
@@ -367,7 +367,7 @@ void LAB::ParticleLab::ExportCurrentConfigToFile() {
     j["speedMin"] = currentConfig_.speedMin;
     j["speedMax"] = currentConfig_.speedMax;
 
-    // ---- ベクトル系 ----
+    // ---- 繝吶け繝医Ν邉ｻ ----
     j["velMin"] = { currentConfig_.velMin.x, currentConfig_.velMin.y };
     j["velMax"] = { currentConfig_.velMax.x, currentConfig_.velMax.y };
 
@@ -393,7 +393,7 @@ void LAB::ParticleLab::ExportCurrentConfigToFile() {
 
     j["attractStrength"] = currentConfig_.attractStrength;
 
-    // ---- 物理 ----
+    // ---- 迚ｩ逅・----
     j["physics"] = {
         { "gravity", {
             currentConfig_.physics.gravity.x,
@@ -403,11 +403,11 @@ void LAB::ParticleLab::ExportCurrentConfigToFile() {
         { "useDamping", currentConfig_.physics.useDamping }
     };
 
-    // ---- 色----
+    // ---- 濶ｲ----
     j["startColor"] = currentConfig_.startColor;
     j["endColor"] = currentConfig_.endColor;
 
-    // ---- 現在の Spawn / Draw 名 ----
+    // ---- 迴ｾ蝨ｨ縺ｮ Spawn / Draw 蜷・----
     const char* spawnName = (spawnIndex_ >= 0 && spawnIndex_ < kSpawnPresetCount)
         ? kSpawnPresets[spawnIndex_].name
         : "UnknownSpawn";
@@ -421,7 +421,7 @@ void LAB::ParticleLab::ExportCurrentConfigToFile() {
     j["lightningSegments"] = lightningSegments_;
     j["lightningAmplitude"] = lightningAmplitude_;
 
-    // ---- ファイル出力 ----
+    // ---- 繝輔ぃ繧､繝ｫ蜃ｺ蜉・----
     std::ofstream ofs(exportPath_);
     if (ofs.is_open()) {
         ofs << j.dump(4);

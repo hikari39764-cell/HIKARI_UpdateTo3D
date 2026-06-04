@@ -1,6 +1,6 @@
 #include "HIKARI_EditorViewportInput.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -20,7 +20,7 @@ namespace HIKARI::EDITOR {
 
         GameViewportInputState gGameViewportInput{};
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool HasImGuiContext()
         {
             return ImGui::GetCurrentContext() != nullptr;
@@ -58,7 +58,7 @@ namespace HIKARI::EDITOR {
 
     void SetGameViewportInputRect(float x, float y, float width, float height, bool windowFocused)
     {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (width <= 1.0f || height <= 1.0f) {
             ClearGameViewportInputRect();
             return;
@@ -86,9 +86,8 @@ namespace HIKARI::EDITOR {
 
     void SetGameViewportGizmoCapture(bool captured)
     {
-#if defined(_DEBUG)
-        // ImGuizmo 操作中は DebugCamera の入力取得を一時停止する。
-        gGameViewportInput.gizmoCaptured = captured;
+#if defined(HIKARI_WITH_EDITOR)
+        // ImGuizmo 操作中は DebugCamera の入力取得を一時停止する、E        gGameViewportInput.gizmoCaptured = captured;
 #else
         (void)captured;
 #endif
@@ -101,7 +100,7 @@ namespace HIKARI::EDITOR {
 
     bool IsGameViewportMouseHovered()
     {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         return IsMouseInsideGameViewport();
 #else
         return false;
@@ -110,7 +109,7 @@ namespace HIKARI::EDITOR {
 
     bool IsGameViewportMouseInputActive()
     {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
             return false;
         }
@@ -137,7 +136,7 @@ namespace HIKARI::EDITOR {
 
     bool IsGameViewportKeyboardInputActive()
     {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
             return false;
         }

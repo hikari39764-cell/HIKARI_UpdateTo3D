@@ -5,7 +5,7 @@
 #include "HIKARI_EditorSelection.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -32,7 +32,7 @@ namespace HIKARI {
         EditorSelection& selection,
         AssetRegistry* assetRegistry,
         AssetDatabase* assetDatabase) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Inspector")) {
             ImGui::End();
             return;
@@ -52,7 +52,7 @@ namespace HIKARI {
         EditorSelection& selection,
         AssetRegistry* assetRegistry,
         AssetDatabase* assetDatabase) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (selection.selectedObject == nullptr) {
             ImGui::TextUnformatted("No object selected.");
             return;
@@ -73,8 +73,7 @@ namespace HIKARI {
             gRotationEditor.eulerDeg = runtimeEulerDeg;
             gRotationEditor.editing = false;
         } else if (!gRotationEditor.editing) {
-            // Gizmoなど外部操作のQuaternionをInspector表示へ反映する。
-            gRotationEditor.eulerDeg = runtimeEulerDeg;
+            // Gizmo縺ｪ縺ｩ螟夜Κ謫堺ｽ懊・Quaternion繧棚nspector陦ｨ遉ｺ縺ｸ蜿肴丐縺吶ｋ縲・            gRotationEditor.eulerDeg = runtimeEulerDeg;
         }
         if (ImGui::DragFloat3("Rotation Euler (deg)", &gRotationEditor.eulerDeg.x, 0.1f)) {
             transform.rotation = QuatFromEulerDegrees(gRotationEditor.eulerDeg);

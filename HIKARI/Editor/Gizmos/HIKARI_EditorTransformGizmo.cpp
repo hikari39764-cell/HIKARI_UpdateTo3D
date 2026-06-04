@@ -1,6 +1,6 @@
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #include "ImGuizmo.h"
 #endif
@@ -12,7 +12,7 @@
 
 namespace HIKARI::EDITOR {
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     namespace {
         struct DecomposedGizmoMatrix {
             TransformData transform{};
@@ -138,8 +138,7 @@ namespace HIKARI::EDITOR {
                 (std::max)(0.001f, scale[1]),
                 (std::max)(0.001f, scale[2])
             };
-            // ImGuizmo の Euler 値ではなく、行列から復元した Quaternion を使う。
-            decomposed.rotation = ExtractRotationFromMatrix(matrix);
+            // ImGuizmo 縺ｮ Euler 蛟､縺ｧ縺ｯ縺ｪ縺上∬｡悟・縺九ｉ蠕ｩ蜈・＠縺・Quaternion 繧剃ｽｿ縺・・            decomposed.rotation = ExtractRotationFromMatrix(matrix);
             decomposed.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(decomposed.rotation);
             return decomposed;
         }
@@ -172,7 +171,7 @@ namespace HIKARI::EDITOR {
                 snapPtr = snap;
             }
 
-            // 編集対象ごとの差分反映は呼び出し側に任せる。
+            // The caller applies the per-object transform delta.
             result.changed = ImGuizmo::Manipulate(
                 view,
                 projection,
@@ -201,7 +200,7 @@ namespace HIKARI::EDITOR {
 
         EditorTransformGizmoResult result{};
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         float model[16]{};
         CopyMat4ToFloat16(object.Transform().GetLocalMatrix(), model);
 
@@ -231,7 +230,7 @@ namespace HIKARI::EDITOR {
 
         EditorTransformGizmoResult result{};
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         float model[16]{};
         CopyMat4ToFloat16(
             MATH::Mat4::TRS(

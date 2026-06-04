@@ -26,7 +26,7 @@
 #include <utility>
 #include <json.hpp>
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #include "imgui_internal.h"
 #endif
@@ -65,7 +65,7 @@ namespace HIKARI {
                 ", failed " + std::to_string(report.failedCount);
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool CanUseViewportShortcut(bool focused) {
             if (!focused) {
                 return false;
@@ -541,7 +541,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::Draw(DocumentSceneBase& scene) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!IsObjectAlive(scene.GetWorld(), context_.selection.selectedObject)) {
             context_.selection.selectedObject = nullptr;
             context_.selection.selectedAsset = nullptr;
@@ -572,7 +572,7 @@ namespace HIKARI {
             return;
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         DrawEditorDockSpace(resetDockingLayoutRequested);
 #endif
 
@@ -633,7 +633,7 @@ namespace HIKARI {
 
             if (resourceWorkspacePanel_.ConsumeRefreshCurrentSceneResourcesRequested()) {
                 EDITOR::ClearMaterialTextureSlotPreviewCache();
-                // 現在の SceneDocument に出てくる依存 resource をまとめて張り直す。
+                // 現在の SceneDocument に出てくる依孁Eresource をまとめて張り直す、E
                 applyRefreshReport(refreshService.RefreshCurrentSceneResources(scene));
             }
 
@@ -699,7 +699,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool open = gameOnly ? true : context_.windows.viewport.showGameView;
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoScrollbar |
@@ -881,7 +881,7 @@ namespace HIKARI {
                 gizmoCapture = gizmoResult.interacting;
 
                 if (gizmoResult.changed) {
-                    // Runtime Transform と SceneDocument の TRS を同時に更新する。
+                    // Runtime Transform と SceneDocument の TRS を同時に更新する、E
                     if (SceneObjectData* documentObject =
                         selectionSync_.FindDocumentObjectByRuntime(scene, context_.selection.selectedObject)) {
                         documentObject->transform = gizmoResult.transform;
@@ -967,7 +967,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::HandleGameViewportAssetDrop(DocumentSceneBase& scene) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         EDITOR::DroppedAssetPayload payload{};
         if (!EDITOR::AcceptAssetDrop(scene.GetAssetDatabase(), payload) || !payload.record) {
             return;
@@ -1049,7 +1049,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::DrawPendingSceneOpenModal(DocumentSceneBase& scene) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool openModal = true;
         if (!ImGui::BeginPopupModal("Unsaved Scene Changes", &openModal, ImGuiWindowFlags_AlwaysAutoResize)) {
             return;
@@ -1118,7 +1118,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::DrawSceneWorkspaceWindow(DocumentSceneBase& scene) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Scene Workspace")) {
             ImGui::End();
             return;
@@ -1224,7 +1224,7 @@ namespace HIKARI {
     }
 
     void DocumentSceneEditorController::DrawDebugWorkspaceWindow(DocumentSceneBase& scene) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Data Monitor")) {
             ImGui::End();
             return;

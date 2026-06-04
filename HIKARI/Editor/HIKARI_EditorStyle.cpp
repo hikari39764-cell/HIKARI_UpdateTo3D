@@ -1,13 +1,13 @@
 #include "HIKARI_EditorStyle.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI::EDITOR {
 
     void ApplyEditorStyle() {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         ImGuiStyle& style = ImGui::GetStyle();
         style.WindowPadding = ImVec2(12.0f, 10.0f);
         style.FramePadding = ImVec2(9.0f, 5.0f);

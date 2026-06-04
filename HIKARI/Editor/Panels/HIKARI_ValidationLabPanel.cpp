@@ -9,13 +9,13 @@
 #include <algorithm>
 #include <cstdio>
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     namespace {
         template <typename Numerator, typename Denominator>
         float SafeRatio(Numerator numerator, Denominator denominator) {
@@ -390,10 +390,10 @@ namespace HIKARI {
                 packetStats.rawGeometryRunCount,
                 packetStats.sortedGeometryRunCount);
 
-            ImGui::SeparatorText("Sorted Submit Preview");
+            ImGui::SeparatorText("SurfacePacket Forward Submit");
             bool sortedForwardPreview = RenderSubmissionSystem::IsUseSortedSurfaceForwardPreviewEnabled();
             bool skipLegacyForward = RenderSubmissionSystem::IsSkipOldStaticForwardWhenSortedSurfaceEnabled();
-            if (ImGui::Checkbox("Submit Sorted Forward Preview", &sortedForwardPreview)) {
+            if (ImGui::Checkbox("Submit SurfacePacket Forward", &sortedForwardPreview)) {
                 RenderSubmissionSystem::SetUseSortedSurfaceForwardPreview(sortedForwardPreview);
             }
             if (ImGui::Checkbox("Skip Legacy Static Forward", &skipLegacyForward)) {
@@ -446,6 +446,7 @@ namespace HIKARI {
             ImGui::Text("Object Resource Bind / Skip: %zu / %zu",
                 meshStats.objectResourceBindCount,
                 meshStats.objectResourceSkipCount);
+            ImGui::Text("Legacy ObjectCB Writes: %zu", meshStats.legacyObjectCbWriteCount);
             ImGui::Text("ObjectData Writes: %zu", meshStats.objectDataWriteCount);
             ImGui::Text("ObjectData Buffer Bind / Skip: %zu / %zu",
                 meshStats.objectDataBufferBindCount,
@@ -486,6 +487,16 @@ namespace HIKARI {
             ImGui::Text("Geometry / Forward Draws: %zu / %zu",
                 meshStats.surfacePacketExecutorGeometryDrawCount,
                 meshStats.surfacePacketExecutorForwardDrawCount);
+            const size_t instancedSavedDraws =
+                meshStats.surfacePacketExecutorInstancedPacketCount >= meshStats.surfacePacketExecutorInstancedDrawCount
+                    ? meshStats.surfacePacketExecutorInstancedPacketCount - meshStats.surfacePacketExecutorInstancedDrawCount
+                    : 0;
+            ImGui::Text("Instanced Draws / Packets / Saved: %zu / %zu / %zu",
+                meshStats.surfacePacketExecutorInstancedDrawCount,
+                meshStats.surfacePacketExecutorInstancedPacketCount,
+                instancedSavedDraws);
+            ImGui::Text("Max Instance Count: %zu",
+                meshStats.surfacePacketExecutorMaxInstanceCount);
             ImGui::Text("Runs / Single / Max Length: %zu / %zu / %zu",
                 meshStats.surfacePacketExecutorRunCount,
                 meshStats.surfacePacketExecutorSinglePacketRunCount,
@@ -611,7 +622,7 @@ namespace HIKARI {
 #endif
 
     void ValidationLabPanel::Draw(EditorContext& context, bool& open) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!open) {
             return;
         }
@@ -630,7 +641,7 @@ namespace HIKARI {
     }
 
     void ValidationLabPanel::DrawContents(EditorContext& context) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         ImGui::TextDisabled("Temporary validation and migration controls. Delete sections when their phase passes.");
         DrawSurfacePacketValidationSection();
         DrawStaticDrawValidationSection();

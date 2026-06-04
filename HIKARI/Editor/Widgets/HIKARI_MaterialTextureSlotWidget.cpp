@@ -9,7 +9,7 @@
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Render2D/HIKARI_DxTexture.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -33,7 +33,7 @@ namespace HIKARI::EDITOR {
             return assetDatabase.FindByGuid(slot.textureAssetGuid);
         }
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         std::unordered_map<std::string, int> gPreviewTextureHandles{};
 
         DXTEX::TextureColorSpace ToRuntimeColorSpace(TextureAssetColorSpace colorSpace) {
@@ -63,7 +63,7 @@ namespace HIKARI::EDITOR {
                 return found->second;
             }
 
-            // プレビューは AssetRegistry が解決した HTEX/DDS パスをそのまま使う。
+            // Use the HTEX/DDS path resolved by the asset registry for previews.
             const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
                 "editor/material_slot_preview/" + slot.textureAssetGuid.value,
                 descriptor->sourcePath,
@@ -110,7 +110,7 @@ namespace HIKARI::EDITOR {
         AssetDatabase& assetDatabase,
         AssetRegistry& assetRegistry,
         EditorSelection* selection) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool changed = false;
         const AssetRecord* record = ResolveTextureRecord(slot, assetDatabase);
         const auto* descriptor = slot.textureAssetGuid.IsValid()
@@ -180,7 +180,7 @@ namespace HIKARI::EDITOR {
         }
         ImGui::EndGroup();
 
-        // Texture 以外の Asset は slot に受け入れない。
+        // Non-texture assets are not accepted by this slot.
         ImGui::EndGroup();
         ImGui::PopID();
         return changed;
@@ -195,13 +195,13 @@ namespace HIKARI::EDITOR {
     }
 
     void ClearMaterialTextureSlotPreviewCache() {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         gPreviewTextureHandles.clear();
 #endif
     }
 
     void InvalidateMaterialTextureSlotPreviewByGuid(const AssetGuid& guid) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!guid.IsValid()) {
             return;
         }
@@ -220,7 +220,7 @@ namespace HIKARI::EDITOR {
     }
 
     void InvalidateMaterialTextureSlotPreviewByPath(const std::string& path) {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (path.empty()) {
             return;
         }

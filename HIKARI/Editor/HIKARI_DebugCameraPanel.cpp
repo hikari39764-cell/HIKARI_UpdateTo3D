@@ -1,13 +1,13 @@
 #include "HIKARI_DebugCameraPanel.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
     void DebugCameraPanel::Draw(DebugCameraController3D& debugCamera) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Debug Camera")) {
             ImGui::End();
             return;
@@ -22,7 +22,7 @@ namespace HIKARI {
     }
 
     void DebugCameraPanel::DrawContents(DebugCameraController3D& debugCamera) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool enabled = debugCamera.IsEnabled();
         if (ImGui::Checkbox("Enabled", &enabled)) {
             debugCamera.SetEnabled(enabled);

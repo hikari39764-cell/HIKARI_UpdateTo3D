@@ -45,7 +45,8 @@ namespace HIKARI {
         bool skipOldStaticForwardWhenCached = true;
         bool skipOldStaticShadowWhenCached = true;
         bool bypassOldStaticModelRendererWhenFullyCached = true;
-        bool useSortedSurfaceForwardPreview = false;
+        // SurfacePacket 経路を既定の forward 提出入口にする。
+        bool useSortedSurfaceForwardPreview = true;
         bool skipOldStaticForwardWhenSortedSurface = true;
     };
 

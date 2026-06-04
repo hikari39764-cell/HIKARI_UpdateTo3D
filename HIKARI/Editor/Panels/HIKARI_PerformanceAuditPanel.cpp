@@ -10,7 +10,7 @@
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
@@ -18,7 +18,7 @@
 
 namespace HIKARI {
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
     namespace {
 
         struct AuditSnapshot {
@@ -631,7 +631,7 @@ namespace HIKARI {
 #endif
 
     void PerformanceAuditPanel::Draw(bool& open) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!open) {
             return;
         }
@@ -649,7 +649,7 @@ namespace HIKARI {
     }
 
     void PerformanceAuditPanel::DrawContents() const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         const AuditSnapshot audit = BuildAuditSnapshot();
 
         ImGui::Text("FPS(raw): %.1f", audit.fpsRaw);

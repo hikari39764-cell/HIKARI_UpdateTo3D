@@ -162,9 +162,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             key.sortKey = HashString("sort");
             key.sortKey = HashAppend(key.sortKey, key.passMask);
             key.sortKey = HashAppend(key.sortKey, key.psoKey);
+            key.sortKey = HashAppend(key.sortKey, key.geometryKey);
             key.sortKey = HashAppend(key.sortKey, key.materialKey);
             key.sortKey = HashAppend(key.sortKey, key.textureSetKey);
-            key.sortKey = HashAppend(key.sortKey, key.geometryKey);
 
             key.alphaMasked = alphaMode == AlphaMode::Mask;
             key.transparent = alphaMode == AlphaMode::Blend;
@@ -182,14 +182,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
             if (lhs.psoKey != rhs.psoKey) {
                 return lhs.psoKey < rhs.psoKey;
             }
+            if (lhs.geometryKey != rhs.geometryKey) {
+                return lhs.geometryKey < rhs.geometryKey;
+            }
             if (lhs.materialKey != rhs.materialKey) {
                 return lhs.materialKey < rhs.materialKey;
             }
             if (lhs.textureSetKey != rhs.textureSetKey) {
                 return lhs.textureSetKey < rhs.textureSetKey;
-            }
-            if (lhs.geometryKey != rhs.geometryKey) {
-                return lhs.geometryKey < rhs.geometryKey;
             }
             return lhs.sortKey < rhs.sortKey;
         }
@@ -198,8 +198,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return
                 lhs.passMask == rhs.passMask &&
                 lhs.psoKey == rhs.psoKey &&
-                lhs.materialKey == rhs.materialKey &&
-                lhs.textureSetKey == rhs.textureSetKey;
+                lhs.geometryKey == rhs.geometryKey;
         }
 
         bool IsSortCandidate(const SurfaceDrawPacket& packet) {

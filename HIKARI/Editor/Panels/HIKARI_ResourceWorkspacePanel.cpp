@@ -11,14 +11,14 @@
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
 
 namespace HIKARI {
 
     namespace {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         bool IsBrokenRecord(const AssetRecord& record) {
             const AssetImportState state = GetImportState(record);
             return state == AssetImportState::MissingSource ||
@@ -183,7 +183,7 @@ namespace HIKARI {
         const SceneDocument& sceneDocument,
         EditorSelection& selection,
         const ResourceWorkspaceContext& context) const {
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Resource Workspace")) {
             ImGui::End();
             return;
