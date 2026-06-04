@@ -119,6 +119,7 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_PixProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_ShaderCompiler.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
@@ -583,6 +584,7 @@
     <ClInclude Include="HIKARI\Render2D\HIKARI_DxRenderer.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_DxTexture.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_ShaderCompiler.h" />
     <ClInclude Include="HIKARI\HIKARI_Input.h" />
     <ClInclude Include="HIKARI\HIKARI_Particle.h" />
     <ClInclude Include="HIKARI\HIKARI_ParticleLab.h" />

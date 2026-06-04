@@ -1,15 +1,13 @@
 #include "Vfx/Post/HIKARI_PostEffect.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include <Windows.h>
 #include <d3dcommon.h>
-#include <d3dcompiler.h>
 #include <cstring>
 #include <d3dx12.h>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 using Microsoft::WRL::ComPtr;
 
@@ -74,25 +72,8 @@ namespace HIKARI {
         }
         bool PostEffect::LoadPixelShader(const wchar_t* path)
         {
-            ComPtr<ID3DBlob> err;
-
-            HRESULT hr = D3DCompileFromFile(
-                path,
-                nullptr,
-                D3D_COMPILE_STANDARD_FILE_INCLUDE,
-                "main",
-                "ps_5_0",
-                D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
-                0,
-                psBlob_.GetAddressOf(),
-                err.GetAddressOf()
-            );
-
-            if (FAILED(hr)) {
-                if (err) {
-                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
-                    DEBUGLOG::PushRenderError(std::string("[PostEffect][ERROR] Shader compile failed: ") + static_cast<const char*>(err->GetBufferPointer()));
-                }
+            if (!GFX::CompileShaderFileSm6(path, "main", GFX::ShaderStage::Pixel, psBlob_.GetAddressOf())) {
+                DEBUGLOG::PushRenderError("[PostEffect][ERROR] SM6 pixel shader compile failed.");
                 return false;
             }
 

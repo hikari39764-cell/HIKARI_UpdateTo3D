@@ -7,10 +7,9 @@
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 namespace HIKARI::MESHRENDERER {
 
@@ -51,15 +50,9 @@ namespace HIKARI::MESHRENDERER {
                 return true;
             }
 
-            UINT flags = 0;
-#if defined(_DEBUG)
-            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
             ComPtr<ID3DBlob> blob;
-            ComPtr<ID3DBlob> err;
             const std::wstring path = ResolveShaderPath(cacheKey, L"HIKARI/Shaders/Render3D_StaticPS.hlsl");
-            if (FAILED(D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+            if (!GFX::CompileShaderFileSm6(path.c_str(), "main", GFX::ShaderStage::Pixel, blob.GetAddressOf())) {
                 DEBUGLOG::PushRenderError(std::string("[MeshRenderer][MaterialFx][WARN] Pixel shader compile failed. shaderId=") + cacheKey + " fallback used");
                 return false;
             }
@@ -76,15 +69,9 @@ namespace HIKARI::MESHRENDERER {
                 return true;
             }
 
-            UINT flags = 0;
-#if defined(_DEBUG)
-            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
             ComPtr<ID3DBlob> blob;
-            ComPtr<ID3DBlob> err;
             const std::wstring path = ResolveShaderPath(cacheKey, L"HIKARI/Shaders/Render3D_StaticVS.hlsl");
-            if (FAILED(D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, blob.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+            if (!GFX::CompileShaderFileSm6(path.c_str(), "main", GFX::ShaderStage::Vertex, blob.GetAddressOf())) {
                 DEBUGLOG::PushRenderError(std::string("[MeshRenderer][MaterialFx][WARN] Vertex shader compile failed. shaderId=") + cacheKey);
                 return false;
             }
@@ -213,28 +200,21 @@ namespace HIKARI::MESHRENDERER {
     }
 
     bool InitializeMeshPipelines(ID3D12Device* device, MeshPipelineStore& store) {
-        UINT flags = 0;
-#if defined(_DEBUG)
-        flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-        ComPtr<ID3DBlob> err;
-        if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_StaticVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, store.vsBlob.GetAddressOf(), err.GetAddressOf()))) {
-            if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+        if (!GFX::SupportsShaderModel6(device)) {
+            DEBUGLOG::PushRenderError("[MeshRenderer][ERROR] Shader Model 6.0 is not supported by this device.");
             return false;
         }
-        err.Reset();
-        if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_SkinnedVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, store.skinnedVsBlob.GetAddressOf(), err.GetAddressOf()))) {
-            if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+
+        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_StaticVS.hlsl", "main", GFX::ShaderStage::Vertex, store.vsBlob.GetAddressOf())) {
             return false;
         }
-        err.Reset();
-        if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_StaticPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, store.psBlob.GetAddressOf(), err.GetAddressOf()))) {
-            if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_SkinnedVS.hlsl", "main", GFX::ShaderStage::Vertex, store.skinnedVsBlob.GetAddressOf())) {
             return false;
         }
-        err.Reset();
-        if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, store.geometryPsBlob.GetAddressOf(), err.GetAddressOf()))) {
-            if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_StaticPS.hlsl", "main", GFX::ShaderStage::Pixel, store.psBlob.GetAddressOf())) {
+            return false;
+        }
+        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl", "main", GFX::ShaderStage::Pixel, store.geometryPsBlob.GetAddressOf())) {
             return false;
         }
 
@@ -343,7 +323,21 @@ namespace HIKARI::MESHRENDERER {
         lightProbeShRange.RegisterSpace = 0;
         lightProbeShRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[20]{};
+        D3D12_DESCRIPTOR_RANGE objectDataRange{};
+        objectDataRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        objectDataRange.NumDescriptors = 1;
+        objectDataRange.BaseShaderRegister = 15;
+        objectDataRange.RegisterSpace = 0;
+        objectDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_DESCRIPTOR_RANGE materialDataRange{};
+        materialDataRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        materialDataRange.NumDescriptors = 1;
+        materialDataRange.BaseShaderRegister = 16;
+        materialDataRange.RegisterSpace = 0;
+        materialDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[ROOT_PARAM::MaterialIndex + 1]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -444,6 +438,28 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::LightProbeSh].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::LightProbeSh].DescriptorTable.pDescriptorRanges = &lightProbeShRange;
 
+        params[ROOT_PARAM::ObjectData].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::ObjectData].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::ObjectData].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::ObjectData].DescriptorTable.pDescriptorRanges = &objectDataRange;
+
+        params[ROOT_PARAM::ObjectIndex].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        params[ROOT_PARAM::ObjectIndex].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::ObjectIndex].Constants.ShaderRegister = 6;
+        params[ROOT_PARAM::ObjectIndex].Constants.RegisterSpace = 0;
+        params[ROOT_PARAM::ObjectIndex].Constants.Num32BitValues = 1;
+
+        params[ROOT_PARAM::MaterialData].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::MaterialData].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::MaterialData].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::MaterialData].DescriptorTable.pDescriptorRanges = &materialDataRange;
+
+        params[ROOT_PARAM::MaterialIndex].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        params[ROOT_PARAM::MaterialIndex].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::MaterialIndex].Constants.ShaderRegister = 7;
+        params[ROOT_PARAM::MaterialIndex].Constants.RegisterSpace = 0;
+        params[ROOT_PARAM::MaterialIndex].Constants.Num32BitValues = 1;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -488,7 +504,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[21]{};
+        D3D12_ROOT_PARAMETER skinnedParams[ROOT_PARAM::JointPalette + 1]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

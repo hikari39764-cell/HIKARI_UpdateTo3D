@@ -2,6 +2,7 @@
 
 #include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
@@ -335,6 +336,10 @@ namespace HIKARI {
                 RenderSubmissionSystem::GetSceneRenderCacheStats();
             const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& packetStats =
                 RenderSubmissionSystem::GetSurfaceDrawPacketStats();
+            const RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats& submitStats =
+                RenderSubmissionSystem::GetSurfaceDrawPacketSubmitStats();
+            const MESHRENDERER::MeshRendererDebugStats& meshStats =
+                MESHRENDERER::GetDebugStats();
 
             if (!ImGui::CollapsingHeader("Surface / DrawPacket Contract Validation", ImGuiTreeNodeFlags_DefaultOpen)) {
                 return;
@@ -346,6 +351,7 @@ namespace HIKARI {
             const float validPacketRatio = SafeRatio(packetStats.validPacketCount, packetStats.packetCount);
             const float forwardRatio = SafeRatio(packetStats.forwardCandidateCount, packetStats.packetCount);
             const float shadowRatio = SafeRatio(packetStats.shadowCandidateCount, packetStats.packetCount);
+            const float reorderedRatio = SafeRatio(packetStats.reorderedPacketCount, packetStats.sortEligiblePacketCount);
 
             ImGui::SeparatorText("Contract");
             ImGui::Text("Instance / Packet Count: %u / %u (%s)",
@@ -360,12 +366,137 @@ namespace HIKARI {
                 packetStats.invalidResourceKeyCount,
                 packetStats.sortOrderBreakCount);
 
+            ImGui::SeparatorText("Packet Sort View");
+            ImGui::Text("Eligible / Sorted / Reordered: %u / %u / %u (%.1f%%)",
+                packetStats.sortEligiblePacketCount,
+                packetStats.sortedPacketCount,
+                packetStats.reorderedPacketCount,
+                reorderedRatio * 100.0f);
+            ImGui::Text("Transparent Sort Excluded: %u", packetStats.transparentSortExcludedCount);
+            ImGui::Text("Raw / Sorted Sort Breaks: %u / %u",
+                packetStats.sortOrderBreakCount,
+                packetStats.sortedSortOrderBreakCount);
+            ImGui::Text("Runs Pass / PSO: %u -> %u / %u -> %u",
+                packetStats.rawPassRunCount,
+                packetStats.sortedPassRunCount,
+                packetStats.rawPsoRunCount,
+                packetStats.sortedPsoRunCount);
+            ImGui::Text("Runs Material / Texture: %u -> %u / %u -> %u",
+                packetStats.rawMaterialRunCount,
+                packetStats.sortedMaterialRunCount,
+                packetStats.rawTextureSetRunCount,
+                packetStats.sortedTextureSetRunCount);
+            ImGui::Text("Runs Geometry: %u -> %u",
+                packetStats.rawGeometryRunCount,
+                packetStats.sortedGeometryRunCount);
+
+            ImGui::SeparatorText("Sorted Submit Preview");
+            bool sortedForwardPreview = RenderSubmissionSystem::IsUseSortedSurfaceForwardPreviewEnabled();
+            bool skipLegacyForward = RenderSubmissionSystem::IsSkipOldStaticForwardWhenSortedSurfaceEnabled();
+            if (ImGui::Checkbox("Submit Sorted Forward Preview", &sortedForwardPreview)) {
+                RenderSubmissionSystem::SetUseSortedSurfaceForwardPreview(sortedForwardPreview);
+            }
+            if (ImGui::Checkbox("Skip Legacy Static Forward", &skipLegacyForward)) {
+                RenderSubmissionSystem::SetSkipOldStaticForwardWhenSortedSurface(skipLegacyForward);
+            }
+            ImGui::TextDisabled("Active only when both toggles are enabled. Transparent, mask, dynamic and skinned packets stay on legacy path.");
+            ImGui::Text("Source / Sorted Packets: %u / %u",
+                submitStats.sourcePacketCount,
+                submitStats.sortedPacketCount);
+            ImGui::Text("Objects Candidate / Full / Fallback / Skip Old: %u / %u / %u / %u",
+                submitStats.candidateObjectCount,
+                submitStats.fullCoverageObjectCount,
+                submitStats.fallbackObjectCount,
+                submitStats.skipOldForwardObjectCount);
+            ImGui::Text("Objects Partial / Primitive Handoff: %u / %u",
+                submitStats.partialCoverageObjectCount,
+                submitStats.handledPrimitiveObjectCount);
+            ImGui::Text("Packets Candidate / Submitted / Culled / Handled: %u / %u / %u / %u",
+                submitStats.candidatePacketCount,
+                submitStats.submittedForwardPacketCount,
+                submitStats.culledPacketCount,
+                submitStats.handledForwardPacketCount);
+            ImGui::Text("Partial Packets / Handled Primitives: %u / %u",
+                submitStats.partialTakeoverPacketCount,
+                submitStats.handledPrimitiveCount);
+            ImGui::Text("Submitted Runs / Single / Max Length: %u / %u / %u",
+                submitStats.submittedRunCount,
+                submitStats.submittedSinglePacketRunCount,
+                submitStats.submittedMaxRunPacketCount);
+            ImGui::Text("Skipped Dynamic / Skinned / Transparent / Mask: %u / %u / %u / %u",
+                submitStats.skippedDynamicPacketCount,
+                submitStats.skippedSkinnedPacketCount,
+                submitStats.skippedTransparentPacketCount,
+                submitStats.skippedAlphaMaskedPacketCount);
+            ImGui::Text("Skipped No Forward / Invalid / Invalid Key: %u / %u / %u",
+                submitStats.skippedNoForwardPacketCount,
+                submitStats.skippedInvalidPacketCount,
+                submitStats.skippedInvalidResourceKeyCount);
+            ImGui::Text("Skipped Invalid Primitive / Partial Coverage: %u / %u",
+                submitStats.skippedInvalidPrimitiveCount,
+                submitStats.skippedPartialCoveragePacketCount);
+
+            ImGui::SeparatorText("Mesh Binding Cache");
+            ImGui::Text("Root Signature Bind / Skip: %zu / %zu",
+                meshStats.rootSignatureBindCount,
+                meshStats.rootSignatureSkipCount);
+            ImGui::Text("Frame Resource Bind / Skip: %zu / %zu",
+                meshStats.frameResourceBindCount,
+                meshStats.frameResourceSkipCount);
+            ImGui::Text("Object Resource Bind / Skip: %zu / %zu",
+                meshStats.objectResourceBindCount,
+                meshStats.objectResourceSkipCount);
+            ImGui::Text("ObjectData Writes: %zu", meshStats.objectDataWriteCount);
+            ImGui::Text("ObjectData Buffer Bind / Skip: %zu / %zu",
+                meshStats.objectDataBufferBindCount,
+                meshStats.objectDataBufferSkipCount);
+            ImGui::Text("ObjectData Index Bind / Skip: %zu / %zu",
+                meshStats.objectIndexBindCount,
+                meshStats.objectIndexSkipCount);
+            ImGui::Text("MaterialData Writes / Cached: %zu / %zu",
+                meshStats.materialDataWriteCount,
+                meshStats.materialDataCachedCount);
+            ImGui::Text("MaterialData Hit / Miss / Overflow: %zu / %zu / %zu",
+                meshStats.materialDataCacheHitCount,
+                meshStats.materialDataCacheMissCount,
+                meshStats.materialDataOverflowCount);
+            ImGui::Text("MaterialData Buffer Bind / Skip: %zu / %zu",
+                meshStats.materialDataBufferBindCount,
+                meshStats.materialDataBufferSkipCount);
+            ImGui::Text("MaterialData Index Bind / Skip: %zu / %zu",
+                meshStats.materialIndexBindCount,
+                meshStats.materialIndexSkipCount);
+            ImGui::Text("Texture Pool Slots Resolved / Invalid: %zu / %zu",
+                meshStats.materialTexturePoolResolvedSlotCount,
+                meshStats.materialTexturePoolInvalidSlotCount);
+            ImGui::Text("Texture Pool Unique SRVs / Slots: %zu / %zu",
+                meshStats.materialTexturePoolUniqueDescriptorCount,
+                meshStats.materialTexturePoolSlotCount);
+            ImGui::Text("Descriptor Table Bind / Skip: %zu / %zu",
+                meshStats.descriptorTableBindCount,
+                meshStats.descriptorTableSkipCount);
+            ImGui::Text("Pipeline State Bind / Skip: %zu / %zu",
+                meshStats.pipelineStateBindCount,
+                meshStats.pipelineStateSkipCount);
+
+            ImGui::SeparatorText("Surface Packet Executor");
+            ImGui::Text("Packets / Skipped: %zu / %zu",
+                meshStats.surfacePacketExecutorPacketCount,
+                meshStats.surfacePacketExecutorSkippedPacketCount);
+            ImGui::Text("Geometry / Forward Draws: %zu / %zu",
+                meshStats.surfacePacketExecutorGeometryDrawCount,
+                meshStats.surfacePacketExecutorForwardDrawCount);
+            ImGui::Text("Runs / Single / Max Length: %zu / %zu / %zu",
+                meshStats.surfacePacketExecutorRunCount,
+                meshStats.surfacePacketExecutorSinglePacketRunCount,
+                meshStats.surfacePacketExecutorMaxRunPacketCount);
+
             ImGui::SeparatorText("Scene Surface Instances");
             ImGui::Text("Total: %u", sceneStats.surfaceInstanceCount);
             ImGui::Text("Visible / Hidden: %u / %u",
                 sceneStats.visibleSurfaceInstanceCount,
                 sceneStats.hiddenSurfaceInstanceCount);
-            ImGui::Text("Static Objects / Dynamic Objects: %u / %u",
+            ImGui::Text("Static / Dynamic Surfaces: %u / %u",
                 sceneStats.staticSurfaceInstanceCount,
                 sceneStats.dynamicSurfaceInstanceCount);
             ImGui::Text("Static Geometry / Skinned Geometry: %u / %u",

@@ -13,10 +13,9 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
@@ -136,17 +135,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         }
 
         bool CompileShader(const wchar_t* path, const char* entry, const char* target, ID3DBlob** outBlob) {
-            UINT flags = 0;
-#if defined(_DEBUG)
-            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-            Microsoft::WRL::ComPtr<ID3DBlob> err;
-            HRESULT hr = D3DCompileFromFile(path, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, entry, target, flags, 0, outBlob, err.GetAddressOf());
-            if (FAILED(hr)) {
-                if (err) {
-                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
-                    DEBUGLOG::PushRenderError(static_cast<const char*>(err->GetBufferPointer()));
-                }
+            if (!GFX::CompileShaderFileSm6(path, entry, GFX::UpgradeToShaderModel6Profile(target), outBlob)) {
+                DEBUGLOG::PushRenderError("[SSAO][ERROR] SM6 shader compile failed.");
                 return false;
             }
             return true;
@@ -559,6 +549,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         if (device == nullptr) {
             return false;
         }
+        if (!GFX::SupportsShaderModel6(device)) {
+            DEBUGLOG::PushRenderError("[SSAO][ERROR] Shader Model 6.0 is not supported by this device.");
+            return false;
+        }
 
         D3D12_STATIC_SAMPLER_DESC pointSampler{};
         pointSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -623,13 +617,13 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         Microsoft::WRL::ComPtr<ID3DBlob> blurVs;
         Microsoft::WRL::ComPtr<ID3DBlob> blurPs;
         Microsoft::WRL::ComPtr<ID3DBlob> depthOnlyBlurPs;
-        if (!CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "VSMain", "vs_5_0", generateVs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMain", "ps_5_0", generatePs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainOptimizedHigh", "ps_5_0", optimizedGeneratePs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainDepthOnlyBalanced", "ps_5_0", depthOnlyGeneratePs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "VSMain", "vs_5_0", blurVs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMain", "ps_5_0", blurPs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMainDepthOnly", "ps_5_0", depthOnlyBlurPs.GetAddressOf())) {
+        if (!CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "VSMain", "vs_6_0", generateVs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMain", "ps_6_0", generatePs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainOptimizedHigh", "ps_6_0", optimizedGeneratePs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainDepthOnlyBalanced", "ps_6_0", depthOnlyGeneratePs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "VSMain", "vs_6_0", blurVs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMain", "ps_6_0", blurPs.GetAddressOf()) ||
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMainDepthOnly", "ps_6_0", depthOnlyBlurPs.GetAddressOf())) {
             return false;
         }
 

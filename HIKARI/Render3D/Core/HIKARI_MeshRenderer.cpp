@@ -11,6 +11,7 @@
 #include "HIKARI_DxTexture.h"
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ResourceStateTracker.h"
 #include "HIKARI_Services.h"
@@ -25,6 +26,7 @@
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -44,6 +46,8 @@ namespace HIKARI::MESHRENDERER {
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
             const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
+            const UINT objectDataBytes = static_cast<UINT>(sizeof(ObjectGpuData) * kMaxObjectCount);
+            const UINT materialDataBytes = static_cast<UINT>(sizeof(MaterialGpuData) * kMaxMaterialDataCount);
             const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
             const UINT shadowBytes = AlignConstantBufferSize(sizeof(ShadowCB));
             const UINT skyEnvironmentBytes = AlignConstantBufferSize(sizeof(SkyEnvironmentCB));
@@ -66,6 +70,61 @@ namespace HIKARI::MESHRENDERER {
             if (FAILED(g.objectCB->Map(0, nullptr, reinterpret_cast<void**>(&g.objectMapped)))) {
                 return false;
             }
+
+            auto objectDataDesc = CD3DX12_RESOURCE_DESC::Buffer(objectDataBytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &objectDataDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.objectDataBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(g.objectDataBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g.objectDataMapped)))) {
+                return false;
+            }
+
+            auto materialDataDesc = CD3DX12_RESOURCE_DESC::Buffer(materialDataBytes);
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &materialDataDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.materialDataBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(g.materialDataBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g.materialDataMapped)))) {
+                return false;
+            }
+
+            ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
+            if (srvHeap == nullptr) {
+                return false;
+            }
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            const UINT objectDataSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshObjectData);
+            g.objectDataSrvCpu =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
+            g.objectDataSrvGpu =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
+            const UINT materialDataSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshMaterialData);
+            g.materialDataSrvCpu =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
+            g.materialDataSrvGpu =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC objectDataSrv{};
+            objectDataSrv.Format = DXGI_FORMAT_UNKNOWN;
+            objectDataSrv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            objectDataSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            objectDataSrv.Buffer.FirstElement = 0;
+            objectDataSrv.Buffer.NumElements = kMaxObjectCount;
+            objectDataSrv.Buffer.StructureByteStride = sizeof(ObjectGpuData);
+            objectDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            device->CreateShaderResourceView(g.objectDataBuffer.Get(), &objectDataSrv, g.objectDataSrvCpu);
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC materialDataSrv{};
+            materialDataSrv.Format = DXGI_FORMAT_UNKNOWN;
+            materialDataSrv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            materialDataSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            materialDataSrv.Buffer.FirstElement = 0;
+            materialDataSrv.Buffer.NumElements = kMaxMaterialDataCount;
+            materialDataSrv.Buffer.StructureByteStride = sizeof(MaterialGpuData);
+            materialDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            device->CreateShaderResourceView(g.materialDataBuffer.Get(), &materialDataSrv, g.materialDataSrvCpu);
 
             auto lightDesc = CD3DX12_RESOURCE_DESC::Buffer(lightBytes);
             if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &lightDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.lightCB.GetAddressOf())))) {
@@ -193,9 +252,16 @@ namespace HIKARI::MESHRENDERER {
             ctx.staticRootSig = GetStaticRootSignature(g.pipelines);
             ctx.skinnedRootSig = GetSkinnedRootSignature(g.pipelines);
             ctx.objectCB = g.objectCB.Get();
+            ctx.objectDataBuffer = g.objectDataBuffer.Get();
+            ctx.materialDataBuffer = g.materialDataBuffer.Get();
             ctx.jointPaletteCB = g.jointPaletteCB.Get();
             ctx.objectMapped = g.objectMapped;
+            ctx.objectDataMapped = g.objectDataMapped;
+            ctx.materialDataMapped = g.materialDataMapped;
             ctx.jointPaletteMapped = g.jointPaletteMapped;
+            ctx.materialDataTable = &g.materialDataFrameTable;
+            ctx.objectDataSrv = g.objectDataSrvGpu;
+            ctx.materialDataSrv = g.materialDataSrvGpu;
             ctx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
             ctx.lightAddress = g.lightCB ? g.lightCB->GetGPUVirtualAddress() : 0;
             ctx.shadowAddress = g.shadowCB ? g.shadowCB->GetGPUVirtualAddress() : 0;
@@ -209,6 +275,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.binding.fallbackCubeTextureHandle = g.fallbackCubeTextureHandle;
             ctx.binding.fallbackAoTextureHandle = fallbackAoTextureHandle >= 0 ? fallbackAoTextureHandle : g.fallbackTextureHandle;
             ctx.binding.ssaoSrv = ssaoSrv;
+            ctx.binding.stats = &g.debugStats;
             ctx.materialFill.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.materialFill.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
@@ -219,6 +286,69 @@ namespace HIKARI::MESHRENDERER {
             ctx.services.pipelines = &g.pipelines;
             ctx.services.stats = &g.debugStats;
             return ctx;
+        }
+
+        bool HasSurfacePacketExecutionPlan() {
+            return
+                g.surfacePacketBuilder != nullptr &&
+                g.surfacePacketExecutionIndices != nullptr &&
+                g.surfacePacketExecutionRuns != nullptr &&
+                !g.surfacePacketExecutionIndices->empty() &&
+                !g.surfacePacketExecutionRuns->empty();
+        }
+
+        bool RenderSurfacePacketPlan(
+            MeshDrawPassKind passKind,
+            size_t& objectIndex,
+            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
+            int fallbackAoTextureHandle) {
+            if (!HasSurfacePacketExecutionPlan()) {
+                return true;
+            }
+
+            const char* eventName = passKind == MeshDrawPassKind::GeometryBuffer
+                ? "SurfacePacketExecutor.GeometryBuffer"
+                : "SurfacePacketExecutor.Forward";
+            GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
+
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(false, passKind, ssaoSrv, fallbackAoTextureHandle);
+            drawCtx.binding.cache = &bindingCache;
+
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
+                g.surfacePacketBuilder->GetPackets();
+            const std::vector<uint32_t>& executableIndices =
+                *g.surfacePacketExecutionIndices;
+            for (const RENDER3D::RUNTIME::SurfaceDrawPacketRun& run :
+                *g.surfacePacketExecutionRuns) {
+
+                const SurfacePacketRunDrawResult result = DrawSurfacePacketRun(
+                    drawCtx,
+                    packets.data(),
+                    packets.size(),
+                    executableIndices.data(),
+                    executableIndices.size(),
+                    run,
+                    objectIndex);
+
+                ++g.debugStats.surfacePacketExecutorRunCount;
+                if (run.packetCount == 1) {
+                    ++g.debugStats.surfacePacketExecutorSinglePacketRunCount;
+                }
+                g.debugStats.surfacePacketExecutorMaxRunPacketCount =
+                    (std::max)(
+                        g.debugStats.surfacePacketExecutorMaxRunPacketCount,
+                        static_cast<size_t>(run.packetCount));
+
+                g.debugStats.surfacePacketExecutorPacketCount += result.submittedPacketCount;
+                g.debugStats.surfacePacketExecutorSkippedPacketCount += result.skippedPacketCount;
+                if (passKind == MeshDrawPassKind::GeometryBuffer) {
+                    g.debugStats.surfacePacketExecutorGeometryDrawCount += result.submittedPacketCount;
+                } else {
+                    g.debugStats.surfacePacketExecutorForwardDrawCount += result.submittedPacketCount;
+                }
+            }
+            return true;
         }
 
         bool RenderMeshPhase(
@@ -233,7 +363,9 @@ namespace HIKARI::MESHRENDERER {
                 ? "MeshRenderer.GeometryBuffer"
                 : (depthAwarePhase ? "MeshRenderer.DepthAware" : "MeshRenderer.Opaque");
             GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
-            const MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, ssaoSrv, fallbackAoTextureHandle);
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, ssaoSrv, fallbackAoTextureHandle);
+            drawCtx.binding.cache = &bindingCache;
 
             for (const DrawItem* item : queue.GetPhase(phase)) {
                 if (item == nullptr) {
@@ -250,7 +382,7 @@ namespace HIKARI::MESHRENDERER {
         bool RenderGeometryBufferPassInternal(
             const RENDER3D::RenderQueue& queue,
             RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer) {
-            if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque)) {
+            if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque) && !HasSurfacePacketExecutionPlan()) {
                 return false;
             }
 
@@ -268,10 +400,21 @@ namespace HIKARI::MESHRENDERER {
             GFX::PIX::ScopedGpuEvent pixGeometry(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "SceneGeometryBuffer");
             geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, depthDsv);
             size_t geometryObjectIndex = 0;
-            const bool ok = RenderMeshPhase(queue, RENDER3D::RenderPhase::Opaque, MeshDrawPassKind::GeometryBuffer, geometryObjectIndex, {}, g.fallbackTextureHandle);
+            const bool packetOk = RenderSurfacePacketPlan(
+                MeshDrawPassKind::GeometryBuffer,
+                geometryObjectIndex,
+                {},
+                g.fallbackTextureHandle);
+            const bool queueOk = packetOk && RenderMeshPhase(
+                queue,
+                RENDER3D::RenderPhase::Opaque,
+                MeshDrawPassKind::GeometryBuffer,
+                geometryObjectIndex,
+                {},
+                g.fallbackTextureHandle);
             geometryBuffer.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
             POST::PostSystem::RebindCurrentRenderTarget();
-            return ok;
+            return packetOk && queueOk;
         }
 
         struct DepthAwarePhaseScope {
@@ -413,6 +556,10 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.clear();
         g.renderQueue.Clear();
         g.frameObjectIndex = 0;
+        g.materialDataFrameTable.Clear();
+        g.surfacePacketBuilder = nullptr;
+        g.surfacePacketExecutionIndices = nullptr;
+        g.surfacePacketExecutionRuns = nullptr;
         g.debugStats = {};
     }
 
@@ -470,8 +617,17 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
+    void SetSurfaceDrawPacketExecutionPlan(
+        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
+        const std::vector<uint32_t>* executablePacketIndices,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacketRun>* executableRuns) {
+        g.surfacePacketBuilder = builder;
+        g.surfacePacketExecutionIndices = executablePacketIndices;
+        g.surfacePacketExecutionRuns = executableRuns;
+    }
+
     bool HasSubmittedItems() {
-        return !g.drawItems.empty();
+        return !g.drawItems.empty() || HasSurfacePacketExecutionPlan();
     }
 
     bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment) {
@@ -483,11 +639,18 @@ namespace HIKARI::MESHRENDERER {
         }
 
         ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-        if (cmd == nullptr || g.objectMapped == nullptr || g.objectCB == nullptr) {
+        if (cmd == nullptr ||
+            g.objectMapped == nullptr ||
+            g.objectCB == nullptr ||
+            g.objectDataMapped == nullptr ||
+            g.objectDataBuffer == nullptr ||
+            g.materialDataMapped == nullptr ||
+            g.materialDataBuffer == nullptr) {
             return false;
         }
 
         g.frameObjectIndex = 0;
+        g.materialDataFrameTable.Clear();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
         if (srvHeap != nullptr) {
@@ -513,11 +676,18 @@ namespace HIKARI::MESHRENDERER {
         }
 
         ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-        if (cmd == nullptr || g.objectMapped == nullptr || g.objectCB == nullptr) {
+        if (cmd == nullptr ||
+            g.objectMapped == nullptr ||
+            g.objectCB == nullptr ||
+            g.objectDataMapped == nullptr ||
+            g.objectDataBuffer == nullptr ||
+            g.materialDataMapped == nullptr ||
+            g.materialDataBuffer == nullptr) {
             return false;
         }
 
         g.frameObjectIndex = 0;
+        g.materialDataFrameTable.Clear();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
         if (srvHeap != nullptr) {
@@ -548,14 +718,20 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::RenderQueue& queue,
         D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
         int fallbackAoTextureHandle) {
-        // MeshRenderer は mesh draw を担当し、screen-space pass の順序は外部で決める。
-        return RenderMeshPhase(
+        // SurfacePacket は queue を経由せず、先に直接実行する。
+        const bool packetOk = RenderSurfacePacketPlan(
+            MeshDrawPassKind::Forward,
+            g.frameObjectIndex,
+            ssaoSrv,
+            fallbackAoTextureHandle);
+        const bool queueOk = packetOk && RenderMeshPhase(
             queue,
             RENDER3D::RenderPhase::Opaque,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
             ssaoSrv,
             fallbackAoTextureHandle);
+        return packetOk && queueOk;
     }
 
     bool RenderDepthAwarePass(
@@ -592,6 +768,9 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.clear();
         g.renderQueue.Clear();
         g.frameObjectIndex = 0;
+        g.surfacePacketBuilder = nullptr;
+        g.surfacePacketExecutionIndices = nullptr;
+        g.surfacePacketExecutionRuns = nullptr;
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {

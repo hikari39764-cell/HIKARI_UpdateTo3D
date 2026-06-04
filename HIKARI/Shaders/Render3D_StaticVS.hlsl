@@ -17,23 +17,7 @@ cbuffer CameraCB : register(b0)
     float4 gScreenParams;
 };
 
-cbuffer ObjectCB : register(b1)
-{
-    float4x4 gWorld;
-    float4x4 gNormalMatrix;
-    float4 gBaseColor;
-    uint gHasBaseColorTexture;
-    uint gFxFlags;
-    uint gMaterialFlags;
-    float gAlphaCutoff;
-    float4 gEmissiveFactor;
-    uint gHasNormalTexture;
-    float gNormalScale;
-    float2 gNormalPadding;
-    uint gReceiveShadow;
-    float3 gShadowObjectPadding;
-    float4 gFxUser[8];
-};
+#include "Include/HIKARI_MeshObjectData.hlsli"
 
 struct VSInput
 {

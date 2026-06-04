@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <d3d12.h>
 
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
@@ -10,6 +13,11 @@ namespace HIKARI {
     class Mesh;
     struct MaterialAsset;
     struct MeshPrimitive;
+}
+
+namespace HIKARI::RENDER3D::RUNTIME {
+    struct SurfaceDrawPacket;
+    struct SurfaceDrawPacketRun;
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -36,9 +44,16 @@ namespace HIKARI::MESHRENDERER {
         ID3D12RootSignature* staticRootSig = nullptr;
         ID3D12RootSignature* skinnedRootSig = nullptr;
         ID3D12Resource* objectCB = nullptr;
+        ID3D12Resource* objectDataBuffer = nullptr;
+        ID3D12Resource* materialDataBuffer = nullptr;
         ID3D12Resource* jointPaletteCB = nullptr;
         ObjectCB* objectMapped = nullptr;
+        ObjectGpuData* objectDataMapped = nullptr;
+        MaterialGpuData* materialDataMapped = nullptr;
         JointPaletteCB* jointPaletteMapped = nullptr;
+        MaterialDataFrameTable* materialDataTable = nullptr;
+        D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
@@ -52,6 +67,20 @@ namespace HIKARI::MESHRENDERER {
     bool DrawMeshItem(
         const MeshDrawContext& ctx,
         const DrawItem& item,
+        size_t& objectIndex);
+
+    struct SurfacePacketRunDrawResult {
+        size_t submittedPacketCount = 0;
+        size_t skippedPacketCount = 0;
+    };
+
+    SurfacePacketRunDrawResult DrawSurfacePacketRun(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawPacketRun& run,
         size_t& objectIndex);
 
 } // namespace HIKARI::MESHRENDERER

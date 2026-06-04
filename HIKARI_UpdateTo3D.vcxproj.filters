@@ -465,6 +465,9 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_ShaderCompiler.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\HIKARI_Input.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -1631,6 +1634,9 @@
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_ShaderCompiler.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_Input.h">

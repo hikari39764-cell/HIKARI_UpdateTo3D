@@ -13,16 +13,16 @@ public:
 
     virtual std::string_view GetName() const = 0;
 
-    virtual void OnWorldAttached(World& world) {}
-    virtual void OnWorldDetached(World& world) {}
+    virtual void OnWorldAttached(World&) {}
+    virtual void OnWorldDetached(World&) {}
 
-    virtual void PreUpdate(World& world, const FrameContext& frame) {}
-    virtual void Update(World& world, const FrameContext& frame) {}
-    virtual void LateUpdate(World& world, const FrameContext& frame) {}
+    virtual void PreUpdate(World&, const FrameContext&) {}
+    virtual void Update(World&, const FrameContext&) {}
+    virtual void LateUpdate(World&, const FrameContext&) {}
 
-    virtual void PreRender(World& world, const FrameContext& frame) {}
-    virtual void Render(World& world, const FrameContext& frame) {}
-    virtual void PostRender(World& world, const FrameContext& frame) {}
+    virtual void PreRender(World&, const FrameContext&) {}
+    virtual void Render(World&, const FrameContext&) {}
+    virtual void PostRender(World&, const FrameContext&) {}
 };
 
 } // namespace HIKARI

@@ -1,8 +1,26 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include <d3d12.h>
 
+#include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
+
 namespace HIKARI::MESHRENDERER {
+
+    struct MeshRendererDebugStats;
+
+    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::JointPalette + 1u;
+
+    struct MeshBindingStateCache {
+        ID3D12RootSignature* rootSignature = nullptr;
+        ID3D12PipelineState* pipelineState = nullptr;
+        std::array<D3D12_GPU_VIRTUAL_ADDRESS, kTrackedRootParamCount> cbvAddresses{};
+        std::array<D3D12_GPU_DESCRIPTOR_HANDLE, kTrackedRootParamCount> descriptorTables{};
+        std::array<uint32_t, kTrackedRootParamCount> rootConstants{};
+        std::array<bool, kTrackedRootParamCount> rootConstantValid{};
+    };
 
     struct MaterialTextureHandles {
         int baseColor = -1;
@@ -21,6 +39,8 @@ namespace HIKARI::MESHRENDERER {
         int fallbackCubeTextureHandle = -1;
         int fallbackAoTextureHandle = -1;
         D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv{};
+        MeshBindingStateCache* cache = nullptr;
+        MeshRendererDebugStats* stats = nullptr;
     };
 
     void BindFrameCommonResources(
@@ -34,6 +54,26 @@ namespace HIKARI::MESHRENDERER {
     void BindObjectConstantBuffer(
         const MeshBindingContext& ctx,
         D3D12_GPU_VIRTUAL_ADDRESS objectAddress);
+
+    void BindObjectDataBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv);
+
+    void BindObjectDataIndex(
+        const MeshBindingContext& ctx,
+        uint32_t objectIndex);
+
+    void BindMaterialDataBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv);
+
+    void BindMaterialDataIndex(
+        const MeshBindingContext& ctx,
+        uint32_t materialIndex);
+
+    void BindPipelineState(
+        const MeshBindingContext& ctx,
+        ID3D12PipelineState* pso);
 
     void BindMaterialTextureSet(
         const MeshBindingContext& ctx,

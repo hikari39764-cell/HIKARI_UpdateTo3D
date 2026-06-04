@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include <vector>
 #include <DirectXMath.h>
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
@@ -15,6 +16,19 @@ namespace HIKARI {
         Normal,
         WireOverlay,
         WireOnly,
+    };
+
+    struct ModelPrimitiveDrawKey {
+        uint32_t nodeIndex = 0;
+        uint32_t meshIndex = 0;
+        uint32_t primitiveIndex = 0;
+
+        bool operator==(const ModelPrimitiveDrawKey& rhs) const {
+            return
+                nodeIndex == rhs.nodeIndex &&
+                meshIndex == rhs.meshIndex &&
+                primitiveIndex == rhs.primitiveIndex;
+        }
     };
 
     struct ModelRenderItem {
@@ -41,6 +55,7 @@ namespace HIKARI {
         bool receiveShadow = true;
         bool submitForward = true;
         bool submitShadow = true;
+        std::vector<ModelPrimitiveDrawKey> forwardPrimitiveExclusions{};
         ModelGeometryDebugMode geometryDebugMode = ModelGeometryDebugMode::Normal;
     };
 }

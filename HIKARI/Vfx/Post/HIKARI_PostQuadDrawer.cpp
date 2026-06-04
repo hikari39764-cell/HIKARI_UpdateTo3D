@@ -1,16 +1,14 @@
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include <Windows.h>
 #include <d3dcommon.h>
-#include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <cassert>
 #include <cstring>
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 using Microsoft::WRL::ComPtr;
 
@@ -72,19 +70,25 @@ float4 main(PS_IN i) : SV_TARGET
             }
 
             {
-                ComPtr<ID3DBlob> err;
-                HRESULT hr = D3DCompile(kFullscreenVS, std::strlen(kFullscreenVS), nullptr, nullptr, nullptr, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, vsBlob_.GetAddressOf(), err.GetAddressOf());
-                if (FAILED(hr)) {
-                    OutputError(err.Get());
+                if (!GFX::CompileShaderSourceSm6(
+                    kFullscreenVS,
+                    std::strlen(kFullscreenVS),
+                    L"PostQuadDrawer.FullscreenVS",
+                    "main",
+                    GFX::ShaderStage::Vertex,
+                    vsBlob_.GetAddressOf())) {
                     DEBUGLOG::PushRenderError("[PostQuadDrawer][ERROR] FullscreenVS compile failed.");
                     return false;
                 }
             }
             {
-                ComPtr<ID3DBlob> err;
-                HRESULT hr = D3DCompile(kCopyPS, std::strlen(kCopyPS), nullptr, nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, psCopyBlob_.GetAddressOf(), err.GetAddressOf());
-                if (FAILED(hr)) {
-                    OutputError(err.Get());
+                if (!GFX::CompileShaderSourceSm6(
+                    kCopyPS,
+                    std::strlen(kCopyPS),
+                    L"PostQuadDrawer.CopyPS",
+                    "main",
+                    GFX::ShaderStage::Pixel,
+                    psCopyBlob_.GetAddressOf())) {
                     DEBUGLOG::PushRenderError("[PostQuadDrawer][ERROR] CopyPS compile failed.");
                     return false;
                 }

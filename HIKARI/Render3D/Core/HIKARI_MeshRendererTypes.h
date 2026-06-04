@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <DirectXMath.h>
@@ -64,6 +66,65 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 fxUser3{};
     };
 
+    // StructuredBuffer 用。ObjectCB の互換フィールドは含めない。
+    struct ObjectGpuData {
+        MATH::Mat4 world{};
+        MATH::Mat4 normalMatrix{};
+        MATH::Vec4 baseColor{};
+        uint32_t hasBaseColorTexture = 0;
+        uint32_t fxFlags = 0;
+        uint32_t materialFlags = 0;
+        float alphaCutoff = 0.5f;
+        MATH::Vec4 emissiveFactor{};
+        uint32_t hasNormalTexture = 0;
+        float normalScale = 1.0f;
+        float normalPadding[2]{};
+        uint32_t receiveShadow = 1;
+        float shadowObjectPadding[3]{};
+        uint32_t hasEmissiveTexture = 0;
+        float emissivePadding[3]{};
+        float metallicFactor = 0.0f;
+        float roughnessFactor = 1.0f;
+        uint32_t hasMetallicRoughnessTexture = 0;
+        uint32_t hasOcclusionTexture = 0;
+        float occlusionStrength = 1.0f;
+        float pbrPadding[3]{};
+        MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
+    };
+
+    static_assert(sizeof(ObjectGpuData) == 384u);
+
+    constexpr uint32_t kInvalidMaterialDataIndex = 0xffffffffu;
+    constexpr uint32_t kInvalidTextureDescriptorIndex = 0xffffffffu;
+
+    // MaterialData 用。texture handle は次段の bindless 化に残す。
+    struct MaterialGpuData {
+        MATH::Vec4 baseColor{};
+        MATH::Vec4 emissiveFactor{};
+        MATH::Vec4 pbrParams{}; // x: metallic, y: roughness, z: occlusion, w: alpha cutoff
+        uint32_t materialFlags = 0;
+        uint32_t hasBaseColorTexture = 0;
+        uint32_t hasNormalTexture = 0;
+        uint32_t hasEmissiveTexture = 0;
+        uint32_t hasMetallicRoughnessTexture = 0;
+        uint32_t hasOcclusionTexture = 0;
+        float normalScale = 1.0f;
+        float materialPadding0 = 0.0f;
+        int32_t baseColorTextureHandle = -1;
+        int32_t normalTextureHandle = -1;
+        int32_t emissiveTextureHandle = -1;
+        int32_t metallicRoughnessTextureHandle = -1;
+        int32_t occlusionTextureHandle = -1;
+        uint32_t baseColorTextureDescriptorIndex = kInvalidTextureDescriptorIndex;
+        uint32_t normalTextureDescriptorIndex = kInvalidTextureDescriptorIndex;
+        uint32_t emissiveTextureDescriptorIndex = kInvalidTextureDescriptorIndex;
+        uint32_t metallicRoughnessTextureDescriptorIndex = kInvalidTextureDescriptorIndex;
+        uint32_t occlusionTextureDescriptorIndex = kInvalidTextureDescriptorIndex;
+        uint32_t materialPadding1[2]{};
+    };
+
+    static_assert(sizeof(MaterialGpuData) == 128u);
+
     struct LightCB {
         MATH::Vec4 directionalDir{};
         MATH::Vec4 directionalColor{};
@@ -115,6 +176,7 @@ namespace HIKARI::MESHRENDERER {
 
     constexpr size_t kMaxJointPaletteMatrices = 128u;
     constexpr UINT kMaxObjectCount = 2048u;
+    constexpr UINT kMaxMaterialDataCount = 4096u;
 
     constexpr UINT AlignConstantBufferSize(size_t size) {
         return static_cast<UINT>((size + 255u) & ~255u);
@@ -122,6 +184,26 @@ namespace HIKARI::MESHRENDERER {
 
     struct JointPaletteCB {
         MATH::Mat4 jointMatrices[kMaxJointPaletteMatrices]{};
+    };
+
+    struct MaterialDataFrameTable {
+        std::unordered_map<uint64_t, uint32_t> indexByKey{};
+        std::unordered_set<uint32_t> textureDescriptorIndices{};
+        uint32_t count = 0;
+
+        void Clear() {
+            indexByKey.clear();
+            textureDescriptorIndices.clear();
+            count = 0;
+        }
+    };
+
+    struct MaterialTextureDescriptorIndices {
+        uint32_t baseColor = kInvalidTextureDescriptorIndex;
+        uint32_t normal = kInvalidTextureDescriptorIndex;
+        uint32_t emissive = kInvalidTextureDescriptorIndex;
+        uint32_t metallicRoughness = kInvalidTextureDescriptorIndex;
+        uint32_t occlusion = kInvalidTextureDescriptorIndex;
     };
 
     struct DrawItem {
@@ -189,6 +271,41 @@ namespace HIKARI::MESHRENDERER {
         size_t occlusionTextureCacheMissCount = 0;
         size_t occlusionMappedPrimitiveCount = 0;
         size_t occlusionFallbackCount = 0;
+        size_t rootSignatureBindCount = 0;
+        size_t rootSignatureSkipCount = 0;
+        size_t frameResourceBindCount = 0;
+        size_t frameResourceSkipCount = 0;
+        size_t objectResourceBindCount = 0;
+        size_t objectResourceSkipCount = 0;
+        size_t objectDataWriteCount = 0;
+        size_t objectDataBufferBindCount = 0;
+        size_t objectDataBufferSkipCount = 0;
+        size_t objectIndexBindCount = 0;
+        size_t objectIndexSkipCount = 0;
+        size_t materialDataWriteCount = 0;
+        size_t materialDataCacheHitCount = 0;
+        size_t materialDataCacheMissCount = 0;
+        size_t materialDataOverflowCount = 0;
+        size_t materialDataCachedCount = 0;
+        size_t materialDataBufferBindCount = 0;
+        size_t materialDataBufferSkipCount = 0;
+        size_t materialIndexBindCount = 0;
+        size_t materialIndexSkipCount = 0;
+        size_t materialTexturePoolSlotCount = 0;
+        size_t materialTexturePoolResolvedSlotCount = 0;
+        size_t materialTexturePoolInvalidSlotCount = 0;
+        size_t materialTexturePoolUniqueDescriptorCount = 0;
+        size_t descriptorTableBindCount = 0;
+        size_t descriptorTableSkipCount = 0;
+        size_t pipelineStateBindCount = 0;
+        size_t pipelineStateSkipCount = 0;
+        size_t surfacePacketExecutorPacketCount = 0;
+        size_t surfacePacketExecutorForwardDrawCount = 0;
+        size_t surfacePacketExecutorGeometryDrawCount = 0;
+        size_t surfacePacketExecutorSkippedPacketCount = 0;
+        size_t surfacePacketExecutorRunCount = 0;
+        size_t surfacePacketExecutorSinglePacketRunCount = 0;
+        size_t surfacePacketExecutorMaxRunPacketCount = 0;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;

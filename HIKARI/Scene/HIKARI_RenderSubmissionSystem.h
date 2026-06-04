@@ -34,6 +34,7 @@ namespace HIKARI {
         int staticCachedSubmittedRecordCount = 0;
         int staticCachedSubmittedForwardRecordCount = 0;
         int staticCachedSubmittedShadowRecordCount = 0;
+        int sortedSurfaceForwardSkipCount = 0;
         bool frustumCullingEnabled = false;
     };
 
@@ -44,6 +45,8 @@ namespace HIKARI {
         bool skipOldStaticForwardWhenCached = true;
         bool skipOldStaticShadowWhenCached = true;
         bool bypassOldStaticModelRendererWhenFullyCached = true;
+        bool useSortedSurfaceForwardPreview = false;
+        bool skipOldStaticForwardWhenSortedSurface = true;
     };
 
     class RenderSubmissionSystem final : public ISystem {
@@ -77,10 +80,15 @@ namespace HIKARI {
         static bool IsUseCachedStaticShadowEnabled();
         static void SetBypassOldStaticModelRenderer(bool enabled);
         static bool IsBypassOldStaticModelRendererEnabled();
+        static void SetUseSortedSurfaceForwardPreview(bool enabled);
+        static bool IsUseSortedSurfaceForwardPreviewEnabled();
+        static void SetSkipOldStaticForwardWhenSortedSurface(bool enabled);
+        static bool IsSkipOldStaticForwardWhenSortedSurfaceEnabled();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
         static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder();
         static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& GetSurfaceDrawPacketStats();
+        static const RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats& GetSurfaceDrawPacketSubmitStats();
         static const RENDER3D::RUNTIME::StaticDrawRecordCache& GetStaticDrawRecordCache();
         static const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& GetStaticDrawRecordCacheStats();
         static const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& GetStaticDrawRecordSubmitStats();
@@ -91,6 +99,9 @@ namespace HIKARI {
         static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
         static RENDER3D::RUNTIME::SurfaceDrawPacketBuilder sSurfaceDrawPacketBuilder_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitter sSurfaceDrawPacketSubmitter_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitOptions sSurfaceDrawPacketSubmitOptions_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats sSurfaceDrawPacketSubmitStats_;
         static RENDER3D::RUNTIME::StaticDrawRecordCache sStaticDrawRecordCache_;
         static RENDER3D::RUNTIME::StaticRecordSubmitOptions sStaticRecordSubmitOptions_;
         static RENDER3D::RUNTIME::StaticDrawRecordSubmitter sStaticDrawRecordSubmitter_;

@@ -12,10 +12,9 @@
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Gfx/HIKARI_PixProfiler.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 namespace HIKARI::SKYRENDERER {
 
@@ -130,19 +129,15 @@ namespace HIKARI::SKYRENDERER {
         }
 
         bool CreatePipeline(ID3D12Device* device) {
-            UINT flags = 0;
-#if defined(_DEBUG)
-            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-            ComPtr<ID3DBlob> err;
-            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_SkyVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, g.vsBlob.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+            if (!GFX::SupportsShaderModel6(device)) {
+                HIKARI_LOG_ERROR("[SkyRenderer][ERROR] Shader Model 6.0 is not supported by this device.");
+                return false;
+            }
+            if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_SkyVS.hlsl", "main", GFX::ShaderStage::Vertex, g.vsBlob.GetAddressOf())) {
                 HIKARI_LOG_ERROR("[SkyRenderer][ERROR] Compile Render3D_SkyVS.hlsl failed.");
                 return false;
             }
-            err.Reset();
-            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_SkyPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, g.psBlob.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
+            if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_SkyPS.hlsl", "main", GFX::ShaderStage::Pixel, g.psBlob.GetAddressOf())) {
                 HIKARI_LOG_ERROR("[SkyRenderer][ERROR] Compile Render3D_SkyPS.hlsl failed.");
                 return false;
             }

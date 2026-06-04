@@ -1,6 +1,6 @@
 // IMPORTANT:
 // This cbuffer/register layout must stay in sync with Render3D_StaticPS.hlsl
-// and MeshRenderer::ObjectCB / LightCB / ShadowCB / SkyEnvironmentCB.
+// and MeshRenderer::ObjectGpuData / MaterialGpuData / LightCB / ShadowCB / SkyEnvironmentCB.
 
 #define gFxUser0 gFxUser[0]
 #define gFxUser1 gFxUser[1]
@@ -20,32 +20,7 @@ cbuffer CameraCB : register(b0)
     float4 gScreenParams;
 };
 
-cbuffer ObjectCB : register(b1)
-{
-    float4x4 gWorld;
-    float4x4 gNormalMatrix;
-    float4 gBaseColor;
-    uint gHasBaseColorTexture;
-    uint gFxFlags;
-    uint gMaterialFlags;
-    float gAlphaCutoff;
-    float4 gEmissiveFactor;
-    uint gHasNormalTexture;
-    float gNormalScale;
-    float2 gNormalPadding;
-    uint gReceiveShadow;
-    float3 gShadowObjectPadding;
-    uint gHasEmissiveTexture;
-    float3 gEmissivePadding;
-    float gMetallicFactor;
-    float gRoughnessFactor;
-    uint gHasMetallicRoughnessTexture;
-    uint gHasOcclusionTexture;
-    float gOcclusionStrength;
-    float3 gPbrPadding;
-
-    float4 gFxUser[8];
-};
+#include "Include/HIKARI_MeshObjectData.hlsli"
 
 static const uint MATERIAL_UNLIT = 1u << 0;
 static const uint MATERIAL_ALPHA_MASK = 1u << 1;

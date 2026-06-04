@@ -194,6 +194,138 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return lhs.sortKey < rhs.sortKey;
         }
 
+        bool IsSameSubmitRun(const SurfaceDrawPacketKey& lhs, const SurfaceDrawPacketKey& rhs) {
+            return
+                lhs.passMask == rhs.passMask &&
+                lhs.psoKey == rhs.psoKey &&
+                lhs.materialKey == rhs.materialKey &&
+                lhs.textureSetKey == rhs.textureSetKey;
+        }
+
+        bool IsSortCandidate(const SurfaceDrawPacket& packet) {
+            return
+                packet.valid &&
+                packet.key.resourceKeyValid &&
+                !packet.key.transparent &&
+                (packet.forwardCandidate || packet.shadowCandidate);
+        }
+
+        enum class RunKeyKind {
+            Pass,
+            Pso,
+            Material,
+            TextureSet,
+            Geometry,
+        };
+
+        uint64_t SelectRunKey(const SurfaceDrawPacket& packet, RunKeyKind kind) {
+            switch (kind) {
+            case RunKeyKind::Pass:
+                return packet.key.passMask;
+            case RunKeyKind::Pso:
+                return packet.key.psoKey;
+            case RunKeyKind::Material:
+                return packet.key.materialKey;
+            case RunKeyKind::TextureSet:
+                return packet.key.textureSetKey;
+            case RunKeyKind::Geometry:
+                return packet.key.geometryKey;
+            default:
+                return 0;
+            }
+        }
+
+        uint32_t CountRawRuns(const std::vector<SurfaceDrawPacket>& packets, RunKeyKind kind) {
+            bool hasPrevious = false;
+            uint64_t previous = 0;
+            uint32_t runs = 0;
+
+            for (const SurfaceDrawPacket& packet : packets) {
+                if (!IsSortCandidate(packet)) {
+                    continue;
+                }
+
+                const uint64_t current = SelectRunKey(packet, kind);
+                if (!hasPrevious || current != previous) {
+                    ++runs;
+                    previous = current;
+                    hasPrevious = true;
+                }
+            }
+            return runs;
+        }
+
+        uint32_t CountSortedRuns(
+            const std::vector<SurfaceDrawPacket>& packets,
+            const std::vector<uint32_t>& sortedIndices,
+            RunKeyKind kind) {
+
+            bool hasPrevious = false;
+            uint64_t previous = 0;
+            uint32_t runs = 0;
+
+            for (uint32_t packetIndex : sortedIndices) {
+                if (packetIndex >= packets.size()) {
+                    continue;
+                }
+                const SurfaceDrawPacket& packet = packets[packetIndex];
+                if (!IsSortCandidate(packet)) {
+                    continue;
+                }
+
+                const uint64_t current = SelectRunKey(packet, kind);
+                if (!hasPrevious || current != previous) {
+                    ++runs;
+                    previous = current;
+                    hasPrevious = true;
+                }
+            }
+            return runs;
+        }
+
+        uint32_t CountSortedBreaks(
+            const std::vector<SurfaceDrawPacket>& packets,
+            const std::vector<uint32_t>& sortedIndices) {
+
+            uint32_t breakCount = 0;
+            const SurfaceDrawPacketKey* previousKey = nullptr;
+            for (uint32_t packetIndex : sortedIndices) {
+                if (packetIndex >= packets.size()) {
+                    continue;
+                }
+                const SurfaceDrawPacket& packet = packets[packetIndex];
+                if (!IsSortCandidate(packet)) {
+                    continue;
+                }
+
+                if (previousKey != nullptr && ComesBeforeForBatching(packet.key, *previousKey)) {
+                    ++breakCount;
+                }
+                previousKey = &packet.key;
+            }
+            return breakCount;
+        }
+
+        bool HasValidSubmitPrimitiveTarget(const SurfaceDrawPacket& packet) {
+            return
+                packet.model != nullptr &&
+                packet.surface != nullptr &&
+                packet.hasDrawWorldMatrix &&
+                BOUNDS::IsUsable(packet.worldBounds) &&
+                HasValidRenderSurfacePrimitive(packet.model, *packet.surface);
+        }
+
+        bool IsPacketCulledByCamera(
+            const SurfaceDrawPacket& packet,
+            const SurfaceDrawPacketSubmitOptions& options) {
+
+            if (!options.enableFrustumCulling || !options.hasCameraViewProj) {
+                return false;
+            }
+            // world bounds は既に world 空間なので viewProjection だけで判定する。
+            return !BOUNDS::IntersectsClipFrustum(packet.worldBounds, options.cameraViewProj);
+        }
+
         void CopyMaterialFxValues(const SceneSurfaceInstance& source, SurfaceDrawPacket& packet) {
             for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 packet.materialFxParamValues[i] = source.materialFxParamValues[i];
@@ -203,11 +335,13 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     void SurfaceDrawPacketBuilder::Clear() {
         packets_.clear();
+        sortedPacketIndices_.clear();
         stats_ = {};
     }
 
     void SurfaceDrawPacketBuilder::BuildFromSceneRenderCache(const SceneRenderCache& sceneCache) {
         packets_.clear();
+        sortedPacketIndices_.clear();
         packets_.reserve(sceneCache.GetSurfaceInstances().size());
 
         uint32_t sourceSurfaceInstanceIndex = 0;
@@ -216,11 +350,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
             ++sourceSurfaceInstanceIndex;
         }
 
+        RebuildSortedPacketIndices();
         RefreshStats();
     }
 
     const std::vector<SurfaceDrawPacket>& SurfaceDrawPacketBuilder::GetPackets() const {
         return packets_;
+    }
+
+    const std::vector<uint32_t>& SurfaceDrawPacketBuilder::GetSortedPacketIndices() const {
+        return sortedPacketIndices_;
     }
 
     const SurfaceDrawPacketBuilder::Stats& SurfaceDrawPacketBuilder::GetStats() const {
@@ -306,9 +445,42 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packets_.push_back(std::move(packet));
     }
 
+    void SurfaceDrawPacketBuilder::RebuildSortedPacketIndices() {
+        sortedPacketIndices_.clear();
+        sortedPacketIndices_.reserve(packets_.size());
+
+        for (size_t packetIndex = 0; packetIndex < packets_.size(); ++packetIndex) {
+            const SurfaceDrawPacket& packet = packets_[packetIndex];
+            if (IsSortCandidate(packet)) {
+                sortedPacketIndices_.push_back(ClampToUint32(packetIndex));
+            }
+        }
+
+        // 実描画は変えず、後段 batch 用の view だけを安定ソートする。
+        std::stable_sort(
+            sortedPacketIndices_.begin(),
+            sortedPacketIndices_.end(),
+            [this](uint32_t lhsIndex, uint32_t rhsIndex) {
+                if (lhsIndex >= packets_.size() || rhsIndex >= packets_.size()) {
+                    return lhsIndex < rhsIndex;
+                }
+
+                const SurfaceDrawPacket& lhs = packets_[lhsIndex];
+                const SurfaceDrawPacket& rhs = packets_[rhsIndex];
+                if (ComesBeforeForBatching(lhs.key, rhs.key)) {
+                    return true;
+                }
+                if (ComesBeforeForBatching(rhs.key, lhs.key)) {
+                    return false;
+                }
+                return lhs.sourceSurfaceInstanceIndex < rhs.sourceSurfaceInstanceIndex;
+            });
+    }
+
     void SurfaceDrawPacketBuilder::RefreshStats() {
         Stats stats{};
         stats.packetCount = ClampToUint32(packets_.size());
+        stats.sortedPacketCount = ClampToUint32(sortedPacketIndices_.size());
         std::unordered_set<uint64_t> modelBuckets{};
         std::unordered_set<uint64_t> geometryBuckets{};
         std::unordered_set<uint64_t> materialBuckets{};
@@ -357,6 +529,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
             } else {
                 ++stats.opaquePacketCount;
             }
+            if (IsSortCandidate(packet)) {
+                ++stats.sortEligiblePacketCount;
+            } else if (
+                packet.valid &&
+                packet.key.resourceKeyValid &&
+                packet.key.transparent &&
+                (packet.forwardCandidate || packet.shadowCandidate)) {
+                ++stats.transparentSortExcludedCount;
+            }
             if (packet.key.resourceKeyValid) {
                 modelBuckets.insert(packet.key.modelKey);
                 geometryBuckets.insert(packet.key.geometryKey);
@@ -399,7 +580,318 @@ namespace HIKARI::RENDER3D::RUNTIME {
         stats.textureSetBucketCount = ClampToUint32(textureSetBuckets.size());
         stats.shaderBucketCount = ClampToUint32(shaderBuckets.size());
         stats.psoBucketCount = ClampToUint32(psoBuckets.size());
+        stats.sortedSortOrderBreakCount = CountSortedBreaks(packets_, sortedPacketIndices_);
+
+        stats.rawPassRunCount = CountRawRuns(packets_, RunKeyKind::Pass);
+        stats.sortedPassRunCount = CountSortedRuns(packets_, sortedPacketIndices_, RunKeyKind::Pass);
+        stats.rawPsoRunCount = CountRawRuns(packets_, RunKeyKind::Pso);
+        stats.sortedPsoRunCount = CountSortedRuns(packets_, sortedPacketIndices_, RunKeyKind::Pso);
+        stats.rawMaterialRunCount = CountRawRuns(packets_, RunKeyKind::Material);
+        stats.sortedMaterialRunCount = CountSortedRuns(packets_, sortedPacketIndices_, RunKeyKind::Material);
+        stats.rawTextureSetRunCount = CountRawRuns(packets_, RunKeyKind::TextureSet);
+        stats.sortedTextureSetRunCount = CountSortedRuns(packets_, sortedPacketIndices_, RunKeyKind::TextureSet);
+        stats.rawGeometryRunCount = CountRawRuns(packets_, RunKeyKind::Geometry);
+        stats.sortedGeometryRunCount = CountSortedRuns(packets_, sortedPacketIndices_, RunKeyKind::Geometry);
+
+        uint32_t rawCandidateOrdinal = 0;
+        for (size_t packetIndex = 0; packetIndex < packets_.size(); ++packetIndex) {
+            if (!IsSortCandidate(packets_[packetIndex])) {
+                continue;
+            }
+            if (rawCandidateOrdinal < sortedPacketIndices_.size() &&
+                sortedPacketIndices_[rawCandidateOrdinal] != packetIndex) {
+                ++stats.reorderedPacketCount;
+            }
+            ++rawCandidateOrdinal;
+        }
+
         stats_ = stats;
+    }
+
+    void SurfaceDrawPacketSubmitter::Submit(
+        const SurfaceDrawPacketBuilder& builder,
+        const SurfaceDrawPacketSubmitOptions& options,
+        SurfaceDrawPacketSubmitStats& outStats) {
+
+        outStats = {};
+        objectCoverage_.clear();
+        handledForwardPrimitivesByObject_.clear();
+        executableForwardPacketIndices_.clear();
+        executableForwardRuns_.clear();
+
+        const std::vector<SurfaceDrawPacket>& packets = builder.GetPackets();
+        const std::vector<uint32_t>& sortedIndices = builder.GetSortedPacketIndices();
+        outStats.sourcePacketCount = ClampToUint32(packets.size());
+        outStats.sortedPacketCount = ClampToUint32(sortedIndices.size());
+
+        if (!options.useSortedForward || !options.skipOldStaticForwardSubmit) {
+            return;
+        }
+
+        BuildCoverage(packets, outStats);
+
+        const SurfaceDrawPacketKey* currentSubmittedRunKey = nullptr;
+        uint32_t currentSubmittedRunStart = 0;
+        uint32_t currentSubmittedRunLength = 0;
+        auto flushSubmittedRun = [&]() {
+            if (currentSubmittedRunLength == 0) {
+                return;
+            }
+            SurfaceDrawPacketRun run{};
+            run.firstExecutableIndex = currentSubmittedRunStart;
+            run.packetCount = currentSubmittedRunLength;
+            executableForwardRuns_.push_back(run);
+
+            ++outStats.submittedRunCount;
+            if (currentSubmittedRunLength == 1) {
+                ++outStats.submittedSinglePacketRunCount;
+            }
+            outStats.submittedMaxRunPacketCount =
+                (std::max)(outStats.submittedMaxRunPacketCount, currentSubmittedRunLength);
+            currentSubmittedRunKey = nullptr;
+            currentSubmittedRunStart = 0;
+            currentSubmittedRunLength = 0;
+        };
+
+        for (uint32_t packetIndex : sortedIndices) {
+            if (packetIndex >= packets.size()) {
+                flushSubmittedRun();
+                continue;
+            }
+
+            const SurfaceDrawPacket& packet = packets[packetIndex];
+            const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
+            const bool primitiveFallback = !fullCoverage && CanUsePrimitiveFallback(packet);
+            if (!fullCoverage && !primitiveFallback) {
+                if (packet.forwardCandidate && packet.isStatic) {
+                    ++outStats.skippedPartialCoveragePacketCount;
+                }
+                flushSubmittedRun();
+                continue;
+            }
+            if (!IsSubmitSafePacket(packet, nullptr)) {
+                flushSubmittedRun();
+                continue;
+            }
+
+            ++outStats.candidatePacketCount;
+            if (primitiveFallback) {
+                ++outStats.partialTakeoverPacketCount;
+            }
+            if (IsPacketCulledByCamera(packet, options)) {
+                ++outStats.culledPacketCount;
+                ++outStats.handledForwardPacketCount;
+                if (primitiveFallback) {
+                    RecordHandledForwardPrimitive(packet, outStats);
+                }
+                flushSubmittedRun();
+                continue;
+            }
+
+            if (currentSubmittedRunKey == nullptr ||
+                !IsSameSubmitRun(packet.key, *currentSubmittedRunKey)) {
+                flushSubmittedRun();
+                currentSubmittedRunKey = &packet.key;
+                currentSubmittedRunStart = ClampToUint32(executableForwardPacketIndices_.size());
+            }
+            ++currentSubmittedRunLength;
+
+            // executor で直接描画する packet だけを記録する。
+            executableForwardPacketIndices_.push_back(packetIndex);
+            ++outStats.submittedForwardPacketCount;
+            ++outStats.handledForwardPacketCount;
+            if (primitiveFallback) {
+                RecordHandledForwardPrimitive(packet, outStats);
+            }
+        }
+        flushSubmittedRun();
+        outStats.handledPrimitiveObjectCount =
+            ClampToUint32(handledForwardPrimitivesByObject_.size());
+    }
+
+    bool SurfaceDrawPacketSubmitter::HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = objectCoverage_.find(objectId.value);
+        if (found == objectCoverage_.end()) {
+            return false;
+        }
+
+        const ObjectCoverage& coverage = found->second;
+        return
+            coverage.expectedForwardPacketCount > 0 &&
+            coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount;
+    }
+
+    const std::vector<SurfaceDrawPacketHandledPrimitive>* SurfaceDrawPacketSubmitter::GetHandledForwardPrimitivesForObject(
+        SceneRenderObjectId objectId) const {
+
+        if (!objectId.IsValid()) {
+            return nullptr;
+        }
+        const auto found = handledForwardPrimitivesByObject_.find(objectId.value);
+        if (found == handledForwardPrimitivesByObject_.end() || found->second.empty()) {
+            return nullptr;
+        }
+        return &found->second;
+    }
+
+    const std::vector<uint32_t>& SurfaceDrawPacketSubmitter::GetExecutableForwardPacketIndices() const {
+        return executableForwardPacketIndices_;
+    }
+
+    const std::vector<SurfaceDrawPacketRun>& SurfaceDrawPacketSubmitter::GetExecutableForwardRuns() const {
+        return executableForwardRuns_;
+    }
+
+    bool SurfaceDrawPacketSubmitter::IsSubmitSafePacket(
+        const SurfaceDrawPacket& packet,
+        SurfaceDrawPacketSubmitStats* stats) const {
+
+        if (!packet.forwardCandidate) {
+            if (stats != nullptr) {
+                ++stats->skippedNoForwardPacketCount;
+            }
+            return false;
+        }
+        if (!packet.isStatic) {
+            if (stats != nullptr) {
+                ++stats->skippedDynamicPacketCount;
+            }
+            return false;
+        }
+        if (!packet.valid) {
+            if (stats != nullptr) {
+                ++stats->skippedInvalidPacketCount;
+            }
+            return false;
+        }
+        if (!packet.key.resourceKeyValid) {
+            if (stats != nullptr) {
+                ++stats->skippedInvalidResourceKeyCount;
+            }
+            return false;
+        }
+        if (packet.skinned) {
+            if (stats != nullptr) {
+                ++stats->skippedSkinnedPacketCount;
+            }
+            return false;
+        }
+        if (packet.key.transparent) {
+            if (stats != nullptr) {
+                ++stats->skippedTransparentPacketCount;
+            }
+            return false;
+        }
+        if (packet.key.alphaMasked) {
+            if (stats != nullptr) {
+                ++stats->skippedAlphaMaskedPacketCount;
+            }
+            return false;
+        }
+        if (!HasValidSubmitPrimitiveTarget(packet)) {
+            if (stats != nullptr) {
+                ++stats->skippedInvalidPrimitiveCount;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    bool SurfaceDrawPacketSubmitter::CanUsePrimitiveFallback(const SurfaceDrawPacket& packet) const {
+        if (!packet.objectId.IsValid() ||
+            packet.model == nullptr ||
+            packet.nodeIndex == kInvalidRenderSurfaceIndex ||
+            packet.meshIndex == kInvalidRenderSurfaceIndex ||
+            packet.primitiveIndex == kInvalidRenderSurfaceIndex ||
+            packet.nodeIndex >= packet.model->nodes.size() ||
+            packet.meshIndex >= packet.model->meshes.size()) {
+            return false;
+        }
+
+        const ModelNode& node = packet.model->nodes[packet.nodeIndex];
+        if (node.skinIndex >= 0 || node.meshIndex < 0 ||
+            static_cast<uint32_t>(node.meshIndex) != packet.meshIndex) {
+            return false;
+        }
+
+        const MeshAsset& mesh = packet.model->meshes[packet.meshIndex];
+        return packet.primitiveIndex < mesh.primitives.size();
+    }
+
+    void SurfaceDrawPacketSubmitter::RecordHandledForwardPrimitive(
+        const SurfaceDrawPacket& packet,
+        SurfaceDrawPacketSubmitStats& stats) {
+
+        if (!CanUsePrimitiveFallback(packet)) {
+            return;
+        }
+
+        SurfaceDrawPacketHandledPrimitive handled{};
+        handled.nodeIndex = packet.nodeIndex;
+        handled.meshIndex = packet.meshIndex;
+        handled.primitiveIndex = packet.primitiveIndex;
+
+        std::vector<SurfaceDrawPacketHandledPrimitive>& primitives =
+            handledForwardPrimitivesByObject_[packet.objectId.value];
+        const auto duplicate = std::find_if(
+            primitives.begin(),
+            primitives.end(),
+            [&handled](const SurfaceDrawPacketHandledPrimitive& existing) {
+                return
+                    existing.nodeIndex == handled.nodeIndex &&
+                    existing.meshIndex == handled.meshIndex &&
+                    existing.primitiveIndex == handled.primitiveIndex;
+            });
+        if (duplicate != primitives.end()) {
+            return;
+        }
+
+        primitives.push_back(handled);
+        ++stats.handledPrimitiveCount;
+    }
+
+    void SurfaceDrawPacketSubmitter::BuildCoverage(
+        const std::vector<SurfaceDrawPacket>& packets,
+        SurfaceDrawPacketSubmitStats& stats) {
+
+        for (const SurfaceDrawPacket& packet : packets) {
+            if (!packet.forwardCandidate) {
+                ++stats.skippedNoForwardPacketCount;
+                continue;
+            }
+            if (!packet.isStatic) {
+                ++stats.skippedDynamicPacketCount;
+                continue;
+            }
+            if (!packet.objectId.IsValid()) {
+                ++stats.skippedInvalidPacketCount;
+                continue;
+            }
+
+            ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
+            ++coverage.expectedForwardPacketCount;
+            if (IsSubmitSafePacket(packet, &stats)) {
+                ++coverage.safeForwardPacketCount;
+            }
+        }
+
+        stats.candidateObjectCount = ClampToUint32(objectCoverage_.size());
+        for (const auto& [objectId, coverage] : objectCoverage_) {
+            (void)objectId;
+            if (coverage.expectedForwardPacketCount == 0) {
+                continue;
+            }
+            if (coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount) {
+                ++stats.fullCoverageObjectCount;
+            } else if (coverage.safeForwardPacketCount > 0) {
+                ++stats.partialCoverageObjectCount;
+            } else {
+                ++stats.fallbackObjectCount;
+            }
+        }
     }
 
 } // namespace HIKARI::RENDER3D::RUNTIME

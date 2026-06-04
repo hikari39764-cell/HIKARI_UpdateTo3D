@@ -3,13 +3,14 @@
 #include "HIKARI_DxRenderer.h"
 #include "HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_DynamicUploadBuffer.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
-#include <d3dcompiler.h>
 #include <d3dx12.h>
 
 #include <cassert>
+#include <cstring>
 #include <vector>
 #include <cmath> // for max
 
@@ -256,11 +257,13 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             static ComPtr<ID3DBlob> CompileShader(const char* src, const char* entry, const char* profile)
             {
                 ComPtr<ID3DBlob> blob;
-                ComPtr<ID3DBlob> error;
-                HRESULT hr = D3DCompile(src, strlen(src), nullptr, nullptr, nullptr,
-                    entry, profile, D3DCOMPILE_ENABLE_STRICTNESS, 0, &blob, &error);
-                if (FAILED(hr)) {
-                    if (error) OutputDebugStringA((char*)error->GetBufferPointer());
+                if (!GFX::CompileShaderSourceSm6(
+                    src,
+                    std::strlen(src),
+                    L"Render2D.InlineShader",
+                    entry,
+                    GFX::UpgradeToShaderModel6Profile(profile),
+                    blob.GetAddressOf())) {
                     assert(false);
                 }
                 return blob;
@@ -375,8 +378,8 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
             // === PSO: Mesh / Sprite ===
             {
-                ComPtr<ID3DBlob> vs = CompileShader(kMeshVS, "main", "vs_5_0");
-                ComPtr<ID3DBlob> ps = CompileShader(kMeshPS, "main", "ps_5_0");
+                ComPtr<ID3DBlob> vs = CompileShader(kMeshVS, "main", "vs_6_0");
+                ComPtr<ID3DBlob> ps = CompileShader(kMeshPS, "main", "ps_6_0");
 
                 D3D12_INPUT_ELEMENT_DESC elems[] = {
                     { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -408,12 +411,13 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
                     desc.BlendState = MakeBlendDesc(static_cast<BlendMode>(i));
                     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&colorPsos_[i]));
+                    (void)hr;
                     assert(SUCCEEDED(hr));
                 }
 
                 // === [新增] PSO: Mask ===
                 // 编译 Mask PS
-                ComPtr<ID3DBlob> psMask = CompileShader(kMaskPS, "main", "ps_5_0");
+                ComPtr<ID3DBlob> psMask = CompileShader(kMaskPS, "main", "ps_6_0");
 
                 D3D12_GRAPHICS_PIPELINE_STATE_DESC maskDesc = baseDesc;
                 maskDesc.pRootSignature = rootSigMask_.Get(); // 使用新的 RS
@@ -421,13 +425,14 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 maskDesc.BlendState = MakeBlendDesc(BlendMode::StraightAlpha); // 使用标准透明混合
 
                 HRESULT hr = device->CreateGraphicsPipelineState(&maskDesc, IID_PPV_ARGS(&psoMask_));
+                (void)hr;
                 assert(SUCCEEDED(hr));
             }
 
             // === PSO: Line (保持不变) ===
             {
-                ComPtr<ID3DBlob> vs = CompileShader(kLineVS, "main", "vs_5_0");
-                ComPtr<ID3DBlob> ps = CompileShader(kLinePS, "main", "ps_5_0");
+                ComPtr<ID3DBlob> vs = CompileShader(kLineVS, "main", "vs_6_0");
+                ComPtr<ID3DBlob> ps = CompileShader(kLinePS, "main", "ps_6_0");
 
                 D3D12_INPUT_ELEMENT_DESC elems[] = {
                     { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -452,6 +457,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 d.BlendState = MakeBlendDesc(BlendMode::StraightAlpha);
 
                 HRESULT hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&psoLine_));
+                (void)hr;
                 assert(SUCCEEDED(hr));
             }
 

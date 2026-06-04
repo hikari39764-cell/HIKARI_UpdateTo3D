@@ -1395,21 +1395,18 @@ namespace HIKARI {
             return descriptorAllocator_.GetCount();
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)
+        bool DxTextureManager::IsTextureHandleValid(int handle)
         {
-            D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{};
-            nullHandle.ptr = 0;
-
             if (!initialized_) {
-                return nullHandle;
+                return false;
             }
 
-            if (handle < 0 || handle >= static_cast<int>(srvGpu_.size())) {
-                return nullHandle;
+            if (handle < 0 || handle >= static_cast<int>(textures_.size())) {
+                return false;
             }
 
             if (handle < static_cast<int>(pendingRelease_.size()) && pendingRelease_[handle]) {
-                return nullHandle;
+                return false;
             }
 
             const GFX::DescriptorSlot slot{
@@ -1417,14 +1414,31 @@ namespace HIKARI {
             };
 
             if (!descriptorAllocator_.IsAllocated(slot)) {
-                return nullHandle;
+                return false;
             }
 
-            if (!textures_[handle]) {
+            return textures_[handle] != nullptr;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)
+        {
+            D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{};
+            nullHandle.ptr = 0;
+
+            if (!IsTextureHandleValid(handle) || handle >= static_cast<int>(srvGpu_.size())) {
                 return nullHandle;
             }
 
             return srvGpu_[handle];
+        }
+
+        UINT DxTextureManager::GetSrvDescriptorIndex(int handle)
+        {
+            if (!IsTextureHandleValid(handle)) {
+                return kInvalidSrvDescriptorIndex;
+            }
+
+            return GFX::DESCRIPTOR::kUserSrvBegin + static_cast<UINT>(handle);
         }
 
         ID3D12DescriptorHeap* DxTextureManager::GetSrvHeap()

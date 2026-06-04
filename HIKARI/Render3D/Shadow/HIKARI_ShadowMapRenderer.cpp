@@ -19,11 +19,10 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 namespace HIKARI::SHADOW {
 
@@ -310,36 +309,24 @@ namespace HIKARI::SHADOW {
         }
 
         bool CreatePipeline(ID3D12Device* device) {
-            UINT flags = 0;
-#if defined(_DEBUG)
-            flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
+            if (!GFX::SupportsShaderModel6(device)) {
+                DEBUGLOG::PushRenderError("[Shadow][ERROR] Shader Model 6.0 is not supported by this device.");
+                return false;
+            }
 
             ComPtr<ID3DBlob> staticVs;
             ComPtr<ID3DBlob> skinnedVs;
             ComPtr<ID3DBlob> ps;
-            ComPtr<ID3DBlob> err;
-            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowStaticVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, staticVs.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) {
-                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowStaticVS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
-                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
-                }
+            if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_ShadowStaticVS.hlsl", "main", GFX::ShaderStage::Vertex, staticVs.GetAddressOf())) {
+                DEBUGLOG::PushRenderError("[Shadow][ERROR] Compile ShadowStaticVS failed.");
                 return false;
             }
-            err.Reset();
-            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowSkinnedVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", flags, 0, skinnedVs.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) {
-                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowSkinnedVS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
-                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
-                }
+            if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_ShadowSkinnedVS.hlsl", "main", GFX::ShaderStage::Vertex, skinnedVs.GetAddressOf())) {
+                DEBUGLOG::PushRenderError("[Shadow][ERROR] Compile ShadowSkinnedVS failed.");
                 return false;
             }
-            err.Reset();
-            if (FAILED(D3DCompileFromFile(L"HIKARI/Shaders/Render3D_ShadowAlphaPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", flags, 0, ps.GetAddressOf(), err.GetAddressOf()))) {
-                if (err) {
-                    DEBUGLOG::PushRenderError(std::string("[Shadow][ERROR] Compile ShadowAlphaPS failed: ") + static_cast<const char*>(err->GetBufferPointer()));
-                    OutputDebugStringA(static_cast<const char*>(err->GetBufferPointer()));
-                }
+            if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_ShadowAlphaPS.hlsl", "main", GFX::ShaderStage::Pixel, ps.GetAddressOf())) {
+                DEBUGLOG::PushRenderError("[Shadow][ERROR] Compile ShadowAlphaPS failed.");
                 return false;
             }
 

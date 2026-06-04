@@ -1,10 +1,13 @@
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 
+#include <algorithm>
+
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
+#include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -13,6 +16,201 @@
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::MESHRENDERER {
+
+    namespace {
+        void ResetRootParamCache(MeshBindingStateCache& cache) {
+            std::fill(cache.cbvAddresses.begin(), cache.cbvAddresses.end(), 0);
+            for (D3D12_GPU_DESCRIPTOR_HANDLE& handle : cache.descriptorTables) {
+                handle.ptr = 0;
+            }
+            std::fill(cache.rootConstants.begin(), cache.rootConstants.end(), 0u);
+            std::fill(cache.rootConstantValid.begin(), cache.rootConstantValid.end(), false);
+        }
+
+        void BindRootSignatureCached(
+            const MeshBindingContext& ctx,
+            ID3D12RootSignature* rootSig) {
+
+            if (ctx.cmd == nullptr || rootSig == nullptr) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr && cache->rootSignature == rootSig) {
+                if (stats != nullptr) {
+                    ++stats->rootSignatureSkipCount;
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRootSignature(rootSig);
+            if (stats != nullptr) {
+                ++stats->rootSignatureBindCount;
+            }
+            if (cache != nullptr) {
+                cache->rootSignature = rootSig;
+                // root signature 変更時は root 引数を再設定する。
+                ResetRootParamCache(*cache);
+            }
+        }
+
+        void BindCbvCached(
+            const MeshBindingContext& ctx,
+            UINT rootParam,
+            D3D12_GPU_VIRTUAL_ADDRESS address,
+            bool objectScoped) {
+
+            if (ctx.cmd == nullptr || rootParam >= kTrackedRootParamCount) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr && cache->cbvAddresses[rootParam] == address) {
+                if (stats != nullptr) {
+                    if (objectScoped) {
+                        ++stats->objectResourceSkipCount;
+                    } else {
+                        ++stats->frameResourceSkipCount;
+                    }
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRootConstantBufferView(rootParam, address);
+            if (stats != nullptr) {
+                if (objectScoped) {
+                    ++stats->objectResourceBindCount;
+                } else {
+                    ++stats->frameResourceBindCount;
+                }
+            }
+            if (cache != nullptr) {
+                cache->cbvAddresses[rootParam] = address;
+            }
+        }
+
+        bool BindDescriptorTableCached(
+            const MeshBindingContext& ctx,
+            UINT rootParam,
+            D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+
+            if (ctx.cmd == nullptr || rootParam >= kTrackedRootParamCount || handle.ptr == 0) {
+                return false;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr && cache->descriptorTables[rootParam].ptr == handle.ptr) {
+                if (stats != nullptr) {
+                    ++stats->descriptorTableSkipCount;
+                }
+                return false;
+            }
+
+            ctx.cmd->SetGraphicsRootDescriptorTable(rootParam, handle);
+            if (stats != nullptr) {
+                ++stats->descriptorTableBindCount;
+            }
+            if (cache != nullptr) {
+                cache->descriptorTables[rootParam] = handle;
+            }
+            return true;
+        }
+
+        void BindObjectDataBufferCached(
+            const MeshBindingContext& ctx,
+            D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+
+            if (ctx.cmd == nullptr || handle.ptr == 0) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr &&
+                cache->descriptorTables[ROOT_PARAM::ObjectData].ptr == handle.ptr) {
+                if (stats != nullptr) {
+                    ++stats->objectDataBufferSkipCount;
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::ObjectData, handle);
+            if (stats != nullptr) {
+                ++stats->objectDataBufferBindCount;
+            }
+            if (cache != nullptr) {
+                cache->descriptorTables[ROOT_PARAM::ObjectData] = handle;
+            }
+        }
+
+        void BindMaterialDataBufferCached(
+            const MeshBindingContext& ctx,
+            D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+
+            if (ctx.cmd == nullptr || handle.ptr == 0) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr &&
+                cache->descriptorTables[ROOT_PARAM::MaterialData].ptr == handle.ptr) {
+                if (stats != nullptr) {
+                    ++stats->materialDataBufferSkipCount;
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::MaterialData, handle);
+            if (stats != nullptr) {
+                ++stats->materialDataBufferBindCount;
+            }
+            if (cache != nullptr) {
+                cache->descriptorTables[ROOT_PARAM::MaterialData] = handle;
+            }
+        }
+
+        void BindRootConstantCached(
+            const MeshBindingContext& ctx,
+            UINT rootParam,
+            uint32_t value) {
+
+            if (ctx.cmd == nullptr || rootParam >= kTrackedRootParamCount) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr &&
+                cache->rootConstantValid[rootParam] &&
+                cache->rootConstants[rootParam] == value) {
+                if (stats != nullptr) {
+                    if (rootParam == ROOT_PARAM::ObjectIndex) {
+                        ++stats->objectIndexSkipCount;
+                    } else if (rootParam == ROOT_PARAM::MaterialIndex) {
+                        ++stats->materialIndexSkipCount;
+                    }
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRoot32BitConstant(rootParam, value, 0);
+            if (stats != nullptr) {
+                if (rootParam == ROOT_PARAM::ObjectIndex) {
+                    ++stats->objectIndexBindCount;
+                } else if (rootParam == ROOT_PARAM::MaterialIndex) {
+                    ++stats->materialIndexBindCount;
+                }
+            }
+            if (cache != nullptr) {
+                cache->rootConstants[rootParam] = value;
+                cache->rootConstantValid[rootParam] = true;
+            }
+        }
+    }
 	// フレーム全体で共通のリソースをバインドする。これには、カメラ、ライト、シャドウ、スカイ環境の定数バッファが含まれる。ルートシグネチャも設定される。
     void BindFrameCommonResources(
         const MeshBindingContext& ctx,
@@ -25,11 +223,11 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
 
-        ctx.cmd->SetGraphicsRootSignature(rootSig);
-        ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::Camera, cameraAddress);
-        ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::Light, lightAddress);
-        ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::ShadowCB, shadowAddress);
-        ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::SkyEnvironment, skyEnvironmentAddress);
+        BindRootSignatureCached(ctx, rootSig);
+        BindCbvCached(ctx, ROOT_PARAM::Camera, cameraAddress, false);
+        BindCbvCached(ctx, ROOT_PARAM::Light, lightAddress, false);
+        BindCbvCached(ctx, ROOT_PARAM::ShadowCB, shadowAddress, false);
+        BindCbvCached(ctx, ROOT_PARAM::SkyEnvironment, skyEnvironmentAddress, false);
     }
 	// オブジェクト固有の定数バッファをバインドする。これには、モデル行列やマテリアルプロパティなどが含まれる。ルートパラメータのObjectスロットにバインドされる。
     void BindObjectConstantBuffer(
@@ -39,9 +237,58 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
 
-        ctx.cmd->SetGraphicsRootConstantBufferView(ROOT_PARAM::Object, objectAddress);
+        BindCbvCached(ctx, ROOT_PARAM::Object, objectAddress, true);
+    }
+
+    void BindObjectDataBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv) {
+        BindObjectDataBufferCached(ctx, objectDataSrv);
+    }
+
+    void BindObjectDataIndex(
+        const MeshBindingContext& ctx,
+        uint32_t objectIndex) {
+        BindRootConstantCached(ctx, ROOT_PARAM::ObjectIndex, objectIndex);
+    }
+
+    void BindMaterialDataBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv) {
+        BindMaterialDataBufferCached(ctx, materialDataSrv);
+    }
+
+    void BindMaterialDataIndex(
+        const MeshBindingContext& ctx,
+        uint32_t materialIndex) {
+        BindRootConstantCached(ctx, ROOT_PARAM::MaterialIndex, materialIndex);
     }
 	// マテリアルに関連するテクスチャセットをバインドする
+    void BindPipelineState(
+        const MeshBindingContext& ctx,
+        ID3D12PipelineState* pso) {
+        if (ctx.cmd == nullptr || pso == nullptr) {
+            return;
+        }
+
+        MeshBindingStateCache* cache = ctx.cache;
+        MeshRendererDebugStats* stats = ctx.stats;
+        if (cache != nullptr && cache->pipelineState == pso) {
+            if (stats != nullptr) {
+                ++stats->pipelineStateSkipCount;
+            }
+            return;
+        }
+
+        ctx.cmd->SetPipelineState(pso);
+        if (stats != nullptr) {
+            ++stats->pipelineStateBindCount;
+        }
+        if (cache != nullptr) {
+            cache->pipelineState = pso;
+        }
+    }
+
     void BindMaterialTextureSet(
         const MeshBindingContext& ctx,
         const MaterialTextureHandles& textures) {
@@ -51,7 +298,7 @@ namespace HIKARI::MESHRENDERER {
 
         const D3D12_GPU_DESCRIPTOR_HANDLE baseColorSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.baseColor);
         if (baseColorSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::BaseColor, baseColorSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::BaseColor, baseColorSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.normal);
@@ -59,7 +306,7 @@ namespace HIKARI::MESHRENDERER {
             normalSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackNormalTextureHandle);
         }
         if (normalSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Normal, normalSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::Normal, normalSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
@@ -67,7 +314,7 @@ namespace HIKARI::MESHRENDERER {
             shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
         }
         if (shadowSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::ShadowMap, shadowSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::ShadowMap, shadowSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.emissive);
@@ -75,7 +322,7 @@ namespace HIKARI::MESHRENDERER {
             emissiveSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackBlackTextureHandle);
         }
         if (emissiveSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Emissive, emissiveSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::Emissive, emissiveSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.metallicRoughness);
@@ -83,7 +330,7 @@ namespace HIKARI::MESHRENDERER {
             metallicRoughnessSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
         }
         if (metallicRoughnessSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::MetallicRoughness, metallicRoughnessSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::MetallicRoughness, metallicRoughnessSrv);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textures.occlusion);
@@ -91,7 +338,7 @@ namespace HIKARI::MESHRENDERER {
             occlusionSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
         }
         if (occlusionSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Occlusion, occlusionSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::Occlusion, occlusionSrv);
         }
     }
 	// スカイキューブマップをバインドする。スカイレンダラーから環境データを取得し、キューブマップSRVが有効な場合はそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
@@ -102,7 +349,7 @@ namespace HIKARI::MESHRENDERER {
 
         const D3D12_GPU_DESCRIPTOR_HANDLE skyCubeSrv = ResolveSkyCubeSrv(ctx.fallbackTextureHandle);
         if (skyCubeSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SkyCube, skyCubeSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::SkyCube, skyCubeSrv);
         }
     }
 	// シーンの深度テクスチャをバインドする。深度アウェアな描画フェーズの場合、サービスコンテキストからシーン深度SRVを取得し、利用可能であればそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
@@ -114,7 +361,7 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv =
             ResolveSceneDepthSrv(ctx.depthAwarePhase, ctx.fallbackTextureHandle);
         if (sceneDepthSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SceneDepth, sceneDepthSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::SceneDepth, sceneDepthSrv);
         }
     }
     // シーンのカラー（アルベド）テクスチャをバインドする。ポストシステムからシーンカラーSRVを取得し、利用可能であればそれを使用する。そうでない場合は、フォールバックテクスチャが使用される。
@@ -126,7 +373,7 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv =
             ResolveSceneColorSrv(ctx.fallbackTextureHandle);
         if (sceneColorSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SceneColor, sceneColorSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::SceneColor, sceneColorSrv);
         }
     }
 
@@ -140,19 +387,19 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE irradianceSrv =
             ResolveIblIrradianceSrv(ctx.fallbackTextureHandle);
         if (irradianceSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblIrradiance, irradianceSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::IblIrradiance, irradianceSrv);
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE prefilteredSrv =
             ResolveIblPrefilteredSrv(ctx.fallbackTextureHandle);
         if (prefilteredSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblPrefiltered, prefilteredSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::IblPrefiltered, prefilteredSrv);
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE brdfLutSrv =
             ResolveIblBrdfLutSrv(ctx.fallbackTextureHandle);
         if (brdfLutSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::IblBrdfLut, brdfLutSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::IblBrdfLut, brdfLutSrv);
         }
     }
 
@@ -165,7 +412,7 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE prefilteredSrv =
             ResolveReflectionProbePrefilteredSrv(ctx.fallbackCubeTextureHandle);
         if (prefilteredSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::ReflectionProbePrefiltered, prefilteredSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::ReflectionProbePrefiltered, prefilteredSrv);
         }
     }
 
@@ -177,7 +424,7 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE aoSrv =
             ResolveSsaoSrv(ctx.ssaoSrv, ctx.fallbackAoTextureHandle);
         if (aoSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::Ssao, aoSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::Ssao, aoSrv);
         }
     }
 
@@ -188,7 +435,7 @@ namespace HIKARI::MESHRENDERER {
 
         const D3D12_GPU_DESCRIPTOR_HANDLE shSrv = ResolveLightProbeShSrv();
         if (shSrv.ptr != 0) {
-            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::LightProbeSh, shSrv);
+            BindDescriptorTableCached(ctx, ROOT_PARAM::LightProbeSh, shSrv);
         } else {
             static bool sWarnedMissingLightProbeSrv = false;
             if (!sWarnedMissingLightProbeSrv) {

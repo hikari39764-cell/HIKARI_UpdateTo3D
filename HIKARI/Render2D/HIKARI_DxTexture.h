@@ -13,6 +13,8 @@
 namespace HIKARI {
     namespace DXTEX {
 
+        constexpr UINT kInvalidSrvDescriptorIndex = 0xffffffffu;
+
         enum class TextureColorSpace {
             Auto,
             Linear,
@@ -54,6 +56,8 @@ namespace HIKARI {
             static UINT GetFreeDescriptorCount();
             static UINT GetMaxDescriptorCount();
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
+            static UINT GetSrvDescriptorIndex(int handle);
+            static bool IsTextureHandleValid(int handle);
             static ID3D12DescriptorHeap* GetSrvHeap();
             static void GetTextureSize(int handle, UINT& outWidth, UINT& outHeight);
             static TextureDimension GetTextureDimension(int handle);

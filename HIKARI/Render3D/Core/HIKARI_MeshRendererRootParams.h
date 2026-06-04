@@ -44,7 +44,15 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT Ssao = 18;
     // LightProbe SH buffer -> t14
     constexpr UINT LightProbeSh = 19;
+    // Mesh object data buffer -> t15
+    constexpr UINT ObjectData = 20;
+    // Mesh object data index -> b6
+    constexpr UINT ObjectIndex = 21;
+    // Mesh material data buffer -> t16
+    constexpr UINT MaterialData = 22;
+    // Mesh material data index -> b7
+    constexpr UINT MaterialIndex = 23;
     // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 20;
+    constexpr UINT JointPalette = 24;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

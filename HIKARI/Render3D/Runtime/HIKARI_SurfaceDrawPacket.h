@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <DirectXMath.h>
@@ -96,6 +97,58 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     };
 
+    struct SurfaceDrawPacketSubmitOptions {
+        bool useSortedForward = false;
+        bool skipOldStaticForwardSubmit = false;
+
+        MATH::Mat4 cameraViewProj{};
+        bool hasCameraViewProj = false;
+        bool enableFrustumCulling = true;
+    };
+
+    struct SurfaceDrawPacketSubmitStats {
+        uint32_t sourcePacketCount = 0;
+        uint32_t sortedPacketCount = 0;
+
+        uint32_t candidateObjectCount = 0;
+        uint32_t fullCoverageObjectCount = 0;
+        uint32_t partialCoverageObjectCount = 0;
+        uint32_t fallbackObjectCount = 0;
+        uint32_t skipOldForwardObjectCount = 0;
+
+        uint32_t candidatePacketCount = 0;
+        uint32_t submittedForwardPacketCount = 0;
+        uint32_t culledPacketCount = 0;
+        uint32_t handledForwardPacketCount = 0;
+        uint32_t partialTakeoverPacketCount = 0;
+        uint32_t handledPrimitiveObjectCount = 0;
+        uint32_t handledPrimitiveCount = 0;
+        uint32_t submittedRunCount = 0;
+        uint32_t submittedSinglePacketRunCount = 0;
+        uint32_t submittedMaxRunPacketCount = 0;
+
+        uint32_t skippedNoForwardPacketCount = 0;
+        uint32_t skippedDynamicPacketCount = 0;
+        uint32_t skippedInvalidPacketCount = 0;
+        uint32_t skippedInvalidResourceKeyCount = 0;
+        uint32_t skippedSkinnedPacketCount = 0;
+        uint32_t skippedTransparentPacketCount = 0;
+        uint32_t skippedAlphaMaskedPacketCount = 0;
+        uint32_t skippedInvalidPrimitiveCount = 0;
+        uint32_t skippedPartialCoveragePacketCount = 0;
+    };
+
+    struct SurfaceDrawPacketHandledPrimitive {
+        uint32_t nodeIndex = kInvalidRenderSurfaceIndex;
+        uint32_t meshIndex = kInvalidRenderSurfaceIndex;
+        uint32_t primitiveIndex = kInvalidRenderSurfaceIndex;
+    };
+
+    struct SurfaceDrawPacketRun {
+        uint32_t firstExecutableIndex = 0;
+        uint32_t packetCount = 0;
+    };
+
     class SurfaceDrawPacketBuilder {
     public:
         struct Stats {
@@ -128,6 +181,23 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t sortOrderBreakCount = 0;
             uint32_t invalidResourceKeyCount = 0;
 
+            uint32_t sortEligiblePacketCount = 0;
+            uint32_t sortedPacketCount = 0;
+            uint32_t reorderedPacketCount = 0;
+            uint32_t transparentSortExcludedCount = 0;
+            uint32_t sortedSortOrderBreakCount = 0;
+
+            uint32_t rawPassRunCount = 0;
+            uint32_t sortedPassRunCount = 0;
+            uint32_t rawPsoRunCount = 0;
+            uint32_t sortedPsoRunCount = 0;
+            uint32_t rawMaterialRunCount = 0;
+            uint32_t sortedMaterialRunCount = 0;
+            uint32_t rawTextureSetRunCount = 0;
+            uint32_t sortedTextureSetRunCount = 0;
+            uint32_t rawGeometryRunCount = 0;
+            uint32_t sortedGeometryRunCount = 0;
+
             uint32_t invalidSourceCount = 0;
             uint32_t invalidModelCount = 0;
             uint32_t unsupportedGeometryCount = 0;
@@ -140,16 +210,51 @@ namespace HIKARI::RENDER3D::RUNTIME {
         void BuildFromSceneRenderCache(const SceneRenderCache& sceneCache);
 
         const std::vector<SurfaceDrawPacket>& GetPackets() const;
+        const std::vector<uint32_t>& GetSortedPacketIndices() const;
         const Stats& GetStats() const;
 
         static SurfaceDrawPacketValidationResult ValidatePacket(const SurfaceDrawPacket& packet);
 
     private:
         void AppendPacket(const SceneSurfaceInstance& surfaceInstance, uint32_t sourceSurfaceInstanceIndex);
+        void RebuildSortedPacketIndices();
         void RefreshStats();
 
         std::vector<SurfaceDrawPacket> packets_{};
+        std::vector<uint32_t> sortedPacketIndices_{};
         Stats stats_{};
+    };
+
+    class SurfaceDrawPacketSubmitter {
+    public:
+        void Submit(
+            const SurfaceDrawPacketBuilder& builder,
+            const SurfaceDrawPacketSubmitOptions& options,
+            SurfaceDrawPacketSubmitStats& outStats);
+
+        bool HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const;
+        const std::vector<SurfaceDrawPacketHandledPrimitive>* GetHandledForwardPrimitivesForObject(
+            SceneRenderObjectId objectId) const;
+        const std::vector<uint32_t>& GetExecutableForwardPacketIndices() const;
+        const std::vector<SurfaceDrawPacketRun>& GetExecutableForwardRuns() const;
+
+    private:
+        struct ObjectCoverage {
+            uint32_t expectedForwardPacketCount = 0;
+            uint32_t safeForwardPacketCount = 0;
+        };
+
+        bool IsSubmitSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketSubmitStats* stats) const;
+        bool CanUsePrimitiveFallback(const SurfaceDrawPacket& packet) const;
+        void RecordHandledForwardPrimitive(
+            const SurfaceDrawPacket& packet,
+            SurfaceDrawPacketSubmitStats& stats);
+        void BuildCoverage(const std::vector<SurfaceDrawPacket>& packets, SurfaceDrawPacketSubmitStats& stats);
+
+        std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
+        std::unordered_map<uint64_t, std::vector<SurfaceDrawPacketHandledPrimitive>> handledForwardPrimitivesByObject_{};
+        std::vector<uint32_t> executableForwardPacketIndices_{};
+        std::vector<SurfaceDrawPacketRun> executableForwardRuns_{};
     };
 
 } // namespace HIKARI::RENDER3D::RUNTIME
