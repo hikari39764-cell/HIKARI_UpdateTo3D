@@ -2,6 +2,8 @@
 
 #if defined(HIKARI_ENABLE_IMGUI)
 #include <algorithm>
+#include <array>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -11,7 +13,9 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRecord.h"
+#include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "HIKARI_Services.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
@@ -48,6 +52,172 @@ namespace HIKARI::RUNTIME_TOOLS {
             }
             return label;
         }
+
+        struct AssetPickerEntry {
+            std::string id{};
+            std::string label{};
+            std::string preview{};
+        };
+
+        class PortableImGuiInspectorBuilder final : public IInspectorBuilder {
+        public:
+            void SetContext(const InspectorContext& context) override {
+                context_ = context;
+            }
+
+            bool Bool(std::string_view label, bool& value) override {
+                return ImGui::Checkbox(std::string(label).c_str(), &value);
+            }
+
+            bool Int(std::string_view label, int& value) override {
+                return ImGui::InputInt(std::string(label).c_str(), &value);
+            }
+
+            bool Float(std::string_view label, float& value) override {
+                return ImGui::DragFloat(std::string(label).c_str(), &value, 0.1f);
+            }
+
+            bool String(std::string_view label, std::string& value) override {
+                std::array<char, 256> buffer{};
+                const size_t copyCount = (std::min)(value.size(), buffer.size() - 1);
+                std::copy_n(value.data(), copyCount, buffer.data());
+                if (!ImGui::InputText(std::string(label).c_str(), buffer.data(), buffer.size())) {
+                    return false;
+                }
+                value = buffer.data();
+                return true;
+            }
+
+            bool Vec2(std::string_view label, float& x, float& y) override {
+                float values[2]{ x, y };
+                if (!ImGui::DragFloat2(std::string(label).c_str(), values, 0.1f)) {
+                    return false;
+                }
+                x = values[0];
+                y = values[1];
+                return true;
+            }
+
+            bool AssetIdPicker(std::string_view label, AssetType assetType, std::string& value) override {
+                if (!context_.assetRegistry) {
+                    return String(label, value);
+                }
+
+                std::vector<AssetPickerEntry> entries{};
+                for (const AssetDescriptor* descriptor : context_.assetRegistry->CollectByType(assetType)) {
+                    if (!descriptor || descriptor->id.value.empty()) {
+                        continue;
+                    }
+
+                    AssetPickerEntry entry{};
+                    entry.id = descriptor->id.value;
+                    entry.preview = descriptor->id.value;
+                    std::string sourcePath = descriptor->sourcePath;
+                    if (context_.assetDatabase) {
+                        if (const AssetRecord* record = context_.assetDatabase->FindByGuid(AssetGuid{ descriptor->id.value })) {
+                            entry.preview = record->displayName.empty()
+                                ? record->sourcePath.stem().string()
+                                : record->displayName;
+                            sourcePath = record->sourcePath.generic_string();
+                        }
+                    }
+                    if (entry.preview.empty()) {
+                        entry.preview = descriptor->sourcePath.empty()
+                            ? descriptor->id.value
+                            : std::filesystem::path(descriptor->sourcePath).stem().string();
+                    }
+                    entry.label = entry.preview + "##" + entry.id;
+                    if (!sourcePath.empty()) {
+                        entry.label += "  ";
+                        entry.label += sourcePath;
+                    }
+                    entries.push_back(std::move(entry));
+                }
+
+                std::sort(entries.begin(), entries.end(), [](const AssetPickerEntry& lhs, const AssetPickerEntry& rhs) {
+                    return lhs.preview < rhs.preview;
+                });
+
+                std::string preview = value.empty() ? std::string("<none>") : value;
+                for (const AssetPickerEntry& entry : entries) {
+                    if (entry.id == value) {
+                        preview = entry.preview;
+                        break;
+                    }
+                }
+
+                bool changed = false;
+                const std::string labelText(label);
+                if (ImGui::BeginCombo(labelText.c_str(), preview.c_str())) {
+                    if (ImGui::Selectable("<none>", value.empty())) {
+                        value.clear();
+                        changed = true;
+                    }
+                    for (const AssetPickerEntry& entry : entries) {
+                        const bool selected = value == entry.id;
+                        if (ImGui::Selectable(entry.label.c_str(), selected)) {
+                            value = entry.id;
+                            changed = true;
+                        }
+                        if (selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    if (entries.empty()) {
+                        ImGui::TextDisabled("No assets");
+                    }
+                    ImGui::EndCombo();
+                }
+                return changed;
+            }
+
+            bool SceneIdPicker(std::string_view label, std::string& value) override {
+                if (!context_.assetDatabase) {
+                    return String(label, value);
+                }
+
+                std::vector<const AssetRecord*> sceneRecords =
+                    context_.assetDatabase->CollectByType(AssetType::Scene);
+                std::sort(sceneRecords.begin(), sceneRecords.end(), [](const AssetRecord* lhs, const AssetRecord* rhs) {
+                    if (!lhs || !rhs) {
+                        return lhs < rhs;
+                    }
+                    return SceneLabel(*lhs) < SceneLabel(*rhs);
+                });
+
+                bool changed = false;
+                const std::string labelText(label);
+                const std::string preview = value.empty() ? std::string("<none>") : value;
+                if (ImGui::BeginCombo(labelText.c_str(), preview.c_str())) {
+                    if (ImGui::Selectable("<none>", value.empty())) {
+                        value.clear();
+                        changed = true;
+                    }
+                    for (const AssetRecord* record : sceneRecords) {
+                        if (!record || !record->guid.IsValid()) {
+                            continue;
+                        }
+                        if (!SERVICES::IsRuntimeSceneGuidAllowed(record->guid.value)) {
+                            continue;
+                        }
+                        const bool selected = value == record->guid.value;
+                        std::string itemLabel = SceneLabel(*record) + "##" + record->guid.value;
+                        if (ImGui::Selectable(itemLabel.c_str(), selected)) {
+                            value = record->guid.value;
+                            changed = true;
+                        }
+                        if (selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                return changed;
+            }
+
+        private:
+            InspectorContext context_{};
+        };
 
         void DrawSceneSwitcher(
             DocumentSceneBase& scene,
@@ -124,13 +294,19 @@ namespace HIKARI::RUNTIME_TOOLS {
                 transform.rotation.w);
         }
 
-        void DrawComponents(GameObject& object) {
+        void DrawComponents(DocumentSceneBase& scene, GameObject& object) {
             ImGui::SeparatorText("Components");
             const auto& components = object.GetComponents();
             if (components.empty()) {
                 ImGui::TextDisabled("No components");
                 return;
             }
+
+            PortableImGuiInspectorBuilder builder{};
+            builder.SetContext(InspectorContext{
+                &scene.GetAssetRegistry(),
+                &scene.GetAssetDatabase()
+            });
 
             for (const auto& component : components) {
                 if (!component) {
@@ -139,6 +315,7 @@ namespace HIKARI::RUNTIME_TOOLS {
 
                 const std::string typeName(component->GetTypeName());
                 if (ImGui::TreeNode(typeName.c_str())) {
+                    component->BuildInspector(builder);
                     component->RenderImGui();
 
                     nlohmann::json serialized = nlohmann::json::object();
@@ -196,7 +373,7 @@ namespace HIKARI::RUNTIME_TOOLS {
                 ImGui::Text("Object: %s", selected->GetName().c_str());
                 ImGui::Text("Document ID: %llu", static_cast<unsigned long long>(selected->GetDocumentId().value));
                 DrawTransform(*selected);
-                DrawComponents(*selected);
+                DrawComponents(scene, *selected);
             } else {
                 ImGui::TextDisabled("No objects in scene");
             }

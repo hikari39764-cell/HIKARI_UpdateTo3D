@@ -7,6 +7,7 @@
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_SelectionSyncService.h"
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
+#include "Render3D/HIKARI_Math3D.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Prefab/HIKARI_PrefabDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -32,6 +33,41 @@ namespace HIKARI {
                 return "NewPrefab";
             }
             return sanitized;
+        }
+
+        void SyncRuntimeTransformToDocument(SceneObjectData& target, const EditorContext& context) {
+            if (!context.selection.selectedObject ||
+                context.selection.selectedObject->GetDocumentId() != target.id) {
+                return;
+            }
+
+            const Transform3D& transform = context.selection.selectedObject->Transform();
+            target.transform.position = transform.position;
+            target.transform.scale = transform.scale;
+            target.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(transform.rotation);
+        }
+
+        bool ApplyDocumentComponentToRuntime(
+            const SceneComponentData& componentData,
+            size_t componentIndex,
+            const EditorContext& context) {
+
+            if (!context.selection.selectedObject) {
+                return false;
+            }
+
+            const auto& runtimeComponents = context.selection.selectedObject->GetComponents();
+            if (componentIndex >= runtimeComponents.size() || !runtimeComponents[componentIndex]) {
+                return false;
+            }
+
+            IComponent* runtimeComponent = runtimeComponents[componentIndex].get();
+            if (std::string(runtimeComponent->GetTypeName()) != componentData.type) {
+                return false;
+            }
+
+            runtimeComponent->Deserialize(componentData.properties);
+            return true;
         }
     }
 
@@ -195,15 +231,28 @@ namespace HIKARI {
 
                     if (componentDocumentEditor_.DrawComponent(scene.GetComponentRegistry(), component, componentInspectorBuilder_, inspectorContext)) {
                         context.sceneDirty = true;
-                        needsRebuild = true;
+                        if (!ApplyDocumentComponentToRuntime(component, componentIndex, context)) {
+                            needsRebuild = true;
+                        }
                     }
 
                     ImGui::TreePop();
                     ImGui::PopID();
                 }
 
+                const bool editingComponentParameter = ImGui::IsAnyItemActive();
                 if (needsRebuild) {
+                    if (editingComponentParameter) {
+                        deferredComponentRebuild_ = true;
+                    } else {
+                        SyncRuntimeTransformToDocument(*target, context);
+                        selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                        deferredComponentRebuild_ = false;
+                    }
+                } else if (deferredComponentRebuild_ && !editingComponentParameter) {
+                    SyncRuntimeTransformToDocument(*target, context);
                     selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                    deferredComponentRebuild_ = false;
                 }
             }
         }

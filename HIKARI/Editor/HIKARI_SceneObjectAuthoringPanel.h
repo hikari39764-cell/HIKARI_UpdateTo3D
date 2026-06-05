@@ -23,6 +23,7 @@ namespace HIKARI {
         ImGuiInspectorBuilder componentInspectorBuilder_{};
         PrefabRegistry prefabRegistry_{};
         PrefabSerializer prefabSerializer_{};
+        bool deferredComponentRebuild_ = false;
     };
 
 } // namespace HIKARI

@@ -343,6 +343,73 @@ namespace HIKARI::EDITOR {
             return true;
         }
 
+        bool FindDxcRuntimeDirectory(
+            const std::filesystem::path& projectRoot,
+            std::filesystem::path& outDirectory) {
+            std::vector<std::filesystem::path> candidateDirs{
+                projectRoot,
+                projectRoot / "ThirdParty" / "DXC" / "bin" / "x64",
+                projectRoot / "ThirdParty" / "DirectXShaderCompiler" / "bin" / "x64",
+            };
+
+            const std::filesystem::path kitsBin = L"C:\\Program Files (x86)\\Windows Kits\\10\\bin";
+            std::error_code ec{};
+            if (std::filesystem::exists(kitsBin, ec) && !ec) {
+                for (const auto& entry : std::filesystem::directory_iterator(kitsBin, ec)) {
+                    if (ec) {
+                        break;
+                    }
+                    if (!entry.is_directory(ec) || ec) {
+                        ec.clear();
+                        continue;
+                    }
+                    candidateDirs.push_back(entry.path() / L"x64");
+                }
+            }
+
+            std::sort(candidateDirs.begin(), candidateDirs.end(), [](const auto& lhs, const auto& rhs) {
+                return lhs.generic_string() > rhs.generic_string();
+            });
+
+            for (const std::filesystem::path& directory : candidateDirs) {
+                ec.clear();
+                if (std::filesystem::exists(directory / "dxcompiler.dll", ec) && !ec) {
+                    outDirectory = directory;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool CopyDxcRuntime(
+            const std::filesystem::path& projectRoot,
+            const std::filesystem::path& outputDirectory,
+            std::string& errorMessage) {
+            std::filesystem::path dxcDirectory{};
+            if (!FindDxcRuntimeDirectory(projectRoot, dxcDirectory)) {
+                errorMessage = "Could not find dxcompiler.dll for export. Install Windows SDK or place DXC runtime under ThirdParty/DXC/bin/x64.";
+                return false;
+            }
+
+            if (!CopyFileChecked(
+                dxcDirectory / "dxcompiler.dll",
+                outputDirectory / "dxcompiler.dll",
+                errorMessage)) {
+                return false;
+            }
+
+            std::error_code ec{};
+            const std::filesystem::path dxil = dxcDirectory / "dxil.dll";
+            if (std::filesystem::exists(dxil, ec) && !ec) {
+                if (!CopyFileChecked(dxil, outputDirectory / "dxil.dll", errorMessage)) {
+                    return false;
+                }
+            }
+
+            HIKARI_LOG_INFO("[GameExporter] copied DXC runtime from " + dxcDirectory.string());
+            return true;
+        }
+
         std::string SceneLabel(const AssetRecord& record) {
             std::string label = record.displayName.empty()
                 ? record.sourcePath.stem().string()
@@ -824,6 +891,18 @@ namespace HIKARI::EDITOR {
                     errorMessage)) {
                     return false;
                 }
+            }
+
+            const std::filesystem::path inputConfig = projectRoot / "input.json";
+            std::error_code inputConfigError{};
+            if (std::filesystem::exists(inputConfig, inputConfigError) && !inputConfigError) {
+                if (!CopyFileChecked(inputConfig, outputDirectory / "input.json", errorMessage)) {
+                    return false;
+                }
+            }
+
+            if (!CopyDxcRuntime(projectRoot, outputDirectory, errorMessage)) {
+                return false;
             }
 
             if (contentManifest.restrictToSelectedScenes) {

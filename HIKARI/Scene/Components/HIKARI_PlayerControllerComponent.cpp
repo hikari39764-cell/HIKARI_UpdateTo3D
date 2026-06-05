@@ -74,7 +74,6 @@ namespace HIKARI {
         idleClip_ = in.value("idleClip", idleClip_);
         moveClip_ = in.value("moveClip", moveClip_);
         ClampSettings();
-        runtimeAppliedMoveSpeed_ = moveSpeed_;
     }
 
     void PlayerControllerComponent::BuildInspector(IInspectorBuilder& builder) {
