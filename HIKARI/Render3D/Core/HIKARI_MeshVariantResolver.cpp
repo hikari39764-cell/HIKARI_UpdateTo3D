@@ -98,6 +98,18 @@ namespace HIKARI::MESHRENDERER {
 
         if (item.hasResolvedMaterialFxProfile) {
             ApplyProfileToVariant(item.resolvedMaterialFxProfile, variant);
+            if (materialAsset != nullptr) {
+                if (materialAsset->doubleSided) {
+                    variant.doubleSided = true;
+                }
+                if ((materialAsset->featureBits & MATERIAL_FEATURES::AlphaMask) != 0) {
+                    variant.featureBits |= MATERIAL_FEATURES::AlphaMask;
+                }
+                if (materialAsset->alphaMode == AlphaMode::Blend) {
+                    variant.composite = VFX::CompositeMode::Alpha;
+                    variant.depthWrite = false;
+                }
+            }
         }
 
         return variant;

@@ -114,6 +114,7 @@ namespace HIKARI {
         DirectX::XMFLOAT4 (&GetMaterialFxParamValues())[VFX::kMaterialFxUserCount];
         const DirectX::XMFLOAT4 (&GetMaterialFxParamValues() const)[VFX::kMaterialFxUserCount];
         bool AreMaterialFxValuesInitialized() const;
+        void SetMaterialFxParamValues(const DirectX::XMFLOAT4 (&values)[VFX::kMaterialFxUserCount], bool initialized);
         bool SetMaterialFxFloat(const std::string& key, float value);
         bool SetMaterialFxFloat2(const std::string& key, const DirectX::XMFLOAT2& value);
         bool SetMaterialFxFloat3(const std::string& key, const DirectX::XMFLOAT3& value);

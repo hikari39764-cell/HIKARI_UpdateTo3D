@@ -780,6 +780,8 @@ namespace HIKARI {
                 ImGui::SameLine();
                 ImGui::Checkbox("Gizmos", &context_.gizmos.showComponentGizmos);
                 ImGui::SameLine();
+                ImGui::Checkbox("Player Bounds", &context_.gizmos.showPlayerBounds);
+                ImGui::SameLine();
                 ImGui::Checkbox("Game Only", &context_.windows.viewport.gameOnlyMode);
                 ImGui::SameLine();
                 ImGui::Checkbox("Transform", &context_.transformGizmo.enabled);
@@ -1173,7 +1175,10 @@ namespace HIKARI {
                     document.systems = {
                         SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
                         SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
+                        SceneSystemData{ "PlayerMovementSystem", true, 140, nlohmann::json::object() },
                         SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
+                        SceneSystemData{ "SceneScanFxSystem", true, 180, nlohmann::json::object() },
+                        SceneSystemData{ "CameraFollowSystem", true, 190, nlohmann::json::object() },
                         SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
                         SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
                         SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
@@ -1257,6 +1262,7 @@ namespace HIKARI {
                     ImGui::Checkbox("Trigger Volumes", &context_.gizmos.showTriggerVolumes);
                     ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
                     ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
+                    ImGui::Checkbox("Player Bounds", &context_.gizmos.showPlayerBounds);
                     ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
                 }
                 if (ImGui::CollapsingHeader("Transform Gizmo", ImGuiTreeNodeFlags_DefaultOpen)) {

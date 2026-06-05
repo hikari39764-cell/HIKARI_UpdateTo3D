@@ -321,6 +321,7 @@ namespace HIKARI {
 			BindButtonsIL("OpenParticleLab", { KeyCodeFromString("P") });
 			BindButtonsIL("ToggleEditorUI", { KeyCodeFromString("F1") });
 			BindButtonsIL("PlayTestVfx", { KeyCodeFromString("Space") });
+			BindButtonsIL("PlaySceneScan", { KeyCodeFromString("V") });
 
 			// ---- Debug Camera ----
 			BindMouseButtons("CameraDrag", { MouseButton::Middle });
@@ -340,14 +341,16 @@ namespace HIKARI {
 				"CloseProgram",
 				"OpenParticleLab",
 				"ToggleEditorUI",
-				"PlayTestVfx"
+				"PlayTestVfx",
+				"PlaySceneScan"
 				});
 			SetLayerActions("Gameplay", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
 				"OpenParticleLab",
 				"ToggleEditorUI",
-				"PlayTestVfx"
+				"PlayTestVfx",
+				"PlaySceneScan"
 				});
 			SetLayerActions("DebugCamera", {
 			 "CameraDrag",

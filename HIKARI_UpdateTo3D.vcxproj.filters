@@ -753,6 +753,15 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
@@ -1050,6 +1059,15 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CameraFollowSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
@@ -1289,6 +1307,15 @@
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h">
@@ -1739,6 +1766,15 @@
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CameraFollowSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h">

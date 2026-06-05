@@ -259,7 +259,12 @@
     <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
     <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_CameraFollowSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostEffect.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.cpp" />
@@ -396,6 +401,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp" />
@@ -572,7 +578,12 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_CameraFollowSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h" />
@@ -581,6 +592,7 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h" />
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h" />

@@ -527,7 +527,10 @@ namespace HIKARI {
             return {
                 SceneSystemData{ "TransformSystem", true, 0, json::object() },
                 SceneSystemData{ "ModelRenderSystem", true, 100, json::object() },
+                SceneSystemData{ "PlayerMovementSystem", true, 140, json::object() },
                 SceneSystemData{ "AnimationSystem", true, 150, json::object() },
+                SceneSystemData{ "SceneScanFxSystem", true, 180, json::object() },
+                SceneSystemData{ "CameraFollowSystem", true, 190, json::object() },
                 SceneSystemData{ "VfxSystem", true, 200, json::object() },
                 SceneSystemData{ "PhysicsSystem", false, 300, json::object() },
                 SceneSystemData{ "ScriptSystem", false, 400, json::object() },

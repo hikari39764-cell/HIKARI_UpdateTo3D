@@ -29,8 +29,11 @@
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/HIKARI_AnimationSystem.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
+#include "Scene/Components/HIKARI_CameraFollowComponent.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/HIKARI_PlayerControllerComponent.h"
+#include "Scene/Components/HIKARI_SceneScanFxComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
@@ -40,8 +43,11 @@
 #include "Vfx/Post/HIKARI_PostProfile.h"
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
+#include "Scene/HIKARI_CameraFollowSystem.h"
+#include "Scene/HIKARI_PlayerMovementSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
+#include "Scene/HIKARI_SceneScanFxSystem.h"
 #include "Tools/Baking/HIKARI_ProbeCubemapCaptureTarget.h"
 #include "Tools/Baking/HIKARI_LightProbeBaker.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeBaker.h"
@@ -54,7 +60,10 @@ namespace HIKARI {
             return {
                 SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
                 SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
+                SceneSystemData{ "PlayerMovementSystem", true, 140, nlohmann::json::object() },
                 SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
+                SceneSystemData{ "SceneScanFxSystem", true, 180, nlohmann::json::object() },
+                SceneSystemData{ "CameraFollowSystem", true, 190, nlohmann::json::object() },
                 SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
                 SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
                 SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
@@ -1902,7 +1911,10 @@ namespace HIKARI {
         return sceneDocument_.sceneName;
     }
     void DocumentSceneBase::RegisterDefaultSystems() {
+        systemScheduler_.AddSystem(std::make_unique<PlayerMovementSystem>(&camera_));
         systemScheduler_.AddSystem(std::make_unique<AnimationSystem>());
+        systemScheduler_.AddSystem(std::make_unique<SceneScanFxSystem>());
+        systemScheduler_.AddSystem(std::make_unique<CameraFollowSystem>(camera_));
         systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
     }
     void DocumentSceneBase::RegisterDefaultComponentTypes() {
@@ -1932,6 +1944,60 @@ namespace HIKARI {
                     properties["autoPlay"] = true;
                     properties["playing"] = true;
                     properties["finished"] = false;
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("PlayerControllerComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "PlayerControllerComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<PlayerControllerComponent>(); },
+                { "AnimatorComponent" },
+                { "CameraFollowComponent", "SceneScanFxComponent" },
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["moveXAxisName"] = "MoveX";
+                    properties["moveYAxisName"] = "MoveY";
+                    properties["moveSpeed"] = 4.0f;
+                    properties["acceleration"] = 60.0f;
+                    properties["deceleration"] = 72.0f;
+                    properties["turnSpeed"] = 12.0f;
+                    properties["inputDeadZone"] = 0.08f;
+                    properties["rotateToMove"] = true;
+                    properties["cameraRelativeMovement"] = true;
+                    properties["useBounds"] = true;
+                    properties["bounds"] = {
+                        { "minX", -12.0f },
+                        { "maxX", 12.0f },
+                        { "minZ", -12.0f },
+                        { "maxZ", 12.0f }
+                    };
+                    properties["animationEnabled"] = true;
+                    properties["autoSelectAnimationClips"] = true;
+                    properties["idleClip"] = "";
+                    properties["moveClip"] = "";
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("CameraFollowComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "CameraFollowComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<CameraFollowComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["targetObjectId"] = 0;
+                    properties["useOwnerAsFallbackTarget"] = true;
+                    properties["offset"] = nlohmann::json::array({ 0.0f, 5.5f, -7.5f });
+                    properties["lookAtOffset"] = nlohmann::json::array({ 0.0f, 1.2f, 0.0f });
+                    properties["followSmooth"] = 10.0f;
+                    properties["lookSmooth"] = 12.0f;
                 }
             });
         }
@@ -2012,6 +2078,34 @@ namespace HIKARI {
                             { "restartIfAlreadyPlaying", true }
                         }
                     });
+                }
+            });
+        }
+        if (!componentRegistry_.Find("SceneScanFxComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "SceneScanFxComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<SceneScanFxComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["triggerActionName"] = "PlaySceneScan";
+                    properties["autoPlay"] = false;
+                    properties["sourceObjectId"] = 0;
+                    properties["skipSourceObject"] = true;
+                    properties["overrideExistingFx"] = false;
+                    properties["restoreOnStop"] = true;
+                    properties["radius"] = 28.0f;
+                    properties["speed"] = 16.0f;
+                    properties["bandWidth"] = 3.2f;
+                    properties["triangleCellSize"] = 2.8f;
+                    properties["triangleLineWidth"] = 0.12f;
+                    properties["noiseScale"] = 0.65f;
+                    properties["flickerStrength"] = 0.35f;
+                    properties["intensity"] = 3.2f;
+                    properties["color"] = nlohmann::json::array({ 0.08f, 1.0f, 0.92f, 0.88f });
                 }
             });
         }

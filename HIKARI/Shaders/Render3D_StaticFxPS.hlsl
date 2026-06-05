@@ -214,6 +214,64 @@ float Noise3D(float3 p)
     return lerp(nxy0, nxy1, u.z);
 }
 
+float Hash21(float2 p)
+{
+    float3 p3 = frac(float3(p.xyx) * 0.1031f);
+    p3 += dot(p3, p3.yzx + 33.33f);
+    return frac((p3.x + p3.y) * p3.z);
+}
+
+float2 RotateSceneScanUv(float2 uv, float angle)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+    return float2(uv.x * c - uv.y * s, uv.x * s + uv.y * c);
+}
+
+float2 ResolveSceneScanUv(float3 worldPosWS, float3 normalWS)
+{
+    float3 n = abs(normalWS);
+    if (n.y >= n.x && n.y >= n.z)
+    {
+        return worldPosWS.xz;
+    }
+    if (n.x >= n.z)
+    {
+        return worldPosWS.zy;
+    }
+    return worldPosWS.xy;
+}
+
+void SceneScanTriangleFacet(
+    float2 uv,
+    float lineWidth,
+    out float edgeMask,
+    out float fillMask,
+    out float triSeed,
+    out float2 triCenterUv)
+{
+    const float kTriHeight = 0.8660254f;
+    float2 p = float2(uv.x + uv.y * 0.5f, uv.y * kTriHeight);
+    float2 cell = floor(p);
+    float2 f = frac(p);
+    float upper = step(1.0f, f.x + f.y);
+
+    float3 lowerBary = float3(f.x, f.y, 1.0f - f.x - f.y);
+    float3 upperBary = float3(1.0f - f.x, 1.0f - f.y, f.x + f.y - 1.0f);
+    float3 bary = max(lerp(lowerBary, upperBary, upper), 0.0f.xxx);
+    float edgeDistance = min(min(bary.x, bary.y), bary.z);
+
+    float aa = max(fwidth(edgeDistance), 0.001f);
+    float w = clamp(lineWidth, 0.002f, 0.24f);
+    edgeMask = 1.0f - smoothstep(w, w + aa, edgeDistance);
+    fillMask = smoothstep(w * 0.8f, w * 1.85f + aa, edgeDistance);
+
+    float2 centerP = cell + lerp(float2(0.3333333f, 0.3333333f), float2(0.6666667f, 0.6666667f), upper);
+    triCenterUv = float2(centerP.x - (centerP.y / kTriHeight) * 0.5f, centerP.y / kTriHeight);
+
+    triSeed = Hash21(cell + float2(upper * 17.0f, upper * 31.0f));
+}
+
 float3 AccumulatePointLight(float3 normalWS, float3 worldPosWS, float3 viewDir)
 {
     float3 sum = 0.0f.xxx;
@@ -581,6 +639,141 @@ float4 main(PSInput input) : SV_TARGET
         float2 distortion = (float2(n0, n1) * 2.0f - 1.0f) * sceneColorDistortionStrength;
         float3 sceneColor = gSceneColorTex.Sample(gLinearWrap, saturate(screenUv + distortion)).rgb;
         finalColor = lerp(finalColor, sceneColor, sceneColorMix);
+    }
+
+    float3 scanOrigin = gFxUser3.xyz;
+    float scanTime = gFxUser3.w;
+    float scanRadius = max(gFxUser4.x, 0.0f);
+    float scanBandWidth = max(gFxUser4.y, 0.001f);
+    float scanSpeed = max(gFxUser4.z, 0.001f);
+    float scanIntensity = max(gFxUser4.w, 0.0f);
+    float4 scanColor = gFxUser5;
+    float triangleCellSize = max(gFxUser6.x, 0.001f);
+    float triangleLineWidth = clamp(gFxUser6.y, 0.001f, 0.45f);
+    float triangleNoiseScale = max(gFxUser6.z, 0.001f);
+    float triangleFlicker = saturate(gFxUser6.w);
+    float scanAfterglowStrength = max(gFxUser7.x, 0.0f);
+    float scanFrontLineStrength = max(gFxUser7.y, 0.0f);
+    float scanGeometryEdgeStrength = max(gFxUser7.z, 0.0f);
+    float scanDistortionStrength = max(gFxUser7.w, 0.0f);
+
+    if (scanIntensity > 0.0001f && scanRadius > 0.0001f)
+    {
+        float2 surfacePlane = ResolveSceneScanUv(input.worldPosWS, geometricNormal);
+        float2 originPlane = ResolveSceneScanUv(scanOrigin, geometricNormal);
+        float distOnSurface = length(surfacePlane - originPlane);
+        float waveRadius = scanTime * scanSpeed;
+        float bandDistance = abs(distOnSurface - waveRadius);
+        float waveBand = 1.0f - smoothstep(scanBandWidth, scanBandWidth * 1.35f, bandDistance);
+        float radiusMask = 1.0f - smoothstep(scanRadius, scanRadius + scanBandWidth, distOnSurface);
+        float waveAlive = 1.0f - smoothstep(
+            scanRadius + scanBandWidth * (0.5f + scanAfterglowStrength * 1.8f),
+            scanRadius + scanBandWidth * (1.0f + scanAfterglowStrength * 2.4f),
+            waveRadius);
+
+        float2 triangleDrift = float2(scanTime * 0.055f, -scanTime * 0.032f);
+        float2 randomTile = floor(surfacePlane / max(triangleCellSize * 3.25f, 0.001f));
+        float randomA = Hash21(randomTile + float2(19.17f, 7.31f));
+        float randomB = Hash21(randomTile + float2(3.91f, 23.53f));
+        float randomAngle = (randomA - 0.5f) * 0.68f;
+        float warpNoiseA = Noise3D(float3(surfacePlane * 0.23f, scanTime * 0.16f));
+        float warpNoiseB = Noise3D(float3(surfacePlane * 0.23f + float2(11.3f, 5.7f), scanTime * 0.16f + 4.1f));
+        float2 warpedPlane = originPlane + RotateSceneScanUv(surfacePlane - originPlane, randomAngle);
+        warpedPlane += (float2(randomA, randomB) - 0.5f) * triangleCellSize * 0.52f;
+        warpedPlane += (float2(warpNoiseA, warpNoiseB) - 0.5f) * triangleCellSize * 0.34f;
+        float2 scanUv = warpedPlane / triangleCellSize + triangleDrift;
+        float triangleEdge = 0.0f;
+        float triangleFill = 0.0f;
+        float triangleSeed = 0.0f;
+        float2 triangleCenterUv = 0.0f.xx;
+        SceneScanTriangleFacet(scanUv, triangleLineWidth, triangleEdge, triangleFill, triangleSeed, triangleCenterUv);
+
+        float2 triangleCenterPlane = (triangleCenterUv - triangleDrift) * triangleCellSize;
+        float triangleDistance = length(triangleCenterPlane - originPlane);
+        float triangleAge = (waveRadius - triangleDistance) / scanBandWidth;
+        float stagger = (triangleSeed - 0.5f) * 0.7f;
+        float detailNoise = Noise3D(float3(scanUv * triangleNoiseScale, scanTime * 1.7f));
+        float triangleEnter = smoothstep(-0.32f, 0.24f, triangleAge + stagger + detailNoise * 0.12f);
+        float triangleLeave = 1.0f - smoothstep(1.25f, 2.35f, triangleAge + stagger * 0.35f);
+        float triangleSweep = triangleEnter * triangleLeave;
+        float hotFront = 1.0f - smoothstep(scanBandWidth * 0.08f, scanBandWidth * 0.48f, abs(triangleDistance - waveRadius + stagger * scanBandWidth * 0.35f));
+        float frontLine = 1.0f - smoothstep(scanBandWidth * 0.015f, scanBandWidth * 0.13f, abs(triangleDistance - waveRadius + stagger * scanBandWidth * 0.18f));
+        float shardBrightness = lerp(0.72f, 1.28f, triangleSeed);
+        float flicker = lerp(1.0f, 0.68f + 0.32f * sin(scanTime * 24.0f + triangleSeed * 28.0f), triangleFlicker);
+
+        float smallTriangleCellSize = max(triangleCellSize * 0.48f, 0.001f);
+        float2 smallDrift = float2(-scanTime * 0.083f, scanTime * 0.061f);
+        float2 smallRandomTile = floor(surfacePlane / max(smallTriangleCellSize * 4.0f, 0.001f));
+        float smallRandomA = Hash21(smallRandomTile + float2(41.9f, 5.2f));
+        float smallRandomB = Hash21(smallRandomTile + float2(9.6f, 37.4f));
+        float2 smallWarpedPlane = surfacePlane;
+        smallWarpedPlane += (float2(smallRandomA, smallRandomB) - 0.5f) * smallTriangleCellSize * 0.75f;
+        smallWarpedPlane += (float2(detailNoise, warpNoiseB) - 0.5f) * smallTriangleCellSize * 0.36f;
+        float2 smallScanUv = smallWarpedPlane / smallTriangleCellSize + smallDrift;
+        float smallTriangleEdge = 0.0f;
+        float smallTriangleFill = 0.0f;
+        float smallTriangleSeed = 0.0f;
+        float2 smallTriangleCenterUv = 0.0f.xx;
+        SceneScanTriangleFacet(
+            smallScanUv,
+            clamp(triangleLineWidth * 0.78f, 0.001f, 0.45f),
+            smallTriangleEdge,
+            smallTriangleFill,
+            smallTriangleSeed,
+            smallTriangleCenterUv);
+
+        float2 smallTriangleCenterPlane = (smallTriangleCenterUv - smallDrift) * smallTriangleCellSize;
+        float smallTriangleDistance = length(smallTriangleCenterPlane - originPlane);
+        float smallTriangleAge = (waveRadius - smallTriangleDistance) / scanBandWidth;
+        float smallStagger = (smallTriangleSeed - 0.5f) * 1.15f;
+        float smallDetailNoise = Noise3D(float3(smallScanUv * triangleNoiseScale * 1.65f, scanTime * 2.35f));
+        float smallPresence = smoothstep(0.20f, 0.92f, smallTriangleSeed + smallDetailNoise * 0.26f);
+        float smallTriangleEnter = smoothstep(-0.42f, 0.20f, smallTriangleAge + smallStagger + smallDetailNoise * 0.18f);
+        float smallTriangleLeave = 1.0f - smoothstep(0.95f, 2.8f, smallTriangleAge + smallStagger * 0.25f);
+        float smallTriangleSweep = smallTriangleEnter * smallTriangleLeave * smallPresence;
+        float smallHotFront = 1.0f - smoothstep(scanBandWidth * 0.06f, scanBandWidth * 0.42f, abs(smallTriangleDistance - waveRadius + smallStagger * scanBandWidth * 0.22f));
+
+        float trailAge = triangleAge + stagger * 0.22f;
+        float afterglow = smoothstep(0.45f, 1.25f, trailAge) * (1.0f - smoothstep(2.35f, 5.5f, trailAge));
+        afterglow *= scanAfterglowStrength;
+
+        float3 edgeNormal = normalize(geometricNormal);
+        float normalEdge = length(ddx(edgeNormal)) + length(ddy(edgeNormal));
+        float silhouetteEdge = pow(1.0f - saturate(dot(edgeNormal, v)), 3.5f);
+        float geometryEdge = saturate(normalEdge * 3.4f + silhouetteEdge * 0.55f) * scanGeometryEdgeStrength;
+
+        float fillLayer = triangleFill * triangleSweep * waveBand * shardBrightness;
+        float afterglowLayer = triangleFill * afterglow * shardBrightness * (0.72f + detailNoise * 0.28f);
+        float smallFillLayer = smallTriangleFill * smallTriangleSweep * waveBand * (0.44f + smallTriangleSeed * 0.44f);
+        float smallEdgeLayer = smallTriangleEdge * smallHotFront * smallPresence * 0.72f;
+        float edgeLayer = triangleEdge * saturate(hotFront * 1.45f + triangleSweep * 0.65f + afterglowLayer * 0.35f);
+        float frontLineLayer = frontLine * scanFrontLineStrength * (0.28f + triangleFill * 0.42f + triangleEdge * 1.15f);
+        float geometryEdgeLayer = geometryEdge * saturate(hotFront * 0.75f + triangleSweep * 0.55f + afterglowLayer * 0.28f);
+        float frontWash = hotFront * (0.18f + triangleFill * 0.42f);
+        float scanMask = saturate(
+            fillLayer * 0.85f +
+            afterglowLayer * 0.65f +
+            smallFillLayer * 0.55f +
+            smallEdgeLayer * 0.85f +
+            edgeLayer * 1.25f +
+            frontLineLayer * 1.55f +
+            geometryEdgeLayer * 0.95f +
+            frontWash) * radiusMask * waveAlive * scanColor.a * flicker;
+
+        if (scanDistortionStrength > 0.00001f && scanMask > 0.0001f)
+        {
+            float2 screenUv = input.position.xy * gScreenParams.zw;
+            float2 distortion = normalize(float2(detailNoise - 0.5f, triangleSeed - 0.5f) + 0.0001f.xx);
+            distortion *= scanDistortionStrength * saturate(frontLine + hotFront * 0.5f + afterglowLayer * 0.25f);
+            float3 distortedSceneColor = gSceneColorTex.Sample(gLinearWrap, saturate(screenUv + distortion)).rgb;
+            finalColor = lerp(finalColor, distortedSceneColor, saturate(scanMask * 0.12f));
+        }
+
+        float overlayBoost = saturate((fillLayer * 0.45f + afterglowLayer * 0.38f + smallFillLayer * 0.32f + smallEdgeLayer * 0.42f + edgeLayer * 0.8f + frontLineLayer * 0.95f + geometryEdgeLayer * 0.55f) * scanIntensity * 0.2f);
+        float3 frontColor = lerp(scanColor.rgb, 1.0f.xxx, saturate(frontLine * 0.8f));
+        float3 overlayColor = lerp(scanColor.rgb, frontColor, saturate(frontLineLayer)) * (0.72f + hotFront * 1.1f + smallEdgeLayer * 0.34f + edgeLayer * 0.42f + geometryEdgeLayer * 0.38f);
+        finalColor = finalColor * (1.0f + scanColor.rgb * overlayBoost);
+        finalColor += overlayColor * scanMask * scanIntensity;
     }
 
     return float4(finalColor, albedo.a);

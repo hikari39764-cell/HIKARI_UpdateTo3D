@@ -368,6 +368,13 @@ namespace HIKARI {
         return materialFxValuesInitialized_;
     }
 
+    void ModelComponent::SetMaterialFxParamValues(const DirectX::XMFLOAT4(&values)[VFX::kMaterialFxUserCount], bool initialized) {
+        for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+            materialFxParamValues_[i] = values[i];
+        }
+        materialFxValuesInitialized_ = initialized;
+    }
+
     bool ModelComponent::SetMaterialFxFloat(const std::string& key, float value) {
         if (materialFxProfileId_.empty()) {
             return false;
