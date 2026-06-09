@@ -1420,6 +1420,27 @@ namespace HIKARI {
             return textures_[handle] != nullptr;
         }
 
+        ID3D12Resource* DxTextureManager::GetResource(int handle)
+        {
+            if (!IsTextureHandleValid(handle)) {
+                return nullptr;
+            }
+
+            return textures_[handle].Get();
+        }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvCpuHandle(int handle)
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE nullHandle{};
+            nullHandle.ptr = 0;
+
+            if (!IsTextureHandleValid(handle) || handle >= static_cast<int>(srvCpu_.size())) {
+                return nullHandle;
+            }
+
+            return srvCpu_[handle];
+        }
+
         D3D12_GPU_DESCRIPTOR_HANDLE DxTextureManager::GetSrvGpuHandle(int handle)
         {
             D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{};

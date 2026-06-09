@@ -14,7 +14,6 @@
 #include <d3dx12.h>
 #include <wrl/client.h>
 
-#include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
@@ -22,6 +21,9 @@
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
+#include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::SHADOW {
@@ -70,6 +72,8 @@ namespace HIKARI::SHADOW {
             ComPtr<ID3D12Resource> shadowMap;
             ComPtr<ID3D12DescriptorHeap> dsvHeap;
             D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+            RENDER3D::TextureResourceHandle shadowSrvResource{};
+            RENDER3D::TextureResourceHandle fallbackTextureResource{};
             int shadowSrvHandle = -1;
             int fallbackTextureHandle = -1;
 
@@ -90,9 +94,12 @@ namespace HIKARI::SHADOW {
             std::vector<DrawItem> pendingStaticItems;
             std::vector<DrawItem> pendingSkinnedItems;
             size_t pendingSkippedNoCastShadowCount = 0;
+            const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* shadowPacketBuilder = nullptr;
+            const std::vector<uint32_t>* shadowPacketExecutionIndices = nullptr;
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* shadowPacketExecutionCommands = nullptr;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
-            std::unordered_map<std::string, int> materialTextureCache;
+            std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
             ShadowMapDebugStats debugStats;
             size_t shadowMapRecreateCount = 0;
         };
@@ -176,27 +183,29 @@ namespace HIKARI::SHADOW {
             return raw;
         }
 
-        int ResolvePrimitiveTextureHandle(const ModelAsset& asset, const MaterialAsset* materialAsset) {
+        RENDER3D::TextureResourceHandle ResolvePrimitiveTextureResource(const ModelAsset& asset, const MaterialAsset* materialAsset) {
             if (materialAsset == nullptr ||
                 materialAsset->baseColorTexture.textureIndex < 0 ||
                 materialAsset->baseColorTexture.textureIndex >= static_cast<int>(asset.textures.size())) {
-                return g.fallbackTextureHandle;
+                return g.fallbackTextureResource;
             }
 
             const TextureAsset3D& texture = asset.textures[static_cast<size_t>(materialAsset->baseColorTexture.textureIndex)];
             if (texture.sourcePath.empty()) {
-                return g.fallbackTextureHandle;
+                return g.fallbackTextureResource;
             }
 
             const std::string cacheKey = "shadow:base:" + texture.sourcePath;
             auto found = g.materialTextureCache.find(cacheKey);
-            if (found != g.materialTextureCache.end()) {
+            if (found != g.materialTextureCache.end() &&
+                RENDER3D::IsTextureResourceValid(found->second)) {
                 return found->second;
             }
 
-            const int handle = DXTEX::DxTextureManager::LoadTextureSrgb(cacheKey, texture.sourcePath);
-            g.materialTextureCache.emplace(cacheKey, handle);
-            return handle >= 0 ? handle : g.fallbackTextureHandle;
+            RENDER3D::TextureResourceHandle resource =
+                RENDER3D::LoadTextureResourceSrgb(cacheKey, texture.sourcePath);
+            g.materialTextureCache[cacheKey] = resource;
+            return RENDER3D::IsTextureResourceValid(resource) ? resource : g.fallbackTextureResource;
         }
 
         size_t UploadJointPalette(size_t objectIndex, const std::vector<MATH::Mat4>& palette) {
@@ -254,10 +263,9 @@ namespace HIKARI::SHADOW {
                 return false;
             }
 
-            if (g.shadowSrvHandle >= 0) {
-                DXTEX::DxTextureManager::ReleaseTextureDeferred(g.shadowSrvHandle);
-                g.shadowSrvHandle = -1;
-            }
+            RENDER3D::ReleaseTextureResource(g.shadowSrvResource);
+            g.shadowSrvResource = {};
+            g.shadowSrvHandle = -1;
 
             g.shadowMap.Reset();
             g.dsvHeap.Reset();
@@ -301,11 +309,28 @@ namespace HIKARI::SHADOW {
             g.dsv = g.dsvHeap->GetCPUDescriptorHandleForHeapStart();
             device->CreateDepthStencilView(g.shadowMap.Get(), &dsvDesc, g.dsv);
 
-            g.shadowSrvHandle = DXTEX::DxTextureManager::RegisterFromResourceAs(g.shadowMap.Get(), DXGI_FORMAT_R32_FLOAT);
+            RENDER3D::RenderResourceDesc shadowSrvDesc{};
+            shadowSrvDesc.kind = RENDER3D::RenderResourceKind::Texture;
+            shadowSrvDesc.usage =
+                RENDER3D::RenderResourceUsageFlags::ShaderResource |
+                RENDER3D::RenderResourceUsageFlags::DepthStencil;
+            shadowSrvDesc.lifetime = RENDER3D::RenderResourceLifetime::External;
+            shadowSrvDesc.debugName = "directional_shadow_map_srv";
+            shadowSrvDesc.sourceKey = "shadow/directional_map";
+            shadowSrvDesc.width = resolution;
+            shadowSrvDesc.height = resolution;
+            shadowSrvDesc.mipLevels = 1;
+            shadowSrvDesc.depthOrArraySize = 1;
+            shadowSrvDesc.format = DXGI_FORMAT_R32_FLOAT;
+            g.shadowSrvResource = RENDER3D::RegisterTextureResourceFromNative(
+                g.shadowMap.Get(),
+                DXGI_FORMAT_R32_FLOAT,
+                std::move(shadowSrvDesc));
+            g.shadowSrvHandle = RENDER3D::GetTextureResourceBackendHandle(g.shadowSrvResource);
             g.resolution = resolution;
             g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             ++g.shadowMapRecreateCount;
-            return g.shadowSrvHandle >= 0;
+            return RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
         }
 
         bool CreatePipeline(ID3D12Device* device) {
@@ -336,7 +361,13 @@ namespace HIKARI::SHADOW {
             textureRange.BaseShaderRegister = 0;
             textureRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[3]{};
+            D3D12_DESCRIPTOR_RANGE objectDataRange{};
+            objectDataRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            objectDataRange.NumDescriptors = 1;
+            objectDataRange.BaseShaderRegister = 1;
+            objectDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[5]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
             params[0].Descriptor.ShaderRegister = 0;
@@ -347,6 +378,14 @@ namespace HIKARI::SHADOW {
             params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
             params[2].DescriptorTable.NumDescriptorRanges = 1;
             params[2].DescriptorTable.pDescriptorRanges = &textureRange;
+            params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            params[3].DescriptorTable.NumDescriptorRanges = 1;
+            params[3].DescriptorTable.pDescriptorRanges = &objectDataRange;
+            params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+            params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            params[4].Constants.ShaderRegister = 2;
+            params[4].Constants.Num32BitValues = 2;
 
             D3D12_STATIC_SAMPLER_DESC sampler{};
             sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -377,7 +416,7 @@ namespace HIKARI::SHADOW {
             GFX::SetD3D12Name(g.rootSig.Get(), L"Shadow Static RootSignature");
 
             D3D12_ROOT_PARAMETER skinnedParams[4]{};
-            for (size_t i = 0; i < std::size(params); ++i) {
+            for (size_t i = 0; i < 3; ++i) {
                 skinnedParams[i] = params[i];
             }
             skinnedParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -459,8 +498,16 @@ namespace HIKARI::SHADOW {
             if (device == nullptr) {
                 return false;
             }
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("shadow/fallback_white", "HIKARI/white1x1.png");
-            g.initialized = CreateBuffers(device) && CreatePipeline(device);
+            g.fallbackTextureResource = RENDER3D::LoadTextureResource(
+                "shadow/fallback_white",
+                "HIKARI/white1x1.png");
+            g.fallbackTextureHandle =
+                RENDER3D::GetTextureResourceBackendHandle(g.fallbackTextureResource);
+            g.initialized =
+                RENDER3D::IsTextureResourceValid(g.fallbackTextureResource) &&
+                CreateBuffers(device) &&
+                PACKET::InitializeShadowPacketExecutor(device) &&
+                CreatePipeline(device);
             return g.initialized;
         }
 
@@ -630,11 +677,20 @@ namespace HIKARI::SHADOW {
             }
             ++g.pendingSkippedNoCastShadowCount;
         }
+
+        bool HasShadowPacketExecutionPlan() {
+            return
+                g.shadowPacketBuilder != nullptr &&
+                g.shadowPacketExecutionIndices != nullptr &&
+                g.shadowPacketExecutionCommands != nullptr &&
+                !g.shadowPacketExecutionCommands->empty();
+        }
     }
 
     void Reset() {
         ClearFrameSubmissions();
         ClearPendingSubmissions();
+        SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr);
     }
 
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera) {
@@ -732,6 +788,16 @@ namespace HIKARI::SHADOW {
         QueueSkinnedItem(std::move(item));
     }
 
+    void SetSurfaceDrawPacketExecutionPlan(
+        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
+        const std::vector<uint32_t>* executablePacketIndices,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands) {
+
+        g.shadowPacketBuilder = builder;
+        g.shadowPacketExecutionIndices = executablePacketIndices;
+        g.shadowPacketExecutionCommands = executableCommands;
+    }
+
     void RenderDirectionalShadowMap() {
         if (!g.frameEnabled || g.shadowMap == nullptr) {
             g.acceptingFrameSubmissions = false;
@@ -761,7 +827,7 @@ namespace HIKARI::SHADOW {
         cmd->ClearDepthStencilView(g.dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
+        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
             cmd->SetDescriptorHeaps(1, heaps);
@@ -790,10 +856,15 @@ namespace HIKARI::SHADOW {
             cmd->SetPipelineState(skinned ? g.skinnedPso.Get() : g.staticPso.Get());
             cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(1, objectAddress);
-            const int textureHandle = ResolvePrimitiveTextureHandle(*item.asset, materialAsset);
-            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(textureHandle);
+            const RENDER3D::TextureResourceHandle textureResource =
+                ResolvePrimitiveTextureResource(*item.asset, materialAsset);
+            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
             if (textureSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(2, textureSrv);
+            }
+            if (!skinned) {
+                PACKET::BindLegacyShadowObjectDataMode(cmd);
             }
             if (skinned) {
                 UploadJointPalette(objectIndex, item.jointPalette);
@@ -813,6 +884,44 @@ namespace HIKARI::SHADOW {
             ++g.debugStats.totalPrimitiveCasterDrawCount;
             ++objectIndex;
         };
+
+        if (HasShadowPacketExecutionPlan()) {
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
+                g.shadowPacketBuilder->GetPackets();
+
+            PACKET::ShadowPacketExecutorContext packetCtx{};
+            packetCtx.cmd = cmd;
+            packetCtx.staticRootSig = g.rootSig.Get();
+            packetCtx.staticPso = g.staticPso.Get();
+            packetCtx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
+            packetCtx.resolveStaticMesh = &GetOrCreatePrimitiveMesh;
+            packetCtx.resolveBaseColorTexture = &ResolvePrimitiveTextureResource;
+
+            const PACKET::ShadowPacketDrawResult packetResult =
+                PACKET::DrawShadowPacketCommands(
+                    packetCtx,
+                    packets.data(),
+                    packets.size(),
+                    g.shadowPacketExecutionIndices->data(),
+                    g.shadowPacketExecutionIndices->size(),
+                    *g.shadowPacketExecutionCommands,
+                    objectIndex);
+
+            g.debugStats.shadowPacketCasterDrawCount += packetResult.submittedPacketCount;
+            g.debugStats.shadowPacketSkippedCount += packetResult.skippedPacketCount;
+            g.debugStats.shadowPacketCommandCount += packetResult.commandCount;
+            g.debugStats.shadowPacketSingleCommandCount += packetResult.singlePacketCommandCount;
+            g.debugStats.shadowPacketMaxCommandPacketCount =
+                (std::max)(g.debugStats.shadowPacketMaxCommandPacketCount, packetResult.maxCommandPacketCount);
+            g.debugStats.shadowPacketDrawCallCount += packetResult.drawCallCount;
+            g.debugStats.shadowPacketInstancedDrawCount += packetResult.instancedDrawCount;
+            g.debugStats.shadowPacketInstancedCasterCount += packetResult.instancedPacketCount;
+            g.debugStats.shadowPacketMaxInstanceCount =
+                (std::max)(g.debugStats.shadowPacketMaxInstanceCount, packetResult.maxInstanceCount);
+            g.debugStats.staticCasterDrawCount += packetResult.submittedPacketCount;
+            g.debugStats.totalPrimitiveCasterDrawCount += packetResult.submittedPacketCount;
+            g.debugStats.submittedCasterCount += packetResult.submittedPacketCount;
+        }
 
         for (const DrawItem& item : g.staticItems) {
             if (item.asset == nullptr) {
@@ -849,10 +958,12 @@ namespace HIKARI::SHADOW {
                 cmd->SetPipelineState(g.staticPso.Get());
                 cmd->SetGraphicsRootConstantBufferView(0, g.cameraCB->GetGPUVirtualAddress());
                 cmd->SetGraphicsRootConstantBufferView(1, objectAddress);
-                const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(g.fallbackTextureHandle);
+                const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
+                    RENDER3D::GetTextureResourceSrvGpuHandle(g.fallbackTextureResource);
                 if (textureSrv.ptr != 0) {
                     cmd->SetGraphicsRootDescriptorTable(2, textureSrv);
                 }
+                PACKET::BindLegacyShadowObjectDataMode(cmd);
 
                 D3D12_VERTEX_BUFFER_VIEW vb = legacyMesh->GetVBView();
                 D3D12_INDEX_BUFFER_VIEW ib = legacyMesh->GetIBView();
@@ -887,7 +998,9 @@ namespace HIKARI::SHADOW {
     }
 
     bool IsDirectionalShadowEnabled() {
-        return g.frameEnabled && g.shadowMap != nullptr && g.shadowSrvHandle >= 0;
+        return g.frameEnabled &&
+            g.shadowMap != nullptr &&
+            RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
     }
 
     const MATH::Mat4& GetDirectionalLightViewProj() {
@@ -895,7 +1008,7 @@ namespace HIKARI::SHADOW {
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE GetDirectionalShadowSrv() {
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(g.shadowSrvHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandle(g.shadowSrvResource);
     }
 
     uint32_t GetShadowResolution() {

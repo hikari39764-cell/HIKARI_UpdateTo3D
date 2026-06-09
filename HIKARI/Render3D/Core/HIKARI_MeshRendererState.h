@@ -11,10 +11,11 @@
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
     class SurfaceDrawPacketBuilder;
-    struct SurfaceDrawPacketRun;
+    struct SurfaceDrawCommand;
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -45,6 +46,11 @@ namespace HIKARI::MESHRENDERER {
         std::vector<DrawItem> drawItems;
         MeshRendererDebugStats debugStats;
 
+        RENDER3D::TextureResourceHandle fallbackTextureResource{};
+        RENDER3D::TextureResourceHandle fallbackNormalTextureResource{};
+        RENDER3D::TextureResourceHandle fallbackBlackTextureResource{};
+        RENDER3D::TextureResourceHandle fallbackCubeTextureResource{};
+
         int fallbackTextureHandle = -1;
         int fallbackNormalTextureHandle = -1;
         int fallbackBlackTextureHandle = -1;
@@ -61,8 +67,10 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
 
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* surfacePacketBuilder = nullptr;
-        const std::vector<uint32_t>* surfacePacketExecutionIndices = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacketRun>* surfacePacketExecutionRuns = nullptr;
+        const std::vector<uint32_t>* surfacePacketOpaqueExecutionIndices = nullptr;
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* surfacePacketOpaqueExecutionCommands = nullptr;
+        const std::vector<uint32_t>* surfacePacketTransparentExecutionIndices = nullptr;
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* surfacePacketTransparentExecutionCommands = nullptr;
 
         float elapsedTimeSec = 0.0f;
     };

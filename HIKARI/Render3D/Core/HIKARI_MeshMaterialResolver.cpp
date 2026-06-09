@@ -1,8 +1,8 @@
 #include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
 
-#include "HIKARI_DxTexture.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI::MESHRENDERER {
     namespace {
@@ -17,6 +17,22 @@ namespace HIKARI::MESHRENDERER {
             // Asset pipeline 済みなら cooked path、未解決なら元画像へフォールバックする。
             return texture.resolvedPath.empty() ? texture.sourcePath : texture.resolvedPath;
         }
+
+        int BackendOrFallback(RENDER3D::TextureResourceHandle resource, int fallbackHandle) {
+            const int handle = RENDER3D::GetTextureResourceBackendHandle(resource);
+            return handle >= 0 ? handle : fallbackHandle;
+        }
+
+        RENDER3D::TextureResourceHandle LoadMaterialTextureResource(
+            const std::string& debugNamePrefix,
+            const std::string& texturePath,
+            RENDER3D::TextureResourceColorSpace colorSpace) {
+
+            return RENDER3D::LoadTextureResourceWithColorSpace(
+                debugNamePrefix + texturePath,
+                texturePath,
+                colorSpace);
+        }
     }
 
     void MeshMaterialResolver::SetFallbacks(const MeshMaterialResolverFallbacks& fallbacks) {
@@ -24,6 +40,9 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void MeshMaterialResolver::ClearCache() {
+        for (const auto& entry : materialTextureCache_) {
+            RENDER3D::ReleaseTextureResource(entry.second);
+        }
         materialTextureCache_.clear();
     }
 
@@ -76,18 +95,18 @@ namespace HIKARI::MESHRENDERER {
             if (stats != nullptr) {
                 ++stats->materialTextureCacheHitCount;
             }
-            return found->second;
+            return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
         if (stats != nullptr) {
             ++stats->materialTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-            "model_material/baseColor/" + texturePath,
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/baseColor/",
             texturePath,
-            DXTEX::TextureColorSpace::Srgb);
-        materialTextureCache_[texturePath] = handle;
-        return handle >= 0 ? handle : fallbacks_.whiteTexture;
+            RENDER3D::TextureResourceColorSpace::Srgb);
+        materialTextureCache_[texturePath] = resource;
+        return BackendOrFallback(resource, fallbacks_.whiteTexture);
     }
 
     int MeshMaterialResolver::ResolveNormalTexture(
@@ -121,18 +140,18 @@ namespace HIKARI::MESHRENDERER {
             if (stats != nullptr) {
                 ++stats->normalTextureCacheHitCount;
             }
-            return found->second >= 0 ? found->second : fallbacks_.normalTexture;
+            return BackendOrFallback(found->second, fallbacks_.normalTexture);
         }
 
         if (stats != nullptr) {
             ++stats->normalTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-            "model_material/normal/" + texturePath,
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/normal/",
             texturePath,
-            DXTEX::TextureColorSpace::Linear);
-        materialTextureCache_[cacheKey] = handle;
-        return handle >= 0 ? handle : fallbacks_.normalTexture;
+            RENDER3D::TextureResourceColorSpace::Linear);
+        materialTextureCache_[cacheKey] = resource;
+        return BackendOrFallback(resource, fallbacks_.normalTexture);
     }
 
     int MeshMaterialResolver::ResolveEmissiveTexture(
@@ -166,18 +185,18 @@ namespace HIKARI::MESHRENDERER {
             if (stats != nullptr) {
                 ++stats->emissiveTextureCacheHitCount;
             }
-            return found->second >= 0 ? found->second : fallbacks_.blackTexture;
+            return BackendOrFallback(found->second, fallbacks_.blackTexture);
         }
 
         if (stats != nullptr) {
             ++stats->emissiveTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-            "model_material/emissive/" + texturePath,
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/emissive/",
             texturePath,
-            DXTEX::TextureColorSpace::Srgb);
-        materialTextureCache_[cacheKey] = handle;
-        return handle >= 0 ? handle : fallbacks_.blackTexture;
+            RENDER3D::TextureResourceColorSpace::Srgb);
+        materialTextureCache_[cacheKey] = resource;
+        return BackendOrFallback(resource, fallbacks_.blackTexture);
     }
 
     int MeshMaterialResolver::ResolveMetallicRoughnessTexture(
@@ -214,17 +233,18 @@ namespace HIKARI::MESHRENDERER {
             if (stats != nullptr) {
                 ++stats->metallicRoughnessTextureCacheHitCount;
             }
-            return found->second >= 0 ? found->second : fallbacks_.whiteTexture;
+            return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
         if (stats != nullptr) {
             ++stats->metallicRoughnessTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-            "model_material/metallic_roughness/" + texturePath,
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/metallic_roughness/",
             texturePath,
-            DXTEX::TextureColorSpace::Linear);
-        materialTextureCache_[cacheKey] = handle;
+            RENDER3D::TextureResourceColorSpace::Linear);
+        materialTextureCache_[cacheKey] = resource;
+        const int handle = RENDER3D::GetTextureResourceBackendHandle(resource);
         if (handle < 0) {
             DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] metallicRoughness texture failed. material=") +
                 materialAsset->name + " sourcePath=" + texturePath + " fallback used");
@@ -266,17 +286,18 @@ namespace HIKARI::MESHRENDERER {
             if (stats != nullptr) {
                 ++stats->occlusionTextureCacheHitCount;
             }
-            return found->second >= 0 ? found->second : fallbacks_.whiteTexture;
+            return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
         if (stats != nullptr) {
             ++stats->occlusionTextureCacheMissCount;
         }
-        const int handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
-            "model_material/occlusion/" + texturePath,
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/occlusion/",
             texturePath,
-            DXTEX::TextureColorSpace::Linear);
-        materialTextureCache_[cacheKey] = handle;
+            RENDER3D::TextureResourceColorSpace::Linear);
+        materialTextureCache_[cacheKey] = resource;
+        const int handle = RENDER3D::GetTextureResourceBackendHandle(resource);
         if (handle < 0) {
             DEBUGLOG::PushRenderError(std::string("[MeshRenderer][PBRTexture][WARN] occlusion texture failed. material=") +
                 materialAsset->name + " sourcePath=" + texturePath + " fallback used");

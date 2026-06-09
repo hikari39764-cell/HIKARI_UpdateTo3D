@@ -4,11 +4,11 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
 #include "Core/HIKARI_Logger.h"
-#include "HIKARI_DxTexture.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI::RENDER3D::LIGHTING {
 
@@ -205,18 +205,21 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 return true;
             }
 
-            const int prefiltered = DXTEX::DxTextureManager::LoadCubemap(
+            const TextureResourceHandle prefiltered = LoadCubemapResource(
                 "reflection_probe/baked/" + record.id,
                 record.prefilteredCubemapPath,
-                DXTEX::TextureColorSpace::Linear);
+                TextureResourceColorSpace::Linear);
 
             const std::string brdfLutPath = ResolveSharedBrdfPath(record.brdfLutPath);
-            const int brdf = DXTEX::DxTextureManager::LoadTextureLinear(
+            const TextureResourceHandle brdf = LoadTextureResourceLinear(
                 "reflection_probe/brdf_lut",
                 brdfLutPath);
 
+            const int prefilteredHandle = GetTextureResourceBackendHandle(prefiltered);
+            const int brdfHandle = GetTextureResourceBackendHandle(brdf);
+
             // Bake manifest の probe を runtime probe として優先する。
-            REFLECTION::SetActiveProbe(
+            REFLECTION::SetActiveProbeResources(
                 true,
                 prefiltered,
                 brdf,
@@ -247,13 +250,13 @@ namespace HIKARI::RENDER3D::LIGHTING {
             if (runtimeData.reflectionProbeLoaded) {
                 HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] baked probe activation valid=true source=BakedRuntime path=" +
                     record.prefilteredCubemapPath +
-                    " prefiltered=" + std::to_string(prefiltered) +
-                    " brdf=" + std::to_string(brdf));
+                    " prefiltered=" + std::to_string(prefilteredHandle) +
+                    " brdf=" + std::to_string(brdfHandle));
             } else {
                 HIKARI_LOG_WARN("[LightingRuntimeLoader][ReflectionProbe][WARN] baked probe invalid, fallback to authoring source. path=" +
                     record.prefilteredCubemapPath +
-                    " prefiltered=" + std::to_string(prefiltered) +
-                    " brdf=" + std::to_string(brdf));
+                    " prefiltered=" + std::to_string(prefilteredHandle) +
+                    " brdf=" + std::to_string(brdfHandle));
             }
         } else if (!runtimeData.lightProbeVolumeLoaded) {
             runtimeData.source = LightingRuntimeSource::BakeManifestDiscovered;
@@ -306,41 +309,47 @@ namespace HIKARI::RENDER3D::LIGHTING {
                 continue;
             }
 
-            int irradiance = -1;
-            int prefiltered = -1;
-            int brdf = -1;
+            TextureResourceHandle irradiance{};
+            TextureResourceHandle prefiltered{};
+            TextureResourceHandle brdf{};
             if (!descriptor->irradiancePath.empty()) {
-                irradiance = DXTEX::DxTextureManager::LoadCubemap(
+                irradiance = LoadCubemapResource(
                     "ibl/irradiance/" + descriptor->id.value,
                     descriptor->irradiancePath,
-                    DXTEX::TextureColorSpace::Linear);
+                    TextureResourceColorSpace::Linear);
             }
             if (!descriptor->prefilteredPath.empty()) {
-                prefiltered = DXTEX::DxTextureManager::LoadCubemap(
+                prefiltered = LoadCubemapResource(
                     "ibl/prefiltered/" + descriptor->id.value,
                     descriptor->prefilteredPath,
-                    DXTEX::TextureColorSpace::Linear);
+                    TextureResourceColorSpace::Linear);
             }
             const std::string brdfLutPath = descriptor->brdfLutPath.empty()
                 ? std::string{ kSharedBrdfLutPath }
                 : descriptor->brdfLutPath;
             if (!brdfLutPath.empty()) {
-                brdf = DXTEX::DxTextureManager::LoadTextureLinear(
+                brdf = LoadTextureResourceLinear(
                     "ibl/brdf_lut",
                     brdfLutPath);
             }
 
-            IBL::SetFromTextureHandles(
+            IBL::SetFromTextureResources(
                 irradiance,
                 prefiltered,
                 brdf,
                 descriptor->prefilteredMipCount);
 
-            runtimeData.globalIblLoaded = irradiance >= 0 || prefiltered >= 0 || brdf >= 0;
+            const int irradianceHandle = GetTextureResourceBackendHandle(irradiance);
+            const int prefilteredHandle = GetTextureResourceBackendHandle(prefiltered);
+            const int brdfHandle = GetTextureResourceBackendHandle(brdf);
+            runtimeData.globalIblLoaded =
+                IsTextureResourceValid(irradiance) ||
+                IsTextureResourceValid(prefiltered) ||
+                IsTextureResourceValid(brdf);
             HIKARI_LOG_INFO("[LightingRuntimeLoader][IBL] loaded sky=" + descriptor->id.value +
-                " irradiance=" + std::to_string(irradiance) +
-                " prefiltered=" + std::to_string(prefiltered) +
-                " brdf=" + std::to_string(brdf));
+                " irradiance=" + std::to_string(irradianceHandle) +
+                " prefiltered=" + std::to_string(prefilteredHandle) +
+                " brdf=" + std::to_string(brdfHandle));
         }
     }
 
@@ -366,25 +375,25 @@ namespace HIKARI::RENDER3D::LIGHTING {
             return;
         }
 
-        int probePrefiltered = -1;
-        int probeBrdf = -1;
+        TextureResourceHandle probePrefiltered{};
+        TextureResourceHandle probeBrdf{};
         if (!probeDescriptor->prefilteredPath.empty()) {
-            probePrefiltered = DXTEX::DxTextureManager::LoadCubemap(
+            probePrefiltered = LoadCubemapResource(
                 "reflection_probe/prefiltered/" + probeDescriptor->id.value,
                 probeDescriptor->prefilteredPath,
-                DXTEX::TextureColorSpace::Linear);
+                TextureResourceColorSpace::Linear);
         }
         const std::string probeBrdfPath = probeDescriptor->brdfLutPath.empty()
             ? std::string{ kSharedBrdfLutPath }
             : probeDescriptor->brdfLutPath;
         if (!probeBrdfPath.empty()) {
-            probeBrdf = DXTEX::DxTextureManager::LoadTextureLinear(
+            probeBrdf = LoadTextureResourceLinear(
                 "reflection_probe/brdf_lut",
                 probeBrdfPath);
         }
 
         // 未 bake 時だけ authoring cubemap を fallback として使う。
-        REFLECTION::SetActiveProbe(
+        REFLECTION::SetActiveProbeResources(
             request.reflectionProbeEnabled,
             probePrefiltered,
             probeBrdf,
@@ -406,10 +415,12 @@ namespace HIKARI::RENDER3D::LIGHTING {
 
         runtimeData.reflectionProbeLoaded = REFLECTION::GetActiveProbe().valid;
         runtimeData.activeReflectionProbeSourceAssetId = probeDescriptor->id.value;
+        const int probePrefilteredHandle = GetTextureResourceBackendHandle(probePrefiltered);
+        const int probeBrdfHandle = GetTextureResourceBackendHandle(probeBrdf);
         HIKARI_LOG_INFO("[LightingRuntimeLoader][ReflectionProbe] loaded authoring fallback source=" +
             probeDescriptor->id.value +
-            " prefiltered=" + std::to_string(probePrefiltered) +
-            " brdf=" + std::to_string(probeBrdf) +
+            " prefiltered=" + std::to_string(probePrefilteredHandle) +
+            " brdf=" + std::to_string(probeBrdfHandle) +
             " valid=" + std::string(runtimeData.reflectionProbeLoaded ? "true" : "false"));
     }
 

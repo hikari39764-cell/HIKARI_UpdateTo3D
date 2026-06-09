@@ -4,7 +4,6 @@
 #include <cstring>
 #include <string>
 
-#include "HIKARI_DxTexture.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
@@ -14,7 +13,9 @@
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
 
 #ifdef max
 #undef max
@@ -94,8 +95,8 @@ namespace HIKARI::MESHRENDERER {
 
         uint32_t ResolveTextureDescriptorIndex(int textureHandle) {
             const UINT descriptorIndex =
-                DXTEX::DxTextureManager::GetSrvDescriptorIndex(textureHandle);
-            return descriptorIndex == DXTEX::kInvalidSrvDescriptorIndex
+                RENDER3D::GetTextureResourceSrvDescriptorIndexFromBackendHandle(textureHandle);
+            return descriptorIndex == UINT32_MAX
                 ? kInvalidTextureDescriptorIndex
                 : static_cast<uint32_t>(descriptorIndex);
         }
@@ -294,28 +295,15 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool IsObjectDataVertexShader(const std::string& vertexShaderId) {
-            return vertexShaderId.empty() || vertexShaderId == "Render3D_StaticVS";
-        }
-
-        bool IsObjectDataPixelShader(const std::string& shaderId, const std::string& pixelShaderId) {
-            const std::string& id = !pixelShaderId.empty() ? pixelShaderId : shaderId;
-            return id.empty() ||
-                id == "PBR" ||
-                id == "StaticLit" ||
-                id == "StaticFx" ||
-                id == "MaterialFx";
-        }
-
-        bool StaticDrawCanSkipLegacyObjectCB(
+        bool VariantCanUseObjectDataOnly(
             MeshDrawPassKind passKind,
             const VFX::VariantKey& variant) {
             if (passKind == MeshDrawPassKind::GeometryBuffer) {
-                return IsObjectDataVertexShader(variant.vertexShaderId);
+                return RENDER3D::RUNTIME::IsSurfaceObjectDataVertexShader(variant.vertexShaderId);
             }
             return
-                IsObjectDataVertexShader(variant.vertexShaderId) &&
-                IsObjectDataPixelShader(variant.shaderId, variant.pixelShaderId);
+                RENDER3D::RUNTIME::IsSurfaceObjectDataVertexShader(variant.vertexShaderId) &&
+                RENDER3D::RUNTIME::IsSurfaceObjectDataPixelShader(variant.shaderId, variant.pixelShaderId);
         }
 
         void DrawPrimitiveWithDebugMode(
@@ -428,7 +416,7 @@ namespace HIKARI::MESHRENDERER {
             obj.materialFlags = material.GetFeatureBits();
         }
 
-        struct SurfacePacketRunState {
+        struct SurfacePacketBatchState {
             const ModelAsset* model = nullptr;
             const MaterialAsset* materialAsset = nullptr;
             const Material* runtimeMaterial = nullptr;
@@ -441,7 +429,6 @@ namespace HIKARI::MESHRENDERER {
             uint64_t textureSetKey = 0;
             MaterialGpuData materialData{};
             uint32_t materialDataIndex = kInvalidMaterialDataIndex;
-            bool needsLegacyObjectCB = true;
         };
 
         struct SurfacePacketPreparedObject {
@@ -456,17 +443,18 @@ namespace HIKARI::MESHRENDERER {
             return transform;
         }
 
-        DrawItem BuildRunVariantAdapter(const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+        DrawItem BuildBatchVariantAdapter(const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
             DrawItem item{};
             item.asset = packet.model;
             item.materialOverride = packet.materialOverride;
             item.materialFxProfileId = packet.materialFxProfileId;
             item.postGroupMask = packet.postGroupMask;
-            // run の既定値だけを解決し、個別 override は packet 側で反映する。
+            // Batch の既定値だけを解決し、個別 override は packet 側で反映する。
             item.materialFxValuesInitialized = false;
             ResolveDrawVariant(item);
             return item;
         }
+
 
         ResolvedMaterialTextures ResolvePacketTextures(
             const MeshDrawContext& ctx,
@@ -530,10 +518,10 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool PrepareSurfacePacketRun(
+        bool PrepareSurfacePacketBatch(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
-            SurfacePacketRunState& outState) {
+            SurfacePacketBatchState& outState) {
 
             if (ctx.cmd == nullptr ||
                 ctx.services.device == nullptr ||
@@ -556,14 +544,15 @@ namespace HIKARI::MESHRENDERER {
             outState.materialAsset = GetPrimitiveMaterial(*firstPacket.model, primitive.materialIndex);
             outState.psoKey = firstPacket.key.psoKey;
 
-            DrawItem variantItem = BuildRunVariantAdapter(firstPacket);
+            DrawItem variantItem = BuildBatchVariantAdapter(firstPacket);
             outState.defaultFxValues = variantItem.fxValues;
             outState.fxFlags = variantItem.fxFlags;
             outState.variant = ResolvePrimitiveVariant(
                 variantItem,
                 outState.runtimeMaterial != nullptr ? nullptr : outState.materialAsset);
-            outState.needsLegacyObjectCB =
-                !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, outState.variant);
+            if (!VariantCanUseObjectDataOnly(ctx.passKind, outState.variant)) {
+                return false;
+            }
 
             BindMaterialDataIndex(ctx.binding, 0u);
 
@@ -586,8 +575,8 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool IsRunCompatiblePacket(
-            const SurfacePacketRunState& state,
+        bool IsBatchCompatiblePacket(
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
 
             return packet.key.psoKey == state.psoKey;
@@ -618,7 +607,7 @@ namespace HIKARI::MESHRENDERER {
 
         void FillPacketFxValues(
             ObjectCB& obj,
-            const SurfacePacketRunState& state,
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
 
             obj.fxFlags = state.fxFlags;
@@ -658,7 +647,7 @@ namespace HIKARI::MESHRENDERER {
 
         void FillSurfacePacketObject(
             const MeshDrawContext& ctx,
-            const SurfacePacketRunState& state,
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
             ObjectCB& obj) {
 
@@ -701,7 +690,7 @@ namespace HIKARI::MESHRENDERER {
             const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
             const MaterialAsset* materialAsset = GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
             const ResolvedMaterialTextures textures = ResolvePacketTextures(ctx, packet, materialAsset);
-            const DrawItem variantItem = BuildRunVariantAdapter(packet);
+            const DrawItem variantItem = BuildBatchVariantAdapter(packet);
 
             ObjectCB obj{};
             const Transform3D drawTransform = BuildPacketDrawTransform(packet);
@@ -739,24 +728,21 @@ namespace HIKARI::MESHRENDERER {
 
         bool IsInstanceBatchCompatiblePacket(
             const MeshDrawContext& ctx,
-            const SurfacePacketRunState& state,
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
 
-            if (state.needsLegacyObjectCB ||
-                !IsRunCompatiblePacket(state, packet) ||
+            if (!IsBatchCompatiblePacket(state, packet) ||
                 packet.key.geometryKey != firstPacket.key.geometryKey ||
                 packet.meshIndex != firstPacket.meshIndex ||
-                packet.primitiveIndex != firstPacket.primitiveIndex ||
-                packet.receiveShadow != firstPacket.receiveShadow ||
-                packet.materialFxValuesInitialized ||
-                firstPacket.materialFxValuesInitialized) {
+                packet.primitiveIndex != firstPacket.primitiveIndex) {
                 return false;
             }
 
-            // 初回は StaticVS + ObjectData の安全な範囲だけを instance 化する。
-            return StaticDrawCanSkipLegacyObjectCB(ctx.passKind, state.variant);
+            // 初期段階では StaticVS + ObjectData で安全に扱える範囲だけを instance 化する。
+            return VariantCanUseObjectDataOnly(ctx.passKind, state.variant);
         }
+
 
         bool BindSurfacePacketMesh(
             const MeshDrawContext& ctx,
@@ -778,7 +764,7 @@ namespace HIKARI::MESHRENDERER {
 
         bool DrawPreparedSurfacePacket(
             const MeshDrawContext& ctx,
-            const SurfacePacketRunState& state,
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
             const Mesh*& activeMesh,
             size_t& objectIndex) {
@@ -787,7 +773,7 @@ namespace HIKARI::MESHRENDERER {
                 !packet.hasDrawWorldMatrix ||
                 packet.model == nullptr ||
                 packet.meshIndex >= packet.model->meshes.size() ||
-                !IsRunCompatiblePacket(state, packet)) {
+                !IsBatchCompatiblePacket(state, packet)) {
                 return false;
             }
 
@@ -800,16 +786,10 @@ namespace HIKARI::MESHRENDERER {
             if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
                 return false;
             }
-            if (state.needsLegacyObjectCB) {
-                CopyObjectCB(ctx, prepared.object, objectIndex);
-            }
             CopyObjectData(ctx, prepared.object, objectIndex, prepared.materialDataIndex);
 
             BindObjectDataIndex(ctx.binding, static_cast<uint32_t>(objectIndex));
             BindMaterialDataIndex(ctx.binding, prepared.materialDataIndex);
-            if (state.needsLegacyObjectCB) {
-                BindObjectConstantBuffer(ctx.binding, ObjectAddress(ctx, objectIndex));
-            }
 
             if (!BindSurfacePacketMesh(ctx, mesh, activeMesh)) {
                 return false;
@@ -822,16 +802,16 @@ namespace HIKARI::MESHRENDERER {
 
         bool DrawSurfacePacketInstanceBatch(
             const MeshDrawContext& ctx,
-            const SurfacePacketRunState& state,
+            const SurfacePacketBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
             size_t packetCount,
             const uint32_t* executablePacketIndices,
             size_t executablePacketIndexCount,
-            size_t runEnd,
+            size_t batchEnd,
             size_t& executableIndex,
             const Mesh*& activeMesh,
             size_t& objectIndex,
-            SurfacePacketRunDrawResult& result) {
+            SurfacePacketCommandDrawResult& result) {
 
             const uint32_t firstPacketIndex = executablePacketIndices[executableIndex];
             if (firstPacketIndex >= packetCount) {
@@ -853,7 +833,7 @@ namespace HIKARI::MESHRENDERER {
             uint32_t batchMaterialDataIndex = 0u;
             size_t batchCount = 0;
             size_t cursor = executableIndex;
-            for (; cursor < runEnd && cursor < executablePacketIndexCount; ++cursor) {
+            for (; cursor < batchEnd && cursor < executablePacketIndexCount; ++cursor) {
                 const uint32_t packetIndex = executablePacketIndices[cursor];
                 if (packetIndex >= packetCount) {
                     break;
@@ -862,11 +842,6 @@ namespace HIKARI::MESHRENDERER {
                 const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
                 if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, packet) ||
                     objectIndex + batchCount >= kMaxObjectCount) {
-                    break;
-                }
-
-                Mesh* packetMesh = ResolveSurfacePacketStaticMesh(ctx, packet);
-                if (packetMesh != mesh) {
                     break;
                 }
 
@@ -904,6 +879,7 @@ namespace HIKARI::MESHRENDERER {
             executableIndex = cursor - 1;
             return true;
         }
+
 
         bool DrawStructuredMeshItem(
             const MeshDrawContext& ctx,
@@ -972,7 +948,7 @@ namespace HIKARI::MESHRENDERER {
                         item,
                         runtimeMaterial ? nullptr : materialAsset);
                     const bool bindLegacyObjectCB = drawingSkinned ||
-                        !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, primitiveVariant);
+                        !VariantCanUseObjectDataOnly(ctx.passKind, primitiveVariant);
 
                     ObjectCB obj{};
                     obj.world = world;
@@ -1093,7 +1069,7 @@ namespace HIKARI::MESHRENDERER {
             }
             FillFxValues(obj, item);
             const bool bindLegacyObjectCB =
-                !StaticDrawCanSkipLegacyObjectCB(ctx.passKind, item.variant);
+                !VariantCanUseObjectDataOnly(ctx.passKind, item.variant);
             if (bindLegacyObjectCB) {
                 CopyObjectCB(ctx, obj, objectIndex);
             }
@@ -1176,16 +1152,16 @@ namespace HIKARI::MESHRENDERER {
         BindSurfacePacketFrameResourcesInternal(ctx);
     }
 
-    SurfacePacketRunDrawResult DrawSurfacePacketRun(
+    SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
         const MeshDrawContext& ctx,
         const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
         size_t packetCount,
         const uint32_t* executablePacketIndices,
         size_t executablePacketIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawPacketRun& run,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
         size_t& objectIndex) {
 
-        SurfacePacketRunDrawResult result{};
+        SurfacePacketCommandDrawResult result{};
         if (packets == nullptr ||
             executablePacketIndices == nullptr ||
             ctx.objectDataMapped == nullptr ||
@@ -1195,36 +1171,36 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialDataBuffer == nullptr ||
             ctx.materialDataSrv.ptr == 0 ||
             ctx.materialDataTable == nullptr ||
-            run.packetCount == 0 ||
-            run.firstExecutableIndex >= executablePacketIndexCount) {
+            command.packetCount == 0 ||
+            command.firstExecutableIndex >= executablePacketIndexCount) {
             return result;
         }
 
-        const size_t runBegin = run.firstExecutableIndex;
-        const size_t runEnd = std::min(
+        const size_t commandBegin = command.firstExecutableIndex;
+        const size_t commandEnd = std::min(
             executablePacketIndexCount,
-            runBegin + static_cast<size_t>(run.packetCount));
+            commandBegin + static_cast<size_t>(command.packetCount));
 
-        SurfacePacketRunState state{};
-        size_t firstDrawableIndex = runBegin;
-        for (; firstDrawableIndex < runEnd; ++firstDrawableIndex) {
+        SurfacePacketBatchState state{};
+        size_t firstDrawableIndex = commandBegin;
+        for (; firstDrawableIndex < commandEnd; ++firstDrawableIndex) {
             const uint32_t packetIndex = executablePacketIndices[firstDrawableIndex];
             if (packetIndex >= packetCount) {
                 ++result.skippedPacketCount;
                 continue;
             }
-            if (PrepareSurfacePacketRun(ctx, packets[packetIndex], state)) {
+            if (PrepareSurfacePacketBatch(ctx, packets[packetIndex], state)) {
                 break;
             }
             ++result.skippedPacketCount;
         }
 
-        if (firstDrawableIndex >= runEnd) {
+        if (firstDrawableIndex >= commandEnd) {
             return result;
         }
 
         const Mesh* activeMesh = nullptr;
-        for (size_t executableIndex = firstDrawableIndex; executableIndex < runEnd; ++executableIndex) {
+        for (size_t executableIndex = firstDrawableIndex; executableIndex < commandEnd; ++executableIndex) {
             const uint32_t packetIndex = executablePacketIndices[executableIndex];
             if (packetIndex >= packetCount) {
                 ++result.skippedPacketCount;
@@ -1238,7 +1214,7 @@ namespace HIKARI::MESHRENDERER {
                 packetCount,
                 executablePacketIndices,
                 executablePacketIndexCount,
-                runEnd,
+                commandEnd,
                 executableIndex,
                 activeMesh,
                 objectIndex,

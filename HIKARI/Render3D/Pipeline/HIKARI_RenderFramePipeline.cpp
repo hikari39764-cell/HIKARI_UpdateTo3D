@@ -1,4 +1,4 @@
-#include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
+﻿#include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 
 #include <algorithm>
 
@@ -90,8 +90,20 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 screenResult.fallbackAoTextureHandle);
         }
 
+        bool transparentOk = true;
+        if (opaqueOk && depthAwareOk) {
+            GFX::PIX::ScopedGpuEvent pixTransparent(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "ForwardTransparent");
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuTransparent(
+                SERVICES::gCtx.cmdList,
+                GFX::GPU_PROFILE::Pass::ForwardTransparent);
+            transparentOk = MESHRENDERER::RenderForwardTransparentPass(
+                queue,
+                screenResult.aoSrv,
+                screenResult.fallbackAoTextureHandle);
+        }
+
         MESHRENDERER::EndFrame();
-        return opaqueOk && depthAwareOk;
+        return opaqueOk && depthAwareOk && transparentOk;
     }
 
     bool RenderMeshCaptureOpaqueFrame(

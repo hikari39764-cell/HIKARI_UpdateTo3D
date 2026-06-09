@@ -11,12 +11,26 @@
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
+namespace HIKARI::RENDER3D::RUNTIME {
+    class SurfaceDrawPacketBuilder;
+    struct SurfaceDrawCommand;
+}
+
 namespace HIKARI::SHADOW {
 
     struct ShadowMapDebugStats {
         bool enabled = false;
         uint32_t resolution = 0;
         size_t submittedCasterCount = 0;
+        size_t shadowPacketCasterDrawCount = 0;
+        size_t shadowPacketSkippedCount = 0;
+        size_t shadowPacketCommandCount = 0;
+        size_t shadowPacketSingleCommandCount = 0;
+        size_t shadowPacketMaxCommandPacketCount = 0;
+        size_t shadowPacketDrawCallCount = 0;
+        size_t shadowPacketInstancedDrawCount = 0;
+        size_t shadowPacketInstancedCasterCount = 0;
+        size_t shadowPacketMaxInstanceCount = 0;
         size_t staticCasterDrawCount = 0;
         size_t skinnedCasterDrawCount = 0;
         size_t alphaMaskCasterDrawCount = 0;
@@ -38,6 +52,10 @@ namespace HIKARI::SHADOW {
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow);
     void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, bool castShadow);
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, bool castShadow);
+    void SetSurfaceDrawPacketExecutionPlan(
+        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
+        const std::vector<uint32_t>* executablePacketIndices,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands);
     void RenderDirectionalShadowMap();
 
     bool IsDirectionalShadowEnabled();

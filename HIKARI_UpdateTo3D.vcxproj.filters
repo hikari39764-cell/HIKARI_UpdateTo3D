@@ -112,6 +112,9 @@
     <Filter Include="Header Files\Render3D\Render">
       <UniqueIdentifier>{07B0E4B2-AC2D-54F3-9F48-9D4707B2F6E1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Resources">
+      <UniqueIdentifier>{4F28FA24-6F02-4E83-8C81-6C6F77A54348}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Runtime">
       <UniqueIdentifier>{B71F127D-617C-4B76-9D9B-57A2C640F4A3}</UniqueIdentifier>
     </Filter>
@@ -345,6 +348,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Render">
       <UniqueIdentifier>{A1841888-3554-5F96-862F-794EE5020D69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Resources">
+      <UniqueIdentifier>{9C9FEE7C-8594-4D2D-944A-9E75C6BF7735}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Runtime">
       <UniqueIdentifier>{0871EAD1-5D0E-4D31-BF87-70EF68E42E5E}</UniqueIdentifier>
@@ -1077,6 +1083,9 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.cpp">
+      <Filter>Source Files\Render3D\Shadow</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp">
       <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
@@ -1165,7 +1174,12 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp">
+      <Filter>Source Files\Render3D\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.cpp">
+      <Filter>Source Files\Render3D\Resources</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
@@ -1178,13 +1192,16 @@
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordCache.cpp">
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.cpp">
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.cpp">
+      <Filter>Source Files\Render3D\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp">
@@ -1789,6 +1806,9 @@
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.h">
+      <Filter>Header Files\Render3D\Shadow</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -1884,8 +1904,15 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
-    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceRegistry.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
@@ -1901,13 +1928,19 @@
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordCache.h">
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPlan.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_StaticDrawRecordSubmitter.h">
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.h">
+      <Filter>Header Files\Render3D\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h">

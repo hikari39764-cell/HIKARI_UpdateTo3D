@@ -4,6 +4,8 @@
 #include <d3d12.h>
 #include <dxgiformat.h>
 
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
+
 namespace HIKARI::IBL {
 
     struct IblEnvironmentData {
@@ -11,6 +13,10 @@ namespace HIKARI::IBL {
         bool hasIrradiance = false;
         bool hasPrefiltered = false;
         bool hasBrdfLut = false;
+
+        RENDER3D::TextureResourceHandle irradianceResource{};
+        RENDER3D::TextureResourceHandle prefilteredResource{};
+        RENDER3D::TextureResourceHandle brdfLutResource{};
 
         int irradianceHandle = -1;
         int prefilteredHandle = -1;
@@ -31,6 +37,12 @@ namespace HIKARI::IBL {
     };
 
     void Reset();
+
+    void SetFromTextureResources(
+        RENDER3D::TextureResourceHandle irradianceResource,
+        RENDER3D::TextureResourceHandle prefilteredResource,
+        RENDER3D::TextureResourceHandle brdfLutResource,
+        uint32_t prefilteredMipCount);
 
     void SetFromTextureHandles(
         int irradianceHandle,

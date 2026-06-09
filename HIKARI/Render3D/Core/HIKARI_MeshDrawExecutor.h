@@ -17,7 +17,7 @@ namespace HIKARI {
 
 namespace HIKARI::RENDER3D::RUNTIME {
     struct SurfaceDrawPacket;
-    struct SurfaceDrawPacketRun;
+    struct SurfaceDrawCommand;
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -71,7 +71,7 @@ namespace HIKARI::MESHRENDERER {
 
     void BindSurfacePacketFrameResources(const MeshDrawContext& ctx);
 
-    struct SurfacePacketRunDrawResult {
+    struct SurfacePacketCommandDrawResult {
         size_t submittedPacketCount = 0;
         size_t skippedPacketCount = 0;
         size_t drawCallCount = 0;
@@ -80,13 +80,13 @@ namespace HIKARI::MESHRENDERER {
         size_t maxInstanceCount = 0;
     };
 
-    SurfacePacketRunDrawResult DrawSurfacePacketRun(
+    SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
         const MeshDrawContext& ctx,
         const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
         size_t packetCount,
         const uint32_t* executablePacketIndices,
         size_t executablePacketIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawPacketRun& run,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
         size_t& objectIndex);
 
 } // namespace HIKARI::MESHRENDERER

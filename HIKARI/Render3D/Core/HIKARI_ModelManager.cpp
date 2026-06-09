@@ -16,9 +16,9 @@
 #include <json.hpp>
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Core/HIKARI_Logger.h"
-#include "HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/HIKARI_Material.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "HIKARI_Services.h"
 
 namespace HIKARI {
@@ -76,29 +76,42 @@ namespace HIKARI {
             return ext == ".htex";
         }
 
-        DXTEX::TextureColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
+        RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
             switch (usage) {
             case ModelTextureUsage::BaseColor:
             case ModelTextureUsage::Emissive:
-                return DXTEX::TextureColorSpace::Srgb;
+                return RENDER3D::TextureResourceColorSpace::Srgb;
             case ModelTextureUsage::Normal:
             case ModelTextureUsage::MetallicRoughness:
             case ModelTextureUsage::Occlusion:
             default:
-                return DXTEX::TextureColorSpace::Linear;
+                return RENDER3D::TextureResourceColorSpace::Linear;
             }
         }
 
-        void ReleaseTextureHandleOnce(int handle, std::vector<int>& releasedHandles) {
-            if (handle < 0) {
+        RENDER3D::TextureResourceHandle ResolveReleaseResource(const RuntimeTextureSlot& slot) {
+            if (slot.resource) {
+                return slot.resource;
+            }
+            if (slot.handle >= 0) {
+                return RENDER3D::RegisterTextureResourceFromBackendHandle(slot.handle);
+            }
+            return {};
+        }
+
+        void ReleaseTextureResourceOnce(
+            RENDER3D::TextureResourceHandle resource,
+            std::vector<RENDER3D::TextureResourceHandle>& releasedResources) {
+
+            if (!resource) {
                 return;
             }
-            if (std::find(releasedHandles.begin(), releasedHandles.end(), handle) != releasedHandles.end()) {
+            if (std::find(releasedResources.begin(), releasedResources.end(), resource) != releasedResources.end()) {
                 return;
             }
 
-            DXTEX::DxTextureManager::ReleaseTextureDeferred(handle);
-            releasedHandles.push_back(handle);
+            RENDER3D::ReleaseTextureResource(resource);
+            releasedResources.push_back(resource);
         }
 
         void ReleaseRuntimeMaterialTextures(const Material* material) {
@@ -106,13 +119,13 @@ namespace HIKARI {
                 return;
             }
 
-            std::vector<int> releasedHandles{};
-            // Model reload 時に古い material slot の GPU handle を deferred release へ渡す。
-            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::BaseColor).handle, releasedHandles);
-            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Normal).handle, releasedHandles);
-            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness).handle, releasedHandles);
-            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Occlusion).handle, releasedHandles);
-            ReleaseTextureHandleOnce(material->GetTextureSlot(ModelTextureUsage::Emissive).handle, releasedHandles);
+            std::vector<RENDER3D::TextureResourceHandle> releasedResources{};
+            // Model reload 時に古い material slot の texture resource を deferred release へ渡す。
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::BaseColor)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Normal)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Occlusion)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Emissive)), releasedResources);
         }
 
         const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
@@ -1004,10 +1017,11 @@ namespace HIKARI {
             slot.resolvedPath = slot.sourcePath;
         }
 
-        slot.handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
+        slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
             textureName,
             slot.resolvedPath,
             ColorSpaceForUsage(usage));
+        slot.handle = RENDER3D::GetTextureResourceBackendHandle(slot.resource);
         slot.enabled = slot.handle >= 0;
         return slot;
     }

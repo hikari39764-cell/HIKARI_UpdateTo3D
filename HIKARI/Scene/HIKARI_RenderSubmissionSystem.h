@@ -2,10 +2,9 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string_view>
 
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
-#include "Render3D/Runtime/HIKARI_StaticDrawRecordCache.h"
-#include "Render3D/Runtime/HIKARI_StaticDrawRecordSubmitter.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
 #include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
@@ -25,29 +24,13 @@ namespace HIKARI {
         int missingBoundsCount = 0;
         int skinnedCullSkippedCount = 0;
         int fallbackWireCount = 0;
-        int staticCachedForwardSkipCount = 0;
-        int staticCachedShadowSkipCount = 0;
-        int staticCachedBypassOldModelRendererCount = 0;
-        int staticCachedFallbackCount = 0;
-        int staticCachedCandidateCount = 0;
-        int staticCachedCulledRecordCount = 0;
-        int staticCachedSubmittedRecordCount = 0;
-        int staticCachedSubmittedForwardRecordCount = 0;
-        int staticCachedSubmittedShadowRecordCount = 0;
-        int sortedSurfaceForwardSkipCount = 0;
+        int surfacePacketForwardSkipCount = 0;
+        int surfacePacketShadowSkipCount = 0;
+        int runtimeSpecialModelCount = 0;
+        int runtimeSpecialForwardModelCount = 0;
+        int runtimeSpecialShadowModelCount = 0;
+        bool surfacePacketMainRouteActive = false;
         bool frustumCullingEnabled = false;
-    };
-
-    struct RenderSubmissionOptions {
-        bool useStaticDrawRecordCache = false;
-        bool useCachedStaticForward = true;
-        bool useCachedStaticShadow = true;
-        bool skipOldStaticForwardWhenCached = true;
-        bool skipOldStaticShadowWhenCached = true;
-        bool bypassOldStaticModelRendererWhenFullyCached = true;
-        // SurfacePacket 経路を既定の forward 提出入口にする。
-        bool useSortedSurfaceForwardPreview = true;
-        bool skipOldStaticForwardWhenSortedSurface = true;
     };
 
     class RenderSubmissionSystem final : public ISystem {
@@ -73,40 +56,20 @@ namespace HIKARI {
             RENDER3D::CLUSTER::ClusterDebugOptions debugOptions);
         static void ClearClusteredCpuPreviewTarget();
         static const RenderSubmissionDebugStats& GetDebugStats();
-        static void SetUseStaticDrawRecordCache(bool enabled);
-        static bool IsUseStaticDrawRecordCacheEnabled();
-        static void SetUseCachedStaticForward(bool enabled);
-        static bool IsUseCachedStaticForwardEnabled();
-        static void SetUseCachedStaticShadow(bool enabled);
-        static bool IsUseCachedStaticShadowEnabled();
-        static void SetBypassOldStaticModelRenderer(bool enabled);
-        static bool IsBypassOldStaticModelRendererEnabled();
-        static void SetUseSortedSurfaceForwardPreview(bool enabled);
-        static bool IsUseSortedSurfaceForwardPreviewEnabled();
-        static void SetSkipOldStaticForwardWhenSortedSurface(bool enabled);
-        static bool IsSkipOldStaticForwardWhenSortedSurfaceEnabled();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
         static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder();
         static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& GetSurfaceDrawPacketStats();
-        static const RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats& GetSurfaceDrawPacketSubmitStats();
-        static const RENDER3D::RUNTIME::StaticDrawRecordCache& GetStaticDrawRecordCache();
-        static const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& GetStaticDrawRecordCacheStats();
-        static const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& GetStaticDrawRecordSubmitStats();
+        static const RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats& GetSurfaceDrawPacketPlanStats();
 
     private:
         static RenderSubmissionDebugStats sDebugStats_;
-        static RenderSubmissionOptions sOptions_;
         static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
         static RENDER3D::RUNTIME::SurfaceDrawPacketBuilder sSurfaceDrawPacketBuilder_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitter sSurfaceDrawPacketSubmitter_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitOptions sSurfaceDrawPacketSubmitOptions_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats sSurfaceDrawPacketSubmitStats_;
-        static RENDER3D::RUNTIME::StaticDrawRecordCache sStaticDrawRecordCache_;
-        static RENDER3D::RUNTIME::StaticRecordSubmitOptions sStaticRecordSubmitOptions_;
-        static RENDER3D::RUNTIME::StaticDrawRecordSubmitter sStaticDrawRecordSubmitter_;
-        static RENDER3D::RUNTIME::StaticDrawRecordSubmitStats sStaticDrawRecordSubmitStats_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanner sSurfaceDrawPacketPlanner_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanOptions sSurfaceDrawPacketPlanOptions_;
+        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats sSurfaceDrawPacketPlanStats_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
 
         static ClusteredCpuPreviewTarget sClusteredCpuPreviewTarget_;

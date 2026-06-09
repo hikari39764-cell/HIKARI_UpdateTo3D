@@ -7,7 +7,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DXCheck.h"
-#include "HIKARI_DxTexture.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 #ifdef max
 #undef max
@@ -26,6 +26,8 @@ namespace HIKARI::REFLECTION {
             bool valid = false;
             bool hasPrefiltered = false;
             bool hasBrdfLut = false;
+            RENDER3D::TextureResourceHandle prefilteredResource{};
+            RENDER3D::TextureResourceHandle brdfLutResource{};
             int prefilteredHandle = -1;
             int brdfLutHandle = -1;
             uint32_t prefilteredMipCount = 1;
@@ -60,6 +62,8 @@ namespace HIKARI::REFLECTION {
                 lhs.valid == rhs.valid &&
                 lhs.hasPrefiltered == rhs.hasPrefiltered &&
                 lhs.hasBrdfLut == rhs.hasBrdfLut &&
+                lhs.prefilteredResource == rhs.prefilteredResource &&
+                lhs.brdfLutResource == rhs.brdfLutResource &&
                 lhs.prefilteredHandle == rhs.prefilteredHandle &&
                 lhs.brdfLutHandle == rhs.brdfLutHandle &&
                 lhs.prefilteredMipCount == rhs.prefilteredMipCount &&
@@ -128,6 +132,8 @@ namespace HIKARI::REFLECTION {
             key.valid = gData.valid;
             key.hasPrefiltered = gData.hasPrefiltered;
             key.hasBrdfLut = gData.hasBrdfLut;
+            key.prefilteredResource = gData.prefilteredResource;
+            key.brdfLutResource = gData.brdfLutResource;
             key.prefilteredHandle = gData.prefilteredHandle;
             key.brdfLutHandle = gData.brdfLutHandle;
             key.prefilteredMipCount = gData.prefilteredMipCount;
@@ -154,20 +160,33 @@ namespace HIKARI::REFLECTION {
         }
 
         void RefreshResolvedHandles() {
-            gData.prefilteredSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(gData.prefilteredHandle);
-            gData.brdfLutSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(gData.brdfLutHandle);
+            gData.prefilteredHandle =
+                RENDER3D::GetTextureResourceBackendHandle(gData.prefilteredResource);
+            gData.brdfLutHandle =
+                RENDER3D::GetTextureResourceBackendHandle(gData.brdfLutResource);
 
-            gData.prefilteredActualMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.prefilteredHandle);
-            gData.brdfLutMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.brdfLutHandle);
-            gData.prefilteredFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.prefilteredHandle);
-            gData.brdfLutFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.brdfLutHandle);
+            gData.prefilteredSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(gData.prefilteredResource);
+            gData.brdfLutSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(gData.brdfLutResource);
+
+            gData.prefilteredActualMipCount =
+                RENDER3D::GetTextureResourceMipCount(gData.prefilteredResource);
+            gData.brdfLutMipCount =
+                RENDER3D::GetTextureResourceMipCount(gData.brdfLutResource);
+            gData.prefilteredFormat =
+                RENDER3D::GetTextureResourceFormat(gData.prefilteredResource);
+            gData.brdfLutFormat =
+                RENDER3D::GetTextureResourceFormat(gData.brdfLutResource);
 
             // Probe は prefiltered cubemap かつ mip 2 以上の時だけ有効にする。
             gData.hasPrefiltered = IsValidSrv(gData.prefilteredSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.prefilteredHandle) == DXTEX::TextureDimension::TextureCube &&
+                RENDER3D::GetTextureResourceDimension(gData.prefilteredResource) ==
+                    RENDER3D::TextureResourceDimension::TextureCube &&
                 gData.prefilteredActualMipCount >= 2;
             gData.hasBrdfLut = IsValidSrv(gData.brdfLutSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.brdfLutHandle) == DXTEX::TextureDimension::Texture2D &&
+                RENDER3D::GetTextureResourceDimension(gData.brdfLutResource) ==
+                    RENDER3D::TextureResourceDimension::Texture2D &&
                 gData.brdfLutMipCount >= 1;
 
             const uint32_t requestedMipCount = std::max<uint32_t>(1u, gRequestedMipCount);
@@ -253,6 +272,49 @@ namespace HIKARI::REFLECTION {
         LogStateIfChanged();
     }
 
+    void SetActiveProbeResources(
+        bool enabled,
+        RENDER3D::TextureResourceHandle prefilteredResource,
+        RENDER3D::TextureResourceHandle brdfLutResource,
+        uint32_t prefilteredMipCount,
+        const MATH::Vec3& position,
+        float radius,
+        float intensity,
+        RuntimeReflectionProbeInfluenceShape influenceShape,
+        RuntimeReflectionProbeProjectionShape projectionShape,
+        const MATH::Vec3& influenceBoxCenter,
+        const MATH::Vec3& influenceBoxSize,
+        const MATH::Vec3& projectionBoxCenter,
+        const MATH::Vec3& projectionBoxSize,
+        float blendDistance,
+        int priority,
+        std::string sourceAssetId,
+        std::string prefilteredPath,
+        std::string brdfLutPath) {
+
+        gData.enabled = enabled;
+        gData.prefilteredResource = prefilteredResource;
+        gData.brdfLutResource = brdfLutResource;
+        gRequestedMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
+        gData.position = position;
+        gData.radius = std::max(0.0f, radius);
+        gData.intensity = std::max(0.0f, intensity);
+        gData.influenceShape = influenceShape;
+        gData.projectionShape = projectionShape;
+        gData.influenceBoxCenter = influenceBoxCenter;
+        gData.influenceBoxSize = SanitizeBoxSize(influenceBoxSize);
+        gData.projectionBoxCenter = projectionBoxCenter;
+        gData.projectionBoxSize = SanitizeBoxSize(projectionBoxSize);
+        gData.blendDistance = std::max(0.0f, blendDistance);
+        gData.priority = priority;
+        gData.sourceAssetId = std::move(sourceAssetId);
+        gData.prefilteredPath = std::move(prefilteredPath);
+        gData.brdfLutPath = std::move(brdfLutPath);
+
+        RefreshResolvedHandles();
+        LogStateIfChanged();
+    }
+
     void SetActiveProbe(
         bool enabled,
         int prefilteredHandle,
@@ -273,27 +335,25 @@ namespace HIKARI::REFLECTION {
         std::string prefilteredPath,
         std::string brdfLutPath) {
 
-        gData.enabled = enabled;
-        gData.prefilteredHandle = prefilteredHandle;
-        gData.brdfLutHandle = brdfLutHandle;
-        gRequestedMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
-        gData.position = position;
-        gData.radius = std::max(0.0f, radius);
-        gData.intensity = std::max(0.0f, intensity);
-        gData.influenceShape = influenceShape;
-        gData.projectionShape = projectionShape;
-        gData.influenceBoxCenter = influenceBoxCenter;
-        gData.influenceBoxSize = SanitizeBoxSize(influenceBoxSize);
-        gData.projectionBoxCenter = projectionBoxCenter;
-        gData.projectionBoxSize = SanitizeBoxSize(projectionBoxSize);
-        gData.blendDistance = std::max(0.0f, blendDistance);
-        gData.priority = priority;
-        gData.sourceAssetId = std::move(sourceAssetId);
-        gData.prefilteredPath = std::move(prefilteredPath);
-        gData.brdfLutPath = std::move(brdfLutPath);
-
-        RefreshResolvedHandles();
-        LogStateIfChanged();
+        SetActiveProbeResources(
+            enabled,
+            RENDER3D::RegisterTextureResourceFromBackendHandle(prefilteredHandle),
+            RENDER3D::RegisterTextureResourceFromBackendHandle(brdfLutHandle),
+            prefilteredMipCount,
+            position,
+            radius,
+            intensity,
+            influenceShape,
+            projectionShape,
+            influenceBoxCenter,
+            influenceBoxSize,
+            projectionBoxCenter,
+            projectionBoxSize,
+            blendDistance,
+            priority,
+            std::move(sourceAssetId),
+            std::move(prefilteredPath),
+            std::move(brdfLutPath));
     }
 
     const ReflectionProbeRuntimeData& GetActiveProbe() {

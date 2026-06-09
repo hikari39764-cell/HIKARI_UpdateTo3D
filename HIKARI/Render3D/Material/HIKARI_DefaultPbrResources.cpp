@@ -3,7 +3,7 @@
 #include <utility>
 
 #include "Core/HIKARI_Logger.h"
-#include "Render2D/HIKARI_DxTexture.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI {
 
@@ -15,12 +15,15 @@ namespace HIKARI {
         RuntimeTextureSlot gMetallicRoughnessSlot{};
         RuntimeTextureSlot gMissingSlot{};
 
-        RuntimeTextureSlot MakeDefaultSlot(std::string resolvedPath, int handle)
+        RuntimeTextureSlot MakeDefaultSlot(
+            std::string resolvedPath,
+            RENDER3D::TextureResourceHandle resource)
         {
             RuntimeTextureSlot slot{};
             slot.sourcePath = resolvedPath;
             slot.resolvedPath = std::move(resolvedPath);
-            slot.handle = handle;
+            slot.resource = resource;
+            slot.handle = RENDER3D::GetTextureResourceBackendHandle(resource);
             // デフォルト貼り付けは SRV を埋めるだけで、ユーザー texture としては扱わない。
             slot.enabled = false;
             return slot;
@@ -28,8 +31,11 @@ namespace HIKARI {
 
         void ReleaseSlot(RuntimeTextureSlot& slot)
         {
-            if (slot.handle >= 0) {
-                DXTEX::DxTextureManager::ReleaseTexture(slot.handle);
+            if (slot.resource) {
+                RENDER3D::ReleaseTextureResource(slot.resource);
+            } else if (slot.handle >= 0) {
+                RENDER3D::ReleaseTextureResource(
+                    RENDER3D::RegisterTextureResourceFromBackendHandle(slot.handle));
             }
             slot = {};
         }
@@ -43,35 +49,35 @@ namespace HIKARI {
 
         gWhiteSlot = MakeDefaultSlot(
             "generated://pbr/default_white",
-            DXTEX::DxTextureManager::CreateSolidColorTexture(
+            RENDER3D::CreateSolidColorTextureResource(
                 "default_pbr/white",
                 0xffffffffu,
-                DXTEX::TextureColorSpace::Linear));
+                RENDER3D::TextureResourceColorSpace::Linear));
         gBlackSlot = MakeDefaultSlot(
             "generated://pbr/default_black",
-            DXTEX::DxTextureManager::CreateSolidColorTexture(
+            RENDER3D::CreateSolidColorTextureResource(
                 "default_pbr/black",
                 0x000000ffu,
-                DXTEX::TextureColorSpace::Linear));
+                RENDER3D::TextureResourceColorSpace::Linear));
         gFlatNormalSlot = MakeDefaultSlot(
             "generated://pbr/default_flat_normal",
-            DXTEX::DxTextureManager::CreateSolidColorTexture(
+            RENDER3D::CreateSolidColorTextureResource(
                 "default_pbr/flat_normal",
                 0x8080ffffu,
-                DXTEX::TextureColorSpace::Linear));
+                RENDER3D::TextureResourceColorSpace::Linear));
         gMetallicRoughnessSlot = MakeDefaultSlot(
             "generated://pbr/default_metallic_roughness",
-            DXTEX::DxTextureManager::CreateSolidColorTexture(
+            RENDER3D::CreateSolidColorTextureResource(
                 "default_pbr/metallic_roughness",
                 0xffff00ffu,
-                DXTEX::TextureColorSpace::Linear));
+                RENDER3D::TextureResourceColorSpace::Linear));
         gMissingSlot = MakeDefaultSlot(
             "generated://pbr/missing_checker",
-            DXTEX::DxTextureManager::CreateCheckerTexture(
+            RENDER3D::CreateCheckerTextureResource(
                 "default_pbr/missing",
                 0xff00ffffu,
                 0x000000ffu,
-                DXTEX::TextureColorSpace::Linear));
+                RENDER3D::TextureResourceColorSpace::Linear));
 
         gInitialized = true;
         HIKARI_LOG_INFO("[DefaultPbrResources] initialized.");

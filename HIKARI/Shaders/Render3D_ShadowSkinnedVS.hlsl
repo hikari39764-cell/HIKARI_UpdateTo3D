@@ -34,6 +34,8 @@ struct VSOutput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    nointerpolation uint materialFlags : MATERIALFLAGS;
+    nointerpolation float alphaCutoff : ALPHACUTOFF;
 };
 
 float4x4 ResolveJointMatrix(uint jointIndex)
@@ -53,5 +55,7 @@ VSOutput main(VSInput input)
     float4 worldPos = mul(gWorld, float4(localPos.xyz, 1.0f));
     output.position = mul(gLightViewProj, worldPos);
     output.uv = input.uv0;
+    output.materialFlags = gMaterialFlags;
+    output.alphaCutoff = gAlphaCutoff;
     return output;
 }

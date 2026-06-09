@@ -621,87 +621,31 @@ namespace HIKARI::MODELRENDERER {
             }
         }
 
-        bool IsForwardPrimitiveExcluded(
-            const ModelRenderItem& item,
-            uint32_t nodeIndex,
-            uint32_t meshIndex,
-            uint32_t primitiveIndex) {
-
-            for (const ModelPrimitiveDrawKey& key : item.forwardPrimitiveExclusions) {
-                if (key.nodeIndex == nodeIndex &&
-                    key.meshIndex == meshIndex &&
-                    key.primitiveIndex == primitiveIndex) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        bool HasForwardPrimitiveExclusionForMesh(
-            const ModelRenderItem& item,
-            uint32_t nodeIndex,
-            uint32_t meshIndex) {
-
-            for (const ModelPrimitiveDrawKey& key : item.forwardPrimitiveExclusions) {
-                if (key.nodeIndex == nodeIndex && key.meshIndex == meshIndex) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         bool SubmitStaticNodeForward(
             const ModelRenderItem& item,
             const ModelAsset& expandedAsset,
-            const MeshAsset& sourceMesh,
-            uint32_t nodeIndex,
-            uint32_t meshIndex,
             const Transform3D& nodeTransform) {
 
-            if (!HasForwardPrimitiveExclusionForMesh(item, nodeIndex, meshIndex)) {
-                MESHRENDERER::SubmitStaticMesh(
-                    expandedAsset,
-                    nodeTransform,
-                    item.materialFxProfileId,
-                    item.postGroupMask,
-                    item.materialFxParamValues,
-                    item.materialFxValuesInitialized,
-                    item.receiveShadow,
-                    ToMeshRenderDebugMode(item.geometryDebugMode),
-                    item.materialOverride);
-                return true;
-            }
+            MESHRENDERER::SubmitStaticMesh(
+                expandedAsset,
+                nodeTransform,
+                item.materialFxProfileId,
+                item.postGroupMask,
+                item.materialFxParamValues,
+                item.materialFxValuesInitialized,
+                item.receiveShadow,
+                ToMeshRenderDebugMode(item.geometryDebugMode),
+                item.materialOverride);
+            return true;
+        }
 
-            if (expandedAsset.meshes.empty()) {
-                return false;
-            }
+        bool SubmitStaticNodeShadow(
+            const ModelRenderItem& item,
+            const ModelAsset& expandedAsset,
+            const Transform3D& nodeTransform) {
 
-            const MeshAsset& expandedMesh = expandedAsset.meshes.front();
-            const size_t primitiveCount =
-                (std::min)(sourceMesh.primitives.size(), expandedMesh.primitives.size());
-            bool submitted = false;
-            for (size_t primitiveIndex = 0; primitiveIndex < primitiveCount; ++primitiveIndex) {
-                const uint32_t primitiveIndex32 = static_cast<uint32_t>(primitiveIndex);
-                if (IsForwardPrimitiveExcluded(item, nodeIndex, meshIndex, primitiveIndex32)) {
-                    continue;
-                }
-
-                // sorted 済み primitive は旧 forward から外し、残りだけ補完する。
-                MESHRENDERER::SubmitStaticSubmesh(
-                    expandedAsset,
-                    nodeTransform,
-                    0,
-                    primitiveIndex32,
-                    item.materialFxProfileId,
-                    item.postGroupMask,
-                    item.materialFxParamValues,
-                    item.materialFxValuesInitialized,
-                    item.receiveShadow,
-                    ToMeshRenderDebugMode(item.geometryDebugMode),
-                    item.materialOverride);
-                submitted = true;
-            }
-            return submitted;
+            SHADOW::SubmitStaticMesh(expandedAsset, nodeTransform, item.castShadow);
+            return item.castShadow;
         }
 
         bool SubmitStructuredModelNodes(
@@ -832,20 +776,20 @@ namespace HIKARI::MODELRENDERER {
                     submittedForward = SubmitStaticNodeForward(
                         item,
                         *expandedAsset,
-                        sourceMesh,
-                        static_cast<uint32_t>(nodeIndex),
-                        static_cast<uint32_t>(node.meshIndex),
                         nodeTransform);
                 }
                 if (submittedForward || submitShadow) {
                     ++gDebugStats.frame.structuredNodeSubmittedCount;
                 }
                 if (submitShadow) {
-                    SHADOW::SubmitStaticMesh(*expandedAsset, nodeTransform, item.castShadow);
+                    SubmitStaticNodeShadow(
+                        item,
+                        *expandedAsset,
+                        nodeTransform);
                 }
                 submitted = submitted || submittedForward || submitShadow;
             }
-            return submitted || !item.forwardPrimitiveExclusions.empty();
+            return submitted;
         }
     }
 

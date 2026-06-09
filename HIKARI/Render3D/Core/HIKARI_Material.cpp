@@ -29,6 +29,7 @@ namespace HIKARI {
     }
 
     void Material::SetBaseColorTextureHandle(int handle) {
+        baseColorTexture_.resource = {};
         baseColorTexture_.handle = handle;
         baseColorTexture_.enabled = handle >= 0;
     }

@@ -7,6 +7,7 @@
 #include <dxgiformat.h>
 
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::REFLECTION {
 
@@ -25,6 +26,9 @@ namespace HIKARI::REFLECTION {
         bool valid = false;
         bool hasPrefiltered = false;
         bool hasBrdfLut = false;
+
+        RENDER3D::TextureResourceHandle prefilteredResource{};
+        RENDER3D::TextureResourceHandle brdfLutResource{};
 
         int prefilteredHandle = -1;
         int brdfLutHandle = -1;
@@ -57,6 +61,26 @@ namespace HIKARI::REFLECTION {
     };
 
     void Reset();
+
+    void SetActiveProbeResources(
+        bool enabled,
+        RENDER3D::TextureResourceHandle prefilteredResource,
+        RENDER3D::TextureResourceHandle brdfLutResource,
+        uint32_t prefilteredMipCount,
+        const MATH::Vec3& position,
+        float radius,
+        float intensity,
+        RuntimeReflectionProbeInfluenceShape influenceShape,
+        RuntimeReflectionProbeProjectionShape projectionShape,
+        const MATH::Vec3& influenceBoxCenter,
+        const MATH::Vec3& influenceBoxSize,
+        const MATH::Vec3& projectionBoxCenter,
+        const MATH::Vec3& projectionBoxSize,
+        float blendDistance,
+        int priority,
+        std::string sourceAssetId,
+        std::string prefilteredPath,
+        std::string brdfLutPath);
 
     void SetActiveProbe(
         bool enabled,

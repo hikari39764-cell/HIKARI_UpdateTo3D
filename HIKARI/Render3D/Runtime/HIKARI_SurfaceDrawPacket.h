@@ -9,6 +9,8 @@
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawPlan.h"
+#include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
@@ -35,6 +37,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint64_t sortKey = 0;
 
         bool resourceKeyValid = false;
+        bool objectDataCompatible = false;
+        bool depthAwareMaterialFx = false;
         bool alphaMasked = false;
         bool transparent = false;
     };
@@ -63,6 +67,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool valid = false;
         bool visible = true;
         bool isStatic = false;
+        bool hasRuntimeAnimation = false;
+        bool hasSpecialRenderDebug = false;
         bool skinned = false;
         bool castShadow = true;
         bool receiveShadow = true;
@@ -97,56 +103,107 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     };
 
-    struct SurfaceDrawPacketSubmitOptions {
-        bool useSortedForward = false;
-        bool skipOldStaticForwardSubmit = false;
+    struct SurfaceDrawPacketPlanOptions {
+        bool buildForwardPlan = false;
+        bool bypassLegacyForward = false;
+        bool buildShadowPlan = false;
+        bool bypassLegacyShadow = false;
 
         MATH::Mat4 cameraViewProj{};
+        MATH::Mat4 cameraView{};
         bool hasCameraViewProj = false;
+        bool hasCameraView = false;
         bool enableFrustumCulling = true;
     };
 
-    struct SurfaceDrawPacketSubmitStats {
+    struct SurfaceDrawRouteBucketStats {
+        uint32_t mainRoutePacketCount = 0;
+        uint32_t mainOpaquePacketCount = 0;
+        uint32_t mainAlphaMaskPacketCount = 0;
+        uint32_t mainTransparentPacketCount = 0;
+        uint32_t noPassPacketCount = 0;
+        uint32_t alphaMaskPacketCount = 0;
+        uint32_t transparentPacketCount = 0;
+        uint32_t depthAwarePacketCount = 0;
+        uint32_t runtimeSpecialPacketCount = 0;
+        uint32_t skinnedPacketCount = 0;
+        uint32_t legacyShaderPacketCount = 0;
+        uint32_t invalidPacketCount = 0;
+    };
+
+    struct SurfaceDrawPacketPlanStats {
         uint32_t sourcePacketCount = 0;
         uint32_t sortedPacketCount = 0;
 
         uint32_t candidateObjectCount = 0;
         uint32_t fullCoverageObjectCount = 0;
         uint32_t partialCoverageObjectCount = 0;
-        uint32_t fallbackObjectCount = 0;
-        uint32_t skipOldForwardObjectCount = 0;
+        uint32_t runtimeSpecialObjectCount = 0;
+        uint32_t mainForwardBypassObjectCount = 0;
 
         uint32_t candidatePacketCount = 0;
         uint32_t submittedForwardPacketCount = 0;
+        uint32_t submittedForwardOpaquePacketCount = 0;
+        uint32_t submittedForwardTransparentPacketCount = 0;
         uint32_t culledPacketCount = 0;
         uint32_t handledForwardPacketCount = 0;
-        uint32_t partialTakeoverPacketCount = 0;
-        uint32_t handledPrimitiveObjectCount = 0;
-        uint32_t handledPrimitiveCount = 0;
-        uint32_t submittedRunCount = 0;
-        uint32_t submittedSinglePacketRunCount = 0;
-        uint32_t submittedMaxRunPacketCount = 0;
+        uint32_t submittedCommandCount = 0;
+        uint32_t submittedSinglePacketCommandCount = 0;
+        uint32_t submittedMaxCommandPacketCount = 0;
+        uint32_t submittedOpaqueCommandCount = 0;
+        uint32_t submittedOpaqueSinglePacketCommandCount = 0;
+        uint32_t submittedOpaqueMaxCommandPacketCount = 0;
+        uint32_t submittedTransparentCommandCount = 0;
+        uint32_t submittedTransparentSinglePacketCommandCount = 0;
+        uint32_t submittedTransparentMaxCommandPacketCount = 0;
+        uint32_t submittedGpuSceneInstanceCount = 0;
+        uint32_t submittedOpaqueGpuSceneInstanceCount = 0;
+        uint32_t submittedTransparentGpuSceneInstanceCount = 0;
+        uint32_t submittedMaxGpuSceneCommandInstanceCount = 0;
+        uint32_t transparentDepthSortCandidateCount = 0;
+        uint32_t transparentDepthSortedPacketCount = 0;
+        uint32_t transparentDepthReorderedPacketCount = 0;
+        uint32_t transparentDepthSortFallbackPacketCount = 0;
 
         uint32_t skippedNoForwardPacketCount = 0;
-        uint32_t skippedDynamicPacketCount = 0;
         uint32_t skippedInvalidPacketCount = 0;
         uint32_t skippedInvalidResourceKeyCount = 0;
+        uint32_t skippedLegacyShaderPacketCount = 0;
+        uint32_t skippedDepthAwarePacketCount = 0;
+        uint32_t skippedRuntimeAnimationPacketCount = 0;
+        uint32_t skippedSpecialDebugPacketCount = 0;
         uint32_t skippedSkinnedPacketCount = 0;
         uint32_t skippedTransparentPacketCount = 0;
         uint32_t skippedAlphaMaskedPacketCount = 0;
         uint32_t skippedInvalidPrimitiveCount = 0;
         uint32_t skippedPartialCoveragePacketCount = 0;
-    };
+        SurfaceDrawRouteBucketStats forwardRouteBuckets{};
 
-    struct SurfaceDrawPacketHandledPrimitive {
-        uint32_t nodeIndex = kInvalidRenderSurfaceIndex;
-        uint32_t meshIndex = kInvalidRenderSurfaceIndex;
-        uint32_t primitiveIndex = kInvalidRenderSurfaceIndex;
-    };
+        uint32_t shadowCandidateObjectCount = 0;
+        uint32_t shadowFullCoverageObjectCount = 0;
+        uint32_t shadowPartialCoverageObjectCount = 0;
+        uint32_t shadowRuntimeSpecialObjectCount = 0;
+        uint32_t mainShadowBypassObjectCount = 0;
 
-    struct SurfaceDrawPacketRun {
-        uint32_t firstExecutableIndex = 0;
-        uint32_t packetCount = 0;
+        uint32_t shadowCandidatePacketCount = 0;
+        uint32_t plannedShadowPacketCount = 0;
+        uint32_t handledShadowPacketCount = 0;
+        uint32_t shadowCommandCount = 0;
+        uint32_t shadowSinglePacketCommandCount = 0;
+        uint32_t shadowMaxCommandPacketCount = 0;
+        uint32_t shadowGpuSceneInstanceCount = 0;
+        uint32_t shadowMaxGpuSceneCommandInstanceCount = 0;
+
+        uint32_t shadowSkippedNoShadowPacketCount = 0;
+        uint32_t shadowSkippedInvalidPacketCount = 0;
+        uint32_t shadowSkippedInvalidResourceKeyCount = 0;
+        uint32_t shadowSkippedRuntimeAnimationPacketCount = 0;
+        uint32_t shadowSkippedSpecialDebugPacketCount = 0;
+        uint32_t shadowSkippedSkinnedPacketCount = 0;
+        uint32_t shadowSkippedTransparentPacketCount = 0;
+        uint32_t shadowSkippedInvalidPrimitiveCount = 0;
+        uint32_t shadowSkippedPartialCoveragePacketCount = 0;
+        SurfaceDrawRouteBucketStats shadowRouteBuckets{};
     };
 
     class SurfaceDrawPacketBuilder {
@@ -184,7 +241,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t sortEligiblePacketCount = 0;
             uint32_t sortedPacketCount = 0;
             uint32_t reorderedPacketCount = 0;
-            uint32_t transparentSortExcludedCount = 0;
+            uint32_t transparentResourceSortExcludedCount = 0;
             uint32_t sortedSortOrderBreakCount = 0;
 
             uint32_t rawPassRunCount = 0;
@@ -225,36 +282,46 @@ namespace HIKARI::RENDER3D::RUNTIME {
         Stats stats_{};
     };
 
-    class SurfaceDrawPacketSubmitter {
+    class SurfaceDrawPacketPlanner {
     public:
-        void Submit(
+        void Build(
             const SurfaceDrawPacketBuilder& builder,
-            const SurfaceDrawPacketSubmitOptions& options,
-            SurfaceDrawPacketSubmitStats& outStats);
+            const SurfaceDrawPacketPlanOptions& options,
+            SurfaceDrawPacketPlanStats& outStats);
 
         bool HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const;
-        const std::vector<SurfaceDrawPacketHandledPrimitive>* GetHandledForwardPrimitivesForObject(
-            SceneRenderObjectId objectId) const;
-        const std::vector<uint32_t>& GetExecutableForwardPacketIndices() const;
-        const std::vector<SurfaceDrawPacketRun>& GetExecutableForwardRuns() const;
+        bool HasFullShadowCoverageForObject(SceneRenderObjectId objectId) const;
+        const std::vector<uint32_t>& GetExecutableForwardOpaquePacketIndices() const;
+        const std::vector<SurfaceDrawCommand>& GetExecutableForwardOpaqueCommands() const;
+        const std::vector<SurfaceGpuSceneInstance>& GetForwardOpaqueGpuSceneInstances() const;
+        const std::vector<uint32_t>& GetExecutableForwardTransparentPacketIndices() const;
+        const std::vector<SurfaceDrawCommand>& GetExecutableForwardTransparentCommands() const;
+        const std::vector<SurfaceGpuSceneInstance>& GetForwardTransparentGpuSceneInstances() const;
+        const std::vector<uint32_t>& GetExecutableShadowPacketIndices() const;
+        const std::vector<SurfaceDrawCommand>& GetExecutableShadowCommands() const;
+        const std::vector<SurfaceGpuSceneInstance>& GetShadowGpuSceneInstances() const;
 
     private:
         struct ObjectCoverage {
             uint32_t expectedForwardPacketCount = 0;
             uint32_t safeForwardPacketCount = 0;
+            uint32_t expectedShadowPacketCount = 0;
+            uint32_t safeShadowPacketCount = 0;
         };
 
-        bool IsSubmitSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketSubmitStats* stats) const;
-        bool CanUsePrimitiveFallback(const SurfaceDrawPacket& packet) const;
-        void RecordHandledForwardPrimitive(
-            const SurfaceDrawPacket& packet,
-            SurfaceDrawPacketSubmitStats& stats);
-        void BuildCoverage(const std::vector<SurfaceDrawPacket>& packets, SurfaceDrawPacketSubmitStats& stats);
-
+        bool IsForwardSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketPlanStats* stats) const;
+        bool IsShadowSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketPlanStats* stats) const;
+        void BuildCoverage(const std::vector<SurfaceDrawPacket>& packets, SurfaceDrawPacketPlanStats& stats);
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
-        std::unordered_map<uint64_t, std::vector<SurfaceDrawPacketHandledPrimitive>> handledForwardPrimitivesByObject_{};
-        std::vector<uint32_t> executableForwardPacketIndices_{};
-        std::vector<SurfaceDrawPacketRun> executableForwardRuns_{};
+        std::vector<uint32_t> executableForwardOpaquePacketIndices_{};
+        std::vector<SurfaceDrawCommand> executableForwardOpaqueCommands_{};
+        std::vector<SurfaceGpuSceneInstance> forwardOpaqueGpuSceneInstances_{};
+        std::vector<uint32_t> executableForwardTransparentPacketIndices_{};
+        std::vector<SurfaceDrawCommand> executableForwardTransparentCommands_{};
+        std::vector<SurfaceGpuSceneInstance> forwardTransparentGpuSceneInstances_{};
+        std::vector<uint32_t> executableShadowPacketIndices_{};
+        std::vector<SurfaceDrawCommand> executableShadowCommands_{};
+        std::vector<SurfaceGpuSceneInstance> shadowGpuSceneInstances_{};
     };
 
 } // namespace HIKARI::RENDER3D::RUNTIME

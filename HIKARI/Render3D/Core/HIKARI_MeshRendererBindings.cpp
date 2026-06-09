@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include "Core/HIKARI_Logger.h"
-#include "HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Services.h"
@@ -13,6 +12,7 @@
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -215,7 +215,7 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveMaterialTexturePoolSrv() {
             D3D12_GPU_DESCRIPTOR_HANDLE handle{};
             ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = DXTEX::DxTextureManager::GetSrvHeap();
+            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
             if (device == nullptr || heap == nullptr) {
                 return handle;
             }
@@ -327,7 +327,8 @@ namespace HIKARI::MESHRENDERER {
 
         D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = SHADOW::GetDirectionalShadowSrv();
         if (shadowSrv.ptr == 0) {
-            shadowSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(ctx.fallbackTextureHandle);
+            shadowSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(ctx.fallbackTextureHandle);
         }
         if (shadowSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::ShadowMap, shadowSrv);
@@ -444,7 +445,7 @@ namespace HIKARI::MESHRENDERER {
             return skyData.cubemapSrv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool depthAwarePhase, int fallbackTextureHandle) {
@@ -452,7 +453,7 @@ namespace HIKARI::MESHRENDERER {
             return SERVICES::gCtx.sceneDepthSrv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(int fallbackTextureHandle) {
@@ -461,7 +462,7 @@ namespace HIKARI::MESHRENDERER {
             return sceneColorSrv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblIrradianceSrv(int fallbackTextureHandle) {
@@ -470,7 +471,7 @@ namespace HIKARI::MESHRENDERER {
             return srv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblPrefilteredSrv(int fallbackTextureHandle) {
@@ -480,7 +481,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
         // Sky cubemap を prefiltered IBL の代替として扱わない。
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblBrdfLutSrv(int fallbackTextureHandle) {
@@ -496,12 +497,12 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveReflectionProbePrefilteredSrv(int fallbackCubeTextureHandle) {
         if (REFLECTION::IsReflectionProbeSamplingSuppressed()) {
-            return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackCubeTextureHandle);
+            return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackCubeTextureHandle);
         }
 
         const REFLECTION::ReflectionProbeRuntimeData& probe = REFLECTION::GetActiveProbe();
@@ -509,7 +510,7 @@ namespace HIKARI::MESHRENDERER {
             return probe.prefilteredSrv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackCubeTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackCubeTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSsaoSrv(D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle) {
@@ -517,7 +518,7 @@ namespace HIKARI::MESHRENDERER {
             return ssaoSrv;
         }
 
-        return DXTEX::DxTextureManager::GetSrvGpuHandle(fallbackAoTextureHandle);
+        return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackAoTextureHandle);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveLightProbeShSrv() {

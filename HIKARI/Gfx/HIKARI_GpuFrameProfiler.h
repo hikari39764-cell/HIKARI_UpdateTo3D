@@ -14,6 +14,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         SsaoBlur,
         ForwardOpaque,
         DepthAware,
+        ForwardTransparent,
         PostResolve,
         GameViewResolve,
         SceneLayers,

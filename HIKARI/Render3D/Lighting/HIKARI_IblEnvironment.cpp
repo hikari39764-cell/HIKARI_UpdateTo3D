@@ -5,7 +5,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DXCheck.h"
-#include "HIKARI_DxTexture.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI::IBL {
 
@@ -16,6 +16,9 @@ namespace HIKARI::IBL {
             bool hasIrradiance = false;
             bool hasPrefiltered = false;
             bool hasBrdfLut = false;
+            RENDER3D::TextureResourceHandle irradianceResource{};
+            RENDER3D::TextureResourceHandle prefilteredResource{};
+            RENDER3D::TextureResourceHandle brdfLutResource{};
             int irradianceHandle = -1;
             int prefilteredHandle = -1;
             int brdfLutHandle = -1;
@@ -38,6 +41,9 @@ namespace HIKARI::IBL {
                 lhs.hasIrradiance == rhs.hasIrradiance &&
                 lhs.hasPrefiltered == rhs.hasPrefiltered &&
                 lhs.hasBrdfLut == rhs.hasBrdfLut &&
+                lhs.irradianceResource == rhs.irradianceResource &&
+                lhs.prefilteredResource == rhs.prefilteredResource &&
+                lhs.brdfLutResource == rhs.brdfLutResource &&
                 lhs.irradianceHandle == rhs.irradianceHandle &&
                 lhs.prefilteredHandle == rhs.prefilteredHandle &&
                 lhs.brdfLutHandle == rhs.brdfLutHandle &&
@@ -57,6 +63,9 @@ namespace HIKARI::IBL {
             key.hasIrradiance = gData.hasIrradiance;
             key.hasPrefiltered = gData.hasPrefiltered;
             key.hasBrdfLut = gData.hasBrdfLut;
+            key.irradianceResource = gData.irradianceResource;
+            key.prefilteredResource = gData.prefilteredResource;
+            key.brdfLutResource = gData.brdfLutResource;
             key.irradianceHandle = gData.irradianceHandle;
             key.prefilteredHandle = gData.prefilteredHandle;
             key.brdfLutHandle = gData.brdfLutHandle;
@@ -75,35 +84,50 @@ namespace HIKARI::IBL {
             return value ? "true" : "false";
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveSrv(int handle) {
-            return DXTEX::DxTextureManager::GetSrvGpuHandle(handle);
-        }
-
         bool IsValidSrv(D3D12_GPU_DESCRIPTOR_HANDLE handle) {
             return handle.ptr != 0;
         }
 
         void RefreshResolvedHandles() {
-            gData.irradianceSrv = ResolveSrv(gData.irradianceHandle);
-            gData.prefilteredSrv = ResolveSrv(gData.prefilteredHandle);
-            gData.brdfLutSrv = ResolveSrv(gData.brdfLutHandle);
+            gData.irradianceHandle =
+                RENDER3D::GetTextureResourceBackendHandle(gData.irradianceResource);
+            gData.prefilteredHandle =
+                RENDER3D::GetTextureResourceBackendHandle(gData.prefilteredResource);
+            gData.brdfLutHandle =
+                RENDER3D::GetTextureResourceBackendHandle(gData.brdfLutResource);
 
-            gData.irradianceMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.irradianceHandle);
-            gData.prefilteredActualMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.prefilteredHandle);
-            gData.brdfLutMipCount = DXTEX::DxTextureManager::GetTextureMipCount(gData.brdfLutHandle);
-            gData.irradianceFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.irradianceHandle);
-            gData.prefilteredFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.prefilteredHandle);
-            gData.brdfLutFormat = DXTEX::DxTextureManager::GetTextureFormat(gData.brdfLutHandle);
+            gData.irradianceSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(gData.irradianceResource);
+            gData.prefilteredSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(gData.prefilteredResource);
+            gData.brdfLutSrv =
+                RENDER3D::GetTextureResourceSrvGpuHandle(gData.brdfLutResource);
+
+            gData.irradianceMipCount =
+                RENDER3D::GetTextureResourceMipCount(gData.irradianceResource);
+            gData.prefilteredActualMipCount =
+                RENDER3D::GetTextureResourceMipCount(gData.prefilteredResource);
+            gData.brdfLutMipCount =
+                RENDER3D::GetTextureResourceMipCount(gData.brdfLutResource);
+            gData.irradianceFormat =
+                RENDER3D::GetTextureResourceFormat(gData.irradianceResource);
+            gData.prefilteredFormat =
+                RENDER3D::GetTextureResourceFormat(gData.prefilteredResource);
+            gData.brdfLutFormat =
+                RENDER3D::GetTextureResourceFormat(gData.brdfLutResource);
 
             // IBL は SRV だけでなく dimension/mip も満たした時だけ有効にする。
             gData.hasIrradiance = IsValidSrv(gData.irradianceSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.irradianceHandle) == DXTEX::TextureDimension::TextureCube &&
+                RENDER3D::GetTextureResourceDimension(gData.irradianceResource) ==
+                    RENDER3D::TextureResourceDimension::TextureCube &&
                 gData.irradianceMipCount >= 1;
             gData.hasPrefiltered = IsValidSrv(gData.prefilteredSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.prefilteredHandle) == DXTEX::TextureDimension::TextureCube &&
+                RENDER3D::GetTextureResourceDimension(gData.prefilteredResource) ==
+                    RENDER3D::TextureResourceDimension::TextureCube &&
                 gData.prefilteredActualMipCount >= 2;
             gData.hasBrdfLut = IsValidSrv(gData.brdfLutSrv) &&
-                DXTEX::DxTextureManager::GetTextureDimension(gData.brdfLutHandle) == DXTEX::TextureDimension::Texture2D &&
+                RENDER3D::GetTextureResourceDimension(gData.brdfLutResource) ==
+                    RENDER3D::TextureResourceDimension::Texture2D &&
                 gData.brdfLutMipCount >= 1;
 
             const uint32_t requestedMipCount = std::max<uint32_t>(1u, gRequestedPrefilteredMipCount);
@@ -170,17 +194,29 @@ namespace HIKARI::IBL {
         RefreshResolvedHandles();
     }
 
+    void SetFromTextureResources(
+        RENDER3D::TextureResourceHandle irradianceResource,
+        RENDER3D::TextureResourceHandle prefilteredResource,
+        RENDER3D::TextureResourceHandle brdfLutResource,
+        uint32_t prefilteredMipCount) {
+        gData.irradianceResource = irradianceResource;
+        gData.prefilteredResource = prefilteredResource;
+        gData.brdfLutResource = brdfLutResource;
+        gRequestedPrefilteredMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
+        RefreshResolvedHandles();
+        LogIblStateIfChanged();
+    }
+
     void SetFromTextureHandles(
         int irradianceHandle,
         int prefilteredHandle,
         int brdfLutHandle,
         uint32_t prefilteredMipCount) {
-        gData.irradianceHandle = irradianceHandle;
-        gData.prefilteredHandle = prefilteredHandle;
-        gData.brdfLutHandle = brdfLutHandle;
-        gRequestedPrefilteredMipCount = std::max<uint32_t>(1u, prefilteredMipCount);
-        RefreshResolvedHandles();
-        LogIblStateIfChanged();
+        SetFromTextureResources(
+            RENDER3D::RegisterTextureResourceFromBackendHandle(irradianceHandle),
+            RENDER3D::RegisterTextureResourceFromBackendHandle(prefilteredHandle),
+            RENDER3D::RegisterTextureResourceFromBackendHandle(brdfLutHandle),
+            prefilteredMipCount);
     }
 
     const IblEnvironmentData& GetEnvironmentData() {

@@ -5,24 +5,24 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_Logger.h"
-#include "HIKARI_DxTexture.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI {
 
     namespace {
-        DXTEX::TextureColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
+        RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
             switch (usage) {
             case ModelTextureUsage::BaseColor:
             case ModelTextureUsage::Emissive:
-                return DXTEX::TextureColorSpace::Srgb;
+                return RENDER3D::TextureResourceColorSpace::Srgb;
             case ModelTextureUsage::Normal:
             case ModelTextureUsage::MetallicRoughness:
             case ModelTextureUsage::Occlusion:
             default:
-                return DXTEX::TextureColorSpace::Linear;
+                return RENDER3D::TextureResourceColorSpace::Linear;
             }
         }
 
@@ -84,10 +84,11 @@ namespace HIKARI {
             slot.resolvedPath = texture->sourcePath;
             const std::string textureName =
                 "material_asset/" + std::string(debugName) + "/" + UsageName(usage);
-            slot.handle = DXTEX::DxTextureManager::LoadTextureWithColorSpace(
+            slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
                 textureName,
                 slot.resolvedPath,
                 ColorSpaceForUsage(usage));
+            slot.handle = RENDER3D::GetTextureResourceBackendHandle(slot.resource);
             if (slot.handle < 0) {
                 HIKARI_LOG_WARN("[MaterialRuntimeBuilder] texture load failed: " +
                     slot.resolvedPath);

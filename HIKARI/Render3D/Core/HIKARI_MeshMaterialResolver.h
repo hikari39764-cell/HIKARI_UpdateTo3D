@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI {
     class ModelAsset;
@@ -68,7 +69,7 @@ namespace HIKARI::MESHRENDERER {
 
     private:
         MeshMaterialResolverFallbacks fallbacks_{};
-        std::unordered_map<std::string, int> materialTextureCache_;
+        std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache_;
     };
 
 } // namespace HIKARI::MESHRENDERER

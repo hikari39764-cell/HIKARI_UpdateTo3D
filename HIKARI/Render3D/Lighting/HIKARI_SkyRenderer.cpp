@@ -13,8 +13,8 @@
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
-#include "HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI::SKYRENDERER {
 
@@ -50,6 +50,9 @@ namespace HIKARI::SKYRENDERER {
             SkyCB* mapped = nullptr;
             std::string loadedTexturePath{};
             std::string loadedCubemapPath{};
+            RENDER3D::TextureResourceHandle textureResource{};
+            RENDER3D::TextureResourceHandle cubemapResource{};
+            RENDER3D::TextureResourceHandle fallbackTextureResource{};
             int textureHandle = -1;
             int cubemapHandle = -1;
             int fallbackTextureHandle = -1;
@@ -236,13 +239,17 @@ namespace HIKARI::SKYRENDERER {
             if (!CreateBuffers(device) || !CreatePipeline(device)) {
                 return false;
             }
-            g.fallbackTextureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/fallback_white", "HIKARI/white1x1.png");
+            g.fallbackTextureResource = RENDER3D::LoadTextureResource(
+                "sky_renderer/fallback_white",
+                "HIKARI/white1x1.png");
+            g.fallbackTextureHandle =
+                RENDER3D::GetTextureResourceBackendHandle(g.fallbackTextureResource);
             g.initialized = true;
             g.debug.initialized = true;
             return true;
         }
 
-        int ResolveTexture2D(const SkySettings& settings, SkyManager& skyManager) {
+        RENDER3D::TextureResourceHandle ResolveTexture2D(const SkySettings& settings, SkyManager& skyManager) {
             const SkyAsset* skyAsset = skyManager.FindAsset(settings.skyAsset);
             g.debug.skyAssetFound = (skyAsset != nullptr);
             if (!skyAsset) {
@@ -252,21 +259,27 @@ namespace HIKARI::SKYRENDERER {
                 if (!settings.skyAsset.empty()) {
                     HIKARI_LOG_WARN("[SkyRenderer] sky asset not registered: " + settings.skyAsset);
                 }
-                return -1;
+                return {};
             }
 
             g.debug.activeTexturePath = skyAsset->texturePath;
-            if (g.loadedTexturePath != skyAsset->texturePath) {
+            if (g.loadedTexturePath != skyAsset->texturePath ||
+                !RENDER3D::IsTextureResourceValid(g.textureResource)) {
+                RENDER3D::ReleaseTextureResource(g.textureResource);
                 g.loadedTexturePath = skyAsset->texturePath;
+                g.textureResource = {};
                 g.textureHandle = -1;
                 if (!skyAsset->texturePath.empty()) {
-                    g.textureHandle = DXTEX::DxTextureManager::LoadTexture("sky_renderer/scene_sky", skyAsset->texturePath);
+                    g.textureResource = RENDER3D::LoadTextureResource(
+                        "sky_renderer/scene_sky",
+                        skyAsset->texturePath);
+                    g.textureHandle = RENDER3D::GetTextureResourceBackendHandle(g.textureResource);
                 }
             }
-            return g.textureHandle;
+            return g.textureResource;
         }
 
-        int ResolveCubemap(const SkySettings& settings, SkyManager& skyManager) {
+        RENDER3D::TextureResourceHandle ResolveCubemap(const SkySettings& settings, SkyManager& skyManager) {
             const SkyAsset* skyAsset = skyManager.FindAsset(settings.skyAsset);
             g.debug.skyAssetFound = (skyAsset != nullptr);
             if (!skyAsset) {
@@ -277,18 +290,24 @@ namespace HIKARI::SKYRENDERER {
                 if (!settings.skyAsset.empty()) {
                     HIKARI_LOG_WARN("[SkyRenderer] sky asset not registered: " + settings.skyAsset);
                 }
-                return -1;
+                return {};
             }
 
             const std::string path = skyAsset->texturePath;
             g.debug.activeTexturePath = path;
             if (path.empty()) {
-                return -1;
+                return {};
             }
 
-            if (g.loadedCubemapPath != path) {
+            if (g.loadedCubemapPath != path ||
+                !RENDER3D::IsTextureResourceValid(g.cubemapResource)) {
+                RENDER3D::ReleaseTextureResource(g.cubemapResource);
                 g.loadedCubemapPath = path;
-                g.cubemapHandle = DXTEX::DxTextureManager::LoadCubemap("sky_renderer/scene_sky_cube", path, DXTEX::TextureColorSpace::Srgb);
+                g.cubemapResource = RENDER3D::LoadCubemapResource(
+                    "sky_renderer/scene_sky_cube",
+                    path,
+                    RENDER3D::TextureResourceColorSpace::Srgb);
+                g.cubemapHandle = RENDER3D::GetTextureResourceBackendHandle(g.cubemapResource);
                 if (g.cubemapHandle < 0) {
                     std::ostringstream oss;
                     oss << "[SkyRenderer][WARN] Cubemap load failed. Falling back to Gradient sky. skyAsset="
@@ -296,7 +315,7 @@ namespace HIKARI::SKYRENDERER {
                     HIKARI_LOG_WARN(oss.str());
                 }
             }
-            return g.cubemapHandle;
+            return g.cubemapResource;
         }
     }
 
@@ -309,6 +328,8 @@ namespace HIKARI::SKYRENDERER {
         g.debug.textureValid = false;
         g.debug.drawCount = 0;
         g.debug.mode = SkyMode::None;
+        g.debug.cubemapResource = {};
+        g.debug.textureResource = {};
         g.debug.cubemapHandle = -1;
         g.debug.textureHandle = -1;
     }
@@ -316,26 +337,23 @@ namespace HIKARI::SKYRENDERER {
     void InvalidateSkyTextureCache()
     {
 		// 既にロードされているテクスチャがあれば解放する
-        if (g.textureHandle >= 0) {
-            DXTEX::DxTextureManager::ReleaseTextureDeferred(g.textureHandle);
-        }
-		// キューブマップがテクスチャと同じハンドルでない場合のみ解放する
-        if (g.cubemapHandle >= 0 && g.cubemapHandle != g.textureHandle) {
-            DXTEX::DxTextureManager::ReleaseTextureDeferred(g.cubemapHandle);
-        }
+        RENDER3D::ReleaseTextureResource(g.textureResource);
+        // リソース層に登録されたキューブマップを解放する。
+        RENDER3D::ReleaseTextureResource(g.cubemapResource);
 
         g.loadedTexturePath.clear();
         g.loadedCubemapPath.clear();
 
+        g.textureResource = {};
+        g.cubemapResource = {};
         g.textureHandle = -1;
         g.cubemapHandle = -1;
 
+        g.debug.textureResource = {};
+        g.debug.cubemapResource = {};
         g.debug.textureHandle = -1;
         g.debug.cubemapHandle = -1;
         g.debug.activeTexturePath.clear();
-
-        DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky");
-        DXTEX::DxTextureManager::InvalidateTextureCacheByName("sky_renderer/scene_sky_cube");
     }
 
     void Render(const Camera3D& camera, const SceneEnvironment& environment, ModelManager&, SkyManager& skyManager) {
@@ -350,21 +368,21 @@ namespace HIKARI::SKYRENDERER {
             return;
         }
 
-        int texture2DHandle = g.fallbackTextureHandle;
-        int cubemapHandle = -1;
+        RENDER3D::TextureResourceHandle texture2DResource = g.fallbackTextureResource;
+        RENDER3D::TextureResourceHandle cubemapResource{};
         SkyMode renderMode = settings.mode;
 
         if (settings.mode == SkyMode::Texture2D) {
-            const int resolved = ResolveTexture2D(settings, skyManager);
-            if (resolved >= 0) {
-                texture2DHandle = resolved;
+            const RENDER3D::TextureResourceHandle resolved = ResolveTexture2D(settings, skyManager);
+            if (RENDER3D::IsTextureResourceValid(resolved)) {
+                texture2DResource = resolved;
             } else {
                 g.debug.usingFallback = true;
                 renderMode = SkyMode::Gradient;
             }
         } else if (settings.mode == SkyMode::Cubemap) {
-            cubemapHandle = ResolveCubemap(settings, skyManager);
-            if (cubemapHandle < 0) {
+            cubemapResource = ResolveCubemap(settings, skyManager);
+            if (!RENDER3D::IsTextureResourceValid(cubemapResource)) {
                 g.debug.usingFallback = true;
                 renderMode = SkyMode::Gradient;
             }
@@ -401,17 +419,19 @@ namespace HIKARI::SKYRENDERER {
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->SetGraphicsRootConstantBufferView(0, g.cb->GetGPUVirtualAddress());
 
-        ID3D12DescriptorHeap* srvHeap = DXTEX::DxTextureManager::GetSrvHeap();
+        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
             cmd->SetDescriptorHeaps(1, heaps);
         }
 
-        const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(texture2DHandle);
+        const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
+            RENDER3D::GetTextureResourceSrvGpuHandle(texture2DResource);
         if (textureSrv.ptr != 0) {
             cmd->SetGraphicsRootDescriptorTable(1, textureSrv);
         }
-        const D3D12_GPU_DESCRIPTOR_HANDLE cubeSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(cubemapHandle);
+        const D3D12_GPU_DESCRIPTOR_HANDLE cubeSrv =
+            RENDER3D::GetTextureResourceSrvGpuHandle(cubemapResource);
         if (cubeSrv.ptr != 0) {
             cmd->SetGraphicsRootDescriptorTable(2, cubeSrv);
         } else if (textureSrv.ptr != 0) {
@@ -420,9 +440,11 @@ namespace HIKARI::SKYRENDERER {
         }
 
         g.debug.textureValid = (textureSrv.ptr != 0) || (cubeSrv.ptr != 0) || renderMode == SkyMode::Gradient;
-        g.debug.cubemapLoaded = (cubemapHandle >= 0 && cubeSrv.ptr != 0);
-        g.debug.cubemapHandle = cubemapHandle;
-        g.debug.textureHandle = texture2DHandle;
+        g.debug.cubemapLoaded = (RENDER3D::IsTextureResourceValid(cubemapResource) && cubeSrv.ptr != 0);
+        g.debug.cubemapResource = cubemapResource;
+        g.debug.textureResource = texture2DResource;
+        g.debug.cubemapHandle = RENDER3D::GetTextureResourceBackendHandle(cubemapResource);
+        g.debug.textureHandle = RENDER3D::GetTextureResourceBackendHandle(texture2DResource);
         g.debug.mode = renderMode;
 
 
@@ -431,8 +453,10 @@ namespace HIKARI::SKYRENDERER {
         g.environmentData.hasCubemap = g.debug.cubemapLoaded;
         g.environmentData.usingFallback = g.debug.usingFallback;
         g.environmentData.mode = renderMode;
-        g.environmentData.cubemapHandle = cubemapHandle;
-        g.environmentData.textureHandle = texture2DHandle;
+        g.environmentData.cubemapResource = cubemapResource;
+        g.environmentData.textureResource = texture2DResource;
+        g.environmentData.cubemapHandle = g.debug.cubemapHandle;
+        g.environmentData.textureHandle = g.debug.textureHandle;
         g.environmentData.cubemapSrv = cubeSrv;
         g.environmentData.zenithColor = {
             settings.zenithColor.x * settings.tint.x,

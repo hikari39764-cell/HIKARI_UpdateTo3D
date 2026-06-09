@@ -1,6 +1,7 @@
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <string_view>
 #include <unordered_set>
@@ -9,6 +10,9 @@
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawCommandBuilder.h"
+#include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
+#include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
@@ -52,15 +56,38 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return static_cast<uint64_t>(static_cast<int64_t>(value) + 0x100000000ll);
         }
 
-        uint64_t BuildModelKey(const ModelAsset* model) {
+        uint64_t BuildStableStringKey(std::string_view tag, const std::string& value) {
+            if (value.empty()) {
+                return 0;
+            }
+            uint64_t key = HashString(tag);
+            key = HashAppend(key, HashString(value));
+            return key;
+        }
+
+        uint64_t BuildModelKey(const SurfaceDrawPacket& packet) {
+            if (packet.renderModel != nullptr) {
+                if (const uint64_t sourceNameKey = BuildStableStringKey("render-model-name", packet.renderModel->sourceName);
+                    sourceNameKey != 0) {
+                    return sourceNameKey;
+                }
+                if (const uint64_t sourcePathKey = BuildStableStringKey("render-model-path", packet.renderModel->sourcePath);
+                    sourcePathKey != 0) {
+                    return sourcePathKey;
+                }
+            }
+
+            const ModelAsset* model = packet.model;
             if (model == nullptr) {
                 return 0;
             }
-            if (!model->id.value.empty()) {
-                return HashString(model->id.value);
+            if (const uint64_t modelNameKey = BuildStableStringKey("model-name", model->id.value);
+                modelNameKey != 0) {
+                return modelNameKey;
             }
-            if (!model->sourcePath.empty()) {
-                return HashString(model->sourcePath);
+            if (const uint64_t modelPathKey = BuildStableStringKey("model-path", model->sourcePath);
+                modelPathKey != 0) {
+                return modelPathKey;
             }
             return HashPointer(model);
         }
@@ -112,24 +139,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
 
             const MaterialAsset* materialAsset = ResolveMaterialAsset(packet);
-            const uint64_t modelKey = BuildModelKey(packet.model);
+            const uint64_t modelKey = BuildModelKey(packet);
 
-            std::string_view shaderProfile = "PBR";
-            uint32_t featureBits = 0;
-            bool doubleSided = false;
-            AlphaMode alphaMode = AlphaMode::Opaque;
-            if (packet.materialOverride != nullptr) {
-                shaderProfile = packet.materialOverride->GetShaderProfileId();
-                if (shaderProfile.empty()) {
-                    shaderProfile = "PBR";
-                }
-                featureBits = packet.materialOverride->GetFeatureBits();
-            } else if (materialAsset != nullptr) {
-                shaderProfile = materialAsset->shaderProfileId.empty() ? std::string_view("PBR") : std::string_view(materialAsset->shaderProfileId);
-                featureBits = materialAsset->featureBits;
-                doubleSided = materialAsset->doubleSided;
-                alphaMode = materialAsset->alphaMode;
-            }
+            const SurfaceDrawShaderRoute shaderRoute = ResolveSurfaceDrawShaderRoute(
+                packet.materialOverride,
+                materialAsset,
+                packet.materialFxProfileId);
+            const std::string& shaderProfile = shaderRoute.shaderProfileId;
+            const uint32_t featureBits = shaderRoute.featureBits;
+            const bool doubleSided = shaderRoute.doubleSided;
+            const AlphaMode alphaMode = shaderRoute.alphaMode;
 
             key.modelKey = modelKey;
             key.geometryKey = HashString("geometry");
@@ -169,6 +188,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             key.alphaMasked = alphaMode == AlphaMode::Mask;
             key.transparent = alphaMode == AlphaMode::Blend;
             key.resourceKeyValid = modelKey != 0 && key.geometryKey != 0 && key.materialKey != 0;
+            key.objectDataCompatible = shaderRoute.objectDataCompatible;
+            key.depthAwareMaterialFx = shaderRoute.depthAwareMaterialFx;
             return key;
         }
 
@@ -192,13 +213,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 return lhs.textureSetKey < rhs.textureSetKey;
             }
             return lhs.sortKey < rhs.sortKey;
-        }
-
-        bool IsSameSubmitRun(const SurfaceDrawPacketKey& lhs, const SurfaceDrawPacketKey& rhs) {
-            return
-                lhs.passMask == rhs.passMask &&
-                lhs.psoKey == rhs.psoKey &&
-                lhs.geometryKey == rhs.geometryKey;
         }
 
         bool IsSortCandidate(const SurfaceDrawPacket& packet) {
@@ -316,13 +330,227 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         bool IsPacketCulledByCamera(
             const SurfaceDrawPacket& packet,
-            const SurfaceDrawPacketSubmitOptions& options) {
+            const SurfaceDrawPacketPlanOptions& options) {
 
             if (!options.enableFrustumCulling || !options.hasCameraViewProj) {
                 return false;
             }
             // world bounds は既に world 空間なので viewProjection だけで判定する。
             return !BOUNDS::IntersectsClipFrustum(packet.worldBounds, options.cameraViewProj);
+        }
+
+        MATH::Vec3 GetBoundsCenter(const Bounds& bounds) {
+            return {
+                (bounds.min.x + bounds.max.x) * 0.5f,
+                (bounds.min.y + bounds.max.y) * 0.5f,
+                (bounds.min.z + bounds.max.z) * 0.5f,
+            };
+        }
+
+        float ResolveTransparentViewDepth(
+            const SurfaceDrawPacket& packet,
+            const SurfaceDrawPacketPlanOptions& options) {
+
+            if (!options.hasCameraView || !BOUNDS::IsUsable(packet.worldBounds)) {
+                return 0.0f;
+            }
+
+            const MATH::Vec3 center = GetBoundsCenter(packet.worldBounds);
+            const MATH::Vec4 viewCenter =
+                options.cameraView.TransformPoint({ center.x, center.y, center.z, 1.0f });
+            return std::isfinite(viewCenter.z) ? viewCenter.z : 0.0f;
+        }
+
+        struct TransparentDepthSortEntry {
+            uint32_t packetIndex = 0;
+            uint32_t originalOrdinal = 0;
+            uint32_t sourceSurfaceInstanceIndex = 0;
+            float viewDepth = 0.0f;
+        };
+
+        void SortTransparentDepthEntries(
+            std::vector<TransparentDepthSortEntry>& entries,
+            const SurfaceDrawPacketPlanOptions& options,
+            SurfaceDrawPacketPlanStats& stats) {
+
+            stats.transparentDepthSortCandidateCount = ClampToUint32(entries.size());
+            if (!options.hasCameraView) {
+                stats.transparentDepthSortFallbackPacketCount = ClampToUint32(entries.size());
+                return;
+            }
+
+            // HIKARI は右手系 view 空間なので、より小さい z を遠方として先に描画する。
+            std::stable_sort(
+                entries.begin(),
+                entries.end(),
+                [](const TransparentDepthSortEntry& lhs, const TransparentDepthSortEntry& rhs) {
+                    if (lhs.viewDepth != rhs.viewDepth) {
+                        return lhs.viewDepth < rhs.viewDepth;
+                    }
+                    return lhs.sourceSurfaceInstanceIndex < rhs.sourceSurfaceInstanceIndex;
+                });
+
+            stats.transparentDepthSortedPacketCount = ClampToUint32(entries.size());
+            for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex) {
+                if (entries[entryIndex].originalOrdinal != entryIndex) {
+                    ++stats.transparentDepthReorderedPacketCount;
+                }
+            }
+        }
+
+        void RecordForwardRejectReason(
+            SurfaceDrawRouteRejectReason reason,
+            SurfaceDrawPacketPlanStats* stats) {
+
+            if (stats == nullptr) {
+                return;
+            }
+
+            switch (reason) {
+            case SurfaceDrawRouteRejectReason::NoForward:
+                ++stats->skippedNoForwardPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidPacket:
+                ++stats->skippedInvalidPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidResourceKey:
+                ++stats->skippedInvalidResourceKeyCount;
+                break;
+            case SurfaceDrawRouteRejectReason::LegacyShader:
+                ++stats->skippedLegacyShaderPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::DepthAwareMaterialFx:
+                ++stats->skippedDepthAwarePacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::RuntimeAnimation:
+                ++stats->skippedRuntimeAnimationPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::SpecialDebug:
+                ++stats->skippedSpecialDebugPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::Skinned:
+                ++stats->skippedSkinnedPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::Transparent:
+                ++stats->skippedTransparentPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::AlphaMasked:
+                ++stats->skippedAlphaMaskedPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidPrimitive:
+                ++stats->skippedInvalidPrimitiveCount;
+                break;
+            case SurfaceDrawRouteRejectReason::None:
+            case SurfaceDrawRouteRejectReason::NoShadow:
+            default:
+                break;
+            }
+        }
+
+        void RecordRouteBucket(
+            SurfaceDrawRouteRejectReason reason,
+            const SurfaceDrawPacket& packet,
+            SurfaceDrawRouteBucketStats& stats) {
+
+            const SurfaceDrawRouteBucket bucket = GetSurfaceDrawRouteBucket(reason);
+            switch (bucket) {
+            case SurfaceDrawRouteBucket::MainRoute:
+                ++stats.mainRoutePacketCount;
+                if (packet.key.transparent) {
+                    ++stats.mainTransparentPacketCount;
+                } else if (packet.key.alphaMasked) {
+                    ++stats.mainAlphaMaskPacketCount;
+                } else {
+                    ++stats.mainOpaquePacketCount;
+                }
+                break;
+            case SurfaceDrawRouteBucket::NoPass:
+                ++stats.noPassPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::AlphaMask:
+                ++stats.alphaMaskPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::Transparent:
+                ++stats.transparentPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::DepthAwareMaterialFx:
+                ++stats.depthAwarePacketCount;
+                break;
+            case SurfaceDrawRouteBucket::RuntimeSpecial:
+                ++stats.runtimeSpecialPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::Skinned:
+                ++stats.skinnedPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::LegacyShader:
+                ++stats.legacyShaderPacketCount;
+                break;
+            case SurfaceDrawRouteBucket::Invalid:
+            default:
+                ++stats.invalidPacketCount;
+                break;
+            }
+        }
+
+        void RecordForwardRouteClassification(
+            SurfaceDrawRouteRejectReason reason,
+            const SurfaceDrawPacket& packet,
+            SurfaceDrawPacketPlanStats& stats) {
+
+            RecordForwardRejectReason(reason, &stats);
+            RecordRouteBucket(reason, packet, stats.forwardRouteBuckets);
+        }
+
+        void RecordShadowRejectReason(
+            SurfaceDrawRouteRejectReason reason,
+            SurfaceDrawPacketPlanStats* stats) {
+
+            if (stats == nullptr) {
+                return;
+            }
+
+            switch (reason) {
+            case SurfaceDrawRouteRejectReason::NoShadow:
+                ++stats->shadowSkippedNoShadowPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidPacket:
+                ++stats->shadowSkippedInvalidPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidResourceKey:
+                ++stats->shadowSkippedInvalidResourceKeyCount;
+                break;
+            case SurfaceDrawRouteRejectReason::RuntimeAnimation:
+                ++stats->shadowSkippedRuntimeAnimationPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::SpecialDebug:
+                ++stats->shadowSkippedSpecialDebugPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::Skinned:
+                ++stats->shadowSkippedSkinnedPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::Transparent:
+                ++stats->shadowSkippedTransparentPacketCount;
+                break;
+            case SurfaceDrawRouteRejectReason::InvalidPrimitive:
+                ++stats->shadowSkippedInvalidPrimitiveCount;
+                break;
+            case SurfaceDrawRouteRejectReason::None:
+            case SurfaceDrawRouteRejectReason::NoForward:
+            case SurfaceDrawRouteRejectReason::LegacyShader:
+            case SurfaceDrawRouteRejectReason::DepthAwareMaterialFx:
+            case SurfaceDrawRouteRejectReason::AlphaMasked:
+            default:
+                break;
+            }
+        }
+
+        void RecordShadowRouteClassification(
+            SurfaceDrawRouteRejectReason reason,
+            const SurfaceDrawPacket& packet,
+            SurfaceDrawPacketPlanStats& stats) {
+
+            RecordShadowRejectReason(reason, &stats);
+            RecordRouteBucket(reason, packet, stats.shadowRouteBuckets);
         }
 
         void CopyMaterialFxValues(const SceneSurfaceInstance& source, SurfaceDrawPacket& packet) {
@@ -411,6 +639,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.worldBounds = surfaceInstance.worldBounds;
         packet.visible = surfaceInstance.visible;
         packet.isStatic = surfaceInstance.isStatic;
+        packet.hasRuntimeAnimation = surfaceInstance.hasRuntimeAnimation;
+        packet.hasSpecialRenderDebug = surfaceInstance.hasSpecialRenderDebug;
         packet.skinned = surfaceInstance.skinned;
         packet.castShadow = surfaceInstance.castShadow;
         packet.receiveShadow = surfaceInstance.receiveShadow;
@@ -420,7 +650,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.materialFxValuesInitialized = surfaceInstance.materialFxValuesInitialized;
         CopyMaterialFxValues(surfaceInstance, packet);
 
-        // ここでは並び替えず、後段が使う key だけを作る。
+        // 縺薙％縺ｧ縺ｯ荳ｦ縺ｳ譖ｿ縺医★縲∝ｾ梧ｮｵ縺御ｽｿ縺・key 縺縺代ｒ菴懊ｋ縲・
         packet.forwardCandidate = packet.visible;
         packet.shadowCandidate = packet.visible && packet.castShadow;
         packet.key.materialIndex = packet.materialIndex;
@@ -429,7 +659,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.key.hasMaterialOverride = packet.materialOverride != nullptr;
         packet.key.skinned = packet.skinned;
         packet.key.passMask = BuildPassMask(packet);
-        // 後段 sorter 用の論理キーだけを作る。
+        // 蠕梧ｮｵ sorter 逕ｨ縺ｮ隲也炊繧ｭ繝ｼ縺縺代ｒ菴懊ｋ縲・
         packet.key = BuildPacketKey(packet);
 
         const SurfaceDrawPacketValidationResult validation = ValidatePacket(packet);
@@ -455,7 +685,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
         }
 
-        // 実描画は変えず、後段 batch 用の view だけを安定ソートする。
+        // 螳滓緒逕ｻ縺ｯ螟峨∴縺壹∝ｾ梧ｮｵ batch 逕ｨ縺ｮ view 縺縺代ｒ螳牙ｮ壹た繝ｼ繝医☆繧九・
         std::stable_sort(
             sortedPacketIndices_.begin(),
             sortedPacketIndices_.end(),
@@ -535,7 +765,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 packet.key.resourceKeyValid &&
                 packet.key.transparent &&
                 (packet.forwardCandidate || packet.shadowCandidate)) {
-                ++stats.transparentSortExcludedCount;
+                ++stats.transparentResourceSortExcludedCount;
             }
             if (packet.key.resourceKeyValid) {
                 modelBuckets.insert(packet.key.modelKey);
@@ -607,108 +837,220 @@ namespace HIKARI::RENDER3D::RUNTIME {
         stats_ = stats;
     }
 
-    void SurfaceDrawPacketSubmitter::Submit(
+    void SurfaceDrawPacketPlanner::Build(
         const SurfaceDrawPacketBuilder& builder,
-        const SurfaceDrawPacketSubmitOptions& options,
-        SurfaceDrawPacketSubmitStats& outStats) {
+        const SurfaceDrawPacketPlanOptions& options,
+        SurfaceDrawPacketPlanStats& outStats) {
 
         outStats = {};
         objectCoverage_.clear();
-        handledForwardPrimitivesByObject_.clear();
-        executableForwardPacketIndices_.clear();
-        executableForwardRuns_.clear();
 
         const std::vector<SurfaceDrawPacket>& packets = builder.GetPackets();
         const std::vector<uint32_t>& sortedIndices = builder.GetSortedPacketIndices();
+        SurfaceDrawCommandBuilder forwardOpaqueCommandBuilder(
+            SurfaceDrawCommandPass::Forward,
+            packets,
+            executableForwardOpaquePacketIndices_,
+            executableForwardOpaqueCommands_);
+        SurfaceDrawCommandBuilder forwardTransparentCommandBuilder(
+            SurfaceDrawCommandPass::Forward,
+            packets,
+            executableForwardTransparentPacketIndices_,
+            executableForwardTransparentCommands_);
+        SurfaceDrawCommandBuilder shadowCommandBuilder(
+            SurfaceDrawCommandPass::Shadow,
+            packets,
+            executableShadowPacketIndices_,
+            executableShadowCommands_);
+        forwardOpaqueCommandBuilder.ClearOutput();
+        forwardTransparentCommandBuilder.ClearOutput();
+        shadowCommandBuilder.ClearOutput();
+        forwardOpaqueGpuSceneInstances_.clear();
+        forwardTransparentGpuSceneInstances_.clear();
+        shadowGpuSceneInstances_.clear();
+
         outStats.sourcePacketCount = ClampToUint32(packets.size());
         outStats.sortedPacketCount = ClampToUint32(sortedIndices.size());
 
-        if (!options.useSortedForward || !options.skipOldStaticForwardSubmit) {
+        if (!options.buildForwardPlan && !options.buildShadowPlan) {
             return;
         }
 
         BuildCoverage(packets, outStats);
 
-        const SurfaceDrawPacketKey* currentSubmittedRunKey = nullptr;
-        uint32_t currentSubmittedRunStart = 0;
-        uint32_t currentSubmittedRunLength = 0;
-        auto flushSubmittedRun = [&]() {
-            if (currentSubmittedRunLength == 0) {
-                return;
-            }
-            SurfaceDrawPacketRun run{};
-            run.firstExecutableIndex = currentSubmittedRunStart;
-            run.packetCount = currentSubmittedRunLength;
-            executableForwardRuns_.push_back(run);
-
-            ++outStats.submittedRunCount;
-            if (currentSubmittedRunLength == 1) {
-                ++outStats.submittedSinglePacketRunCount;
-            }
-            outStats.submittedMaxRunPacketCount =
-                (std::max)(outStats.submittedMaxRunPacketCount, currentSubmittedRunLength);
-            currentSubmittedRunKey = nullptr;
-            currentSubmittedRunStart = 0;
-            currentSubmittedRunLength = 0;
-        };
-
-        for (uint32_t packetIndex : sortedIndices) {
-            if (packetIndex >= packets.size()) {
-                flushSubmittedRun();
-                continue;
-            }
-
-            const SurfaceDrawPacket& packet = packets[packetIndex];
-            const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
-            const bool primitiveFallback = !fullCoverage && CanUsePrimitiveFallback(packet);
-            if (!fullCoverage && !primitiveFallback) {
-                if (packet.forwardCandidate && packet.isStatic) {
-                    ++outStats.skippedPartialCoveragePacketCount;
+        if (options.buildForwardPlan && options.bypassLegacyForward) {
+            for (uint32_t packetIndex : sortedIndices) {
+                if (packetIndex >= packets.size()) {
+                    forwardOpaqueCommandBuilder.Flush();
+                    continue;
                 }
-                flushSubmittedRun();
-                continue;
-            }
-            if (!IsSubmitSafePacket(packet, nullptr)) {
-                flushSubmittedRun();
-                continue;
-            }
 
-            ++outStats.candidatePacketCount;
-            if (primitiveFallback) {
-                ++outStats.partialTakeoverPacketCount;
-            }
-            if (IsPacketCulledByCamera(packet, options)) {
-                ++outStats.culledPacketCount;
+                const SurfaceDrawPacket& packet = packets[packetIndex];
+                if (packet.key.transparent) {
+                    forwardOpaqueCommandBuilder.Flush();
+                    continue;
+                }
+                const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
+                if (!fullCoverage) {
+                    if (packet.forwardCandidate) {
+                        ++outStats.skippedPartialCoveragePacketCount;
+                    }
+                    forwardOpaqueCommandBuilder.Flush();
+                    continue;
+                }
+                if (!IsForwardSafePacket(packet, nullptr)) {
+                    forwardOpaqueCommandBuilder.Flush();
+                    continue;
+                }
+
+                ++outStats.candidatePacketCount;
+                if (IsPacketCulledByCamera(packet, options)) {
+                    ++outStats.culledPacketCount;
+                    ++outStats.handledForwardPacketCount;
+                    forwardOpaqueCommandBuilder.Flush();
+                    continue;
+                }
+
+                // executor が直接描画する packet だけを登録する。
+                forwardOpaqueCommandBuilder.AppendPacket(packetIndex);
+                ++outStats.submittedForwardPacketCount;
+                ++outStats.submittedForwardOpaquePacketCount;
                 ++outStats.handledForwardPacketCount;
-                if (primitiveFallback) {
-                    RecordHandledForwardPrimitive(packet, outStats);
+            }
+            forwardOpaqueCommandBuilder.Flush();
+
+            std::vector<TransparentDepthSortEntry> transparentDepthEntries{};
+            transparentDepthEntries.reserve(packets.size());
+            uint32_t transparentOrdinal = 0;
+            for (size_t rawPacketIndex = 0; rawPacketIndex < packets.size(); ++rawPacketIndex) {
+                if (rawPacketIndex > static_cast<size_t>((std::numeric_limits<uint32_t>::max)())) {
+                    break;
                 }
-                flushSubmittedRun();
-                continue;
+
+                const uint32_t packetIndex = static_cast<uint32_t>(rawPacketIndex);
+                const SurfaceDrawPacket& packet = packets[packetIndex];
+                if (!packet.forwardCandidate || !packet.key.transparent) {
+                    continue;
+                }
+
+                const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
+                if (!fullCoverage) {
+                    ++outStats.skippedPartialCoveragePacketCount;
+                    forwardTransparentCommandBuilder.Flush();
+                    continue;
+                }
+                if (!IsForwardSafePacket(packet, nullptr)) {
+                    forwardTransparentCommandBuilder.Flush();
+                    continue;
+                }
+
+                ++outStats.candidatePacketCount;
+                if (IsPacketCulledByCamera(packet, options)) {
+                    ++outStats.culledPacketCount;
+                    ++outStats.handledForwardPacketCount;
+                    continue;
+                }
+
+                transparentDepthEntries.push_back({
+                    packetIndex,
+                    transparentOrdinal,
+                    packet.sourceSurfaceInstanceIndex,
+                    ResolveTransparentViewDepth(packet, options),
+                });
+                ++transparentOrdinal;
             }
 
-            if (currentSubmittedRunKey == nullptr ||
-                !IsSameSubmitRun(packet.key, *currentSubmittedRunKey)) {
-                flushSubmittedRun();
-                currentSubmittedRunKey = &packet.key;
-                currentSubmittedRunStart = ClampToUint32(executableForwardPacketIndices_.size());
+            SortTransparentDepthEntries(transparentDepthEntries, options, outStats);
+            for (const TransparentDepthSortEntry& entry : transparentDepthEntries) {
+                // Transparent は深度順を優先し、その上で隣接する同一 geometry だけを batch 化する。
+                forwardTransparentCommandBuilder.AppendPacket(entry.packetIndex);
+                ++outStats.submittedForwardPacketCount;
+                ++outStats.submittedForwardTransparentPacketCount;
+                ++outStats.handledForwardPacketCount;
             }
-            ++currentSubmittedRunLength;
+            forwardTransparentCommandBuilder.Flush();
+            const SurfaceDrawCommandBuildStats& opaqueCommandStats = forwardOpaqueCommandBuilder.GetStats();
+            const SurfaceDrawCommandBuildStats& transparentCommandStats = forwardTransparentCommandBuilder.GetStats();
+            outStats.submittedOpaqueCommandCount = opaqueCommandStats.commandCount;
+            outStats.submittedOpaqueSinglePacketCommandCount = opaqueCommandStats.singlePacketCommandCount;
+            outStats.submittedOpaqueMaxCommandPacketCount = opaqueCommandStats.maxCommandPacketCount;
+            outStats.submittedTransparentCommandCount = transparentCommandStats.commandCount;
+            outStats.submittedTransparentSinglePacketCommandCount = transparentCommandStats.singlePacketCommandCount;
+            outStats.submittedTransparentMaxCommandPacketCount = transparentCommandStats.maxCommandPacketCount;
+            outStats.submittedCommandCount =
+                opaqueCommandStats.commandCount + transparentCommandStats.commandCount;
+            outStats.submittedSinglePacketCommandCount =
+                opaqueCommandStats.singlePacketCommandCount + transparentCommandStats.singlePacketCommandCount;
+            outStats.submittedMaxCommandPacketCount =
+                (std::max)(opaqueCommandStats.maxCommandPacketCount, transparentCommandStats.maxCommandPacketCount);
 
-            // executor で直接描画する packet だけを記録する。
-            executableForwardPacketIndices_.push_back(packetIndex);
-            ++outStats.submittedForwardPacketCount;
-            ++outStats.handledForwardPacketCount;
-            if (primitiveFallback) {
-                RecordHandledForwardPrimitive(packet, outStats);
-            }
+            const SurfaceGpuSceneBuildStats opaqueGpuSceneStats =
+                SurfaceGpuSceneWriter::BuildCommandRanges(
+                    packets,
+                    executableForwardOpaquePacketIndices_,
+                    executableForwardOpaqueCommands_,
+                    forwardOpaqueGpuSceneInstances_);
+            const SurfaceGpuSceneBuildStats transparentGpuSceneStats =
+                SurfaceGpuSceneWriter::BuildCommandRanges(
+                    packets,
+                    executableForwardTransparentPacketIndices_,
+                    executableForwardTransparentCommands_,
+                    forwardTransparentGpuSceneInstances_);
+            outStats.submittedOpaqueGpuSceneInstanceCount = opaqueGpuSceneStats.instanceCount;
+            outStats.submittedTransparentGpuSceneInstanceCount = transparentGpuSceneStats.instanceCount;
+            outStats.submittedGpuSceneInstanceCount =
+                opaqueGpuSceneStats.instanceCount + transparentGpuSceneStats.instanceCount;
+            outStats.submittedMaxGpuSceneCommandInstanceCount =
+                (std::max)(opaqueGpuSceneStats.maxCommandInstanceCount, transparentGpuSceneStats.maxCommandInstanceCount);
         }
-        flushSubmittedRun();
-        outStats.handledPrimitiveObjectCount =
-            ClampToUint32(handledForwardPrimitivesByObject_.size());
+
+
+        if (options.buildShadowPlan && options.bypassLegacyShadow) {
+            for (uint32_t packetIndex : sortedIndices) {
+                if (packetIndex >= packets.size()) {
+                    shadowCommandBuilder.Flush();
+                    continue;
+                }
+
+                const SurfaceDrawPacket& packet = packets[packetIndex];
+                const bool fullCoverage = HasFullShadowCoverageForObject(packet.objectId);
+                if (!fullCoverage) {
+                    if (packet.shadowCandidate) {
+                        ++outStats.shadowSkippedPartialCoveragePacketCount;
+                    }
+                    shadowCommandBuilder.Flush();
+                    continue;
+                }
+                if (!IsShadowSafePacket(packet, nullptr)) {
+                    shadowCommandBuilder.Flush();
+                    continue;
+                }
+
+                ++outStats.shadowCandidatePacketCount;
+                // shadow pass も submit queue を経由せず、plan から直接実行する。
+                shadowCommandBuilder.AppendPacket(packetIndex);
+                ++outStats.plannedShadowPacketCount;
+                ++outStats.handledShadowPacketCount;
+            }
+            shadowCommandBuilder.Flush();
+            const SurfaceDrawCommandBuildStats& commandStats = shadowCommandBuilder.GetStats();
+            outStats.shadowCommandCount = commandStats.commandCount;
+            outStats.shadowSinglePacketCommandCount = commandStats.singlePacketCommandCount;
+            outStats.shadowMaxCommandPacketCount = commandStats.maxCommandPacketCount;
+
+            const SurfaceGpuSceneBuildStats shadowGpuSceneStats =
+                SurfaceGpuSceneWriter::BuildCommandRanges(
+                    packets,
+                    executableShadowPacketIndices_,
+                    executableShadowCommands_,
+                    shadowGpuSceneInstances_);
+            outStats.shadowGpuSceneInstanceCount = shadowGpuSceneStats.instanceCount;
+            outStats.shadowMaxGpuSceneCommandInstanceCount =
+                shadowGpuSceneStats.maxCommandInstanceCount;
+        }
     }
 
-    bool SurfaceDrawPacketSubmitter::HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const {
+    bool SurfaceDrawPacketPlanner::HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const {
         if (!objectId.IsValid()) {
             return false;
         }
@@ -723,172 +1065,123 @@ namespace HIKARI::RENDER3D::RUNTIME {
             coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount;
     }
 
-    const std::vector<SurfaceDrawPacketHandledPrimitive>* SurfaceDrawPacketSubmitter::GetHandledForwardPrimitivesForObject(
-        SceneRenderObjectId objectId) const {
+    const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaquePacketIndices() const {
+        return executableForwardOpaquePacketIndices_;
+    }
 
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaqueCommands() const {
+        return executableForwardOpaqueCommands_;
+    }
+
+    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardOpaqueGpuSceneInstances() const {
+        return forwardOpaqueGpuSceneInstances_;
+    }
+
+    const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentPacketIndices() const {
+        return executableForwardTransparentPacketIndices_;
+    }
+
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentCommands() const {
+        return executableForwardTransparentCommands_;
+    }
+
+    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardTransparentGpuSceneInstances() const {
+        return forwardTransparentGpuSceneInstances_;
+    }
+
+    bool SurfaceDrawPacketPlanner::HasFullShadowCoverageForObject(SceneRenderObjectId objectId) const {
         if (!objectId.IsValid()) {
-            return nullptr;
+            return false;
         }
-        const auto found = handledForwardPrimitivesByObject_.find(objectId.value);
-        if (found == handledForwardPrimitivesByObject_.end() || found->second.empty()) {
-            return nullptr;
+        const auto found = objectCoverage_.find(objectId.value);
+        if (found == objectCoverage_.end()) {
+            return false;
         }
-        return &found->second;
+
+        const ObjectCoverage& coverage = found->second;
+        return
+            coverage.expectedShadowPacketCount > 0 &&
+            coverage.safeShadowPacketCount == coverage.expectedShadowPacketCount;
     }
 
-    const std::vector<uint32_t>& SurfaceDrawPacketSubmitter::GetExecutableForwardPacketIndices() const {
-        return executableForwardPacketIndices_;
+    const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableShadowPacketIndices() const {
+        return executableShadowPacketIndices_;
     }
 
-    const std::vector<SurfaceDrawPacketRun>& SurfaceDrawPacketSubmitter::GetExecutableForwardRuns() const {
-        return executableForwardRuns_;
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableShadowCommands() const {
+        return executableShadowCommands_;
     }
 
-    bool SurfaceDrawPacketSubmitter::IsSubmitSafePacket(
+    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetShadowGpuSceneInstances() const {
+        return shadowGpuSceneInstances_;
+    }
+
+    bool SurfaceDrawPacketPlanner::IsForwardSafePacket(
         const SurfaceDrawPacket& packet,
-        SurfaceDrawPacketSubmitStats* stats) const {
+        SurfaceDrawPacketPlanStats* stats) const {
 
-        if (!packet.forwardCandidate) {
-            if (stats != nullptr) {
-                ++stats->skippedNoForwardPacketCount;
-            }
-            return false;
-        }
-        if (!packet.isStatic) {
-            if (stats != nullptr) {
-                ++stats->skippedDynamicPacketCount;
-            }
-            return false;
-        }
-        if (!packet.valid) {
-            if (stats != nullptr) {
-                ++stats->skippedInvalidPacketCount;
-            }
-            return false;
-        }
-        if (!packet.key.resourceKeyValid) {
-            if (stats != nullptr) {
-                ++stats->skippedInvalidResourceKeyCount;
-            }
-            return false;
-        }
-        if (packet.skinned) {
-            if (stats != nullptr) {
-                ++stats->skippedSkinnedPacketCount;
-            }
-            return false;
-        }
-        if (packet.key.transparent) {
-            if (stats != nullptr) {
-                ++stats->skippedTransparentPacketCount;
-            }
-            return false;
-        }
-        if (packet.key.alphaMasked) {
-            if (stats != nullptr) {
-                ++stats->skippedAlphaMaskedPacketCount;
-            }
-            return false;
-        }
-        if (!HasValidSubmitPrimitiveTarget(packet)) {
-            if (stats != nullptr) {
-                ++stats->skippedInvalidPrimitiveCount;
-            }
-            return false;
-        }
-        return true;
+        const SurfaceDrawRouteRejectReason reason = ClassifyForwardSurfaceDrawRoute(packet);
+        RecordForwardRejectReason(reason, stats);
+        return IsSurfaceDrawRouteAccepted(reason);
     }
 
-    bool SurfaceDrawPacketSubmitter::CanUsePrimitiveFallback(const SurfaceDrawPacket& packet) const {
-        if (!packet.objectId.IsValid() ||
-            packet.model == nullptr ||
-            packet.nodeIndex == kInvalidRenderSurfaceIndex ||
-            packet.meshIndex == kInvalidRenderSurfaceIndex ||
-            packet.primitiveIndex == kInvalidRenderSurfaceIndex ||
-            packet.nodeIndex >= packet.model->nodes.size() ||
-            packet.meshIndex >= packet.model->meshes.size()) {
-            return false;
-        }
-
-        const ModelNode& node = packet.model->nodes[packet.nodeIndex];
-        if (node.skinIndex >= 0 || node.meshIndex < 0 ||
-            static_cast<uint32_t>(node.meshIndex) != packet.meshIndex) {
-            return false;
-        }
-
-        const MeshAsset& mesh = packet.model->meshes[packet.meshIndex];
-        return packet.primitiveIndex < mesh.primitives.size();
-    }
-
-    void SurfaceDrawPacketSubmitter::RecordHandledForwardPrimitive(
+    bool SurfaceDrawPacketPlanner::IsShadowSafePacket(
         const SurfaceDrawPacket& packet,
-        SurfaceDrawPacketSubmitStats& stats) {
+        SurfaceDrawPacketPlanStats* stats) const {
 
-        if (!CanUsePrimitiveFallback(packet)) {
-            return;
-        }
-
-        SurfaceDrawPacketHandledPrimitive handled{};
-        handled.nodeIndex = packet.nodeIndex;
-        handled.meshIndex = packet.meshIndex;
-        handled.primitiveIndex = packet.primitiveIndex;
-
-        std::vector<SurfaceDrawPacketHandledPrimitive>& primitives =
-            handledForwardPrimitivesByObject_[packet.objectId.value];
-        const auto duplicate = std::find_if(
-            primitives.begin(),
-            primitives.end(),
-            [&handled](const SurfaceDrawPacketHandledPrimitive& existing) {
-                return
-                    existing.nodeIndex == handled.nodeIndex &&
-                    existing.meshIndex == handled.meshIndex &&
-                    existing.primitiveIndex == handled.primitiveIndex;
-            });
-        if (duplicate != primitives.end()) {
-            return;
-        }
-
-        primitives.push_back(handled);
-        ++stats.handledPrimitiveCount;
+        const SurfaceDrawRouteRejectReason reason = ClassifyShadowSurfaceDrawRoute(packet);
+        RecordShadowRejectReason(reason, stats);
+        return IsSurfaceDrawRouteAccepted(reason);
     }
 
-    void SurfaceDrawPacketSubmitter::BuildCoverage(
+    void SurfaceDrawPacketPlanner::BuildCoverage(
         const std::vector<SurfaceDrawPacket>& packets,
-        SurfaceDrawPacketSubmitStats& stats) {
+        SurfaceDrawPacketPlanStats& stats) {
 
         for (const SurfaceDrawPacket& packet : packets) {
-            if (!packet.forwardCandidate) {
-                ++stats.skippedNoForwardPacketCount;
-                continue;
-            }
-            if (!packet.isStatic) {
-                ++stats.skippedDynamicPacketCount;
-                continue;
-            }
-            if (!packet.objectId.IsValid()) {
-                ++stats.skippedInvalidPacketCount;
-                continue;
+            const SurfaceDrawRouteRejectReason forwardReason = ClassifyForwardSurfaceDrawRoute(packet);
+            RecordForwardRouteClassification(forwardReason, packet, stats);
+            if (packet.forwardCandidate && packet.objectId.IsValid()) {
+                ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
+                ++coverage.expectedForwardPacketCount;
+                if (IsSurfaceDrawRouteAccepted(forwardReason)) {
+                    ++coverage.safeForwardPacketCount;
+                }
             }
 
-            ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
-            ++coverage.expectedForwardPacketCount;
-            if (IsSubmitSafePacket(packet, &stats)) {
-                ++coverage.safeForwardPacketCount;
+            const SurfaceDrawRouteRejectReason shadowReason = ClassifyShadowSurfaceDrawRoute(packet);
+            RecordShadowRouteClassification(shadowReason, packet, stats);
+            if (packet.shadowCandidate && packet.objectId.IsValid()) {
+                ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
+                ++coverage.expectedShadowPacketCount;
+                if (IsSurfaceDrawRouteAccepted(shadowReason)) {
+                    ++coverage.safeShadowPacketCount;
+                }
             }
         }
 
-        stats.candidateObjectCount = ClampToUint32(objectCoverage_.size());
         for (const auto& [objectId, coverage] : objectCoverage_) {
             (void)objectId;
-            if (coverage.expectedForwardPacketCount == 0) {
-                continue;
+            if (coverage.expectedForwardPacketCount > 0) {
+                ++stats.candidateObjectCount;
+                if (coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount) {
+                    ++stats.fullCoverageObjectCount;
+                } else if (coverage.safeForwardPacketCount > 0) {
+                    ++stats.partialCoverageObjectCount;
+                } else {
+                    ++stats.runtimeSpecialObjectCount;
+                }
             }
-            if (coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount) {
-                ++stats.fullCoverageObjectCount;
-            } else if (coverage.safeForwardPacketCount > 0) {
-                ++stats.partialCoverageObjectCount;
-            } else {
-                ++stats.fallbackObjectCount;
+
+            if (coverage.expectedShadowPacketCount > 0) {
+                ++stats.shadowCandidateObjectCount;
+                if (coverage.safeShadowPacketCount == coverage.expectedShadowPacketCount) {
+                    ++stats.shadowFullCoverageObjectCount;
+                } else if (coverage.safeShadowPacketCount > 0) {
+                    ++stats.shadowPartialCoverageObjectCount;
+                } else {
+                    ++stats.shadowRuntimeSpecialObjectCount;
+                }
             }
         }
     }

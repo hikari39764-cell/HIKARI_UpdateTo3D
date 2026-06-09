@@ -27,9 +27,10 @@ namespace HIKARI::GFX::DESCRIPTOR {
         LightProbeSh = kSystemSrvBegin + 10,
         MeshObjectData = kSystemSrvBegin + 11,
         MeshMaterialData = kSystemSrvBegin + 12,
+        ShadowObjectData = kSystemSrvBegin + 13,
     };
 
-    constexpr UINT kSystemSrvUsedCount = 13;
+    constexpr UINT kSystemSrvUsedCount = 14;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
@@ -80,5 +81,6 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::LightProbeSh) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshObjectData) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshMaterialData) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowObjectData) < kSrvHeapCapacity);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

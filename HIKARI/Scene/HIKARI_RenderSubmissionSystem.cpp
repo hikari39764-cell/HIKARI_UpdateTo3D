@@ -14,6 +14,7 @@
 #include "Render3D/HIKARI_Renderer3D.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
+#include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -21,7 +22,6 @@
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
 #include <utility>
-#include <vector>
 
 namespace HIKARI {
 
@@ -135,7 +135,7 @@ namespace HIKARI {
                 return false;
             }
 
-            // CPU reference は HCMESH 描画が安定するまで旧描画を維持する。
+            // CPU reference は HCMESH 側の描画が安定するまで旧描画を維持する。
             referenceRenderer.RecordFallbackObject(static_cast<uint32_t>(clusteredGeometry->surfaces.size()));
             return false;
         }
@@ -150,17 +150,12 @@ namespace HIKARI {
     }
 
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
-    RenderSubmissionOptions RenderSubmissionSystem::sOptions_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
     RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
     RENDER3D::RUNTIME::SurfaceDrawPacketBuilder RenderSubmissionSystem::sSurfaceDrawPacketBuilder_{};
-    RENDER3D::RUNTIME::SurfaceDrawPacketSubmitter RenderSubmissionSystem::sSurfaceDrawPacketSubmitter_{};
-    RENDER3D::RUNTIME::SurfaceDrawPacketSubmitOptions RenderSubmissionSystem::sSurfaceDrawPacketSubmitOptions_{};
-    RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats RenderSubmissionSystem::sSurfaceDrawPacketSubmitStats_{};
-    RENDER3D::RUNTIME::StaticDrawRecordCache RenderSubmissionSystem::sStaticDrawRecordCache_{};
-    RENDER3D::RUNTIME::StaticRecordSubmitOptions RenderSubmissionSystem::sStaticRecordSubmitOptions_{};
-    RENDER3D::RUNTIME::StaticDrawRecordSubmitter RenderSubmissionSystem::sStaticDrawRecordSubmitter_{};
-    RENDER3D::RUNTIME::StaticDrawRecordSubmitStats RenderSubmissionSystem::sStaticDrawRecordSubmitStats_{};
+    RENDER3D::RUNTIME::SurfaceDrawPacketPlanner RenderSubmissionSystem::sSurfaceDrawPacketPlanner_{};
+    RENDER3D::RUNTIME::SurfaceDrawPacketPlanOptions RenderSubmissionSystem::sSurfaceDrawPacketPlanOptions_{};
+    RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats RenderSubmissionSystem::sSurfaceDrawPacketPlanStats_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
     RenderSubmissionSystem::ClusteredCpuPreviewTarget RenderSubmissionSystem::sClusteredCpuPreviewTarget_{};
 
@@ -190,54 +185,6 @@ namespace HIKARI {
         return sDebugStats_;
     }
 
-    void RenderSubmissionSystem::SetUseStaticDrawRecordCache(bool enabled) {
-        sOptions_.useStaticDrawRecordCache = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsUseStaticDrawRecordCacheEnabled() {
-        return sOptions_.useStaticDrawRecordCache;
-    }
-
-    void RenderSubmissionSystem::SetUseCachedStaticForward(bool enabled) {
-        sOptions_.useCachedStaticForward = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsUseCachedStaticForwardEnabled() {
-        return sOptions_.useCachedStaticForward;
-    }
-
-    void RenderSubmissionSystem::SetUseCachedStaticShadow(bool enabled) {
-        sOptions_.useCachedStaticShadow = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsUseCachedStaticShadowEnabled() {
-        return sOptions_.useCachedStaticShadow;
-    }
-
-    void RenderSubmissionSystem::SetBypassOldStaticModelRenderer(bool enabled) {
-        sOptions_.bypassOldStaticModelRendererWhenFullyCached = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsBypassOldStaticModelRendererEnabled() {
-        return sOptions_.bypassOldStaticModelRendererWhenFullyCached;
-    }
-
-    void RenderSubmissionSystem::SetUseSortedSurfaceForwardPreview(bool enabled) {
-        sOptions_.useSortedSurfaceForwardPreview = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsUseSortedSurfaceForwardPreviewEnabled() {
-        return sOptions_.useSortedSurfaceForwardPreview;
-    }
-
-    void RenderSubmissionSystem::SetSkipOldStaticForwardWhenSortedSurface(bool enabled) {
-        sOptions_.skipOldStaticForwardWhenSortedSurface = enabled;
-    }
-
-    bool RenderSubmissionSystem::IsSkipOldStaticForwardWhenSortedSurfaceEnabled() {
-        return sOptions_.skipOldStaticForwardWhenSortedSurface;
-    }
-
     const RENDER3D::RUNTIME::SceneRenderCache& RenderSubmissionSystem::GetSceneRenderCache() {
         return sSceneRenderCache_;
     }
@@ -254,20 +201,8 @@ namespace HIKARI {
         return sSurfaceDrawPacketBuilder_.GetStats();
     }
 
-    const RENDER3D::RUNTIME::SurfaceDrawPacketSubmitStats& RenderSubmissionSystem::GetSurfaceDrawPacketSubmitStats() {
-        return sSurfaceDrawPacketSubmitStats_;
-    }
-
-    const RENDER3D::RUNTIME::StaticDrawRecordCache& RenderSubmissionSystem::GetStaticDrawRecordCache() {
-        return sStaticDrawRecordCache_;
-    }
-
-    const RENDER3D::RUNTIME::StaticDrawRecordCache::Stats& RenderSubmissionSystem::GetStaticDrawRecordCacheStats() {
-        return sStaticDrawRecordCache_.GetStats();
-    }
-
-    const RENDER3D::RUNTIME::StaticDrawRecordSubmitStats& RenderSubmissionSystem::GetStaticDrawRecordSubmitStats() {
-        return sStaticDrawRecordSubmitStats_;
+    const RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats& RenderSubmissionSystem::GetSurfaceDrawPacketPlanStats() {
+        return sSurfaceDrawPacketPlanStats_;
     }
 
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
@@ -278,16 +213,11 @@ namespace HIKARI {
         sDebugStats_.missingBoundsCount = 0;
         sDebugStats_.skinnedCullSkippedCount = 0;
         sDebugStats_.fallbackWireCount = 0;
-        sDebugStats_.staticCachedForwardSkipCount = 0;
-        sDebugStats_.staticCachedShadowSkipCount = 0;
-        sDebugStats_.staticCachedBypassOldModelRendererCount = 0;
-        sDebugStats_.staticCachedFallbackCount = 0;
-        sDebugStats_.staticCachedCandidateCount = 0;
-        sDebugStats_.staticCachedCulledRecordCount = 0;
-        sDebugStats_.staticCachedSubmittedRecordCount = 0;
-        sDebugStats_.staticCachedSubmittedForwardRecordCount = 0;
-        sDebugStats_.staticCachedSubmittedShadowRecordCount = 0;
-        sDebugStats_.sortedSurfaceForwardSkipCount = 0;
+        sDebugStats_.surfacePacketForwardSkipCount = 0;
+        sDebugStats_.surfacePacketShadowSkipCount = 0;
+        sDebugStats_.runtimeSpecialModelCount = 0;
+        sDebugStats_.runtimeSpecialForwardModelCount = 0;
+        sDebugStats_.runtimeSpecialShadowModelCount = 0;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
 
         RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& clusteredPreview =
@@ -300,73 +230,56 @@ namespace HIKARI {
             MODELRENDERER::GetRenderModelCache(),
             sSceneRenderCache_,
             frame.frameIndex);
-        // scene surface から draw packet 候補だけを構築する。
+        // SceneSurfaceInstance から、実行可能な draw packet view を構築する。
         sSurfaceDrawPacketBuilder_.BuildFromSceneRenderCache(sSceneRenderCache_);
-        // 旧描画経路を変えず、静的 draw record だけを同期する。
-        sStaticDrawRecordCache_.SyncFromSceneRenderCache(sSceneRenderCache_);
 
-        sStaticRecordSubmitOptions_ = {};
         const bool clusteredCpuReferenceActive =
             sClusteredCpuPreviewTarget_.mode == RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference;
-        const bool sortedSurfaceForwardActive =
-            sOptions_.useSortedSurfaceForwardPreview && !clusteredCpuReferenceActive;
-        const bool sortedSurfaceForwardTakeoverActive =
-            sortedSurfaceForwardActive && sOptions_.skipOldStaticForwardWhenSortedSurface;
-        if (sOptions_.useStaticDrawRecordCache) {
-            // CPU Reference 中は forward を HCMESH 側で比較する。
-            sStaticRecordSubmitOptions_.useCachedStaticForward =
-                sOptions_.useCachedStaticForward && !clusteredCpuReferenceActive && !sortedSurfaceForwardTakeoverActive;
-            sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit =
-                sOptions_.skipOldStaticForwardWhenCached && !clusteredCpuReferenceActive && !sortedSurfaceForwardTakeoverActive;
-            sStaticRecordSubmitOptions_.useCachedStaticShadow = sOptions_.useCachedStaticShadow;
-            sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit = sOptions_.skipOldStaticShadowWhenCached;
-            sStaticRecordSubmitOptions_.enableFrustumCulling = true;
-            if (sActiveRenderCamera_ != nullptr) {
-                // Runtime 層へ Camera3D を渡さず、必要な行列だけを渡す。
-                sStaticRecordSubmitOptions_.cameraViewProj = sActiveRenderCamera_->GetViewProj();
-                sStaticRecordSubmitOptions_.hasCameraViewProj = true;
-            }
-        }
+        const bool surfacePacketMainRouteActive = true;
+        const bool surfacePacketForwardActive =
+            surfacePacketMainRouteActive && !clusteredCpuReferenceActive;
+        const bool surfacePacketShadowActive = surfacePacketMainRouteActive;
+        sDebugStats_.surfacePacketMainRouteActive = surfacePacketMainRouteActive;
 
-        sStaticDrawRecordSubmitter_.Submit(
-            sStaticDrawRecordCache_,
-            sStaticRecordSubmitOptions_,
-            sStaticDrawRecordSubmitStats_);
-        sDebugStats_.staticCachedCulledRecordCount =
-            static_cast<int>(sStaticDrawRecordSubmitStats_.culledRecordCount);
-        sDebugStats_.staticCachedSubmittedRecordCount =
-            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedForwardRecordCount);
-        sDebugStats_.staticCachedSubmittedForwardRecordCount =
-            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedForwardRecordCount);
-        sDebugStats_.staticCachedSubmittedShadowRecordCount =
-            static_cast<int>(sStaticDrawRecordSubmitStats_.submittedShadowRecordCount);
-
-        sSurfaceDrawPacketSubmitOptions_ = {};
-        sSurfaceDrawPacketSubmitOptions_.useSortedForward = sortedSurfaceForwardTakeoverActive;
-        sSurfaceDrawPacketSubmitOptions_.skipOldStaticForwardSubmit =
-            sOptions_.skipOldStaticForwardWhenSortedSurface;
-        sSurfaceDrawPacketSubmitOptions_.enableFrustumCulling = true;
+        sSurfaceDrawPacketPlanOptions_ = {};
+        sSurfaceDrawPacketPlanOptions_.buildForwardPlan = surfacePacketForwardActive;
+        sSurfaceDrawPacketPlanOptions_.bypassLegacyForward = surfacePacketForwardActive;
+        sSurfaceDrawPacketPlanOptions_.buildShadowPlan = surfacePacketShadowActive;
+        sSurfaceDrawPacketPlanOptions_.bypassLegacyShadow = surfacePacketShadowActive;
+        sSurfaceDrawPacketPlanOptions_.enableFrustumCulling = true;
         if (sActiveRenderCamera_ != nullptr) {
-            // sorted preview も同じ camera 情報だけを受け取る。
-            sSurfaceDrawPacketSubmitOptions_.cameraViewProj = sActiveRenderCamera_->GetViewProj();
-            sSurfaceDrawPacketSubmitOptions_.hasCameraViewProj = true;
+            // Runtime planner には Camera3D ではなく必要な行列だけを渡す。
+            sSurfaceDrawPacketPlanOptions_.cameraView = sActiveRenderCamera_->GetView();
+            sSurfaceDrawPacketPlanOptions_.cameraViewProj = sActiveRenderCamera_->GetViewProj();
+            sSurfaceDrawPacketPlanOptions_.hasCameraView = true;
+            sSurfaceDrawPacketPlanOptions_.hasCameraViewProj = true;
         }
-        sSurfaceDrawPacketSubmitter_.Submit(
+        sSurfaceDrawPacketPlanner_.Build(
             sSurfaceDrawPacketBuilder_,
-            sSurfaceDrawPacketSubmitOptions_,
-            sSurfaceDrawPacketSubmitStats_);
-        if (sortedSurfaceForwardTakeoverActive) {
-            MESHRENDERER::SetSurfaceDrawPacketExecutionPlan(
+            sSurfaceDrawPacketPlanOptions_,
+            sSurfaceDrawPacketPlanStats_);
+        if (surfacePacketForwardActive) {
+            MESHRENDERER::SetSurfaceDrawPacketExecutionPlans(
                 &sSurfaceDrawPacketBuilder_,
-                &sSurfaceDrawPacketSubmitter_.GetExecutableForwardPacketIndices(),
-                &sSurfaceDrawPacketSubmitter_.GetExecutableForwardRuns());
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardOpaquePacketIndices(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardOpaqueCommands(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardTransparentPacketIndices(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardTransparentCommands());
         } else {
-            MESHRENDERER::SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr);
+            MESHRENDERER::SetSurfaceDrawPacketExecutionPlans(nullptr, nullptr, nullptr, nullptr, nullptr);
+        }
+        if (surfacePacketShadowActive) {
+            SHADOW::SetSurfaceDrawPacketExecutionPlan(
+                &sSurfaceDrawPacketBuilder_,
+                &sSurfaceDrawPacketPlanner_.GetExecutableShadowPacketIndices(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableShadowCommands());
+        } else {
+            SHADOW::SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr);
         }
 
         MESHWIREDEBUG::BeginFrame();
 
-        world.ForEachObjectWith<ModelComponent>([sortedSurfaceForwardTakeoverActive](GameObject& object, ModelComponent& model) {
+        world.ForEachObjectWith<ModelComponent>([surfacePacketForwardActive, surfacePacketShadowActive](GameObject& object, ModelComponent& model) {
             ++sDebugStats_.scannedModelCount;
             if (!model.IsVisible()) {
                 ++sDebugStats_.hiddenModelCount;
@@ -383,62 +296,31 @@ namespace HIKARI {
             const bool hasLegacyMesh = asset && asset->GetMesh() && asset->GetMesh()->IsValid();
             const bool hasModelPrimitives = asset && !asset->meshes.empty();
             if (asset && asset->GetState() == ModelAsset::State::Loaded && (hasLegacyMesh || hasModelPrimitives)) {
-                const bool isStaticModel = model.IsRenderStatic();
-                const bool useCachedStaticPath = sOptions_.useStaticDrawRecordCache && isStaticModel;
                 const RENDER3D::RUNTIME::SceneRenderObjectId renderObjectId =
                     ResolveSceneRenderObjectId(object);
-                bool canUseCachedForward = false;
-                bool canUseCachedShadow = false;
-                bool forwardHandledByCache = false;
-                bool forwardHandledBySortedSurface = false;
-                const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacketHandledPrimitive>* sortedHandledForwardPrimitives = nullptr;
-                bool shadowHandledByCacheOrNotNeeded = !model.GetCastShadow();
+                bool forwardHandledBySurfacePacket = false;
+                bool shadowHandledBySurfacePacket = false;
 
-                if (useCachedStaticPath) {
-                    ++sDebugStats_.staticCachedCandidateCount;
-                    const bool fullCoverage =
-                        sStaticDrawRecordCache_.HasFullForwardCoverageForObject(renderObjectId);
-                    canUseCachedForward =
-                        sStaticRecordSubmitOptions_.useCachedStaticForward &&
-                        fullCoverage;
-                    canUseCachedShadow =
-                        sStaticRecordSubmitOptions_.useCachedStaticShadow &&
-                        fullCoverage &&
-                        model.GetCastShadow();
-
-                    forwardHandledByCache =
-                        canUseCachedForward &&
-                        sStaticRecordSubmitOptions_.skipOldStaticForwardSubmit;
-                    shadowHandledByCacheOrNotNeeded =
-                        !model.GetCastShadow() ||
-                        (canUseCachedShadow && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit);
-
-                    if (forwardHandledByCache) {
-                        ++sDebugStats_.staticCachedForwardSkipCount;
-                    }
-                    if (canUseCachedShadow && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
-                        ++sDebugStats_.staticCachedShadowSkipCount;
-                    }
-                    if (!fullCoverage) {
-                        ++sDebugStats_.staticCachedFallbackCount;
+                if (surfacePacketForwardActive) {
+                    forwardHandledBySurfacePacket =
+                        sSurfaceDrawPacketPlanner_.HasFullForwardCoverageForObject(renderObjectId);
+                    if (forwardHandledBySurfacePacket) {
+                        ++sDebugStats_.surfacePacketForwardSkipCount;
+                        ++sSurfaceDrawPacketPlanStats_.mainForwardBypassObjectCount;
                     }
                 }
-
-                if (sortedSurfaceForwardTakeoverActive && isStaticModel) {
-                    forwardHandledBySortedSurface =
-                        sSurfaceDrawPacketSubmitter_.HasFullForwardCoverageForObject(renderObjectId);
-                    if (forwardHandledBySortedSurface) {
-                        ++sDebugStats_.sortedSurfaceForwardSkipCount;
-                        ++sSurfaceDrawPacketSubmitStats_.skipOldForwardObjectCount;
-                    } else {
-                        sortedHandledForwardPrimitives =
-                            sSurfaceDrawPacketSubmitter_.GetHandledForwardPrimitivesForObject(renderObjectId);
+                if (surfacePacketShadowActive && model.GetCastShadow()) {
+                    shadowHandledBySurfacePacket =
+                        sSurfaceDrawPacketPlanner_.HasFullShadowCoverageForObject(renderObjectId);
+                    if (shadowHandledBySurfacePacket) {
+                        ++sDebugStats_.surfacePacketShadowSkipCount;
+                        ++sSurfaceDrawPacketPlanStats_.mainShadowBypassObjectCount;
                     }
                 }
 
                 if (sActiveRenderCamera_ != nullptr) {
                     if (asset->HasSkinnedMesh()) {
-                        // skinning 後の bounds は未確定なので安全側で描画する。
+                        // skinning 後の bounds は未確定なので、安全側で描画する。
                         ++sDebugStats_.skinnedCullSkippedCount;
                     } else if (BOUNDS::IsUsable(asset->bounds)) {
                         const MATH::Mat4 localToClip =
@@ -448,7 +330,7 @@ namespace HIKARI {
                             return;
                         }
                     } else {
-                        // 古い asset は bounds が無い場合があるため、安全側で描画する。
+                        // 古い asset で bounds が無い場合は、安全側で描画する。
                         ++sDebugStats_.missingBoundsCount;
                     }
                 }
@@ -467,18 +349,10 @@ namespace HIKARI {
                     debugMode);
                 TrySubmitSelectedClusterTools(sClusteredCpuPreviewTarget_, object, model, *asset);
 
-                if (forwardHandledByCache &&
-                    shadowHandledByCacheOrNotNeeded &&
-                    sOptions_.bypassOldStaticModelRendererWhenFullyCached) {
-                    ++sDebugStats_.staticCachedBypassOldModelRendererCount;
+                if (forwardHandledBySurfacePacket && (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
                     return;
                 }
-
-                if (forwardHandledBySortedSurface && shadowHandledByCacheOrNotNeeded) {
-                    return;
-                }
-
-                if (clusteredForwardHandled && !model.GetCastShadow()) {
+                if (clusteredForwardHandled && (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
                     return;
                 }
 
@@ -496,27 +370,13 @@ namespace HIKARI {
                 item.skeletonDebugXRay = model.IsSkeletonDebugXRay();
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
-                if (forwardHandledByCache) {
-                    item.submitForward = false;
-                }
-                if (forwardHandledBySortedSurface) {
+                if (forwardHandledBySurfacePacket) {
                     item.submitForward = false;
                 }
                 if (clusteredForwardHandled) {
                     item.submitForward = false;
                 }
-                if (item.submitForward && sortedHandledForwardPrimitives != nullptr) {
-                    item.forwardPrimitiveExclusions.reserve(sortedHandledForwardPrimitives->size());
-                    for (const RENDER3D::RUNTIME::SurfaceDrawPacketHandledPrimitive& handled :
-                        *sortedHandledForwardPrimitives) {
-                        ModelPrimitiveDrawKey key{};
-                        key.nodeIndex = handled.nodeIndex;
-                        key.meshIndex = handled.meshIndex;
-                        key.primitiveIndex = handled.primitiveIndex;
-                        item.forwardPrimitiveExclusions.push_back(key);
-                    }
-                }
-                if (canUseCachedShadow && sStaticRecordSubmitOptions_.skipOldStaticShadowSubmit) {
+                if (shadowHandledBySurfacePacket) {
                     item.submitShadow = false;
                 }
                 if (debugMode == ModelRenderDebugMode::WireOnly) {
@@ -540,6 +400,13 @@ namespace HIKARI {
                     return;
                 }
 
+                ++sDebugStats_.runtimeSpecialModelCount;
+                if (item.submitForward) {
+                    ++sDebugStats_.runtimeSpecialForwardModelCount;
+                }
+                if (item.submitShadow) {
+                    ++sDebugStats_.runtimeSpecialShadowModelCount;
+                }
                 MODELRENDERER::SubmitModel(item);
                 ++sDebugStats_.submittedModelCount;
             } else {

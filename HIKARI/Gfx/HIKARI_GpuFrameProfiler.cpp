@@ -199,6 +199,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         case Pass::SsaoBlur: return "SSAO Blur";
         case Pass::ForwardOpaque: return "ForwardOpaque";
         case Pass::DepthAware: return "DepthAware";
+        case Pass::ForwardTransparent: return "ForwardTransparent";
         case Pass::PostResolve: return "Post Resolve";
         case Pass::GameViewResolve: return "GameView Resolve";
         case Pass::SceneLayers: return "Scene Layers";

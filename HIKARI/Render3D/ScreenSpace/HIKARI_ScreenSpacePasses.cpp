@@ -2,11 +2,11 @@
 
 #include <chrono>
 
-#include "HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
@@ -28,20 +28,29 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     void ReleaseScreenSpaceRuntimeState() {
         gScreenSpaceState.geometryBuffer.Release();
         gScreenSpaceState.ssaoRenderer.Release();
+        RENDER3D::ReleaseTextureResource(gScreenSpaceState.fallbackAoTextureResource);
+        gScreenSpaceState.fallbackAoTextureResource = {};
+        gScreenSpaceState.fallbackAoTextureHandle = -1;
         gScreenSpaceState.geometryValid = false;
         gScreenSpaceState.ssaoValid = false;
     }
 
     bool EnsureScreenSpaceFallbacks(ScreenSpaceRuntimeState& state) {
-        if (state.fallbackAoTextureHandle >= 0) {
-            return true;
+        if (RENDER3D::IsTextureResourceValid(state.fallbackAoTextureResource)) {
+            state.fallbackAoTextureHandle =
+                RENDER3D::GetTextureResourceBackendHandle(state.fallbackAoTextureResource);
+            return state.fallbackAoTextureHandle >= 0;
         }
 
-        state.fallbackAoTextureHandle = DXTEX::DxTextureManager::CreateSolidColorTexture(
+        state.fallbackAoTextureHandle = -1;
+        state.fallbackAoTextureResource = RENDER3D::CreateSolidColorTextureResource(
             "screen_space/fallback_ao",
             0xffffffffu,
-            DXTEX::TextureColorSpace::Linear);
-        return state.fallbackAoTextureHandle >= 0;
+            RENDER3D::TextureResourceColorSpace::Linear);
+        state.fallbackAoTextureHandle =
+            RENDER3D::GetTextureResourceBackendHandle(state.fallbackAoTextureResource);
+        return RENDER3D::IsTextureResourceValid(state.fallbackAoTextureResource) &&
+            state.fallbackAoTextureHandle >= 0;
     }
 
     ScreenSpaceFrameResult ExecuteScreenSpacePreLightingPasses(
@@ -52,9 +61,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const RENDER3D::RenderQueue& queue) {
 
         ScreenSpaceFrameResult result{};
-        EnsureScreenSpaceFallbacks(state);
+        const bool fallbackReady = EnsureScreenSpaceFallbacks(state);
+        if (fallbackReady) {
+            result.fallbackAoTextureResource = state.fallbackAoTextureResource;
+            result.aoSrv = RENDER3D::GetTextureResourceSrvGpuHandle(state.fallbackAoTextureResource);
+        }
         result.fallbackAoTextureHandle = state.fallbackAoTextureHandle;
-        result.aoSrv = DXTEX::DxTextureManager::GetSrvGpuHandle(state.fallbackAoTextureHandle);
         BeginSsaoDebugFrame(context.width, context.height, environment.ambientOcclusion);
 
         if (context.cmd == nullptr) {

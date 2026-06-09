@@ -3,17 +3,19 @@
 #include <cstdint>
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Core/HIKARI_MaterialTextureUsage.h"
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI {
 
     struct RuntimeTextureSlot {
         std::string sourcePath{};
         std::string resolvedPath{};
+        RENDER3D::TextureResourceHandle resource{};
         int handle = -1;
         bool enabled = false;
 
         bool IsValid() const {
-            return handle >= 0;
+            return resource.IsValid() || handle >= 0;
         }
 
         bool IsActive() const {

@@ -638,11 +638,11 @@ namespace HIKARI {
         const ReflectionProbeSettings& probe = environment_.reflectionProbe;
         const REFLECTION::ReflectionProbeRuntimeData runtime = REFLECTION::GetActiveProbe();
 
-        // Viewport 操作では現在の texture handle を保持し、authoring 値だけ同期する。
-        REFLECTION::SetActiveProbe(
+        // Viewport 操作では現在の texture resource を保持し、authoring 値だけ同期する。
+        REFLECTION::SetActiveProbeResources(
             probe.enabled,
-            runtime.prefilteredHandle,
-            runtime.brdfLutHandle,
+            runtime.prefilteredResource,
+            runtime.brdfLutResource,
             runtime.prefilteredMipCount,
             probe.position,
             probe.radius,

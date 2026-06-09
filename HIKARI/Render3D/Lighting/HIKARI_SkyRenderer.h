@@ -7,6 +7,7 @@
 #include "Render3D/HIKARI_ModelManager.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_SkyManager.h"
+#include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::SKYRENDERER {
 
@@ -18,6 +19,8 @@ namespace HIKARI::SKYRENDERER {
         bool usingFallback = false;
         bool textureValid = false;
         SkyMode mode = SkyMode::None;
+        RENDER3D::TextureResourceHandle cubemapResource{};
+        RENDER3D::TextureResourceHandle textureResource{};
         int cubemapHandle = -1;
         int textureHandle = -1;
         size_t psoCreateCount = 0;
@@ -31,6 +34,8 @@ namespace HIKARI::SKYRENDERER {
         bool hasCubemap = false;
         bool usingFallback = false;
         SkyMode mode = SkyMode::None;
+        RENDER3D::TextureResourceHandle cubemapResource{};
+        RENDER3D::TextureResourceHandle textureResource{};
         int cubemapHandle = -1;
         int textureHandle = -1;
         D3D12_GPU_DESCRIPTOR_HANDLE cubemapSrv{};

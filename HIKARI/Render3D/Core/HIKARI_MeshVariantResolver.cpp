@@ -86,6 +86,10 @@ namespace HIKARI::MESHRENDERER {
         const DrawItem& item,
         const MaterialAsset* materialAsset) {
         VFX::VariantKey variant = item.variant;
+        const bool materialAlphaBlend =
+            item.materialOverride == nullptr &&
+            materialAsset != nullptr &&
+            materialAsset->alphaMode == AlphaMode::Blend;
 
         if (item.materialOverride != nullptr) {
             variant.shaderId = item.materialOverride->GetShaderProfileId();
@@ -105,11 +109,12 @@ namespace HIKARI::MESHRENDERER {
                 if ((materialAsset->featureBits & MATERIAL_FEATURES::AlphaMask) != 0) {
                     variant.featureBits |= MATERIAL_FEATURES::AlphaMask;
                 }
-                if (materialAsset->alphaMode == AlphaMode::Blend) {
-                    variant.composite = VFX::CompositeMode::Alpha;
-                    variant.depthWrite = false;
-                }
             }
+        }
+
+        if (materialAlphaBlend) {
+            variant.composite = VFX::CompositeMode::Alpha;
+            variant.depthWrite = false;
         }
 
         return variant;

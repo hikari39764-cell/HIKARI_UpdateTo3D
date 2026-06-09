@@ -55,6 +55,8 @@ namespace HIKARI {
             static UINT GetUsedDescriptorCount();
             static UINT GetFreeDescriptorCount();
             static UINT GetMaxDescriptorCount();
+            static ID3D12Resource* GetResource(int handle);
+            static D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle(int handle);
             static D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle(int handle);
             static UINT GetSrvDescriptorIndex(int handle);
             static bool IsTextureHandleValid(int handle);
