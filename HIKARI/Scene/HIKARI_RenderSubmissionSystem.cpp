@@ -158,6 +158,21 @@ namespace HIKARI {
     RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats RenderSubmissionSystem::sSurfaceDrawPacketPlanStats_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
     RenderSubmissionSystem::ClusteredCpuPreviewTarget RenderSubmissionSystem::sClusteredCpuPreviewTarget_{};
+    RenderSubmissionRouteMode RenderSubmissionSystem::sRouteMode_ =
+        RenderSubmissionRouteMode::SurfacePacketMainline;
+
+    const char* ToString(RenderSubmissionRouteMode mode) {
+        switch (mode) {
+        case RenderSubmissionRouteMode::SurfacePacketMainline:
+            return "SurfacePacket Mainline";
+        case RenderSubmissionRouteMode::LegacyCompare:
+            return "Legacy Compare";
+        case RenderSubmissionRouteMode::ForceLegacy:
+            return "Force Legacy";
+        default:
+            return "Unknown";
+        }
+    }
 
     void RenderSubmissionSystem::SetActiveRenderCamera(const Camera3D* camera) {
         sActiveRenderCamera_ = camera;
@@ -179,6 +194,14 @@ namespace HIKARI {
 
     void RenderSubmissionSystem::ClearClusteredCpuPreviewTarget() {
         sClusteredCpuPreviewTarget_ = {};
+    }
+
+    void RenderSubmissionSystem::SetRouteMode(RenderSubmissionRouteMode mode) {
+        sRouteMode_ = mode;
+    }
+
+    RenderSubmissionRouteMode RenderSubmissionSystem::GetRouteMode() {
+        return sRouteMode_;
     }
 
     const RenderSubmissionDebugStats& RenderSubmissionSystem::GetDebugStats() {
@@ -218,6 +241,11 @@ namespace HIKARI {
         sDebugStats_.runtimeSpecialModelCount = 0;
         sDebugStats_.runtimeSpecialForwardModelCount = 0;
         sDebugStats_.runtimeSpecialShadowModelCount = 0;
+        sDebugStats_.routeMode = sRouteMode_;
+        sDebugStats_.surfacePacketLegacyCompareActive =
+            sRouteMode_ == RenderSubmissionRouteMode::LegacyCompare;
+        sDebugStats_.surfacePacketForceLegacyActive =
+            sRouteMode_ == RenderSubmissionRouteMode::ForceLegacy;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
 
         RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& clusteredPreview =
@@ -235,17 +263,22 @@ namespace HIKARI {
 
         const bool clusteredCpuReferenceActive =
             sClusteredCpuPreviewTarget_.mode == RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference;
-        const bool surfacePacketMainRouteActive = true;
+        const bool surfacePacketMainRouteActive =
+            sRouteMode_ != RenderSubmissionRouteMode::ForceLegacy;
         const bool surfacePacketForwardActive =
             surfacePacketMainRouteActive && !clusteredCpuReferenceActive;
         const bool surfacePacketShadowActive = surfacePacketMainRouteActive;
+        const bool bypassLegacyForward =
+            surfacePacketForwardActive && sRouteMode_ != RenderSubmissionRouteMode::LegacyCompare;
+        const bool bypassLegacyShadow =
+            surfacePacketShadowActive && sRouteMode_ != RenderSubmissionRouteMode::LegacyCompare;
         sDebugStats_.surfacePacketMainRouteActive = surfacePacketMainRouteActive;
 
         sSurfaceDrawPacketPlanOptions_ = {};
         sSurfaceDrawPacketPlanOptions_.buildForwardPlan = surfacePacketForwardActive;
-        sSurfaceDrawPacketPlanOptions_.bypassLegacyForward = surfacePacketForwardActive;
+        sSurfaceDrawPacketPlanOptions_.bypassLegacyForward = bypassLegacyForward;
         sSurfaceDrawPacketPlanOptions_.buildShadowPlan = surfacePacketShadowActive;
-        sSurfaceDrawPacketPlanOptions_.bypassLegacyShadow = surfacePacketShadowActive;
+        sSurfaceDrawPacketPlanOptions_.bypassLegacyShadow = bypassLegacyShadow;
         sSurfaceDrawPacketPlanOptions_.enableFrustumCulling = true;
         if (sActiveRenderCamera_ != nullptr) {
             // Runtime planner には Camera3D ではなく必要な行列だけを渡す。
@@ -263,23 +296,42 @@ namespace HIKARI {
                 &sSurfaceDrawPacketBuilder_,
                 &sSurfaceDrawPacketPlanner_.GetExecutableForwardOpaquePacketIndices(),
                 &sSurfaceDrawPacketPlanner_.GetExecutableForwardOpaqueCommands(),
+                &sSurfaceDrawPacketPlanner_.GetForwardOpaqueGpuSceneInstances(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardDepthAwarePacketIndices(),
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardDepthAwareCommands(),
+                &sSurfaceDrawPacketPlanner_.GetForwardDepthAwareGpuSceneInstances(),
                 &sSurfaceDrawPacketPlanner_.GetExecutableForwardTransparentPacketIndices(),
-                &sSurfaceDrawPacketPlanner_.GetExecutableForwardTransparentCommands());
+                &sSurfaceDrawPacketPlanner_.GetExecutableForwardTransparentCommands(),
+                &sSurfaceDrawPacketPlanner_.GetForwardTransparentGpuSceneInstances());
         } else {
-            MESHRENDERER::SetSurfaceDrawPacketExecutionPlans(nullptr, nullptr, nullptr, nullptr, nullptr);
+            MESHRENDERER::SetSurfaceDrawPacketExecutionPlans(
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr);
         }
         if (surfacePacketShadowActive) {
             SHADOW::SetSurfaceDrawPacketExecutionPlan(
                 &sSurfaceDrawPacketBuilder_,
                 &sSurfaceDrawPacketPlanner_.GetExecutableShadowPacketIndices(),
-                &sSurfaceDrawPacketPlanner_.GetExecutableShadowCommands());
+                &sSurfaceDrawPacketPlanner_.GetExecutableShadowCommands(),
+                &sSurfaceDrawPacketPlanner_.GetShadowGpuSceneInstances());
         } else {
-            SHADOW::SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr);
+            SHADOW::SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr, nullptr);
         }
 
         MESHWIREDEBUG::BeginFrame();
 
-        world.ForEachObjectWith<ModelComponent>([surfacePacketForwardActive, surfacePacketShadowActive](GameObject& object, ModelComponent& model) {
+        world.ForEachObjectWith<ModelComponent>(
+            [bypassLegacyForward, bypassLegacyShadow](
+                GameObject& object,
+                ModelComponent& model) {
             ++sDebugStats_.scannedModelCount;
             if (!model.IsVisible()) {
                 ++sDebugStats_.hiddenModelCount;
@@ -301,7 +353,7 @@ namespace HIKARI {
                 bool forwardHandledBySurfacePacket = false;
                 bool shadowHandledBySurfacePacket = false;
 
-                if (surfacePacketForwardActive) {
+                if (bypassLegacyForward) {
                     forwardHandledBySurfacePacket =
                         sSurfaceDrawPacketPlanner_.HasFullForwardCoverageForObject(renderObjectId);
                     if (forwardHandledBySurfacePacket) {
@@ -309,7 +361,7 @@ namespace HIKARI {
                         ++sSurfaceDrawPacketPlanStats_.mainForwardBypassObjectCount;
                     }
                 }
-                if (surfacePacketShadowActive && model.GetCastShadow()) {
+                if (bypassLegacyShadow && model.GetCastShadow()) {
                     shadowHandledBySurfacePacket =
                         sSurfaceDrawPacketPlanner_.HasFullShadowCoverageForObject(renderObjectId);
                     if (shadowHandledBySurfacePacket) {

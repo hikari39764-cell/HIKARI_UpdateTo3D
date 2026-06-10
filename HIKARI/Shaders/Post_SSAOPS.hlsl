@@ -169,48 +169,6 @@ float ScreenRadiusFromWorldRadius(float2 centerUv, float3 worldPos, float3 norma
     return clamp(radius, minRadius, 0.12f);
 }
 
-float3 EstimateNormalFromDepth(float2 uv, float depth, float3 worldPos)
-{
-    float2 texel = gScreenParams.zw;
-    float2 uvR = saturate(uv + float2(texel.x, 0.0f));
-    float2 uvL = saturate(uv - float2(texel.x, 0.0f));
-    float2 uvD = saturate(uv + float2(0.0f, texel.y));
-    float2 uvU = saturate(uv - float2(0.0f, texel.y));
-
-    float depthR = gSceneDepthTex.SampleLevel(gPointClamp, uvR, 0).r;
-    float depthL = gSceneDepthTex.SampleLevel(gPointClamp, uvL, 0).r;
-    float depthD = gSceneDepthTex.SampleLevel(gPointClamp, uvD, 0).r;
-    float depthU = gSceneDepthTex.SampleLevel(gPointClamp, uvU, 0).r;
-
-    float3 worldR = ReconstructWorld(uvR, depthR);
-    float3 worldL = ReconstructWorld(uvL, depthL);
-    float3 worldD = ReconstructWorld(uvD, depthD);
-    float3 worldU = ReconstructWorld(uvU, depthU);
-
-    float3 dx = abs(depthR - depth) < abs(depth - depthL) ? (worldR - worldPos) : (worldPos - worldL);
-    float3 dy = abs(depthD - depth) < abs(depth - depthU) ? (worldD - worldPos) : (worldPos - worldU);
-    float3 n = cross(dx, dy);
-    if (dot(n, n) < 1e-8f)
-    {
-        return normalize(gCameraPos.xyz - worldPos);
-    }
-
-    n = normalize(n);
-    float3 viewDir = normalize(gCameraPos.xyz - worldPos);
-    return dot(n, viewDir) < 0.0f ? -n : n;
-}
-
-float ScreenRadiusFromDepth(float2 centerUv, float depth, float3 worldPos)
-{
-    float2 texel = gScreenParams.zw;
-    float2 uvR = saturate(centerUv + float2(texel.x, 0.0f));
-    float3 worldR = ReconstructWorld(uvR, depth);
-    float worldPerPixel = max(length(worldR - worldPos), 1e-4f);
-    float radiusPixels = gAoRadius / worldPerPixel;
-    float minRadius = max(texel.x, texel.y) * 2.0f;
-    return clamp(radiusPixels * max(texel.x, texel.y), minRadius, 0.12f);
-}
-
 // Spiral sampling で Reference より軽い AO を作る。
 float PSMainOptimizedHigh(VSOut input) : SV_TARGET
 {
@@ -263,65 +221,6 @@ float PSMainOptimizedHigh(VSOut input) : SV_TARGET
         float hit = (distanceToHit > gAoBias && distanceToHit < gAoRadius && facing > 0.03f) ? 1.0f : 0.0f;
         float weight = max(radialWeight, 0.15f);
         occlusion += hit * range * facing * weight;
-        weightSum += weight;
-    }
-
-    float ao = 1.0f - saturate((occlusion / max(weightSum, 1e-4f)) * gAoStrength);
-    return pow(saturate(ao), gAoPower);
-}
-
-// Depth だけで編集用の軽量 AO を作る。
-float PSMainDepthOnlyBalanced(VSOut input) : SV_TARGET
-{
-    float depth = gSceneDepthTex.SampleLevel(gPointClamp, input.uv, 0).r;
-    if (depth >= 0.99999f)
-    {
-        return 1.0f;
-    }
-
-    float3 worldPos = ReconstructWorld(input.uv, depth);
-    float3 normal = EstimateNormalFromDepth(input.uv, depth, worldPos);
-    float randomAngle = Hash12(input.uv * gScreenParams.xy + gFrameIndex * 5.37f) * kTwoPi;
-    float sampleCount = clamp(gAoSampleCount, 1.0f, 16.0f);
-    float screenRadius = ScreenRadiusFromDepth(input.uv, depth, worldPos);
-
-    float occlusion = 0.0f;
-    float weightSum = 0.0f;
-
-    [loop]
-    for (uint i = 0; i < 16; ++i)
-    {
-        if (i >= (uint)sampleCount)
-        {
-            break;
-        }
-
-        float2 offset = VogelDisk(i, sampleCount, randomAngle);
-        float2 sampleUv = input.uv + offset * screenRadius;
-        if (any(sampleUv < 0.0f) || any(sampleUv > 1.0f))
-        {
-            continue;
-        }
-
-        float sampleDepth = gSceneDepthTex.SampleLevel(gPointClamp, sampleUv, 0).r;
-        if (sampleDepth >= 0.99999f)
-        {
-            continue;
-        }
-
-        float3 hitWorld = ReconstructWorld(sampleUv, sampleDepth);
-        float3 delta = hitWorld - worldPos;
-        float distanceToHit = length(delta);
-        float3 dir = delta / max(distanceToHit, 1e-4f);
-        float planeDistance = dot(delta, normal);
-        float facing = saturate(planeDistance / max(distanceToHit, 1e-4f));
-        float range = saturate(1.0f - distanceToHit / max(gAoRadius, 1e-4f));
-        range = range * range * (3.0f - 2.0f * range);
-
-        float radialWeight = max(1.0f - saturate(length(offset)), 0.20f);
-        float hit = (planeDistance > gAoBias && distanceToHit < gAoRadius && facing > 0.03f) ? 1.0f : 0.0f;
-        float weight = radialWeight * facing;
-        occlusion += hit * range * weight;
         weightSum += weight;
     }
 

@@ -29,7 +29,6 @@ namespace HIKARI::RENDER3D {
         uint32_t backendMaxDescriptorCount = 0;
     };
 
-    RenderResourcePool& GetTextureResourcePool();
     ID3D12DescriptorHeap* GetTextureResourceSrvHeap();
     TextureResourceSystemStats GetTextureResourceSystemStats();
 

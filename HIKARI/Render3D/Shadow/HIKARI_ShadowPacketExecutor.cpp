@@ -1,67 +1,28 @@
 #include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
 
 #include <algorithm>
-#include <cstring>
+#include <limits>
 
-#include <d3dx12.h>
-#include <wrl/client.h>
-
-#include "Gfx/HIKARI_DescriptorHeapLayout.h"
-#include "Gfx/HIKARI_DXCheck.h"
-#include "HIKARI_Services.h"
-#include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/HIKARI_ModelAsset.h"
-#include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 
 namespace HIKARI::SHADOW::PACKET {
 
-    using Microsoft::WRL::ComPtr;
-
     namespace {
-        constexpr size_t kMaxShadowPacketObjects = 2048u;
-
-        struct ExecutorState {
-            bool initialized = false;
-            ComPtr<ID3D12Resource> objectDataBuffer;
-            ShadowPacketObjectData* objectDataMapped = nullptr;
-            D3D12_CPU_DESCRIPTOR_HANDLE objectDataSrvCpu{};
-            D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrvGpu{};
-        };
-
         struct PreparedShadowPacket {
             const RENDER3D::RUNTIME::SurfaceDrawPacket* packet = nullptr;
             const Mesh* mesh = nullptr;
-            D3D12_GPU_DESCRIPTOR_HANDLE textureSrv{};
-            ShadowPacketObjectData objectData{};
-            uint64_t psoKey = 0;
-            uint64_t geometryKey = 0;
-            uint64_t textureSetKey = 0;
+            RENDER3D::RUNTIME::SurfaceDrawBatchKey batchKey{};
         };
-
-        ExecutorState g;
-
-        const MaterialAsset* GetPrimitiveMaterial(const ModelAsset& asset, uint32_t materialIndex) {
-            if (materialIndex >= asset.materials.size()) {
-                return nullptr;
-            }
-            return &asset.materials[static_cast<size_t>(materialIndex)];
-        }
 
         bool IsPreparedBatchCompatible(
             const PreparedShadowPacket& first,
             const PreparedShadowPacket& candidate) {
 
-            if (first.psoKey != candidate.psoKey ||
-                first.geometryKey != candidate.geometryKey) {
-                return false;
-            }
-
-            // Alpha Mask は同じ base texture を参照する。Opaque も同じ条件へ寄せて並びを安定させる。
-            return
-                first.textureSrv.ptr == candidate.textureSrv.ptr &&
-                first.textureSetKey == candidate.textureSetKey;
+            return RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(first.batchKey, candidate.batchKey);
         }
 
         bool PrepareShadowPacket(
@@ -70,7 +31,6 @@ namespace HIKARI::SHADOW::PACKET {
             PreparedShadowPacket& out) {
 
             if (ctx.resolveStaticMesh == nullptr ||
-                ctx.resolveBaseColorTexture == nullptr ||
                 packet.model == nullptr ||
                 !packet.hasDrawWorldMatrix ||
                 packet.meshIndex >= packet.model->meshes.size()) {
@@ -88,61 +48,13 @@ namespace HIKARI::SHADOW::PACKET {
                 return false;
             }
 
-            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
-            RENDER3D::TextureResourceHandle textureResource =
-                ctx.resolveBaseColorTexture(*packet.model, materialAsset);
-            const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
-                RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
-
-            ShadowPacketObjectData objectData{};
-            objectData.world = packet.drawWorldMatrix;
-            objectData.alphaCutoff = materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f;
-            if (materialAsset != nullptr && materialAsset->alphaMode == AlphaMode::Mask) {
-                objectData.materialFlags |= MATERIAL_FEATURES::AlphaMask;
-            }
-
             out = {};
             out.packet = &packet;
             out.mesh = mesh;
-            out.textureSrv = textureSrv;
-            out.objectData = objectData;
-            out.psoKey = packet.key.psoKey;
-            out.geometryKey = packet.key.geometryKey;
-            out.textureSetKey = packet.key.textureSetKey;
+            out.batchKey = RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(
+                RENDER3D::RUNTIME::SurfaceDrawCommandPass::Shadow,
+                packet.key);
             return true;
-        }
-
-        void CopyObjectData(const ShadowPacketObjectData& objectData, size_t objectIndex) {
-            if (g.objectDataMapped == nullptr || objectIndex >= kMaxShadowPacketObjects) {
-                return;
-            }
-            g.objectDataMapped[objectIndex] = objectData;
-        }
-
-        void BindBatchResources(
-            const ShadowPacketExecutorContext& ctx,
-            const PreparedShadowPacket& first,
-            size_t objectIndex) {
-
-            ctx.cmd->SetGraphicsRootSignature(ctx.staticRootSig);
-            ctx.cmd->SetPipelineState(ctx.staticPso);
-            ctx.cmd->SetGraphicsRootConstantBufferView(kShadowStaticRootParamCamera, ctx.cameraAddress);
-            if (first.textureSrv.ptr != 0) {
-                ctx.cmd->SetGraphicsRootDescriptorTable(kShadowStaticRootParamBaseColorTexture, first.textureSrv);
-            }
-            if (g.objectDataSrvGpu.ptr != 0) {
-                ctx.cmd->SetGraphicsRootDescriptorTable(kShadowStaticRootParamObjectData, g.objectDataSrvGpu);
-            }
-
-            const uint32_t constants[2] = {
-                static_cast<uint32_t>(objectIndex),
-                1u
-            };
-            ctx.cmd->SetGraphicsRoot32BitConstants(
-                kShadowStaticRootParamObjectDataControl,
-                2,
-                constants,
-                0);
         }
 
         void BindMesh(ID3D12GraphicsCommandList* cmd, const Mesh& mesh) {
@@ -151,81 +63,376 @@ namespace HIKARI::SHADOW::PACKET {
             cmd->IASetVertexBuffers(0, 1, &vb);
             cmd->IASetIndexBuffer(&ib);
         }
+
+        bool HasPreparedGpuSceneMaterial(
+            const ShadowPacketExecutorContext& ctx,
+            size_t gpuSceneInstanceIndex) {
+
+            return
+                ctx.surfaceGpuSceneFrameBuffer != nullptr &&
+                ctx.surfaceGpuSceneFrameBuffer->HasMaterialDataIndex(gpuSceneInstanceIndex);
+        }
+
+        bool HasPacketFrameResources(const ShadowPacketExecutorContext& ctx) {
+            return
+                ctx.fallbackBaseColorSrv.ptr != 0 &&
+                ctx.materialDataSrv.ptr != 0 &&
+                ctx.surfaceGpuSceneSrv.ptr != 0 &&
+                ctx.texturePoolSrv.ptr != 0;
+        }
+
+        void BindPacketFrameResources(
+            const ShadowPacketExecutorContext& ctx,
+            uint32_t surfaceGpuSceneBaseIndex,
+            bool useSurfaceGpuScene) {
+
+            ctx.cmd->SetGraphicsRootSignature(ctx.staticRootSig);
+            ctx.cmd->SetPipelineState(ctx.staticPso);
+            ctx.cmd->SetGraphicsRootConstantBufferView(
+                kShadowStaticRootParamCamera,
+                ctx.cameraAddress);
+            ctx.cmd->SetGraphicsRootDescriptorTable(
+                kShadowStaticRootParamBaseColorTexture,
+                ctx.fallbackBaseColorSrv);
+            ctx.cmd->SetGraphicsRootDescriptorTable(
+                kShadowStaticRootParamMaterialData,
+                ctx.materialDataSrv);
+            ctx.cmd->SetGraphicsRootDescriptorTable(
+                kShadowStaticRootParamSurfaceGpuScene,
+                ctx.surfaceGpuSceneSrv);
+            ctx.cmd->SetGraphicsRootDescriptorTable(
+                kShadowStaticRootParamTexturePool,
+                ctx.texturePoolSrv);
+
+            const uint32_t constants[RENDER3D::CORE::kSurfaceIndirectRootConstantCount] = {
+                surfaceGpuSceneBaseIndex,
+                useSurfaceGpuScene ? 1u : 0u,
+                0u,
+                0u,
+            };
+            ctx.cmd->SetGraphicsRoot32BitConstants(
+                kShadowStaticRootParamSurfaceGpuSceneControl,
+                RENDER3D::CORE::kSurfaceIndirectRootConstantCount,
+                constants,
+                0);
+            ctx.cmd->SetGraphicsRoot32BitConstant(
+                kShadowStaticRootParamMaterialIndex,
+                0u,
+                0);
+        }
+
+        bool CanStartShadowIndirectCommandRange(
+            const ShadowPacketExecutorContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
+
+            return
+                ctx.indirectDrawBuffer != nullptr &&
+                command.pass == RENDER3D::RUNTIME::SurfaceDrawCommandPass::Shadow &&
+                command.backend == RENDER3D::RUNTIME::SurfaceDrawCommandBackend::GpuDriven &&
+                command.drawArgsValid &&
+                command.packetCount > 0 &&
+                command.firstGpuSceneInstanceIndex != RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
+                command.gpuSceneInstanceCount == command.packetCount &&
+                command.drawArgs.instanceCount == command.gpuSceneInstanceCount;
+        }
+
+        bool CanUseShadowIndirectCommand(
+            const ShadowPacketExecutorContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
+
+            return
+                CanStartShadowIndirectCommandRange(ctx, command) &&
+                ctx.surfaceGpuSceneFrameBuffer != nullptr &&
+                HasPacketFrameResources(ctx);
+        }
+
+        bool TryResolveShadowCommandPacketRange(
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
+            size_t executablePacketIndexCount,
+            size_t& outBegin,
+            size_t& outEnd) {
+
+            const size_t begin = command.firstExecutableIndex;
+            const size_t count = static_cast<size_t>(command.packetCount);
+            if (count == 0 || begin >= executablePacketIndexCount) {
+                return false;
+            }
+
+            const size_t end = begin + count;
+            if (end < begin || end > executablePacketIndexCount) {
+                return false;
+            }
+
+            outBegin = begin;
+            outEnd = end;
+            return true;
+        }
+
+        void RecordShadowCommandStats(
+            ShadowPacketDrawResult& result,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
+
+            ++result.commandCount;
+            if (command.singlePacket) {
+                ++result.singlePacketCommandCount;
+            }
+            result.maxCommandPacketCount =
+                (std::max)(result.maxCommandPacketCount, static_cast<size_t>(command.packetCount));
+        }
+
+        struct PreparedShadowIndirectCommand {
+            PreparedShadowPacket first{};
+            UINT64 argumentOffset = 0;
+            size_t packetCount = 0;
+        };
+
+        bool IsSameShadowIndirectRootBatch(
+            const PreparedShadowIndirectCommand& first,
+            const PreparedShadowIndirectCommand& candidate) {
+
+            return
+                first.first.batchKey.pass == candidate.first.batchKey.pass &&
+                first.first.batchKey.psoKey == candidate.first.batchKey.psoKey &&
+                first.first.batchKey.transparent == candidate.first.batchKey.transparent;
+        }
+
+        bool TryPrepareShadowIndirectCommand(
+            const ShadowPacketExecutorContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+            size_t packetCount,
+            const uint32_t* executablePacketIndices,
+            size_t executablePacketIndexCount,
+            PreparedShadowIndirectCommand& outPrepared) {
+
+            outPrepared = {};
+            if (!CanUseShadowIndirectCommand(ctx, command) ||
+                packets == nullptr ||
+                executablePacketIndices == nullptr ||
+                ctx.indirectDrawBuffer == nullptr ||
+                !ctx.indirectDrawBuffer->TryGetArgumentBufferOffset(command, outPrepared.argumentOffset) ||
+                !ctx.indirectDrawBuffer->HasDrawBinding(command)) {
+                return false;
+            }
+
+            size_t commandBegin = 0;
+            size_t commandEnd = 0;
+            if (!TryResolveShadowCommandPacketRange(
+                command,
+                executablePacketIndexCount,
+                commandBegin,
+                commandEnd)) {
+                return false;
+            }
+
+            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
+            if (firstPacketIndex >= packetCount ||
+                !PrepareShadowPacket(ctx, packets[firstPacketIndex], outPrepared.first) ||
+                !RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(outPrepared.first.batchKey, command.batchKey)) {
+                return false;
+            }
+
+            size_t localIndex = 0;
+            for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
+                const uint32_t packetIndex = executablePacketIndices[executableIndex];
+                if (packetIndex >= packetCount) {
+                    return false;
+                }
+
+                PreparedShadowPacket candidate{};
+                if (!PrepareShadowPacket(ctx, packets[packetIndex], candidate) ||
+                    !IsPreparedBatchCompatible(outPrepared.first, candidate) ||
+                    !HasPreparedGpuSceneMaterial(
+                        ctx,
+                        static_cast<size_t>(command.firstGpuSceneInstanceIndex) + localIndex)) {
+                    return false;
+                }
+                ++localIndex;
+            }
+
+            outPrepared.packetCount = localIndex;
+            return
+                localIndex > 0 &&
+                localIndex == static_cast<size_t>(command.drawArgs.instanceCount);
+        }
+
+        bool TryExecuteShadowIndirectCommandRange(
+            const ShadowPacketExecutorContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+            size_t commandCount,
+            size_t commandIndex,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+            size_t packetCount,
+            const uint32_t* executablePacketIndices,
+            size_t executablePacketIndexCount,
+            size_t& objectIndex,
+            size_t& outNextCommandIndex,
+            ShadowPacketDrawResult& result) {
+
+            if (ctx.cmd == nullptr ||
+                ctx.staticRootSig == nullptr ||
+                ctx.staticPso == nullptr ||
+                ctx.cameraAddress == 0 ||
+                ctx.indirectDrawBuffer == nullptr ||
+                commands == nullptr ||
+                commandIndex >= commandCount ||
+                !CanUseShadowIndirectCommand(ctx, commands[commandIndex])) {
+                return false;
+            }
+
+            ID3D12Resource* argumentBuffer = ctx.indirectDrawBuffer->GetArgumentBuffer();
+            ID3D12CommandSignature* commandSignature = ctx.indirectDrawBuffer->GetCommandSignature();
+            if (argumentBuffer == nullptr || commandSignature == nullptr) {
+                return false;
+            }
+
+            const UINT64 argumentStride =
+                static_cast<UINT64>(sizeof(RENDER3D::CORE::SurfaceIndirectDrawArgument));
+            const size_t maxIndirectCommandCount =
+                static_cast<size_t>((std::numeric_limits<UINT>::max)());
+
+            PreparedShadowIndirectCommand firstPrepared{};
+            UINT64 firstArgumentOffset = 0;
+            size_t preparedCommandCount = 0;
+            size_t preparedPacketCount = 0;
+            size_t maxInstanceCount = 0;
+            size_t instancedDrawCount = 0;
+            size_t instancedPacketCount = 0;
+
+            for (size_t scanIndex = commandIndex;
+                scanIndex < commandCount && preparedCommandCount < maxIndirectCommandCount;
+                ++scanIndex) {
+
+                const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[scanIndex];
+                if (!CanUseShadowIndirectCommand(ctx, command)) {
+                    break;
+                }
+
+                PreparedShadowIndirectCommand prepared{};
+                if (!TryPrepareShadowIndirectCommand(
+                    ctx,
+                    command,
+                    packets,
+                    packetCount,
+                    executablePacketIndices,
+                    executablePacketIndexCount,
+                    prepared)) {
+                    break;
+                }
+
+                if (preparedCommandCount == 0) {
+                    firstPrepared = prepared;
+                    firstArgumentOffset = prepared.argumentOffset;
+                } else {
+                    const UINT64 expectedOffset =
+                        firstArgumentOffset + argumentStride * static_cast<UINT64>(preparedCommandCount);
+                    if (prepared.argumentOffset != expectedOffset ||
+                        !IsSameShadowIndirectRootBatch(firstPrepared, prepared)) {
+                        break;
+                    }
+                }
+
+                RecordShadowCommandStats(result, command);
+                ++preparedCommandCount;
+                preparedPacketCount += prepared.packetCount;
+                maxInstanceCount = (std::max)(maxInstanceCount, prepared.packetCount);
+                if (prepared.packetCount > 1) {
+                    ++instancedDrawCount;
+                    instancedPacketCount += prepared.packetCount;
+                }
+            }
+
+            if (preparedCommandCount == 0) {
+                return false;
+            }
+
+            BindPacketFrameResources(ctx, 0u, true);
+            ctx.cmd->ExecuteIndirect(
+                commandSignature,
+                static_cast<UINT>(preparedCommandCount),
+                argumentBuffer,
+                firstArgumentOffset,
+                nullptr,
+                0);
+
+            objectIndex += preparedPacketCount;
+            result.submittedPacketCount += preparedPacketCount;
+            result.drawCallCount += preparedCommandCount;
+            result.maxInstanceCount = (std::max)(result.maxInstanceCount, maxInstanceCount);
+            result.instancedDrawCount += instancedDrawCount;
+            result.instancedPacketCount += instancedPacketCount;
+            result.indirectDrawCount += preparedCommandCount;
+            result.indirectPacketCount += preparedPacketCount;
+            ++result.indirectBatchCount;
+            result.indirectSavedSubmitCount += preparedCommandCount - 1;
+            result.indirectMaxBatchCommandCount =
+                (std::max)(result.indirectMaxBatchCommandCount, preparedCommandCount);
+
+            outNextCommandIndex = commandIndex + preparedCommandCount;
+            return true;
+        }
     }
 
     bool InitializeShadowPacketExecutor(ID3D12Device* device) {
-        if (g.initialized) {
-            return true;
-        }
-        if (device == nullptr || SERVICES::gCtx.srvHeap == nullptr) {
-            return false;
-        }
-
-        const UINT objectDataBytes = static_cast<UINT>(sizeof(ShadowPacketObjectData) * kMaxShadowPacketObjects);
-        auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        auto desc = CD3DX12_RESOURCE_DESC::Buffer(objectDataBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &heap,
-            D3D12_HEAP_FLAG_NONE,
-            &desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(g.objectDataBuffer.GetAddressOf())))) {
-            return false;
-        }
-        if (FAILED(g.objectDataBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g.objectDataMapped)))) {
-            return false;
-        }
-        GFX::SetD3D12Name(g.objectDataBuffer.Get(), L"Shadow Packet ObjectData Buffer");
-
-        const UINT descriptorSize =
-            device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        const UINT srvIndex =
-            GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::ShadowObjectData);
-        g.objectDataSrvCpu =
-            GFX::DESCRIPTOR::CpuAt(SERVICES::gCtx.srvHeap, descriptorSize, srvIndex);
-        g.objectDataSrvGpu =
-            GFX::DESCRIPTOR::GpuAt(SERVICES::gCtx.srvHeap, descriptorSize, srvIndex);
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
-        srv.Format = DXGI_FORMAT_UNKNOWN;
-        srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srv.Buffer.FirstElement = 0;
-        srv.Buffer.NumElements = static_cast<UINT>(kMaxShadowPacketObjects);
-        srv.Buffer.StructureByteStride = sizeof(ShadowPacketObjectData);
-        srv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-        device->CreateShaderResourceView(g.objectDataBuffer.Get(), &srv, g.objectDataSrvCpu);
-
-        g.initialized = true;
-        return true;
+        return device != nullptr;
     }
 
     void ResetShadowPacketExecutor() {
-        g.objectDataBuffer.Reset();
-        g.objectDataMapped = nullptr;
-        g.objectDataSrvCpu = {};
-        g.objectDataSrvGpu = {};
-        g.initialized = false;
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE GetShadowPacketObjectDataSrv() {
-        return g.objectDataSrvGpu;
-    }
+    bool PrepareShadowPacketIndirectDrawBindings(
+        const ShadowPacketExecutorContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands) {
 
-    void BindLegacyShadowObjectDataMode(ID3D12GraphicsCommandList* cmd) {
-        if (cmd == nullptr) {
-            return;
+        if (ctx.indirectDrawBuffer == nullptr ||
+            packets == nullptr ||
+            executablePacketIndices == nullptr ||
+            commands.empty()) {
+            return false;
         }
-        if (g.objectDataSrvGpu.ptr != 0) {
-            cmd->SetGraphicsRootDescriptorTable(kShadowStaticRootParamObjectData, g.objectDataSrvGpu);
+
+        bool patchedAny = false;
+        for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : commands) {
+            if (!CanStartShadowIndirectCommandRange(ctx, command)) {
+                continue;
+            }
+
+            size_t commandBegin = 0;
+            size_t commandEnd = 0;
+            if (!TryResolveShadowCommandPacketRange(
+                command,
+                executablePacketIndexCount,
+                commandBegin,
+                commandEnd)) {
+                continue;
+            }
+            (void)commandEnd;
+
+            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
+            if (firstPacketIndex >= packetCount) {
+                continue;
+            }
+
+            PreparedShadowPacket prepared{};
+            if (!PrepareShadowPacket(ctx, packets[firstPacketIndex], prepared) ||
+                prepared.mesh == nullptr ||
+                !prepared.mesh->IsValid()) {
+                continue;
+            }
+
+            patchedAny =
+                ctx.indirectDrawBuffer->PatchDrawBinding(
+                    command,
+                    prepared.mesh->GetVBView(),
+                    prepared.mesh->GetIBView()) ||
+                patchedAny;
         }
-        const uint32_t constants[2] = { 0u, 0u };
-        cmd->SetGraphicsRoot32BitConstants(
-            kShadowStaticRootParamObjectDataControl,
-            2,
-            constants,
-            0);
+
+        return patchedAny;
     }
 
     ShadowPacketDrawResult DrawShadowPacketCommands(
@@ -238,13 +445,12 @@ namespace HIKARI::SHADOW::PACKET {
         size_t& objectIndex) {
 
         ShadowPacketDrawResult result{};
-        if (!g.initialized ||
-            ctx.cmd == nullptr ||
+        if (ctx.cmd == nullptr ||
             ctx.staticRootSig == nullptr ||
             ctx.staticPso == nullptr ||
             ctx.cameraAddress == 0 ||
-            g.objectDataMapped == nullptr ||
-            g.objectDataSrvGpu.ptr == 0 ||
+            ctx.surfaceGpuSceneFrameBuffer == nullptr ||
+            !HasPacketFrameResources(ctx) ||
             packets == nullptr ||
             executablePacketIndices == nullptr ||
             executablePacketIndexCount == 0 ||
@@ -252,22 +458,46 @@ namespace HIKARI::SHADOW::PACKET {
             return result;
         }
 
-        for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : commands) {
+        size_t commandIndex = 0;
+        while (commandIndex < commands.size()) {
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[commandIndex];
             if (command.packetCount == 0 || command.firstExecutableIndex >= executablePacketIndexCount) {
+                ++commandIndex;
                 continue;
             }
 
-            ++result.commandCount;
-            if (command.singlePacket) {
-                ++result.singlePacketCommandCount;
-            }
-            result.maxCommandPacketCount =
-                (std::max)(result.maxCommandPacketCount, static_cast<size_t>(command.packetCount));
-
-            const size_t commandBegin = command.firstExecutableIndex;
-            const size_t commandEnd = std::min(
+            size_t nextCommandIndex = commandIndex + 1;
+            if (TryExecuteShadowIndirectCommandRange(
+                ctx,
+                commands.data(),
+                commands.size(),
+                commandIndex,
+                packets,
+                packetCount,
+                executablePacketIndices,
                 executablePacketIndexCount,
-                commandBegin + static_cast<size_t>(command.packetCount));
+                objectIndex,
+                nextCommandIndex,
+                result)) {
+                commandIndex = nextCommandIndex;
+                continue;
+            }
+            if (CanUseShadowIndirectCommand(ctx, command)) {
+                ++result.indirectFallbackCommandCount;
+            }
+
+            RecordShadowCommandStats(result, command);
+
+            size_t commandBegin = 0;
+            size_t commandEnd = 0;
+            if (!TryResolveShadowCommandPacketRange(
+                command,
+                executablePacketIndexCount,
+                commandBegin,
+                commandEnd)) {
+                commandIndex = nextCommandIndex;
+                continue;
+            }
 
             size_t executableIndex = commandBegin;
             while (executableIndex < commandEnd) {
@@ -279,13 +509,16 @@ namespace HIKARI::SHADOW::PACKET {
                 }
 
                 PreparedShadowPacket first{};
-                if (!PrepareShadowPacket(ctx, packets[firstPacketIndex], first)) {
+                if (!PrepareShadowPacket(ctx, packets[firstPacketIndex], first) ||
+                    !RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(first.batchKey, command.batchKey)) {
                     ++result.skippedPacketCount;
                     ++executableIndex;
                     continue;
                 }
 
-                const size_t batchObjectStart = objectIndex;
+                const size_t localBase = executableIndex - commandBegin;
+                const size_t gpuSceneBase =
+                    static_cast<size_t>(command.firstGpuSceneInstanceIndex) + localBase;
                 size_t instanceCount = 0;
                 size_t cursor = executableIndex;
                 for (; cursor < commandEnd; ++cursor) {
@@ -295,15 +528,12 @@ namespace HIKARI::SHADOW::PACKET {
                     }
 
                     PreparedShadowPacket candidate{};
-                    if (!PrepareShadowPacket(ctx, packets[packetIndex], candidate)) {
-                        break;
-                    }
-                    if (!IsPreparedBatchCompatible(first, candidate) ||
-                        objectIndex + instanceCount >= kMaxShadowPacketObjects) {
+                    if (!PrepareShadowPacket(ctx, packets[packetIndex], candidate) ||
+                        !IsPreparedBatchCompatible(first, candidate) ||
+                        !HasPreparedGpuSceneMaterial(ctx, gpuSceneBase + instanceCount)) {
                         break;
                     }
 
-                    CopyObjectData(candidate.objectData, objectIndex + instanceCount);
                     ++instanceCount;
                 }
 
@@ -313,14 +543,17 @@ namespace HIKARI::SHADOW::PACKET {
                     continue;
                 }
 
-                BindBatchResources(ctx, first, batchObjectStart);
+                BindPacketFrameResources(ctx, static_cast<uint32_t>(gpuSceneBase), true);
                 BindMesh(ctx.cmd, *first.mesh);
+                const uint32_t indexCount = command.drawArgsValid
+                    ? command.drawArgs.indexCountPerInstance
+                    : first.mesh->GetIndexCount();
                 ctx.cmd->DrawIndexedInstanced(
-                    first.mesh->GetIndexCount(),
+                    indexCount,
                     static_cast<UINT>(instanceCount),
-                    0,
-                    0,
-                    0);
+                    command.drawArgs.startIndexLocation,
+                    command.drawArgs.baseVertexLocation,
+                    command.drawArgs.startInstanceLocation);
 
                 objectIndex += instanceCount;
                 result.submittedPacketCount += instanceCount;
@@ -332,6 +565,8 @@ namespace HIKARI::SHADOW::PACKET {
                 }
                 executableIndex = cursor;
             }
+
+            commandIndex = nextCommandIndex;
         }
 
         return result;

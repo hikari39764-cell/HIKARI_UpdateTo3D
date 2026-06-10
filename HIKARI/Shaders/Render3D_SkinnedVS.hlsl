@@ -68,6 +68,7 @@ struct VSOutput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    nointerpolation uint receiveShadow : TEXCOORD3;
 };
 
 float4x4 ResolveJointMatrix(uint jointIndex)
@@ -104,5 +105,6 @@ VSOutput main(VSInput input)
     output.tangentWS = float4(normalize(mul((float3x3)gNormalMatrix, normalize(localTangent))), input.tangent.w);
     output.uv = input.uv0;
     output.materialDataIndex = gMaterialDataIndex;
+    output.receiveShadow = gReceiveShadow;
     return output;
 }

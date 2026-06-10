@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Resources/HIKARI_RenderResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawCommandBuilder.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
@@ -125,6 +127,66 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return hash;
         }
 
+        std::string BuildSurfaceResourceSourceKey(std::string_view tag, uint64_t stableKey) {
+            if (stableKey == 0) {
+                return {};
+            }
+            std::string key{ tag };
+            key.push_back(':');
+            key += std::to_string(stableKey);
+            return key;
+        }
+
+        std::string BuildSurfaceMeshDebugName(const SurfaceResourceIds& ids) {
+            return
+                "SurfaceMesh model=" + std::to_string(ids.modelKey) +
+                " mesh=" + std::to_string(ids.meshIndex) +
+                " primitive=" + std::to_string(ids.primitiveIndex);
+        }
+
+        std::string BuildSurfaceMaterialDebugName(const SurfaceResourceIds& ids) {
+            return
+                "SurfaceMaterial model=" + std::to_string(ids.modelKey) +
+                " material=" + std::to_string(ids.materialIndex);
+        }
+
+        void RegisterSurfaceResourceHandles(SurfaceResourceIds& ids) {
+            if (!ids.HasStableKeys()) {
+                return;
+            }
+
+            ids.mesh = RegisterVirtualMeshResource(
+                BuildSurfaceResourceSourceKey("surface.mesh", ids.geometryKey),
+                BuildSurfaceMeshDebugName(ids));
+            ids.material = RegisterVirtualMaterialResource(
+                BuildSurfaceResourceSourceKey("surface.material", ids.materialKey),
+                BuildSurfaceMaterialDebugName(ids));
+            // clusterGeometry は clustered geometry asset が確定した段階で実体 handle を入れる。
+        }
+
+        SurfaceResourceIds BuildSurfaceResourceIds(
+            const SurfaceDrawPacket& packet,
+            uint64_t modelKey,
+            uint64_t geometryKey,
+            uint64_t materialKey,
+            uint64_t textureSetKey,
+            uint64_t shaderKey,
+            uint64_t psoKey) {
+
+            SurfaceResourceIds ids{};
+            ids.modelKey = modelKey;
+            ids.geometryKey = geometryKey;
+            ids.materialKey = materialKey;
+            ids.textureSetKey = textureSetKey;
+            ids.shaderKey = shaderKey;
+            ids.pipelineKey = psoKey;
+            ids.meshIndex = packet.meshIndex;
+            ids.primitiveIndex = packet.primitiveIndex;
+            ids.materialIndex = packet.materialIndex;
+            RegisterSurfaceResourceHandles(ids);
+            return ids;
+        }
+
         SurfaceDrawPacketKey BuildPacketKey(const SurfaceDrawPacket& packet) {
             SurfaceDrawPacketKey key{};
             key.materialIndex = packet.materialIndex;
@@ -185,11 +247,19 @@ namespace HIKARI::RENDER3D::RUNTIME {
             key.sortKey = HashAppend(key.sortKey, key.materialKey);
             key.sortKey = HashAppend(key.sortKey, key.textureSetKey);
 
+            key.resources = BuildSurfaceResourceIds(
+                packet,
+                key.modelKey,
+                key.geometryKey,
+                key.materialKey,
+                key.textureSetKey,
+                key.shaderKey,
+                key.psoKey);
             key.alphaMasked = alphaMode == AlphaMode::Mask;
             key.transparent = alphaMode == AlphaMode::Blend;
-            key.resourceKeyValid = modelKey != 0 && key.geometryKey != 0 && key.materialKey != 0;
+            key.resourceKeyValid = key.resources.HasStableKeys();
             key.objectDataCompatible = shaderRoute.objectDataCompatible;
-            key.depthAwareMaterialFx = shaderRoute.depthAwareMaterialFx;
+            key.depthAware = shaderRoute.depthAware;
             return key;
         }
 
@@ -379,7 +449,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 return;
             }
 
-            // HIKARI は右手系 view 空間なので、より小さい z を遠方として先に描画する。
+            // HIKARI は右手系 view 空間なので、小さい z を奥側として先に描画する。
             std::stable_sort(
                 entries.begin(),
                 entries.end(),
@@ -419,8 +489,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             case SurfaceDrawRouteRejectReason::LegacyShader:
                 ++stats->skippedLegacyShaderPacketCount;
                 break;
-            case SurfaceDrawRouteRejectReason::DepthAwareMaterialFx:
-                ++stats->skippedDepthAwarePacketCount;
+            case SurfaceDrawRouteRejectReason::DepthAware:
                 break;
             case SurfaceDrawRouteRejectReason::RuntimeAnimation:
                 ++stats->skippedRuntimeAnimationPacketCount;
@@ -473,7 +542,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             case SurfaceDrawRouteBucket::Transparent:
                 ++stats.transparentPacketCount;
                 break;
-            case SurfaceDrawRouteBucket::DepthAwareMaterialFx:
+            case SurfaceDrawRouteBucket::DepthAware:
                 ++stats.depthAwarePacketCount;
                 break;
             case SurfaceDrawRouteBucket::RuntimeSpecial:
@@ -537,7 +606,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             case SurfaceDrawRouteRejectReason::None:
             case SurfaceDrawRouteRejectReason::NoForward:
             case SurfaceDrawRouteRejectReason::LegacyShader:
-            case SurfaceDrawRouteRejectReason::DepthAwareMaterialFx:
+            case SurfaceDrawRouteRejectReason::DepthAware:
             case SurfaceDrawRouteRejectReason::AlphaMasked:
             default:
                 break;
@@ -650,7 +719,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.materialFxValuesInitialized = surfaceInstance.materialFxValuesInitialized;
         CopyMaterialFxValues(surfaceInstance, packet);
 
-        // 縺薙％縺ｧ縺ｯ荳ｦ縺ｳ譖ｿ縺医★縲∝ｾ梧ｮｵ縺御ｽｿ縺・key 縺縺代ｒ菴懊ｋ縲・
+        // 後段分類に必要な最小 key を先に埋める。
         packet.forwardCandidate = packet.visible;
         packet.shadowCandidate = packet.visible && packet.castShadow;
         packet.key.materialIndex = packet.materialIndex;
@@ -659,7 +728,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.key.hasMaterialOverride = packet.materialOverride != nullptr;
         packet.key.skinned = packet.skinned;
         packet.key.passMask = BuildPassMask(packet);
-        // 蠕梧ｮｵ sorter 逕ｨ縺ｮ隲也炊繧ｭ繝ｼ縺縺代ｒ菴懊ｋ縲・
+        // sorter 用の安定キーと resource identity を構築する。
         packet.key = BuildPacketKey(packet);
 
         const SurfaceDrawPacketValidationResult validation = ValidatePacket(packet);
@@ -685,7 +754,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
         }
 
-        // 螳滓緒逕ｻ縺ｯ螟峨∴縺壹∝ｾ梧ｮｵ batch 逕ｨ縺ｮ view 縺縺代ｒ螳牙ｮ壹た繝ｼ繝医☆繧九・
+        // 実描画順は変えず、後段 batch 用の view だけを安定ソートする。
         std::stable_sort(
             sortedPacketIndices_.begin(),
             sortedPacketIndices_.end(),
@@ -768,6 +837,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++stats.transparentResourceSortExcludedCount;
             }
             if (packet.key.resourceKeyValid) {
+                ++stats.resourceIdentityPacketCount;
+                if (packet.key.resources.HasPoolHandles()) {
+                    ++stats.resourcePoolHandlePacketCount;
+                } else {
+                    ++stats.resourcePoolMissingPacketCount;
+                }
                 modelBuckets.insert(packet.key.modelKey);
                 geometryBuckets.insert(packet.key.geometryKey);
                 materialBuckets.insert(packet.key.materialKey);
@@ -852,6 +927,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
             packets,
             executableForwardOpaquePacketIndices_,
             executableForwardOpaqueCommands_);
+        SurfaceDrawCommandBuilder forwardDepthAwareCommandBuilder(
+            SurfaceDrawCommandPass::DepthAware,
+            packets,
+            executableForwardDepthAwarePacketIndices_,
+            executableForwardDepthAwareCommands_);
         SurfaceDrawCommandBuilder forwardTransparentCommandBuilder(
             SurfaceDrawCommandPass::Forward,
             packets,
@@ -863,9 +943,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
             executableShadowPacketIndices_,
             executableShadowCommands_);
         forwardOpaqueCommandBuilder.ClearOutput();
+        forwardDepthAwareCommandBuilder.ClearOutput();
         forwardTransparentCommandBuilder.ClearOutput();
         shadowCommandBuilder.ClearOutput();
         forwardOpaqueGpuSceneInstances_.clear();
+        forwardDepthAwareGpuSceneInstances_.clear();
         forwardTransparentGpuSceneInstances_.clear();
         shadowGpuSceneInstances_.clear();
 
@@ -878,16 +960,48 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         BuildCoverage(packets, outStats);
 
-        if (options.buildForwardPlan && options.bypassLegacyForward) {
+        if (options.buildForwardPlan) {
             for (uint32_t packetIndex : sortedIndices) {
                 if (packetIndex >= packets.size()) {
                     forwardOpaqueCommandBuilder.Flush();
+                    forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
 
                 const SurfaceDrawPacket& packet = packets[packetIndex];
+                if (packet.key.depthAware) {
+                    forwardOpaqueCommandBuilder.Flush();
+                    const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
+                    if (!fullCoverage) {
+                        if (packet.forwardCandidate) {
+                            ++outStats.skippedPartialCoveragePacketCount;
+                        }
+                        forwardDepthAwareCommandBuilder.Flush();
+                        continue;
+                    }
+                    if (!IsForwardSafePacket(packet, nullptr)) {
+                        forwardDepthAwareCommandBuilder.Flush();
+                        continue;
+                    }
+
+                    ++outStats.candidatePacketCount;
+                    if (IsPacketCulledByCamera(packet, options)) {
+                        ++outStats.culledPacketCount;
+                        ++outStats.handledForwardPacketCount;
+                        forwardDepthAwareCommandBuilder.Flush();
+                        continue;
+                    }
+
+                    // DepthAware は opaque 後、transparent 前に実行する独立 stream として積む。
+                    forwardDepthAwareCommandBuilder.AppendPacket(packetIndex);
+                    ++outStats.submittedForwardPacketCount;
+                    ++outStats.submittedForwardDepthAwarePacketCount;
+                    ++outStats.handledForwardPacketCount;
+                    continue;
+                }
                 if (packet.key.transparent) {
                     forwardOpaqueCommandBuilder.Flush();
+                    forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
                 const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
@@ -896,10 +1010,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
                         ++outStats.skippedPartialCoveragePacketCount;
                     }
                     forwardOpaqueCommandBuilder.Flush();
+                    forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
                 if (!IsForwardSafePacket(packet, nullptr)) {
                     forwardOpaqueCommandBuilder.Flush();
+                    forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
 
@@ -908,6 +1024,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     ++outStats.culledPacketCount;
                     ++outStats.handledForwardPacketCount;
                     forwardOpaqueCommandBuilder.Flush();
+                    forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
 
@@ -918,6 +1035,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++outStats.handledForwardPacketCount;
             }
             forwardOpaqueCommandBuilder.Flush();
+            forwardDepthAwareCommandBuilder.Flush();
 
             std::vector<TransparentDepthSortEntry> transparentDepthEntries{};
             transparentDepthEntries.reserve(packets.size());
@@ -929,7 +1047,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
                 const uint32_t packetIndex = static_cast<uint32_t>(rawPacketIndex);
                 const SurfaceDrawPacket& packet = packets[packetIndex];
-                if (!packet.forwardCandidate || !packet.key.transparent) {
+                if (!packet.forwardCandidate || !packet.key.transparent || packet.key.depthAware) {
                     continue;
                 }
 
@@ -970,19 +1088,53 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
             forwardTransparentCommandBuilder.Flush();
             const SurfaceDrawCommandBuildStats& opaqueCommandStats = forwardOpaqueCommandBuilder.GetStats();
+            const SurfaceDrawCommandBuildStats& depthAwareCommandStats = forwardDepthAwareCommandBuilder.GetStats();
             const SurfaceDrawCommandBuildStats& transparentCommandStats = forwardTransparentCommandBuilder.GetStats();
             outStats.submittedOpaqueCommandCount = opaqueCommandStats.commandCount;
             outStats.submittedOpaqueSinglePacketCommandCount = opaqueCommandStats.singlePacketCommandCount;
+            outStats.submittedOpaqueMergedCommandCount = opaqueCommandStats.mergedCommandCount;
+            outStats.submittedOpaqueSavedCommandCount = opaqueCommandStats.savedCommandCount;
             outStats.submittedOpaqueMaxCommandPacketCount = opaqueCommandStats.maxCommandPacketCount;
+            outStats.submittedDepthAwareCommandCount = depthAwareCommandStats.commandCount;
+            outStats.submittedDepthAwareSinglePacketCommandCount = depthAwareCommandStats.singlePacketCommandCount;
+            outStats.submittedDepthAwareMergedCommandCount = depthAwareCommandStats.mergedCommandCount;
+            outStats.submittedDepthAwareSavedCommandCount = depthAwareCommandStats.savedCommandCount;
+            outStats.submittedDepthAwareMaxCommandPacketCount = depthAwareCommandStats.maxCommandPacketCount;
             outStats.submittedTransparentCommandCount = transparentCommandStats.commandCount;
             outStats.submittedTransparentSinglePacketCommandCount = transparentCommandStats.singlePacketCommandCount;
+            outStats.submittedTransparentMergedCommandCount = transparentCommandStats.mergedCommandCount;
+            outStats.submittedTransparentSavedCommandCount = transparentCommandStats.savedCommandCount;
             outStats.submittedTransparentMaxCommandPacketCount = transparentCommandStats.maxCommandPacketCount;
             outStats.submittedCommandCount =
-                opaqueCommandStats.commandCount + transparentCommandStats.commandCount;
+                opaqueCommandStats.commandCount +
+                depthAwareCommandStats.commandCount +
+                transparentCommandStats.commandCount;
             outStats.submittedSinglePacketCommandCount =
-                opaqueCommandStats.singlePacketCommandCount + transparentCommandStats.singlePacketCommandCount;
+                opaqueCommandStats.singlePacketCommandCount +
+                depthAwareCommandStats.singlePacketCommandCount +
+                transparentCommandStats.singlePacketCommandCount;
+            outStats.submittedMergedCommandCount =
+                opaqueCommandStats.mergedCommandCount +
+                depthAwareCommandStats.mergedCommandCount +
+                transparentCommandStats.mergedCommandCount;
+            outStats.submittedSavedCommandCount =
+                opaqueCommandStats.savedCommandCount +
+                depthAwareCommandStats.savedCommandCount +
+                transparentCommandStats.savedCommandCount;
+            outStats.submittedIndirectReadyCommandCount =
+                opaqueCommandStats.indirectReadyCommandCount +
+                depthAwareCommandStats.indirectReadyCommandCount +
+                transparentCommandStats.indirectReadyCommandCount;
+            outStats.submittedMissingDrawArgsCommandCount =
+                opaqueCommandStats.missingDrawArgsCommandCount +
+                depthAwareCommandStats.missingDrawArgsCommandCount +
+                transparentCommandStats.missingDrawArgsCommandCount;
             outStats.submittedMaxCommandPacketCount =
-                (std::max)(opaqueCommandStats.maxCommandPacketCount, transparentCommandStats.maxCommandPacketCount);
+                (std::max)(
+                    opaqueCommandStats.maxCommandPacketCount,
+                    (std::max)(
+                        depthAwareCommandStats.maxCommandPacketCount,
+                        transparentCommandStats.maxCommandPacketCount));
 
             const SurfaceGpuSceneBuildStats opaqueGpuSceneStats =
                 SurfaceGpuSceneWriter::BuildCommandRanges(
@@ -990,6 +1142,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     executableForwardOpaquePacketIndices_,
                     executableForwardOpaqueCommands_,
                     forwardOpaqueGpuSceneInstances_);
+            const SurfaceGpuSceneBuildStats depthAwareGpuSceneStats =
+                SurfaceGpuSceneWriter::BuildCommandRanges(
+                    packets,
+                    executableForwardDepthAwarePacketIndices_,
+                    executableForwardDepthAwareCommands_,
+                    forwardDepthAwareGpuSceneInstances_);
             const SurfaceGpuSceneBuildStats transparentGpuSceneStats =
                 SurfaceGpuSceneWriter::BuildCommandRanges(
                     packets,
@@ -997,15 +1155,30 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     executableForwardTransparentCommands_,
                     forwardTransparentGpuSceneInstances_);
             outStats.submittedOpaqueGpuSceneInstanceCount = opaqueGpuSceneStats.instanceCount;
+            outStats.submittedDepthAwareGpuSceneInstanceCount = depthAwareGpuSceneStats.instanceCount;
             outStats.submittedTransparentGpuSceneInstanceCount = transparentGpuSceneStats.instanceCount;
             outStats.submittedGpuSceneInstanceCount =
-                opaqueGpuSceneStats.instanceCount + transparentGpuSceneStats.instanceCount;
+                opaqueGpuSceneStats.instanceCount +
+                depthAwareGpuSceneStats.instanceCount +
+                transparentGpuSceneStats.instanceCount;
             outStats.submittedMaxGpuSceneCommandInstanceCount =
-                (std::max)(opaqueGpuSceneStats.maxCommandInstanceCount, transparentGpuSceneStats.maxCommandInstanceCount);
+                (std::max)(
+                    opaqueGpuSceneStats.maxCommandInstanceCount,
+                    (std::max)(
+                        depthAwareGpuSceneStats.maxCommandInstanceCount,
+                        transparentGpuSceneStats.maxCommandInstanceCount));
+            outStats.submittedGpuSceneResourceInstanceCount =
+                opaqueGpuSceneStats.resourceBackedInstanceCount +
+                depthAwareGpuSceneStats.resourceBackedInstanceCount +
+                transparentGpuSceneStats.resourceBackedInstanceCount;
+            outStats.submittedGpuSceneMissingResourceInstanceCount =
+                opaqueGpuSceneStats.missingResourceHandleInstanceCount +
+                depthAwareGpuSceneStats.missingResourceHandleInstanceCount +
+                transparentGpuSceneStats.missingResourceHandleInstanceCount;
         }
 
 
-        if (options.buildShadowPlan && options.bypassLegacyShadow) {
+        if (options.buildShadowPlan) {
             for (uint32_t packetIndex : sortedIndices) {
                 if (packetIndex >= packets.size()) {
                     shadowCommandBuilder.Flush();
@@ -1036,6 +1209,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
             const SurfaceDrawCommandBuildStats& commandStats = shadowCommandBuilder.GetStats();
             outStats.shadowCommandCount = commandStats.commandCount;
             outStats.shadowSinglePacketCommandCount = commandStats.singlePacketCommandCount;
+            outStats.shadowMergedCommandCount = commandStats.mergedCommandCount;
+            outStats.shadowSavedCommandCount = commandStats.savedCommandCount;
+            outStats.shadowIndirectReadyCommandCount = commandStats.indirectReadyCommandCount;
+            outStats.shadowMissingDrawArgsCommandCount = commandStats.missingDrawArgsCommandCount;
             outStats.shadowMaxCommandPacketCount = commandStats.maxCommandPacketCount;
 
             const SurfaceGpuSceneBuildStats shadowGpuSceneStats =
@@ -1047,6 +1224,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
             outStats.shadowGpuSceneInstanceCount = shadowGpuSceneStats.instanceCount;
             outStats.shadowMaxGpuSceneCommandInstanceCount =
                 shadowGpuSceneStats.maxCommandInstanceCount;
+            outStats.shadowGpuSceneResourceInstanceCount =
+                shadowGpuSceneStats.resourceBackedInstanceCount;
+            outStats.shadowGpuSceneMissingResourceInstanceCount =
+                shadowGpuSceneStats.missingResourceHandleInstanceCount;
         }
     }
 
@@ -1075,6 +1256,18 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardOpaqueGpuSceneInstances() const {
         return forwardOpaqueGpuSceneInstances_;
+    }
+
+    const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwarePacketIndices() const {
+        return executableForwardDepthAwarePacketIndices_;
+    }
+
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwareCommands() const {
+        return executableForwardDepthAwareCommands_;
+    }
+
+    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardDepthAwareGpuSceneInstances() const {
+        return forwardDepthAwareGpuSceneInstances_;
     }
 
     const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentPacketIndices() const {

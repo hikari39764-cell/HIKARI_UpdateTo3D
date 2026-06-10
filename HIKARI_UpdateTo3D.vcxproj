@@ -295,6 +295,8 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
@@ -303,6 +305,7 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp" />
@@ -560,6 +563,7 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MaterialTextureUsage.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_BoundsUtils.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPassResources.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.h" />
@@ -570,6 +574,8 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.h" />
@@ -650,6 +656,7 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.h" />
@@ -797,6 +804,7 @@
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_SurfaceGpuScene.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />

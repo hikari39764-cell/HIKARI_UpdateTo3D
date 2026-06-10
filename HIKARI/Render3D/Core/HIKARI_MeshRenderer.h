@@ -2,11 +2,13 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <d3d12.h>
 #include <DirectXMath.h>
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_Transform3D.h"
+#include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
@@ -15,6 +17,7 @@ namespace HIKARI::RENDER3D {
     namespace RUNTIME {
         class SurfaceDrawPacketBuilder;
         struct SurfaceDrawCommand;
+        struct SurfaceGpuSceneInstance;
     }
     namespace SCREENSPACE {
         class SceneGeometryBuffer;
@@ -31,17 +34,32 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* opaqueExecutablePacketIndices,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* opaqueExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* opaqueGpuSceneInstances,
+        const std::vector<uint32_t>* depthAwareExecutablePacketIndices,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* depthAwareExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* depthAwareGpuSceneInstances,
         const std::vector<uint32_t>* transparentExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands);
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* transparentGpuSceneInstances);
     bool HasSubmittedItems();
     bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment);
     bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment, uint32_t screenWidth, uint32_t screenHeight);
     const RENDER3D::RenderQueue& BuildRenderQueue();
     const CameraCB* GetCameraConstants();
-    bool RenderGeometryBufferPass(const RENDER3D::RenderQueue& queue, RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer);
-    bool RenderForwardOpaquePass(const RENDER3D::RenderQueue& queue, D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle);
-    bool RenderForwardTransparentPass(const RENDER3D::RenderQueue& queue, D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle);
-    bool RenderDepthAwarePass(const RENDER3D::RenderQueue& queue, D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv, int fallbackAoTextureHandle);
+    bool RenderGeometryBufferPass(
+        const RENDER3D::RenderQueue& queue,
+        RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer,
+        D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
+    bool RenderForwardOpaquePass(
+        const RENDER3D::RenderQueue& queue,
+        const MeshPassResources& passResources);
+    bool RenderForwardTransparentPass(
+        const RENDER3D::RenderQueue& queue,
+        const MeshPassResources& passResources);
+    bool HasDepthAwarePassWork(const RENDER3D::RenderQueue& queue);
+    bool RenderDepthAwarePass(
+        const RENDER3D::RenderQueue& queue,
+        const MeshPassResources& passResources);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);

@@ -36,12 +36,17 @@ struct VSOutput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
 };
 
 VSOutput main(VSInput input)
 {
     VSOutput output;
-    HikariMeshObjectData objectData = HikariGetMeshObjectData(gObjectDataIndex + input.instanceId);
+    uint objectDataIndex = HikariGetObjectDataAbsoluteIndex(gObjectDataIndex, input.instanceId);
+    HikariMeshObjectData objectData =
+        HikariGetMeshObjectDataForInstance(objectDataIndex, input.instanceId);
     float4 worldPos = mul(objectData.world, float4(input.position, 1.0f));
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
@@ -49,5 +54,8 @@ VSOutput main(VSInput input)
     output.tangentWS = float4(normalize(mul((float3x3)objectData.normalMatrix, input.tangent.xyz)), input.tangent.w);
     output.uv = input.uv;
     output.materialDataIndex = objectData.materialDataIndex;
+    output.receiveShadow = objectData.receiveShadow;
+    output.objectDataIndex = objectDataIndex;
+    output.surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
     return output;
 }

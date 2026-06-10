@@ -14,6 +14,7 @@
 namespace HIKARI::RENDER3D::RUNTIME {
     class SurfaceDrawPacketBuilder;
     struct SurfaceDrawCommand;
+    struct SurfaceGpuSceneInstance;
 }
 
 namespace HIKARI::SHADOW {
@@ -31,6 +32,28 @@ namespace HIKARI::SHADOW {
         size_t shadowPacketInstancedDrawCount = 0;
         size_t shadowPacketInstancedCasterCount = 0;
         size_t shadowPacketMaxInstanceCount = 0;
+        size_t shadowIndirectCapacity = 0;
+        size_t shadowIndirectRequestedCommandCount = 0;
+        size_t shadowIndirectUploadedCommandCount = 0;
+        size_t shadowIndirectOverflowCommandCount = 0;
+        size_t shadowIndirectCpuDirectCommandCount = 0;
+        size_t shadowIndirectMissingDrawArgsCommandCount = 0;
+        size_t shadowIndirectDrawBindingPatchCount = 0;
+        size_t shadowIndirectExecutedCommandCount = 0;
+        size_t shadowIndirectExecutedPacketCount = 0;
+        size_t shadowIndirectBatchSubmitCount = 0;
+        size_t shadowIndirectSavedSubmitCount = 0;
+        size_t shadowIndirectMaxBatchCommandCount = 0;
+        size_t shadowIndirectFallbackCommandCount = 0;
+        bool shadowIndirectArgumentBufferReady = false;
+        bool shadowIndirectCommandSignatureReady = false;
+        size_t shadowGpuSceneCapacity = 0;
+        size_t shadowGpuSceneRequestedInstanceCount = 0;
+        size_t shadowGpuSceneUploadedInstanceCount = 0;
+        size_t shadowGpuSceneOverflowInstanceCount = 0;
+        size_t shadowGpuSceneUploadCallCount = 0;
+        bool shadowGpuSceneSrvValid = false;
+        bool shadowGpuSceneBufferReady = false;
         size_t staticCasterDrawCount = 0;
         size_t skinnedCasterDrawCount = 0;
         size_t alphaMaskCasterDrawCount = 0;
@@ -55,7 +78,8 @@ namespace HIKARI::SHADOW {
     void SetSurfaceDrawPacketExecutionPlan(
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* executablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands);
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* gpuSceneInstances);
     void RenderDirectionalShadowMap();
 
     bool IsDirectionalShadowEnabled();

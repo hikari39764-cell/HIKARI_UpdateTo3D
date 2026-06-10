@@ -23,9 +23,8 @@ namespace {
     }
 
     MaterialFxRenderPhase ParseRenderPhase(const std::string& value) {
-        if (value == "SceneDepth" || value == "sceneDepth" ||
-            value == "DepthAware" || value == "depthAware") {
-            return MaterialFxRenderPhase::SceneDepth;
+        if (value == "DepthAware") {
+            return MaterialFxRenderPhase::DepthAware;
         }
         return MaterialFxRenderPhase::Opaque;
     }

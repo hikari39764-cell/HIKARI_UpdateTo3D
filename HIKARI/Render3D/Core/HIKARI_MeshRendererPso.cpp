@@ -303,6 +303,13 @@ namespace HIKARI::MESHRENDERER {
         materialDataRange.RegisterSpace = 0;
         materialDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+        D3D12_DESCRIPTOR_RANGE surfaceGpuSceneRange{};
+        surfaceGpuSceneRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        surfaceGpuSceneRange.NumDescriptors = 1;
+        surfaceGpuSceneRange.BaseShaderRegister = 17;
+        surfaceGpuSceneRange.RegisterSpace = 0;
+        surfaceGpuSceneRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
         D3D12_DESCRIPTOR_RANGE materialTexturePoolRange{};
         materialTexturePoolRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         materialTexturePoolRange.NumDescriptors = GFX::DESCRIPTOR::kUserSrvCount;
@@ -310,7 +317,8 @@ namespace HIKARI::MESHRENDERER {
         materialTexturePoolRange.RegisterSpace = 0;
         materialTexturePoolRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[ROOT_PARAM::TexturePool + 1]{};
+        // 既存 slot を動かさず、SurfaceGpuScene を末尾へ追加する。
+        D3D12_ROOT_PARAMETER params[ROOT_PARAM::SurfaceGpuSceneControl + 1]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -413,6 +421,22 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::TexturePool].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::TexturePool].DescriptorTable.pDescriptorRanges = &materialTexturePoolRange;
 
+        params[ROOT_PARAM::JointPalette].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+        params[ROOT_PARAM::JointPalette].Descriptor.ShaderRegister = 3;
+        params[ROOT_PARAM::JointPalette].Descriptor.RegisterSpace = 0;
+
+        params[ROOT_PARAM::SurfaceGpuScene].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[ROOT_PARAM::SurfaceGpuScene].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::SurfaceGpuScene].DescriptorTable.NumDescriptorRanges = 1;
+        params[ROOT_PARAM::SurfaceGpuScene].DescriptorTable.pDescriptorRanges = &surfaceGpuSceneRange;
+
+        params[ROOT_PARAM::SurfaceGpuSceneControl].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        params[ROOT_PARAM::SurfaceGpuSceneControl].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::SurfaceGpuSceneControl].Constants.ShaderRegister = 8;
+        params[ROOT_PARAM::SurfaceGpuSceneControl].Constants.RegisterSpace = 0;
+        params[ROOT_PARAM::SurfaceGpuSceneControl].Constants.Num32BitValues = 4;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -457,7 +481,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[ROOT_PARAM::JointPalette + 1]{};
+        D3D12_ROOT_PARAMETER skinnedParams[ROOT_PARAM::SurfaceGpuSceneControl + 1]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

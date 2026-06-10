@@ -45,7 +45,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
     }
 
     bool IsSurfaceObjectDataVertexShader(std::string_view vertexShaderId) {
-        return vertexShaderId.empty() || vertexShaderId == "Render3D_StaticVS";
+        return
+            vertexShaderId.empty() ||
+            vertexShaderId == "Render3D_StaticVS" ||
+            vertexShaderId == "Render3D_FxWaterVS";
     }
 
     bool IsSurfaceObjectDataPixelShader(std::string_view shaderId, std::string_view pixelShaderId) {
@@ -57,6 +60,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             id == "MaterialFx" ||
             id == "Render3D_StaticPS" ||
             id == "Render3D_StaticFxPS" ||
+            id == "Render3D_FxWaterPS" ||
             id == "Render3D_GeometryBufferPS";
     }
 
@@ -93,7 +97,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 }
                 route.featureBits = profile.featureBits;
                 route.doubleSided = route.doubleSided || profile.doubleSided;
-                route.depthAwareMaterialFx = profile.renderPhase == MaterialFxRenderPhase::SceneDepth;
+                route.depthAware = profile.renderPhase == MaterialFxRenderPhase::DepthAware;
                 if (materialAsset != nullptr &&
                     (materialAsset->featureBits & MATERIAL_FEATURES::AlphaMask) != 0) {
                     route.featureBits |= MATERIAL_FEATURES::AlphaMask;
@@ -111,12 +115,13 @@ namespace HIKARI::RENDER3D::RUNTIME {
         if (!packet.forwardCandidate) {
             return SurfaceDrawRouteRejectReason::NoForward;
         }
-        const SurfaceDrawRouteRejectReason commonReason = ClassifyCommonSurfaceDrawRoute(packet, true);
+        const SurfaceDrawRouteRejectReason commonReason =
+            ClassifyCommonSurfaceDrawRoute(packet, !packet.key.depthAware);
         if (commonReason != SurfaceDrawRouteRejectReason::None) {
             return commonReason;
         }
-        if (packet.key.depthAwareMaterialFx) {
-            return SurfaceDrawRouteRejectReason::DepthAwareMaterialFx;
+        if (packet.key.depthAware) {
+            return SurfaceDrawRouteRejectReason::DepthAware;
         }
         return SurfaceDrawRouteRejectReason::None;
     }
@@ -146,8 +151,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return SurfaceDrawRouteBucket::AlphaMask;
         case SurfaceDrawRouteRejectReason::Transparent:
             return SurfaceDrawRouteBucket::Transparent;
-        case SurfaceDrawRouteRejectReason::DepthAwareMaterialFx:
-            return SurfaceDrawRouteBucket::DepthAwareMaterialFx;
+        case SurfaceDrawRouteRejectReason::DepthAware:
+            return SurfaceDrawRouteBucket::DepthAware;
         case SurfaceDrawRouteRejectReason::RuntimeAnimation:
         case SurfaceDrawRouteRejectReason::SpecialDebug:
             return SurfaceDrawRouteBucket::RuntimeSpecial;
@@ -164,7 +169,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
     }
 
     bool IsSurfaceDrawRouteAccepted(SurfaceDrawRouteRejectReason reason) {
-        return reason == SurfaceDrawRouteRejectReason::None;
+        return
+            reason == SurfaceDrawRouteRejectReason::None ||
+            reason == SurfaceDrawRouteRejectReason::DepthAware;
     }
 
 } // namespace HIKARI::RENDER3D::RUNTIME

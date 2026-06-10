@@ -15,6 +15,8 @@ Texture2D gNormalRoughnessTex : register(t2);
 SamplerState gPointClamp : register(s0);
 SamplerState gLinearClamp : register(s1);
 
+#define gAoRadius gAoParams0.x
+
 struct VSOut
 {
     float4 pos : SV_POSITION;
@@ -35,11 +37,32 @@ float3 DecodeNormal(float4 packed)
     return normalize(packed.xyz * 2.0f - 1.0f);
 }
 
+float3 ReconstructWorld(float2 uv, float depth)
+{
+    float2 ndc = uv * 2.0f - 1.0f;
+    ndc.y = -ndc.y;
+    float4 world = mul(gInvViewProj, float4(ndc, depth, 1.0f));
+    return world.xyz / max(abs(world.w), 1e-5f);
+}
+
+float DepthAwareWeight(float3 centerWorld, float3 sampleWorld)
+{
+    // AO 半解像度復元では非線形 depth 差ではなく、実空間距離でエッジを守る。
+    float depthScale = max(gAoRadius * 0.35f, 0.035f);
+    return exp(-length(sampleWorld - centerWorld) / depthScale);
+}
+
 float PSMain(VSOut input) : SV_TARGET
 {
     float2 texel = gScreenParams.zw * gBlurParams.xy;
     float centerDepth = gSceneDepthTex.SampleLevel(gPointClamp, input.uv, 0).r;
+    if (centerDepth >= 0.99999f)
+    {
+        return gAoTex.SampleLevel(gLinearClamp, input.uv, 0).r;
+    }
+
     float3 centerNormal = DecodeNormal(gNormalRoughnessTex.SampleLevel(gPointClamp, input.uv, 0));
+    float3 centerWorld = ReconstructWorld(input.uv, centerDepth);
 
     float sum = 0.0f;
     float weightSum = 0.0f;
@@ -50,10 +73,16 @@ float PSMain(VSOut input) : SV_TARGET
         float2 uv = input.uv + texel * float(i);
         float ao = gAoTex.SampleLevel(gLinearClamp, uv, 0).r;
         float depth = gSceneDepthTex.SampleLevel(gPointClamp, uv, 0).r;
+        if (depth >= 0.99999f)
+        {
+            continue;
+        }
+
         float3 normal = DecodeNormal(gNormalRoughnessTex.SampleLevel(gPointClamp, uv, 0));
+        float3 sampleWorld = ReconstructWorld(uv, depth);
         float normalWeight = saturate(dot(centerNormal, normal));
         normalWeight *= normalWeight;
-        float depthWeight = exp(-abs(depth - centerDepth) * 64.0f);
+        float depthWeight = DepthAwareWeight(centerWorld, sampleWorld);
         float kernelWeight = (i == 0) ? 0.34f : ((abs(i) == 1) ? 0.22f : 0.10f);
         float weight = kernelWeight * normalWeight * depthWeight;
         sum += ao * weight;
@@ -63,27 +92,48 @@ float PSMain(VSOut input) : SV_TARGET
     return sum / max(weightSum, 1e-4f);
 }
 
-// Depth-only AO 用の軽量 blur。
-float PSMainDepthOnly(VSOut input) : SV_TARGET
+// 半解像度 AO を全解像度へ戻す。深度と法線が近いサンプルだけを強く採用する。
+float PSMainUpsample(VSOut input) : SV_TARGET
 {
-    float2 texel = gScreenParams.zw * gBlurParams.xy;
     float centerDepth = gSceneDepthTex.SampleLevel(gPointClamp, input.uv, 0).r;
+    if (centerDepth >= 0.99999f)
+    {
+        return 1.0f;
+    }
+
+    float3 centerNormal = DecodeNormal(gNormalRoughnessTex.SampleLevel(gPointClamp, input.uv, 0));
+    float3 centerWorld = ReconstructWorld(input.uv, centerDepth);
+    float2 sourceTexel = max(gBlurParams.zw, gScreenParams.zw);
+    float centerAo = gAoTex.SampleLevel(gLinearClamp, input.uv, 0).r;
 
     float sum = 0.0f;
     float weightSum = 0.0f;
 
     [unroll]
-    for (int i = -1; i <= 1; ++i)
+    for (int y = -1; y <= 1; ++y)
     {
-        float2 uv = saturate(input.uv + texel * float(i));
-        float ao = gAoTex.SampleLevel(gLinearClamp, uv, 0).r;
-        float depth = gSceneDepthTex.SampleLevel(gPointClamp, uv, 0).r;
-        float depthWeight = exp(-abs(depth - centerDepth) * 96.0f);
-        float kernelWeight = (i == 0) ? 0.50f : 0.25f;
-        float weight = kernelWeight * depthWeight;
-        sum += ao * weight;
-        weightSum += weight;
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float2 uv = saturate(input.uv + float2(x, y) * sourceTexel);
+            float ao = gAoTex.SampleLevel(gLinearClamp, uv, 0).r;
+            float depth = gSceneDepthTex.SampleLevel(gPointClamp, uv, 0).r;
+            if (depth >= 0.99999f)
+            {
+                continue;
+            }
+
+            float3 normal = DecodeNormal(gNormalRoughnessTex.SampleLevel(gPointClamp, uv, 0));
+            float3 sampleWorld = ReconstructWorld(uv, depth);
+            float normalWeight = saturate(dot(centerNormal, normal));
+            normalWeight *= normalWeight;
+            float depthWeight = DepthAwareWeight(centerWorld, sampleWorld);
+            float kernelWeight = (x == 0 && y == 0) ? 0.34f : ((abs(x) + abs(y)) == 1 ? 0.14f : 0.08f);
+            float weight = kernelWeight * normalWeight * depthWeight;
+            sum += ao * weight;
+            weightSum += weight;
+        }
     }
 
-    return sum / max(weightSum, 1e-4f);
+    return weightSum > 1e-4f ? sum / weightSum : centerAo;
 }

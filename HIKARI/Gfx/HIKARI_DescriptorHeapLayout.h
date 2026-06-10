@@ -24,13 +24,16 @@ namespace HIKARI::GFX::DESCRIPTOR {
         SceneNormalRoughness = kSystemSrvBegin + 7,
         SsaoRaw = kSystemSrvBegin + 8,
         SsaoBlurred = kSystemSrvBegin + 9,
-        LightProbeSh = kSystemSrvBegin + 10,
-        MeshObjectData = kSystemSrvBegin + 11,
-        MeshMaterialData = kSystemSrvBegin + 12,
-        ShadowObjectData = kSystemSrvBegin + 13,
+        SsaoResolved = kSystemSrvBegin + 10,
+        LightProbeSh = kSystemSrvBegin + 11,
+        MeshObjectData = kSystemSrvBegin + 12,
+        MeshMaterialData = kSystemSrvBegin + 13,
+        MeshSurfaceGpuScene = kSystemSrvBegin + 14,
+        ShadowSurfaceGpuScene = kSystemSrvBegin + 15,
+        ShadowMaterialData = kSystemSrvBegin + 16,
     };
 
-    constexpr UINT kSystemSrvUsedCount = 14;
+    constexpr UINT kSystemSrvUsedCount = 17;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
@@ -78,9 +81,12 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::SceneNormalRoughness) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SsaoRaw) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SsaoBlurred) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::SsaoResolved) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::LightProbeSh) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshObjectData) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshMaterialData) < kSrvHeapCapacity);
-    static_assert(ToIndex(SystemSrv::ShadowObjectData) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshSurfaceGpuScene) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuScene) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowMaterialData) < kSrvHeapCapacity);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

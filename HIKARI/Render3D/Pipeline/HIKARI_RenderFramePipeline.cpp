@@ -5,6 +5,7 @@
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Services.h"
+#include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
@@ -13,12 +14,27 @@
 namespace HIKARI::RENDER3D::PIPELINE {
 
     namespace {
+        bool RebindPostRenderTarget(void*) {
+            return POST::PostSystem::RebindCurrentRenderTarget();
+        }
+
+        bool BeginPostDepthRead(void*) {
+            return POST::PostSystem::BeginCurrentRenderTargetDepthRead();
+        }
+
+        void EndPostDepthRead(void*) {
+            POST::PostSystem::EndCurrentRenderTargetDepthRead();
+        }
+
         ScreenSpacePassContext BuildScreenSpaceContext() {
             ScreenSpacePassContext context{};
             context.cmd = SERVICES::gCtx.cmdList;
             context.sceneDsv = POST::PostSystem::GetCurrentRenderTargetDsv();
             context.sceneDepthSrv = SERVICES::gCtx.sceneDepthSrv;
             context.depthReadable = context.sceneDepthSrv.ptr != 0;
+            context.renderTargetAccess.rebind = RebindPostRenderTarget;
+            context.renderTargetAccess.beginDepthRead = BeginPostDepthRead;
+            context.renderTargetAccess.endDepthRead = EndPostDepthRead;
 
             int width = 0;
             int height = 0;
@@ -31,6 +47,15 @@ namespace HIKARI::RENDER3D::PIPELINE {
             context.height = static_cast<uint32_t>(std::max(1, height));
             return context;
         }
+
+        MESHRENDERER::MeshPassResources BuildMeshPassResources(
+            const RENDER3D::SCREENSPACE::ScreenSpaceFrameResult& screenResult) {
+            MESHRENDERER::MeshPassResources resources{};
+            resources.sceneDepthSrv = SERVICES::gCtx.sceneDepthSrv;
+            resources.ssaoSrv = screenResult.aoSrv;
+            resources.fallbackAoTextureHandle = screenResult.fallbackAoTextureHandle;
+            return resources;
+        }
     }
 
     bool RenderMeshLightingFrame(
@@ -42,7 +67,12 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
 
         GFX::PIX::ScopedGpuEvent pixFrame(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "RenderFrame.MeshLighting");
-        if (!MESHRENDERER::BeginFrame(camera, environment)) {
+        const ScreenSpacePassContext screenSpaceContext = BuildScreenSpaceContext();
+        if (!MESHRENDERER::BeginFrame(
+            camera,
+            environment,
+            screenSpaceContext.width,
+            screenSpaceContext.height)) {
             MESHRENDERER::EndFrame();
             return false;
         }
@@ -54,7 +84,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
         if (cameraCb != nullptr) {
             screenResult = RENDER3D::SCREENSPACE::ExecuteScreenSpacePreLightingPasses(
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState(),
-                BuildScreenSpaceContext(),
+                screenSpaceContext,
                 *cameraCb,
                 environment,
                 queue);
@@ -66,6 +96,8 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
 
         MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(screenResult.ssaoRendered);
+        MESHRENDERER::MeshPassResources opaqueResources = BuildMeshPassResources(screenResult);
+        MESHRENDERER::MeshPassResources postOpaqueResources = opaqueResources;
 
         bool opaqueOk = false;
         {
@@ -75,19 +107,28 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 GFX::GPU_PROFILE::Pass::ForwardOpaque);
             opaqueOk = MESHRENDERER::RenderForwardOpaquePass(
                 queue,
-                screenResult.aoSrv,
-                screenResult.fallbackAoTextureHandle);
+                opaqueResources);
         }
         bool depthAwareOk = true;
         if (opaqueOk) {
+            if (POST::PostSystem::CaptureSceneColorSnapshot()) {
+                postOpaqueResources.sceneColorSrv = POST::PostSystem::GetSceneColorSrv();
+                POST::PostSystem::RebindCurrentRenderTarget();
+            }
+        }
+        if (opaqueOk && MESHRENDERER::HasDepthAwarePassWork(queue)) {
             GFX::PIX::ScopedGpuEvent pixDepthAware(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "DepthAware");
             GFX::GPU_PROFILE::ScopedGpuTimer gpuDepthAware(
                 SERVICES::gCtx.cmdList,
                 GFX::GPU_PROFILE::Pass::DepthAware);
-            depthAwareOk = MESHRENDERER::RenderDepthAwarePass(
-                queue,
-                screenResult.aoSrv,
-                screenResult.fallbackAoTextureHandle);
+            if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
+                depthAwareOk = MESHRENDERER::RenderDepthAwarePass(
+                    queue,
+                    postOpaqueResources);
+                POST::PostSystem::EndCurrentRenderTargetDepthRead();
+            } else {
+                depthAwareOk = false;
+            }
         }
 
         bool transparentOk = true;
@@ -98,8 +139,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 GFX::GPU_PROFILE::Pass::ForwardTransparent);
             transparentOk = MESHRENDERER::RenderForwardTransparentPass(
                 queue,
-                screenResult.aoSrv,
-                screenResult.fallbackAoTextureHandle);
+                postOpaqueResources);
         }
 
         MESHRENDERER::EndFrame();
@@ -130,7 +170,8 @@ namespace HIKARI::RENDER3D::PIPELINE {
         MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(false);
 
         // Capture は後処理と depth-aware phase を含めない。
-        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(queue, {}, -1);
+        const MESHRENDERER::MeshPassResources captureResources{};
+        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(queue, captureResources);
         MESHRENDERER::EndFrame();
         return opaqueOk;
     }

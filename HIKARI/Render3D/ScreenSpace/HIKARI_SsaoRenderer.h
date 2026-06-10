@@ -17,12 +17,14 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         bool valid = false;
         bool suppressed = false;
         SsaoMode mode = SsaoMode::Off;
-        bool depthOnlyInput = false;
         bool geometryBufferEnabled = false;
         bool geometryBufferWritten = false;
         DXGI_FORMAT geometryBufferFormat = DXGI_FORMAT_UNKNOWN;
         uint32_t width = 0;
         uint32_t height = 0;
+        uint32_t internalWidth = 0;
+        uint32_t internalHeight = 0;
+        bool halfResolution = false;
         uint32_t referenceSampleCount = 0;
         uint32_t referenceBlurIterations = 0;
         uint32_t sampleCount = 0;
@@ -47,13 +49,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
             const MESHRENDERER::CameraCB& camera,
             const AmbientOcclusionSettings& settings);
-        bool RenderDepthOnly(
-            ID3D12GraphicsCommandList* cmd,
-            uint32_t width,
-            uint32_t height,
-            D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
-            const MESHRENDERER::CameraCB& camera,
-            const AmbientOcclusionSettings& settings);
 
         void Release();
         void RecordSkipped(
@@ -65,7 +60,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         bool IsValid() const { return valid_; }
 
     private:
-        bool EnsureResources(uint32_t width, uint32_t height);
+        bool EnsureResources(uint32_t width, uint32_t height, bool halfResolution);
         bool EnsurePipeline();
         bool CreateAoResource(
             uint32_t width,
@@ -86,35 +81,39 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
             D3D12_GPU_DESCRIPTOR_HANDLE normalRoughnessSrv,
             const MESHRENDERER::CameraCB& camera,
-            const AmbientOcclusionSettings& settings,
-            bool depthOnlyInput);
+            const AmbientOcclusionSettings& settings);
 
         Microsoft::WRL::ComPtr<ID3D12RootSignature> generateRootSig_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> generatePso_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> optimizedGeneratePso_{};
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> depthOnlyGenerateRootSig_{};
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> depthOnlyGeneratePso_{};
         Microsoft::WRL::ComPtr<ID3D12RootSignature> blurRootSig_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> blurPso_{};
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> depthOnlyBlurRootSig_{};
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> depthOnlyBlurPso_{};
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> upsamplePso_{};
         Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_{};
         uint8_t* constantMapped_ = nullptr;
 
         Microsoft::WRL::ComPtr<ID3D12Resource> rawAo_{};
         Microsoft::WRL::ComPtr<ID3D12Resource> blurredAo_{};
+        Microsoft::WRL::ComPtr<ID3D12Resource> resolvedAo_{};
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap_{};
         D3D12_CPU_DESCRIPTOR_HANDLE rawRtv_{};
         D3D12_CPU_DESCRIPTOR_HANDLE blurredRtv_{};
+        D3D12_CPU_DESCRIPTOR_HANDLE resolvedRtv_{};
         D3D12_CPU_DESCRIPTOR_HANDLE rawSrvCpu_{};
         D3D12_CPU_DESCRIPTOR_HANDLE blurredSrvCpu_{};
+        D3D12_CPU_DESCRIPTOR_HANDLE resolvedSrvCpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE rawSrvGpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE blurredSrvGpu_{};
+        D3D12_GPU_DESCRIPTOR_HANDLE resolvedSrvGpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE lastAoSrv_{};
         D3D12_RESOURCE_STATES rawState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         D3D12_RESOURCE_STATES blurredState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        D3D12_RESOURCE_STATES resolvedState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        uint32_t screenWidth_ = 0;
+        uint32_t screenHeight_ = 0;
         uint32_t width_ = 0;
         uint32_t height_ = 0;
+        bool halfResolution_ = false;
         bool valid_ = false;
     };
 

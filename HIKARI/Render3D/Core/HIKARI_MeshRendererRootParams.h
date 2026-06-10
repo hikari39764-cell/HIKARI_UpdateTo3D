@@ -46,5 +46,9 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT TexturePool = 19;
     // JointPalette -> b3, skinned only
     constexpr UINT JointPalette = 20;
+    // Surface GPU scene buffer -> t17
+    constexpr UINT SurfaceGpuScene = 21;
+    // Surface GPU scene base index / mode -> b8
+    constexpr UINT SurfaceGpuSceneControl = 22;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

@@ -145,6 +145,7 @@ struct PSInput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    nointerpolation uint receiveShadow : TEXCOORD3;
 };
 
 float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS, float4 tangentWS, float2 uv)
@@ -341,9 +342,9 @@ float SampleShadowPcf(float2 uv, float currentDepth)
     return visibility;
 }
 
-float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS)
+float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint receiveShadow)
 {
-    if (gShadowEnabled == 0 || gReceiveShadow == 0)
+    if (gShadowEnabled == 0 || receiveShadow == 0)
     {
         return 1.0f;
     }
@@ -403,7 +404,7 @@ float4 main(PSInput input) : SV_TARGET
     {
         screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
     }
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
     float3 emissive = ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(materialData, input.uv) : 0.0f.xxx;
 
     float3 shadedColor = albedo.rgb;

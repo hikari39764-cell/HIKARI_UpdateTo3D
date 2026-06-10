@@ -141,7 +141,7 @@ namespace HIKARI {
                 POST::PostSystem::GetSceneColorWidth(),
                 POST::PostSystem::GetSceneColorHeight());
             ImGui::Text("SceneColor For Water: %s", POST::PostSystem::IsSceneColorReady() ? "Available" : "Unavailable");
-            ImGui::Text("Water Refraction: SceneColor t8 when renderPhase=SceneDepth");
+            ImGui::Text("Water Refraction: SceneColor t8 when renderPhase=DepthAware");
             const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
             ImGui::Text("IBL Valid: %s", iblData.valid ? "Yes" : "No");
             ImGui::Text("IBL Irradiance / Prefiltered / BRDF: %s / %s / %s",

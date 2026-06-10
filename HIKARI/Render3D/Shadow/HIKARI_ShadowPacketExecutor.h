@@ -21,35 +21,37 @@ namespace HIKARI::RENDER3D::RUNTIME {
     struct SurfaceDrawCommand;
 }
 
+namespace HIKARI::RENDER3D::CORE {
+    class SurfaceIndirectDrawBuffer;
+    class SurfaceGpuSceneFrameBuffer;
+}
+
 namespace HIKARI::SHADOW::PACKET {
 
     constexpr UINT kShadowStaticRootParamCamera = 0;
     constexpr UINT kShadowStaticRootParamObject = 1;
     constexpr UINT kShadowStaticRootParamBaseColorTexture = 2;
-    constexpr UINT kShadowStaticRootParamObjectData = 3;
-    constexpr UINT kShadowStaticRootParamObjectDataControl = 4;
-    constexpr UINT kShadowSkinnedRootParamJointPalette = 3;
-
-    struct ShadowPacketObjectData {
-        MATH::Mat4 world{};
-        uint32_t materialFlags = 0;
-        float alphaCutoff = 0.5f;
-        float padding[2]{};
-    };
-
-    static_assert(sizeof(ShadowPacketObjectData) == 80u);
+    constexpr UINT kShadowStaticRootParamMaterialData = 3;
+    constexpr UINT kShadowStaticRootParamSurfaceGpuScene = 4;
+    constexpr UINT kShadowStaticRootParamSurfaceGpuSceneControl = 5;
+    constexpr UINT kShadowStaticRootParamTexturePool = 6;
+    constexpr UINT kShadowStaticRootParamMaterialIndex = 7;
+    constexpr UINT kShadowSkinnedRootParamJointPalette = 8;
 
     using ResolveShadowPacketMeshFn = Mesh* (*)(const MeshPrimitive& primitive);
-    using ResolveShadowPacketTextureFn =
-        RENDER3D::TextureResourceHandle (*)(const ModelAsset& asset, const MaterialAsset* materialAsset);
 
     struct ShadowPacketExecutorContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         ID3D12RootSignature* staticRootSig = nullptr;
         ID3D12PipelineState* staticPso = nullptr;
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
+        D3D12_GPU_DESCRIPTOR_HANDLE fallbackBaseColorSrv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv{};
+        RENDER3D::CORE::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
+        RENDER3D::CORE::SurfaceIndirectDrawBuffer* indirectDrawBuffer = nullptr;
         ResolveShadowPacketMeshFn resolveStaticMesh = nullptr;
-        ResolveShadowPacketTextureFn resolveBaseColorTexture = nullptr;
     };
 
     struct ShadowPacketDrawResult {
@@ -62,12 +64,23 @@ namespace HIKARI::SHADOW::PACKET {
         size_t commandCount = 0;
         size_t singlePacketCommandCount = 0;
         size_t maxCommandPacketCount = 0;
+        size_t indirectDrawCount = 0;
+        size_t indirectPacketCount = 0;
+        size_t indirectBatchCount = 0;
+        size_t indirectSavedSubmitCount = 0;
+        size_t indirectMaxBatchCommandCount = 0;
+        size_t indirectFallbackCommandCount = 0;
     };
 
     bool InitializeShadowPacketExecutor(ID3D12Device* device);
     void ResetShadowPacketExecutor();
-    D3D12_GPU_DESCRIPTOR_HANDLE GetShadowPacketObjectDataSrv();
-    void BindLegacyShadowObjectDataMode(ID3D12GraphicsCommandList* cmd);
+    bool PrepareShadowPacketIndirectDrawBindings(
+        const ShadowPacketExecutorContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands);
 
     ShadowPacketDrawResult DrawShadowPacketCommands(
         const ShadowPacketExecutorContext& ctx,

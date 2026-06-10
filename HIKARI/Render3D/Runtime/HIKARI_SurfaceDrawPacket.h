@@ -35,13 +35,26 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint64_t shaderKey = 0;
         uint64_t psoKey = 0;
         uint64_t sortKey = 0;
+        SurfaceResourceIds resources{};
 
         bool resourceKeyValid = false;
         bool objectDataCompatible = false;
-        bool depthAwareMaterialFx = false;
+        bool depthAware = false;
         bool alphaMasked = false;
         bool transparent = false;
     };
+
+    inline SurfaceDrawBatchKey BuildSurfaceDrawBatchKey(
+        SurfaceDrawCommandPass pass,
+        const SurfaceDrawPacketKey& key) {
+
+        SurfaceDrawBatchKey batchKey{};
+        batchKey.pass = pass;
+        batchKey.psoKey = key.psoKey;
+        batchKey.geometryKey = key.geometryKey;
+        batchKey.transparent = key.transparent;
+        return batchKey;
+    }
 
     struct SurfaceDrawPacket {
         SceneRenderObjectId objectId{};
@@ -144,22 +157,39 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t candidatePacketCount = 0;
         uint32_t submittedForwardPacketCount = 0;
         uint32_t submittedForwardOpaquePacketCount = 0;
+        uint32_t submittedForwardDepthAwarePacketCount = 0;
         uint32_t submittedForwardTransparentPacketCount = 0;
         uint32_t culledPacketCount = 0;
         uint32_t handledForwardPacketCount = 0;
         uint32_t submittedCommandCount = 0;
         uint32_t submittedSinglePacketCommandCount = 0;
+        uint32_t submittedMergedCommandCount = 0;
+        uint32_t submittedSavedCommandCount = 0;
+        uint32_t submittedIndirectReadyCommandCount = 0;
+        uint32_t submittedMissingDrawArgsCommandCount = 0;
         uint32_t submittedMaxCommandPacketCount = 0;
         uint32_t submittedOpaqueCommandCount = 0;
         uint32_t submittedOpaqueSinglePacketCommandCount = 0;
+        uint32_t submittedOpaqueMergedCommandCount = 0;
+        uint32_t submittedOpaqueSavedCommandCount = 0;
         uint32_t submittedOpaqueMaxCommandPacketCount = 0;
+        uint32_t submittedDepthAwareCommandCount = 0;
+        uint32_t submittedDepthAwareSinglePacketCommandCount = 0;
+        uint32_t submittedDepthAwareMergedCommandCount = 0;
+        uint32_t submittedDepthAwareSavedCommandCount = 0;
+        uint32_t submittedDepthAwareMaxCommandPacketCount = 0;
         uint32_t submittedTransparentCommandCount = 0;
         uint32_t submittedTransparentSinglePacketCommandCount = 0;
+        uint32_t submittedTransparentMergedCommandCount = 0;
+        uint32_t submittedTransparentSavedCommandCount = 0;
         uint32_t submittedTransparentMaxCommandPacketCount = 0;
         uint32_t submittedGpuSceneInstanceCount = 0;
         uint32_t submittedOpaqueGpuSceneInstanceCount = 0;
+        uint32_t submittedDepthAwareGpuSceneInstanceCount = 0;
         uint32_t submittedTransparentGpuSceneInstanceCount = 0;
         uint32_t submittedMaxGpuSceneCommandInstanceCount = 0;
+        uint32_t submittedGpuSceneResourceInstanceCount = 0;
+        uint32_t submittedGpuSceneMissingResourceInstanceCount = 0;
         uint32_t transparentDepthSortCandidateCount = 0;
         uint32_t transparentDepthSortedPacketCount = 0;
         uint32_t transparentDepthReorderedPacketCount = 0;
@@ -190,9 +220,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t handledShadowPacketCount = 0;
         uint32_t shadowCommandCount = 0;
         uint32_t shadowSinglePacketCommandCount = 0;
+        uint32_t shadowMergedCommandCount = 0;
+        uint32_t shadowSavedCommandCount = 0;
+        uint32_t shadowIndirectReadyCommandCount = 0;
+        uint32_t shadowMissingDrawArgsCommandCount = 0;
         uint32_t shadowMaxCommandPacketCount = 0;
         uint32_t shadowGpuSceneInstanceCount = 0;
         uint32_t shadowMaxGpuSceneCommandInstanceCount = 0;
+        uint32_t shadowGpuSceneResourceInstanceCount = 0;
+        uint32_t shadowGpuSceneMissingResourceInstanceCount = 0;
 
         uint32_t shadowSkippedNoShadowPacketCount = 0;
         uint32_t shadowSkippedInvalidPacketCount = 0;
@@ -237,6 +273,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t psoBucketCount = 0;
             uint32_t sortOrderBreakCount = 0;
             uint32_t invalidResourceKeyCount = 0;
+            uint32_t resourceIdentityPacketCount = 0;
+            uint32_t resourcePoolHandlePacketCount = 0;
+            uint32_t resourcePoolMissingPacketCount = 0;
 
             uint32_t sortEligiblePacketCount = 0;
             uint32_t sortedPacketCount = 0;
@@ -294,6 +333,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const std::vector<uint32_t>& GetExecutableForwardOpaquePacketIndices() const;
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardOpaqueCommands() const;
         const std::vector<SurfaceGpuSceneInstance>& GetForwardOpaqueGpuSceneInstances() const;
+        const std::vector<uint32_t>& GetExecutableForwardDepthAwarePacketIndices() const;
+        const std::vector<SurfaceDrawCommand>& GetExecutableForwardDepthAwareCommands() const;
+        const std::vector<SurfaceGpuSceneInstance>& GetForwardDepthAwareGpuSceneInstances() const;
         const std::vector<uint32_t>& GetExecutableForwardTransparentPacketIndices() const;
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardTransparentCommands() const;
         const std::vector<SurfaceGpuSceneInstance>& GetForwardTransparentGpuSceneInstances() const;
@@ -316,6 +358,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         std::vector<uint32_t> executableForwardOpaquePacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardOpaqueCommands_{};
         std::vector<SurfaceGpuSceneInstance> forwardOpaqueGpuSceneInstances_{};
+        std::vector<uint32_t> executableForwardDepthAwarePacketIndices_{};
+        std::vector<SurfaceDrawCommand> executableForwardDepthAwareCommands_{};
+        std::vector<SurfaceGpuSceneInstance> forwardDepthAwareGpuSceneInstances_{};
         std::vector<uint32_t> executableForwardTransparentPacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardTransparentCommands_{};
         std::vector<SurfaceGpuSceneInstance> forwardTransparentGpuSceneInstances_{};

@@ -230,7 +230,7 @@ namespace HIKARI::MESHRENDERER {
 
     inline bool IsDepthAwarePhaseItem(const DrawItem& item) {
         return item.hasResolvedMaterialFxProfile &&
-            item.resolvedMaterialFxProfile.renderPhase == MaterialFxRenderPhase::SceneDepth;
+            item.resolvedMaterialFxProfile.renderPhase == MaterialFxRenderPhase::DepthAware;
     }
 
     struct MeshRendererDebugStats {
@@ -304,17 +304,64 @@ namespace HIKARI::MESHRENDERER {
         size_t surfacePacketExecutorPacketCount = 0;
         size_t surfacePacketExecutorForwardDrawCount = 0;
         size_t surfacePacketExecutorOpaqueDrawCount = 0;
+        size_t surfacePacketExecutorDepthAwareDrawCount = 0;
         size_t surfacePacketExecutorTransparentDrawCount = 0;
         size_t surfacePacketExecutorGeometryDrawCount = 0;
         size_t surfacePacketExecutorSkippedPacketCount = 0;
         size_t surfacePacketExecutorCommandCount = 0;
         size_t surfacePacketExecutorOpaqueCommandCount = 0;
+        size_t surfacePacketExecutorDepthAwareCommandCount = 0;
         size_t surfacePacketExecutorTransparentCommandCount = 0;
         size_t surfacePacketExecutorSinglePacketCommandCount = 0;
+        size_t surfacePacketExecutorMergedCommandCount = 0;
+        size_t surfacePacketExecutorSavedCommandCount = 0;
+        size_t surfacePacketExecutorIndirectReadyCommandCount = 0;
+        size_t surfacePacketExecutorMissingDrawArgsCommandCount = 0;
         size_t surfacePacketExecutorMaxCommandPacketCount = 0;
         size_t surfacePacketExecutorInstancedDrawCount = 0;
         size_t surfacePacketExecutorInstancedPacketCount = 0;
         size_t surfacePacketExecutorMaxInstanceCount = 0;
+        size_t surfacePacketExecutorGpuSceneDrawCount = 0;
+        size_t surfacePacketExecutorGpuScenePacketCount = 0;
+        size_t surfacePacketExecutorGpuSceneFallbackCount = 0;
+        size_t surfaceGpuSceneCapacity = 0;
+        size_t surfaceIndirectCommandCapacity = 0;
+        size_t surfaceIndirectRequestedCommandCount = 0;
+        size_t surfaceIndirectUploadedCommandCount = 0;
+        size_t surfaceIndirectOverflowCommandCount = 0;
+        size_t surfaceIndirectCpuDirectCommandCount = 0;
+        size_t surfaceIndirectMissingDrawArgsCommandCount = 0;
+        size_t surfaceIndirectDrawBindingPatchCount = 0;
+        size_t surfaceIndirectUploadCallCount = 0;
+        size_t surfaceIndirectCommandStride = 0;
+        size_t surfaceIndirectExecutedDrawCount = 0;
+        size_t surfaceIndirectExecutedPacketCount = 0;
+        size_t surfaceIndirectOpaqueCommandCount = 0;
+        size_t surfaceIndirectOpaquePacketCount = 0;
+        size_t surfaceIndirectDepthAwareCommandCount = 0;
+        size_t surfaceIndirectDepthAwarePacketCount = 0;
+        size_t surfaceIndirectTransparentCommandCount = 0;
+        size_t surfaceIndirectTransparentPacketCount = 0;
+        size_t surfaceIndirectFallbackCommandCount = 0;
+        size_t surfaceIndirectBatchSubmitCount = 0;
+        size_t surfaceIndirectBatchedCommandCount = 0;
+        size_t surfaceIndirectSavedSubmitCount = 0;
+        size_t surfaceIndirectMaxBatchCommandCount = 0;
+        size_t surfaceGpuSceneOpaqueInstanceCount = 0;
+        size_t surfaceGpuSceneDepthAwareInstanceCount = 0;
+        size_t surfaceGpuSceneTransparentInstanceCount = 0;
+        size_t surfaceGpuSceneRequestedInstanceCount = 0;
+        size_t surfaceGpuSceneUploadedInstanceCount = 0;
+        size_t surfaceGpuSceneOverflowInstanceCount = 0;
+        size_t surfaceGpuSceneUploadCallCount = 0;
+        size_t surfaceGpuSceneMaterialPatchCount = 0;
+        size_t surfaceGpuSceneMaterialPatchFailCount = 0;
+        size_t surfaceGpuSceneBufferBindCount = 0;
+        size_t surfaceGpuSceneBufferSkipCount = 0;
+        bool surfaceGpuSceneSrvValid = false;
+        bool surfaceGpuSceneBufferReady = false;
+        bool surfaceIndirectArgumentBufferReady = false;
+        bool surfaceIndirectCommandSignatureReady = false;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;

@@ -33,16 +33,86 @@ struct HikariMeshObjectData
 
 StructuredBuffer<HikariMeshObjectData> gObjectDataBuffer : register(t15);
 
+#ifndef HIKARI_SURFACE_GPU_SCENE_CONSUME
+#define HIKARI_SURFACE_GPU_SCENE_CONSUME 1
+#endif
+
+#if HIKARI_SURFACE_GPU_SCENE_CONSUME
+#include "Include/HIKARI_SurfaceGpuScene.hlsli"
+#endif
+
 cbuffer ObjectIndexCB : register(b6)
 {
     uint gObjectDataIndex;
     uint3 gObjectDataPadding;
 };
 
-// instance 描画では base index + SV_InstanceID で object data を読む。
+uint HikariGetObjectDataAbsoluteIndex(uint objectDataIndex, uint instanceId)
+{
+    return objectDataIndex + instanceId;
+}
+
+#if !HIKARI_SURFACE_GPU_SCENE_CONSUME
+uint HikariGetSurfaceGpuSceneAbsoluteIndex(uint instanceId)
+{
+    return instanceId;
+}
+#endif
+
 HikariMeshObjectData HikariGetMeshObjectData(uint objectDataIndex)
 {
     return gObjectDataBuffer[objectDataIndex];
+}
+
+#if HIKARI_SURFACE_GPU_SCENE_CONSUME
+HikariMeshObjectData HikariBuildMeshObjectDataFromSurfaceGpuScene(
+    HikariSurfaceGpuSceneInstance instance)
+{
+    HikariMeshObjectData data = (HikariMeshObjectData)0;
+    data.world = instance.world;
+    data.normalMatrix = instance.normalMatrix;
+    data.fxFlags = instance.fxFlags;
+    data.receiveShadow =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0 ? 1u : 0u;
+    data.materialDataIndex = instance.materialDataIndex;
+    [unroll]
+    for (uint i = 0; i < 8; ++i)
+    {
+        data.fxUser[i] = instance.fxUser[i];
+    }
+    return data;
+}
+
+HikariMeshObjectData HikariGetMeshObjectDataForPixel(
+    uint objectDataIndex,
+    uint surfaceGpuSceneIndex)
+{
+    if (gUseSurfaceGpuScene != 0)
+    {
+        return HikariBuildMeshObjectDataFromSurfaceGpuScene(
+            HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex));
+    }
+    return HikariGetMeshObjectData(objectDataIndex);
+}
+#else
+HikariMeshObjectData HikariGetMeshObjectDataForPixel(
+    uint objectDataIndex,
+    uint surfaceGpuSceneIndex)
+{
+    return HikariGetMeshObjectData(objectDataIndex);
+}
+#endif
+
+HikariMeshObjectData HikariGetMeshObjectDataForInstance(uint objectDataIndex, uint instanceId)
+{
+#if HIKARI_SURFACE_GPU_SCENE_CONSUME
+    if (gUseSurfaceGpuScene != 0)
+    {
+        return HikariBuildMeshObjectDataFromSurfaceGpuScene(
+            HikariGetSurfaceGpuSceneInstance(instanceId));
+    }
+#endif
+    return HikariGetMeshObjectData(objectDataIndex);
 }
 
 #define gObjectData gObjectDataBuffer[gObjectDataIndex]

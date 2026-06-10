@@ -107,6 +107,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             std::string ssaoMode{};
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
+            uint32_t ssaoInternalWidth = 0;
+            uint32_t ssaoInternalHeight = 0;
+            bool ssaoHalfResolution = false;
             uint32_t ssaoSampleCount = 0;
             uint32_t ssaoBlurIterations = 0;
             float ssaoRadius = 0.0f;
@@ -211,6 +214,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.ssaoMode == rhs.ssaoMode &&
                 lhs.ssaoWidth == rhs.ssaoWidth &&
                 lhs.ssaoHeight == rhs.ssaoHeight &&
+                lhs.ssaoInternalWidth == rhs.ssaoInternalWidth &&
+                lhs.ssaoInternalHeight == rhs.ssaoInternalHeight &&
+                lhs.ssaoHalfResolution == rhs.ssaoHalfResolution &&
                 lhs.ssaoSampleCount == rhs.ssaoSampleCount &&
                 lhs.ssaoBlurIterations == rhs.ssaoBlurIterations &&
                 lhs.ssaoRadius == rhs.ssaoRadius &&
@@ -361,6 +367,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.ssaoMode = snapshot.ssaoMode;
             key.ssaoWidth = snapshot.ssaoWidth;
             key.ssaoHeight = snapshot.ssaoHeight;
+            key.ssaoInternalWidth = snapshot.ssaoInternalWidth;
+            key.ssaoInternalHeight = snapshot.ssaoInternalHeight;
+            key.ssaoHalfResolution = snapshot.ssaoHalfResolution;
             key.ssaoSampleCount = snapshot.ssaoSampleCount;
             key.ssaoBlurIterations = snapshot.ssaoBlurIterations;
             key.ssaoRadius = snapshot.ssaoRadius;
@@ -483,6 +492,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.ssaoMode = SCREENSPACE::ToString(ssao.mode);
         snapshot.ssaoWidth = ssao.width;
         snapshot.ssaoHeight = ssao.height;
+        snapshot.ssaoInternalWidth = ssao.internalWidth;
+        snapshot.ssaoInternalHeight = ssao.internalHeight;
+        snapshot.ssaoHalfResolution = ssao.halfResolution;
         snapshot.ssaoSampleCount = ssao.sampleCount;
         snapshot.ssaoBlurIterations = ssao.blurIterations;
         snapshot.ssaoRadius = ssao.radius;
@@ -655,7 +667,9 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 << " valid=" << BoolText(snapshot.ssaoValid)
                 << " suppressed=" << BoolText(snapshot.ssaoSuppressed)
                 << " mode=" << snapshot.ssaoMode
-                << " size=" << snapshot.ssaoWidth << "x" << snapshot.ssaoHeight
+                << " screen=" << snapshot.ssaoWidth << "x" << snapshot.ssaoHeight
+                << " work=" << snapshot.ssaoInternalWidth << "x" << snapshot.ssaoInternalHeight
+                << " half=" << BoolText(snapshot.ssaoHalfResolution)
                 << " samples=" << snapshot.ssaoSampleCount
                 << " blur=" << snapshot.ssaoBlurIterations
                 << " radius=" << snapshot.ssaoRadius
@@ -829,7 +843,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             return "AO Suppressed";
         }
         if (snapshot.ssaoValid) {
-            return "AO Ready";
+            return snapshot.ssaoHalfResolution ? "AO Half Ready" : "AO Ready";
         }
         return "AO Missing";
     }

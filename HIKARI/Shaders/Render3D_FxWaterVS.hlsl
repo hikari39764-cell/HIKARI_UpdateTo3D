@@ -1,11 +1,3 @@
-#define gFxUser0 gFxUser[0]
-#define gFxUser1 gFxUser[1]
-#define gFxUser2 gFxUser[2]
-#define gFxUser3 gFxUser[3]
-#define gFxUser4 gFxUser[4]
-#define gFxUser5 gFxUser[5]
-#define gFxUser6 gFxUser[6]
-#define gFxUser7 gFxUser[7]
 #define G_ITERATIONS 30
 
 cbuffer CameraCB : register(b0)
@@ -18,32 +10,7 @@ cbuffer CameraCB : register(b0)
     float4 gScreenParams;
 };
 
-cbuffer ObjectCB : register(b1)
-{
-    float4x4 gWorld;
-    float4x4 gNormalMatrix;
-    float4 gBaseColor;
-    uint gHasBaseColorTexture;
-    uint gFxFlags;
-    uint gMaterialFlags;
-    float gAlphaCutoff;
-    float4 gEmissiveFactor;
-    uint gHasNormalTexture;
-    float gNormalScale;
-    float2 gNormalPadding;
-    uint gReceiveShadow;
-    float3 gShadowObjectPadding;
-    uint gHasEmissiveTexture;
-    float3 gEmissivePadding;
-    float gMetallicFactor;
-    float gRoughnessFactor;
-    uint gHasMetallicRoughnessTexture;
-    uint gHasOcclusionTexture;
-    float gOcclusionStrength;
-    float3 gPbrPadding;
-    float4 gFxUser[8];
-};
-
+#include "Include/HIKARI_MeshObjectData.hlsli"
 
 struct VSInput
 {
@@ -51,6 +18,7 @@ struct VSInput
     float3 normal : NORMAL;
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
+    uint instanceId : SV_InstanceID;
 };
 
 struct VSOutput
@@ -60,6 +28,9 @@ struct VSOutput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
 };
 
 float2 WaveDx(float2 position, float2 direction, float frequency, float timeShift)
@@ -124,13 +95,17 @@ float3 WaterNormalLocal(float2 localXZ, float time, float waveSpeed, float waveH
 
 VSOutput main(VSInput input)
 {
-    float waveSpeed = gFxUser0.x;
-    float waveHeight = gFxUser0.y;
-    float waveScale = max(gFxUser0.z, 0.001f);
+    uint objectDataIndex = HikariGetObjectDataAbsoluteIndex(gObjectDataIndex, input.instanceId);
+    HikariMeshObjectData objectData =
+        HikariGetMeshObjectDataForInstance(objectDataIndex, input.instanceId);
+
+    float waveSpeed = objectData.fxUser[0].x;
+    float waveHeight = objectData.fxUser[0].y;
+    float waveScale = max(objectData.fxUser[0].z, 0.001f);
 
     // gFxUser1.w is optional choppiness / drag.
     // If it is not set from JSON, fall back to the ShaderToy-like value.
-    float drag = gFxUser1.w;
+    float drag = objectData.fxUser[1].w;
     if (drag <= 0.0001f)
     {
         drag = 0.38f;
@@ -144,13 +119,16 @@ VSOutput main(VSInput input)
     float3 normalLocal = WaterNormalLocal(input.position.xz, time, waveSpeed, waveHeight, waveScale, drag);
 
     VSOutput output;
-    float4 worldPos = mul(gWorld, float4(localPos, 1.0f));
+    float4 worldPos = mul(objectData.world, float4(localPos, 1.0f));
 
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
-    output.normalWS = normalize(mul((float3x3) gNormalMatrix, normalLocal));
-    output.tangentWS = float4(normalize(mul((float3x3) gNormalMatrix, input.tangent.xyz)), input.tangent.w);
+    output.normalWS = normalize(mul((float3x3)objectData.normalMatrix, normalLocal));
+    output.tangentWS = float4(normalize(mul((float3x3)objectData.normalMatrix, input.tangent.xyz)), input.tangent.w);
     output.uv = input.uv;
+    output.receiveShadow = objectData.receiveShadow;
+    output.objectDataIndex = objectDataIndex;
+    output.surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
 
     return output;
 }

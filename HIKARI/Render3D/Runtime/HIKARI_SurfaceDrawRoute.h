@@ -21,7 +21,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         InvalidPacket,
         InvalidResourceKey,
         LegacyShader,
-        DepthAwareMaterialFx,
+        DepthAware,
         RuntimeAnimation,
         SpecialDebug,
         Skinned,
@@ -35,7 +35,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         NoPass,
         AlphaMask,
         Transparent,
-        DepthAwareMaterialFx,
+        DepthAware,
         RuntimeSpecial,
         Skinned,
         LegacyShader,
@@ -50,7 +50,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         AlphaMode alphaMode = AlphaMode::Opaque;
         bool doubleSided = false;
         bool objectDataCompatible = false;
-        bool depthAwareMaterialFx = false;
+        bool depthAware = false;
     };
 
     bool IsSurfaceObjectDataVertexShader(std::string_view vertexShaderId);

@@ -1159,6 +1159,12 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
@@ -1175,6 +1181,9 @@
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp">
+      <Filter>Source Files\Render3D\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.cpp">
       <Filter>Source Files\Render3D\Resources</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.cpp">
@@ -1291,6 +1300,12 @@
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.h">
+      <Filter>Header Files\Render3D\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">
@@ -1879,6 +1894,7 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPassResources.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
@@ -1908,6 +1924,9 @@
       <Filter>Header Files\Render3D\Resources</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.h">
       <Filter>Header Files\Render3D\Resources</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.h">
@@ -1967,6 +1986,9 @@
       <Filter>Project\Shaders\Include</Filter>
     </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_SurfaceGpuScene.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl">

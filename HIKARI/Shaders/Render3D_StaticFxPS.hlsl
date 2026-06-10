@@ -23,6 +23,11 @@ cbuffer CameraCB : register(b0)
 #define HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING 1
 #include "Include/HIKARI_MeshObjectData.hlsli"
 
+#undef gFxFlags
+#define gFxFlags pixelObjectData.fxFlags
+#undef gFxUser
+#define gFxUser pixelObjectData.fxUser
+
 static const uint MATERIAL_UNLIT = 1u << 0;
 static const uint MATERIAL_ALPHA_MASK = 1u << 1;
 static const uint MATERIAL_EMISSIVE = 1u << 2;
@@ -144,6 +149,9 @@ struct PSInput
     float4 tangentWS  : TANGENT;
     float2 uv         : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
 };
 
 float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS, float4 tangentWS, float2 uv)
@@ -430,9 +438,9 @@ float SampleShadowPcf(float2 uv, float currentDepth)
     return visibility;
 }
 
-float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS)
+float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint receiveShadow)
 {
-    if (gShadowEnabled == 0 || gReceiveShadow == 0)
+    if (gShadowEnabled == 0 || receiveShadow == 0)
     {
         return 1.0f;
     }
@@ -458,6 +466,8 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS)
 
 float4 main(PSInput input) : SV_TARGET
 {
+    HikariMeshObjectData pixelObjectData =
+        HikariGetMeshObjectDataForPixel(input.objectDataIndex, input.surfaceGpuSceneIndex);
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
     float3 n = ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv);
     float3 geometricNormal = normalize(input.normalWS);
@@ -498,7 +508,7 @@ float4 main(PSInput input) : SV_TARGET
             screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
         }
 #if HIKARI_USE_COOK_TORRANCE_PBR
-        shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+        shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
 
         float3 direct =
             HikariEvaluateDirectPbr(
@@ -539,7 +549,7 @@ float4 main(PSInput input) : SV_TARGET
         float3 diffuse = gDirectionalColor.rgb * (gDirectionalIntensity * ndotl) * (1.0f - metallic * 0.65f);
         float3 specular = gDirectionalColor.rgb * (gDirectionalIntensity * gSpecularParams.x * spec) * lerp(1.0f, 1.8f, metallic);
         float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
-        shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal);
+        shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
         lit = albedo.rgb * (ambient + (diffuse + specular) * shadowFactor + pointLightContribution);
 #endif
     }

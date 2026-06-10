@@ -5,13 +5,14 @@
 
 #include <d3d12.h>
 
+#include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
 
 namespace HIKARI::MESHRENDERER {
 
     struct MeshRendererDebugStats;
 
-    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::JointPalette + 1u;
+    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::SurfaceGpuSceneControl + 1u;
 
     struct MeshBindingStateCache {
         ID3D12RootSignature* rootSignature = nullptr;
@@ -37,8 +38,7 @@ namespace HIKARI::MESHRENDERER {
         int fallbackNormalTextureHandle = -1;
         int fallbackBlackTextureHandle = -1;
         int fallbackCubeTextureHandle = -1;
-        int fallbackAoTextureHandle = -1;
-        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv{};
+        MeshPassResources passResources{};
         MeshBindingStateCache* cache = nullptr;
         MeshRendererDebugStats* stats = nullptr;
     };
@@ -71,6 +71,15 @@ namespace HIKARI::MESHRENDERER {
         const MeshBindingContext& ctx,
         uint32_t materialIndex);
 
+    void BindSurfaceGpuSceneBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv);
+
+    void BindSurfaceGpuSceneControl(
+        const MeshBindingContext& ctx,
+        uint32_t baseInstanceIndex,
+        bool enabled);
+
     void BindMaterialTexturePool(const MeshBindingContext& ctx);
 
     void BindPipelineState(
@@ -87,8 +96,13 @@ namespace HIKARI::MESHRENDERER {
     void BindLightProbeResources(const MeshBindingContext& ctx);
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveSkyCubeSrv(int fallbackTextureHandle);
-    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool depthAwarePhase, int fallbackTextureHandle);
-    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(int fallbackTextureHandle);
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(
+        bool depthAwarePhase,
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
+        int fallbackTextureHandle);
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv,
+        int fallbackTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblIrradianceSrv(int fallbackTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblPrefilteredSrv(int fallbackTextureHandle);
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveIblBrdfLutSrv(int fallbackTextureHandle);

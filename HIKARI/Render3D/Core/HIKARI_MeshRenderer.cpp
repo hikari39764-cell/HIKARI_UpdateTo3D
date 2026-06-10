@@ -29,7 +29,6 @@
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
-#include "Vfx/Post/HIKARI_PostSystem.h"
 
 #ifdef max
 #undef max
@@ -105,6 +104,18 @@ namespace HIKARI::MESHRENDERER {
                 GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
             g.materialDataSrvGpu =
                 GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
+            const UINT surfaceGpuSceneSrvIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshSurfaceGpuScene);
+            const D3D12_CPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvCpu =
+                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, surfaceGpuSceneSrvIndex);
+            const D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvGpu =
+                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, surfaceGpuSceneSrvIndex);
+            if (!g.surfaceGpuSceneBuffer.Initialize(
+                device,
+                surfaceGpuSceneSrvCpu,
+                surfaceGpuSceneSrvGpu)) {
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. ObjectData fallback will be used.");
+            }
 
             D3D12_SHADER_RESOURCE_VIEW_DESC objectDataSrv{};
             objectDataSrv.Format = DXGI_FORMAT_UNKNOWN;
@@ -176,6 +187,13 @@ namespace HIKARI::MESHRENDERER {
             if (!InitializeMeshPipelines(device, g.pipelines)) {
                 return false;
             }
+            if (!g.surfaceIndirectDrawBuffer.Initialize(
+                device,
+                GetStaticRootSignature(g.pipelines),
+                ROOT_PARAM::SurfaceGpuSceneControl,
+                4u)) {
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. Direct draw path will be used.");
+            }
 
             // MeshRenderer 共通 fallback は resource handle を正として保持する。
             g.fallbackTextureResource = RENDER3D::LoadTextureResource(
@@ -213,6 +231,133 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
+        MeshDrawContext BuildDrawContext(
+            bool depthAwarePhase,
+            MeshDrawPassKind passKind,
+            const MeshPassResources& passResources);
+
+        void UploadSurfaceGpuSceneFrame() {
+            g.surfaceGpuSceneBuffer.ResetFrame();
+
+            g.debugStats.surfaceGpuSceneOpaqueInstanceCount =
+                g.surfacePacketOpaqueGpuSceneInstances != nullptr
+                    ? g.surfacePacketOpaqueGpuSceneInstances->size()
+                    : 0;
+            g.debugStats.surfaceGpuSceneDepthAwareInstanceCount =
+                g.surfacePacketDepthAwareGpuSceneInstances != nullptr
+                    ? g.surfacePacketDepthAwareGpuSceneInstances->size()
+                    : 0;
+            g.debugStats.surfaceGpuSceneTransparentInstanceCount =
+                g.surfacePacketTransparentGpuSceneInstances != nullptr
+                    ? g.surfacePacketTransparentGpuSceneInstances->size()
+                    : 0;
+
+            if (g.surfacePacketOpaqueGpuSceneInstances != nullptr) {
+                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketOpaqueGpuSceneInstances);
+            }
+            if (g.surfacePacketDepthAwareGpuSceneInstances != nullptr) {
+                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketDepthAwareGpuSceneInstances);
+            }
+            if (g.surfacePacketTransparentGpuSceneInstances != nullptr) {
+                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketTransparentGpuSceneInstances);
+            }
+
+            const RENDER3D::CORE::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
+                g.surfaceGpuSceneBuffer.GetStats();
+            g.debugStats.surfaceGpuSceneCapacity = gpuSceneStats.capacity;
+            g.debugStats.surfaceGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
+            g.debugStats.surfaceGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
+            g.debugStats.surfaceGpuSceneOverflowInstanceCount = gpuSceneStats.overflowInstanceCount;
+            g.debugStats.surfaceGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
+            g.debugStats.surfaceGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
+            g.debugStats.surfaceGpuSceneBufferReady = gpuSceneStats.initialized;
+        }
+
+        void PrepareSurfaceGpuSceneMaterialFrame() {
+            if (g.surfacePacketBuilder == nullptr) {
+                return;
+            }
+
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
+                g.surfacePacketBuilder->GetPackets();
+            MeshDrawContext drawCtx = BuildDrawContext(false, MeshDrawPassKind::Forward, {});
+            drawCtx.surfaceGpuSceneBaseOffset = 0;
+            if (g.surfacePacketOpaqueExecutionIndices != nullptr &&
+                g.surfacePacketOpaqueExecutionCommands != nullptr) {
+                PrepareSurfacePacketGpuSceneMaterials(
+                    drawCtx,
+                    packets.data(),
+                    packets.size(),
+                    g.surfacePacketOpaqueExecutionIndices->data(),
+                    g.surfacePacketOpaqueExecutionIndices->size(),
+                    g.surfacePacketOpaqueExecutionCommands->data(),
+                    g.surfacePacketOpaqueExecutionCommands->size());
+            }
+
+            drawCtx.surfaceGpuSceneBaseOffset = g.debugStats.surfaceGpuSceneOpaqueInstanceCount;
+            if (g.surfacePacketDepthAwareExecutionIndices != nullptr &&
+                g.surfacePacketDepthAwareExecutionCommands != nullptr) {
+                PrepareSurfacePacketGpuSceneMaterials(
+                    drawCtx,
+                    packets.data(),
+                    packets.size(),
+                    g.surfacePacketDepthAwareExecutionIndices->data(),
+                    g.surfacePacketDepthAwareExecutionIndices->size(),
+                    g.surfacePacketDepthAwareExecutionCommands->data(),
+                    g.surfacePacketDepthAwareExecutionCommands->size());
+            }
+
+            drawCtx.surfaceGpuSceneBaseOffset =
+                g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
+                g.debugStats.surfaceGpuSceneDepthAwareInstanceCount;
+            if (g.surfacePacketTransparentExecutionIndices != nullptr &&
+                g.surfacePacketTransparentExecutionCommands != nullptr) {
+                PrepareSurfacePacketGpuSceneMaterials(
+                    drawCtx,
+                    packets.data(),
+                    packets.size(),
+                    g.surfacePacketTransparentExecutionIndices->data(),
+                    g.surfacePacketTransparentExecutionIndices->size(),
+                    g.surfacePacketTransparentExecutionCommands->data(),
+                    g.surfacePacketTransparentExecutionCommands->size());
+            }
+        }
+
+        void UploadSurfaceIndirectDrawFrame() {
+            g.surfaceIndirectDrawBuffer.ResetFrame();
+
+            if (g.surfacePacketOpaqueExecutionCommands != nullptr) {
+                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
+                    *g.surfacePacketOpaqueExecutionCommands,
+                    0u);
+            }
+            if (g.surfacePacketDepthAwareExecutionCommands != nullptr) {
+                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
+                    *g.surfacePacketDepthAwareExecutionCommands,
+                    static_cast<uint32_t>(g.debugStats.surfaceGpuSceneOpaqueInstanceCount));
+            }
+            if (g.surfacePacketTransparentExecutionCommands != nullptr) {
+                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
+                    *g.surfacePacketTransparentExecutionCommands,
+                    static_cast<uint32_t>(
+                        g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
+                        g.debugStats.surfaceGpuSceneDepthAwareInstanceCount));
+            }
+            const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
+                g.surfaceIndirectDrawBuffer.GetStats();
+            g.debugStats.surfaceIndirectCommandCapacity = indirectStats.capacity;
+            g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
+            g.debugStats.surfaceIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
+            g.debugStats.surfaceIndirectOverflowCommandCount = indirectStats.overflowCommandCount;
+            g.debugStats.surfaceIndirectCpuDirectCommandCount = indirectStats.cpuDirectCommandCount;
+            g.debugStats.surfaceIndirectMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
+            g.debugStats.surfaceIndirectDrawBindingPatchCount = indirectStats.drawBindingPatchCount;
+            g.debugStats.surfaceIndirectUploadCallCount = indirectStats.uploadCallCount;
+            g.debugStats.surfaceIndirectCommandStride = indirectStats.commandStride;
+            g.debugStats.surfaceIndirectArgumentBufferReady = indirectStats.initialized;
+            g.debugStats.surfaceIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
+        }
+
         bool PrepareMeshFrame(
             const Camera3D& camera,
             const SceneEnvironment& environment,
@@ -232,15 +377,8 @@ namespace HIKARI::MESHRENDERER {
             int screenW = static_cast<int>(overrideScreenWidth);
             int screenH = static_cast<int>(overrideScreenHeight);
             if (screenW <= 0 || screenH <= 0) {
-                POST::PostSystem::GetSceneCaptureSize(screenW, screenH);
-                if (screenW <= 0 || screenH <= 0) {
-                    screenW = POST::PostSystem::GetSceneColorWidth();
-                    screenH = POST::PostSystem::GetSceneColorHeight();
-                }
-                if (screenW <= 0 || screenH <= 0) {
-                    screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
-                    screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
-                }
+                screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
+                screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
             }
             g.cameraMapped->screenParams = {
                 static_cast<float>(screenW),
@@ -258,8 +396,7 @@ namespace HIKARI::MESHRENDERER {
         MeshDrawContext BuildDrawContext(
             bool depthAwarePhase,
             MeshDrawPassKind passKind,
-            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-            int fallbackAoTextureHandle) {
+            const MeshPassResources& passResources) {
             MeshDrawContext ctx{};
             ctx.cmd = SERVICES::gCtx.cmdList;
             ctx.staticRootSig = GetStaticRootSignature(g.pipelines);
@@ -275,6 +412,9 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialDataTable = &g.materialDataFrameTable;
             ctx.objectDataSrv = g.objectDataSrvGpu;
             ctx.materialDataSrv = g.materialDataSrvGpu;
+            ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
+            ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
+            ctx.surfaceIndirectDrawBuffer = &g.surfaceIndirectDrawBuffer;
             ctx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
             ctx.lightAddress = g.lightCB ? g.lightCB->GetGPUVirtualAddress() : 0;
             ctx.shadowAddress = g.shadowCB ? g.shadowCB->GetGPUVirtualAddress() : 0;
@@ -286,8 +426,10 @@ namespace HIKARI::MESHRENDERER {
             ctx.binding.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
             ctx.binding.fallbackBlackTextureHandle = g.fallbackBlackTextureHandle;
             ctx.binding.fallbackCubeTextureHandle = g.fallbackCubeTextureHandle;
-            ctx.binding.fallbackAoTextureHandle = fallbackAoTextureHandle >= 0 ? fallbackAoTextureHandle : g.fallbackTextureHandle;
-            ctx.binding.ssaoSrv = ssaoSrv;
+            ctx.binding.passResources = passResources;
+            if (ctx.binding.passResources.fallbackAoTextureHandle < 0) {
+                ctx.binding.passResources.fallbackAoTextureHandle = g.fallbackTextureHandle;
+            }
             ctx.binding.stats = &g.debugStats;
             ctx.materialFill.fallbackTextureHandle = g.fallbackTextureHandle;
             ctx.materialFill.fallbackNormalTextureHandle = g.fallbackNormalTextureHandle;
@@ -303,6 +445,7 @@ namespace HIKARI::MESHRENDERER {
 
         enum class SurfacePacketExecutionKind {
             Opaque,
+            DepthAware,
             Transparent,
         };
 
@@ -329,25 +472,92 @@ namespace HIKARI::MESHRENDERER {
                 g.surfacePacketTransparentExecutionCommands);
         }
 
+        bool HasSurfacePacketDepthAwareExecutionPlan() {
+            return HasSurfacePacketExecutionPlan(
+                g.surfacePacketDepthAwareExecutionIndices,
+                g.surfacePacketDepthAwareExecutionCommands);
+        }
+
         bool HasAnySurfacePacketExecutionPlan() {
             return HasSurfacePacketOpaqueExecutionPlan() ||
+                HasSurfacePacketDepthAwareExecutionPlan() ||
                 HasSurfacePacketTransparentExecutionPlan();
+        }
+
+        void RecordSurfacePacketExecutorCommandStats(
+            SurfacePacketExecutionKind executionKind,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
+
+            ++g.debugStats.surfacePacketExecutorCommandCount;
+            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
+                ++g.debugStats.surfacePacketExecutorDepthAwareCommandCount;
+            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
+                ++g.debugStats.surfacePacketExecutorTransparentCommandCount;
+            } else {
+                ++g.debugStats.surfacePacketExecutorOpaqueCommandCount;
+            }
+            if (command.singlePacket) {
+                ++g.debugStats.surfacePacketExecutorSinglePacketCommandCount;
+            } else {
+                ++g.debugStats.surfacePacketExecutorMergedCommandCount;
+                if (command.packetCount > 1) {
+                    g.debugStats.surfacePacketExecutorSavedCommandCount +=
+                        static_cast<size_t>(command.packetCount - 1);
+                }
+            }
+            if (command.drawArgsValid) {
+                ++g.debugStats.surfacePacketExecutorIndirectReadyCommandCount;
+            } else {
+                ++g.debugStats.surfacePacketExecutorMissingDrawArgsCommandCount;
+            }
+            g.debugStats.surfacePacketExecutorMaxCommandPacketCount =
+                (std::max)(
+                    g.debugStats.surfacePacketExecutorMaxCommandPacketCount,
+                    static_cast<size_t>(command.packetCount));
+        }
+
+        void RecordSurfacePacketExecutorDrawStats(
+            SurfacePacketExecutionKind executionKind,
+            MeshDrawPassKind passKind,
+            const SurfacePacketCommandDrawResult& result) {
+
+            g.debugStats.surfacePacketExecutorPacketCount += result.submittedPacketCount;
+            g.debugStats.surfacePacketExecutorSkippedPacketCount += result.skippedPacketCount;
+            if (passKind == MeshDrawPassKind::GeometryBuffer) {
+                g.debugStats.surfacePacketExecutorGeometryDrawCount += result.drawCallCount;
+            } else {
+                g.debugStats.surfacePacketExecutorForwardDrawCount += result.drawCallCount;
+                if (executionKind == SurfacePacketExecutionKind::DepthAware) {
+                    g.debugStats.surfacePacketExecutorDepthAwareDrawCount += result.drawCallCount;
+                } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
+                    g.debugStats.surfacePacketExecutorTransparentDrawCount += result.drawCallCount;
+                } else {
+                    g.debugStats.surfacePacketExecutorOpaqueDrawCount += result.drawCallCount;
+                }
+            }
+            g.debugStats.surfacePacketExecutorInstancedDrawCount += result.instancedDrawCount;
+            g.debugStats.surfacePacketExecutorInstancedPacketCount += result.instancedPacketCount;
+            g.debugStats.surfacePacketExecutorMaxInstanceCount =
+                (std::max)(
+                    g.debugStats.surfacePacketExecutorMaxInstanceCount,
+                    result.maxInstanceCount);
         }
 
         bool RenderSurfacePacketPlan(
             SurfacePacketExecutionKind executionKind,
             MeshDrawPassKind passKind,
             size_t& objectIndex,
-            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-            int fallbackAoTextureHandle) {
-            const std::vector<uint32_t>* executableIndices =
-                executionKind == SurfacePacketExecutionKind::Transparent
-                    ? g.surfacePacketTransparentExecutionIndices
-                    : g.surfacePacketOpaqueExecutionIndices;
+            const MeshPassResources& passResources) {
+            const std::vector<uint32_t>* executableIndices = g.surfacePacketOpaqueExecutionIndices;
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands =
-                executionKind == SurfacePacketExecutionKind::Transparent
-                    ? g.surfacePacketTransparentExecutionCommands
-                    : g.surfacePacketOpaqueExecutionCommands;
+                g.surfacePacketOpaqueExecutionCommands;
+            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
+                executableIndices = g.surfacePacketDepthAwareExecutionIndices;
+                executableCommands = g.surfacePacketDepthAwareExecutionCommands;
+            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
+                executableIndices = g.surfacePacketTransparentExecutionIndices;
+                executableCommands = g.surfacePacketTransparentExecutionCommands;
+            }
             if (!HasSurfacePacketExecutionPlan(executableIndices, executableCommands)) {
                 return true;
             }
@@ -355,65 +565,96 @@ namespace HIKARI::MESHRENDERER {
             const char* eventName = "SurfacePacketExecutor.ForwardOpaque";
             if (passKind == MeshDrawPassKind::GeometryBuffer) {
                 eventName = "SurfacePacketExecutor.GeometryBuffer";
+            } else if (executionKind == SurfacePacketExecutionKind::DepthAware) {
+                eventName = "SurfacePacketExecutor.ForwardDepthAware";
             } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
                 eventName = "SurfacePacketExecutor.ForwardTransparent";
             }
             GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
 
             MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(false, passKind, ssaoSrv, fallbackAoTextureHandle);
+            const bool depthAwarePhase = executionKind == SurfacePacketExecutionKind::DepthAware;
+            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
+            // GPU Scene buffer は Opaque -> DepthAware -> Transparent の順で連続配置する。
+            drawCtx.surfaceGpuSceneBaseOffset = 0;
+            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
+                drawCtx.surfaceGpuSceneBaseOffset = g.debugStats.surfaceGpuSceneOpaqueInstanceCount;
+            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
+                drawCtx.surfaceGpuSceneBaseOffset =
+                    g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
+                    g.debugStats.surfaceGpuSceneDepthAwareInstanceCount;
+            }
             BindSurfacePacketFrameResources(drawCtx);
-
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
                 g.surfacePacketBuilder->GetPackets();
-            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command :
-                *executableCommands) {
-                if (passKind == MeshDrawPassKind::GeometryBuffer && command.transparent) {
-                    continue;
-                }
-
-                const SurfacePacketCommandDrawResult result = DrawSurfacePacketCommand(
+            if ((passKind == MeshDrawPassKind::Forward ||
+                passKind == MeshDrawPassKind::GeometryBuffer) &&
+                PrepareSurfacePacketIndirectDrawBindings(
                     drawCtx,
                     packets.data(),
                     packets.size(),
                     executableIndices->data(),
                     executableIndices->size(),
-                    command,
-                    objectIndex);
+                    executableCommands->data(),
+                    executableCommands->size())) {
+                g.surfaceIndirectDrawBuffer.FlushToGpu(SERVICES::gCtx.cmdList);
+                const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
+                    g.surfaceIndirectDrawBuffer.GetStats();
+                g.debugStats.surfaceIndirectDrawBindingPatchCount =
+                    indirectStats.drawBindingPatchCount;
+            }
 
-                ++g.debugStats.surfacePacketExecutorCommandCount;
-                if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                    ++g.debugStats.surfacePacketExecutorTransparentCommandCount;
-                } else {
-                    ++g.debugStats.surfacePacketExecutorOpaqueCommandCount;
+            const bool useIndirectCommandRange =
+                executionKind != SurfacePacketExecutionKind::Transparent &&
+                (passKind == MeshDrawPassKind::Forward ||
+                    passKind == MeshDrawPassKind::GeometryBuffer);
+            size_t commandIndex = 0;
+            while (commandIndex < executableCommands->size()) {
+                const RENDER3D::RUNTIME::SurfaceDrawCommand& command =
+                    (*executableCommands)[commandIndex];
+                if (passKind == MeshDrawPassKind::GeometryBuffer && command.transparent) {
+                    ++commandIndex;
+                    continue;
                 }
-                if (command.singlePacket) {
-                    ++g.debugStats.surfacePacketExecutorSinglePacketCommandCount;
-                }
-                g.debugStats.surfacePacketExecutorMaxCommandPacketCount =
-                    (std::max)(
-                        g.debugStats.surfacePacketExecutorMaxCommandPacketCount,
-                        static_cast<size_t>(command.packetCount));
 
-                g.debugStats.surfacePacketExecutorPacketCount += result.submittedPacketCount;
-                g.debugStats.surfacePacketExecutorSkippedPacketCount += result.skippedPacketCount;
-                if (passKind == MeshDrawPassKind::GeometryBuffer) {
-                    g.debugStats.surfacePacketExecutorGeometryDrawCount += result.drawCallCount;
+                const size_t firstCommandIndex = commandIndex;
+                SurfacePacketCommandDrawResult result{};
+                if (useIndirectCommandRange) {
+                    result = DrawSurfacePacketCommandRange(
+                        drawCtx,
+                        packets.data(),
+                        packets.size(),
+                        executableIndices->data(),
+                        executableIndices->size(),
+                        executableCommands->data(),
+                        executableCommands->size(),
+                        commandIndex,
+                        objectIndex);
                 } else {
-                    g.debugStats.surfacePacketExecutorForwardDrawCount += result.drawCallCount;
-                    if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                        g.debugStats.surfacePacketExecutorTransparentDrawCount += result.drawCallCount;
-                    } else {
-                        g.debugStats.surfacePacketExecutorOpaqueDrawCount += result.drawCallCount;
-                    }
+                    result = DrawSurfacePacketCommand(
+                        drawCtx,
+                        packets.data(),
+                        packets.size(),
+                        executableIndices->data(),
+                        executableIndices->size(),
+                        command,
+                        objectIndex);
+                    ++commandIndex;
                 }
-                g.debugStats.surfacePacketExecutorInstancedDrawCount += result.instancedDrawCount;
-                g.debugStats.surfacePacketExecutorInstancedPacketCount += result.instancedPacketCount;
-                g.debugStats.surfacePacketExecutorMaxInstanceCount =
-                    (std::max)(
-                        g.debugStats.surfacePacketExecutorMaxInstanceCount,
-                        result.maxInstanceCount);
+
+                if (commandIndex <= firstCommandIndex) {
+                    commandIndex = firstCommandIndex + 1;
+                }
+
+                for (size_t statsCommandIndex = firstCommandIndex;
+                    statsCommandIndex < commandIndex && statsCommandIndex < executableCommands->size();
+                    ++statsCommandIndex) {
+                    RecordSurfacePacketExecutorCommandStats(
+                        executionKind,
+                        (*executableCommands)[statsCommandIndex]);
+                }
+                RecordSurfacePacketExecutorDrawStats(executionKind, passKind, result);
             }
             return true;
         }
@@ -423,8 +664,7 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::RenderPhase phase,
             MeshDrawPassKind passKind,
             size_t& objectIndex,
-            D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-            int fallbackAoTextureHandle) {
+            const MeshPassResources& passResources) {
             const bool depthAwarePhase = phase == RENDER3D::RenderPhase::DepthAware;
             const bool transparentPhase = phase == RENDER3D::RenderPhase::Transparent;
             const char* eventName = passKind == MeshDrawPassKind::GeometryBuffer
@@ -433,7 +673,7 @@ namespace HIKARI::MESHRENDERER {
                     (transparentPhase ? "MeshRenderer.Transparent" : "MeshRenderer.Opaque"));
             GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
             MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, ssaoSrv, fallbackAoTextureHandle);
+            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
 
             for (const DrawItem* item : queue.GetPhase(phase)) {
@@ -450,7 +690,8 @@ namespace HIKARI::MESHRENDERER {
 
         bool RenderGeometryBufferPassInternal(
             const RENDER3D::RenderQueue& queue,
-            RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer) {
+            RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer,
+            D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
             if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque) && !HasSurfacePacketOpaqueExecutionPlan()) {
                 return false;
             }
@@ -461,127 +702,27 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = POST::PostSystem::GetCurrentRenderTargetDsv();
-            if (depthDsv.ptr == 0) {
+            if (sceneDsv.ptr == 0) {
                 return false;
             }
 
             GFX::PIX::ScopedGpuEvent pixGeometry(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "SceneGeometryBuffer");
-            geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, depthDsv);
+            geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, sceneDsv);
             size_t geometryObjectIndex = 0;
+            MeshPassResources passResources{};
             const bool packetOk = RenderSurfacePacketPlan(
                 SurfacePacketExecutionKind::Opaque,
                 MeshDrawPassKind::GeometryBuffer,
                 geometryObjectIndex,
-                {},
-                g.fallbackTextureHandle);
+                passResources);
             const bool queueOk = packetOk && RenderMeshPhase(
                 queue,
                 RENDER3D::RenderPhase::Opaque,
                 MeshDrawPassKind::GeometryBuffer,
                 geometryObjectIndex,
-                {},
-                g.fallbackTextureHandle);
+                passResources);
             geometryBuffer.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
-            POST::PostSystem::RebindCurrentRenderTarget();
             return packetOk && queueOk;
-        }
-
-        struct DepthAwarePhaseScope {
-            bool active = false;
-            bool postSystem = false;
-            D3D12_CPU_DESCRIPTOR_HANDLE rtv{};
-        };
-
-        bool BeginDepthAwarePhase(DepthAwarePhaseScope& scope) {
-            scope = {};
-
-            POST::PostSystem::CaptureSceneColorSnapshot();
-
-            if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
-                scope.active = true;
-                scope.postSystem = true;
-                return true;
-            }
-
-            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-            ID3D12Resource* sceneDepthResource = SERVICES::gCtx.sceneDepthResource;
-            if (cmd == nullptr || sceneDepthResource == nullptr) {
-                return false;
-            }
-
-            if (SERVICES::gCtx.resourceStates != nullptr) {
-                SERVICES::gCtx.resourceStates->Transition(
-                    cmd,
-                    sceneDepthResource,
-                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            }
-            else {
-                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                    sceneDepthResource,
-                    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-                cmd->ResourceBarrier(1, &barrier);
-            }
-
-            scope.rtv = SERVICES::gCtx.rtv;
-            const D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv = SERVICES::gCtx.readOnlyDsv;
-            cmd->OMSetRenderTargets(1, &scope.rtv, FALSE, &readOnlyDsv);
-
-            scope.active = true;
-            return true;
-        }
-
-        void RestoreFallbackSceneDepthBinding() {
-            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-            if (cmd == nullptr) {
-                return;
-            }
-
-            const D3D12_GPU_DESCRIPTOR_HANDLE fallbackSceneDepthSrv =
-                ResolveSceneDepthSrv(false, g.fallbackTextureHandle);
-            if (fallbackSceneDepthSrv.ptr != 0) {
-                cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SceneDepth, fallbackSceneDepthSrv);
-            }
-        }
-
-        void EndDepthAwarePhase(const DepthAwarePhaseScope& scope) {
-            if (!scope.active) {
-                return;
-            }
-
-            RestoreFallbackSceneDepthBinding();
-
-            if (scope.postSystem) {
-                POST::PostSystem::EndCurrentRenderTargetDepthRead();
-                return;
-            }
-
-            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-            ID3D12Resource* sceneDepthResource = SERVICES::gCtx.sceneDepthResource;
-            if (cmd == nullptr || sceneDepthResource == nullptr) {
-                return;
-            }
-
-            D3D12_CPU_DESCRIPTOR_HANDLE rtv = scope.rtv;
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
-
-            if (SERVICES::gCtx.resourceStates != nullptr) {
-                SERVICES::gCtx.resourceStates->Transition(
-                    cmd,
-                    sceneDepthResource,
-                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
-            }
-            else {
-                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                    sceneDepthResource,
-                    D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
-                cmd->ResourceBarrier(1, &barrier);
-            }
-
-            D3D12_CPU_DESCRIPTOR_HANDLE writableDsv = SERVICES::gCtx.dsv;
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, &writableDsv);
         }
 
         void SubmitStaticDrawItem(
@@ -630,8 +771,13 @@ namespace HIKARI::MESHRENDERER {
         g.surfacePacketBuilder = nullptr;
         g.surfacePacketOpaqueExecutionIndices = nullptr;
         g.surfacePacketOpaqueExecutionCommands = nullptr;
+        g.surfacePacketOpaqueGpuSceneInstances = nullptr;
+        g.surfacePacketDepthAwareExecutionIndices = nullptr;
+        g.surfacePacketDepthAwareExecutionCommands = nullptr;
+        g.surfacePacketDepthAwareGpuSceneInstances = nullptr;
         g.surfacePacketTransparentExecutionIndices = nullptr;
         g.surfacePacketTransparentExecutionCommands = nullptr;
+        g.surfacePacketTransparentGpuSceneInstances = nullptr;
         g.debugStats = {};
     }
 
@@ -693,13 +839,23 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* opaqueExecutablePacketIndices,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* opaqueExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* opaqueGpuSceneInstances,
+        const std::vector<uint32_t>* depthAwareExecutablePacketIndices,
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* depthAwareExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* depthAwareGpuSceneInstances,
         const std::vector<uint32_t>* transparentExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands) {
+        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands,
+        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* transparentGpuSceneInstances) {
         g.surfacePacketBuilder = builder;
         g.surfacePacketOpaqueExecutionIndices = opaqueExecutablePacketIndices;
         g.surfacePacketOpaqueExecutionCommands = opaqueExecutableCommands;
+        g.surfacePacketOpaqueGpuSceneInstances = opaqueGpuSceneInstances;
+        g.surfacePacketDepthAwareExecutionIndices = depthAwareExecutablePacketIndices;
+        g.surfacePacketDepthAwareExecutionCommands = depthAwareExecutableCommands;
+        g.surfacePacketDepthAwareGpuSceneInstances = depthAwareGpuSceneInstances;
         g.surfacePacketTransparentExecutionIndices = transparentExecutablePacketIndices;
         g.surfacePacketTransparentExecutionCommands = transparentExecutableCommands;
+        g.surfacePacketTransparentGpuSceneInstances = transparentGpuSceneInstances;
     }
 
     bool HasSubmittedItems() {
@@ -727,6 +883,9 @@ namespace HIKARI::MESHRENDERER {
 
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
+        UploadSurfaceGpuSceneFrame();
+        PrepareSurfaceGpuSceneMaterialFrame();
+        UploadSurfaceIndirectDrawFrame();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
@@ -746,7 +905,7 @@ namespace HIKARI::MESHRENDERER {
         if (!EnsureInitialized()) {
             return false;
         }
-        // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
+        // Capture 用の固定解像度を camera constants に反映する。
         if (!PrepareMeshFrame(camera, environment, screenWidth, screenHeight)) {
             return false;
         }
@@ -764,6 +923,9 @@ namespace HIKARI::MESHRENDERER {
 
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
+        UploadSurfaceGpuSceneFrame();
+        PrepareSurfaceGpuSceneMaterialFrame();
+        UploadSurfaceIndirectDrawFrame();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
@@ -786,74 +948,67 @@ namespace HIKARI::MESHRENDERER {
 
     bool RenderGeometryBufferPass(
         const RENDER3D::RenderQueue& queue,
-        RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer) {
-        return RenderGeometryBufferPassInternal(queue, geometryBuffer);
+        RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer,
+        D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
+        return RenderGeometryBufferPassInternal(queue, geometryBuffer, sceneDsv);
     }
 
     bool RenderForwardOpaquePass(
         const RENDER3D::RenderQueue& queue,
-        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-        int fallbackAoTextureHandle) {
+        const MeshPassResources& passResources) {
         // SurfacePacket は queue を経由せず、先に opaque plan を直接実行する。
         const bool packetOk = RenderSurfacePacketPlan(
             SurfacePacketExecutionKind::Opaque,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
-            ssaoSrv,
-            fallbackAoTextureHandle);
+            passResources);
         const bool queueOk = packetOk && RenderMeshPhase(
             queue,
             RENDER3D::RenderPhase::Opaque,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
-            ssaoSrv,
-            fallbackAoTextureHandle);
+            passResources);
         return packetOk && queueOk;
     }
 
     bool RenderForwardTransparentPass(
         const RENDER3D::RenderQueue& queue,
-        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-        int fallbackAoTextureHandle) {
+        const MeshPassResources& passResources) {
         // Transparent は独立 plan として、opaque/depth-aware の後に実行する。
         const bool packetOk = RenderSurfacePacketPlan(
             SurfacePacketExecutionKind::Transparent,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
-            ssaoSrv,
-            fallbackAoTextureHandle);
+            passResources);
         const bool queueOk = packetOk && RenderMeshPhase(
             queue,
             RENDER3D::RenderPhase::Transparent,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
-            ssaoSrv,
-            fallbackAoTextureHandle);
+            passResources);
         return packetOk && queueOk;
+    }
+
+    bool HasDepthAwarePassWork(const RENDER3D::RenderQueue& queue) {
+        return queue.HasPhase(RENDER3D::RenderPhase::DepthAware) ||
+            HasSurfacePacketDepthAwareExecutionPlan();
     }
 
     bool RenderDepthAwarePass(
         const RENDER3D::RenderQueue& queue,
-        D3D12_GPU_DESCRIPTOR_HANDLE ssaoSrv,
-        int fallbackAoTextureHandle) {
-        if (!queue.HasPhase(RENDER3D::RenderPhase::DepthAware)) {
-            return true;
-        }
-
-        DepthAwarePhaseScope depthAwareScope{};
-        if (!BeginDepthAwarePhase(depthAwareScope)) {
-            return false;
-        }
-
-        const bool ok = RenderMeshPhase(
+        const MeshPassResources& passResources) {
+        const bool packetOk = RenderSurfacePacketPlan(
+            SurfacePacketExecutionKind::DepthAware,
+            MeshDrawPassKind::Forward,
+            g.frameObjectIndex,
+            passResources);
+        const bool queueOk = packetOk && RenderMeshPhase(
             queue,
             RENDER3D::RenderPhase::DepthAware,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
-            ssaoSrv,
-            fallbackAoTextureHandle);
-        EndDepthAwarePhase(depthAwareScope);
-        return ok;
+            passResources);
+        return packetOk && queueOk;
     }
 
     void SetAmbientOcclusionRuntimeEnabled(bool enabled) {
@@ -869,8 +1024,13 @@ namespace HIKARI::MESHRENDERER {
         g.surfacePacketBuilder = nullptr;
         g.surfacePacketOpaqueExecutionIndices = nullptr;
         g.surfacePacketOpaqueExecutionCommands = nullptr;
+        g.surfacePacketOpaqueGpuSceneInstances = nullptr;
+        g.surfacePacketDepthAwareExecutionIndices = nullptr;
+        g.surfacePacketDepthAwareExecutionCommands = nullptr;
+        g.surfacePacketDepthAwareGpuSceneInstances = nullptr;
         g.surfacePacketTransparentExecutionIndices = nullptr;
         g.surfacePacketTransparentExecutionCommands = nullptr;
+        g.surfacePacketTransparentGpuSceneInstances = nullptr;
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {

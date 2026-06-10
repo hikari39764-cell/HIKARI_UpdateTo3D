@@ -11,22 +11,10 @@ cbuffer ShadowObjectCB : register(b1)
     float2 gShadowObjectPadding;
 };
 
-cbuffer ShadowObjectDataControlCB : register(b2)
-{
-    uint gShadowObjectDataBaseIndex;
-    uint gUseShadowObjectData;
-    uint2 gShadowObjectDataPadding;
-};
+#include "Include/HIKARI_MeshMaterialData.hlsli"
+#include "Include/HIKARI_SurfaceGpuScene.hlsli"
 
-struct ShadowPacketObjectData
-{
-    float4x4 world;
-    uint materialFlags;
-    float alphaCutoff;
-    float2 padding;
-};
-
-StructuredBuffer<ShadowPacketObjectData> gShadowObjectDataBuffer : register(t1);
+static const uint HIKARI_INVALID_SHADOW_MATERIAL_INDEX = 0xffffffffu;
 
 struct VSInput
 {
@@ -43,6 +31,7 @@ struct VSOutput
     float2 uv : TEXCOORD0;
     nointerpolation uint materialFlags : MATERIALFLAGS;
     nointerpolation float alphaCutoff : ALPHACUTOFF;
+    nointerpolation uint materialDataIndex : MATERIALINDEX;
 };
 
 VSOutput main(VSInput input)
@@ -51,14 +40,16 @@ VSOutput main(VSInput input)
     float4x4 world = gWorld;
     uint materialFlags = gMaterialFlags;
     float alphaCutoff = gAlphaCutoff;
+    uint materialDataIndex = HIKARI_INVALID_SHADOW_MATERIAL_INDEX;
 
-    if (gUseShadowObjectData != 0)
+    if (gUseSurfaceGpuScene != 0)
     {
-        ShadowPacketObjectData objectData =
-            gShadowObjectDataBuffer[gShadowObjectDataBaseIndex + input.instanceId];
-        world = objectData.world;
-        materialFlags = objectData.materialFlags;
-        alphaCutoff = objectData.alphaCutoff;
+        HikariSurfaceGpuSceneInstance instance = HikariGetSurfaceGpuSceneInstance(input.instanceId);
+        world = instance.world;
+        materialDataIndex = instance.materialDataIndex;
+        HikariMeshMaterialData materialData = HikariGetMeshMaterialData(materialDataIndex);
+        materialFlags = materialData.materialFlags;
+        alphaCutoff = materialData.pbrParams.w;
     }
 
     float4 worldPos = mul(world, float4(input.position, 1.0f));
@@ -66,5 +57,6 @@ VSOutput main(VSInput input)
     output.uv = input.uv;
     output.materialFlags = materialFlags;
     output.alphaCutoff = alphaCutoff;
+    output.materialDataIndex = materialDataIndex;
     return output;
 }

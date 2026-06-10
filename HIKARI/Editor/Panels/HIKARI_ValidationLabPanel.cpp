@@ -100,6 +100,25 @@ namespace HIKARI {
                 stats.noPassPacketCount);
         }
 
+        bool DrawRenderSubmissionRouteModeCombo(RenderSubmissionRouteMode& mode) {
+            bool changed = false;
+            if (ImGui::BeginCombo("Submission Route", ToString(mode))) {
+                const RenderSubmissionRouteMode modes[] = {
+                    RenderSubmissionRouteMode::SurfacePacketMainline,
+                    RenderSubmissionRouteMode::ForceLegacy,
+                    RenderSubmissionRouteMode::LegacyCompare,
+                };
+                for (RenderSubmissionRouteMode candidate : modes) {
+                    if (ImGui::Selectable(ToString(candidate), mode == candidate)) {
+                        mode = candidate;
+                        changed = true;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        }
+
         bool DrawClusteredRenderModeCombo(RENDER3D::CLUSTER::ClusteredRenderMode& mode) {
             bool changed = false;
             if (ImGui::BeginCombo("Render Mode", RENDER3D::CLUSTER::ToString(mode))) {
@@ -183,296 +202,223 @@ namespace HIKARI {
                 return;
             }
 
-            ImGui::TextDisabled("SurfaceDrawPacket is the main forward surface route. Opaque/mask and transparent packets now have separate plans.");
-
             const bool instancePacketMatch = sceneStats.surfaceInstanceCount == packetStats.packetCount;
             const float validPacketRatio = SafeRatio(packetStats.validPacketCount, packetStats.packetCount);
             const float forwardRatio = SafeRatio(packetStats.forwardCandidateCount, packetStats.packetCount);
             const float shadowRatio = SafeRatio(packetStats.shadowCandidateCount, packetStats.packetCount);
-            const float reorderedRatio = SafeRatio(packetStats.reorderedPacketCount, packetStats.sortEligiblePacketCount);
+            const RenderSubmissionDebugStats& renderSubmissionStats =
+                RenderSubmissionSystem::GetDebugStats();
+            const bool gpuSceneReady =
+                meshStats.surfaceGpuSceneSrvValid &&
+                meshStats.surfaceGpuSceneBufferReady &&
+                meshStats.surfaceGpuSceneOverflowInstanceCount == 0;
+            const bool indirectReady =
+                meshStats.surfaceIndirectArgumentBufferReady &&
+                meshStats.surfaceIndirectCommandSignatureReady &&
+                meshStats.surfaceIndirectOverflowCommandCount == 0;
+            const bool shadowIndirectReady =
+                shadowStats.shadowIndirectArgumentBufferReady &&
+                shadowStats.shadowIndirectCommandSignatureReady &&
+                shadowStats.shadowIndirectOverflowCommandCount == 0;
+            const bool hasOpaqueWork = planStats.submittedOpaqueCommandCount > 0;
+            const bool opaqueIndirectComplete =
+                meshStats.surfaceIndirectOpaqueCommandCount == meshStats.surfacePacketExecutorOpaqueDrawCount &&
+                meshStats.surfaceIndirectFallbackCommandCount == 0 &&
+                meshStats.surfaceGpuSceneMaterialPatchFailCount == 0;
+            const char* opaqueMainlineStatus = !hasOpaqueWork
+                ? "Idle"
+                : (renderSubmissionStats.surfacePacketMainRouteActive &&
+                    gpuSceneReady &&
+                    indirectReady &&
+                    opaqueIndirectComplete ? "Ready" : "Watch");
+            const size_t instancedSavedDraws =
+                meshStats.surfacePacketExecutorInstancedPacketCount >= meshStats.surfacePacketExecutorInstancedDrawCount
+                    ? meshStats.surfacePacketExecutorInstancedPacketCount - meshStats.surfacePacketExecutorInstancedDrawCount
+                    : 0;
 
             ImGui::SeparatorText("Contract");
+            RenderSubmissionRouteMode routeMode = RenderSubmissionSystem::GetRouteMode();
+            if (DrawRenderSubmissionRouteModeCombo(routeMode)) {
+                RenderSubmissionSystem::SetRouteMode(routeMode);
+            }
             ImGui::Text("Instance / Packet Count: %u / %u (%s)",
                 sceneStats.surfaceInstanceCount,
                 packetStats.packetCount,
                 instancePacketMatch ? "Match" : "Mismatch");
-            ImGui::Text("Valid Packet Ratio: %.1f%%", validPacketRatio * 100.0f);
-            ImGui::Text("Forward / Shadow Candidate Ratio: %.1f%% / %.1f%%",
+            ImGui::Text("Valid / Static / Skinned Packets: %u / %u / %u",
+                packetStats.validPacketCount,
+                packetStats.staticGeometryPacketCount,
+                packetStats.skinnedPacketCount);
+            ImGui::Text("Resource Identity / Pool Handles / Missing Pool: %u / %u / %u",
+                packetStats.resourceIdentityPacketCount,
+                packetStats.resourcePoolHandlePacketCount,
+                packetStats.resourcePoolMissingPacketCount);
+            ImGui::Text("Valid Packet Ratio / Forward / Shadow: %.1f%% / %.1f%% / %.1f%%",
+                validPacketRatio * 100.0f,
                 forwardRatio * 100.0f,
                 shadowRatio * 100.0f);
-            ImGui::Text("Resource Key Invalid / Sort Breaks: %u / %u",
-                packetStats.invalidResourceKeyCount,
-                packetStats.sortOrderBreakCount);
 
-            ImGui::SeparatorText("Packet Sort View");
-            ImGui::Text("Eligible / Sorted / Reordered: %u / %u / %u (%.1f%%)",
-                packetStats.sortEligiblePacketCount,
-                packetStats.sortedPacketCount,
-                packetStats.reorderedPacketCount,
-                reorderedRatio * 100.0f);
-            ImGui::Text("Transparent Resource-Sort Excluded: %u", packetStats.transparentResourceSortExcludedCount);
-            ImGui::Text("Raw / Sorted Sort Breaks: %u / %u",
-                packetStats.sortOrderBreakCount,
-                packetStats.sortedSortOrderBreakCount);
-            ImGui::Text("Runs Pass / PSO: %u -> %u / %u -> %u",
-                packetStats.rawPassRunCount,
-                packetStats.sortedPassRunCount,
-                packetStats.rawPsoRunCount,
-                packetStats.sortedPsoRunCount);
-            ImGui::Text("Runs Material / Texture: %u -> %u / %u -> %u",
-                packetStats.rawMaterialRunCount,
-                packetStats.sortedMaterialRunCount,
-                packetStats.rawTextureSetRunCount,
-                packetStats.sortedTextureSetRunCount);
-            ImGui::Text("Runs Geometry: %u -> %u",
-                packetStats.rawGeometryRunCount,
-                packetStats.sortedGeometryRunCount);
-
-            ImGui::SeparatorText("SurfacePacket Main Route");
-            const RenderSubmissionDebugStats& renderSubmissionStats =
-                RenderSubmissionSystem::GetDebugStats();
-            ImGui::Text("SurfacePacket Main Route Active: %s",
-                renderSubmissionStats.surfacePacketMainRouteActive ? "true" : "false");
-            ImGui::TextDisabled("SurfacePacket is locked as the normal surface route. RuntimeSpecial keeps only unsupported cases.");
-            ImGui::Text("SurfacePacket Forward Bypass Objects: %d",
-                renderSubmissionStats.surfacePacketForwardSkipCount);
-            ImGui::Text("SurfacePacket Shadow Bypass Objects: %d",
-                renderSubmissionStats.surfacePacketShadowSkipCount);
-            ImGui::Text("RuntimeSpecial Models Forward / Shadow / Total: %d / %d / %d",
+            ImGui::SeparatorText("Static Forward Mainline");
+            ImGui::Text("Opaque Mainline Status: %s", opaqueMainlineStatus);
+            ImGui::Text("Route Mode / SurfacePacket Active / Compare / ForceLegacy: %s / %s / %s / %s",
+                ToString(renderSubmissionStats.routeMode),
+                renderSubmissionStats.surfacePacketMainRouteActive ? "true" : "false",
+                renderSubmissionStats.surfacePacketLegacyCompareActive ? "true" : "false",
+                renderSubmissionStats.surfacePacketForceLegacyActive ? "true" : "false");
+            ImGui::Text("Forward Bypass / RuntimeSpecial Fwd / Total: %d / %d / %d",
+                renderSubmissionStats.surfacePacketForwardSkipCount,
                 renderSubmissionStats.runtimeSpecialForwardModelCount,
-                renderSubmissionStats.runtimeSpecialShadowModelCount,
                 renderSubmissionStats.runtimeSpecialModelCount);
-            ImGui::Text("Source / Sorted Packets: %u / %u",
+            ImGui::Text("Source / Sorted / Candidate Packets: %u / %u / %u",
                 planStats.sourcePacketCount,
-                planStats.sortedPacketCount);
-            ImGui::Text("Objects Candidate / Full / RuntimeSpecial / Main Bypass: %u / %u / %u / %u",
+                planStats.sortedPacketCount,
+                planStats.candidatePacketCount);
+            ImGui::Text("Objects Candidate / Full / RuntimeSpecial / Bypass / Partial: %u / %u / %u / %u / %u",
                 planStats.candidateObjectCount,
                 planStats.fullCoverageObjectCount,
                 planStats.runtimeSpecialObjectCount,
-                planStats.mainForwardBypassObjectCount);
-            ImGui::Text("Objects Partial: %u",
+                planStats.mainForwardBypassObjectCount,
                 planStats.partialCoverageObjectCount);
             ImGui::Text("Packets Candidate / Submitted / Culled / Handled: %u / %u / %u / %u",
                 planStats.candidatePacketCount,
                 planStats.submittedForwardPacketCount,
                 planStats.culledPacketCount,
                 planStats.handledForwardPacketCount);
-            ImGui::Text("Submitted Opaque / Transparent Packets: %u / %u",
+            ImGui::Text("Submitted Opaque / DepthAware / Transparent Packets: %u / %u / %u",
                 planStats.submittedForwardOpaquePacketCount,
+                planStats.submittedForwardDepthAwarePacketCount,
                 planStats.submittedForwardTransparentPacketCount);
-            ImGui::Text("Submitted Commands / Single / Max Length: %u / %u / %u",
-                planStats.submittedCommandCount,
-                planStats.submittedSinglePacketCommandCount,
-                planStats.submittedMaxCommandPacketCount);
-            ImGui::Text("Opaque Commands / Single / Max Length: %u / %u / %u",
+            ImGui::Text("Plan Opaque Commands / Merged / Saved / Max: %u / %u / %u / %u",
                 planStats.submittedOpaqueCommandCount,
-                planStats.submittedOpaqueSinglePacketCommandCount,
+                planStats.submittedOpaqueMergedCommandCount,
+                planStats.submittedOpaqueSavedCommandCount,
                 planStats.submittedOpaqueMaxCommandPacketCount);
-            ImGui::Text("Transparent Commands / Single / Max Length: %u / %u / %u",
+            ImGui::Text("Plan DepthAware Commands / Merged / Saved / Max: %u / %u / %u / %u",
+                planStats.submittedDepthAwareCommandCount,
+                planStats.submittedDepthAwareMergedCommandCount,
+                planStats.submittedDepthAwareSavedCommandCount,
+                planStats.submittedDepthAwareMaxCommandPacketCount);
+            ImGui::Text("Plan Transparent Commands / Merged / Saved / Max: %u / %u / %u / %u",
                 planStats.submittedTransparentCommandCount,
-                planStats.submittedTransparentSinglePacketCommandCount,
+                planStats.submittedTransparentMergedCommandCount,
+                planStats.submittedTransparentSavedCommandCount,
                 planStats.submittedTransparentMaxCommandPacketCount);
-            ImGui::Text("GPU Scene Instances / Opaque / Transparent / Max Command: %u / %u / %u / %u",
+            ImGui::Text("Plan Indirect Ready / Missing Args: %u / %u",
+                planStats.submittedIndirectReadyCommandCount,
+                planStats.submittedMissingDrawArgsCommandCount);
+
+            ImGui::SeparatorText("GPU Driven Submission");
+            ImGui::Text("GPU Scene Ready / Uploaded / Overflow: %s / %zu / %zu",
+                gpuSceneReady ? "Ready" : "Missing",
+                meshStats.surfaceGpuSceneUploadedInstanceCount,
+                meshStats.surfaceGpuSceneOverflowInstanceCount);
+            ImGui::Text("Indirect Buffer Ready / Uploaded / Binding / Direct / Missing / Overflow: %s / %zu / %zu / %zu / %zu / %zu",
+                indirectReady ? "Ready" : "Missing",
+                meshStats.surfaceIndirectUploadedCommandCount,
+                meshStats.surfaceIndirectDrawBindingPatchCount,
+                meshStats.surfaceIndirectCpuDirectCommandCount,
+                meshStats.surfaceIndirectMissingDrawArgsCommandCount,
+                meshStats.surfaceIndirectOverflowCommandCount);
+            ImGui::Text("GPU Scene Instances / Opaque / DepthAware / Transparent / Max Command: %u / %u / %u / %u / %u",
                 planStats.submittedGpuSceneInstanceCount,
                 planStats.submittedOpaqueGpuSceneInstanceCount,
+                planStats.submittedDepthAwareGpuSceneInstanceCount,
                 planStats.submittedTransparentGpuSceneInstanceCount,
                 planStats.submittedMaxGpuSceneCommandInstanceCount);
-            ImGui::Text("Transparent DepthSort Candidate / Sorted / Reordered / Fallback: %u / %u / %u / %u",
-                planStats.transparentDepthSortCandidateCount,
-                planStats.transparentDepthSortedPacketCount,
-                planStats.transparentDepthReorderedPacketCount,
-                planStats.transparentDepthSortFallbackPacketCount);
+            ImGui::Text("GPU Scene Resource Instances / Missing: %u / %u",
+                planStats.submittedGpuSceneResourceInstanceCount,
+                planStats.submittedGpuSceneMissingResourceInstanceCount);
+            ImGui::Text("ExecuteIndirect Opaque Commands / Packets: %zu / %zu",
+                meshStats.surfaceIndirectOpaqueCommandCount,
+                meshStats.surfaceIndirectOpaquePacketCount);
+            ImGui::Text("ExecuteIndirect DepthAware Commands / Packets: %zu / %zu",
+                meshStats.surfaceIndirectDepthAwareCommandCount,
+                meshStats.surfaceIndirectDepthAwarePacketCount);
+            ImGui::Text("ExecuteIndirect Transparent Commands / Packets: %zu / %zu",
+                meshStats.surfaceIndirectTransparentCommandCount,
+                meshStats.surfaceIndirectTransparentPacketCount);
+            ImGui::Text("ExecuteIndirect Batches / Commands / Saved / Max: %zu / %zu / %zu / %zu",
+                meshStats.surfaceIndirectBatchSubmitCount,
+                meshStats.surfaceIndirectBatchedCommandCount,
+                meshStats.surfaceIndirectSavedSubmitCount,
+                meshStats.surfaceIndirectMaxBatchCommandCount);
+            ImGui::Text("Instanced Draws / Packets / Saved / Max: %zu / %zu / %zu / %zu",
+                meshStats.surfacePacketExecutorInstancedDrawCount,
+                meshStats.surfacePacketExecutorInstancedPacketCount,
+                instancedSavedDraws,
+                meshStats.surfacePacketExecutorMaxInstanceCount);
+            ImGui::Text("GPU Scene Draw Commands / Packets / Fallbacks / PatchFail: %zu / %zu / %zu / %zu",
+                meshStats.surfacePacketExecutorGpuSceneDrawCount,
+                meshStats.surfacePacketExecutorGpuScenePacketCount,
+                meshStats.surfacePacketExecutorGpuSceneFallbackCount,
+                meshStats.surfaceGpuSceneMaterialPatchFailCount);
+
+            ImGui::SeparatorText("Unsupported Handoff");
+            DrawSurfaceRouteBucketStats("Forward Route", planStats.forwardRouteBuckets);
             ImGui::Text("Skipped RuntimeAnim / Debug / Skinned / TransparentReject / MaskReject: %u / %u / %u / %u / %u",
                 planStats.skippedRuntimeAnimationPacketCount,
                 planStats.skippedSpecialDebugPacketCount,
                 planStats.skippedSkinnedPacketCount,
                 planStats.skippedTransparentPacketCount,
                 planStats.skippedAlphaMaskedPacketCount);
-            ImGui::Text("Skipped No Forward / Invalid / Invalid Key / Legacy Shader: %u / %u / %u / %u",
+            ImGui::Text("Skipped No Forward / Invalid / Invalid Key / Legacy Shader / DepthAware: %u / %u / %u / %u / %u",
                 planStats.skippedNoForwardPacketCount,
                 planStats.skippedInvalidPacketCount,
                 planStats.skippedInvalidResourceKeyCount,
-                planStats.skippedLegacyShaderPacketCount);
-            ImGui::Text("Skipped DepthAware / Invalid Primitive / Partial Coverage: %u / %u / %u",
-                planStats.skippedDepthAwarePacketCount,
-                planStats.skippedInvalidPrimitiveCount,
-                planStats.skippedPartialCoveragePacketCount);
+                planStats.skippedLegacyShaderPacketCount,
+                planStats.skippedDepthAwarePacketCount);
+            ImGui::Text("Transparent DepthSort Candidate / Sorted / Reordered / Fallback: %u / %u / %u / %u",
+                planStats.transparentDepthSortCandidateCount,
+                planStats.transparentDepthSortedPacketCount,
+                planStats.transparentDepthReorderedPacketCount,
+                planStats.transparentDepthSortFallbackPacketCount);
 
-            ImGui::SeparatorText("Route Buckets");
-            DrawSurfaceRouteBucketStats("Forward",
-                planStats.forwardRouteBuckets);
-            DrawSurfaceRouteBucketStats("Shadow",
-                planStats.shadowRouteBuckets);
-
-            ImGui::SeparatorText("SurfacePacket Shadow Plan");
+            ImGui::SeparatorText("Shadow Plan");
             ImGui::Text("Shadow Objects Candidate / Full / RuntimeSpecial / Main Bypass: %u / %u / %u / %u",
                 planStats.shadowCandidateObjectCount,
                 planStats.shadowFullCoverageObjectCount,
                 planStats.shadowRuntimeSpecialObjectCount,
                 planStats.mainShadowBypassObjectCount);
-            ImGui::Text("Shadow Objects Partial: %u",
-                planStats.shadowPartialCoverageObjectCount);
             ImGui::Text("Shadow Packets Candidate / Planned / Handled: %u / %u / %u",
                 planStats.shadowCandidatePacketCount,
                 planStats.plannedShadowPacketCount,
                 planStats.handledShadowPacketCount);
-            ImGui::Text("Shadow Commands / Single / Max Length: %u / %u / %u",
+            ImGui::Text("Shadow Commands / Merged / Saved / Max: %u / %u / %u / %u",
                 planStats.shadowCommandCount,
-                planStats.shadowSinglePacketCommandCount,
+                planStats.shadowMergedCommandCount,
+                planStats.shadowSavedCommandCount,
                 planStats.shadowMaxCommandPacketCount);
-            ImGui::Text("Shadow GPU Scene Instances / Max Command: %u / %u",
-                planStats.shadowGpuSceneInstanceCount,
-                planStats.shadowMaxGpuSceneCommandInstanceCount);
-            ImGui::Text("Shadow Drawn / Skipped / Runtime Commands: %zu / %zu / %zu",
-                shadowStats.shadowPacketCasterDrawCount,
-                shadowStats.shadowPacketSkippedCount,
-                shadowStats.shadowPacketCommandCount);
-            ImGui::Text("Shadow DrawCalls / Instanced / Instanced Casters: %zu / %zu / %zu",
+            ImGui::Text("Shadow GPU Scene Ready / Uploaded / Overflow: %s / %zu / %zu",
+                shadowStats.shadowGpuSceneSrvValid && shadowStats.shadowGpuSceneBufferReady ? "Ready" : "Missing",
+                shadowStats.shadowGpuSceneUploadedInstanceCount,
+                shadowStats.shadowGpuSceneOverflowInstanceCount);
+            ImGui::Text("Shadow GPU Scene Resource Instances / Missing: %u / %u",
+                planStats.shadowGpuSceneResourceInstanceCount,
+                planStats.shadowGpuSceneMissingResourceInstanceCount);
+            ImGui::Text("Shadow Indirect Ready / Uploaded / Binding / Direct / Missing / Overflow: %s / %zu / %zu / %zu / %zu / %zu",
+                shadowIndirectReady ? "Ready" : "Missing",
+                shadowStats.shadowIndirectUploadedCommandCount,
+                shadowStats.shadowIndirectDrawBindingPatchCount,
+                shadowStats.shadowIndirectCpuDirectCommandCount,
+                shadowStats.shadowIndirectMissingDrawArgsCommandCount,
+                shadowStats.shadowIndirectOverflowCommandCount);
+            ImGui::Text("Shadow ExecuteIndirect Batches / Commands / Packets / Saved / Max: %zu / %zu / %zu / %zu / %zu",
+                shadowStats.shadowIndirectBatchSubmitCount,
+                shadowStats.shadowIndirectExecutedCommandCount,
+                shadowStats.shadowIndirectExecutedPacketCount,
+                shadowStats.shadowIndirectSavedSubmitCount,
+                shadowStats.shadowIndirectMaxBatchCommandCount);
+            ImGui::Text("Shadow DrawCommands / Instanced / Drawn / Skipped / IndirectFallback: %zu / %zu / %zu / %zu / %zu",
                 shadowStats.shadowPacketDrawCallCount,
                 shadowStats.shadowPacketInstancedDrawCount,
-                shadowStats.shadowPacketInstancedCasterCount);
-            ImGui::Text("Shadow Max Instance Count: %zu",
-                shadowStats.shadowPacketMaxInstanceCount);
+                shadowStats.shadowPacketCasterDrawCount,
+                shadowStats.shadowPacketSkippedCount,
+                shadowStats.shadowIndirectFallbackCommandCount);
             ImGui::Text("Shadow Skipped RuntimeAnim / Debug / Skinned / Transparent: %u / %u / %u / %u",
                 planStats.shadowSkippedRuntimeAnimationPacketCount,
                 planStats.shadowSkippedSpecialDebugPacketCount,
                 planStats.shadowSkippedSkinnedPacketCount,
                 planStats.shadowSkippedTransparentPacketCount);
-            ImGui::Text("Shadow Skipped No Shadow / Invalid / Invalid Key / Primitive / Partial: %u / %u / %u / %u / %u",
-                planStats.shadowSkippedNoShadowPacketCount,
-                planStats.shadowSkippedInvalidPacketCount,
-                planStats.shadowSkippedInvalidResourceKeyCount,
-                planStats.shadowSkippedInvalidPrimitiveCount,
-                planStats.shadowSkippedPartialCoveragePacketCount);
-
-            ImGui::SeparatorText("Mesh Binding Cache");
-            ImGui::Text("Root Signature Bind / Skip: %zu / %zu",
-                meshStats.rootSignatureBindCount,
-                meshStats.rootSignatureSkipCount);
-            ImGui::Text("Frame Resource Bind / Skip: %zu / %zu",
-                meshStats.frameResourceBindCount,
-                meshStats.frameResourceSkipCount);
-            ImGui::Text("Object Resource Bind / Skip: %zu / %zu",
-                meshStats.objectResourceBindCount,
-                meshStats.objectResourceSkipCount);
-            ImGui::Text("Legacy ObjectCB Writes (RuntimeSpecial Routes): %zu", meshStats.legacyObjectCbWriteCount);
-            ImGui::Text("ObjectData Writes: %zu", meshStats.objectDataWriteCount);
-            ImGui::Text("ObjectData Buffer Bind / Skip: %zu / %zu",
-                meshStats.objectDataBufferBindCount,
-                meshStats.objectDataBufferSkipCount);
-            ImGui::Text("ObjectData Index Bind / Skip: %zu / %zu",
-                meshStats.objectIndexBindCount,
-                meshStats.objectIndexSkipCount);
-            ImGui::Text("MaterialData Writes / Cached: %zu / %zu",
-                meshStats.materialDataWriteCount,
-                meshStats.materialDataCachedCount);
-            ImGui::Text("MaterialData Hit / Miss / Overflow: %zu / %zu / %zu",
-                meshStats.materialDataCacheHitCount,
-                meshStats.materialDataCacheMissCount,
-                meshStats.materialDataOverflowCount);
-            ImGui::Text("MaterialData Buffer Bind / Skip: %zu / %zu",
-                meshStats.materialDataBufferBindCount,
-                meshStats.materialDataBufferSkipCount);
-            ImGui::Text("MaterialData Index Bind / Skip: %zu / %zu",
-                meshStats.materialIndexBindCount,
-                meshStats.materialIndexSkipCount);
-            ImGui::Text("Texture Pool Slots Resolved / Invalid: %zu / %zu",
-                meshStats.materialTexturePoolResolvedSlotCount,
-                meshStats.materialTexturePoolInvalidSlotCount);
-            ImGui::Text("Texture Pool Unique SRVs / Slots: %zu / %zu",
-                meshStats.materialTexturePoolUniqueDescriptorCount,
-                meshStats.materialTexturePoolSlotCount);
-            ImGui::Text("Descriptor Table Bind / Skip: %zu / %zu",
-                meshStats.descriptorTableBindCount,
-                meshStats.descriptorTableSkipCount);
-            ImGui::Text("Pipeline State Bind / Skip: %zu / %zu",
-                meshStats.pipelineStateBindCount,
-                meshStats.pipelineStateSkipCount);
-
-            ImGui::SeparatorText("Surface Packet Executor");
-            ImGui::Text("Packets / Skipped: %zu / %zu",
-                meshStats.surfacePacketExecutorPacketCount,
-                meshStats.surfacePacketExecutorSkippedPacketCount);
-            ImGui::Text("Geometry / Forward Draws: %zu / %zu",
-                meshStats.surfacePacketExecutorGeometryDrawCount,
-                meshStats.surfacePacketExecutorForwardDrawCount);
-            ImGui::Text("Forward Opaque / Transparent Draws: %zu / %zu",
-                meshStats.surfacePacketExecutorOpaqueDrawCount,
-                meshStats.surfacePacketExecutorTransparentDrawCount);
-            const size_t instancedSavedDraws =
-                meshStats.surfacePacketExecutorInstancedPacketCount >= meshStats.surfacePacketExecutorInstancedDrawCount
-                    ? meshStats.surfacePacketExecutorInstancedPacketCount - meshStats.surfacePacketExecutorInstancedDrawCount
-                    : 0;
-            ImGui::Text("Instanced Draws / Packets / Saved: %zu / %zu / %zu",
-                meshStats.surfacePacketExecutorInstancedDrawCount,
-                meshStats.surfacePacketExecutorInstancedPacketCount,
-                instancedSavedDraws);
-            ImGui::Text("Max Instance Count: %zu",
-                meshStats.surfacePacketExecutorMaxInstanceCount);
-            ImGui::Text("Commands / Single / Max Length: %zu / %zu / %zu",
-                meshStats.surfacePacketExecutorCommandCount,
-                meshStats.surfacePacketExecutorSinglePacketCommandCount,
-                meshStats.surfacePacketExecutorMaxCommandPacketCount);
-            ImGui::Text("Opaque / Transparent Runtime Commands: %zu / %zu",
-                meshStats.surfacePacketExecutorOpaqueCommandCount,
-                meshStats.surfacePacketExecutorTransparentCommandCount);
-
-            ImGui::SeparatorText("Scene Surface Instances");
-            ImGui::Text("Total: %u", sceneStats.surfaceInstanceCount);
-            ImGui::Text("Visible / Hidden: %u / %u",
-                sceneStats.visibleSurfaceInstanceCount,
-                sceneStats.hiddenSurfaceInstanceCount);
-            ImGui::Text("Static / Dynamic Surfaces: %u / %u",
-                sceneStats.staticSurfaceInstanceCount,
-                sceneStats.dynamicSurfaceInstanceCount);
-            ImGui::Text("Static Geometry / Skinned Geometry: %u / %u",
-                sceneStats.staticGeometrySurfaceInstanceCount,
-                sceneStats.skinnedSurfaceInstanceCount);
-            ImGui::Text("Invalid / Missing Matrix / Invalid Bounds: %u / %u / %u",
-                sceneStats.invalidSurfaceInstanceCount,
-                sceneStats.missingSurfaceMatrixCount,
-                sceneStats.invalidSurfaceBoundsCount);
-
-            ImGui::SeparatorText("Surface Draw Packets");
-            ImGui::Text("Packets: %u", packetStats.packetCount);
-            ImGui::Text("Valid / Invalid: %u / %u",
-                packetStats.validPacketCount,
-                packetStats.invalidPacketCount);
-            ImGui::Text("Visible / Hidden: %u / %u",
-                packetStats.visiblePacketCount,
-                packetStats.hiddenPacketCount);
-            ImGui::Text("Static / Dynamic: %u / %u",
-                packetStats.staticPacketCount,
-                packetStats.dynamicPacketCount);
-            ImGui::Text("Static Geometry / Skinned: %u / %u",
-                packetStats.staticGeometryPacketCount,
-                packetStats.skinnedPacketCount);
-            ImGui::Text("Material Asset / Override: %u / %u",
-                packetStats.materialAssetPacketCount,
-                packetStats.materialOverridePacketCount);
-            ImGui::Text("Opaque / Mask / Transparent: %u / %u / %u",
-                packetStats.opaquePacketCount,
-                packetStats.alphaMaskedPacketCount,
-                packetStats.transparentPacketCount);
-            ImGui::Text("Buckets Model / Geometry / Material: %u / %u / %u",
-                packetStats.modelBucketCount,
-                packetStats.geometryBucketCount,
-                packetStats.materialBucketCount);
-            ImGui::Text("Buckets Texture / Shader / PSO: %u / %u / %u",
-                packetStats.textureSetBucketCount,
-                packetStats.shaderBucketCount,
-                packetStats.psoBucketCount);
-            ImGui::Text("Forward / Shadow Candidates: %u / %u",
-                packetStats.forwardCandidateCount,
-                packetStats.shadowCandidateCount);
-            ImGui::Text("Invalid Source / Model / Geometry: %u / %u / %u",
-                packetStats.invalidSourceCount,
-                packetStats.invalidModelCount,
-                packetStats.unsupportedGeometryCount);
-            ImGui::Text("Missing Matrix / Invalid Bounds / Invalid Primitive: %u / %u / %u",
-                packetStats.missingDrawMatrixCount,
-                packetStats.invalidBoundsCount,
-                packetStats.invalidPrimitiveIndexCount);
         }
 
         void DrawClusterValidationSection(EditorContext& context) {

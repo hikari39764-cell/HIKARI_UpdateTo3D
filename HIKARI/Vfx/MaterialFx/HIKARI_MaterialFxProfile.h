@@ -19,7 +19,7 @@ struct MaterialFxProfileCacheStats {
 
 enum class MaterialFxRenderPhase {
     Opaque = 0,
-    SceneDepth,
+    DepthAware,
 };
 
 class MaterialFxProfile {

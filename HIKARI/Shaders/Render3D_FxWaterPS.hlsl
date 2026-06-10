@@ -1,12 +1,12 @@
 
-#define gFxUser0 gFxUser[0]
-#define gFxUser1 gFxUser[1]
-#define gFxUser2 gFxUser[2]
-#define gFxUser3 gFxUser[3]
-#define gFxUser4 gFxUser[4]
-#define gFxUser5 gFxUser[5]
-#define gFxUser6 gFxUser[6]
-#define gFxUser7 gFxUser[7]
+#define gFxUser0 waterObjectData.fxUser[0]
+#define gFxUser1 waterObjectData.fxUser[1]
+#define gFxUser2 waterObjectData.fxUser[2]
+#define gFxUser3 waterObjectData.fxUser[3]
+#define gFxUser4 waterObjectData.fxUser[4]
+#define gFxUser5 waterObjectData.fxUser[5]
+#define gFxUser6 waterObjectData.fxUser[6]
+#define gFxUser7 waterObjectData.fxUser[7]
 
 #define gWaterDepthScale gFxUser4.x
 #define gWaterDepthBias  gFxUser4.y
@@ -40,31 +40,7 @@ cbuffer CameraCB : register(b0)
     float4 gScreenParams;
 };
 
-cbuffer ObjectCB : register(b1)
-{
-    float4x4 gWorld;
-    float4x4 gNormalMatrix;
-    float4 gBaseColor;
-    uint gHasBaseColorTexture;
-    uint gFxFlags;
-    uint gMaterialFlags;
-    float gAlphaCutoff;
-    float4 gEmissiveFactor;
-    uint gHasNormalTexture;
-    float gNormalScale;
-    float2 gNormalPadding;
-    uint gReceiveShadow;
-    float3 gShadowObjectPadding;
-    uint gHasEmissiveTexture;
-    float3 gEmissivePadding;
-    float gMetallicFactor;
-    float gRoughnessFactor;
-    uint gHasMetallicRoughnessTexture;
-    uint gHasOcclusionTexture;
-    float gOcclusionStrength;
-    float3 gPbrPadding;
-    float4 gFxUser[8];
-};
+#include "Include/HIKARI_MeshObjectData.hlsli"
 
 cbuffer LightCB : register(b2)
 {
@@ -159,6 +135,9 @@ struct PSInput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
 };
 
 float SampleSceneDepth(float4 svPosition)
@@ -175,7 +154,7 @@ float ComputeRawWaterDepthDiff(float4 svPosition)
     return max(0.0f, sceneDepth - waterDepth);
 }
 
-float ComputeWaterDepthFactor(float4 svPosition)
+float ComputeWaterDepthFactor(float4 svPosition, HikariMeshObjectData waterObjectData)
 {
     float rawDiff = ComputeRawWaterDepthDiff(svPosition);
 
@@ -199,7 +178,7 @@ float ComputeWaterDepthFactor(float4 svPosition)
     return depthFactor;
 }
 
-float ComputeWaterAlpha(float depthFactor, float fresnel)
+float ComputeWaterAlpha(float depthFactor, float fresnel, HikariMeshObjectData waterObjectData)
 {
     float shallowAlpha = gWaterAlphaShallow;
     if (shallowAlpha <= 0.0001f)
@@ -248,7 +227,11 @@ float2 DetailWaveGradient(float2 p, float time)
     return float2(h - hx, h - hz) / e;
 }
 
-float3 ApplyWaterDetailNormal(float3 n, float3 worldPosWS, float distToCamera)
+float3 ApplyWaterDetailNormal(
+    float3 n,
+    float3 worldPosWS,
+    float distToCamera,
+    HikariMeshObjectData waterObjectData)
 {
     float detailStrength = gWaterDetailStrength;
     if (detailStrength <= 0.0001f)
@@ -280,7 +263,10 @@ float3 ApplyWaterDetailNormal(float3 n, float3 worldPosWS, float distToCamera)
     return normalize(n + float3(detailGrad.x, 0.0f, detailGrad.y) * detailStrength * detailFade);
 }
 
-float ComputeWaterFoam(float4 svPosition, float3 worldPosWS)
+float ComputeWaterFoam(
+    float4 svPosition,
+    float3 worldPosWS,
+    HikariMeshObjectData waterObjectData)
 {
     float rawDiff = ComputeRawWaterDepthDiff(svPosition);
 
@@ -323,7 +309,10 @@ float ComputeWaterFoam(float4 svPosition, float3 worldPosWS)
     return saturate(foam * foamStrength);
 }
 
-float2 ComputeWaterSceneColorDistortion(float3 normalWS, float3 worldPosWS)
+float2 ComputeWaterSceneColorDistortion(
+    float3 normalWS,
+    float3 worldPosWS,
+    HikariMeshObjectData waterObjectData)
 {
     float refractionStrength = max(0.0f, gWaterRefractionStrength);
 
@@ -347,7 +336,9 @@ float2 ComputeWaterSceneColorDistortion(float3 normalWS, float3 worldPosWS)
     return normalOffset * refractionStrength;
 }
 
-float ComputeWaterSceneColorCoverageMask(float4 svPosition)
+float ComputeWaterSceneColorCoverageMask(
+    float4 svPosition,
+    HikariMeshObjectData waterObjectData)
 {
     float sceneDepth = SampleSceneDepth(svPosition);
     float rawDiff = max(0.0f, sceneDepth - svPosition.z);
@@ -382,6 +373,7 @@ float3 ApplyWaterSceneColorRefraction(
     float3 worldPosWS,
     float depthFactor,
     float fresnel,
+    HikariMeshObjectData waterObjectData,
     out float refractionCoverage)
 {
     refractionCoverage = 0.0f;
@@ -392,7 +384,7 @@ float3 ApplyWaterSceneColorRefraction(
         return waterColor;
     }
 
-    float coverageMask = ComputeWaterSceneColorCoverageMask(svPosition);
+    float coverageMask = ComputeWaterSceneColorCoverageMask(svPosition, waterObjectData);
     if (coverageMask <= 0.0001f)
     {
         return waterColor;
@@ -412,7 +404,7 @@ float3 ApplyWaterSceneColorRefraction(
     // SceneColor is a snapshot captured before the DepthAware phase.
     // Do not sample the currently bound render target directly.
     float2 screenUv = svPosition.xy * gScreenParams.zw;
-    float2 distortion = ComputeWaterSceneColorDistortion(normalWS, worldPosWS);
+    float2 distortion = ComputeWaterSceneColorDistortion(normalWS, worldPosWS, waterObjectData);
     float3 sceneColor = gSceneColorTex.Sample(gSkySampler, saturate(screenUv + distortion)).rgb;
 
     float waterTint = saturate(depthFactor * 0.45f + fresnel * 0.65f);
@@ -468,9 +460,9 @@ float SampleShadowPcf(float2 uv, float currentDepth)
     return sum / 9.0f;
 }
 
-float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS)
+float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS, uint receiveShadow)
 {
-    if (gShadowEnabled == 0 || gReceiveShadow == 0)
+    if (gShadowEnabled == 0 || receiveShadow == 0)
     {
         return 1.0f;
     }
@@ -556,6 +548,9 @@ float3 SampleSkyEnvironment(float3 dir)
 
 float4 main(PSInput input) : SV_TARGET
 {
+    HikariMeshObjectData waterObjectData =
+        HikariGetMeshObjectDataForPixel(input.objectDataIndex, input.surfaceGpuSceneIndex);
+
 #if WATER_DEBUG_SCENE_DEPTH
     float sceneDepth = SampleSceneDepth(input.position);
     float vi = saturate((1.0f - sceneDepth) * 80.0f);
@@ -563,7 +558,7 @@ float4 main(PSInput input) : SV_TARGET
 #endif
 
 #if WATER_DEBUG_DEPTH_DIFF
-    float depthFactor = ComputeWaterDepthFactor(input.position);
+    float depthFactor = ComputeWaterDepthFactor(input.position, waterObjectData);
     return float4(depthFactor.xxx, 1.0f);
 #endif
 
@@ -571,7 +566,7 @@ float4 main(PSInput input) : SV_TARGET
 
     float distToCamera = length(gCameraPos.xyz - input.worldPosWS);
 
-    n = ApplyWaterDetailNormal(n, input.worldPosWS, distToCamera);
+    n = ApplyWaterDetailNormal(n, input.worldPosWS, distToCamera, waterObjectData);
 
     float farNormalFade = saturate((distToCamera - 40.0f) / 140.0f);
 
@@ -629,7 +624,7 @@ float4 main(PSInput input) : SV_TARGET
     float shallowMix = saturate(n.y);
     float oldNormalShallow = shallowMix * 0.20f;
 
-    float depthFactor = ComputeWaterDepthFactor(input.position);
+    float depthFactor = ComputeWaterDepthFactor(input.position, waterObjectData);
 
     float depthBlend = gWaterDepthBlend;
     if (depthBlend <= 0.0001f)
@@ -641,7 +636,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 normalWaterColor = lerp(waterColor, shallowColor, oldNormalShallow);
     float3 baseWater = lerp(normalWaterColor, depthWaterColor, saturate(depthBlend));
 
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n);
+    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n, input.receiveShadow);
 
     float3 ambient = gAmbientColor.rgb * max(gAmbientIntensity, 0.05f);
     float3 sun = gDirectionalColor.rgb * gDirectionalIntensity * ndotl * shadowFactor;
@@ -678,7 +673,8 @@ float4 main(PSInput input) : SV_TARGET
 #if WATER_DEBUG_SCENE_COLOR
     {
         float2 screenUv = input.position.xy * gScreenParams.zw;
-        float2 distortion = ComputeWaterSceneColorDistortion(n, input.worldPosWS) * 4.0f;
+        float2 distortion =
+            ComputeWaterSceneColorDistortion(n, input.worldPosWS, waterObjectData) * 4.0f;
         float3 sceneColor = gSceneColorTex.Sample(gSkySampler, saturate(screenUv + distortion)).rgb;
         return float4(sceneColor, 1.0f);
     }
@@ -686,7 +682,7 @@ float4 main(PSInput input) : SV_TARGET
 
 #if WATER_DEBUG_REFRACTION_COVERAGE
     {
-        float coverage = ComputeWaterSceneColorCoverageMask(input.position);
+        float coverage = ComputeWaterSceneColorCoverageMask(input.position, waterObjectData);
         return float4(coverage.xxx, 1.0f);
     }
 #endif
@@ -718,9 +714,10 @@ float4 main(PSInput input) : SV_TARGET
         input.worldPosWS,
         depthFactor,
         fresnel,
+        waterObjectData,
         refractionCoverage);
 
-    float foam = ComputeWaterFoam(input.position, input.worldPosWS);
+    float foam = ComputeWaterFoam(input.position, input.worldPosWS, waterObjectData);
     float3 foamColor = float3(0.85f, 0.95f, 1.0f);
 
 #if WATER_DEBUG_FOAM
@@ -729,7 +726,7 @@ float4 main(PSInput input) : SV_TARGET
 
     color = lerp(color, foamColor, foam);
 
-    float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel);
+    float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel, waterObjectData);
     waterAlpha = lerp(waterAlpha, 1.0f, refractionCoverage);
     waterAlpha = saturate(waterAlpha + foam * 0.35f);
 

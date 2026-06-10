@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
+#include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
@@ -15,6 +16,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         uint32_t ToFlag(SurfaceGpuSceneInstanceFlags flag) {
+            return static_cast<uint32_t>(flag);
+        }
+
+        uint32_t ToResourceFlag(SurfaceGpuSceneResourceFlags flag) {
             return static_cast<uint32_t>(flag);
         }
 
@@ -34,6 +39,39 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 extent.y * extent.y +
                 extent.z * extent.z);
             return { center.x, center.y, center.z, radius };
+        }
+
+        MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
+            const float a00 = world.m[0][0];
+            const float a01 = world.m[1][0];
+            const float a02 = world.m[2][0];
+            const float a10 = world.m[0][1];
+            const float a11 = world.m[1][1];
+            const float a12 = world.m[2][1];
+            const float a20 = world.m[0][2];
+            const float a21 = world.m[1][2];
+            const float a22 = world.m[2][2];
+
+            const float det =
+                a00 * (a11 * a22 - a12 * a21) -
+                a01 * (a10 * a22 - a12 * a20) +
+                a02 * (a10 * a21 - a11 * a20);
+            if (std::abs(det) <= 1e-6f) {
+                return MATH::Mat4::Identity();
+            }
+
+            const float invDet = 1.0f / det;
+            MATH::Mat4 normalMatrix = MATH::Mat4::Identity();
+            normalMatrix.m[0][0] = (a11 * a22 - a12 * a21) * invDet;
+            normalMatrix.m[0][1] = (a02 * a21 - a01 * a22) * invDet;
+            normalMatrix.m[0][2] = (a01 * a12 - a02 * a11) * invDet;
+            normalMatrix.m[1][0] = (a12 * a20 - a10 * a22) * invDet;
+            normalMatrix.m[1][1] = (a00 * a22 - a02 * a20) * invDet;
+            normalMatrix.m[1][2] = (a02 * a10 - a00 * a12) * invDet;
+            normalMatrix.m[2][0] = (a10 * a21 - a11 * a20) * invDet;
+            normalMatrix.m[2][1] = (a01 * a20 - a00 * a21) * invDet;
+            normalMatrix.m[2][2] = (a00 * a11 - a01 * a10) * invDet;
+            return normalMatrix;
         }
 
         uint32_t BuildInstanceFlags(const SurfaceDrawPacket& packet) {
@@ -58,6 +96,28 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
             return flags;
         }
+
+        void FillMaterialFxData(const SurfaceDrawPacket& packet, SurfaceGpuSceneInstance& instance) {
+            if (!packet.materialFxProfileId.empty()) {
+                MaterialFxProfile profile{};
+                if (MaterialFxProfile::LoadById(packet.materialFxProfileId, profile)) {
+                    instance.fxFlags = profile.featureBits;
+                    for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                        const DirectX::XMFLOAT4& value = profile.values[i];
+                        instance.fxUser[i] = { value.x, value.y, value.z, value.w };
+                    }
+                }
+            }
+
+            if (!packet.materialFxValuesInitialized) {
+                return;
+            }
+
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                const DirectX::XMFLOAT4& value = packet.materialFxParamValues[i];
+                instance.fxUser[i] = { value.x, value.y, value.z, value.w };
+            }
+        }
     }
 
     SurfaceGpuSceneBuildStats SurfaceGpuSceneWriter::BuildCommandRanges(
@@ -71,8 +131,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         outInstances.reserve(executablePacketIndices.size());
 
         for (SurfaceDrawCommand& command : commands) {
+            command.backend = SurfaceDrawCommandBackend::CpuDirect;
             command.firstGpuSceneInstanceIndex = kInvalidRenderSurfaceIndex;
             command.gpuSceneInstanceCount = 0;
+            command.drawArgs.instanceCount = 0;
             ++stats.commandCount;
 
             if (command.packetCount == 0 ||
@@ -96,10 +158,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     continue;
                 }
 
-                outInstances.push_back(BuildInstance(
+                SurfaceGpuSceneInstance instance = BuildInstance(
                     packets[packetIndex],
                     packetIndex,
-                    localIndex));
+                    localIndex);
+                if (packets[packetIndex].key.resources.HasPoolHandles()) {
+                    ++stats.resourceBackedInstanceCount;
+                } else {
+                    ++stats.missingResourceHandleInstanceCount;
+                }
+                outInstances.push_back(instance);
                 ++command.gpuSceneInstanceCount;
                 ++localIndex;
             }
@@ -110,6 +178,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
 
             command.firstGpuSceneInstanceIndex = firstInstanceIndex;
+            if (command.drawArgsValid) {
+                command.drawArgs.instanceCount = command.gpuSceneInstanceCount;
+                // Forward / Shadow はどちらも SurfaceDrawCommand から indirect 実行へ進める。
+                if (command.pass == SurfaceDrawCommandPass::Forward ||
+                    command.pass == SurfaceDrawCommandPass::DepthAware ||
+                    command.pass == SurfaceDrawCommandPass::Shadow) {
+                    command.backend = SurfaceDrawCommandBackend::GpuDriven;
+                }
+            }
             stats.instanceCount += command.gpuSceneInstanceCount;
             stats.maxCommandInstanceCount =
                 (std::max)(stats.maxCommandInstanceCount, command.gpuSceneInstanceCount);
@@ -121,10 +198,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
     SurfaceGpuSceneInstance SurfaceGpuSceneWriter::BuildInstance(
         const SurfaceDrawPacket& packet,
         uint32_t sourcePacketIndex,
-        uint32_t commandLocalIndex) {
+        uint32_t sourceCommandLocalIndex) {
 
         SurfaceGpuSceneInstance instance{};
         instance.world = packet.drawWorldMatrix;
+        instance.normalMatrix = BuildNormalMatrixFromWorld(packet.drawWorldMatrix);
         instance.boundsCenterRadius = BuildBoundsCenterRadius(packet.worldBounds);
         instance.sourcePacketIndex = sourcePacketIndex;
         instance.sourceSurfaceInstanceIndex = packet.sourceSurfaceInstanceIndex;
@@ -132,10 +210,27 @@ namespace HIKARI::RENDER3D::RUNTIME {
         instance.objectIdHigh = static_cast<uint32_t>((packet.objectId.value >> 32) & 0xffffffffull);
         instance.meshIndex = packet.meshIndex;
         instance.primitiveIndex = packet.primitiveIndex;
-        instance.materialIndex = packet.materialIndex;
+        instance.sourceMaterialIndex = packet.materialIndex;
         instance.nodeIndex = packet.nodeIndex;
         instance.flags = BuildInstanceFlags(packet);
-        instance.commandLocalIndex = commandLocalIndex;
+        const SurfaceResourceIds& resources = packet.key.resources;
+        if (resources.mesh) {
+            instance.meshResourceIndex = resources.mesh.index;
+            instance.meshResourceGeneration = resources.mesh.generation;
+            instance.resourceFlags |= ToResourceFlag(SurfaceGpuSceneResourceFlags::Mesh);
+        }
+        if (resources.material) {
+            instance.materialResourceIndex = resources.material.index;
+            instance.materialResourceGeneration = resources.material.generation;
+            instance.resourceFlags |= ToResourceFlag(SurfaceGpuSceneResourceFlags::Material);
+        }
+        if (resources.clusterGeometry) {
+            instance.clusterGeometryResourceIndex = resources.clusterGeometry.index;
+            instance.clusterGeometryResourceGeneration = resources.clusterGeometry.generation;
+            instance.resourceFlags |= ToResourceFlag(SurfaceGpuSceneResourceFlags::ClusterGeometry);
+        }
+        FillMaterialFxData(packet, instance);
+        (void)sourceCommandLocalIndex;
         return instance;
     }
 

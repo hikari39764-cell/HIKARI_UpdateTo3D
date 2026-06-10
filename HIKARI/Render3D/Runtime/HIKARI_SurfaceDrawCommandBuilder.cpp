@@ -10,6 +10,34 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return static_cast<uint32_t>(
                 (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
         }
+
+        SurfaceDrawIndexedArgs BuildDrawIndexedArgs(
+            const SurfaceDrawPacket& packet,
+            uint32_t instanceCount) {
+
+            SurfaceDrawIndexedArgs args{};
+            if (packet.model == nullptr ||
+                packet.meshIndex >= packet.model->meshes.size()) {
+                return args;
+            }
+
+            const MeshAsset& mesh = packet.model->meshes[packet.meshIndex];
+            if (packet.primitiveIndex >= mesh.primitives.size()) {
+                return args;
+            }
+
+            const MeshPrimitive& primitive = mesh.primitives[packet.primitiveIndex];
+            args.indexCountPerInstance = ClampToUint32(primitive.indices.size());
+            args.instanceCount = instanceCount;
+            args.startIndexLocation = 0;
+            args.baseVertexLocation = 0;
+            args.startInstanceLocation = 0;
+            return args;
+        }
+
+        bool IsValidDrawIndexedArgs(const SurfaceDrawIndexedArgs& args) {
+            return args.indexCountPerInstance > 0 && args.instanceCount > 0;
+        }
     }
 
     SurfaceDrawCommandBuilder::SurfaceDrawCommandBuilder(
@@ -40,9 +68,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         const SurfaceDrawPacket& packet = packets_[packetIndex];
-        if (!CanContinueCommand(packet.key)) {
+        const SurfaceDrawBatchKey batchKey = BuildSurfaceDrawBatchKey(pass_, packet.key);
+        if (!CanContinueCommand(batchKey)) {
             Flush();
-            currentKey_ = packet.key;
+            currentKey_ = batchKey;
             hasCurrentKey_ = true;
             currentStart_ = ClampToUint32(executablePacketIndices_.size());
         }
@@ -57,11 +86,20 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return;
         }
 
-        commands_.push_back(BuildCommand(currentStart_, currentLength_));
+        SurfaceDrawCommand command = BuildCommand(currentStart_, currentLength_);
+        commands_.push_back(command);
 
         ++stats_.commandCount;
         if (currentLength_ == 1) {
             ++stats_.singlePacketCommandCount;
+        } else {
+            ++stats_.mergedCommandCount;
+            stats_.savedCommandCount += currentLength_ - 1;
+        }
+        if (command.drawArgsValid) {
+            ++stats_.indirectReadyCommandCount;
+        } else {
+            ++stats_.missingDrawArgsCommandCount;
         }
         stats_.maxCommandPacketCount = (std::max)(stats_.maxCommandPacketCount, currentLength_);
 
@@ -75,15 +113,12 @@ namespace HIKARI::RENDER3D::RUNTIME {
         return stats_;
     }
 
-    bool SurfaceDrawCommandBuilder::CanContinueCommand(const SurfaceDrawPacketKey& key) const {
+    bool SurfaceDrawCommandBuilder::CanContinueCommand(const SurfaceDrawBatchKey& key) const {
         if (!hasCurrentKey_) {
             return false;
         }
 
-        return
-            currentKey_.passMask == key.passMask &&
-            currentKey_.psoKey == key.psoKey &&
-            currentKey_.geometryKey == key.geometryKey;
+        return IsSameSurfaceDrawBatchKey(currentKey_, key);
     }
 
     SurfaceDrawCommand SurfaceDrawCommandBuilder::BuildCommand(
@@ -107,12 +142,18 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         const SurfaceDrawPacketKey& key = packets_[firstPacketIndex].key;
+        command.batchKey = BuildSurfaceDrawBatchKey(pass_, key);
+        command.resources = key.resources;
         command.psoKey = key.psoKey;
         command.geometryKey = key.geometryKey;
         command.materialKey = key.materialKey;
         command.textureSetKey = key.textureSetKey;
         command.modelKey = key.modelKey;
         command.transparent = key.transparent;
+        command.drawArgs = BuildDrawIndexedArgs(
+            packets_[firstPacketIndex],
+            packetCount);
+        command.drawArgsValid = IsValidDrawIndexedArgs(command.drawArgs);
         return command;
     }
 

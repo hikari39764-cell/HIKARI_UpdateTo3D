@@ -101,6 +101,9 @@ namespace HIKARI {
             std::string ssaoMode{};
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
+            uint32_t ssaoInternalWidth = 0;
+            uint32_t ssaoInternalHeight = 0;
+            bool ssaoHalfResolution = false;
             uint32_t ssaoSampleCount = 0;
             uint32_t ssaoBlurIterations = 0;
             float ssaoRadius = 0.0f;

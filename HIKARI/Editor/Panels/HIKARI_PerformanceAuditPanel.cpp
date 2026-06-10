@@ -59,7 +59,6 @@ namespace HIKARI {
             bool ssaoValid = false;
             bool ssaoSuppressed = false;
             SsaoMode ssaoMode = SsaoMode::Off;
-            bool ssaoDepthOnlyInput = false;
             bool ssaoGeometryBufferEnabled = false;
             bool ssaoGeometryBufferWritten = false;
             DXGI_FORMAT ssaoGeometryBufferFormat = DXGI_FORMAT_UNKNOWN;
@@ -69,8 +68,19 @@ namespace HIKARI {
             uint32_t ssaoBlurIterations = 0;
             uint32_t ssaoWidth = 0;
             uint32_t ssaoHeight = 0;
+            uint32_t ssaoInternalWidth = 0;
+            uint32_t ssaoInternalHeight = 0;
+            bool ssaoHalfResolution = false;
+            uint64_t ssaoScreenPixelCount = 0;
+            uint64_t ssaoInternalPixelCount = 0;
+            float ssaoPixelSavedPercent = 0.0f;
             bool ssaoPixMarkersAvailable = false;
             bool ssaoGpuTimingAvailable = false;
+            bool ssaoMainGpuValid = false;
+            bool ssaoBlurGpuValid = false;
+            double ssaoMainGpuMs = 0.0;
+            double ssaoBlurGpuMs = 0.0;
+            double ssaoTotalGpuMs = 0.0;
             float ssaoGeometryCpuMs = 0.0f;
             float ssaoMainCpuMs = 0.0f;
             float ssaoBlurCpuMs = 0.0f;
@@ -137,7 +147,18 @@ namespace HIKARI {
             if (!audit.ssaoEnabled || audit.ssaoSuppressed || audit.ssaoMode == SsaoMode::Off) {
                 return "Off";
             }
-            return audit.ssaoDepthOnlyInput ? "DepthOnly" : "GeometryBuffer";
+            return "GeometryBuffer";
+        }
+
+        uint64_t PixelCount(uint32_t width, uint32_t height) {
+            return static_cast<uint64_t>(width) * static_cast<uint64_t>(height);
+        }
+
+        const GFX::GPU_PROFILE::PassTiming& PassTimingFor(
+            const GFX::GPU_PROFILE::FrameSnapshot& profile,
+            GFX::GPU_PROFILE::Pass pass) {
+
+            return profile.passes[static_cast<size_t>(pass)];
         }
 
         void DrawScoreMeter(
@@ -294,7 +315,6 @@ namespace HIKARI {
             audit.ssaoValid = ssaoStats.valid;
             audit.ssaoSuppressed = ssaoStats.suppressed;
             audit.ssaoMode = ssaoStats.mode;
-            audit.ssaoDepthOnlyInput = ssaoStats.depthOnlyInput;
             audit.ssaoGeometryBufferEnabled = ssaoStats.geometryBufferEnabled;
             audit.ssaoGeometryBufferWritten = ssaoStats.geometryBufferWritten;
             audit.ssaoGeometryBufferFormat = ssaoStats.geometryBufferFormat;
@@ -304,8 +324,26 @@ namespace HIKARI {
             audit.ssaoBlurIterations = ssaoStats.blurIterations;
             audit.ssaoWidth = ssaoStats.width;
             audit.ssaoHeight = ssaoStats.height;
+            audit.ssaoInternalWidth = ssaoStats.internalWidth;
+            audit.ssaoInternalHeight = ssaoStats.internalHeight;
+            audit.ssaoHalfResolution = ssaoStats.halfResolution;
+            audit.ssaoScreenPixelCount = PixelCount(ssaoStats.width, ssaoStats.height);
+            audit.ssaoInternalPixelCount = PixelCount(ssaoStats.internalWidth, ssaoStats.internalHeight);
+            if (audit.ssaoScreenPixelCount > 0u && audit.ssaoInternalPixelCount <= audit.ssaoScreenPixelCount) {
+                const float activeRatio = SafeRatio(audit.ssaoInternalPixelCount, audit.ssaoScreenPixelCount);
+                audit.ssaoPixelSavedPercent = (1.0f - activeRatio) * 100.0f;
+            }
             audit.ssaoPixMarkersAvailable = ssaoStats.pixMarkersAvailable;
             audit.ssaoGpuTimingAvailable = audit.gpuProfile.gpuTimingAvailable;
+            const GFX::GPU_PROFILE::PassTiming& ssaoMainGpu =
+                PassTimingFor(audit.gpuProfile, GFX::GPU_PROFILE::Pass::SsaoMain);
+            const GFX::GPU_PROFILE::PassTiming& ssaoBlurGpu =
+                PassTimingFor(audit.gpuProfile, GFX::GPU_PROFILE::Pass::SsaoBlur);
+            audit.ssaoMainGpuValid = ssaoMainGpu.valid;
+            audit.ssaoBlurGpuValid = ssaoBlurGpu.valid;
+            audit.ssaoMainGpuMs = ssaoMainGpu.valid ? ssaoMainGpu.gpuMs : 0.0;
+            audit.ssaoBlurGpuMs = ssaoBlurGpu.valid ? ssaoBlurGpu.gpuMs : 0.0;
+            audit.ssaoTotalGpuMs = audit.ssaoMainGpuMs + audit.ssaoBlurGpuMs;
             audit.ssaoGeometryCpuMs = ssaoStats.geometryBufferCpuMs;
             audit.ssaoMainCpuMs = ssaoStats.mainCpuMs;
             audit.ssaoBlurCpuMs = ssaoStats.blurCpuMs;
@@ -318,7 +356,7 @@ namespace HIKARI {
                 audit.ssaoHeadroom -= ssaoStats.geometryBufferEnabled ? 12 : 0;
                 audit.ssaoHeadroom -= ssaoStats.valid ? 0 : 25;
                 const uint64_t pixelCount =
-                    static_cast<uint64_t>(ssaoStats.width) * static_cast<uint64_t>(ssaoStats.height);
+                    static_cast<uint64_t>(ssaoStats.internalWidth) * static_cast<uint64_t>(ssaoStats.internalHeight);
                 audit.ssaoHeadroom -= PenaltyAbove(static_cast<float>(pixelCount), 921600.0f, 2073600.0f, 12);
             }
             audit.ssaoHeadroom = ClampScore(static_cast<float>(audit.ssaoHeadroom));
@@ -410,6 +448,12 @@ namespace HIKARI {
             if (audit.ssaoEnabled && !audit.ssaoSuppressed && audit.ssaoHeadroom < 60) {
                 ImGui::BulletText("SSAO is running with relatively heavy settings for the editor viewport.");
             }
+            if ((audit.ssaoMode == SsaoMode::OptimizedHigh || audit.ssaoMode == SsaoMode::Balanced) &&
+                audit.ssaoEnabled &&
+                !audit.ssaoSuppressed &&
+                !audit.ssaoHalfResolution) {
+                ImGui::BulletText("SSAO optimized mode is active without half-resolution work pixels.");
+            }
             if (audit.shadowToForwardRatio > 1.20f) {
                 ImGui::BulletText("Shadow pass draw pressure is higher than the forward pass.");
             }
@@ -437,7 +481,7 @@ namespace HIKARI {
                 ImGui::TableSetupColumn("Signal");
                 ImGui::TableHeadersRow();
 
-                char detail[224]{};
+                char detail[288]{};
                 std::snprintf(
                     detail,
                     sizeof(detail),
@@ -477,14 +521,17 @@ namespace HIKARI {
                 std::snprintf(
                     detail,
                     sizeof(detail),
-                    "%s, %s, valid %s, samples %u, blur %u, size %u x %u",
+                    "%s, %s, valid %s, samples %u, blur %u, AO %u x %u%s, saved %.1f%%, %s",
                     RENDER3D::SCREENSPACE::ToString(audit.ssaoMode),
                     SsaoInputText(audit),
                     audit.ssaoValid ? "yes" : "no",
                     audit.ssaoSampleCount,
                     audit.ssaoBlurIterations,
-                    audit.ssaoWidth,
-                    audit.ssaoHeight);
+                    audit.ssaoInternalWidth,
+                    audit.ssaoInternalHeight,
+                    audit.ssaoHalfResolution ? " half" : "",
+                    audit.ssaoPixelSavedPercent,
+                    (audit.ssaoMainGpuValid || audit.ssaoBlurGpuValid) ? "GPU timed" : "GPU waiting");
                 DrawScoreRow("SSAO / Post", audit.ssaoHeadroom, detail);
 
                 std::snprintf(
@@ -575,13 +622,25 @@ namespace HIKARI {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextUnformatted("Mode / Resolution");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s, %s, %u x %u, valid %s%s",
+                ImGui::Text("%s, %s, screen %u x %u, AO %u x %u%s, valid %s%s",
                     RENDER3D::SCREENSPACE::ToString(audit.ssaoMode),
                     SsaoInputText(audit),
                     audit.ssaoWidth,
                     audit.ssaoHeight,
+                    audit.ssaoInternalWidth,
+                    audit.ssaoInternalHeight,
+                    audit.ssaoHalfResolution ? " half" : "",
                     audit.ssaoValid ? "yes" : "no",
                     audit.ssaoSuppressed ? ", suppressed" : "");
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted("Pixel Budget");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("Screen %llu px, AO work %llu px, saved %.1f%%",
+                    static_cast<unsigned long long>(audit.ssaoScreenPixelCount),
+                    static_cast<unsigned long long>(audit.ssaoInternalPixelCount),
+                    audit.ssaoPixelSavedPercent);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -612,6 +671,21 @@ namespace HIKARI {
                     audit.ssaoBlurCpuMs,
                     audit.ssaoCompositeCpuMs,
                     audit.ssaoTotalCpuMs);
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted("SSAO GPU Record");
+                ImGui::TableSetColumnIndex(1);
+                if (audit.ssaoMainGpuValid || audit.ssaoBlurGpuValid) {
+                    ImGui::Text("Main %.3f ms%s, Blur/Resolve %.3f ms%s, Total %.3f ms",
+                        audit.ssaoMainGpuMs,
+                        audit.ssaoMainGpuValid ? "" : " missing",
+                        audit.ssaoBlurGpuMs,
+                        audit.ssaoBlurGpuValid ? "" : " missing",
+                        audit.ssaoTotalGpuMs);
+                } else {
+                    ImGui::TextDisabled("waiting for timestamp query readback");
+                }
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);

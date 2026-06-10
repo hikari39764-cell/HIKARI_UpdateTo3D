@@ -971,9 +971,9 @@ namespace HIKARI {
                 environment.ambientOcclusion.blurIterations = static_cast<uint32_t>(std::clamp(blurIterations, 0, 4));
             }
             if (environment.ambientOcclusion.mode == SsaoMode::OptimizedHigh) {
-                ImGui::TextDisabled("Runtime: OptimizedHigh caps samples to 16-24 and blur to 2.");
+                ImGui::TextDisabled("Runtime: OptimizedHigh uses half-res AO and depth-aware upsample; samples 16-24, blur <= 2.");
             } else if (environment.ambientOcclusion.mode == SsaoMode::Balanced) {
-                ImGui::TextDisabled("Runtime: Balanced caps samples to 16 and blur to 1; uses GeometryBuffer.");
+                ImGui::TextDisabled("Runtime: Balanced uses half-res AO and depth-aware upsample; samples <= 16, blur <= 1.");
             }
             ImGui::TextDisabled("Runtime AO: %s",
                 RENDER3D::DIAGNOSTICS::ResolveSsaoSummaryLabel(runtimeSnapshot));

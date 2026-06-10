@@ -14,7 +14,6 @@
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
-#include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::MESHRENDERER {
 
@@ -174,6 +173,35 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
+        void BindSurfaceGpuSceneBufferCached(
+            const MeshBindingContext& ctx,
+            D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+
+            if (ctx.cmd == nullptr ||
+                handle.ptr == 0 ||
+                ROOT_PARAM::SurfaceGpuScene >= kTrackedRootParamCount) {
+                return;
+            }
+
+            MeshBindingStateCache* cache = ctx.cache;
+            MeshRendererDebugStats* stats = ctx.stats;
+            if (cache != nullptr &&
+                cache->descriptorTables[ROOT_PARAM::SurfaceGpuScene].ptr == handle.ptr) {
+                if (stats != nullptr) {
+                    ++stats->surfaceGpuSceneBufferSkipCount;
+                }
+                return;
+            }
+
+            ctx.cmd->SetGraphicsRootDescriptorTable(ROOT_PARAM::SurfaceGpuScene, handle);
+            if (stats != nullptr) {
+                ++stats->surfaceGpuSceneBufferBindCount;
+            }
+            if (cache != nullptr) {
+                cache->descriptorTables[ROOT_PARAM::SurfaceGpuScene] = handle;
+            }
+        }
+
         void BindRootConstantCached(
             const MeshBindingContext& ctx,
             UINT rootParam,
@@ -282,6 +310,37 @@ namespace HIKARI::MESHRENDERER {
         BindRootConstantCached(ctx, ROOT_PARAM::MaterialIndex, materialIndex);
     }
 
+    void BindSurfaceGpuSceneBuffer(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv) {
+        BindSurfaceGpuSceneBufferCached(ctx, surfaceGpuSceneSrv);
+    }
+
+    void BindSurfaceGpuSceneControl(
+        const MeshBindingContext& ctx,
+        uint32_t baseInstanceIndex,
+        bool enabled) {
+        if (ctx.cmd == nullptr ||
+            ROOT_PARAM::SurfaceGpuSceneControl >= kTrackedRootParamCount) {
+            return;
+        }
+
+        const uint32_t constants[4] = {
+            baseInstanceIndex,
+            enabled ? 1u : 0u,
+            0u,
+            0u
+        };
+        ctx.cmd->SetGraphicsRoot32BitConstants(
+            ROOT_PARAM::SurfaceGpuSceneControl,
+            4,
+            constants,
+            0);
+        if (ctx.cache != nullptr) {
+            ctx.cache->rootConstantValid[ROOT_PARAM::SurfaceGpuSceneControl] = false;
+        }
+    }
+
     void BindMaterialTexturePool(const MeshBindingContext& ctx) {
         if (ctx.cmd == nullptr) {
             return;
@@ -353,7 +412,10 @@ namespace HIKARI::MESHRENDERER {
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv =
-            ResolveSceneDepthSrv(ctx.depthAwarePhase, ctx.fallbackTextureHandle);
+            ResolveSceneDepthSrv(
+                ctx.depthAwarePhase,
+                ctx.passResources.sceneDepthSrv,
+                ctx.fallbackTextureHandle);
         if (sceneDepthSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::SceneDepth, sceneDepthSrv);
         }
@@ -365,7 +427,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv =
-            ResolveSceneColorSrv(ctx.fallbackTextureHandle);
+            ResolveSceneColorSrv(ctx.passResources.sceneColorSrv, ctx.fallbackTextureHandle);
         if (sceneColorSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::SceneColor, sceneColorSrv);
         }
@@ -416,7 +478,9 @@ namespace HIKARI::MESHRENDERER {
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE aoSrv =
-            ResolveSsaoSrv(ctx.ssaoSrv, ctx.fallbackAoTextureHandle);
+            ResolveSsaoSrv(
+                ctx.passResources.ssaoSrv,
+                ctx.passResources.fallbackAoTextureHandle);
         if (aoSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::Ssao, aoSrv);
         }
@@ -448,16 +512,20 @@ namespace HIKARI::MESHRENDERER {
         return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(bool depthAwarePhase, int fallbackTextureHandle) {
-        if (depthAwarePhase && SERVICES::gCtx.sceneDepthSrv.ptr != 0) {
-            return SERVICES::gCtx.sceneDepthSrv;
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneDepthSrv(
+        bool depthAwarePhase,
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
+        int fallbackTextureHandle) {
+        if (depthAwarePhase && sceneDepthSrv.ptr != 0) {
+            return sceneDepthSrv;
         }
 
         return RENDER3D::GetTextureResourceSrvGpuHandleFromBackendHandle(fallbackTextureHandle);
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(int fallbackTextureHandle) {
-        const D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv = POST::PostSystem::GetSceneColorSrv();
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveSceneColorSrv(
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv,
+        int fallbackTextureHandle) {
         if (sceneColorSrv.ptr != 0) {
             return sceneColorSrv;
         }

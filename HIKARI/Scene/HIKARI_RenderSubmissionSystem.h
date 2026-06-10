@@ -16,6 +16,14 @@ namespace HIKARI {
     class AssetRegistry;
     class Camera3D;
 
+    enum class RenderSubmissionRouteMode : uint8_t {
+        SurfacePacketMainline,
+        LegacyCompare,
+        ForceLegacy,
+    };
+
+    const char* ToString(RenderSubmissionRouteMode mode);
+
     struct RenderSubmissionDebugStats {
         int scannedModelCount = 0;
         int hiddenModelCount = 0;
@@ -29,7 +37,10 @@ namespace HIKARI {
         int runtimeSpecialModelCount = 0;
         int runtimeSpecialForwardModelCount = 0;
         int runtimeSpecialShadowModelCount = 0;
+        RenderSubmissionRouteMode routeMode = RenderSubmissionRouteMode::SurfacePacketMainline;
         bool surfacePacketMainRouteActive = false;
+        bool surfacePacketLegacyCompareActive = false;
+        bool surfacePacketForceLegacyActive = false;
         bool frustumCullingEnabled = false;
     };
 
@@ -55,6 +66,8 @@ namespace HIKARI {
             uint64_t selectedObjectId,
             RENDER3D::CLUSTER::ClusterDebugOptions debugOptions);
         static void ClearClusteredCpuPreviewTarget();
+        static void SetRouteMode(RenderSubmissionRouteMode mode);
+        static RenderSubmissionRouteMode GetRouteMode();
         static const RenderSubmissionDebugStats& GetDebugStats();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
@@ -71,6 +84,7 @@ namespace HIKARI {
         static RENDER3D::RUNTIME::SurfaceDrawPacketPlanOptions sSurfaceDrawPacketPlanOptions_;
         static RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats sSurfaceDrawPacketPlanStats_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
+        static RenderSubmissionRouteMode sRouteMode_;
 
         static ClusteredCpuPreviewTarget sClusteredCpuPreviewTarget_;
     };

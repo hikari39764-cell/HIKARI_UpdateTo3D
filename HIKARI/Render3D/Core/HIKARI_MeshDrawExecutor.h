@@ -20,6 +20,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
     struct SurfaceDrawCommand;
 }
 
+namespace HIKARI::RENDER3D::CORE {
+    class SurfaceGpuSceneFrameBuffer;
+    class SurfaceIndirectDrawBuffer;
+}
+
 namespace HIKARI::MESHRENDERER {
 
     class MeshMaterialResolver;
@@ -54,6 +59,10 @@ namespace HIKARI::MESHRENDERER {
         MaterialDataFrameTable* materialDataTable = nullptr;
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
+        RENDER3D::CORE::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
+        RENDER3D::CORE::SurfaceIndirectDrawBuffer* surfaceIndirectDrawBuffer = nullptr;
+        size_t surfaceGpuSceneBaseOffset = 0;
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
@@ -71,6 +80,24 @@ namespace HIKARI::MESHRENDERER {
 
     void BindSurfacePacketFrameResources(const MeshDrawContext& ctx);
 
+    bool PrepareSurfacePacketIndirectDrawBindings(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+        size_t commandCount);
+
+    bool PrepareSurfacePacketGpuSceneMaterials(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+        size_t commandCount);
+
     struct SurfacePacketCommandDrawResult {
         size_t submittedPacketCount = 0;
         size_t skippedPacketCount = 0;
@@ -79,6 +106,17 @@ namespace HIKARI::MESHRENDERER {
         size_t instancedPacketCount = 0;
         size_t maxInstanceCount = 0;
     };
+
+    SurfacePacketCommandDrawResult DrawSurfacePacketCommandRange(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+        size_t commandCount,
+        size_t& commandIndex,
+        size_t& objectIndex);
 
     SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
         const MeshDrawContext& ctx,

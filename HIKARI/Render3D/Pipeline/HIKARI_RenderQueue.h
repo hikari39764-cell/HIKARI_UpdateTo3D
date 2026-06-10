@@ -21,11 +21,7 @@ namespace HIKARI::RENDER3D {
     private:
         std::vector<const MESHRENDERER::DrawItem*> opaque_;
         std::vector<const MESHRENDERER::DrawItem*> depthAware_;
-        std::vector<const MESHRENDERER::DrawItem*> sceneColorAware_;
         std::vector<const MESHRENDERER::DrawItem*> transparent_;
-        std::vector<const MESHRENDERER::DrawItem*> distortion_;
-        std::vector<const MESHRENDERER::DrawItem*> overlay_;
-        std::vector<const MESHRENDERER::DrawItem*> debug_;
     };
 
 } // namespace HIKARI::RENDER3D

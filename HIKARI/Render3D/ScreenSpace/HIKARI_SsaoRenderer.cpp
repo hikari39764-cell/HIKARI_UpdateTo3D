@@ -30,6 +30,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             MATH::Vec4 blurParams{};
         };
 
+        constexpr uint32_t kSsaoConstantSliceCount = 8;
+
         SsaoDebugState gDebugState{};
 
         using CpuClock = std::chrono::steady_clock;
@@ -55,6 +57,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return 32u;
         }
 
+        MATH::Vec4 MakeScreenParams(uint32_t width, uint32_t height) {
+            const float w = static_cast<float>(std::max(1u, width));
+            const float h = static_cast<float>(std::max(1u, height));
+            return { w, h, 1.0f / w, 1.0f / h };
+        }
+
         struct SsaoResolvedMode {
             SsaoMode mode = SsaoMode::Off;
             uint32_t sampleCount = 0;
@@ -62,7 +70,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             float radiusScale = 1.0f;
             float strengthScale = 1.0f;
             bool optimizedMainPass = false;
-            bool depthOnlyInput = false;
+            bool halfResolution = false;
             const char* pixEventName = "SSAO.Off";
         };
 
@@ -84,6 +92,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 resolved.blurIterations = std::min<uint32_t>(referenceBlur, 2u);
                 resolved.radiusScale = 0.92f;
                 resolved.optimizedMainPass = true;
+                resolved.halfResolution = true;
                 resolved.pixEventName = "SSAO.OptimizedHigh";
                 break;
             case SsaoMode::Balanced:
@@ -91,8 +100,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 resolved.blurIterations = std::min<uint32_t>(referenceBlur, 1u);
                 resolved.radiusScale = 0.95f;
                 resolved.optimizedMainPass = true;
-                // depth-only は forward 前 depth が安定してから有効化する。
-                resolved.depthOnlyInput = false;
+                resolved.halfResolution = true;
                 resolved.pixEventName = "SSAO.Balanced";
                 break;
             case SsaoMode::Off:
@@ -115,9 +123,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             gDebugState.valid = false;
             gDebugState.suppressed = settings.editorViewportSuppressed;
             gDebugState.mode = resolved.mode;
-            gDebugState.depthOnlyInput = resolved.depthOnlyInput;
             gDebugState.width = width;
             gDebugState.height = height;
+            gDebugState.internalWidth = width;
+            gDebugState.internalHeight = height;
+            gDebugState.halfResolution = false;
             gDebugState.referenceSampleCount = NormalizeSampleCount(settings.sampleCount);
             gDebugState.referenceBlurIterations = NormalizeBlurIterations(settings.blurIterations);
             gDebugState.sampleCount = resolved.sampleCount;
@@ -166,7 +176,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
     bool SsaoRequiresGeometryBuffer(const AmbientOcclusionSettings& settings) {
         const SsaoResolvedMode resolved = ResolveModeParameters(settings);
-        return resolved.mode != SsaoMode::Off && !resolved.depthOnlyInput;
+        return resolved.mode != SsaoMode::Off;
     }
 
     void BeginSsaoDebugFrame(
@@ -212,27 +222,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             sceneDepthSrv,
             geometryBuffer.GetNormalRoughnessSrv(),
             camera,
-            settings,
-            false);
-    }
-
-    bool SsaoRenderer::RenderDepthOnly(
-        ID3D12GraphicsCommandList* cmd,
-        uint32_t width,
-        uint32_t height,
-        D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
-        const MESHRENDERER::CameraCB& camera,
-        const AmbientOcclusionSettings& settings) {
-
-        return RenderInternal(
-            cmd,
-            width,
-            height,
-            sceneDepthSrv,
-            {},
-            camera,
-            settings,
-            true);
+            settings);
     }
 
     bool SsaoRenderer::RenderInternal(
@@ -242,14 +232,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
         D3D12_GPU_DESCRIPTOR_HANDLE normalRoughnessSrv,
         const MESHRENDERER::CameraCB& camera,
-        const AmbientOcclusionSettings& settings,
-        bool depthOnlyInput) {
+        const AmbientOcclusionSettings& settings) {
 
         const CpuClock::time_point totalStart = CpuClock::now();
         const SsaoResolvedMode modeParams = ResolveModeParameters(settings);
         FillDebugStateBase(width, height, settings);
-        gDebugState.depthOnlyInput = depthOnlyInput;
-        gDebugState.geometryBufferEnabled = !depthOnlyInput && modeParams.mode != SsaoMode::Off;
+        gDebugState.geometryBufferEnabled = modeParams.mode != SsaoMode::Off;
 
         valid_ = false;
         lastAoSrv_ = {};
@@ -257,13 +245,16 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         if (modeParams.mode == SsaoMode::Off ||
             cmd == nullptr ||
             sceneDepthSrv.ptr == 0 ||
-            modeParams.depthOnlyInput != depthOnlyInput ||
-            (!depthOnlyInput && normalRoughnessSrv.ptr == 0)) {
+            normalRoughnessSrv.ptr == 0) {
             return false;
         }
-        if (!EnsurePipeline() || !EnsureResources(width, height)) {
+        const bool useHalfResolution = modeParams.halfResolution;
+        if (!EnsurePipeline() || !EnsureResources(width, height, useHalfResolution)) {
             return false;
         }
+        gDebugState.internalWidth = width_;
+        gDebugState.internalHeight = height_;
+        gDebugState.halfResolution = halfResolution_;
 
         GFX::PIX::ScopedGpuEvent pixSsao(cmd, GFX::PIX::kColorPost, modeParams.pixEventName);
 
@@ -271,7 +262,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         cb.viewProj = camera.viewProj;
         cb.invViewProj = camera.invViewProj;
         cb.cameraPos = camera.cameraPos;
-        cb.screenParams = camera.screenParams;
+        cb.screenParams = MakeScreenParams(screenWidth_, screenHeight_);
         cb.aoParams0 = {
             std::max(0.01f, settings.radius) * modeParams.radiusScale,
             std::max(0.0f, settings.bias),
@@ -284,7 +275,34 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             static_cast<float>(static_cast<int>(modeParams.mode)),
             0.0f
         };
-        std::memcpy(constantMapped_, &cb, sizeof(cb));
+
+        uint32_t constantSliceIndex = 0;
+        const UINT constantStride = MESHRENDERER::AlignConstantBufferSize(sizeof(SsaoPassCB));
+        auto uploadConstants = [&](const SsaoPassCB& constants) -> D3D12_GPU_VIRTUAL_ADDRESS {
+            if (constantMapped_ == nullptr || constantBuffer_ == nullptr) {
+                return 0;
+            }
+            if (constantSliceIndex >= kSsaoConstantSliceCount) {
+                DEBUGLOG::PushRenderError("[SSAO][ERROR] Constant buffer slice overflow.");
+                return 0;
+            }
+            const UINT64 offset = static_cast<UINT64>(constantStride) * constantSliceIndex;
+            std::memcpy(constantMapped_ + offset, &constants, sizeof(constants));
+            ++constantSliceIndex;
+            return constantBuffer_->GetGPUVirtualAddress() + offset;
+        };
+
+        auto setViewport = [&](uint32_t viewportWidth, uint32_t viewportHeight) {
+            const uint32_t safeWidth = std::max(1u, viewportWidth);
+            const uint32_t safeHeight = std::max(1u, viewportHeight);
+            D3D12_VIEWPORT viewport{};
+            viewport.Width = static_cast<float>(safeWidth);
+            viewport.Height = static_cast<float>(safeHeight);
+            viewport.MaxDepth = 1.0f;
+            D3D12_RECT scissor{ 0, 0, static_cast<LONG>(safeWidth), static_cast<LONG>(safeHeight) };
+            cmd->RSSetViewports(1, &viewport);
+            cmd->RSSetScissorRects(1, &scissor);
+        };
 
         ID3D12DescriptorHeap* heaps[] = { SERVICES::gCtx.srvHeap };
         cmd->SetDescriptorHeaps(1, heaps);
@@ -292,13 +310,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         // R8 AO target の optimized clear と完全一致させる。
         const float white[] = { 1.0f, 0.0f, 0.0f, 0.0f };
 
-        D3D12_VIEWPORT viewport{};
-        viewport.Width = static_cast<float>(width_);
-        viewport.Height = static_cast<float>(height_);
-        viewport.MaxDepth = 1.0f;
-        D3D12_RECT scissor{ 0, 0, static_cast<LONG>(width_), static_cast<LONG>(height_) };
-        cmd->RSSetViewports(1, &viewport);
-        cmd->RSSetScissorRects(1, &scissor);
+        setViewport(width_, height_);
 
         const CpuClock::time_point mainStart = CpuClock::now();
         {
@@ -310,16 +322,15 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             cmd->OMSetRenderTargets(1, &rawRtv_, FALSE, nullptr);
             cmd->ClearRenderTargetView(rawRtv_, white, 0, nullptr);
 
-            ID3D12RootSignature* rootSig = depthOnlyInput ? depthOnlyGenerateRootSig_.Get() : generateRootSig_.Get();
-            ID3D12PipelineState* pso = depthOnlyInput
-                ? depthOnlyGeneratePso_.Get()
-                : (modeParams.optimizedMainPass ? optimizedGeneratePso_.Get() : generatePso_.Get());
-            cmd->SetGraphicsRootSignature(rootSig);
-            cmd->SetGraphicsRootConstantBufferView(0, constantBuffer_->GetGPUVirtualAddress());
-            cmd->SetGraphicsRootDescriptorTable(1, sceneDepthSrv);
-            if (!depthOnlyInput) {
-                cmd->SetGraphicsRootDescriptorTable(2, normalRoughnessSrv);
+            ID3D12PipelineState* pso = modeParams.optimizedMainPass ? optimizedGeneratePso_.Get() : generatePso_.Get();
+            const D3D12_GPU_VIRTUAL_ADDRESS cbAddress = uploadConstants(cb);
+            if (cbAddress == 0) {
+                return false;
             }
+            cmd->SetGraphicsRootSignature(generateRootSig_.Get());
+            cmd->SetGraphicsRootConstantBufferView(0, cbAddress);
+            cmd->SetGraphicsRootDescriptorTable(1, sceneDepthSrv);
+            cmd->SetGraphicsRootDescriptorTable(2, normalRoughnessSrv);
             cmd->SetPipelineState(pso);
             DrawFullscreen(cmd);
             Transition(cmd, rawAo_.Get(), rawState_, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -333,10 +344,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         const CpuClock::time_point blurStart = CpuClock::now();
         const uint32_t blurIterations = modeParams.blurIterations;
+        D3D12_GPU_DESCRIPTOR_HANDLE filteredSrv{};
         {
             GFX::GPU_PROFILE::ScopedGpuTimer gpuBlur(
                 cmd,
                 GFX::GPU_PROFILE::Pass::SsaoBlur);
+            cb.screenParams = MakeScreenParams(width_, height_);
             for (uint32_t i = 0; i < blurIterations; ++i) {
                 const bool horizontal = (i % 2u) == 0u;
                 cb.blurParams = {
@@ -345,27 +358,26 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                     0.0f,
                     0.0f
                 };
-                std::memcpy(constantMapped_, &cb, sizeof(cb));
+                const D3D12_GPU_VIRTUAL_ADDRESS cbAddress = uploadConstants(cb);
+                if (cbAddress == 0) {
+                    return false;
+                }
 
                 GFX::PIX::ScopedGpuEvent pixBlur(
                     cmd,
                     GFX::PIX::kColorPost,
-                    depthOnlyInput
-                        ? (horizontal ? "SSAO.DepthBlurHorizontal" : "SSAO.DepthBlurVertical")
-                        : (horizontal ? "SSAO.BlurHorizontal" : "SSAO.BlurVertical"));
+                    horizontal ? "SSAO.BlurHorizontal" : "SSAO.BlurVertical");
 
                 Transition(cmd, targetResource, *targetState, D3D12_RESOURCE_STATE_RENDER_TARGET);
                 cmd->OMSetRenderTargets(1, &targetRtv, FALSE, nullptr);
                 cmd->ClearRenderTargetView(targetRtv, white, 0, nullptr);
 
-                cmd->SetGraphicsRootSignature(depthOnlyInput ? depthOnlyBlurRootSig_.Get() : blurRootSig_.Get());
-                cmd->SetGraphicsRootConstantBufferView(0, constantBuffer_->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootSignature(blurRootSig_.Get());
+                cmd->SetGraphicsRootConstantBufferView(0, cbAddress);
                 cmd->SetGraphicsRootDescriptorTable(1, sourceSrv);
                 cmd->SetGraphicsRootDescriptorTable(2, sceneDepthSrv);
-                if (!depthOnlyInput) {
-                    cmd->SetGraphicsRootDescriptorTable(3, normalRoughnessSrv);
-                }
-                cmd->SetPipelineState(depthOnlyInput ? depthOnlyBlurPso_.Get() : blurPso_.Get());
+                cmd->SetGraphicsRootDescriptorTable(3, normalRoughnessSrv);
+                cmd->SetPipelineState(blurPso_.Get());
                 DrawFullscreen(cmd);
 
                 Transition(cmd, targetResource, *targetState, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -383,10 +395,42 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                     targetResource = blurredAo_.Get();
                 }
             }
+
+            filteredSrv = blurIterations == 0u ? rawSrvGpu_ : sourceSrv;
+            if (useHalfResolution) {
+                GFX::PIX::ScopedGpuEvent pixUpsample(cmd, GFX::PIX::kColorPost, "SSAO.DepthAwareUpsample");
+
+                cb.screenParams = MakeScreenParams(screenWidth_, screenHeight_);
+                cb.blurParams = {
+                    0.0f,
+                    0.0f,
+                    1.0f / static_cast<float>(std::max(1u, width_)),
+                    1.0f / static_cast<float>(std::max(1u, height_))
+                };
+                const D3D12_GPU_VIRTUAL_ADDRESS cbAddress = uploadConstants(cb);
+                if (cbAddress == 0) {
+                    return false;
+                }
+
+                setViewport(screenWidth_, screenHeight_);
+                Transition(cmd, resolvedAo_.Get(), resolvedState_, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                cmd->OMSetRenderTargets(1, &resolvedRtv_, FALSE, nullptr);
+                cmd->ClearRenderTargetView(resolvedRtv_, white, 0, nullptr);
+
+                cmd->SetGraphicsRootSignature(blurRootSig_.Get());
+                cmd->SetGraphicsRootConstantBufferView(0, cbAddress);
+                cmd->SetGraphicsRootDescriptorTable(1, filteredSrv);
+                cmd->SetGraphicsRootDescriptorTable(2, sceneDepthSrv);
+                cmd->SetGraphicsRootDescriptorTable(3, normalRoughnessSrv);
+                cmd->SetPipelineState(upsamplePso_.Get());
+                DrawFullscreen(cmd);
+                Transition(cmd, resolvedAo_.Get(), resolvedState_, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                filteredSrv = resolvedSrvGpu_;
+            }
         }
         gDebugState.blurCpuMs = ElapsedMs(blurStart, CpuClock::now());
 
-        lastAoSrv_ = blurIterations == 0u ? rawSrvGpu_ : sourceSrv;
+        lastAoSrv_ = filteredSrv;
         valid_ = lastAoSrv_.ptr != 0;
         gDebugState.valid = valid_;
         gDebugState.totalCpuMs =
@@ -411,10 +455,21 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         gDebugState.geometryBufferCpuMs = 0.0f;
     }
 
-    bool SsaoRenderer::EnsureResources(uint32_t width, uint32_t height) {
-        width = std::max(1u, width);
-        height = std::max(1u, height);
-        if (rawAo_ && blurredAo_ && width_ == width && height_ == height && constantBuffer_) {
+    bool SsaoRenderer::EnsureResources(uint32_t width, uint32_t height, bool halfResolution) {
+        const uint32_t screenWidth = std::max(1u, width);
+        const uint32_t screenHeight = std::max(1u, height);
+        // Optimized 系は AO の作業解像度だけを下げ、外部へ渡す SRV は全解像度に戻す。
+        const uint32_t aoWidth = halfResolution ? std::max(1u, (screenWidth + 1u) / 2u) : screenWidth;
+        const uint32_t aoHeight = halfResolution ? std::max(1u, (screenHeight + 1u) / 2u) : screenHeight;
+        if (rawAo_ &&
+            blurredAo_ &&
+            resolvedAo_ &&
+            screenWidth_ == screenWidth &&
+            screenHeight_ == screenHeight &&
+            width_ == aoWidth &&
+            height_ == aoHeight &&
+            halfResolution_ == halfResolution &&
+            constantBuffer_) {
             return true;
         }
 
@@ -425,19 +480,24 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         rawAo_.Reset();
         blurredAo_.Reset();
+        resolvedAo_.Reset();
         rtvHeap_.Reset();
         rawRtv_ = {};
         blurredRtv_ = {};
+        resolvedRtv_ = {};
         rawSrvCpu_ = {};
         blurredSrvCpu_ = {};
+        resolvedSrvCpu_ = {};
         rawSrvGpu_ = {};
         blurredSrvGpu_ = {};
+        resolvedSrvGpu_ = {};
         rawState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         blurredState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        resolvedState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc{};
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtvHeapDesc.NumDescriptors = 2;
+        rtvHeapDesc.NumDescriptors = 3;
         HRESULT hr = device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap_.GetAddressOf()));
         if (!HIKARI_DX_CHECK(hr, "SsaoRenderer::Create RTV heap")) {
             return false;
@@ -447,20 +507,30 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         rawRtv_ = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
         blurredRtv_ = rawRtv_;
         blurredRtv_.ptr += rtvSize;
+        resolvedRtv_ = blurredRtv_;
+        resolvedRtv_.ptr += rtvSize;
 
-        width_ = width;
-        height_ = height;
+        screenWidth_ = screenWidth;
+        screenHeight_ = screenHeight;
+        width_ = aoWidth;
+        height_ = aoHeight;
+        halfResolution_ = halfResolution;
 
-        if (!CreateAoResource(width, height, GFX::DESCRIPTOR::SystemSrv::SsaoRaw, rawAo_, rawRtv_, rawSrvCpu_, rawSrvGpu_, L"HIKARI.SSAO.Raw")) {
+        if (!CreateAoResource(aoWidth, aoHeight, GFX::DESCRIPTOR::SystemSrv::SsaoRaw, rawAo_, rawRtv_, rawSrvCpu_, rawSrvGpu_, L"HIKARI.SSAO.Raw")) {
             return false;
         }
-        if (!CreateAoResource(width, height, GFX::DESCRIPTOR::SystemSrv::SsaoBlurred, blurredAo_, blurredRtv_, blurredSrvCpu_, blurredSrvGpu_, L"HIKARI.SSAO.Blurred")) {
+        if (!CreateAoResource(aoWidth, aoHeight, GFX::DESCRIPTOR::SystemSrv::SsaoBlurred, blurredAo_, blurredRtv_, blurredSrvCpu_, blurredSrvGpu_, L"HIKARI.SSAO.Blurred")) {
+            return false;
+        }
+        if (!CreateAoResource(screenWidth, screenHeight, GFX::DESCRIPTOR::SystemSrv::SsaoResolved, resolvedAo_, resolvedRtv_, resolvedSrvCpu_, resolvedSrvGpu_, L"HIKARI.SSAO.Resolved")) {
             return false;
         }
 
         if (!constantBuffer_) {
             const auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const auto cbDesc = CD3DX12_RESOURCE_DESC::Buffer(MESHRENDERER::AlignConstantBufferSize(sizeof(SsaoPassCB)));
+            const UINT constantStride = MESHRENDERER::AlignConstantBufferSize(sizeof(SsaoPassCB));
+            const auto cbDesc = CD3DX12_RESOURCE_DESC::Buffer(
+                static_cast<UINT64>(constantStride) * kSsaoConstantSliceCount);
             hr = device->CreateCommittedResource(
                 &uploadHeap,
                 D3D12_HEAP_FLAG_NONE,
@@ -477,7 +547,15 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             constantBuffer_->SetName(L"HIKARI.SSAO.CB");
         }
 
-        HIKARI_LOG_INFO("[SSAO] resized " + std::to_string(width_) + "x" + std::to_string(height_));
+        HIKARI_LOG_INFO(
+            "[SSAO] resized screen " +
+            std::to_string(screenWidth_) +
+            "x" +
+            std::to_string(screenHeight_) +
+            ", ao " +
+            std::to_string(width_) +
+            "x" +
+            std::to_string(height_));
         return true;
     }
 
@@ -539,9 +617,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     bool SsaoRenderer::EnsurePipeline() {
         if (generatePso_ &&
             optimizedGeneratePso_ &&
-            depthOnlyGeneratePso_ &&
             blurPso_ &&
-            depthOnlyBlurPso_) {
+            upsamplePso_) {
             return true;
         }
 
@@ -604,26 +681,22 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         };
 
         if (!createRootSignature(2, generateRootSig_.GetAddressOf()) ||
-            !createRootSignature(1, depthOnlyGenerateRootSig_.GetAddressOf()) ||
-            !createRootSignature(3, blurRootSig_.GetAddressOf()) ||
-            !createRootSignature(2, depthOnlyBlurRootSig_.GetAddressOf())) {
+            !createRootSignature(3, blurRootSig_.GetAddressOf())) {
             return false;
         }
 
         Microsoft::WRL::ComPtr<ID3DBlob> generateVs;
         Microsoft::WRL::ComPtr<ID3DBlob> generatePs;
         Microsoft::WRL::ComPtr<ID3DBlob> optimizedGeneratePs;
-        Microsoft::WRL::ComPtr<ID3DBlob> depthOnlyGeneratePs;
         Microsoft::WRL::ComPtr<ID3DBlob> blurVs;
         Microsoft::WRL::ComPtr<ID3DBlob> blurPs;
-        Microsoft::WRL::ComPtr<ID3DBlob> depthOnlyBlurPs;
+        Microsoft::WRL::ComPtr<ID3DBlob> upsamplePs;
         if (!CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "VSMain", "vs_6_0", generateVs.GetAddressOf()) ||
             !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMain", "ps_6_0", generatePs.GetAddressOf()) ||
             !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainOptimizedHigh", "ps_6_0", optimizedGeneratePs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOPS.hlsl", "PSMainDepthOnlyBalanced", "ps_6_0", depthOnlyGeneratePs.GetAddressOf()) ||
             !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "VSMain", "vs_6_0", blurVs.GetAddressOf()) ||
             !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMain", "ps_6_0", blurPs.GetAddressOf()) ||
-            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMainDepthOnly", "ps_6_0", depthOnlyBlurPs.GetAddressOf())) {
+            !CompileShader(L"HIKARI/Shaders/Post_SSAOBlurPS.hlsl", "PSMainUpsample", "ps_6_0", upsamplePs.GetAddressOf())) {
             return false;
         }
 
@@ -649,9 +722,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         return makePso(generateRootSig_.Get(), generateVs.Get(), generatePs.Get(), generatePso_.GetAddressOf()) &&
             makePso(generateRootSig_.Get(), generateVs.Get(), optimizedGeneratePs.Get(), optimizedGeneratePso_.GetAddressOf()) &&
-            makePso(depthOnlyGenerateRootSig_.Get(), generateVs.Get(), depthOnlyGeneratePs.Get(), depthOnlyGeneratePso_.GetAddressOf()) &&
             makePso(blurRootSig_.Get(), blurVs.Get(), blurPs.Get(), blurPso_.GetAddressOf()) &&
-            makePso(depthOnlyBlurRootSig_.Get(), blurVs.Get(), depthOnlyBlurPs.Get(), depthOnlyBlurPso_.GetAddressOf());
+            makePso(blurRootSig_.Get(), blurVs.Get(), upsamplePs.Get(), upsamplePso_.GetAddressOf());
     }
 
     void SsaoRenderer::Transition(ID3D12GraphicsCommandList* cmd, ID3D12Resource* resource, D3D12_RESOURCE_STATES& state, D3D12_RESOURCE_STATES nextState) {
@@ -683,22 +755,24 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         constantBuffer_.Reset();
         rawAo_.Reset();
         blurredAo_.Reset();
+        resolvedAo_.Reset();
         rtvHeap_.Reset();
         generateRootSig_.Reset();
         generatePso_.Reset();
         optimizedGeneratePso_.Reset();
-        depthOnlyGenerateRootSig_.Reset();
-        depthOnlyGeneratePso_.Reset();
         blurRootSig_.Reset();
         blurPso_.Reset();
-        depthOnlyBlurRootSig_.Reset();
-        depthOnlyBlurPso_.Reset();
+        upsamplePso_.Reset();
         lastAoSrv_ = {};
         valid_ = false;
+        screenWidth_ = 0;
+        screenHeight_ = 0;
         width_ = 0;
         height_ = 0;
+        halfResolution_ = false;
         rawState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         blurredState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        resolvedState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         gDebugState = {};
     }
 

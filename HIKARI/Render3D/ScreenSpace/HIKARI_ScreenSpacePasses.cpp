@@ -7,7 +7,6 @@
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
-#include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
@@ -74,11 +73,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return result;
         }
 
-        // Screen-space pass は mesh draw の前段で必要な texture だけを作る。
+        // Screen-space pass は forward lighting の前に必要な texture を生成する。
         GFX::PIX::ScopedGpuEvent pixScreenSpace(context.cmd, GFX::PIX::kColorPost, "ScreenSpace.PreLighting");
 
         const SsaoMode ssaoMode = ResolveEffectiveSsaoMode(environment.ambientOcclusion);
-        const bool ssaoRequiresGeometryBuffer = SsaoRequiresGeometryBuffer(environment.ambientOcclusion);
 
         // Off 時は GeometryBuffer も作らない。
         if (ssaoMode == SsaoMode::Off ||
@@ -92,24 +90,23 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return result;
         }
 
-        if (ssaoRequiresGeometryBuffer) {
-            GFX::PIX::ScopedGpuEvent pixGeometry(context.cmd, GFX::PIX::kColorRender, "GeometryBuffer");
-            GFX::GPU_PROFILE::ScopedGpuTimer gpuGeometry(
-                context.cmd,
-                GFX::GPU_PROFILE::Pass::GeometryBuffer);
-            const CpuClock::time_point geometryStart = CpuClock::now();
-            result.geometryBufferWritten = MESHRENDERER::RenderGeometryBufferPass(queue, state.geometryBuffer);
-            RecordSsaoGeometryBufferDebug(
-                result.geometryBufferWritten,
-                ElapsedMs(geometryStart, CpuClock::now()),
-                state.geometryBuffer.GetFormat());
-        }
-        else {
-            RecordSsaoGeometryBufferDebug(false, 0.0f, DXGI_FORMAT_UNKNOWN);
-        }
+        GFX::PIX::ScopedGpuEvent pixGeometry(context.cmd, GFX::PIX::kColorRender, "GeometryBuffer");
+        GFX::GPU_PROFILE::ScopedGpuTimer gpuGeometry(
+            context.cmd,
+            GFX::GPU_PROFILE::Pass::GeometryBuffer);
+        const CpuClock::time_point geometryStart = CpuClock::now();
+        result.geometryBufferWritten = MESHRENDERER::RenderGeometryBufferPass(
+            queue,
+            state.geometryBuffer,
+            context.sceneDsv);
+        context.renderTargetAccess.Rebind();
+        RecordSsaoGeometryBufferDebug(
+            result.geometryBufferWritten,
+            ElapsedMs(geometryStart, CpuClock::now()),
+            state.geometryBuffer.GetFormat());
 
         state.geometryValid = result.geometryBufferWritten && state.geometryBuffer.IsValid();
-        if ((ssaoRequiresGeometryBuffer && !state.geometryValid) ||
+        if (!state.geometryValid ||
             !context.depthReadable ||
             context.sceneDepthSrv.ptr == 0) {
             state.ssaoValid = false;
@@ -117,25 +114,14 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         }
 
         bool ssaoOk = false;
-        if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
-            if (ssaoRequiresGeometryBuffer) {
-                ssaoOk = state.ssaoRenderer.Render(
-                    context.cmd,
-                    state.geometryBuffer,
-                    context.sceneDepthSrv,
-                    cameraCb,
-                    environment.ambientOcclusion);
-            }
-            else {
-                ssaoOk = state.ssaoRenderer.RenderDepthOnly(
-                    context.cmd,
-                    context.width,
-                    context.height,
-                    context.sceneDepthSrv,
-                    cameraCb,
-                    environment.ambientOcclusion);
-            }
-            POST::PostSystem::EndCurrentRenderTargetDepthRead();
+        if (context.renderTargetAccess.BeginDepthRead()) {
+            ssaoOk = state.ssaoRenderer.Render(
+                context.cmd,
+                state.geometryBuffer,
+                context.sceneDepthSrv,
+                cameraCb,
+                environment.ambientOcclusion);
+            context.renderTargetAccess.EndDepthRead();
         }
 
         state.ssaoValid = ssaoOk;

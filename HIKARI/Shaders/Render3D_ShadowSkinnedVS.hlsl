@@ -18,6 +18,8 @@ cbuffer JointPaletteCB : register(b3)
     float4x4 gJointMatrices[MAX_JOINTS];
 };
 
+static const uint HIKARI_INVALID_SHADOW_MATERIAL_INDEX = 0xffffffffu;
+
 struct VSInput
 {
     float3 position : POSITION;
@@ -36,6 +38,7 @@ struct VSOutput
     float2 uv : TEXCOORD0;
     nointerpolation uint materialFlags : MATERIALFLAGS;
     nointerpolation float alphaCutoff : ALPHACUTOFF;
+    nointerpolation uint materialDataIndex : MATERIALINDEX;
 };
 
 float4x4 ResolveJointMatrix(uint jointIndex)
@@ -57,5 +60,6 @@ VSOutput main(VSInput input)
     output.uv = input.uv0;
     output.materialFlags = gMaterialFlags;
     output.alphaCutoff = gAlphaCutoff;
+    output.materialDataIndex = HIKARI_INVALID_SHADOW_MATERIAL_INDEX;
     return output;
 }
