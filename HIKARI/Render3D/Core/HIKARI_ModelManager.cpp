@@ -1567,7 +1567,20 @@ namespace HIKARI {
                     mat.alphaMode = AlphaMode::Opaque;
                 }
                 mat.alphaCutoff = matNode.value("alphaCutoff", mat.alphaCutoff);
-                mat.doubleSided = matNode.value("doubleSided", false);
+                const bool importedDoubleSided = matNode.value("doubleSided", false);
+                const TextureAsset3D* baseColorTexture = FindTextureBySlot(asset, mat.baseColorTexture);
+                const std::string_view baseColorTextureName =
+                    baseColorTexture != nullptr ? std::string_view(baseColorTexture->name) : std::string_view{};
+                const std::string_view baseColorTexturePath =
+                    baseColorTexture != nullptr ? std::string_view(baseColorTexture->sourcePath) : std::string_view{};
+                if (MATERIAL_POLICY::HasThinTransparentCue(mat.name) ||
+                    MATERIAL_POLICY::HasThinTransparentCue(baseColorTextureName) ||
+                    MATERIAL_POLICY::HasThinTransparentCue(baseColorTexturePath)) {
+                    mat.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
+                }
+                // Opaque の doubleSided は cluster の背面 cone culling を殺しやすい。
+                // MaterialAsset には元の意図を保持し、実行時の有効化は MATERIAL_POLICY に任せる。
+                mat.doubleSided = importedDoubleSided;
 
                 if (matNode.contains("extensions") && matNode["extensions"].is_object()) {
                     const json& extensions = matNode["extensions"];

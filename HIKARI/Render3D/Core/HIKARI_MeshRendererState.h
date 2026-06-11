@@ -8,6 +8,9 @@
 
 #include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
+#include "Render3D/Cluster/HIKARI_ClusterDrawExecutor.h"
+#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
+#include "Render3D/Cluster/HIKARI_ClusterMainline.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
@@ -70,6 +73,9 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
         RENDER3D::CORE::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
         RENDER3D::CORE::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+        RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
+        RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
+        RENDER3D::CLUSTER::ClusterMainlineFrame staticOpaqueClusterMainlineFrame{};
 
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* surfacePacketBuilder = nullptr;
         const std::vector<uint32_t>* surfacePacketOpaqueExecutionIndices = nullptr;

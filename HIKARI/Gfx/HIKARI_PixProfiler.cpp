@@ -411,8 +411,11 @@ namespace HIKARI::GFX::PIX {
         gPix.autoOpenPollFramesRemaining = frameCount + 600;
         gPix.autoOpenStableFrameCount = 0;
         gPix.autoOpenLastFileSize = 0;
-        // PIXイベントは高頻度APIなので、必要な時だけ明示的に有効化する。
-        ArmPixEventEmission(frameCount);
+        // ImGuiのCaptureボタンは現在フレームの後半で押されるため、
+        // PIXが取得する次フレームまでイベント発行を保持する。
+        const uint32_t markerFrameCount =
+            frameCount < UINT32_MAX ? frameCount + 1u : frameCount;
+        ArmPixEventEmission(markerFrameCount);
         const std::string markerMode = gPix.eventMarkersEnabled ? " eventMarkers=on" : " eventMarkers=off";
         SetStatus("PIX capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);
         HIKARI_LOG_INFO("[PIX] capture requested: " + gPix.lastCapturePath.generic_string() + markerMode);

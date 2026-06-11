@@ -3,8 +3,10 @@
 #include <Windows.h>
 #include <DirectXTex.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 #include "Core/HIKARI_Logger.h"
@@ -210,6 +212,135 @@ namespace HIKARI {
         const DirectX::ScratchImage& SelectImage(const DirectX::ScratchImage& source, const DirectX::ScratchImage& candidate) {
             return candidate.GetImageCount() > 0 ? candidate : source;
         }
+
+        struct AlphaScanResult {
+            bool hasAlphaChannel = false;
+            bool hasMeaningfulAlpha = false;
+            bool hasTranslucentAlpha = false;
+            bool hasCutoutAlpha = false;
+            float nonOpaqueRatio = 0.0f;
+        };
+
+        bool IsRgba8Format(DXGI_FORMAT format) {
+            return
+                format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+                format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        }
+
+        AlphaScanResult ScanMeaningfulAlpha(
+            const DirectX::ScratchImage& source,
+            const DirectX::TexMetadata& metadata) {
+
+            AlphaScanResult result{};
+            DirectX::ScratchImage rgba{};
+            const DirectX::ScratchImage* scanSource = &source;
+            DirectX::TexMetadata scanMetadata = metadata;
+
+            if (DirectX::IsCompressed(metadata.format)) {
+                if (FAILED(DirectX::Decompress(
+                        source.GetImages(),
+                        source.GetImageCount(),
+                        metadata,
+                        DXGI_FORMAT_R8G8B8A8_UNORM,
+                        rgba))) {
+                    return result;
+                }
+                scanSource = &rgba;
+                scanMetadata = rgba.GetMetadata();
+            } else if (!IsRgba8Format(metadata.format)) {
+                if (FAILED(DirectX::Convert(
+                        source.GetImages(),
+                        source.GetImageCount(),
+                        metadata,
+                        DXGI_FORMAT_R8G8B8A8_UNORM,
+                        DirectX::TEX_FILTER_DEFAULT,
+                        DirectX::TEX_THRESHOLD_DEFAULT,
+                        rgba))) {
+                    return result;
+                }
+                scanSource = &rgba;
+                scanMetadata = rgba.GetMetadata();
+            }
+
+            if (!IsRgba8Format(scanMetadata.format)) {
+                return result;
+            }
+
+            const DirectX::Image* images = scanSource->GetImages();
+            const size_t imageCount = scanSource->GetImageCount();
+            uint64_t pixelCount = 0;
+            uint64_t nonOpaqueCount = 0;
+            uint64_t translucentCount = 0;
+            uint64_t cutoutCount = 0;
+            uint8_t minAlpha = (std::numeric_limits<uint8_t>::max)();
+            uint8_t maxAlpha = 0;
+
+            for (size_t imageIndex = 0; imageIndex < imageCount; ++imageIndex) {
+                const DirectX::Image& image = images[imageIndex];
+                if (!image.pixels || !IsRgba8Format(image.format)) {
+                    continue;
+                }
+                if (image.width != scanMetadata.width || image.height != scanMetadata.height) {
+                    continue;
+                }
+                for (size_t y = 0; y < image.height; ++y) {
+                    const uint8_t* row = image.pixels + y * image.rowPitch;
+                    for (size_t x = 0; x < image.width; ++x) {
+                        const uint8_t alpha = row[x * 4u + 3u];
+                        minAlpha = (std::min)(minAlpha, alpha);
+                        maxAlpha = (std::max)(maxAlpha, alpha);
+                        ++pixelCount;
+                        if (alpha < 250u) {
+                            ++nonOpaqueCount;
+                        }
+                        if (alpha <= 5u) {
+                            ++cutoutCount;
+                        } else if (alpha < 250u) {
+                            ++translucentCount;
+                        }
+                    }
+                }
+            }
+
+            if (pixelCount == 0) {
+                return result;
+            }
+
+            result.hasAlphaChannel = minAlpha < 255u || maxAlpha < 255u;
+            result.hasMeaningfulAlpha = nonOpaqueCount > 0u;
+            result.hasTranslucentAlpha = translucentCount > 0u;
+            result.hasCutoutAlpha = cutoutCount > 0u;
+            result.nonOpaqueRatio =
+                static_cast<float>(static_cast<double>(nonOpaqueCount) / static_cast<double>(pixelCount));
+            return result;
+        }
+    }
+
+    bool InspectTextureAlphaWithDirectXTex(
+        const std::filesystem::path& sourcePath,
+        TextureImportSettings& inOutSettings,
+        std::string& outMessage) {
+
+        DirectX::TexMetadata metadata{};
+        DirectX::ScratchImage image{};
+        const HRESULT hr = LoadScratchImage(sourcePath, metadata, image, outMessage);
+        if (FAILED(hr)) {
+            if (outMessage.empty()) {
+                outMessage = "[DirectXTexBackend] alpha inspect failed: " +
+                    sourcePath.generic_string() +
+                    " hr=" +
+                    ToHexHr(hr);
+            }
+            return false;
+        }
+
+        const AlphaScanResult alpha = ScanMeaningfulAlpha(image, metadata);
+        inOutSettings.sourceHasAlphaChannel = alpha.hasAlphaChannel;
+        inOutSettings.sourceHasMeaningfulAlpha = alpha.hasMeaningfulAlpha;
+        inOutSettings.sourceHasTranslucentAlpha = alpha.hasTranslucentAlpha;
+        inOutSettings.sourceHasCutoutAlpha = alpha.hasCutoutAlpha;
+        inOutSettings.sourceAlphaNonOpaqueRatio = alpha.nonOpaqueRatio;
+        return true;
     }
 
     bool DirectXTexTextureImportBackend::IsAvailable() const {
@@ -242,6 +373,13 @@ namespace HIKARI {
                 : TextureAssetColorSpace::Linear;
         }
 
+        const AlphaScanResult alpha = ScanMeaningfulAlpha(image, metadata);
+        inOutSettings.sourceHasAlphaChannel = alpha.hasAlphaChannel;
+        inOutSettings.sourceHasMeaningfulAlpha = alpha.hasMeaningfulAlpha;
+        inOutSettings.sourceHasTranslucentAlpha = alpha.hasTranslucentAlpha;
+        inOutSettings.sourceHasCutoutAlpha = alpha.hasCutoutAlpha;
+        inOutSettings.sourceAlphaNonOpaqueRatio = alpha.nonOpaqueRatio;
+
         std::ostringstream oss;
         oss << "[DirectXTexBackend] inspected "
             << sourcePath.generic_string()
@@ -249,7 +387,8 @@ namespace HIKARI {
             << " height=" << metadata.height
             << " mips=" << metadata.mipLevels
             << " array=" << metadata.arraySize
-            << " cubemap=" << (metadata.IsCubemap() ? "true" : "false");
+            << " cubemap=" << (metadata.IsCubemap() ? "true" : "false")
+            << " alpha=" << (alpha.hasMeaningfulAlpha ? "meaningful" : "opaque");
         outMessage = oss.str();
         HIKARI_LOG_INFO(outMessage);
         return true;

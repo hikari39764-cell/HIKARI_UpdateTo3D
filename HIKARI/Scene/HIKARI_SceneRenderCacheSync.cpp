@@ -1,7 +1,9 @@
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 
 #include <algorithm>
+#include <unordered_map>
 
+#include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
@@ -29,6 +31,30 @@ namespace HIKARI {
             return model.GetAsset();
         }
 
+        std::string ResolveClusteredGeometryPath(
+            const ModelComponent& model,
+            const AssetRegistry* assetRegistry,
+            const std::filesystem::path& projectRoot) {
+
+            if (assetRegistry == nullptr ||
+                model.GetSourceKind() != ModelSourceKind::Asset ||
+                model.GetAssetId().empty()) {
+                return {};
+            }
+
+            const auto* descriptor =
+                assetRegistry->FindAs<ModelAssetDescriptor>(AssetId{ model.GetAssetId() });
+            if (descriptor == nullptr || descriptor->clusteredGeometryPath.empty()) {
+                return {};
+            }
+
+            std::filesystem::path path = descriptor->clusteredGeometryPath;
+            if (!path.is_absolute() && !projectRoot.empty()) {
+                path = projectRoot / path;
+            }
+            return path.lexically_normal().generic_string();
+        }
+
         Bounds ResolveLocalBounds(
             const ModelAsset* model,
             const RENDER3D::RUNTIME::RenderModelAsset* renderModel) {
@@ -47,9 +73,28 @@ namespace HIKARI {
         World& world,
         RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
         RENDER3D::RUNTIME::SceneRenderCache& sceneRenderCache,
-        uint64_t frameIndex) {
+        uint64_t frameIndex,
+        const AssetRegistry* assetRegistry,
+        std::filesystem::path projectRoot) {
 
         sceneRenderCache.BeginSync(frameIndex);
+        std::unordered_map<std::string, std::string> clusteredGeometryPathCache{};
+
+        auto resolveClusteredGeometryPath =
+            [&](const ModelComponent& model) -> std::string {
+                if (model.GetSourceKind() != ModelSourceKind::Asset || model.GetAssetId().empty()) {
+                    return {};
+                }
+                const std::string& assetId = model.GetAssetId();
+                const auto found = clusteredGeometryPathCache.find(assetId);
+                if (found != clusteredGeometryPathCache.end()) {
+                    return found->second;
+                }
+
+                std::string path = ResolveClusteredGeometryPath(model, assetRegistry, projectRoot);
+                clusteredGeometryPathCache.emplace(assetId, path);
+                return path;
+            };
 
         world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
             RENDER3D::RUNTIME::SceneRenderObjectDesc desc{};
@@ -67,6 +112,7 @@ namespace HIKARI {
             desc.worldBounds = BOUNDS::TransformBounds(desc.localBounds, desc.worldTransform.GetWorldMatrix());
 
             desc.isStatic = model.IsRenderStatic();
+            desc.clusteredGeometryPath = resolveClusteredGeometryPath(model);
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
             desc.hasRuntimeAnimation = object.GetComponent<AnimatorComponent>() != nullptr;

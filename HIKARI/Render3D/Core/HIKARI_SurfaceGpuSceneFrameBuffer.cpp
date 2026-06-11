@@ -162,6 +162,10 @@ namespace HIKARI::RENDER3D::CORE {
         return stats_.srv;
     }
 
+    D3D12_GPU_VIRTUAL_ADDRESS SurfaceGpuSceneFrameBuffer::GetGpuVirtualAddress() const {
+        return buffer_ != nullptr ? buffer_->GetGPUVirtualAddress() : 0;
+    }
+
     const SurfaceGpuSceneFrameBufferStats& SurfaceGpuSceneFrameBuffer::GetStats() const {
         return stats_;
     }

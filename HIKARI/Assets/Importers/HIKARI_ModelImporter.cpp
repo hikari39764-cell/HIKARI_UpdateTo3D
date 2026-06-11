@@ -17,6 +17,7 @@
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Core/HIKARI_Logger.h"
+#include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
 namespace HIKARI {
@@ -119,6 +120,9 @@ namespace HIKARI {
             std::string guid{};
             bool htexReady = false;
             bool dependencyResolved = false;
+            bool sourceHasMeaningfulAlpha = false;
+            bool sourceHasTranslucentAlpha = false;
+            bool sourceHasCutoutAlpha = false;
         };
 
         nlohmann::json SlotToJson(
@@ -140,6 +144,9 @@ namespace HIKARI {
                 json["runtimePath"] = texture.cookedPath;
                 json["guid"] = texture.guid;
                 json["htexReady"] = texture.htexReady;
+                json["sourceHasMeaningfulAlpha"] = texture.sourceHasMeaningfulAlpha;
+                json["sourceHasTranslucentAlpha"] = texture.sourceHasTranslucentAlpha;
+                json["sourceHasCutoutAlpha"] = texture.sourceHasCutoutAlpha;
             }
             return json;
         }
@@ -177,6 +184,9 @@ namespace HIKARI {
                     { "guid", texture.guid },
                     { "htexReady", texture.htexReady },
                     { "dependencyResolved", texture.dependencyResolved },
+                    { "sourceHasMeaningfulAlpha", texture.sourceHasMeaningfulAlpha },
+                    { "sourceHasTranslucentAlpha", texture.sourceHasTranslucentAlpha },
+                    { "sourceHasCutoutAlpha", texture.sourceHasCutoutAlpha },
                 });
             }
 
@@ -310,11 +320,78 @@ namespace HIKARI {
             return diagnostics;
         }
 
+        bool ReadTextureAlphaDiagnostics(
+            const std::filesystem::path& projectRoot,
+            const std::string& textureGuid,
+            TextureCookDiagnostic& inOutDiagnostic) {
+
+            if (textureGuid.empty()) {
+                return false;
+            }
+
+            const std::filesystem::path reportPath =
+                projectRoot / "Library" / "Imported" / textureGuid / "import_report.json";
+            nlohmann::json report;
+            if (!ReadJsonFile(reportPath, report)) {
+                return false;
+            }
+
+            if (!report.contains("diagnostics") || !report["diagnostics"].is_object()) {
+                return false;
+            }
+            const nlohmann::json& diagnostics = report["diagnostics"];
+            if (!diagnostics.contains("texture") || !diagnostics["texture"].is_object()) {
+                return false;
+            }
+            const nlohmann::json& texture = diagnostics["texture"];
+            if (!texture.contains("sourceHasMeaningfulAlpha") ||
+                !texture.contains("sourceHasTranslucentAlpha") ||
+                !texture.contains("sourceHasCutoutAlpha")) {
+                return false;
+            }
+            inOutDiagnostic.sourceHasMeaningfulAlpha =
+                texture.value("sourceHasMeaningfulAlpha", false);
+            inOutDiagnostic.sourceHasTranslucentAlpha =
+                texture.value("sourceHasTranslucentAlpha", false);
+            inOutDiagnostic.sourceHasCutoutAlpha =
+                texture.value("sourceHasCutoutAlpha", false);
+            return true;
+        }
+
+        void ApplyTextureAlphaSettings(
+            const TextureImportSettings& settings,
+            TextureCookDiagnostic& inOutDiagnostic) {
+
+            inOutDiagnostic.sourceHasMeaningfulAlpha = settings.sourceHasMeaningfulAlpha;
+            inOutDiagnostic.sourceHasTranslucentAlpha = settings.sourceHasTranslucentAlpha;
+            inOutDiagnostic.sourceHasCutoutAlpha = settings.sourceHasCutoutAlpha;
+        }
+
+        bool InspectSourceTextureAlpha(
+            const std::filesystem::path& absoluteTexturePath,
+            TextureCookDiagnostic& inOutDiagnostic) {
+
+            if (absoluteTexturePath.empty()) {
+                return false;
+            }
+
+            TextureImportSettings settings{};
+            settings.usage = TextureUsage::BaseColor;
+            std::string message{};
+            if (!InspectTextureAlphaWithDirectXTex(absoluteTexturePath, settings, message)) {
+                return false;
+            }
+
+            ApplyTextureAlphaSettings(settings, inOutDiagnostic);
+            return true;
+        }
+
         bool ResolveTextureToHtex(
             const std::filesystem::path& projectRoot,
             TextureAsset3D& texture,
             AssetDependencyDesc& outDependency,
-            bool& outHasDependency) {
+            bool& outHasDependency,
+            TextureCookDiagnostic& inOutDiagnostic) {
 
             outHasDependency = false;
             if (texture.sourcePath.empty()) {
@@ -336,6 +413,12 @@ namespace HIKARI {
                 outDependency.path = MakeProjectRelative(projectRoot, absoluteTexturePath).generic_string();
                 outDependency.role = "Texture";
                 outHasDependency = true;
+                inOutDiagnostic.guid = guid;
+                inOutDiagnostic.dependencyResolved = true;
+                if (!ReadTextureAlphaDiagnostics(projectRoot, guid, inOutDiagnostic)) {
+                    // 古い texture report の場合でも、model cook は baseColor alpha を見落とさない。
+                    InspectSourceTextureAlpha(absoluteTexturePath, inOutDiagnostic);
+                }
             }
 
             if (!metaJson.contains("artifacts") || !metaJson["artifacts"].is_array()) {
@@ -358,6 +441,38 @@ namespace HIKARI {
             }
             return false;
         }
+
+        void ApplyBaseColorAlphaMaterialPolicy(
+            ModelAsset& model,
+            const std::vector<TextureCookDiagnostic>& textureDiagnostics) {
+
+            for (MaterialAsset& material : model.materials) {
+                const int textureIndex = material.baseColorTexture.textureIndex;
+                if (textureIndex < 0 ||
+                    static_cast<size_t>(textureIndex) >= textureDiagnostics.size()) {
+                    continue;
+                }
+
+                const TextureCookDiagnostic& texture =
+                    textureDiagnostics[static_cast<size_t>(textureIndex)];
+                if (!texture.sourceHasMeaningfulAlpha) {
+                    continue;
+                }
+
+                material.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
+                material.doubleSided = true;
+
+                if (material.alphaMode == AlphaMode::Opaque) {
+                    // baseColor の alpha が実データとして存在する場合、旧 asset の OPAQUE 指定を補正する。
+                    if (texture.sourceHasTranslucentAlpha) {
+                        material.alphaMode = AlphaMode::Blend;
+                    } else {
+                        material.alphaMode = AlphaMode::Mask;
+                        material.featureBits |= MATERIAL_FEATURES::AlphaMask;
+                    }
+                }
+            }
+        }
     }
 
     const char* ModelImporter::GetImporterId() const {
@@ -365,7 +480,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 4;
+        return 8;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -440,21 +555,24 @@ namespace HIKARI {
 
             AssetDependencyDesc dependency{};
             bool hasDependency = false;
-            if (ResolveTextureToHtex(context.projectRoot, texture, dependency, hasDependency)) {
+            if (ResolveTextureToHtex(context.projectRoot, texture, dependency, hasDependency, diagnostic)) {
                 ++htexReferenceCount;
                 diagnostic.htexReady = true;
             } else if (!texture.sourcePath.empty()) {
                 ++fallbackTextureCount;
+                InspectSourceTextureAlpha(
+                    ResolveProjectPath(context.projectRoot, texture.sourcePath),
+                    diagnostic);
             }
 
             if (hasDependency) {
-                diagnostic.guid = dependency.guid.value;
-                diagnostic.dependencyResolved = true;
                 result.dependencies.push_back(std::move(dependency));
             }
             diagnostic.cookedPath = texture.sourcePath;
             textureDiagnostics.push_back(std::move(diagnostic));
         }
+
+        ApplyBaseColorAlphaMaterialPolicy(model, textureDiagnostics);
 
         const std::filesystem::path finalPath = context.importedDirectory / "model.hmodel";
         const std::filesystem::path tempPath = context.importedDirectory / "model.importing.hmodel";

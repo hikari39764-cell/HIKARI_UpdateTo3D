@@ -14,6 +14,8 @@ namespace HIKARI::RENDER3D::CORE {
 
     constexpr size_t kDefaultSurfaceIndirectDrawCommandCapacity = 4096u;
     constexpr UINT kSurfaceIndirectRootConstantCount = 4u;
+    using SurfaceIndirectCommandFilter =
+        bool (*)(const RUNTIME::SurfaceDrawCommand& command, const void* userData);
 
     struct SurfaceIndirectDrawArgument {
         D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
@@ -29,6 +31,7 @@ namespace HIKARI::RENDER3D::CORE {
         size_t requestedCommandCount = 0;
         size_t uploadedCommandCount = 0;
         size_t overflowCommandCount = 0;
+        size_t filteredCommandCount = 0;
         size_t cpuDirectCommandCount = 0;
         size_t missingDrawArgsCommandCount = 0;
         size_t drawBindingPatchCount = 0;
@@ -51,7 +54,9 @@ namespace HIKARI::RENDER3D::CORE {
         void ResetFrame();
         void UploadSurfaceCommands(
             const std::vector<RUNTIME::SurfaceDrawCommand>& commands,
-            uint32_t rootBaseOffset);
+            uint32_t rootBaseOffset,
+            SurfaceIndirectCommandFilter filter = nullptr,
+            const void* filterUserData = nullptr);
         bool FlushToGpu(ID3D12GraphicsCommandList* commandList);
 
         ID3D12Resource* GetArgumentBuffer() const;

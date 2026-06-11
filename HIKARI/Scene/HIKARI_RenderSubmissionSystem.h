@@ -18,7 +18,6 @@ namespace HIKARI {
 
     enum class RenderSubmissionRouteMode : uint8_t {
         SurfacePacketMainline,
-        LegacyCompare,
         ForceLegacy,
     };
 
@@ -39,7 +38,6 @@ namespace HIKARI {
         int runtimeSpecialShadowModelCount = 0;
         RenderSubmissionRouteMode routeMode = RenderSubmissionRouteMode::SurfacePacketMainline;
         bool surfacePacketMainRouteActive = false;
-        bool surfacePacketLegacyCompareActive = false;
         bool surfacePacketForceLegacyActive = false;
         bool frustumCullingEnabled = false;
     };

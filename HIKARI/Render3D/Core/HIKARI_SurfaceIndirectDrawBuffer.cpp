@@ -147,7 +147,9 @@ namespace HIKARI::RENDER3D::CORE {
 
     void SurfaceIndirectDrawBuffer::UploadSurfaceCommands(
         const std::vector<RUNTIME::SurfaceDrawCommand>& commands,
-        uint32_t rootBaseOffset) {
+        uint32_t rootBaseOffset,
+        SurfaceIndirectCommandFilter filter,
+        const void* filterUserData) {
 
         stats_.requestedCommandCount += commands.size();
         ++stats_.uploadCallCount;
@@ -160,6 +162,10 @@ namespace HIKARI::RENDER3D::CORE {
         }
 
         for (const RUNTIME::SurfaceDrawCommand& command : commands) {
+            if (filter != nullptr && !filter(command, filterUserData)) {
+                ++stats_.filteredCommandCount;
+                continue;
+            }
             if (command.backend != RUNTIME::SurfaceDrawCommandBackend::GpuDriven) {
                 ++stats_.cpuDirectCommandCount;
                 continue;

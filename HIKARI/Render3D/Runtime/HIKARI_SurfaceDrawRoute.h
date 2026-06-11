@@ -49,6 +49,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t featureBits = 0;
         AlphaMode alphaMode = AlphaMode::Opaque;
         bool doubleSided = false;
+        bool profileDoubleSided = false;
         bool objectDataCompatible = false;
         bool depthAware = false;
     };

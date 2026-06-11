@@ -651,7 +651,8 @@ namespace HIKARI::MESHRENDERER {
             outState.fxFlags = variantItem.fxFlags;
             outState.variant = ResolvePrimitiveVariant(
                 variantItem,
-                outState.runtimeMaterial != nullptr ? nullptr : outState.materialAsset);
+                outState.runtimeMaterial != nullptr ? nullptr : outState.materialAsset,
+                &primitive);
             outState.objectDataCompatible = VariantCanUseObjectDataOnly(ctx.passKind, outState.variant);
             if (ctx.passKind == MeshDrawPassKind::GeometryBuffer && !outState.objectDataCompatible) {
                 return false;
@@ -844,7 +845,6 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            // StaticVS / WaterVS + ObjectData で安全に扱える範囲だけを instance 化する。
             return state.objectDataCompatible;
         }
 
@@ -1510,7 +1510,8 @@ namespace HIKARI::MESHRENDERER {
 
                     const VFX::VariantKey primitiveVariant = ResolvePrimitiveVariant(
                         item,
-                        runtimeMaterial ? nullptr : materialAsset);
+                        runtimeMaterial ? nullptr : materialAsset,
+                        &primitive);
                     const bool bindLegacyObjectCB = drawingSkinned ||
                         !VariantCanUseObjectDataOnly(ctx.passKind, primitiveVariant);
 
@@ -1815,6 +1816,10 @@ namespace HIKARI::MESHRENDERER {
         bool patchedAny = false;
         for (size_t commandIndex = 0; commandIndex < commandCount; ++commandIndex) {
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[commandIndex];
+            if (ctx.surfaceIndirectCommandFilter != nullptr &&
+                !ctx.surfaceIndirectCommandFilter(command, ctx.surfaceIndirectCommandFilterUserData)) {
+                continue;
+            }
             if (!CanStartSurfaceIndirectCommandRange(ctx, command)) {
                 continue;
             }

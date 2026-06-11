@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 
 namespace HIKARI {
 
+    class AssetRegistry;
     class World;
 
     namespace RENDER3D::RUNTIME {
@@ -17,7 +19,9 @@ namespace HIKARI {
             World& world,
             RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
             RENDER3D::RUNTIME::SceneRenderCache& sceneRenderCache,
-            uint64_t frameIndex);
+            uint64_t frameIndex,
+            const AssetRegistry* assetRegistry = nullptr,
+            std::filesystem::path projectRoot = {});
     };
 
 }

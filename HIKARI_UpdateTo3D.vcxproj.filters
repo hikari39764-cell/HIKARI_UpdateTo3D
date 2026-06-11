@@ -1168,6 +1168,15 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
@@ -1179,6 +1188,12 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.cpp">
+      <Filter>Source Files\Render3D\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.cpp">
+      <Filter>Source Files\Render3D\Resources</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp">
       <Filter>Source Files\Render3D\Resources</Filter>
@@ -1905,6 +1920,18 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
@@ -1919,6 +1946,12 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.h">
+      <Filter>Header Files\Render3D\Resources</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h">
       <Filter>Header Files\Render3D\Resources</Filter>
@@ -1982,6 +2015,9 @@
     <None Include="HIKARI\Icon\hikari_asset_icons.png">
       <Filter>Project\Icons</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
@@ -2001,6 +2037,12 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_GeometryBufferPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl">

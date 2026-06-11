@@ -44,6 +44,9 @@ namespace HIKARI::MESHRENDERER {
         GeometryBuffer,
     };
 
+    using MeshDrawCommandFilter =
+        bool (*)(const RENDER3D::RUNTIME::SurfaceDrawCommand& command, const void* userData);
+
     struct MeshDrawContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         ID3D12RootSignature* staticRootSig = nullptr;
@@ -71,6 +74,8 @@ namespace HIKARI::MESHRENDERER {
         MeshBindingContext binding{};
         MeshMaterialFillContext materialFill{};
         MeshDrawServices services{};
+        MeshDrawCommandFilter surfaceIndirectCommandFilter = nullptr;
+        const void* surfaceIndirectCommandFilterUserData = nullptr;
     };
 
     bool DrawMeshItem(

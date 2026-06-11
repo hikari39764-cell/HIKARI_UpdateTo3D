@@ -20,7 +20,7 @@ namespace HIKARI::PROCEDURAL {
             uint32_t segmentsZ = 1;
             uint32_t sphereSlices = 32;
             uint32_t sphereStacks = 16;
-            bool doubleSided = true;
+            bool doubleSided = false;
             bool generateTangents = true;
 
             bool operator==(const ProceduralModelKey& rhs) const = default;

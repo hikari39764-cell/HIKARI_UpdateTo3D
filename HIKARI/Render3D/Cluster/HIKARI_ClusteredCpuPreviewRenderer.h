@@ -1,11 +1,15 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 #include <DirectXMath.h>
 
+#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryAsset.h"
 #include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
@@ -48,7 +52,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             const ModelAsset* sourceModel = nullptr,
             bool receiveShadow = true,
             MESHRENDERER::MeshRenderDebugMode debugMode = MESHRENDERER::MeshRenderDebugMode::Normal,
-            const Material* materialOverride = nullptr);
+            const Material* materialOverride = nullptr,
+            const ClusterDebugOptions* debugOptions = nullptr);
 
         bool CanSubmitCompleteReference(const ClusteredGeometryAsset& clusteredGeometry) const;
         bool SubmitReferenceObject(
@@ -71,13 +76,28 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const ClusteredCpuPreviewStats& GetStats() const;
 
     private:
+        enum class PreviewModelKind : uint8_t {
+            SurfaceReference,
+            ClusterColor,
+            PageColor,
+            SurfaceColor,
+            Count,
+        };
+
+        struct PreviewModelCache {
+            std::array<
+                std::unique_ptr<ModelAsset>,
+                static_cast<size_t>(PreviewModelKind::Count)> models{};
+        };
+
         ModelAsset* GetOrBuildPreviewModel(
             const ClusteredGeometryAsset& clusteredGeometry,
-            const ModelAsset* sourceModel);
+            const ModelAsset* sourceModel,
+            PreviewModelKind kind);
 
         ClusteredRenderMode mode_ = ClusteredRenderMode::Off;
         ClusteredCpuPreviewStats stats_{};
-        std::unordered_map<const ClusteredGeometryAsset*, std::unique_ptr<ModelAsset>> previewModels_{};
+        std::unordered_map<const ClusteredGeometryAsset*, PreviewModelCache> previewModels_{};
     };
 
     ClusteredCpuPreviewRenderer& GetClusteredCpuPreviewRenderer();

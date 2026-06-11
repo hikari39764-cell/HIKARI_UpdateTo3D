@@ -72,6 +72,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             flags.model =
                 oldDesc.model != newDesc.model ||
                 oldDesc.renderModel != newDesc.renderModel ||
+                oldDesc.clusteredGeometryPath != newDesc.clusteredGeometryPath ||
                 !EqualBounds(oldDesc.localBounds, newDesc.localBounds);
 
             flags.transform =
@@ -151,6 +152,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             instance.hasSpecialRenderDebug = object.desc.hasSpecialRenderDebug;
             instance.allowStaticCachedForward = object.desc.allowStaticCachedForward;
             instance.skinned = surface.IsSkinned();
+            instance.clusteredGeometryPath = object.desc.clusteredGeometryPath;
             instance.materialOverride = object.desc.materialOverride;
             instance.materialFxProfileId = object.desc.materialFxProfileId;
             instance.postGroupMask = object.desc.postGroupMask;
@@ -412,6 +414,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++stats.skinnedSurfaceInstanceCount;
             } else {
                 ++stats.staticGeometrySurfaceInstanceCount;
+            }
+            if (!instance.clusteredGeometryPath.empty()) {
+                ++stats.clusteredGeometrySurfaceInstanceCount;
             }
             if (!instance.valid) {
                 ++stats.invalidSurfaceInstanceCount;

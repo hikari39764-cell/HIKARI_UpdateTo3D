@@ -9,7 +9,7 @@
 namespace HIKARI::ASSETS::GEOMETRY {
 
     constexpr uint32_t kHcmeshMagic = 0x48434D48u; // HCMH
-    constexpr uint32_t kHcmeshVersion = 3u;
+    constexpr uint32_t kHcmeshVersion = 5u;
 
     struct HcmeshHeader {
         uint32_t magic = kHcmeshMagic;

@@ -50,5 +50,7 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT SurfaceGpuScene = 21;
     // Surface GPU scene base index / mode -> b8
     constexpr UINT SurfaceGpuSceneControl = 22;
+    // Cluster geometry resource pool -> t0[], space1
+    constexpr UINT ClusterGeometryPool = 23;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

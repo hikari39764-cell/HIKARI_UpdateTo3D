@@ -5,7 +5,8 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
-#include "Render3D/Render/HIKARI_ModelRenderer.h"
+#include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
+#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -14,6 +15,9 @@
 #include "imgui.h"
 #endif
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdio>
 
 namespace HIKARI {
@@ -21,73 +25,19 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
     namespace {
 
-        struct AuditSnapshot {
-            int cpuSubmissionHeadroom = 0;
-            int passHeadroom = 0;
-            int performanceHeadroom = 0;
-
-            int sceneSubmissionHeadroom = 0;
-            int modelRendererHeadroom = 0;
-            int forwardHeadroom = 0;
-            int shadowHeadroom = 0;
-            int ssaoHeadroom = 0;
-            int debugOverlayHeadroom = 0;
-
-            const char* dominantRiskName = "None";
-            int dominantRisk = 0;
-
+        struct RuntimePerformanceSnapshot {
             float fpsRaw = 0.0f;
-            int scannedModelCount = 0;
-            int hiddenModelCount = 0;
-            int culledModelCount = 0;
-            int missingBoundsCount = 0;
-            int skinnedCullSkippedCount = 0;
-            int submittedModelCount = 0;
-            int structuredNodeCount = 0;
-            int matrixBuildCount = 0;
-            size_t forwardDrawCount = 0;
-            size_t shadowDrawCount = 0;
-            size_t estimatedGpuDrawCount = 0;
-            size_t debugLineCount = 0;
-            size_t xrayLineCount = 0;
-            uint32_t lightProbeDrawnPoints = 0;
-            uint32_t lightProbeTotalPoints = 0;
-            bool lightProbeCapped = false;
-            bool frustumCullingEnabled = false;
-
-            bool ssaoEnabled = false;
-            bool ssaoValid = false;
-            bool ssaoSuppressed = false;
-            SsaoMode ssaoMode = SsaoMode::Off;
-            bool ssaoGeometryBufferEnabled = false;
-            bool ssaoGeometryBufferWritten = false;
-            DXGI_FORMAT ssaoGeometryBufferFormat = DXGI_FORMAT_UNKNOWN;
-            uint32_t ssaoReferenceSampleCount = 0;
-            uint32_t ssaoReferenceBlurIterations = 0;
-            uint32_t ssaoSampleCount = 0;
-            uint32_t ssaoBlurIterations = 0;
-            uint32_t ssaoWidth = 0;
-            uint32_t ssaoHeight = 0;
-            uint32_t ssaoInternalWidth = 0;
-            uint32_t ssaoInternalHeight = 0;
-            bool ssaoHalfResolution = false;
-            uint64_t ssaoScreenPixelCount = 0;
-            uint64_t ssaoInternalPixelCount = 0;
-            float ssaoPixelSavedPercent = 0.0f;
-            bool ssaoPixMarkersAvailable = false;
-            bool ssaoGpuTimingAvailable = false;
-            bool ssaoMainGpuValid = false;
-            bool ssaoBlurGpuValid = false;
-            double ssaoMainGpuMs = 0.0;
-            double ssaoBlurGpuMs = 0.0;
-            double ssaoTotalGpuMs = 0.0;
-            float ssaoGeometryCpuMs = 0.0f;
-            float ssaoMainCpuMs = 0.0f;
-            float ssaoBlurCpuMs = 0.0f;
-            float ssaoCompositeCpuMs = 0.0f;
-            float ssaoTotalCpuMs = 0.0f;
-            float shadowToForwardRatio = 0.0f;
-            GFX::GPU_PROFILE::FrameSnapshot gpuProfile{};
+            RenderSubmissionDebugStats submission{};
+            RENDER3D::RUNTIME::SceneRenderCache::Stats scene{};
+            RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats packets{};
+            RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats plan{};
+            MESHRENDERER::MeshRendererDebugStats mesh{};
+            SHADOW::ShadowMapDebugStats shadow{};
+            RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
+            RENDER3D::RenderResourceDescriptorPoolStats descriptorPool{};
+            RENDER3D::SCREENSPACE::SsaoDebugState ssao{};
+            RENDERER3D::DEBUG::DebugRendererFrameStats debugOverlay{};
+            GFX::GPU_PROFILE::FrameSnapshot gpu{};
         };
 
         template <typename Numerator, typename Denominator>
@@ -98,607 +48,409 @@ namespace HIKARI {
                 0.0f;
         }
 
-        int ClampScore(float score) {
-            if (score < 0.0f) {
-                return 0;
-            }
-            if (score > 100.0f) {
-                return 100;
-            }
-            return static_cast<int>(score + 0.5f);
+        bool IsClusterSubpass(GFX::GPU_PROFILE::Pass pass) {
+            return
+                pass == GFX::GPU_PROFILE::Pass::ClusterCull ||
+                pass == GFX::GPU_PROFILE::Pass::ClusterDrawGeometry ||
+                pass == GFX::GPU_PROFILE::Pass::ClusterDrawForward;
         }
 
-        int PenaltyAbove(float value, float start, float range, int maxPenalty) {
-            if (value <= start || range <= 0.0f) {
-                return 0;
-            }
-            return ClampScore(((value - start) / range) * static_cast<float>(maxPenalty));
+        const char* TimingScopeText(GFX::GPU_PROFILE::Pass pass) {
+            return IsClusterSubpass(pass) ? "Cluster Subpass" : "Parent Pass";
         }
 
-        int RatioPenalty(float ratio, int maxPenalty) {
-            return ClampScore(ratio * static_cast<float>(maxPenalty));
+        const char* ReadyText(bool value) {
+            return value ? "Ready" : "Missing";
         }
 
-        int WeightedAverage(float total, float weight) {
-            return weight > 0.0f ? ClampScore(total / weight) : 0;
+        ImVec4 StatusColor(bool ok) {
+            return ok ?
+                ImVec4(0.28f, 0.82f, 0.45f, 1.0f) :
+                ImVec4(0.95f, 0.34f, 0.32f, 1.0f);
         }
 
-        const char* ScoreBandText(int score) {
-            if (score >= 80) {
-                return "Good";
-            }
-            if (score >= 55) {
-                return "Watch";
-            }
-            return "Risk";
-        }
-
-        ImVec4 ScoreBandColor(int score) {
-            if (score >= 80) {
-                return ImVec4(0.28f, 0.82f, 0.45f, 1.0f);
-            }
-            if (score >= 55) {
-                return ImVec4(0.95f, 0.72f, 0.25f, 1.0f);
-            }
-            return ImVec4(0.95f, 0.34f, 0.32f, 1.0f);
-        }
-
-        const char* SsaoInputText(const AuditSnapshot& audit) {
-            if (!audit.ssaoEnabled || audit.ssaoSuppressed || audit.ssaoMode == SsaoMode::Off) {
-                return "Off";
-            }
-            return "GeometryBuffer";
-        }
-
-        uint64_t PixelCount(uint32_t width, uint32_t height) {
-            return static_cast<uint64_t>(width) * static_cast<uint64_t>(height);
-        }
-
-        const GFX::GPU_PROFILE::PassTiming& PassTimingFor(
-            const GFX::GPU_PROFILE::FrameSnapshot& profile,
-            GFX::GPU_PROFILE::Pass pass) {
-
-            return profile.passes[static_cast<size_t>(pass)];
-        }
-
-        void DrawScoreMeter(
-            const char* label,
-            int score,
-            const char* band,
-            ImVec4 color,
-            const char* note) {
-            ImGui::PushID(label);
+        void TextStatus(const char* label, bool ok) {
             ImGui::TextUnformatted(label);
             ImGui::SameLine();
-            ImGui::TextColored(color, "%d / 100 (%s)", score, band);
-
-            char overlay[32]{};
-            std::snprintf(overlay, sizeof(overlay), "%d", score);
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
-            ImGui::ProgressBar(static_cast<float>(score) / 100.0f, ImVec2(-1.0f, 0.0f), overlay);
-            ImGui::PopStyleColor();
-            ImGui::TextWrapped("%s", note);
-            ImGui::PopID();
+            ImGui::TextColored(StatusColor(ok), "%s", ok ? "Ready" : "Missing");
         }
 
-        void DrawScoreRow(const char* label, int score, const char* detail) {
+        template <typename... Args>
+        void MetricRow(const char* label, const char* fmt, Args... args) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::TextUnformatted(label);
             ImGui::TableSetColumnIndex(1);
-            ImGui::TextColored(ScoreBandColor(score), "%d / 100", score);
-            ImGui::TableSetColumnIndex(2);
-            ImGui::TextWrapped("%s", detail);
+            ImGui::Text(fmt, args...);
         }
 
-        void UpdateDominantRisk(
-            const char*& outName,
-            int& outRisk,
-            const char* name,
-            int risk) {
-            if (risk > outRisk) {
-                outName = name;
-                outRisk = risk;
+        void MetricRowText(const char* label, const char* value) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(label);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(value);
+        }
+
+        bool BeginMetricTable(const char* id, float labelWidth = 210.0f) {
+            if (!ImGui::BeginTable(
+                id,
+                2,
+                ImGuiTableFlags_BordersInnerV |
+                    ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_SizingStretchProp)) {
+                return false;
             }
+            ImGui::TableSetupColumn("Signal", ImGuiTableColumnFlags_WidthFixed, labelWidth);
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+            return true;
         }
 
-        AuditSnapshot BuildAuditSnapshot() {
+        RuntimePerformanceSnapshot BuildSnapshot() {
+            RuntimePerformanceSnapshot out{};
             const FrameContext& frame = TIME::GetFrameContext();
-            const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
-            const MODELRENDERER::ModelRendererFrameStats& modelFrameStats = modelStats.frame;
-            const RenderSubmissionDebugStats& renderSubmissionStats =
-                RenderSubmissionSystem::GetDebugStats();
-            const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
-            const SHADOW::ShadowMapDebugStats& shadowStats = SHADOW::GetDebugStats();
-            const RENDERER3D::DEBUG::DebugRendererFrameStats& debugStats =
-                RENDERER3D::DEBUG::GetDebugRendererFrameStats();
-            const RENDER3D::SCREENSPACE::SsaoDebugState& ssaoStats =
-                RENDER3D::SCREENSPACE::GetSsaoDebugState();
-
-            AuditSnapshot audit{};
-            audit.gpuProfile = GFX::GPU_PROFILE::GetLatestSnapshot();
-            audit.fpsRaw = frame.rawDt > 0.0f ? (1.0f / frame.rawDt) : 0.0f;
-            audit.frustumCullingEnabled = renderSubmissionStats.frustumCullingEnabled;
-            audit.scannedModelCount = renderSubmissionStats.scannedModelCount;
-            audit.hiddenModelCount = renderSubmissionStats.hiddenModelCount;
-            audit.culledModelCount = renderSubmissionStats.culledModelCount;
-            audit.missingBoundsCount = renderSubmissionStats.missingBoundsCount;
-            audit.skinnedCullSkippedCount = renderSubmissionStats.skinnedCullSkippedCount;
-            audit.submittedModelCount = modelFrameStats.submittedModelItemCount;
-            audit.structuredNodeCount = modelFrameStats.structuredNodeSubmittedCount;
-            audit.matrixBuildCount = modelFrameStats.nodeGlobalMatrixBuildCount;
-
-            audit.sceneSubmissionHeadroom = 100;
-            audit.sceneSubmissionHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.scannedModelCount),
-                64.0f,
-                512.0f,
-                20);
-            audit.sceneSubmissionHeadroom -= audit.frustumCullingEnabled ? 0 : 12;
-            audit.sceneSubmissionHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.missingBoundsCount),
-                0.0f,
-                16.0f,
-                22);
-            audit.sceneSubmissionHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.skinnedCullSkippedCount),
-                0.0f,
-                32.0f,
-                8);
-            audit.sceneSubmissionHeadroom = ClampScore(static_cast<float>(audit.sceneSubmissionHeadroom));
-
-            audit.modelRendererHeadroom = 100;
-            audit.modelRendererHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.structuredNodeCount),
-                0.0f,
-                160.0f,
-                45);
-            audit.modelRendererHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.matrixBuildCount),
-                0.0f,
-                48.0f,
-                18);
-            audit.modelRendererHeadroom -= PenaltyAbove(
-                static_cast<float>(audit.submittedModelCount),
-                0.0f,
-                24.0f,
-                18);
-            audit.modelRendererHeadroom -= modelFrameStats.renderModelInvalidRequestCount > 0u ? 10 : 0;
-            audit.modelRendererHeadroom -= audit.missingBoundsCount > 0 ? 10 : 0;
-            audit.modelRendererHeadroom = ClampScore(static_cast<float>(audit.modelRendererHeadroom));
-
-            audit.cpuSubmissionHeadroom = WeightedAverage(
-                audit.sceneSubmissionHeadroom * 0.90f +
-                    audit.modelRendererHeadroom * 1.10f,
-                2.00f);
-
-            audit.forwardDrawCount = meshStats.staticDrawItemCount + meshStats.skinnedDrawItemCount;
-            audit.shadowDrawCount = shadowStats.totalPrimitiveCasterDrawCount;
-            audit.estimatedGpuDrawCount =
-                audit.forwardDrawCount +
-                audit.shadowDrawCount +
-                meshStats.wireGpuDrawCount;
-            audit.shadowToForwardRatio = SafeRatio(audit.shadowDrawCount, audit.forwardDrawCount);
-
-            audit.forwardHeadroom = 100;
-            audit.forwardHeadroom -= PenaltyAbove(static_cast<float>(audit.estimatedGpuDrawCount), 64.0f, 256.0f, 40);
-            audit.forwardHeadroom -= PenaltyAbove(static_cast<float>(audit.forwardDrawCount), 48.0f, 192.0f, 20);
-            audit.forwardHeadroom -= meshStats.psoCacheMissCount > 0u ? 18 : 0;
-            audit.forwardHeadroom -= meshStats.materialTextureCacheMissCount > 0u ? 12 : 0;
-            audit.forwardHeadroom -= meshStats.normalTextureCacheMissCount > 0u ? 8 : 0;
-            audit.forwardHeadroom -= audit.frustumCullingEnabled ? 0 : 12;
-            audit.forwardHeadroom -= audit.missingBoundsCount > 0 ? 10 : 0;
-            audit.forwardHeadroom = ClampScore(static_cast<float>(audit.forwardHeadroom));
-
-            audit.shadowHeadroom = shadowStats.enabled ? 100 : 95;
-            if (shadowStats.enabled) {
-                audit.shadowHeadroom -= PenaltyAbove(audit.shadowToForwardRatio, 0.75f, 1.25f, 45);
-                audit.shadowHeadroom -= PenaltyAbove(static_cast<float>(audit.shadowDrawCount), 32.0f, 160.0f, 25);
-                audit.shadowHeadroom -= RatioPenalty(
-                    SafeRatio(shadowStats.alphaMaskCasterDrawCount, audit.shadowDrawCount),
-                    12);
-            }
-            audit.shadowHeadroom = ClampScore(static_cast<float>(audit.shadowHeadroom));
-
-            audit.debugLineCount = debugStats.expandedLineCount;
-            audit.xrayLineCount = debugStats.xrayLineCount;
-            audit.lightProbeDrawnPoints = debugStats.lightProbeGizmoDrawnPointCount;
-            audit.lightProbeTotalPoints = debugStats.lightProbeGizmoTotalPointCount;
-            audit.lightProbeCapped = debugStats.lightProbeGizmoCapped;
-            audit.debugOverlayHeadroom = 100;
-            audit.debugOverlayHeadroom -= PenaltyAbove(static_cast<float>(audit.debugLineCount), 256.0f, 2048.0f, 45);
-            audit.debugOverlayHeadroom -= RatioPenalty(SafeRatio(audit.xrayLineCount, audit.debugLineCount), 22);
-            audit.debugOverlayHeadroom -= PenaltyAbove(static_cast<float>(audit.lightProbeDrawnPoints), 64.0f, 512.0f, 18);
-            audit.debugOverlayHeadroom = ClampScore(static_cast<float>(audit.debugOverlayHeadroom));
-
-            audit.ssaoEnabled = ssaoStats.enabled;
-            audit.ssaoValid = ssaoStats.valid;
-            audit.ssaoSuppressed = ssaoStats.suppressed;
-            audit.ssaoMode = ssaoStats.mode;
-            audit.ssaoGeometryBufferEnabled = ssaoStats.geometryBufferEnabled;
-            audit.ssaoGeometryBufferWritten = ssaoStats.geometryBufferWritten;
-            audit.ssaoGeometryBufferFormat = ssaoStats.geometryBufferFormat;
-            audit.ssaoReferenceSampleCount = ssaoStats.referenceSampleCount;
-            audit.ssaoReferenceBlurIterations = ssaoStats.referenceBlurIterations;
-            audit.ssaoSampleCount = ssaoStats.sampleCount;
-            audit.ssaoBlurIterations = ssaoStats.blurIterations;
-            audit.ssaoWidth = ssaoStats.width;
-            audit.ssaoHeight = ssaoStats.height;
-            audit.ssaoInternalWidth = ssaoStats.internalWidth;
-            audit.ssaoInternalHeight = ssaoStats.internalHeight;
-            audit.ssaoHalfResolution = ssaoStats.halfResolution;
-            audit.ssaoScreenPixelCount = PixelCount(ssaoStats.width, ssaoStats.height);
-            audit.ssaoInternalPixelCount = PixelCount(ssaoStats.internalWidth, ssaoStats.internalHeight);
-            if (audit.ssaoScreenPixelCount > 0u && audit.ssaoInternalPixelCount <= audit.ssaoScreenPixelCount) {
-                const float activeRatio = SafeRatio(audit.ssaoInternalPixelCount, audit.ssaoScreenPixelCount);
-                audit.ssaoPixelSavedPercent = (1.0f - activeRatio) * 100.0f;
-            }
-            audit.ssaoPixMarkersAvailable = ssaoStats.pixMarkersAvailable;
-            audit.ssaoGpuTimingAvailable = audit.gpuProfile.gpuTimingAvailable;
-            const GFX::GPU_PROFILE::PassTiming& ssaoMainGpu =
-                PassTimingFor(audit.gpuProfile, GFX::GPU_PROFILE::Pass::SsaoMain);
-            const GFX::GPU_PROFILE::PassTiming& ssaoBlurGpu =
-                PassTimingFor(audit.gpuProfile, GFX::GPU_PROFILE::Pass::SsaoBlur);
-            audit.ssaoMainGpuValid = ssaoMainGpu.valid;
-            audit.ssaoBlurGpuValid = ssaoBlurGpu.valid;
-            audit.ssaoMainGpuMs = ssaoMainGpu.valid ? ssaoMainGpu.gpuMs : 0.0;
-            audit.ssaoBlurGpuMs = ssaoBlurGpu.valid ? ssaoBlurGpu.gpuMs : 0.0;
-            audit.ssaoTotalGpuMs = audit.ssaoMainGpuMs + audit.ssaoBlurGpuMs;
-            audit.ssaoGeometryCpuMs = ssaoStats.geometryBufferCpuMs;
-            audit.ssaoMainCpuMs = ssaoStats.mainCpuMs;
-            audit.ssaoBlurCpuMs = ssaoStats.blurCpuMs;
-            audit.ssaoCompositeCpuMs = ssaoStats.compositeCpuMs;
-            audit.ssaoTotalCpuMs = ssaoStats.totalCpuMs;
-            audit.ssaoHeadroom = 100;
-            if (ssaoStats.enabled && !ssaoStats.suppressed) {
-                audit.ssaoHeadroom -= PenaltyAbove(static_cast<float>(ssaoStats.sampleCount), 8.0f, 24.0f, 35);
-                audit.ssaoHeadroom -= PenaltyAbove(static_cast<float>(ssaoStats.blurIterations), 1.0f, 3.0f, 25);
-                audit.ssaoHeadroom -= ssaoStats.geometryBufferEnabled ? 12 : 0;
-                audit.ssaoHeadroom -= ssaoStats.valid ? 0 : 25;
-                const uint64_t pixelCount =
-                    static_cast<uint64_t>(ssaoStats.internalWidth) * static_cast<uint64_t>(ssaoStats.internalHeight);
-                audit.ssaoHeadroom -= PenaltyAbove(static_cast<float>(pixelCount), 921600.0f, 2073600.0f, 12);
-            }
-            audit.ssaoHeadroom = ClampScore(static_cast<float>(audit.ssaoHeadroom));
-
-            audit.passHeadroom = WeightedAverage(
-                audit.forwardHeadroom * 1.05f +
-                    audit.shadowHeadroom * 1.15f +
-                    audit.ssaoHeadroom * 1.00f +
-                    audit.debugOverlayHeadroom * 0.55f,
-                3.75f);
-            audit.performanceHeadroom = WeightedAverage(
-                audit.cpuSubmissionHeadroom * 0.85f +
-                    audit.passHeadroom * 1.15f,
-                2.00f);
-
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "Scene Submission",
-                100 - audit.sceneSubmissionHeadroom);
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "ModelRenderer Residual",
-                100 - audit.modelRendererHeadroom);
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "Forward Draw / Binding",
-                100 - audit.forwardHeadroom);
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "Shadow Pass",
-                100 - audit.shadowHeadroom);
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "SSAO / Post",
-                100 - audit.ssaoHeadroom);
-            UpdateDominantRisk(
-                audit.dominantRiskName,
-                audit.dominantRisk,
-                "Debug Overlay",
-                100 - audit.debugOverlayHeadroom);
-
-            return audit;
+            out.fpsRaw = frame.rawDt > 0.0f ? 1.0f / frame.rawDt : 0.0f;
+            out.submission = RenderSubmissionSystem::GetDebugStats();
+            out.scene = RenderSubmissionSystem::GetSceneRenderCacheStats();
+            out.packets = RenderSubmissionSystem::GetSurfaceDrawPacketStats();
+            out.plan = RenderSubmissionSystem::GetSurfaceDrawPacketPlanStats();
+            out.mesh = MESHRENDERER::GetDebugStats();
+            out.shadow = SHADOW::GetDebugStats();
+            out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
+            out.descriptorPool = RENDER3D::GetRenderResourceDescriptorPoolStats();
+            out.ssao = RENDER3D::SCREENSPACE::GetSsaoDebugState();
+            out.debugOverlay = RENDERER3D::DEBUG::GetDebugRendererFrameStats();
+            out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
+            return out;
         }
 
-        void DrawTopSummary(const AuditSnapshot& audit) {
-            if (ImGui::BeginTable("PerformanceAuditSummary", 3, ImGuiTableFlags_SizingStretchSame)) {
-                ImGui::TableNextColumn();
-                DrawScoreMeter(
-                    "CPU Submission",
-                    audit.cpuSubmissionHeadroom,
-                    ScoreBandText(audit.cpuSubmissionHeadroom),
-                    ScoreBandColor(audit.cpuSubmissionHeadroom),
-                    "Scene iteration and legacy ModelRenderer residual work.");
-                ImGui::TableNextColumn();
-                DrawScoreMeter(
-                    "Pass Headroom",
-                    audit.passHeadroom,
-                    ScoreBandText(audit.passHeadroom),
-                    ScoreBandColor(audit.passHeadroom),
-                    "Forward, shadow, SSAO and debug overlay counter pressure.");
-                ImGui::TableNextColumn();
-                DrawScoreMeter(
-                    "Overall Headroom",
-                    audit.performanceHeadroom,
-                    ScoreBandText(audit.performanceHeadroom),
-                    ScoreBandColor(audit.performanceHeadroom),
-                    "Stable frame-cost signals without migration-path takeover scoring.");
-                ImGui::EndTable();
-            }
-        }
+        double SumGpuMsByScope(
+            const GFX::GPU_PROFILE::FrameSnapshot& profile,
+            bool clusterSubpass) {
 
-        void DrawRiskVerdict(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("Verdict");
-            ImGui::Text("Dominant Risk: ");
-            ImGui::SameLine();
-            ImGui::TextColored(ScoreBandColor(100 - audit.dominantRisk), "%s (%d)", audit.dominantRiskName, audit.dominantRisk);
-
-            if (!audit.frustumCullingEnabled) {
-                ImGui::BulletText("Scene submission is running without an active render camera for culling.");
-            }
-            if (audit.cpuSubmissionHeadroom < 60) {
-                ImGui::BulletText("CPU-side submission counters are high enough to inspect scene iteration and ModelRenderer work.");
-            }
-            if (audit.ssaoEnabled && !audit.ssaoSuppressed && audit.ssaoHeadroom < 60) {
-                ImGui::BulletText("SSAO is running with relatively heavy settings for the editor viewport.");
-            }
-            if ((audit.ssaoMode == SsaoMode::OptimizedHigh || audit.ssaoMode == SsaoMode::Balanced) &&
-                audit.ssaoEnabled &&
-                !audit.ssaoSuppressed &&
-                !audit.ssaoHalfResolution) {
-                ImGui::BulletText("SSAO optimized mode is active without half-resolution work pixels.");
-            }
-            if (audit.shadowToForwardRatio > 1.20f) {
-                ImGui::BulletText("Shadow pass draw pressure is higher than the forward pass.");
-            }
-            if (audit.forwardDrawCount > 0u && audit.estimatedGpuDrawCount >= audit.forwardDrawCount * 2u) {
-                ImGui::BulletText("Frame work is duplicated across passes; pass count may matter more than submit caching.");
-            }
-            if (audit.debugOverlayHeadroom < 70) {
-                ImGui::BulletText("Debug overlays are visible enough to affect editor measurements.");
-            }
-            if (audit.dominantRisk < 20) {
-                ImGui::BulletText("No strong counter-based risk is visible; use PIX/timers for finer pass timing.");
-            }
-        }
-
-        void DrawStageTable(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("Stages");
-            if (ImGui::BeginTable(
-                    "PerformanceAuditStages",
-                    3,
-                    ImGuiTableFlags_BordersInnerV |
-                        ImGuiTableFlags_RowBg |
-                        ImGuiTableFlags_SizingStretchProp)) {
-                ImGui::TableSetupColumn("Stage", ImGuiTableColumnFlags_WidthFixed, 170.0f);
-                ImGui::TableSetupColumn("Score", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-                ImGui::TableSetupColumn("Signal");
-                ImGui::TableHeadersRow();
-
-                char detail[288]{};
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Scanned %d, hidden %d, culled %d, frustum %s, missing bounds %d",
-                    audit.scannedModelCount,
-                    audit.hiddenModelCount,
-                    audit.culledModelCount,
-                    audit.frustumCullingEnabled ? "on" : "off",
-                    audit.missingBoundsCount);
-                DrawScoreRow("Scene Submission", audit.sceneSubmissionHeadroom, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Submitted models %d, structured nodes %d, matrix builds %d",
-                    audit.submittedModelCount,
-                    audit.structuredNodeCount,
-                    audit.matrixBuildCount);
-                DrawScoreRow("ModelRenderer Residual", audit.modelRendererHeadroom, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Estimated draws %zu, forward draws %zu, PSO miss and texture miss are included",
-                    audit.estimatedGpuDrawCount,
-                    audit.forwardDrawCount);
-                DrawScoreRow("Forward / Binding", audit.forwardHeadroom, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Shadow draws %zu, ratio %.2f vs forward",
-                    audit.shadowDrawCount,
-                    audit.shadowToForwardRatio);
-                DrawScoreRow("Shadow Pass", audit.shadowHeadroom, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "%s, %s, valid %s, samples %u, blur %u, AO %u x %u%s, saved %.1f%%, %s",
-                    RENDER3D::SCREENSPACE::ToString(audit.ssaoMode),
-                    SsaoInputText(audit),
-                    audit.ssaoValid ? "yes" : "no",
-                    audit.ssaoSampleCount,
-                    audit.ssaoBlurIterations,
-                    audit.ssaoInternalWidth,
-                    audit.ssaoInternalHeight,
-                    audit.ssaoHalfResolution ? " half" : "",
-                    audit.ssaoPixelSavedPercent,
-                    (audit.ssaoMainGpuValid || audit.ssaoBlurGpuValid) ? "GPU timed" : "GPU waiting");
-                DrawScoreRow("SSAO / Post", audit.ssaoHeadroom, detail);
-
-                std::snprintf(
-                    detail,
-                    sizeof(detail),
-                    "Lines %zu, xray %zu, light probe points %u / %u%s",
-                    audit.debugLineCount,
-                    audit.xrayLineCount,
-                    audit.lightProbeDrawnPoints,
-                    audit.lightProbeTotalPoints,
-                    audit.lightProbeCapped ? " capped" : "");
-                DrawScoreRow("Debug Overlay", audit.debugOverlayHeadroom, detail);
-
-                ImGui::EndTable();
-            }
-        }
-
-        void DrawGpuTimingEvidence(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("GPU Timing");
-            const GFX::GPU_PROFILE::FrameSnapshot& profile = audit.gpuProfile;
-            if (!profile.gpuTimingAvailable) {
-                if (profile.profilerEnabled) {
-                    ImGui::TextDisabled("Timestamp query data is not available yet.");
-                } else {
-                    ImGui::TextDisabled("%s", profile.unavailableReason);
+            double total = 0.0;
+            for (size_t i = 0; i < profile.passes.size(); ++i) {
+                const GFX::GPU_PROFILE::Pass pass =
+                    static_cast<GFX::GPU_PROFILE::Pass>(i);
+                const GFX::GPU_PROFILE::PassTiming& timing = profile.passes[i];
+                if (timing.valid && IsClusterSubpass(pass) == clusterSubpass) {
+                    total += timing.gpuMs;
                 }
+            }
+            return total;
+        }
+
+        uint32_t CountValidGpuPasses(const GFX::GPU_PROFILE::FrameSnapshot& profile) {
+            uint32_t count = 0;
+            for (const GFX::GPU_PROFILE::PassTiming& timing : profile.passes) {
+                if (timing.valid) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+
+        void DrawFrameSummary(const RuntimePerformanceSnapshot& s) {
+            const bool clusterMainline =
+                s.mesh.clusterGpuCullSubmittedInstanceCount > 0 ||
+                s.mesh.clusterDrawSubmittedCount > 0;
+            const bool gpuDrivenReady =
+                s.mesh.surfaceGpuSceneSrvValid &&
+                s.mesh.surfaceGpuSceneBufferReady &&
+                s.mesh.surfaceIndirectArgumentBufferReady &&
+                s.mesh.surfaceIndirectCommandSignatureReady;
+            const double parentGpuMs = SumGpuMsByScope(s.gpu, false);
+            const double clusterSubpassGpuMs = SumGpuMsByScope(s.gpu, true);
+
+            if (ImGui::BeginTable("GpuDrivenFrameSummary", 4, ImGuiTableFlags_SizingStretchSame)) {
+                ImGui::TableNextColumn();
+                ImGui::Text("FPS %.1f", s.fpsRaw);
+                ImGui::TextDisabled("route %s", ToString(s.submission.routeMode));
+
+                ImGui::TableNextColumn();
+                ImGui::TextColored(StatusColor(gpuDrivenReady), "GPU scene %s", ReadyText(gpuDrivenReady));
+                ImGui::Text("uploaded %zu / requested %zu",
+                    s.mesh.surfaceGpuSceneUploadedInstanceCount,
+                    s.mesh.surfaceGpuSceneRequestedInstanceCount);
+
+                ImGui::TableNextColumn();
+                ImGui::TextColored(StatusColor(clusterMainline), "cluster %s", clusterMainline ? "Active" : "Idle");
+                ImGui::Text("submitted %zu / eligible %zu",
+                    s.mesh.clusterDrawSubmittedCount,
+                    s.mesh.clusterDrawEligibleCommandCount);
+
+                ImGui::TableNextColumn();
+                ImGui::Text("GPU parent %.3f ms", parentGpuMs);
+                ImGui::Text("cluster sub %.3f ms", clusterSubpassGpuMs);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawGpuTimingTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("GPU Timing");
+            if (!s.gpu.gpuTimingAvailable) {
+                ImGui::TextDisabled("%s",
+                    s.gpu.profilerEnabled ?
+                        "Timestamp query data is waiting." :
+                        s.gpu.unavailableReason);
                 return;
             }
 
-            double totalMs = 0.0;
-            int validCount = 0;
-            for (const GFX::GPU_PROFILE::PassTiming& timing : profile.passes) {
-                if (timing.valid) {
-                    totalMs += timing.gpuMs;
-                    ++validCount;
-                }
-            }
-
-            ImGui::Text("Frame %llu, frequency %llu Hz, measured passes %d, sum %.3f ms",
-                static_cast<unsigned long long>(profile.frameIndex),
-                static_cast<unsigned long long>(profile.timestampFrequency),
-                validCount,
-                totalMs);
-            ImGui::TextDisabled("GPU timings are delayed readback values and may lag by a few frames.");
+            const double parentMs = SumGpuMsByScope(s.gpu, false);
+            const double clusterSubpassMs = SumGpuMsByScope(s.gpu, true);
+            ImGui::Text("Frame %llu, passes %u, parent %.3f ms, cluster subpass %.3f ms",
+                static_cast<unsigned long long>(s.gpu.frameIndex),
+                CountValidGpuPasses(s.gpu),
+                parentMs,
+                clusterSubpassMs);
 
             if (ImGui::BeginTable(
-                    "PerformanceAuditGpuTiming",
-                    3,
+                    "GpuDrivenTimingTable",
+                    5,
                     ImGuiTableFlags_BordersInnerV |
                         ImGuiTableFlags_RowBg |
                         ImGuiTableFlags_SizingStretchProp)) {
-                ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 170.0f);
+                ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+                ImGui::TableSetupColumn("Scope", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                 ImGui::TableSetupColumn("GPU ms", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-                ImGui::TableSetupColumn("Ticks");
+                ImGui::TableSetupColumn("Ticks", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                ImGui::TableSetupColumn("Share");
                 ImGui::TableHeadersRow();
 
-                for (const GFX::GPU_PROFILE::PassTiming& timing : profile.passes) {
+                for (size_t i = 0; i < s.gpu.passes.size(); ++i) {
+                    const GFX::GPU_PROFILE::Pass pass =
+                        static_cast<GFX::GPU_PROFILE::Pass>(i);
+                    const GFX::GPU_PROFILE::PassTiming& timing = s.gpu.passes[i];
                     if (!timing.valid) {
                         continue;
                     }
+
+                    const bool clusterSubpass = IsClusterSubpass(pass);
+                    const double scopeTotal =
+                        (std::max)(0.0001, clusterSubpass ? clusterSubpassMs : parentMs);
 
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::TextUnformatted(timing.name);
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%.3f", timing.gpuMs);
+                    ImGui::TextUnformatted(TimingScopeText(pass));
                     ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%.3f", timing.gpuMs);
+                    ImGui::TableSetColumnIndex(3);
                     ImGui::Text("%llu", static_cast<unsigned long long>(timing.ticks));
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::ProgressBar(
+                        static_cast<float>(timing.gpuMs / scopeTotal),
+                        ImVec2(-1.0f, 0.0f),
+                        "");
                 }
-
                 ImGui::EndTable();
             }
         }
 
-        void DrawSsaoEvidence(const AuditSnapshot& audit) {
-            ImGui::SeparatorText("SSAO Evidence");
-            if (ImGui::BeginTable(
-                    "PerformanceAuditSsaoEvidence",
-                    2,
-                    ImGuiTableFlags_BordersInnerV |
-                        ImGuiTableFlags_RowBg |
-                        ImGuiTableFlags_SizingStretchProp)) {
-                ImGui::TableSetupColumn("Signal", ImGuiTableColumnFlags_WidthFixed, 190.0f);
-                ImGui::TableSetupColumn("Value");
-                ImGui::TableHeadersRow();
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Mode / Resolution");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s, %s, screen %u x %u, AO %u x %u%s, valid %s%s",
-                    RENDER3D::SCREENSPACE::ToString(audit.ssaoMode),
-                    SsaoInputText(audit),
-                    audit.ssaoWidth,
-                    audit.ssaoHeight,
-                    audit.ssaoInternalWidth,
-                    audit.ssaoInternalHeight,
-                    audit.ssaoHalfResolution ? " half" : "",
-                    audit.ssaoValid ? "yes" : "no",
-                    audit.ssaoSuppressed ? ", suppressed" : "");
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Pixel Budget");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("Screen %llu px, AO work %llu px, saved %.1f%%",
-                    static_cast<unsigned long long>(audit.ssaoScreenPixelCount),
-                    static_cast<unsigned long long>(audit.ssaoInternalPixelCount),
-                    audit.ssaoPixelSavedPercent);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Reference / Active");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("Reference %u samples / %u blur, active %u samples / %u blur",
-                    audit.ssaoReferenceSampleCount,
-                    audit.ssaoReferenceBlurIterations,
-                    audit.ssaoSampleCount,
-                    audit.ssaoBlurIterations);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("GeometryBuffer");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s, written %s, format %s, CPU %.3f ms",
-                    audit.ssaoGeometryBufferEnabled ? "enabled" : "off",
-                    audit.ssaoGeometryBufferWritten ? "yes" : "no",
-                    GFX::FormatToString(audit.ssaoGeometryBufferFormat),
-                    audit.ssaoGeometryCpuMs);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("SSAO CPU Record");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("Main %.3f ms, Blur %.3f ms, Composite %.3f ms, Total %.3f ms",
-                    audit.ssaoMainCpuMs,
-                    audit.ssaoBlurCpuMs,
-                    audit.ssaoCompositeCpuMs,
-                    audit.ssaoTotalCpuMs);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("SSAO GPU Record");
-                ImGui::TableSetColumnIndex(1);
-                if (audit.ssaoMainGpuValid || audit.ssaoBlurGpuValid) {
-                    ImGui::Text("Main %.3f ms%s, Blur/Resolve %.3f ms%s, Total %.3f ms",
-                        audit.ssaoMainGpuMs,
-                        audit.ssaoMainGpuValid ? "" : " missing",
-                        audit.ssaoBlurGpuMs,
-                        audit.ssaoBlurGpuValid ? "" : " missing",
-                        audit.ssaoTotalGpuMs);
-                } else {
-                    ImGui::TextDisabled("waiting for timestamp query readback");
-                }
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("PIX / GPU Timing");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("PIX marker %s, GPU timing %s",
-                    audit.ssaoPixMarkersAvailable ? "available" : "missing",
-                    audit.ssaoGpuTimingAvailable ? "available" : "PIX required");
-
+        void DrawClusterRuntimeTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Cluster Runtime");
+            if (BeginMetricTable("ClusterRuntimeMetrics")) {
+                MetricRow("GPU Cull GPUScene Source / Candidate / Submitted Inst / Overflow", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullSourceInstanceCount,
+                    s.mesh.clusterGpuCullCandidateInstanceCount,
+                    s.mesh.clusterGpuCullSubmittedInstanceCount,
+                    s.mesh.clusterGpuCullOverflowInstanceCount);
+                MetricRow("GPU Cull Source SingleSided / DoubleSided Inst", "%zu / %zu",
+                    s.mesh.clusterGpuCullSourceSingleSidedInstanceCount,
+                    s.mesh.clusterGpuCullSourceDoubleSidedInstanceCount);
+                MetricRow("GPU Cull Page Tasks CPU Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullSourcePageTaskCount,
+                    s.mesh.clusterGpuCullGpuPageTaskCount,
+                    s.mesh.clusterGpuCullGpuPageTaskOverflowCount);
+                MetricRowText(
+                    "GPU Cull Debug Counters",
+                    s.mesh.clusterGpuCullDebugCountersEnabled ? "on" : "off");
+                MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuVisibleRangeCount,
+                    s.mesh.clusterGpuCullGpuInputFrustumCulledCount,
+                    s.mesh.clusterGpuCullGpuVisibleClusterCount,
+                    s.mesh.clusterGpuCullGpuDrawCommandCount,
+                    s.mesh.clusterGpuCullGpuDrawCommandOverflowCount + s.mesh.clusterGpuCullGpuOverflowCount);
+                MetricRow("Page Tested / Page Frustum Culled", "%zu / %zu",
+                    s.mesh.clusterGpuCullGpuPageTestedCount,
+                    s.mesh.clusterGpuCullGpuPageFrustumCulledCount);
+                MetricRow("Cluster Tested / Frustum Culled / Cone Culled", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuClusterTestedCount,
+                    s.mesh.clusterGpuCullGpuClusterFrustumCulledCount,
+                    s.mesh.clusterGpuCullGpuClusterConeCulledCount);
+                MetricRow("Cone Tested / DoubleSided Skip Cone", "%zu / %zu",
+                    s.mesh.clusterGpuCullGpuClusterConeTestedCount,
+                    s.mesh.clusterGpuCullGpuDoubleSidedClusterCount);
+                MetricRow("Clusters per DrawArg / Ranges per DrawArg", "%.2f / %.2f",
+                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
+                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount));
+                MetricRow("BackFace / DoubleSided DrawArgs", "%zu / %zu",
+                    s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
+                    s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount);
+                MetricRow("DoubleSided Cluster / DrawArg Share", "%.1f%% / %.1f%%",
+                    SafeRatio(
+                        s.mesh.clusterGpuCullGpuDoubleSidedClusterCount,
+                        s.mesh.clusterGpuCullGpuClusterTestedCount) * 100.0,
+                    SafeRatio(
+                        s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
+                        s.mesh.clusterGpuCullGpuDrawCommandCount) * 100.0);
+                MetricRow("Mainline / Forward / GeometryAux / Seeds / OverflowBlock", "%s / %s / %s / %s / %s",
+                    s.mesh.clusterMainlineReady ? "Ready" : "Blocked",
+                    s.mesh.clusterMainlineForwardReady ? "Ready" : "Blocked",
+                    s.mesh.clusterMainlineGeometryBufferReady ? "Ready" : "Blocked",
+                    s.mesh.clusterMainlineHasDrawSeeds ? "yes" : "no",
+                    s.mesh.clusterMainlineOverflowBlocked ? "yes" : "no");
+                MetricRow("Opaque Ownership Cluster / GeometryAux / Legacy Cmd", "%zu / %zu / %zu",
+                    s.mesh.clusterMainlineOwnedCommandCount,
+                    s.mesh.clusterMainlineGeometryAuxCommandCount,
+                    s.mesh.clusterMainlineLegacyCommandCount);
+                MetricRow("Opaque Ownership Cluster / GeometryAux / Legacy Pkt", "%zu / %zu / %zu",
+                    s.mesh.clusterMainlineOwnedPacketCount,
+                    s.mesh.clusterMainlineGeometryAuxPacketCount,
+                    s.mesh.clusterMainlineLegacyPacketCount);
+                MetricRow("Cluster Draw Submitted / Requested / Calls / EmptyBuckets", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterDrawSubmittedCount,
+                    s.mesh.clusterDrawRequestedCount,
+                    s.mesh.clusterDrawSubmitCallCount,
+                    s.mesh.clusterDrawSkippedBucketCount);
+                MetricRow("Forward / Geometry Submitted", "%zu / %zu",
+                    s.mesh.clusterDrawForwardSubmittedCount,
+                    s.mesh.clusterDrawGeometryBufferSubmittedCount);
+                MetricRow("Mainline Legacy Bypass Commands / Packets", "%zu / %zu",
+                    s.mesh.clusterDrawBypassedLegacyCommandCount,
+                    s.mesh.clusterDrawBypassedLegacyPacketCount);
+                MetricRow("Reject Mainline / Backend / Transparent", "%zu / %zu / %zu",
+                    s.mesh.clusterDrawRejectMainlineCommandCount,
+                    s.mesh.clusterDrawRejectBackendCommandCount,
+                    s.mesh.clusterDrawRejectTransparentCommandCount);
+                MetricRow("Reject Range / Resource / MaterialFx / Material", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterDrawRejectRangeCommandCount,
+                    s.mesh.clusterDrawRejectInstanceResourceCommandCount,
+                    s.mesh.clusterDrawRejectMaterialFxCommandCount,
+                    s.mesh.clusterDrawRejectMaterialPatchCommandCount);
                 ImGui::EndTable();
             }
+        }
 
-            ImGui::TextDisabled("Composite is applied in ForwardOpaque; no standalone SSAO composite pass is inserted.");
+        void DrawSubmissionTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Submission");
+            if (BeginMetricTable("SubmissionMetrics")) {
+                MetricRowText("Route Mode", ToString(s.submission.routeMode));
+                MetricRow("Mainline / ForceLegacy", "%s / %s",
+                    s.submission.surfacePacketMainRouteActive ? "on" : "off",
+                    s.submission.surfacePacketForceLegacyActive ? "on" : "off");
+                MetricRow("Scene Scanned / Submitted / Culled / Hidden", "%d / %d / %d / %d",
+                    s.submission.scannedModelCount,
+                    s.submission.submittedModelCount,
+                    s.submission.culledModelCount,
+                    s.submission.hiddenModelCount);
+                MetricRow("Surface Instances / Cluster Instances", "%u / %u",
+                    s.scene.surfaceInstanceCount,
+                    s.scene.clusteredGeometrySurfaceInstanceCount);
+                MetricRow("Packets / Valid / Cluster Backend / Cluster Resource", "%u / %u / %u / %u",
+                    s.packets.packetCount,
+                    s.packets.validPacketCount,
+                    s.packets.clusterGeometryBackendPacketCount,
+                    s.packets.clusterGeometryResourcePacketCount);
+                MetricRow("Plan Opaque / DepthAware / Transparent", "%u / %u / %u",
+                    s.plan.submittedOpaqueCommandCount,
+                    s.plan.submittedDepthAwareCommandCount,
+                    s.plan.submittedTransparentCommandCount);
+                MetricRow("Surface ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
+                    s.mesh.surfaceIndirectOpaqueCommandCount,
+                    s.mesh.surfaceIndirectDepthAwareCommandCount,
+                    s.mesh.surfaceIndirectTransparentCommandCount);
+                MetricRow("Surface Indirect Uploaded / Filtered / Overflow", "%zu / %zu / %zu",
+                    s.mesh.surfaceIndirectUploadedCommandCount,
+                    s.mesh.surfaceIndirectFilteredCommandCount,
+                    s.mesh.surfaceIndirectOverflowCommandCount);
+                MetricRow("Surface Indirect Batches / Commands / Saved / Max", "%zu / %zu / %zu / %zu",
+                    s.mesh.surfaceIndirectBatchSubmitCount,
+                    s.mesh.surfaceIndirectBatchedCommandCount,
+                    s.mesh.surfaceIndirectSavedSubmitCount,
+                    s.mesh.surfaceIndirectMaxBatchCommandCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawClusterResourceTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Cluster Resources");
+            if (BeginMetricTable("ClusterResourceMetrics")) {
+                MetricRow("Context / Ready / Failed", "%s / %u / %u",
+                    s.clusterResources.initialized ? "Ready" : "Missing",
+                    s.clusterResources.readyResourceCount,
+                    s.clusterResources.failedCount);
+                MetricRow("Requests / Hits / Misses / Loaded", "%u / %u / %u / %u",
+                    s.clusterResources.requestCount,
+                    s.clusterResources.hitCount,
+                    s.clusterResources.missCount,
+                    s.clusterResources.loadedCount);
+                MetricRow("Surfaces / Clusters / Pages / Ranges", "%u / %u / %u / %u",
+                    s.clusterResources.surfaceCount,
+                    s.clusterResources.clusterCount,
+                    s.clusterResources.pageCount,
+                    s.clusterResources.surfaceRangeCount);
+                MetricRow("Vertices / Indices / GPU Bytes", "%u / %u / %.2f MB",
+                    s.clusterResources.vertexCount,
+                    s.clusterResources.indexCount,
+                    static_cast<double>(s.clusterResources.gpuBufferBytes) / (1024.0 * 1024.0));
+                MetricRow("Shader SRV / Missing / Allocation Failed", "%u / %u / %u",
+                    s.clusterResources.shaderVisibleResourceCount,
+                    s.clusterResources.missingDescriptorCount,
+                    s.clusterResources.descriptorAllocationFailedCount);
+                MetricRow("Descriptor Pool Used / Capacity / Failed", "%u / %u / %u",
+                    s.descriptorPool.used,
+                    s.descriptorPool.capacity,
+                    s.descriptorPool.failedAllocationCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawSsaoAndOverlayTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("SSAO / Overlay");
+            if (BeginMetricTable("SsaoOverlayMetrics")) {
+                MetricRow("SSAO Mode / Valid / Half", "%s / %s / %s",
+                    RENDER3D::SCREENSPACE::ToString(s.ssao.mode),
+                    s.ssao.valid ? "yes" : "no",
+                    s.ssao.halfResolution ? "yes" : "no");
+                MetricRow("SSAO AO Size / Samples / Blur", "%u x %u / %u / %u",
+                    s.ssao.internalWidth,
+                    s.ssao.internalHeight,
+                    s.ssao.sampleCount,
+                    s.ssao.blurIterations);
+                MetricRow("SSAO CPU Geometry / Main / Blur / Total", "%.3f / %.3f / %.3f / %.3f ms",
+                    s.ssao.geometryBufferCpuMs,
+                    s.ssao.mainCpuMs,
+                    s.ssao.blurCpuMs,
+                    s.ssao.totalCpuMs);
+                MetricRow("Shadow Draws / AlphaMask / Enabled", "%zu / %zu / %s",
+                    s.shadow.totalPrimitiveCasterDrawCount,
+                    s.shadow.alphaMaskCasterDrawCount,
+                    s.shadow.enabled ? "yes" : "no");
+                MetricRow("Debug Lines / XRay / LightProbe", "%zu / %zu / %u",
+                    s.debugOverlay.expandedLineCount,
+                    s.debugOverlay.xrayLineCount,
+                    s.debugOverlay.lightProbeGizmoDrawnPointCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawReadiness(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Readiness");
+            if (ImGui::BeginTable("ReadinessTable", 3, ImGuiTableFlags_SizingStretchSame)) {
+                ImGui::TableNextColumn();
+                TextStatus("GPU Scene", s.mesh.surfaceGpuSceneSrvValid && s.mesh.surfaceGpuSceneBufferReady);
+                TextStatus("Indirect Args", s.mesh.surfaceIndirectArgumentBufferReady && s.mesh.surfaceIndirectCommandSignatureReady);
+                ImGui::TableNextColumn();
+                TextStatus("Cluster Cull", s.mesh.clusterGpuCullReady && s.mesh.clusterGpuCullDrawArgsReady);
+                TextStatus("Cluster Draw", s.mesh.clusterDrawPipelineReady && s.mesh.clusterDrawCommandSignatureReady);
+                ImGui::TableNextColumn();
+                TextStatus("Cluster Resource", s.clusterResources.initialized && s.clusterResources.readyResourceCount > 0);
+                TextStatus("GPU Timing", s.gpu.gpuTimingAvailable);
+                ImGui::EndTable();
+            }
         }
 
     } // namespace
@@ -724,17 +476,14 @@ namespace HIKARI {
 
     void PerformanceAuditPanel::DrawContents() const {
 #if defined(HIKARI_WITH_EDITOR)
-        const AuditSnapshot audit = BuildAuditSnapshot();
-
-        ImGui::Text("FPS(raw): %.1f", audit.fpsRaw);
-        ImGui::SameLine();
-        ImGui::TextDisabled("Counters are heuristic signals; GPU timings are delayed timestamp queries.");
-
-        DrawTopSummary(audit);
-        DrawRiskVerdict(audit);
-        DrawStageTable(audit);
-        DrawGpuTimingEvidence(audit);
-        DrawSsaoEvidence(audit);
+        const RuntimePerformanceSnapshot snapshot = BuildSnapshot();
+        DrawFrameSummary(snapshot);
+        DrawReadiness(snapshot);
+        DrawGpuTimingTable(snapshot);
+        DrawClusterRuntimeTable(snapshot);
+        DrawSubmissionTable(snapshot);
+        DrawClusterResourceTable(snapshot);
+        DrawSsaoAndOverlayTable(snapshot);
 #endif
     }
 

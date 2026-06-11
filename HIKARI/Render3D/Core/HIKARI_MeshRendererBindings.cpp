@@ -255,6 +255,22 @@ namespace HIKARI::MESHRENDERER {
                 descriptorSize,
                 GFX::DESCRIPTOR::kUserSrvBegin);
         }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
+            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
+            if (device == nullptr || heap == nullptr) {
+                return handle;
+            }
+
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            return GFX::DESCRIPTOR::GpuAt(
+                heap,
+                descriptorSize,
+                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
+        }
     }
 	// フレーム全体で共通のリソースをバインドする。これには、カメラ、ライト、シャドウ、スカイ環境の定数バッファが含まれる。ルートシグネチャも設定される。
     void BindFrameCommonResources(
@@ -274,6 +290,7 @@ namespace HIKARI::MESHRENDERER {
         BindCbvCached(ctx, ROOT_PARAM::ShadowCB, shadowAddress, false);
         BindCbvCached(ctx, ROOT_PARAM::SkyEnvironment, skyEnvironmentAddress, false);
         BindMaterialTexturePool(ctx);
+        BindClusterGeometryPool(ctx);
     }
 	// オブジェクト固有の定数バッファをバインドする。これには、モデル行列やマテリアルプロパティなどが含まれる。ルートパラメータのObjectスロットにバインドされる。
     void BindObjectConstantBuffer(
@@ -349,6 +366,17 @@ namespace HIKARI::MESHRENDERER {
         const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv = ResolveMaterialTexturePoolSrv();
         if (texturePoolSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::TexturePool, texturePoolSrv);
+        }
+    }
+
+    void BindClusterGeometryPool(const MeshBindingContext& ctx) {
+        if (ctx.cmd == nullptr) {
+            return;
+        }
+
+        const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv = ResolveClusterGeometryPoolSrv();
+        if (clusterPoolSrv.ptr != 0) {
+            BindDescriptorTableCached(ctx, ROOT_PARAM::ClusterGeometryPool, clusterPoolSrv);
         }
     }
 	// マテリアルに関連するテクスチャセットをバインドする

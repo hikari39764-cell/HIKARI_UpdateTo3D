@@ -146,10 +146,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
         command.resources = key.resources;
         command.psoKey = key.psoKey;
         command.geometryKey = key.geometryKey;
+        command.geometryBackend = key.geometryBackend;
         command.materialKey = key.materialKey;
         command.textureSetKey = key.textureSetKey;
         command.modelKey = key.modelKey;
         command.transparent = key.transparent;
+        command.alphaMasked = key.alphaMasked;
+        command.doubleSided = key.doubleSided;
+        command.clusterMainlineEligible = key.clusterMainlineEligible;
         command.drawArgs = BuildDrawIndexedArgs(
             packets_[firstPacketIndex],
             packetCount);

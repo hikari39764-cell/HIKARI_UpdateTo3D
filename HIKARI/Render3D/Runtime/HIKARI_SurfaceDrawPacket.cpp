@@ -10,6 +10,7 @@
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawCommandBuilder.h"
@@ -101,6 +102,18 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return &packet.model->materials[packet.materialIndex];
         }
 
+        const MeshPrimitive* ResolveMeshPrimitiveAsset(const SurfaceDrawPacket& packet) {
+            if (packet.model == nullptr ||
+                packet.meshIndex >= packet.model->meshes.size()) {
+                return nullptr;
+            }
+            const MeshAsset& mesh = packet.model->meshes[packet.meshIndex];
+            if (packet.primitiveIndex >= mesh.primitives.size()) {
+                return nullptr;
+            }
+            return &mesh.primitives[packet.primitiveIndex];
+        }
+
         int ResolveRuntimeTextureSlot(const Material& material, ModelTextureUsage usage) {
             return material.HasTextureSlot(usage) ? material.GetTextureSlot(usage).handle : -1;
         }
@@ -150,7 +163,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 " material=" + std::to_string(ids.materialIndex);
         }
 
-        void RegisterSurfaceResourceHandles(SurfaceResourceIds& ids) {
+        std::string BuildSurfaceClusterGeometryDebugName(const SurfaceResourceIds& ids) {
+            return
+                "SurfaceClusterGeometry model=" + std::to_string(ids.modelKey) +
+                " cluster=" + std::to_string(ids.clusterGeometryKey);
+        }
+
+        void RegisterSurfaceResourceHandles(
+            SurfaceResourceIds& ids,
+            const std::string& clusteredGeometryPath) {
             if (!ids.HasStableKeys()) {
                 return;
             }
@@ -161,21 +182,38 @@ namespace HIKARI::RENDER3D::RUNTIME {
             ids.material = RegisterVirtualMaterialResource(
                 BuildSurfaceResourceSourceKey("surface.material", ids.materialKey),
                 BuildSurfaceMaterialDebugName(ids));
-            // clusterGeometry は clustered geometry asset が確定した段階で実体 handle を入れる。
+            if (ids.clusterGeometryKey != 0) {
+                const std::string clusterSourceKey =
+                    BuildSurfaceResourceSourceKey("surface.cluster", ids.clusterGeometryKey);
+                ids.clusterGeometry = RegisterVirtualClusterGeometryResource(
+                    clusterSourceKey,
+                    BuildSurfaceClusterGeometryDebugName(ids));
+                if (!clusterSourceKey.empty()) {
+                    const ClusterGeometryResourceHandle loadedClusterGeometry =
+                        LoadClusterGeometryResource(clusterSourceKey, clusteredGeometryPath);
+                    if (loadedClusterGeometry) {
+                        ids.clusterGeometry = loadedClusterGeometry;
+                    }
+                }
+            }
         }
 
         SurfaceResourceIds BuildSurfaceResourceIds(
             const SurfaceDrawPacket& packet,
+            SurfaceGeometryBackend geometryBackend,
             uint64_t modelKey,
             uint64_t geometryKey,
+            uint64_t clusterGeometryKey,
             uint64_t materialKey,
             uint64_t textureSetKey,
             uint64_t shaderKey,
             uint64_t psoKey) {
 
             SurfaceResourceIds ids{};
+            ids.geometryBackend = geometryBackend;
             ids.modelKey = modelKey;
             ids.geometryKey = geometryKey;
+            ids.clusterGeometryKey = clusterGeometryKey;
             ids.materialKey = materialKey;
             ids.textureSetKey = textureSetKey;
             ids.shaderKey = shaderKey;
@@ -183,7 +221,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             ids.meshIndex = packet.meshIndex;
             ids.primitiveIndex = packet.primitiveIndex;
             ids.materialIndex = packet.materialIndex;
-            RegisterSurfaceResourceHandles(ids);
+            RegisterSurfaceResourceHandles(ids, packet.clusteredGeometryPath);
             return ids;
         }
 
@@ -201,6 +239,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
 
             const MaterialAsset* materialAsset = ResolveMaterialAsset(packet);
+            const MeshPrimitive* primitiveAsset = ResolveMeshPrimitiveAsset(packet);
             const uint64_t modelKey = BuildModelKey(packet);
 
             const SurfaceDrawShaderRoute shaderRoute = ResolveSurfaceDrawShaderRoute(
@@ -209,10 +248,35 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 packet.materialFxProfileId);
             const std::string& shaderProfile = shaderRoute.shaderProfileId;
             const uint32_t featureBits = shaderRoute.featureBits;
-            const bool doubleSided = shaderRoute.doubleSided;
+            bool doubleSided = shaderRoute.doubleSided;
+            if (packet.materialOverride == nullptr &&
+                materialAsset != nullptr &&
+                primitiveAsset != nullptr) {
+                doubleSided =
+                    SURFACE_POLICY::ShouldRenderDoubleSided(*materialAsset, *primitiveAsset) ||
+                    shaderRoute.profileDoubleSided;
+            }
             const AlphaMode alphaMode = shaderRoute.alphaMode;
+            const std::string& pixelShaderId =
+                !shaderRoute.pixelShaderId.empty() ? shaderRoute.pixelShaderId : shaderProfile;
+            const bool clusterVertexCompatible =
+                shaderRoute.vertexShaderId.empty() ||
+                shaderRoute.vertexShaderId == "Render3D_StaticVS";
+            const bool clusterPixelCompatible =
+                pixelShaderId.empty() ||
+                pixelShaderId == "PBR" ||
+                pixelShaderId == "StaticLit" ||
+                pixelShaderId == "Render3D_StaticPS";
 
             key.modelKey = modelKey;
+            key.clusterGeometryKey =
+                !packet.skinned
+                    ? BuildStableStringKey("cluster-geometry-path", packet.clusteredGeometryPath)
+                    : 0;
+            key.geometryBackend =
+                key.clusterGeometryKey != 0
+                    ? SurfaceGeometryBackend::ClusterGeometry
+                    : SurfaceGeometryBackend::TriangleMesh;
             key.geometryKey = HashString("geometry");
             key.geometryKey = HashAppend(key.geometryKey, modelKey);
             key.geometryKey = HashAppend(key.geometryKey, packet.meshIndex);
@@ -249,17 +313,30 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             key.resources = BuildSurfaceResourceIds(
                 packet,
+                key.geometryBackend,
                 key.modelKey,
                 key.geometryKey,
+                key.clusterGeometryKey,
                 key.materialKey,
                 key.textureSetKey,
                 key.shaderKey,
                 key.psoKey);
             key.alphaMasked = alphaMode == AlphaMode::Mask;
             key.transparent = alphaMode == AlphaMode::Blend;
+            key.doubleSided = doubleSided;
             key.resourceKeyValid = key.resources.HasStableKeys();
             key.objectDataCompatible = shaderRoute.objectDataCompatible;
             key.depthAware = shaderRoute.depthAware;
+            // Cluster draw は static opaque / alpha-mask を GPU scene 主線へ載せる。
+            // double-sided は cluster PSO の cull none で扱い、transparent / depth-aware は別 stream に残す。
+            key.clusterMainlineEligible =
+                key.geometryBackend == SurfaceGeometryBackend::ClusterGeometry &&
+                clusterVertexCompatible &&
+                clusterPixelCompatible &&
+                packet.materialFxProfileId.empty() &&
+                alphaMode != AlphaMode::Blend &&
+                !shaderRoute.depthAware &&
+                key.objectDataCompatible;
             return key;
         }
 
@@ -272,6 +349,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
             if (lhs.psoKey != rhs.psoKey) {
                 return lhs.psoKey < rhs.psoKey;
+            }
+            if (lhs.geometryBackend != rhs.geometryBackend) {
+                return lhs.geometryBackend < rhs.geometryBackend;
             }
             if (lhs.geometryKey != rhs.geometryKey) {
                 return lhs.geometryKey < rhs.geometryKey;
@@ -713,6 +793,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.skinned = surfaceInstance.skinned;
         packet.castShadow = surfaceInstance.castShadow;
         packet.receiveShadow = surfaceInstance.receiveShadow;
+        packet.clusteredGeometryPath = surfaceInstance.clusteredGeometryPath;
         packet.materialOverride = surfaceInstance.materialOverride;
         packet.materialFxProfileId = surfaceInstance.materialFxProfileId;
         packet.postGroupMask = surfaceInstance.postGroupMask;
@@ -842,6 +923,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     ++stats.resourcePoolHandlePacketCount;
                 } else {
                     ++stats.resourcePoolMissingPacketCount;
+                }
+                if (packet.key.geometryBackend == SurfaceGeometryBackend::ClusterGeometry) {
+                    ++stats.clusterGeometryBackendPacketCount;
+                } else {
+                    ++stats.triangleGeometryBackendPacketCount;
+                }
+                if (packet.key.resources.clusterGeometry) {
+                    ++stats.clusterGeometryResourcePacketCount;
                 }
                 modelBuckets.insert(packet.key.modelKey);
                 geometryBuckets.insert(packet.key.geometryKey);
@@ -1175,6 +1264,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 opaqueGpuSceneStats.missingResourceHandleInstanceCount +
                 depthAwareGpuSceneStats.missingResourceHandleInstanceCount +
                 transparentGpuSceneStats.missingResourceHandleInstanceCount;
+            outStats.submittedGpuSceneClusterResourceInstanceCount =
+                opaqueGpuSceneStats.clusterResourceInstanceCount +
+                depthAwareGpuSceneStats.clusterResourceInstanceCount +
+                transparentGpuSceneStats.clusterResourceInstanceCount;
+            outStats.submittedGpuSceneClusterShaderVisibleInstanceCount =
+                opaqueGpuSceneStats.clusterShaderVisibleInstanceCount +
+                depthAwareGpuSceneStats.clusterShaderVisibleInstanceCount +
+                transparentGpuSceneStats.clusterShaderVisibleInstanceCount;
+            outStats.submittedGpuSceneClusterSurfaceRangeInstanceCount =
+                opaqueGpuSceneStats.clusterSurfaceRangeInstanceCount +
+                depthAwareGpuSceneStats.clusterSurfaceRangeInstanceCount +
+                transparentGpuSceneStats.clusterSurfaceRangeInstanceCount;
+            outStats.submittedGpuSceneClusterMissingSurfaceRangeInstanceCount =
+                opaqueGpuSceneStats.clusterMissingSurfaceRangeInstanceCount +
+                depthAwareGpuSceneStats.clusterMissingSurfaceRangeInstanceCount +
+                transparentGpuSceneStats.clusterMissingSurfaceRangeInstanceCount;
         }
 
 
@@ -1228,6 +1333,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 shadowGpuSceneStats.resourceBackedInstanceCount;
             outStats.shadowGpuSceneMissingResourceInstanceCount =
                 shadowGpuSceneStats.missingResourceHandleInstanceCount;
+            outStats.shadowGpuSceneClusterResourceInstanceCount =
+                shadowGpuSceneStats.clusterResourceInstanceCount;
+            outStats.shadowGpuSceneClusterShaderVisibleInstanceCount =
+                shadowGpuSceneStats.clusterShaderVisibleInstanceCount;
+            outStats.shadowGpuSceneClusterSurfaceRangeInstanceCount =
+                shadowGpuSceneStats.clusterSurfaceRangeInstanceCount;
+            outStats.shadowGpuSceneClusterMissingSurfaceRangeInstanceCount =
+                shadowGpuSceneStats.clusterMissingSurfaceRangeInstanceCount;
         }
     }
 

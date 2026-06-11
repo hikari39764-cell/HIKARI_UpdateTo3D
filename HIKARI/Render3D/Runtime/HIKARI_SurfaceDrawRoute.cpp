@@ -80,7 +80,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             route.shaderProfileId = materialAsset->shaderProfileId.empty() ? "PBR" : materialAsset->shaderProfileId;
             route.featureBits = materialAsset->featureBits;
             route.alphaMode = materialAsset->alphaMode;
-            route.doubleSided = materialAsset->doubleSided;
+            route.doubleSided = MATERIAL_POLICY::ShouldRenderDoubleSided(*materialAsset);
         }
 
         if (!materialFxProfileId.empty()) {
@@ -96,6 +96,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     route.pixelShaderId = profile.pixelShaderId;
                 }
                 route.featureBits = profile.featureBits;
+                route.profileDoubleSided = profile.doubleSided;
                 route.doubleSided = route.doubleSided || profile.doubleSided;
                 route.depthAware = profile.renderPhase == MaterialFxRenderPhase::DepthAware;
                 if (materialAsset != nullptr &&

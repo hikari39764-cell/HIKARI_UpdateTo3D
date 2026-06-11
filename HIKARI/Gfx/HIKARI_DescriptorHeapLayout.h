@@ -34,6 +34,8 @@ namespace HIKARI::GFX::DESCRIPTOR {
     };
 
     constexpr UINT kSystemSrvUsedCount = 17;
+    constexpr UINT kSystemSrvDynamicBegin = kSystemSrvBegin + kSystemSrvUsedCount;
+    constexpr UINT kSystemSrvDynamicCount = kSystemSrvReservedCount - kSystemSrvUsedCount;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
@@ -71,6 +73,8 @@ namespace HIKARI::GFX::DESCRIPTOR {
 
     static_assert(kSystemSrvReservedCount >= kSystemSrvUsedCount);
     static_assert(kSystemSrvBegin < kSrvHeapCapacity);
+    static_assert(kSystemSrvDynamicBegin < kSrvHeapCapacity);
+    static_assert(kSystemSrvDynamicBegin + kSystemSrvDynamicCount <= kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneColor) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneDepth) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::EditorViewport) < kSrvHeapCapacity);

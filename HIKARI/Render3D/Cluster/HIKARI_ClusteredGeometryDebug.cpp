@@ -88,10 +88,19 @@ namespace HIKARI::RENDER3D::CLUSTER {
         case ClusterDebugViewMode::SelectedSurfaceBounds: return "Selected Surface Bounds";
         case ClusterDebugViewMode::FirstNClusterBounds: return "First N Cluster Bounds";
         case ClusterDebugViewMode::ClusterPageBounds: return "Cluster Page Bounds";
+        case ClusterDebugViewMode::ClusterColorMesh: return "Cluster Color Mesh";
+        case ClusterDebugViewMode::PageColorMesh: return "Page Color Mesh";
+        case ClusterDebugViewMode::SurfaceColorMesh: return "Surface Color Mesh";
         case ClusterDebugViewMode::Off:
         default:
             return "Off";
         }
+    }
+
+    bool IsClusterDebugColorMeshMode(ClusterDebugViewMode mode) {
+        return mode == ClusterDebugViewMode::ClusterColorMesh ||
+            mode == ClusterDebugViewMode::PageColorMesh ||
+            mode == ClusterDebugViewMode::SurfaceColorMesh;
     }
 
     void SubmitClusterDebugOverlay(

@@ -27,9 +27,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t passMask = 0;
         bool hasMaterialOverride = false;
         bool skinned = false;
+        SurfaceGeometryBackend geometryBackend = SurfaceGeometryBackend::TriangleMesh;
 
         uint64_t modelKey = 0;
         uint64_t geometryKey = 0;
+        uint64_t clusterGeometryKey = 0;
         uint64_t materialKey = 0;
         uint64_t textureSetKey = 0;
         uint64_t shaderKey = 0;
@@ -39,9 +41,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         bool resourceKeyValid = false;
         bool objectDataCompatible = false;
+        bool clusterMainlineEligible = false;
         bool depthAware = false;
         bool alphaMasked = false;
         bool transparent = false;
+        bool doubleSided = false;
     };
 
     inline SurfaceDrawBatchKey BuildSurfaceDrawBatchKey(
@@ -50,9 +54,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         SurfaceDrawBatchKey batchKey{};
         batchKey.pass = pass;
+        batchKey.geometryBackend = key.geometryBackend;
         batchKey.psoKey = key.psoKey;
         batchKey.geometryKey = key.geometryKey;
         batchKey.transparent = key.transparent;
+        batchKey.clusterMainlineEligible = key.clusterMainlineEligible;
         return batchKey;
     }
 
@@ -87,6 +93,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool receiveShadow = true;
         bool forwardCandidate = false;
         bool shadowCandidate = false;
+        std::string clusteredGeometryPath{};
 
         const Material* materialOverride = nullptr;
         std::string materialFxProfileId{};
@@ -190,6 +197,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t submittedMaxGpuSceneCommandInstanceCount = 0;
         uint32_t submittedGpuSceneResourceInstanceCount = 0;
         uint32_t submittedGpuSceneMissingResourceInstanceCount = 0;
+        uint32_t submittedGpuSceneClusterResourceInstanceCount = 0;
+        uint32_t submittedGpuSceneClusterShaderVisibleInstanceCount = 0;
+        uint32_t submittedGpuSceneClusterSurfaceRangeInstanceCount = 0;
+        uint32_t submittedGpuSceneClusterMissingSurfaceRangeInstanceCount = 0;
         uint32_t transparentDepthSortCandidateCount = 0;
         uint32_t transparentDepthSortedPacketCount = 0;
         uint32_t transparentDepthReorderedPacketCount = 0;
@@ -229,6 +240,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t shadowMaxGpuSceneCommandInstanceCount = 0;
         uint32_t shadowGpuSceneResourceInstanceCount = 0;
         uint32_t shadowGpuSceneMissingResourceInstanceCount = 0;
+        uint32_t shadowGpuSceneClusterResourceInstanceCount = 0;
+        uint32_t shadowGpuSceneClusterShaderVisibleInstanceCount = 0;
+        uint32_t shadowGpuSceneClusterSurfaceRangeInstanceCount = 0;
+        uint32_t shadowGpuSceneClusterMissingSurfaceRangeInstanceCount = 0;
 
         uint32_t shadowSkippedNoShadowPacketCount = 0;
         uint32_t shadowSkippedInvalidPacketCount = 0;
@@ -276,6 +291,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t resourceIdentityPacketCount = 0;
             uint32_t resourcePoolHandlePacketCount = 0;
             uint32_t resourcePoolMissingPacketCount = 0;
+            uint32_t triangleGeometryBackendPacketCount = 0;
+            uint32_t clusterGeometryBackendPacketCount = 0;
+            uint32_t clusterGeometryResourcePacketCount = 0;
 
             uint32_t sortEligiblePacketCount = 0;
             uint32_t sortedPacketCount = 0;

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 
+#include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
@@ -94,6 +95,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
             if (packet.materialOverride != nullptr) {
                 flags |= ToFlag(SurfaceGpuSceneInstanceFlags::MaterialOverride);
             }
+            if (packet.key.doubleSided) {
+                flags |= ToFlag(SurfaceGpuSceneInstanceFlags::DoubleSided);
+            }
+            if (!packet.materialFxProfileId.empty()) {
+                flags |= ToFlag(SurfaceGpuSceneInstanceFlags::MaterialFx);
+            }
+            if (packet.key.clusterMainlineEligible) {
+                flags |= ToFlag(SurfaceGpuSceneInstanceFlags::ClusterMainline);
+            }
             return flags;
         }
 
@@ -116,6 +126,55 @@ namespace HIKARI::RENDER3D::RUNTIME {
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 const DirectX::XMFLOAT4& value = packet.materialFxParamValues[i];
                 instance.fxUser[i] = { value.x, value.y, value.z, value.w };
+            }
+        }
+
+        void FillClusterGeometryData(
+            const SurfaceDrawPacket& packet,
+            SurfaceGpuSceneInstance& instance,
+            SurfaceGpuSceneBuildStats* stats) {
+
+            const SurfaceResourceIds& resources = packet.key.resources;
+            if (!resources.clusterGeometry) {
+                return;
+            }
+
+            if (stats != nullptr) {
+                ++stats->clusterResourceInstanceCount;
+            }
+
+            const ClusterGeometryResourceRecord* record =
+                GetClusterGeometryResource(resources.clusterGeometry);
+            if (record != nullptr && record->ready && record->srv.IsValid()) {
+                instance.clusterGeometrySrvDescriptorIndex = record->srv.descriptorIndex;
+                instance.resourceFlags |= ToResourceFlag(
+                    SurfaceGpuSceneResourceFlags::ClusterGeometryShaderVisible);
+                if (stats != nullptr) {
+                    ++stats->clusterShaderVisibleInstanceCount;
+                }
+            }
+
+            const CLUSTER::ClusterGeometrySurfaceRange* range =
+                FindClusterGeometrySurfaceRange(
+                    resources.clusterGeometry,
+                    packet.nodeIndex,
+                    packet.meshIndex,
+                    packet.primitiveIndex);
+            if (range == nullptr) {
+                if (stats != nullptr) {
+                    ++stats->clusterMissingSurfaceRangeInstanceCount;
+                }
+                return;
+            }
+
+            instance.clusterSurfaceIndex = range->surfaceIndex;
+            instance.clusterRangeIndex = range->firstCluster;
+            instance.clusterRangeCount = range->clusterCount;
+            instance.clusterIndexCount = range->indexCount;
+            instance.resourceFlags |= ToResourceFlag(
+                SurfaceGpuSceneResourceFlags::ClusterGeometrySurfaceRange);
+            if (stats != nullptr) {
+                ++stats->clusterSurfaceRangeInstanceCount;
             }
         }
     }
@@ -162,6 +221,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     packets[packetIndex],
                     packetIndex,
                     localIndex);
+                FillClusterGeometryData(packets[packetIndex], instance, &stats);
                 if (packets[packetIndex].key.resources.HasPoolHandles()) {
                     ++stats.resourceBackedInstanceCount;
                 } else {
@@ -203,6 +263,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         SurfaceGpuSceneInstance instance{};
         instance.world = packet.drawWorldMatrix;
         instance.normalMatrix = BuildNormalMatrixFromWorld(packet.drawWorldMatrix);
+        // HCMESH は node global を頂点へ bake 済みなので、cluster draw では object world だけを使う。
+        instance.clusterWorld = packet.objectWorldTransform.GetWorldMatrix();
+        instance.clusterNormalMatrix = BuildNormalMatrixFromWorld(instance.clusterWorld);
         instance.boundsCenterRadius = BuildBoundsCenterRadius(packet.worldBounds);
         instance.sourcePacketIndex = sourcePacketIndex;
         instance.sourceSurfaceInstanceIndex = packet.sourceSurfaceInstanceIndex;
@@ -213,6 +276,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         instance.sourceMaterialIndex = packet.materialIndex;
         instance.nodeIndex = packet.nodeIndex;
         instance.flags = BuildInstanceFlags(packet);
+        instance.geometryBackend = static_cast<uint32_t>(packet.key.geometryBackend);
         const SurfaceResourceIds& resources = packet.key.resources;
         if (resources.mesh) {
             instance.meshResourceIndex = resources.mesh.index;

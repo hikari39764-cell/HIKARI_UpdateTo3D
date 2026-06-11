@@ -301,7 +301,7 @@ namespace HIKARI {
     }
 
     uint32_t TextureImporter::GetImporterVersion() const {
-        return 2;
+        return 3;
     }
 
     bool TextureImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -417,6 +417,20 @@ namespace HIKARI {
 
         result.success = true;
         result.message = "[TextureImporter] Imported with DirectXTex and wrote HTEX";
+        result.diagnosticsJson = nlohmann::json{
+            { "format", "HTEX" },
+            { "texture", {
+                { "usage", ToString(settings.usage) },
+                { "dimension", ToString(settings.dimension) },
+                { "colorSpace", ToString(settings.colorSpace) },
+                { "compression", ToString(settings.compression) },
+                { "sourceHasAlphaChannel", settings.sourceHasAlphaChannel },
+                { "sourceHasMeaningfulAlpha", settings.sourceHasMeaningfulAlpha },
+                { "sourceHasTranslucentAlpha", settings.sourceHasTranslucentAlpha },
+                { "sourceHasCutoutAlpha", settings.sourceHasCutoutAlpha },
+                { "sourceAlphaNonOpaqueRatio", settings.sourceAlphaNonOpaqueRatio },
+            } },
+        }.dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainTexture",
             MakeProjectRelative(context.projectRoot, finalHtexPath).generic_string(),

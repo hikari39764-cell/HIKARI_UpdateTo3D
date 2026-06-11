@@ -12,7 +12,7 @@ namespace HIKARI::MESHRENDERER {
 
     struct MeshRendererDebugStats;
 
-    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::SurfaceGpuSceneControl + 1u;
+    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::ClusterGeometryPool + 1u;
 
     struct MeshBindingStateCache {
         ID3D12RootSignature* rootSignature = nullptr;
@@ -81,6 +81,8 @@ namespace HIKARI::MESHRENDERER {
         bool enabled);
 
     void BindMaterialTexturePool(const MeshBindingContext& ctx);
+
+    void BindClusterGeometryPool(const MeshBindingContext& ctx);
 
     void BindPipelineState(
         const MeshBindingContext& ctx,

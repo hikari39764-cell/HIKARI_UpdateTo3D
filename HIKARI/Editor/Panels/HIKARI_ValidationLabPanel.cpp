@@ -3,6 +3,8 @@
 #include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
+#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -106,7 +108,6 @@ namespace HIKARI {
                 const RenderSubmissionRouteMode modes[] = {
                     RenderSubmissionRouteMode::SurfacePacketMainline,
                     RenderSubmissionRouteMode::ForceLegacy,
-                    RenderSubmissionRouteMode::LegacyCompare,
                 };
                 for (RenderSubmissionRouteMode candidate : modes) {
                     if (ImGui::Selectable(ToString(candidate), mode == candidate)) {
@@ -149,6 +150,9 @@ namespace HIKARI {
                     RENDER3D::CLUSTER::ClusterDebugViewMode::SelectedSurfaceBounds,
                     RENDER3D::CLUSTER::ClusterDebugViewMode::FirstNClusterBounds,
                     RENDER3D::CLUSTER::ClusterDebugViewMode::ClusterPageBounds,
+                    RENDER3D::CLUSTER::ClusterDebugViewMode::ClusterColorMesh,
+                    RENDER3D::CLUSTER::ClusterDebugViewMode::PageColorMesh,
+                    RENDER3D::CLUSTER::ClusterDebugViewMode::SurfaceColorMesh,
                 };
                 for (RENDER3D::CLUSTER::ClusterDebugViewMode candidate : modes) {
                     if (ImGui::Selectable(
@@ -249,6 +253,12 @@ namespace HIKARI {
                 packetStats.validPacketCount,
                 packetStats.staticGeometryPacketCount,
                 packetStats.skinnedPacketCount);
+            ImGui::Text("Cluster Surface / Resource Packets: %u / %u",
+                sceneStats.clusteredGeometrySurfaceInstanceCount,
+                packetStats.clusterGeometryResourcePacketCount);
+            ImGui::Text("Geometry Backend Triangle / Cluster: %u / %u",
+                packetStats.triangleGeometryBackendPacketCount,
+                packetStats.clusterGeometryBackendPacketCount);
             ImGui::Text("Resource Identity / Pool Handles / Missing Pool: %u / %u / %u",
                 packetStats.resourceIdentityPacketCount,
                 packetStats.resourcePoolHandlePacketCount,
@@ -260,10 +270,9 @@ namespace HIKARI {
 
             ImGui::SeparatorText("Static Forward Mainline");
             ImGui::Text("Opaque Mainline Status: %s", opaqueMainlineStatus);
-            ImGui::Text("Route Mode / SurfacePacket Active / Compare / ForceLegacy: %s / %s / %s / %s",
+            ImGui::Text("Route Mode / Mainline Active / ForceLegacy: %s / %s / %s",
                 ToString(renderSubmissionStats.routeMode),
                 renderSubmissionStats.surfacePacketMainRouteActive ? "true" : "false",
-                renderSubmissionStats.surfacePacketLegacyCompareActive ? "true" : "false",
                 renderSubmissionStats.surfacePacketForceLegacyActive ? "true" : "false");
             ImGui::Text("Forward Bypass / RuntimeSpecial Fwd / Total: %d / %d / %d",
                 renderSubmissionStats.surfacePacketForwardSkipCount,
@@ -312,9 +321,10 @@ namespace HIKARI {
                 gpuSceneReady ? "Ready" : "Missing",
                 meshStats.surfaceGpuSceneUploadedInstanceCount,
                 meshStats.surfaceGpuSceneOverflowInstanceCount);
-            ImGui::Text("Indirect Buffer Ready / Uploaded / Binding / Direct / Missing / Overflow: %s / %zu / %zu / %zu / %zu / %zu",
+            ImGui::Text("Indirect Buffer Ready / Uploaded / Filtered / Binding / Direct / Missing / Overflow: %s / %zu / %zu / %zu / %zu / %zu / %zu",
                 indirectReady ? "Ready" : "Missing",
                 meshStats.surfaceIndirectUploadedCommandCount,
+                meshStats.surfaceIndirectFilteredCommandCount,
                 meshStats.surfaceIndirectDrawBindingPatchCount,
                 meshStats.surfaceIndirectCpuDirectCommandCount,
                 meshStats.surfaceIndirectMissingDrawArgsCommandCount,
@@ -328,6 +338,108 @@ namespace HIKARI {
             ImGui::Text("GPU Scene Resource Instances / Missing: %u / %u",
                 planStats.submittedGpuSceneResourceInstanceCount,
                 planStats.submittedGpuSceneMissingResourceInstanceCount);
+            ImGui::Text("GPU Scene Cluster Resource / SRV / Range / Missing Range: %u / %u / %u / %u",
+                planStats.submittedGpuSceneClusterResourceInstanceCount,
+                planStats.submittedGpuSceneClusterShaderVisibleInstanceCount,
+                planStats.submittedGpuSceneClusterSurfaceRangeInstanceCount,
+                planStats.submittedGpuSceneClusterMissingSurfaceRangeInstanceCount);
+            ImGui::Text("Cluster GPU Cull Ready / GPUScene Source / Candidate / Submitted Inst / Overflow: %s / %zu / %zu / %zu / %zu",
+                meshStats.clusterGpuCullReady ? "Ready" : "Missing",
+                meshStats.clusterGpuCullSourceInstanceCount,
+                meshStats.clusterGpuCullCandidateInstanceCount,
+                meshStats.clusterGpuCullSubmittedInstanceCount,
+                meshStats.clusterGpuCullOverflowInstanceCount);
+            ImGui::Text("Cluster GPU Source SingleSided / DoubleSided Inst: %zu / %zu",
+                meshStats.clusterGpuCullSourceSingleSidedInstanceCount,
+                meshStats.clusterGpuCullSourceDoubleSidedInstanceCount);
+            ImGui::Text("Cluster GPU Page Tasks CPU Seeds / GPU Expanded / Overflow: %zu / %zu / %zu",
+                meshStats.clusterGpuCullSourcePageTaskCount,
+                meshStats.clusterGpuCullGpuPageTaskCount,
+                meshStats.clusterGpuCullGpuPageTaskOverflowCount);
+            ImGui::Text("Cluster GPU Cull Debug Counters: %s",
+                meshStats.clusterGpuCullDebugCountersEnabled ? "on" : "off");
+            ImGui::Text("Cluster GPU Visible Runs / Input Culled / Clusters / DrawArgs / Overflow: %s / %zu / %zu / %zu / %zu / %zu",
+                meshStats.clusterGpuCullCounterReadbackValid ? "Valid" :
+                    (meshStats.clusterGpuCullCounterReadbackReady ? "Waiting" : "Missing"),
+                meshStats.clusterGpuCullGpuVisibleRangeCount,
+                meshStats.clusterGpuCullGpuInputFrustumCulledCount,
+                meshStats.clusterGpuCullGpuVisibleClusterCount,
+                meshStats.clusterGpuCullGpuDrawCommandCount,
+                meshStats.clusterGpuCullGpuDrawCommandOverflowCount +
+                    meshStats.clusterGpuCullGpuOverflowCount);
+            ImGui::Text("Cluster GPU Page Tested / Frustum Culled: %zu / %zu",
+                meshStats.clusterGpuCullGpuPageTestedCount,
+                meshStats.clusterGpuCullGpuPageFrustumCulledCount);
+            ImGui::Text("Cluster GPU Cluster Tested / Frustum / Cone Culled: %zu / %zu / %zu",
+                meshStats.clusterGpuCullGpuClusterTestedCount,
+                meshStats.clusterGpuCullGpuClusterFrustumCulledCount,
+                meshStats.clusterGpuCullGpuClusterConeCulledCount);
+            ImGui::Text("Cluster GPU Cone Tested / DoubleSided Skip Cone: %zu / %zu",
+                meshStats.clusterGpuCullGpuClusterConeTestedCount,
+                meshStats.clusterGpuCullGpuDoubleSidedClusterCount);
+            ImGui::Text("Cluster GPU DrawArgs BackFace / DoubleSided / Overflow: %zu / %zu / %zu / %zu",
+                meshStats.clusterGpuCullGpuBackFaceDrawCommandCount,
+                meshStats.clusterGpuCullGpuDoubleSidedDrawCommandCount,
+                meshStats.clusterGpuCullGpuBackFaceDrawCommandOverflowCount,
+                meshStats.clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount);
+            ImGui::Text("Cluster Draw Eligible / Reject Mainline / Backend / Transparent: %zu / %zu / %zu / %zu",
+                meshStats.clusterDrawEligibleCommandCount,
+                meshStats.clusterDrawRejectMainlineCommandCount,
+                meshStats.clusterDrawRejectBackendCommandCount,
+                meshStats.clusterDrawRejectTransparentCommandCount);
+            ImGui::Text("Cluster Draw Reject Range / Resource / Flags / MaterialFx / Material / Context: %zu / %zu / %zu / %zu / %zu / %zu",
+                meshStats.clusterDrawRejectRangeCommandCount,
+                meshStats.clusterDrawRejectInstanceResourceCommandCount,
+                meshStats.clusterDrawRejectInstanceFlagCommandCount,
+                meshStats.clusterDrawRejectMaterialFxCommandCount,
+                meshStats.clusterDrawRejectMaterialPatchCommandCount,
+                meshStats.clusterDrawRejectContextCommandCount);
+            ImGui::Text("Cluster GPU Cull Dispatch / Groups / Capacity: %zu / %zu / %zu",
+                meshStats.clusterGpuCullDispatchCount,
+                meshStats.clusterGpuCullWorkgroupCount,
+                meshStats.clusterGpuCullVisibleRangeCapacity);
+            ImGui::Text("Cluster Draw Args Ready / Signature / GPU PageTasks / Capacity: %s / %s / %zu / %zu",
+                meshStats.clusterGpuCullDrawArgsReady ? "Ready" : "Missing",
+                meshStats.clusterGpuCullCommandSignatureReady ? "Ready" : "Missing",
+                meshStats.clusterGpuCullGpuPageTaskCount,
+                meshStats.clusterGpuCullDrawArgumentCapacity);
+            ImGui::Text("Cluster Draw Executor Pipeline / Forward / Geometry / Args / Signature: %s / %s / %s / %s / %s",
+                meshStats.clusterDrawPipelineReady ? "Ready" : "Pending",
+                meshStats.clusterDrawForwardPipelineReady ? "Ready" : "Pending",
+                meshStats.clusterDrawGeometryBufferPipelineReady ? "Ready" : "Pending",
+                meshStats.clusterDrawArgumentBufferReady ? "Ready" : "Missing",
+                meshStats.clusterDrawCommandSignatureReady ? "Ready" : "Missing");
+            ImGui::Text("Cluster Mainline Ready / Forward / GeometryAux / Seeds / OverflowBlock: %s / %s / %s / %s / %s",
+                meshStats.clusterMainlineReady ? "Ready" : "Blocked",
+                meshStats.clusterMainlineForwardReady ? "Ready" : "Blocked",
+                meshStats.clusterMainlineGeometryBufferReady ? "Ready" : "Blocked",
+                meshStats.clusterMainlineHasDrawSeeds ? "yes" : "no",
+                meshStats.clusterMainlineOverflowBlocked ? "yes" : "no");
+            ImGui::Text("Opaque Ownership Cluster / GeometryAux / Legacy Commands: %zu / %zu / %zu",
+                meshStats.clusterMainlineOwnedCommandCount,
+                meshStats.clusterMainlineGeometryAuxCommandCount,
+                meshStats.clusterMainlineLegacyCommandCount);
+            ImGui::Text("Opaque Ownership Cluster / GeometryAux / Legacy Packets: %zu / %zu / %zu",
+                meshStats.clusterMainlineOwnedPacketCount,
+                meshStats.clusterMainlineGeometryAuxPacketCount,
+                meshStats.clusterMainlineLegacyPacketCount);
+            ImGui::Text("Cluster Draw Requested / Submitted / Skipped / Calls / EmptyBuckets: %zu / %zu / %zu / %zu / %zu",
+                meshStats.clusterDrawRequestedCount,
+                meshStats.clusterDrawSubmittedCount,
+                meshStats.clusterDrawSkippedCount,
+                meshStats.clusterDrawSubmitCallCount,
+                meshStats.clusterDrawSkippedBucketCount);
+            ImGui::Text("Cluster Draw Forward / Geometry Submitted / Calls: %zu / %zu / %zu / %zu",
+                meshStats.clusterDrawForwardSubmittedCount,
+                meshStats.clusterDrawGeometryBufferSubmittedCount,
+                meshStats.clusterDrawForwardSubmitCallCount,
+                meshStats.clusterDrawGeometryBufferSubmitCallCount);
+            ImGui::Text("Cluster Draw Bucket Calls BackFace / DoubleSided: %zu / %zu",
+                meshStats.clusterDrawBackFaceSubmitCallCount,
+                meshStats.clusterDrawDoubleSidedSubmitCallCount);
+            ImGui::Text("Cluster Mainline Legacy Bypass Commands / Packets: %zu / %zu",
+                meshStats.clusterDrawBypassedLegacyCommandCount,
+                meshStats.clusterDrawBypassedLegacyPacketCount);
             ImGui::Text("ExecuteIndirect Opaque Commands / Packets: %zu / %zu",
                 meshStats.surfaceIndirectOpaqueCommandCount,
                 meshStats.surfaceIndirectOpaquePacketCount);
@@ -395,6 +507,11 @@ namespace HIKARI {
             ImGui::Text("Shadow GPU Scene Resource Instances / Missing: %u / %u",
                 planStats.shadowGpuSceneResourceInstanceCount,
                 planStats.shadowGpuSceneMissingResourceInstanceCount);
+            ImGui::Text("Shadow GPU Scene Cluster Resource / SRV / Range / Missing Range: %u / %u / %u / %u",
+                planStats.shadowGpuSceneClusterResourceInstanceCount,
+                planStats.shadowGpuSceneClusterShaderVisibleInstanceCount,
+                planStats.shadowGpuSceneClusterSurfaceRangeInstanceCount,
+                planStats.shadowGpuSceneClusterMissingSurfaceRangeInstanceCount);
             ImGui::Text("Shadow Indirect Ready / Uploaded / Binding / Direct / Missing / Overflow: %s / %zu / %zu / %zu / %zu / %zu",
                 shadowIndirectReady ? "Ready" : "Missing",
                 shadowStats.shadowIndirectUploadedCommandCount,
@@ -426,7 +543,7 @@ namespace HIKARI {
                 return;
             }
 
-            ImGui::TextDisabled("Temporary HCMESH preview path. CPU reference remains isolated from the normal SurfacePacket route.");
+            ImGui::TextDisabled("HCMESH cache and CPU reference are kept as cluster authoring tools; runtime submission uses SurfacePacket.");
             DrawClusteredRenderModeCombo(context.clusteredGeometry.renderMode);
 
             if (context.selection.selectedObject) {
@@ -478,6 +595,43 @@ namespace HIKARI {
                 RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().empty()
                     ? "<none>"
                     : RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().c_str());
+
+            const RENDER3D::ClusterGeometryResourceSystemStats clusterResourceStats =
+                RENDER3D::GetClusterGeometryResourceSystemStats();
+            ImGui::SeparatorText("Cluster GPU Resources");
+            ImGui::Text("Context / Ready Resources / Failed: %s / %u / %u",
+                clusterResourceStats.initialized ? "Ready" : "Missing",
+                clusterResourceStats.readyResourceCount,
+                clusterResourceStats.failedCount);
+            ImGui::Text("Requests / Hits / Misses / Loaded: %u / %u / %u / %u",
+                clusterResourceStats.requestCount,
+                clusterResourceStats.hitCount,
+                clusterResourceStats.missCount,
+                clusterResourceStats.loadedCount);
+            ImGui::Text("Resources / Upgraded Virtual Handles: %u / %u",
+                clusterResourceStats.resourceCount,
+                clusterResourceStats.upgradedVirtualHandleCount);
+            ImGui::Text("Shader SRV Ready / Missing / Allocation Failed: %u / %u / %u",
+                clusterResourceStats.shaderVisibleResourceCount,
+                clusterResourceStats.missingDescriptorCount,
+                clusterResourceStats.descriptorAllocationFailedCount);
+            ImGui::Text("GPU Surfaces / Clusters / Pages: %u / %u / %u",
+                clusterResourceStats.surfaceCount,
+                clusterResourceStats.clusterCount,
+                clusterResourceStats.pageCount);
+            ImGui::Text("GPU Surface Ranges: %u", clusterResourceStats.surfaceRangeCount);
+            ImGui::Text("GPU Vertices / Indices / Bytes: %u / %u / %.2f MB",
+                clusterResourceStats.vertexCount,
+                clusterResourceStats.indexCount,
+                static_cast<double>(clusterResourceStats.gpuBufferBytes) / (1024.0 * 1024.0));
+
+            const RENDER3D::RenderResourceDescriptorPoolStats descriptorStats =
+                RENDER3D::GetRenderResourceDescriptorPoolStats();
+            ImGui::Text("Resource Descriptor Pool: %s, used %u / %u, failed %u",
+                descriptorStats.initialized ? "Ready" : "Missing",
+                descriptorStats.used,
+                descriptorStats.capacity,
+                descriptorStats.failedAllocationCount);
         }
     }
 #endif
@@ -503,7 +657,7 @@ namespace HIKARI {
 
     void ValidationLabPanel::DrawContents(EditorContext& context) const {
 #if defined(HIKARI_WITH_EDITOR)
-        ImGui::TextDisabled("Temporary validation and migration controls. Delete sections when their phase passes.");
+        ImGui::TextDisabled("Renderer contract, GPU-driven submission, and cluster resource status.");
         DrawSurfacePacketValidationSection();
         DrawClusterValidationSection(context);
 #else

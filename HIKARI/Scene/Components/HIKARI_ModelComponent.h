@@ -44,7 +44,8 @@ namespace HIKARI {
         uint32_t segmentsZ = 1;
         uint32_t sphereSlices = 32;
         uint32_t sphereStacks = 16;
-        bool doubleSided = true;
+        // 両面描画は cluster の cone culling を無効化するため、必要な面だけ明示的に有効化する。
+        bool doubleSided = false;
         bool generateTangents = true;
     };
 

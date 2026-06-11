@@ -4,6 +4,7 @@
 
 namespace HIKARI {
     struct MaterialAsset;
+    struct MeshPrimitive;
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -16,6 +17,7 @@ namespace HIKARI::MESHRENDERER {
 
     VFX::VariantKey ResolvePrimitiveVariant(
         const DrawItem& item,
-        const MaterialAsset* materialAsset);
+        const MaterialAsset* materialAsset,
+        const MeshPrimitive* primitiveAsset = nullptr);
 
 } // namespace HIKARI::MESHRENDERER

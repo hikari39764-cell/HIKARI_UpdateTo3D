@@ -38,6 +38,7 @@ namespace HIKARI::RENDER3D::CORE {
         bool HasMaterialDataIndex(size_t instanceIndex) const;
 
         D3D12_GPU_DESCRIPTOR_HANDLE GetSrv() const;
+        D3D12_GPU_VIRTUAL_ADDRESS GetGpuVirtualAddress() const;
         const SurfaceGpuSceneFrameBufferStats& GetStats() const;
 
     private:

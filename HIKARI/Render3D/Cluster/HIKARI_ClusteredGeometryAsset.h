@@ -80,6 +80,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstVertex = 0;
         uint32_t vertexCount = 0;
 
+        uint32_t firstPage = 0;
+        uint32_t pageCount = 0;
+
         Bounds localBounds{};
 
         uint32_t flags = 0;

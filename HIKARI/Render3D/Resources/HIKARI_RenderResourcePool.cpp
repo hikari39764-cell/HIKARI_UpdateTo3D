@@ -162,6 +162,63 @@ namespace HIKARI::RENDER3D {
         return RegisterInternal(kind, nullptr, {}, std::move(desc));
     }
 
+    bool RenderResourcePool::AttachOwnedResource(
+        RenderResourceHandle handle,
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource,
+        RenderResourceDesc desc) {
+
+        Slot* slot = ResolveSlot(handle);
+        if (slot == nullptr || !resource) {
+            return false;
+        }
+
+        RenderResourceRecord& record = slot->record;
+        RemoveSourceIndex(record);
+
+        RenderResourceDesc merged = record.desc;
+        if (desc.usage != RenderResourceUsageFlags::None) {
+            merged.usage = desc.usage;
+        }
+        if (!desc.debugName.empty()) {
+            merged.debugName = std::move(desc.debugName);
+        }
+        if (!desc.sourceKey.empty()) {
+            merged.sourceKey = std::move(desc.sourceKey);
+        }
+        if (desc.byteSize != 0) {
+            merged.byteSize = desc.byteSize;
+        }
+        if (desc.width != 0) {
+            merged.width = desc.width;
+        }
+        if (desc.height != 0) {
+            merged.height = desc.height;
+        }
+        if (desc.depthOrArraySize != 0) {
+            merged.depthOrArraySize = desc.depthOrArraySize;
+        }
+        if (desc.mipLevels != 0) {
+            merged.mipLevels = desc.mipLevels;
+        }
+        if (desc.format != DXGI_FORMAT_UNKNOWN) {
+            merged.format = desc.format;
+        }
+        if (desc.lifetime != RenderResourceLifetime::Persistent ||
+            merged.lifetime == RenderResourceLifetime::Persistent) {
+            merged.lifetime = desc.lifetime;
+        }
+
+        // 仮想 handle を維持したまま、実 GPU resource だけを差し替える。
+        record.desc = NormalizeDesc(handle.kind, resource.Get(), std::move(merged));
+        record.externalResource = nullptr;
+        record.ownedResource = std::move(resource);
+        record.pendingRelease = false;
+
+        IndexSourceKey(record);
+        RefreshStats();
+        return true;
+    }
+
     bool RenderResourcePool::Release(RenderResourceHandle handle) {
         Slot* slot = ResolveSlot(handle);
         if (slot == nullptr) {

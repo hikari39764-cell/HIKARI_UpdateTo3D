@@ -18,14 +18,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
         GpuDriven,
     };
 
+    enum class SurfaceGeometryBackend : uint8_t {
+        TriangleMesh,
+        ClusterGeometry,
+    };
+
     // 将来の resource pool / GPU culling が参照する surface 単位の資源 ID。
     struct SurfaceResourceIds {
         MeshResourceHandle mesh{};
         MaterialResourceHandle material{};
         ClusterGeometryResourceHandle clusterGeometry{};
 
+        SurfaceGeometryBackend geometryBackend = SurfaceGeometryBackend::TriangleMesh;
+
         uint64_t modelKey = 0;
         uint64_t geometryKey = 0;
+        uint64_t clusterGeometryKey = 0;
         uint64_t materialKey = 0;
         uint64_t textureSetKey = 0;
         uint64_t shaderKey = 0;
@@ -47,9 +55,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
     // draw command をまとめる最小単位。GPU-driven 化しても indirect command の境界に使う。
     struct SurfaceDrawBatchKey {
         SurfaceDrawCommandPass pass = SurfaceDrawCommandPass::Forward;
+        SurfaceGeometryBackend geometryBackend = SurfaceGeometryBackend::TriangleMesh;
         uint64_t psoKey = 0;
         uint64_t geometryKey = 0;
         bool transparent = false;
+        bool clusterMainlineEligible = false;
     };
 
     inline bool IsValidSurfaceDrawBatchKey(const SurfaceDrawBatchKey& key) {
@@ -62,9 +72,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         return
             lhs.pass == rhs.pass &&
+            lhs.geometryBackend == rhs.geometryBackend &&
             lhs.psoKey == rhs.psoKey &&
             lhs.geometryKey == rhs.geometryKey &&
-            lhs.transparent == rhs.transparent;
+            lhs.transparent == rhs.transparent &&
+            lhs.clusterMainlineEligible == rhs.clusterMainlineEligible;
     }
 
     // D3D12_DRAW_INDEXED_ARGUMENTS と同じ意味を持つ、backend 非依存の draw args。
@@ -96,12 +108,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
         SurfaceDrawIndexedArgs drawArgs{};
         uint64_t psoKey = 0;
         uint64_t geometryKey = 0;
+        SurfaceGeometryBackend geometryBackend = SurfaceGeometryBackend::TriangleMesh;
         uint64_t materialKey = 0;
         uint64_t textureSetKey = 0;
         uint64_t modelKey = 0;
 
         bool singlePacket = false;
         bool transparent = false;
+        bool alphaMasked = false;
+        bool doubleSided = false;
+        bool clusterMainlineEligible = false;
         bool drawArgsValid = false;
     };
 

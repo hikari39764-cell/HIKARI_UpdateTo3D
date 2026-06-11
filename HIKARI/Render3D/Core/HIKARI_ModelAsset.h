@@ -1,6 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -29,6 +32,7 @@ namespace HIKARI {
         constexpr uint32_t Unlit = 1u << 0;
         constexpr uint32_t AlphaMask = 1u << 1;
         constexpr uint32_t Emissive = 1u << 2;
+        constexpr uint32_t ThinTransparentSurface = 1u << 3;
     }
 
     struct Bounds {
@@ -69,6 +73,61 @@ namespace HIKARI {
         uint32_t featureBits = 0;
     };
 
+    namespace MATERIAL_POLICY {
+        inline bool ContainsLowerAscii(std::string_view text, std::string_view needle) {
+            if (needle.empty() || text.size() < needle.size()) {
+                return false;
+            }
+            for (size_t begin = 0; begin + needle.size() <= text.size(); ++begin) {
+                bool matched = true;
+                for (size_t i = 0; i < needle.size(); ++i) {
+                    const char c = static_cast<char>(
+                        std::tolower(static_cast<unsigned char>(text[begin + i])));
+                    if (c != needle[i]) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (matched) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        inline bool HasThinTransparentCue(std::string_view text) {
+            return
+                ContainsLowerAscii(text, "glass") ||
+                ContainsLowerAscii(text, "window") ||
+                ContainsLowerAscii(text, "pane") ||
+                ContainsLowerAscii(text, "fenetre") ||
+                ContainsLowerAscii(text, "fenster") ||
+                ContainsLowerAscii(text, "vitre") ||
+                ContainsLowerAscii(text, "transparent") ||
+                ContainsLowerAscii(text, "translucent");
+        }
+
+        inline bool HasExplicitAlphaSurface(const MaterialAsset& material) {
+            return
+                material.alphaMode != AlphaMode::Opaque ||
+                material.baseColorFactor.w < 0.999f ||
+                (material.featureBits & MATERIAL_FEATURES::AlphaMask) != 0u;
+        }
+
+        inline bool HasThinTransparentSurfaceHint(const MaterialAsset& material) {
+            return
+                (material.featureBits & MATERIAL_FEATURES::ThinTransparentSurface) != 0u ||
+                HasThinTransparentCue(material.name);
+        }
+
+
+        inline bool ShouldRenderDoubleSided(const MaterialAsset& material) {
+            // glTF の doubleSided は見た目の契約なので、cluster の最適化条件で上書きしない。
+            return material.doubleSided;
+        }
+
+    } // namespace MATERIAL_POLICY
+
     struct Vertex3D {
         MATH::Vec3 position{};
         MATH::Vec3 normal{};
@@ -99,6 +158,81 @@ namespace HIKARI {
         Bounds bounds{};
         bool hasMorphTargets = false;
     };
+
+    namespace SURFACE_POLICY {
+        inline bool HasThinSurfaceCue(std::string_view text) {
+            return
+                MATERIAL_POLICY::HasThinTransparentCue(text) ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "fence") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "grate") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "grille") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "leaf") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "leaves") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "foliage") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "grass") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "plant") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "curtain") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "cloth") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "fabric") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "paper") ||
+                MATERIAL_POLICY::ContainsLowerAscii(text, "decal");
+        }
+
+        inline bool HasThinSurfaceMaterialCue(const MaterialAsset& material) {
+            return
+                MATERIAL_POLICY::HasThinTransparentSurfaceHint(material) ||
+                HasThinSurfaceCue(material.name) ||
+                HasThinSurfaceCue(material.shaderProfileId) ||
+                HasThinSurfaceCue(material.defaultMaterialFxProfileId);
+        }
+
+        inline MATH::Vec3 BoundsExtent(const Bounds& bounds) {
+            return {
+                std::abs(bounds.max.x - bounds.min.x),
+                std::abs(bounds.max.y - bounds.min.y),
+                std::abs(bounds.max.z - bounds.min.z)
+            };
+        }
+
+        inline bool IsThinPrimitivePlane(const MeshPrimitive& primitive) {
+            const MATH::Vec3 extent = BoundsExtent(primitive.bounds);
+            if (!std::isfinite(extent.x) ||
+                !std::isfinite(extent.y) ||
+                !std::isfinite(extent.z)) {
+                return false;
+            }
+
+            const float largest = (std::max)({ extent.x, extent.y, extent.z });
+            const float smallest = (std::min)({ extent.x, extent.y, extent.z });
+            const float middle = extent.x + extent.y + extent.z - largest - smallest;
+            if (largest <= 1.0e-5f || middle <= 1.0e-5f) {
+                return false;
+            }
+
+            const float thinRatio = smallest / largest;
+            return thinRatio <= 0.025f || smallest <= middle * 0.035f;
+        }
+
+        inline bool ShouldRenderDoubleSided(
+            const MaterialAsset& material,
+            const MeshPrimitive& primitive) {
+
+            if (!material.doubleSided) {
+                return false;
+            }
+
+            // alpha / thin surface と分かるものは描画契約を優先する。
+            if (MATERIAL_POLICY::HasExplicitAlphaSurface(material) ||
+                HasThinSurfaceMaterialCue(material) ||
+                HasThinSurfaceCue(primitive.name)) {
+                return true;
+            }
+
+            // 形状だけが薄い opaque は、導出器の一括 doubleSided 指定であることが多い。
+            // cluster の cone/back-face culling を殺さないため、明示的な薄片語義がない限り単面へ正規化する。
+            return false;
+        }
+    } // namespace SURFACE_POLICY
 
     struct ModelImportDiagnostics {
         std::string sourceFormat;

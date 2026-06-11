@@ -6,6 +6,8 @@ struct HikariSurfaceGpuSceneInstance
 {
     float4x4 world;
     float4x4 normalMatrix;
+    float4x4 clusterWorld;
+    float4x4 clusterNormalMatrix;
     float4 boundsCenterRadius;
 
     uint sourcePacketIndex;
@@ -31,15 +33,30 @@ struct HikariSurfaceGpuSceneInstance
     uint clusterGeometryResourceIndex;
     uint clusterGeometryResourceGeneration;
     uint resourceFlags;
+    uint geometryBackend;
+
     uint fxFlags;
+    uint clusterGeometrySrvDescriptorIndex;
+    uint clusterSurfaceIndex;
+    uint clusterIndexCount;
 
     float4 fxUser[8];
 };
 
+static const uint HIKARI_SURFACE_GEOMETRY_BACKEND_TRIANGLE_MESH = 0;
+static const uint HIKARI_SURFACE_GEOMETRY_BACKEND_CLUSTER_GEOMETRY = 1;
+
 static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW = 1u << 2;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED = 1u << 3;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT = 1u << 4;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED = 1u << 6;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_MATERIAL_FX = 1u << 7;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_CLUSTER_MAINLINE = 1u << 8;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_MESH = 1u << 0;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_MATERIAL = 1u << 1;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY = 1u << 2;
+static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SHADER_VISIBLE = 1u << 3;
+static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SURFACE_RANGE = 1u << 4;
 
 StructuredBuffer<HikariSurfaceGpuSceneInstance> gSurfaceGpuSceneBuffer : register(t17);
 
@@ -47,7 +64,8 @@ cbuffer SurfaceGpuSceneControlCB : register(b8)
 {
     uint gSurfaceGpuSceneBaseIndex;
     uint gUseSurfaceGpuScene;
-    uint2 gSurfaceGpuScenePadding;
+    uint gSurfaceGpuSceneDrawCommandIndex;
+    uint gSurfaceGpuSceneDrawPassKind;
 };
 
 uint HikariGetSurfaceGpuSceneAbsoluteIndex(uint instanceId)

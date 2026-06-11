@@ -133,6 +133,10 @@ namespace HIKARI::RENDER3D {
             Microsoft::WRL::ComPtr<ID3D12Resource> resource,
             RenderResourceDesc desc = {});
         RenderResourceHandle RegisterVirtual(RenderResourceKind kind, RenderResourceDesc desc = {});
+        bool AttachOwnedResource(
+            RenderResourceHandle handle,
+            Microsoft::WRL::ComPtr<ID3D12Resource> resource,
+            RenderResourceDesc desc = {});
 
         bool Release(RenderResourceHandle handle);
         bool MarkPendingRelease(RenderResourceHandle handle);

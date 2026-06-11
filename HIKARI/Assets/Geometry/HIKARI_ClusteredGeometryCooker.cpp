@@ -46,16 +46,53 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return { transformed.x, transformed.y, transformed.z };
         }
 
-        ClusterVertex ToClusterVertex(const Vertex3D& source, const MATH::Mat4& matrix) {
+        MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
+            const float a00 = world.m[0][0];
+            const float a01 = world.m[1][0];
+            const float a02 = world.m[2][0];
+            const float a10 = world.m[0][1];
+            const float a11 = world.m[1][1];
+            const float a12 = world.m[2][1];
+            const float a20 = world.m[0][2];
+            const float a21 = world.m[1][2];
+            const float a22 = world.m[2][2];
+
+            const float det =
+                a00 * (a11 * a22 - a12 * a21) -
+                a01 * (a10 * a22 - a12 * a20) +
+                a02 * (a10 * a21 - a11 * a20);
+            if (std::abs(det) <= 1e-6f) {
+                return MATH::Mat4::Identity();
+            }
+
+            const float invDet = 1.0f / det;
+            MATH::Mat4 normalMatrix = MATH::Mat4::Identity();
+            normalMatrix.m[0][0] = (a11 * a22 - a12 * a21) * invDet;
+            normalMatrix.m[0][1] = (a02 * a21 - a01 * a22) * invDet;
+            normalMatrix.m[0][2] = (a01 * a12 - a02 * a11) * invDet;
+            normalMatrix.m[1][0] = (a12 * a20 - a10 * a22) * invDet;
+            normalMatrix.m[1][1] = (a00 * a22 - a02 * a20) * invDet;
+            normalMatrix.m[1][2] = (a02 * a10 - a00 * a12) * invDet;
+            normalMatrix.m[2][0] = (a10 * a21 - a11 * a20) * invDet;
+            normalMatrix.m[2][1] = (a01 * a20 - a00 * a21) * invDet;
+            normalMatrix.m[2][2] = (a00 * a11 - a01 * a10) * invDet;
+            return normalMatrix;
+        }
+
+        ClusterVertex ToClusterVertex(
+            const Vertex3D& source,
+            const MATH::Mat4& matrix,
+            const MATH::Mat4& normalMatrix) {
+
             ClusterVertex out{};
             const MATH::Vec4 p = matrix.TransformPoint({ source.position.x, source.position.y, source.position.z, 1.0f });
             out.position = { p.x, p.y, p.z };
-            out.normal = MATH::Normalize(TransformVector(matrix, source.normal));
+            out.normal = MATH::Normalize(TransformVector(normalMatrix, source.normal));
             if (MATH::Length(out.normal) <= 1e-5f) {
                 out.normal = { 0.0f, 1.0f, 0.0f };
             }
             const MATH::Vec3 tangent = MATH::Normalize(TransformVector(
-                matrix,
+                normalMatrix,
                 { source.tangent.x, source.tangent.y, source.tangent.z }));
             out.tangent = {
                 tangent.x,
@@ -243,7 +280,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             } else {
                 RENDER3D::CLUSTER::AddFlag(flags, ClusterSurfaceFlags::Transparent);
             }
-            if (material != nullptr && material->doubleSided) {
+            // material の doubleSided は描画結果の契約なので、cluster cook でも保持する。
+            if (material != nullptr && SURFACE_POLICY::ShouldRenderDoubleSided(*material, primitive)) {
                 RENDER3D::CLUSTER::AddFlag(flags, ClusterSurfaceFlags::DoubleSided);
             }
             if (primitive.layout == VertexLayoutKind::SkinnedPNTTJW ||
@@ -510,6 +548,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             const ClusterCookSettings& settings,
             ClusteredGeometryAsset& asset) {
 
+            surface.firstPage = static_cast<uint32_t>(asset.pages.size());
+            surface.pageCount = 0u;
             if (!settings.buildClusterPages || surface.clusterCount == 0u) {
                 return;
             }
@@ -544,6 +584,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 clusterCursor += pageClusterCount;
                 remaining -= pageClusterCount;
             }
+            surface.pageCount = static_cast<uint32_t>(asset.pages.size()) - surface.firstPage;
         }
 
         bool CookSurfaceWork(
@@ -628,8 +669,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
 
             outWork.vertices.reserve(primitive.staticVertices.size());
+            // 位置は node global を焼き込むが、法線と接線は逆転置で焼き込む。
+            const MATH::Mat4 normalMatrix = BuildNormalMatrixFromWorld(matrix);
             for (const Vertex3D& vertex : primitive.staticVertices) {
-                outWork.vertices.push_back(ToClusterVertex(vertex, matrix));
+                outWork.vertices.push_back(ToClusterVertex(vertex, matrix, normalMatrix));
             }
             outWork.indices = primitive.indices;
 

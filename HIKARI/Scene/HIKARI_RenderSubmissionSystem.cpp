@@ -76,6 +76,8 @@ namespace HIKARI {
                 target.mode == RENDER3D::CLUSTER::ClusteredRenderMode::SelectedPreview;
             const bool wantsDebug =
                 target.debugOptions.mode != RENDER3D::CLUSTER::ClusterDebugViewMode::Off;
+            const bool wantsColorMesh =
+                RENDER3D::CLUSTER::IsClusterDebugColorMeshMode(target.debugOptions.mode);
             if ((!wantsPreview && !wantsDebug) || !IsSelectedClusterTarget(target, object)) {
                 return false;
             }
@@ -86,23 +88,34 @@ namespace HIKARI {
                 return false;
             }
 
-            if (wantsDebug) {
+            if (wantsDebug && !wantsColorMesh) {
                 RENDER3D::CLUSTER::SubmitClusterDebugOverlay(
                     *clusteredGeometry,
                     object.Transform(),
                     target.debugOptions);
             }
+            if (wantsColorMesh) {
+                return RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
+                    *clusteredGeometry,
+                    object.Transform(),
+                    &asset,
+                    false,
+                    MESHRENDERER::MeshRenderDebugMode::Normal,
+                    nullptr,
+                    &target.debugOptions);
+            }
             if (!wantsPreview) {
-                return true;
+                return false;
             }
 
-            return RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
+            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
                 *clusteredGeometry,
                 object.Transform(),
                 &asset,
                 model.GetReceiveShadow(),
                 MESHRENDERER::MeshRenderDebugMode::WireOverlay,
                 model.GetRuntimeMaterialOverride());
+            return false;
         }
 
         bool TrySubmitClusteredCpuReference(
@@ -164,9 +177,7 @@ namespace HIKARI {
     const char* ToString(RenderSubmissionRouteMode mode) {
         switch (mode) {
         case RenderSubmissionRouteMode::SurfacePacketMainline:
-            return "SurfacePacket Mainline";
-        case RenderSubmissionRouteMode::LegacyCompare:
-            return "Legacy Compare";
+            return "GPU Driven Mainline";
         case RenderSubmissionRouteMode::ForceLegacy:
             return "Force Legacy";
         default:
@@ -242,8 +253,6 @@ namespace HIKARI {
         sDebugStats_.runtimeSpecialForwardModelCount = 0;
         sDebugStats_.runtimeSpecialShadowModelCount = 0;
         sDebugStats_.routeMode = sRouteMode_;
-        sDebugStats_.surfacePacketLegacyCompareActive =
-            sRouteMode_ == RenderSubmissionRouteMode::LegacyCompare;
         sDebugStats_.surfacePacketForceLegacyActive =
             sRouteMode_ == RenderSubmissionRouteMode::ForceLegacy;
         sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
@@ -257,7 +266,9 @@ namespace HIKARI {
             world,
             MODELRENDERER::GetRenderModelCache(),
             sSceneRenderCache_,
-            frame.frameIndex);
+            frame.frameIndex,
+            sClusteredCpuPreviewTarget_.assetRegistry,
+            sClusteredCpuPreviewTarget_.projectRoot);
         // SceneSurfaceInstance から、実行可能な draw packet view を構築する。
         sSurfaceDrawPacketBuilder_.BuildFromSceneRenderCache(sSceneRenderCache_);
 
@@ -268,10 +279,8 @@ namespace HIKARI {
         const bool surfacePacketForwardActive =
             surfacePacketMainRouteActive && !clusteredCpuReferenceActive;
         const bool surfacePacketShadowActive = surfacePacketMainRouteActive;
-        const bool bypassLegacyForward =
-            surfacePacketForwardActive && sRouteMode_ != RenderSubmissionRouteMode::LegacyCompare;
-        const bool bypassLegacyShadow =
-            surfacePacketShadowActive && sRouteMode_ != RenderSubmissionRouteMode::LegacyCompare;
+        const bool bypassLegacyForward = surfacePacketForwardActive;
+        const bool bypassLegacyShadow = surfacePacketShadowActive;
         sDebugStats_.surfacePacketMainRouteActive = surfacePacketMainRouteActive;
 
         sSurfaceDrawPacketPlanOptions_ = {};
@@ -399,9 +408,14 @@ namespace HIKARI {
                     model,
                     *asset,
                     debugMode);
-                TrySubmitSelectedClusterTools(sClusteredCpuPreviewTarget_, object, model, *asset);
+                const bool selectedClusterDebugForwardHandled = TrySubmitSelectedClusterTools(
+                    sClusteredCpuPreviewTarget_,
+                    object,
+                    model,
+                    *asset);
 
-                if (forwardHandledBySurfacePacket && (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
+                if ((forwardHandledBySurfacePacket || selectedClusterDebugForwardHandled) &&
+                    (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
                     return;
                 }
                 if (clusteredForwardHandled && (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
@@ -426,6 +440,9 @@ namespace HIKARI {
                     item.submitForward = false;
                 }
                 if (clusteredForwardHandled) {
+                    item.submitForward = false;
+                }
+                if (selectedClusterDebugForwardHandled) {
                     item.submitForward = false;
                 }
                 if (shadowHandledBySurfacePacket) {

@@ -47,6 +47,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool hasRuntimeAnimation = false;
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
+        std::string clusteredGeometryPath{};
 
         const Material* materialOverride = nullptr;
 
@@ -101,6 +102,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
         bool skinned = false;
+        std::string clusteredGeometryPath{};
 
         const Material* materialOverride = nullptr;
         std::string materialFxProfileId{};
@@ -135,6 +137,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t dynamicSurfaceInstanceCount = 0;
             uint32_t skinnedSurfaceInstanceCount = 0;
             uint32_t staticGeometrySurfaceInstanceCount = 0;
+            uint32_t clusteredGeometrySurfaceInstanceCount = 0;
             uint32_t invalidSurfaceInstanceCount = 0;
             uint32_t missingSurfaceMatrixCount = 0;
             uint32_t invalidSurfaceBoundsCount = 0;

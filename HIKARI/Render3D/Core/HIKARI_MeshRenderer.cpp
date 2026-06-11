@@ -23,6 +23,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererState.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
+#include "Render3D/Cluster/HIKARI_ClusterMainline.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -41,6 +42,32 @@ namespace HIKARI::MESHRENDERER {
 
     namespace {
         MeshRendererState g;
+
+        RENDER3D::CLUSTER::ClusterMainlinePass ToClusterMainlinePass(
+            MeshDrawPassKind passKind) {
+
+            return passKind == MeshDrawPassKind::GeometryBuffer
+                ? RENDER3D::CLUSTER::ClusterMainlinePass::GeometryAux
+                : RENDER3D::CLUSTER::ClusterMainlinePass::ForwardOpaque;
+        }
+
+        RENDER3D::CLUSTER::ClusterMainlinePolicy ResolveOpaqueMainlinePolicy();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
+            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
+            if (device == nullptr || heap == nullptr) {
+                return handle;
+            }
+
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            return GFX::DESCRIPTOR::GpuAt(
+                heap,
+                descriptorSize,
+                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
+        }
 
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
@@ -194,6 +221,18 @@ namespace HIKARI::MESHRENDERER {
                 4u)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. Direct draw path will be used.");
             }
+            if (!g.clusterGpuCullingPass.Initialize(
+                device,
+                GetStaticRootSignature(g.pipelines),
+                ROOT_PARAM::SurfaceGpuSceneControl,
+                4u)) {
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster GPU culling pass initialization failed. Cluster draw seeds will be disabled.");
+            }
+            if (!g.clusterDrawExecutor.Initialize(
+                device,
+                GetStaticRootSignature(g.pipelines))) {
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster draw executor initialization failed. Cluster geometry will keep using SurfacePacket fallback.");
+            }
 
             // MeshRenderer 共通 fallback は resource handle を正として保持する。
             g.fallbackTextureResource = RENDER3D::LoadTextureResource(
@@ -327,9 +366,20 @@ namespace HIKARI::MESHRENDERER {
             g.surfaceIndirectDrawBuffer.ResetFrame();
 
             if (g.surfacePacketOpaqueExecutionCommands != nullptr) {
+                const RENDER3D::CLUSTER::ClusterMainlineCommandContext clusterFilter{
+                    ResolveOpaqueMainlinePolicy(),
+                    &g.staticOpaqueClusterMainlineFrame,
+                    true,
+                    ToClusterMainlinePass(MeshDrawPassKind::Forward),
+                    g.surfacePacketOpaqueGpuSceneInstances,
+                    &g.surfaceGpuSceneBuffer,
+                    0u
+                };
                 g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
                     *g.surfacePacketOpaqueExecutionCommands,
-                    0u);
+                    0u,
+                    RENDER3D::CLUSTER::ShouldUploadSurfaceIndirectCommand,
+                    &clusterFilter);
             }
             if (g.surfacePacketDepthAwareExecutionCommands != nullptr) {
                 g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
@@ -349,6 +399,7 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
             g.debugStats.surfaceIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
             g.debugStats.surfaceIndirectOverflowCommandCount = indirectStats.overflowCommandCount;
+            g.debugStats.surfaceIndirectFilteredCommandCount = indirectStats.filteredCommandCount;
             g.debugStats.surfaceIndirectCpuDirectCommandCount = indirectStats.cpuDirectCommandCount;
             g.debugStats.surfaceIndirectMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
             g.debugStats.surfaceIndirectDrawBindingPatchCount = indirectStats.drawBindingPatchCount;
@@ -356,6 +407,289 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceIndirectCommandStride = indirectStats.commandStride;
             g.debugStats.surfaceIndirectArgumentBufferReady = indirectStats.initialized;
             g.debugStats.surfaceIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
+        }
+
+        void DispatchClusterGpuCullingFrame() {
+            std::vector<RENDER3D::CLUSTER::ClusterGpuCullingSourceRange> ranges{};
+
+            if (g.surfacePacketOpaqueGpuSceneInstances != nullptr &&
+                !g.surfacePacketOpaqueGpuSceneInstances->empty()) {
+                const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances =
+                    *g.surfacePacketOpaqueGpuSceneInstances;
+                uint32_t singleSidedInstanceCount = 0;
+                uint32_t doubleSidedInstanceCount = 0;
+                constexpr uint32_t doubleSidedFlag =
+                    static_cast<uint32_t>(
+                        RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::DoubleSided);
+                for (const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance : instances) {
+                    if ((instance.flags & doubleSidedFlag) != 0u) {
+                        ++doubleSidedInstanceCount;
+                    }
+                    else {
+                        ++singleSidedInstanceCount;
+                    }
+                }
+                // Cluster cull は CPU command ではなく、opaque GPU scene の instance range を入口にする。
+                ranges.push_back({
+                    0u,
+                    static_cast<uint32_t>(instances.size()),
+                    RENDER3D::CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque,
+                    singleSidedInstanceCount,
+                    doubleSidedInstanceCount
+                });
+            }
+
+            const MATH::Mat4 viewProj =
+                g.cameraMapped != nullptr ? g.cameraMapped->viewProj : MATH::Mat4::Identity();
+            const MATH::Vec3 cameraPosition =
+                g.cameraMapped != nullptr
+                    ? MATH::Vec3{
+                        g.cameraMapped->cameraPos.x,
+                        g.cameraMapped->cameraPos.y,
+                        g.cameraMapped->cameraPos.z
+                    }
+                    : MATH::Vec3{};
+            ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
+            if (SERVICES::gCtx.cmdList != nullptr && srvHeap != nullptr) {
+                ID3D12DescriptorHeap* heaps[] = { srvHeap };
+                SERVICES::gCtx.cmdList->SetDescriptorHeaps(1, heaps);
+            }
+            g.clusterGpuCullingPass.Dispatch(
+                SERVICES::gCtx.cmdList,
+                viewProj,
+                cameraPosition,
+                ResolveClusterGeometryPoolSrv(),
+                g.surfaceGpuSceneBuffer.GetGpuVirtualAddress(),
+                ranges.empty() ? nullptr : ranges.data(),
+                ranges.size());
+
+            const RENDER3D::CLUSTER::ClusterGpuCullingPassStats& clusterCullStats =
+                g.clusterGpuCullingPass.GetStats();
+            g.debugStats.clusterGpuCullReady =
+                clusterCullStats.initialized &&
+                clusterCullStats.psoReady &&
+                clusterCullStats.inputBufferReady &&
+                clusterCullStats.visibleRangeBufferReady &&
+                clusterCullStats.drawArgumentBufferReady &&
+                clusterCullStats.counterBufferReady;
+            g.debugStats.clusterGpuCullDrawArgsReady =
+                clusterCullStats.drawArgumentBufferReady;
+            g.debugStats.clusterGpuCullCommandSignatureReady =
+                clusterCullStats.drawCommandSignatureReady;
+            g.debugStats.clusterGpuCullSourceInstanceCount =
+                clusterCullStats.sourceInstanceCount;
+            g.debugStats.clusterGpuCullSourceSingleSidedInstanceCount =
+                clusterCullStats.sourceSingleSidedInstanceCount;
+            g.debugStats.clusterGpuCullSourceDoubleSidedInstanceCount =
+                clusterCullStats.sourceDoubleSidedInstanceCount;
+            g.debugStats.clusterGpuCullCandidateInstanceCount =
+                clusterCullStats.candidateInstanceCount;
+            g.debugStats.clusterGpuCullSubmittedInstanceCount =
+                clusterCullStats.submittedInstanceCount;
+            g.debugStats.clusterGpuCullSourcePageTaskCount =
+                clusterCullStats.sourcePageTaskCount;
+            g.debugStats.clusterGpuCullSubmittedPageTaskCount =
+                clusterCullStats.submittedPageTaskCount;
+            g.debugStats.clusterGpuCullDrawSeedCount =
+                clusterCullStats.submittedDrawSeedCount;
+            g.debugStats.clusterGpuCullOverflowInstanceCount =
+                clusterCullStats.overflowInstanceCount;
+            g.debugStats.clusterGpuCullCounterReadbackReady =
+                clusterCullStats.gpuCounterReadbackReady;
+            g.debugStats.clusterGpuCullCounterReadbackValid =
+                clusterCullStats.gpuCounterReadbackValid;
+            g.debugStats.clusterGpuCullDebugCountersEnabled =
+                clusterCullStats.debugCountersEnabled;
+            g.debugStats.clusterGpuCullGpuInputCount =
+                clusterCullStats.gpuInputCount;
+            g.debugStats.clusterGpuCullGpuPageTaskCount =
+                clusterCullStats.gpuPageTaskCount;
+            g.debugStats.clusterGpuCullGpuPageTaskOverflowCount =
+                clusterCullStats.gpuPageTaskOverflowCount;
+            g.debugStats.clusterGpuCullGpuVisibleRangeCount =
+                clusterCullStats.gpuVisibleRangeCount;
+            g.debugStats.clusterGpuCullGpuVisibleClusterCount =
+                clusterCullStats.gpuVisibleClusterCount;
+            g.debugStats.clusterGpuCullGpuOverflowCount =
+                clusterCullStats.gpuOverflowCount;
+            g.debugStats.clusterGpuCullGpuInputFrustumCulledCount =
+                clusterCullStats.gpuInputFrustumCulledCount;
+            g.debugStats.clusterGpuCullGpuPageTestedCount =
+                clusterCullStats.gpuPageTestedCount;
+            g.debugStats.clusterGpuCullGpuPageFrustumCulledCount =
+                clusterCullStats.gpuPageFrustumCulledCount;
+            g.debugStats.clusterGpuCullGpuClusterTestedCount =
+                clusterCullStats.gpuClusterTestedCount;
+            g.debugStats.clusterGpuCullGpuClusterFrustumCulledCount =
+                clusterCullStats.gpuClusterFrustumCulledCount;
+            g.debugStats.clusterGpuCullGpuClusterConeCulledCount =
+                clusterCullStats.gpuClusterConeCulledCount;
+            g.debugStats.clusterGpuCullGpuClusterConeTestedCount =
+                clusterCullStats.gpuClusterConeTestedCount;
+            g.debugStats.clusterGpuCullGpuDoubleSidedClusterCount =
+                clusterCullStats.gpuDoubleSidedClusterCount;
+            g.debugStats.clusterGpuCullGpuDrawCommandCount =
+                clusterCullStats.gpuDrawCommandCount;
+            g.debugStats.clusterGpuCullGpuBackFaceDrawCommandCount =
+                clusterCullStats.gpuBackFaceDrawCommandCount;
+            g.debugStats.clusterGpuCullGpuDoubleSidedDrawCommandCount =
+                clusterCullStats.gpuDoubleSidedDrawCommandCount;
+            g.debugStats.clusterGpuCullGpuDrawCommandOverflowCount =
+                clusterCullStats.gpuDrawCommandOverflowCount;
+            g.debugStats.clusterGpuCullGpuBackFaceDrawCommandOverflowCount =
+                clusterCullStats.gpuBackFaceDrawCommandOverflowCount;
+            g.debugStats.clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount =
+                clusterCullStats.gpuDoubleSidedDrawCommandOverflowCount;
+            g.debugStats.clusterGpuCullGpuCulledInstanceCount =
+                clusterCullStats.gpuInputFrustumCulledCount;
+            g.debugStats.clusterGpuCullDispatchCount =
+                clusterCullStats.dispatchCount;
+            g.debugStats.clusterGpuCullWorkgroupCount =
+                clusterCullStats.workgroupCount;
+            g.debugStats.clusterGpuCullInputCapacity =
+                clusterCullStats.inputCapacity;
+            g.debugStats.clusterGpuCullVisibleRangeCapacity =
+                clusterCullStats.visibleRangeCapacity;
+            g.debugStats.clusterGpuCullDrawArgumentCapacity =
+                clusterCullStats.drawArgumentCapacity;
+        }
+
+        void UpdateClusterDrawDebugStats() {
+            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterDrawStats =
+                g.clusterDrawExecutor.GetStats();
+            g.debugStats.clusterDrawRequestedCount =
+                clusterDrawStats.requestedDrawCount;
+            g.debugStats.clusterDrawSubmittedCount =
+                clusterDrawStats.submittedDrawCount;
+            g.debugStats.clusterDrawSkippedCount =
+                clusterDrawStats.skippedDrawCount;
+            g.debugStats.clusterDrawSkippedBucketCount =
+                clusterDrawStats.skippedBucketCount;
+            g.debugStats.clusterDrawSubmitCallCount =
+                clusterDrawStats.submitCallCount;
+            g.debugStats.clusterDrawForwardSubmittedCount =
+                clusterDrawStats.forwardSubmittedDrawCount;
+            g.debugStats.clusterDrawGeometryBufferSubmittedCount =
+                clusterDrawStats.geometryBufferSubmittedDrawCount;
+            g.debugStats.clusterDrawForwardSubmitCallCount =
+                clusterDrawStats.forwardSubmitCallCount;
+            g.debugStats.clusterDrawGeometryBufferSubmitCallCount =
+                clusterDrawStats.geometryBufferSubmitCallCount;
+            g.debugStats.clusterDrawBackFaceSubmitCallCount =
+                clusterDrawStats.backFaceSubmitCallCount;
+            g.debugStats.clusterDrawDoubleSidedSubmitCallCount =
+                clusterDrawStats.doubleSidedSubmitCallCount;
+            g.debugStats.clusterDrawPipelineReady =
+                clusterDrawStats.drawPipelineReady;
+            g.debugStats.clusterDrawForwardPipelineReady =
+                clusterDrawStats.forwardPipelineReady;
+            g.debugStats.clusterDrawGeometryBufferPipelineReady =
+                clusterDrawStats.geometryBufferPipelineReady;
+            g.debugStats.clusterDrawArgumentBufferReady =
+                clusterDrawStats.drawArgumentBufferReady;
+            g.debugStats.clusterDrawCommandSignatureReady =
+                clusterDrawStats.drawCommandSignatureReady;
+        }
+
+        RENDER3D::CLUSTER::ClusterMainlineSignals BuildClusterMainlineSignals() {
+            RENDER3D::CLUSTER::ClusterMainlineSignals signals{};
+            signals.gpuCullReady = g.debugStats.clusterGpuCullReady;
+            signals.drawArgsReady = g.debugStats.clusterGpuCullDrawArgsReady;
+            signals.commandSignatureReady = g.debugStats.clusterGpuCullCommandSignatureReady;
+            signals.forwardPipelineReady = g.debugStats.clusterDrawForwardPipelineReady;
+            signals.geometryAuxPipelineReady = g.debugStats.clusterDrawGeometryBufferPipelineReady;
+            signals.candidateInstanceCount = g.debugStats.clusterGpuCullCandidateInstanceCount;
+            signals.drawSeedCount = g.debugStats.clusterGpuCullDrawSeedCount;
+            signals.overflowInstanceCount = g.debugStats.clusterGpuCullOverflowInstanceCount;
+            return signals;
+        }
+
+        RENDER3D::CLUSTER::ClusterMainlinePolicy ResolveOpaqueMainlinePolicy() {
+            return RENDER3D::CLUSTER::ResolveClusterMainlinePolicy(
+                BuildClusterMainlineSignals());
+        }
+
+        void UpdateClusterMainlineDebugStats() {
+            const RENDER3D::CLUSTER::ClusterMainlineState state =
+                RENDER3D::CLUSTER::ResolveClusterMainlineState(
+                    BuildClusterMainlineSignals());
+            g.debugStats.clusterMainlineReady = state.forwardReady;
+            g.debugStats.clusterMainlineForwardReady = state.forwardReady;
+            g.debugStats.clusterMainlineGeometryBufferReady = state.geometryAuxReady;
+            g.debugStats.clusterMainlineHasDrawSeeds = state.hasDrawSeeds;
+            g.debugStats.clusterMainlineOverflowBlocked = state.overflowBlocked;
+        }
+
+        void BuildStaticOpaqueClusterMainlineFrame() {
+            RENDER3D::CLUSTER::BuildStaticOpaqueFrame(
+                ResolveOpaqueMainlinePolicy(),
+                g.surfacePacketOpaqueGpuSceneInstances,
+                &g.surfaceGpuSceneBuffer,
+                0u,
+                g.staticOpaqueClusterMainlineFrame);
+        }
+
+        void ApplyClusterMainlineOwnershipDebugStats(
+            const RENDER3D::CLUSTER::ClusterMainlineOwnershipStats& stats) {
+
+            g.debugStats.clusterMainlineOwnedCommandCount = stats.ownedCommandCount;
+            g.debugStats.clusterMainlineOwnedPacketCount = stats.ownedPacketCount;
+            g.debugStats.clusterMainlineGeometryAuxCommandCount = stats.geometryAuxCommandCount;
+            g.debugStats.clusterMainlineGeometryAuxPacketCount = stats.geometryAuxPacketCount;
+            g.debugStats.clusterMainlineLegacyCommandCount = stats.legacyCommandCount;
+            g.debugStats.clusterMainlineLegacyPacketCount = stats.legacyPacketCount;
+            g.debugStats.clusterDrawBypassedLegacyCommandCount = stats.bypassedLegacyCommandCount;
+            g.debugStats.clusterDrawBypassedLegacyPacketCount = stats.bypassedLegacyPacketCount;
+
+            g.debugStats.clusterDrawEligibleCommandCount = stats.eligibleCommandCount;
+            g.debugStats.clusterDrawRejectContextCommandCount = stats.rejectContextCommandCount;
+            g.debugStats.clusterDrawRejectMainlineCommandCount = stats.rejectMainlineCommandCount;
+            g.debugStats.clusterDrawRejectBackendCommandCount = stats.rejectBackendCommandCount;
+            g.debugStats.clusterDrawRejectTransparentCommandCount = stats.rejectTransparentCommandCount;
+            g.debugStats.clusterDrawRejectMaterialFxCommandCount = stats.rejectMaterialFxCommandCount;
+            g.debugStats.clusterDrawRejectRangeCommandCount = stats.rejectRangeCommandCount;
+            g.debugStats.clusterDrawRejectInstanceResourceCommandCount = stats.rejectInstanceResourceCommandCount;
+            g.debugStats.clusterDrawRejectInstanceFlagCommandCount = stats.rejectInstanceFlagCommandCount;
+            g.debugStats.clusterDrawRejectMaterialPatchCommandCount = stats.rejectMaterialPatchCommandCount;
+        }
+
+        void UpdateOpaqueMainlineOwnershipDebugStats() {
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* commands =
+                g.surfacePacketOpaqueExecutionCommands;
+            const RENDER3D::CLUSTER::ClusterMainlineOwnershipStats stats =
+                RENDER3D::CLUSTER::BuildOpaqueOwnershipStats(
+                    g.staticOpaqueClusterMainlineFrame,
+                    commands != nullptr ? commands->data() : nullptr,
+                    commands != nullptr ? commands->size() : 0u);
+            ApplyClusterMainlineOwnershipDebugStats(stats);
+        }
+
+        bool IsClusterMainlinePreparedForPass(MeshDrawPassKind passKind) {
+            return ResolveOpaqueMainlinePolicy().OwnsPass(
+                ToClusterMainlinePass(passKind));
+        }
+
+        bool ExecuteClusterDrawFrame(
+            const MeshPassResources& passResources,
+            MeshDrawPassKind passKind,
+            RENDER3D::CLUSTER::ClusterDrawPipelineKind pipelineKind) {
+            if (!IsClusterMainlinePreparedForPass(passKind)) {
+                return false;
+            }
+
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(false, passKind, passResources);
+            drawCtx.binding.cache = &bindingCache;
+            BindSurfacePacketFrameResources(drawCtx);
+
+            RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
+            ctx.commandList = SERVICES::gCtx.cmdList;
+            ctx.cullingPass = &g.clusterGpuCullingPass;
+            ctx.pipelineKind = pipelineKind;
+            const bool executed = g.clusterDrawExecutor.Execute(ctx);
+            UpdateClusterDrawDebugStats();
+            UpdateClusterMainlineDebugStats();
+            return executed;
         }
 
         bool PrepareMeshFrame(
@@ -588,6 +922,18 @@ namespace HIKARI::MESHRENDERER {
             BindSurfacePacketFrameResources(drawCtx);
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
                 g.surfacePacketBuilder->GetPackets();
+            const RENDER3D::CLUSTER::ClusterMainlineCommandContext clusterFilter{
+                ResolveOpaqueMainlinePolicy(),
+                &g.staticOpaqueClusterMainlineFrame,
+                executionKind == SurfacePacketExecutionKind::Opaque,
+                ToClusterMainlinePass(passKind),
+                g.surfacePacketOpaqueGpuSceneInstances,
+                &g.surfaceGpuSceneBuffer,
+                drawCtx.surfaceGpuSceneBaseOffset
+            };
+            drawCtx.surfaceIndirectCommandFilter =
+                RENDER3D::CLUSTER::ShouldUploadSurfaceIndirectCommand;
+            drawCtx.surfaceIndirectCommandFilterUserData = &clusterFilter;
             if ((passKind == MeshDrawPassKind::Forward ||
                 passKind == MeshDrawPassKind::GeometryBuffer) &&
                 PrepareSurfacePacketIndirectDrawBindings(
@@ -614,6 +960,12 @@ namespace HIKARI::MESHRENDERER {
                 const RENDER3D::RUNTIME::SurfaceDrawCommand& command =
                     (*executableCommands)[commandIndex];
                 if (passKind == MeshDrawPassKind::GeometryBuffer && command.transparent) {
+                    ++commandIndex;
+                    continue;
+                }
+                if (RENDER3D::CLUSTER::ShouldOwnSurfaceCommand(
+                    clusterFilter,
+                    command)) {
                     ++commandIndex;
                     continue;
                 }
@@ -710,6 +1062,10 @@ namespace HIKARI::MESHRENDERER {
             geometryBuffer.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, sceneDsv);
             size_t geometryObjectIndex = 0;
             MeshPassResources passResources{};
+            ExecuteClusterDrawFrame(
+                passResources,
+                MeshDrawPassKind::GeometryBuffer,
+                RENDER3D::CLUSTER::ClusterDrawPipelineKind::GeometryBuffer);
             const bool packetOk = RenderSurfacePacketPlan(
                 SurfacePacketExecutionKind::Opaque,
                 MeshDrawPassKind::GeometryBuffer,
@@ -778,6 +1134,7 @@ namespace HIKARI::MESHRENDERER {
         g.surfacePacketTransparentExecutionIndices = nullptr;
         g.surfacePacketTransparentExecutionCommands = nullptr;
         g.surfacePacketTransparentGpuSceneInstances = nullptr;
+        g.staticOpaqueClusterMainlineFrame.Reset();
         g.debugStats = {};
     }
 
@@ -885,6 +1242,12 @@ namespace HIKARI::MESHRENDERER {
         g.materialDataFrameTable.Clear();
         UploadSurfaceGpuSceneFrame();
         PrepareSurfaceGpuSceneMaterialFrame();
+        DispatchClusterGpuCullingFrame();
+        g.clusterDrawExecutor.ResetFrame();
+        UpdateClusterDrawDebugStats();
+        UpdateClusterMainlineDebugStats();
+        BuildStaticOpaqueClusterMainlineFrame();
+        UpdateOpaqueMainlineOwnershipDebugStats();
         UploadSurfaceIndirectDrawFrame();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
@@ -925,6 +1288,12 @@ namespace HIKARI::MESHRENDERER {
         g.materialDataFrameTable.Clear();
         UploadSurfaceGpuSceneFrame();
         PrepareSurfaceGpuSceneMaterialFrame();
+        DispatchClusterGpuCullingFrame();
+        g.clusterDrawExecutor.ResetFrame();
+        UpdateClusterDrawDebugStats();
+        UpdateClusterMainlineDebugStats();
+        BuildStaticOpaqueClusterMainlineFrame();
+        UpdateOpaqueMainlineOwnershipDebugStats();
         UploadSurfaceIndirectDrawFrame();
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
@@ -956,6 +1325,10 @@ namespace HIKARI::MESHRENDERER {
     bool RenderForwardOpaquePass(
         const RENDER3D::RenderQueue& queue,
         const MeshPassResources& passResources) {
+        ExecuteClusterDrawFrame(
+            passResources,
+            MeshDrawPassKind::Forward,
+            RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
         // SurfacePacket は queue を経由せず、先に opaque plan を直接実行する。
         const bool packetOk = RenderSurfacePacketPlan(
             SurfacePacketExecutionKind::Opaque,
@@ -1031,6 +1404,7 @@ namespace HIKARI::MESHRENDERER {
         g.surfacePacketTransparentExecutionIndices = nullptr;
         g.surfacePacketTransparentExecutionCommands = nullptr;
         g.surfacePacketTransparentGpuSceneInstances = nullptr;
+        g.staticOpaqueClusterMainlineFrame.Reset();
     }
 
     void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {

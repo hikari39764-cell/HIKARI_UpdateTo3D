@@ -146,6 +146,8 @@ namespace HIKARI::RENDER3D {
                 return handle;
             }
 
+            return RegisterTextureResourceFromBackendHandle(backendHandle);
+
             // 旧 int handle 経路が残る間だけ、backend handle を resource pool に橋渡しする。
             return RegisterTextureResourceFromBackendHandle(backendHandle);
         }

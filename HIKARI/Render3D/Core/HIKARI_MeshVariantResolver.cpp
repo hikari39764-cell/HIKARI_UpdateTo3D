@@ -84,7 +84,8 @@ namespace HIKARI::MESHRENDERER {
 
     VFX::VariantKey ResolvePrimitiveVariant(
         const DrawItem& item,
-        const MaterialAsset* materialAsset) {
+        const MaterialAsset* materialAsset,
+        const MeshPrimitive* primitiveAsset) {
         VFX::VariantKey variant = item.variant;
         const bool materialAlphaBlend =
             item.materialOverride == nullptr &&
@@ -97,13 +98,18 @@ namespace HIKARI::MESHRENDERER {
         } else if (materialAsset != nullptr) {
             variant.shaderId = materialAsset->shaderProfileId;
             variant.featureBits = materialAsset->featureBits;
-            variant.doubleSided = materialAsset->doubleSided;
+            variant.doubleSided = primitiveAsset != nullptr
+                ? SURFACE_POLICY::ShouldRenderDoubleSided(*materialAsset, *primitiveAsset)
+                : MATERIAL_POLICY::ShouldRenderDoubleSided(*materialAsset);
         }
 
         if (item.hasResolvedMaterialFxProfile) {
             ApplyProfileToVariant(item.resolvedMaterialFxProfile, variant);
             if (materialAsset != nullptr) {
-                if (materialAsset->doubleSided) {
+                const bool materialDoubleSided = primitiveAsset != nullptr
+                    ? SURFACE_POLICY::ShouldRenderDoubleSided(*materialAsset, *primitiveAsset)
+                    : MATERIAL_POLICY::ShouldRenderDoubleSided(*materialAsset);
+                if (materialDoubleSided) {
                     variant.doubleSided = true;
                 }
                 if ((materialAsset->featureBits & MATERIAL_FEATURES::AlphaMask) != 0) {

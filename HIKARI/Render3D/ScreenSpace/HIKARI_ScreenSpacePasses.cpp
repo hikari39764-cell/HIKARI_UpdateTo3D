@@ -122,6 +122,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 cameraCb,
                 environment.ambientOcclusion);
             context.renderTargetAccess.EndDepthRead();
+            // SSAO は内部 AO RT を複数回 bind するので、lighting pass の前に scene RT へ戻す。
+            context.renderTargetAccess.Rebind();
         }
 
         state.ssaoValid = ssaoOk;

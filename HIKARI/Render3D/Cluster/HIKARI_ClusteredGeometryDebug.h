@@ -14,6 +14,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         SelectedSurfaceBounds,
         FirstNClusterBounds,
         ClusterPageBounds,
+        ClusterColorMesh,
+        PageColorMesh,
+        SurfaceColorMesh,
     };
 
     struct ClusterDebugOptions {
@@ -24,6 +27,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
     };
 
     const char* ToString(ClusterDebugViewMode mode);
+    bool IsClusterDebugColorMeshMode(ClusterDebugViewMode mode);
     void SubmitClusterDebugOverlay(
         const ClusteredGeometryAsset& asset,
         const Transform3D& transform,

@@ -4,6 +4,11 @@
 
 namespace HIKARI {
 
+    bool InspectTextureAlphaWithDirectXTex(
+        const std::filesystem::path& sourcePath,
+        TextureImportSettings& inOutSettings,
+        std::string& outMessage);
+
     class DirectXTexTextureImportBackend final : public ITextureImportBackend {
     public:
         bool IsAvailable() const override;

@@ -17,6 +17,12 @@ namespace HIKARI {
         bool forcePowerOfTwo = false;
         bool allowResize = false;
         uint32_t maxSize = 4096;
+
+        bool sourceHasAlphaChannel = false;
+        bool sourceHasMeaningfulAlpha = false;
+        bool sourceHasTranslucentAlpha = false;
+        bool sourceHasCutoutAlpha = false;
+        float sourceAlphaNonOpaqueRatio = 0.0f;
     };
 
 } // namespace HIKARI

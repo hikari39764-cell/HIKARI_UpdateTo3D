@@ -20,6 +20,8 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
+#include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
+#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -226,6 +228,8 @@ namespace HIKARI {
                 gCore.Resize(w, h);
                 gCtx = gCore.BuildContext();
                 DXTEX::DxTextureManager::UpdateContext(gCtx);
+                RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
+                RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
                 DX::DxRenderer::UpdateContext(gCtx);
                 POST::PostSystem::UpdateContext(gCtx);
                 HIKARI::VFX::UpdateContext(gCtx);
@@ -238,6 +242,8 @@ namespace HIKARI {
 
             DXTEX::DxTextureManager::Init(gCtx);
             HIKARI_LOG_INFO("TextureManager initialized.");
+            RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
+            RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
 #if defined(HIKARI_WITH_EDITOR)
             if (IsEditorHost() && gEnableImGui) {
                 if (EDITOR::EditorIconManager::Initialize()) {
@@ -329,6 +335,8 @@ namespace HIKARI {
             HIKARI_LOG_INFO("DxRenderer finalized.");
             HIKARI::DefaultPbrResources::Shutdown();
             HIKARI_LOG_INFO("Default PBR resources finalized.");
+            RENDER3D::ShutdownClusterGeometryResourceSystem();
+            RENDER3D::ShutdownRenderResourceDescriptorPool();
 #if defined(HIKARI_WITH_EDITOR)
             EDITOR::EditorIconManager::Finalize();
 #endif
@@ -364,6 +372,8 @@ namespace HIKARI {
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
             gCtx = gCore.BuildContext();
             DXTEX::DxTextureManager::UpdateContext(gCtx);
+            RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
+            RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
             DX::DxRenderer::UpdateContext(gCtx);
             POST::PostSystem::UpdateContext(gCtx);
             HIKARI::VFX::UpdateContext(gCtx);

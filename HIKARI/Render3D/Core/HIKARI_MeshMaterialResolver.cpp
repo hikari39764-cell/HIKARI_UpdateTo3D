@@ -14,6 +14,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         const std::string& SelectRuntimeTexturePath(const TextureAsset3D& texture) {
+            return texture.resolvedPath.empty() ? texture.sourcePath : texture.resolvedPath;
+
             // Asset pipeline 済みなら cooked path、未解決なら元画像へフォールバックする。
             return texture.resolvedPath.empty() ? texture.sourcePath : texture.resolvedPath;
         }

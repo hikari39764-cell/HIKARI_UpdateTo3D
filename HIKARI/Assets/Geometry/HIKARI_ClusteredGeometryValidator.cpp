@@ -148,7 +148,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 (surface.indexCount % 3u) != 0u ||
                 !RangeValid(surface.firstCluster, surface.clusterCount, asset.clusters.size()) ||
                 !RangeValid(surface.firstIndex, surface.indexCount, asset.packedIndices.size()) ||
-                !RangeValid(surface.firstVertex, surface.vertexCount, asset.packedVertices.size())) {
+                !RangeValid(surface.firstVertex, surface.vertexCount, asset.packedVertices.size()) ||
+                !RangeValid(surface.firstPage, surface.pageCount, asset.pages.size())) {
                 surfaceValid = false;
             }
             if (surface.materialIndex >= asset.materialSlotMapping.size()) {
@@ -173,6 +174,18 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     if (cluster.surfaceIndex != i ||
                         !RangeContains(surface.firstIndex, surface.indexCount, cluster.firstIndex, cluster.indexCount) ||
                         !RangeContains(surface.firstVertex, surface.vertexCount, cluster.firstVertex, cluster.vertexCount)) {
+                        surfaceValid = false;
+                        break;
+                    }
+                }
+            }
+            if (surfaceValid) {
+                for (uint32_t pageOffset = 0; pageOffset < surface.pageCount; ++pageOffset) {
+                    const RENDER3D::CLUSTER::ClusterPage& page =
+                        asset.pages[surface.firstPage + pageOffset];
+                    if (!RangeContains(surface.firstCluster, surface.clusterCount, page.firstCluster, page.clusterCount) ||
+                        !RangeContains(surface.firstIndex, surface.indexCount, page.firstIndex, page.indexCount) ||
+                        !RangeContains(surface.firstVertex, surface.vertexCount, page.firstVertex, page.vertexCount)) {
                         surfaceValid = false;
                         break;
                     }

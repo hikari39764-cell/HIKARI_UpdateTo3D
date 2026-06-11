@@ -1,0 +1,67 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+#include <d3d12.h>
+#include <wrl/client.h>
+
+#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
+
+namespace HIKARI::RENDER3D::CLUSTER {
+
+    enum class ClusterDrawPipelineKind : uint32_t {
+        ForwardOpaque,
+        GeometryBuffer,
+    };
+
+    struct ClusterDrawExecutorStats {
+        bool drawArgumentBufferReady = false;
+        bool drawCommandSignatureReady = false;
+        bool drawPipelineReady = false;
+        bool forwardPipelineReady = false;
+        bool geometryBufferPipelineReady = false;
+        size_t requestedDrawCount = 0;
+        size_t submittedDrawCount = 0;
+        size_t skippedDrawCount = 0;
+        size_t skippedBucketCount = 0;
+        size_t submitCallCount = 0;
+        size_t forwardSubmittedDrawCount = 0;
+        size_t geometryBufferSubmittedDrawCount = 0;
+        size_t forwardSubmitCallCount = 0;
+        size_t geometryBufferSubmitCallCount = 0;
+        size_t backFaceSubmitCallCount = 0;
+        size_t doubleSidedSubmitCallCount = 0;
+    };
+
+    struct ClusterDrawExecutionContext {
+        ID3D12GraphicsCommandList* commandList = nullptr;
+        const ClusterGpuCullingPass* cullingPass = nullptr;
+        ClusterDrawPipelineKind pipelineKind = ClusterDrawPipelineKind::ForwardOpaque;
+    };
+
+    class ClusterDrawExecutor final {
+    public:
+        using PipelineBucketArray =
+            std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kClusterDrawCullModeBucketCount>;
+
+        bool Initialize(ID3D12Device* device, ID3D12RootSignature* rootSignature);
+        void Reset();
+        void ResetFrame();
+        bool Execute(const ClusterDrawExecutionContext& ctx);
+
+        const ClusterDrawExecutorStats& GetStats() const;
+        ID3D12PipelineState* GetPipelineState() const;
+        ID3D12PipelineState* GetPipelineState(ClusterDrawPipelineKind kind) const;
+        ID3D12PipelineState* GetPipelineState(
+            ClusterDrawPipelineKind kind,
+            ClusterDrawCullModeBucket bucket) const;
+
+    private:
+        PipelineBucketArray forwardPipelineStates_{};
+        PipelineBucketArray geometryBufferPipelineStates_{};
+        ClusterDrawExecutorStats stats_{};
+    };
+
+} // namespace HIKARI::RENDER3D::CLUSTER
