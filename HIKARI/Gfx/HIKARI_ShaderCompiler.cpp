@@ -308,6 +308,8 @@ namespace HIKARI::GFX {
         switch (stage) {
         case ShaderStage::Vertex: return L"vs_6_0";
         case ShaderStage::Compute: return L"cs_6_0";
+        case ShaderStage::Amplification: return L"as_6_5";
+        case ShaderStage::Mesh: return L"ms_6_5";
         case ShaderStage::Pixel:
         default: return L"ps_6_0";
         }
@@ -327,17 +329,21 @@ namespace HIKARI::GFX {
     }
 
     bool SupportsShaderModel6(ID3D12Device* device) {
+        return SupportsShaderModel(device, D3D_SHADER_MODEL_6_0);
+    }
+
+    bool SupportsShaderModel(ID3D12Device* device, D3D_SHADER_MODEL minimumModel) {
         if (device == nullptr) {
             return false;
         }
 
         D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
-        shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_0;
+        shaderModel.HighestShaderModel = minimumModel;
         HRESULT hr = device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
         if (FAILED(hr)) {
             return false;
         }
-        return shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_0;
+        return shaderModel.HighestShaderModel >= minimumModel;
     }
 
     bool CompileShaderFileSm6(

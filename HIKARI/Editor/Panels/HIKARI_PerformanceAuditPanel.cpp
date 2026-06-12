@@ -289,6 +289,9 @@ namespace HIKARI {
                 MetricRow("BackFace / DoubleSided DrawArgs", "%zu / %zu",
                     s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
                     s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount);
+                MetricRow("DrawArg Merge Gaps / Extra Indices", "%zu / %zu",
+                    s.mesh.clusterGpuCullGpuMergedGapCount,
+                    s.mesh.clusterGpuCullGpuMergedGapIndexCount);
                 MetricRow("DoubleSided Cluster / DrawArg Share", "%.1f%% / %.1f%%",
                     SafeRatio(
                         s.mesh.clusterGpuCullGpuDoubleSidedClusterCount,
@@ -392,9 +395,10 @@ namespace HIKARI {
                     s.clusterResources.clusterCount,
                     s.clusterResources.pageCount,
                     s.clusterResources.surfaceRangeCount);
-                MetricRow("Vertices / Indices / GPU Bytes", "%u / %u / %.2f MB",
+                MetricRow("Vertices / Indices / Primitives / GPU Bytes", "%u / %u / %u / %.2f MB",
                     s.clusterResources.vertexCount,
                     s.clusterResources.indexCount,
+                    s.clusterResources.meshletPrimitiveCount,
                     static_cast<double>(s.clusterResources.gpuBufferBytes) / (1024.0 * 1024.0));
                 MetricRow("Shader SRV / Missing / Allocation Failed", "%u / %u / %u",
                     s.clusterResources.shaderVisibleResourceCount,
@@ -448,6 +452,7 @@ namespace HIKARI {
                 TextStatus("Cluster Draw", s.mesh.clusterDrawPipelineReady && s.mesh.clusterDrawCommandSignatureReady);
                 ImGui::TableNextColumn();
                 TextStatus("Cluster Resource", s.clusterResources.initialized && s.clusterResources.readyResourceCount > 0);
+                TextStatus("Meshlet Backend", s.mesh.meshletBackendPipelineReady);
                 TextStatus("GPU Timing", s.gpu.gpuTimingAvailable);
                 ImGui::EndTable();
             }

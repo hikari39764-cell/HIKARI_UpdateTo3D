@@ -24,6 +24,7 @@ namespace HIKARI::RENDER3D {
         using ClusterGeometryGpuCluster = CLUSTER::ClusterGeometryGpuCluster;
         using ClusterGeometryGpuPage = CLUSTER::ClusterGeometryGpuPage;
         using ClusterGeometryGpuVertex = CLUSTER::ClusterGeometryGpuVertex;
+        using ClusterGeometryGpuMeshletPrimitive = CLUSTER::ClusterGeometryGpuMeshletPrimitive;
         using ClusterGeometrySurfaceRange = CLUSTER::ClusterGeometrySurfaceRange;
 
         struct PackedClusterGeometry {
@@ -100,6 +101,8 @@ namespace HIKARI::RENDER3D {
             range.vertexCount = source.vertexCount;
             range.firstPage = source.firstPage;
             range.pageCount = source.pageCount;
+            range.firstPrimitive = source.firstPrimitive;
+            range.primitiveCount = source.primitiveCount;
             return range;
         }
 
@@ -118,6 +121,8 @@ namespace HIKARI::RENDER3D {
             gpu.flags = source.flags;
             gpu.firstPage = source.firstPage;
             gpu.pageCount = source.pageCount;
+            gpu.firstPrimitive = source.firstPrimitive;
+            gpu.primitiveCount = source.primitiveCount;
             gpu.boundsMin = BoundsMin4(source.localBounds);
             gpu.boundsMax = BoundsMax4(source.localBounds);
             return gpu;
@@ -132,6 +137,7 @@ namespace HIKARI::RENDER3D {
             gpu.vertexCount = source.vertexCount;
             gpu.triangleCount = source.triangleCount;
             gpu.flags = source.flags;
+            gpu.firstPrimitive = source.firstPrimitive;
             gpu.boundsMin = BoundsMin4(source.localBounds);
             gpu.boundsMax = BoundsMax4(source.localBounds);
             gpu.sphereCenterRadius = {
@@ -157,8 +163,21 @@ namespace HIKARI::RENDER3D {
             gpu.indexCount = source.indexCount;
             gpu.firstVertex = source.firstVertex;
             gpu.vertexCount = source.vertexCount;
+            gpu.firstPrimitive = source.firstPrimitive;
+            gpu.primitiveCount = source.primitiveCount;
             gpu.boundsMin = BoundsMin4(source.localBounds);
             gpu.boundsMax = BoundsMax4(source.localBounds);
+            return gpu;
+        }
+
+        ClusterGeometryGpuMeshletPrimitive ToGpuMeshletPrimitive(
+            const CLUSTER::MeshletPrimitive& source) {
+
+            ClusterGeometryGpuMeshletPrimitive gpu{};
+            gpu.i0 = source.i0;
+            gpu.i1 = source.i1;
+            gpu.i2 = source.i2;
+            gpu.reserved0 = source.reserved0;
             return gpu;
         }
 
@@ -184,6 +203,7 @@ namespace HIKARI::RENDER3D {
             header.vertexCount = ClampToUint32(asset.packedVertices.size());
             header.indexCount = ClampToUint32(asset.packedIndices.size());
             header.materialSlotCount = ClampToUint32(asset.materialSlotMapping.size());
+            header.meshletPrimitiveCount = ClampToUint32(asset.meshletPrimitives.size());
             header.totalTriangleCount = asset.totalTriangleCount;
             header.totalVertexCount = asset.totalVertexCount;
             header.localBoundsMin = BoundsMin4(asset.localBounds);
@@ -230,6 +250,11 @@ namespace HIKARI::RENDER3D {
                 AppendPod(packed.bytes, index);
             }
 
+            header.meshletPrimitiveOffsetBytes = AlignSection(packed.bytes);
+            for (const CLUSTER::MeshletPrimitive& primitive : asset.meshletPrimitives) {
+                AppendPod(packed.bytes, ToGpuMeshletPrimitive(primitive));
+            }
+
             header.materialSlotOffsetBytes = AlignSection(packed.bytes);
             for (const uint32_t materialSlot : asset.materialSlotMapping) {
                 AppendPod(packed.bytes, materialSlot);
@@ -253,6 +278,8 @@ namespace HIKARI::RENDER3D {
             packed.layout.vertexOffsetBytes = header.vertexOffsetBytes;
             packed.layout.indexOffsetBytes = header.indexOffsetBytes;
             packed.layout.materialSlotOffsetBytes = header.materialSlotOffsetBytes;
+            packed.layout.meshletPrimitiveCount = header.meshletPrimitiveCount;
+            packed.layout.meshletPrimitiveOffsetBytes = header.meshletPrimitiveOffsetBytes;
             packed.layout.totalTriangleCount = header.totalTriangleCount;
             packed.layout.totalVertexCount = header.totalVertexCount;
             packed.layout.flags = header.flags;
@@ -392,6 +419,7 @@ namespace HIKARI::RENDER3D {
                 stats.pageCount += record.layout.pageCount;
                 stats.vertexCount += record.layout.vertexCount;
                 stats.indexCount += record.layout.indexCount;
+                stats.meshletPrimitiveCount += record.layout.meshletPrimitiveCount;
                 stats.surfaceRangeCount += ClampToUint32(record.surfaceRanges.size());
                 stats.gpuBufferBytes += record.layout.byteSize;
             }

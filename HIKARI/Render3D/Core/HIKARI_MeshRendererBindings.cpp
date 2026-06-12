@@ -380,6 +380,30 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 	// マテリアルに関連するテクスチャセットをバインドする
+    void BindMeshletVisibleRanges(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_VIRTUAL_ADDRESS visibleRangeAddress) {
+
+        if (ctx.cmd == nullptr ||
+            visibleRangeAddress == 0 ||
+            ROOT_PARAM::MeshletVisibleRanges >= kTrackedRootParamCount) {
+            return;
+        }
+
+        MeshBindingStateCache* cache = ctx.cache;
+        if (cache != nullptr &&
+            cache->cbvAddresses[ROOT_PARAM::MeshletVisibleRanges] == visibleRangeAddress) {
+            return;
+        }
+
+        ctx.cmd->SetGraphicsRootShaderResourceView(
+            ROOT_PARAM::MeshletVisibleRanges,
+            visibleRangeAddress);
+        if (cache != nullptr) {
+            cache->cbvAddresses[ROOT_PARAM::MeshletVisibleRanges] = visibleRangeAddress;
+        }
+    }
+
     void BindPipelineState(
         const MeshBindingContext& ctx,
         ID3D12PipelineState* pso) {

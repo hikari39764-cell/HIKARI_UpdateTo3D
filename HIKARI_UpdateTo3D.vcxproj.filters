@@ -97,6 +97,9 @@
     <Filter Include="Header Files\Render3D\Cluster">
       <UniqueIdentifier>{07AE88EF-98D9-443D-A5E8-4C94D5F1128B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Meshlet">
+      <UniqueIdentifier>{D2AA28DB-0E86-43B5-9275-016F628A384C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Debug">
       <UniqueIdentifier>{D4230920-B950-5BD9-8A44-DC7AD29218A5}</UniqueIdentifier>
     </Filter>
@@ -333,6 +336,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Cluster">
       <UniqueIdentifier>{87491D43-B4C7-4D08-8A94-65F075579BBE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Meshlet">
+      <UniqueIdentifier>{A9499146-4201-4146-9BBE-F8D176810E42}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Debug">
       <UniqueIdentifier>{6BB723E5-CA24-58C7-A93A-C9ABF89FE291}</UniqueIdentifier>
@@ -1189,6 +1195,9 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp">
+      <Filter>Source Files\Render3D\Meshlet</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.cpp">
       <Filter>Source Files\Render3D\Resources</Filter>
     </ClCompile>
@@ -1947,6 +1956,9 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">
+      <Filter>Header Files\Render3D\Meshlet</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.h">
       <Filter>Header Files\Render3D\Resources</Filter>
     </ClInclude>
@@ -2018,6 +2030,9 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
@@ -2043,6 +2058,12 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl">

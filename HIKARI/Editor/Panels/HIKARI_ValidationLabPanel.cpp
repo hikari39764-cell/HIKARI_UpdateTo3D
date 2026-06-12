@@ -382,6 +382,9 @@ namespace HIKARI {
                 meshStats.clusterGpuCullGpuDoubleSidedDrawCommandCount,
                 meshStats.clusterGpuCullGpuBackFaceDrawCommandOverflowCount,
                 meshStats.clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount);
+            ImGui::Text("Cluster GPU DrawArg Merge Gaps / Extra Indices: %zu / %zu",
+                meshStats.clusterGpuCullGpuMergedGapCount,
+                meshStats.clusterGpuCullGpuMergedGapIndexCount);
             ImGui::Text("Cluster Draw Eligible / Reject Mainline / Backend / Transparent: %zu / %zu / %zu / %zu",
                 meshStats.clusterDrawEligibleCommandCount,
                 meshStats.clusterDrawRejectMainlineCommandCount,
@@ -409,6 +412,14 @@ namespace HIKARI {
                 meshStats.clusterDrawGeometryBufferPipelineReady ? "Ready" : "Pending",
                 meshStats.clusterDrawArgumentBufferReady ? "Ready" : "Missing",
                 meshStats.clusterDrawCommandSignatureReady ? "Ready" : "Missing");
+            ImGui::Text("Meshlet Backend Ready / SM6.5 / Tier / Fwd / GBuffer / PSO: %s / %s / %u / %s / %s / %zu/%zu",
+                meshStats.meshletBackendPipelineReady ? "Ready" : "Pending",
+                meshStats.meshletBackendShaderModel65Supported ? "yes" : "no",
+                meshStats.meshletBackendMeshShaderTier,
+                meshStats.meshletBackendForwardPipelineReady ? "Ready" : "Pending",
+                meshStats.meshletBackendGeometryBufferPipelineReady ? "Ready" : "Pending",
+                meshStats.meshletBackendPipelineCreateReadyCount,
+                meshStats.meshletBackendPipelineCreateRequestCount);
             ImGui::Text("Cluster Mainline Ready / Forward / GeometryAux / Seeds / OverflowBlock: %s / %s / %s / %s / %s",
                 meshStats.clusterMainlineReady ? "Ready" : "Blocked",
                 meshStats.clusterMainlineForwardReady ? "Ready" : "Blocked",
@@ -620,9 +631,10 @@ namespace HIKARI {
                 clusterResourceStats.clusterCount,
                 clusterResourceStats.pageCount);
             ImGui::Text("GPU Surface Ranges: %u", clusterResourceStats.surfaceRangeCount);
-            ImGui::Text("GPU Vertices / Indices / Bytes: %u / %u / %.2f MB",
+            ImGui::Text("GPU Vertices / Indices / Primitives / Bytes: %u / %u / %u / %.2f MB",
                 clusterResourceStats.vertexCount,
                 clusterResourceStats.indexCount,
+                clusterResourceStats.meshletPrimitiveCount,
                 static_cast<double>(clusterResourceStats.gpuBufferBytes) / (1024.0 * 1024.0));
 
             const RENDER3D::RenderResourceDescriptorPoolStats descriptorStats =

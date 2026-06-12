@@ -52,5 +52,7 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT SurfaceGpuSceneControl = 22;
     // Cluster geometry resource pool -> t0[], space1
     constexpr UINT ClusterGeometryPool = 23;
+    // Meshlet visible range buffer -> t18
+    constexpr UINT MeshletVisibleRanges = 24;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

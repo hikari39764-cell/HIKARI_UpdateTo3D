@@ -18,6 +18,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         using RENDER3D::CLUSTER::ClusteredGeometryAsset;
         using RENDER3D::CLUSTER::ClusteredGeometryBuildReport;
         using RENDER3D::CLUSTER::MeshCluster;
+        using RENDER3D::CLUSTER::MeshletPrimitive;
 
         struct SourceTriangle {
             uint32_t i0 = 0;
@@ -491,6 +492,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             cluster.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
             cluster.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
             cluster.triangleCount = static_cast<uint32_t>(group.size());
+            cluster.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
+            cluster.primitiveCount = cluster.triangleCount;
 
             Bounds bounds{};
             bool hasBounds = false;
@@ -498,7 +501,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
             for (uint32_t triangleIndex : group) {
                 const SourceTriangle& tri = triangles[triangleIndex];
                 const uint32_t sourceIndices[3] = { tri.i0, tri.i1, tri.i2 };
-                for (uint32_t sourceIndex : sourceIndices) {
+                uint32_t localIndices[3]{};
+                for (uint32_t corner = 0; corner < 3u; ++corner) {
+                    const uint32_t sourceIndex = sourceIndices[corner];
                     auto it = vertexRemap.find(sourceIndex);
                     if (it == vertexRemap.end()) {
                         const uint32_t localIndex =
@@ -507,11 +512,20 @@ namespace HIKARI::ASSETS::GEOMETRY {
                         asset.packedVertices.push_back(work.vertices[sourceIndex]);
                         EncapsulatePoint(bounds, hasBounds, work.vertices[sourceIndex].position);
                         // cluster 内 index は meshlet と同じく局所 index として保存する。
-                        asset.packedIndices.push_back(localIndex);
+                        localIndices[corner] = localIndex;
                     } else {
-                        asset.packedIndices.push_back(it->second);
+                        localIndices[corner] = it->second;
                     }
                 }
+                asset.packedIndices.push_back(localIndices[0]);
+                asset.packedIndices.push_back(localIndices[1]);
+                asset.packedIndices.push_back(localIndices[2]);
+
+                MeshletPrimitive primitive{};
+                primitive.i0 = localIndices[0];
+                primitive.i1 = localIndices[1];
+                primitive.i2 = localIndices[2];
+                asset.meshletPrimitives.push_back(primitive);
                 normalSum = normalSum + tri.normal;
             }
 
@@ -564,20 +578,24 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 page.clusterCount = pageClusterCount;
                 page.firstIndex = asset.clusters[clusterCursor].firstIndex;
                 page.firstVertex = asset.clusters[clusterCursor].firstVertex;
+                page.firstPrimitive = asset.clusters[clusterCursor].firstPrimitive;
 
                 Bounds bounds{};
                 bool hasBounds = false;
                 uint32_t endIndex = page.firstIndex;
                 uint32_t endVertex = page.firstVertex;
+                uint32_t endPrimitive = page.firstPrimitive;
                 for (uint32_t i = 0; i < pageClusterCount; ++i) {
                     const MeshCluster& cluster = asset.clusters[clusterCursor + i];
                     bounds = hasBounds ? MergeBounds(bounds, cluster.localBounds) : cluster.localBounds;
                     hasBounds = hasBounds || BOUNDS::IsUsable(cluster.localBounds);
                     endIndex = (std::max)(endIndex, cluster.firstIndex + cluster.indexCount);
                     endVertex = (std::max)(endVertex, cluster.firstVertex + cluster.vertexCount);
+                    endPrimitive = (std::max)(endPrimitive, cluster.firstPrimitive + cluster.primitiveCount);
                 }
                 page.indexCount = endIndex - page.firstIndex;
                 page.vertexCount = endVertex - page.firstVertex;
+                page.primitiveCount = endPrimitive - page.firstPrimitive;
                 page.localBounds = hasBounds ? bounds : Bounds{};
                 asset.pages.push_back(page);
 
@@ -612,6 +630,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             surface.firstCluster = static_cast<uint32_t>(asset.clusters.size());
             surface.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
             surface.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
+            surface.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
             surface.flags = work.flags;
 
             const std::vector<std::vector<uint32_t>> groups =
@@ -626,6 +645,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             surface.clusterCount = static_cast<uint32_t>(asset.clusters.size()) - surface.firstCluster;
             surface.indexCount = static_cast<uint32_t>(asset.packedIndices.size()) - surface.firstIndex;
             surface.vertexCount = static_cast<uint32_t>(asset.packedVertices.size()) - surface.firstVertex;
+            surface.primitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size()) - surface.firstPrimitive;
             surface.localBounds = ComputeVertexBounds(work.vertices);
             if (surface.clusterCount == 0u) {
                 ++report.skippedInvalidPrimitiveCount;
@@ -740,6 +760,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             report.surfaceCount = static_cast<uint32_t>(asset.surfaces.size());
             report.clusterCount = static_cast<uint32_t>(asset.clusters.size());
             report.pageCount = static_cast<uint32_t>(asset.pages.size());
+            report.meshletPrimitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size());
             report.triangleCount = asset.totalTriangleCount;
             report.vertexCount = asset.totalVertexCount;
             report.maxVerticesPerCluster = RENDER3D::CLUSTER::CountMaxClusterVertices(asset);
@@ -768,6 +789,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
         RENDER3D::CLUSTER::AddFlag(
             outAsset.flags,
             RENDER3D::CLUSTER::ClusteredGeometryFlags::SourceMapping);
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::MeshletPrimitiveTable);
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::MeshletReady);
         AppendMaterialSlots(model, outAsset);
 
         if (model.meshes.empty()) {
@@ -840,7 +867,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             !outAsset.surfaces.empty() &&
             !outAsset.clusters.empty() &&
             !outAsset.packedVertices.empty() &&
-            !outAsset.packedIndices.empty();
+            !outAsset.packedIndices.empty() &&
+            !outAsset.meshletPrimitives.empty();
 
         FillReportFromAsset(outAsset, outReport);
         outReport.skippedMorphPrimitiveCount = outAsset.skippedMorphPrimitiveCount;

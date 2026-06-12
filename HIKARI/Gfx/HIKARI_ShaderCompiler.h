@@ -12,12 +12,15 @@ namespace HIKARI::GFX {
         Vertex,
         Pixel,
         Compute,
+        Amplification,
+        Mesh,
     };
 
     const wchar_t* ShaderModel6Profile(ShaderStage stage);
     const wchar_t* UpgradeToShaderModel6Profile(const char* legacyProfile);
 
     bool SupportsShaderModel6(ID3D12Device* device);
+    bool SupportsShaderModel(ID3D12Device* device, D3D_SHADER_MODEL minimumModel);
 
     bool CompileShaderFileSm6(
         const wchar_t* path,

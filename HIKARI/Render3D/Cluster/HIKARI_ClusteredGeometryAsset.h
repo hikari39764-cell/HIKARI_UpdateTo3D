@@ -14,6 +14,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
     constexpr uint32_t kHcmeshMaxTrianglesPerCluster = 64u;
     constexpr uint32_t kHcmeshMaxVerticesPerCluster = 128u;
     constexpr uint32_t kHcmeshMaxClustersPerPage = 64u;
+    constexpr uint32_t kHcmeshMaxTrianglesPerMeshlet = kHcmeshMaxTrianglesPerCluster;
+    constexpr uint32_t kHcmeshMaxVerticesPerMeshlet = kHcmeshMaxVerticesPerCluster;
+    constexpr uint32_t kHcmeshMaxMeshletsPerPage = kHcmeshMaxClustersPerPage;
 
     enum class ClusterSurfaceFlags : uint32_t {
         None = 0,
@@ -42,6 +45,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         NodeTransformBaked = 1u << 0,
         ClusterLocalIndices = 1u << 1,
         SourceMapping = 1u << 2,
+        MeshletPrimitiveTable = 1u << 3,
+        MeshletReady = 1u << 4,
     };
 
     inline uint32_t ToBits(ClusteredGeometryFlags value) {
@@ -65,6 +70,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         MATH::Vec4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
     };
 
+    struct MeshletPrimitive {
+        uint32_t i0 = 0;
+        uint32_t i1 = 0;
+        uint32_t i2 = 0;
+        uint32_t reserved0 = 0;
+    };
+
     struct ClusterSurface {
         uint32_t nodeIndex = kInvalidClusterIndex;
         uint32_t meshIndex = 0;
@@ -83,6 +95,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstPage = 0;
         uint32_t pageCount = 0;
 
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
         Bounds localBounds{};
 
         uint32_t flags = 0;
@@ -98,6 +113,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t vertexCount = 0;
 
         uint32_t triangleCount = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
 
         Bounds localBounds{};
 
@@ -120,8 +137,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstVertex = 0;
         uint32_t vertexCount = 0;
 
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
         Bounds localBounds{};
     };
+
+    using MeshletVertex = ClusterVertex;
+    using Meshlet = MeshCluster;
+    using MeshletPage = ClusterPage;
 
     struct ClusteredGeometryAsset {
         AssetGuid sourceModelGuid{};
@@ -134,8 +158,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         std::vector<ClusterPage> pages{};
 
         std::vector<ClusterVertex> packedVertices{};
-        // index は各 cluster の firstVertex からの局所 index。
+        // index は各 meshlet の firstVertex から見たローカル頂点 index。
         std::vector<uint32_t> packedIndices{};
+        // Mesh Shader 用に triangle primitive を直接読める形で保持する。
+        std::vector<MeshletPrimitive> meshletPrimitives{};
         std::vector<uint32_t> materialSlotMapping{};
 
         Bounds localBounds{};
@@ -157,6 +183,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t surfaceCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
+        uint32_t meshletPrimitiveCount = 0;
         uint32_t triangleCount = 0;
         uint32_t vertexCount = 0;
         uint32_t maxVerticesPerCluster = 0;

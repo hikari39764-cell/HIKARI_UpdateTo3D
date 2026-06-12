@@ -2,13 +2,14 @@
 #define HIKARI_CLUSTER_GPU_DATA_INCLUDED
 
 static const uint HIKARI_CLUSTER_GEOMETRY_GPU_MAGIC = 0x534c4348u;
-static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 2u;
+static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 3u;
 static const uint HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX = 0xffffffffu;
 static const uint HIKARI_CLUSTER_GEOMETRY_HEADER_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_BYTES = 96u;
 static const uint HIKARI_CLUSTER_GEOMETRY_CLUSTER_BYTES = 96u;
 static const uint HIKARI_CLUSTER_GEOMETRY_PAGE_BYTES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES = 80u;
+static const uint HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES = 16u;
 
 struct HikariClusterGeometryHeader
 {
@@ -34,8 +35,8 @@ struct HikariClusterGeometryHeader
 
     uint indexOffsetBytes;
     uint materialSlotOffsetBytes;
-    uint reserved0;
-    uint reserved1;
+    uint meshletPrimitiveCount;
+    uint meshletPrimitiveOffsetBytes;
 
     float4 localBoundsMin;
     float4 localBoundsMax;
@@ -59,8 +60,8 @@ struct HikariClusterGeometrySurface
     uint firstPage;
 
     uint pageCount;
-    uint reserved0;
-    uint reserved1;
+    uint firstPrimitive;
+    uint primitiveCount;
     uint reserved2;
 
     float4 boundsMin;
@@ -77,7 +78,7 @@ struct HikariMeshCluster
     uint vertexCount;
     uint triangleCount;
     uint flags;
-    uint reserved0;
+    uint firstPrimitive;
 
     float4 boundsMin;
     float4 boundsMax;
@@ -94,8 +95,8 @@ struct HikariClusterPage
 
     uint firstVertex;
     uint vertexCount;
-    uint reserved0;
-    uint reserved1;
+    uint firstPrimitive;
+    uint primitiveCount;
 
     float4 boundsMin;
     float4 boundsMax;
@@ -108,6 +109,14 @@ struct HikariClusterVertex
     float4 tangent;
     float4 uv01;
     float4 color;
+};
+
+struct HikariMeshletPrimitive
+{
+    uint i0;
+    uint i1;
+    uint i2;
+    uint reserved0;
 };
 
 bool HikariIsValidClusterGeometryHeader(HikariClusterGeometryHeader header)
@@ -144,8 +153,8 @@ HikariClusterGeometryHeader HikariLoadClusterGeometryHeader(ByteAddressBuffer bu
     header.vertexOffsetBytes = v3.w;
     header.indexOffsetBytes = v4.x;
     header.materialSlotOffsetBytes = v4.y;
-    header.reserved0 = v4.z;
-    header.reserved1 = v4.w;
+    header.meshletPrimitiveCount = v4.z;
+    header.meshletPrimitiveOffsetBytes = v4.w;
     header.localBoundsMin = asfloat(buffer.Load4(80u));
     header.localBoundsMax = asfloat(buffer.Load4(96u));
     return header;
@@ -175,8 +184,8 @@ HikariClusterGeometrySurface HikariLoadClusterGeometrySurface(
     surface.flags = v2.z;
     surface.firstPage = v2.w;
     surface.pageCount = v3.x;
-    surface.reserved0 = v3.y;
-    surface.reserved1 = v3.z;
+    surface.firstPrimitive = v3.y;
+    surface.primitiveCount = v3.z;
     surface.reserved2 = v3.w;
     surface.boundsMin = asfloat(buffer.Load4(offset + 64u));
     surface.boundsMax = asfloat(buffer.Load4(offset + 80u));
@@ -199,7 +208,7 @@ HikariMeshCluster HikariLoadMeshCluster(
     cluster.vertexCount = v1.x;
     cluster.triangleCount = v1.y;
     cluster.flags = v1.z;
-    cluster.reserved0 = v1.w;
+    cluster.firstPrimitive = v1.w;
     cluster.boundsMin = asfloat(buffer.Load4(offset + 32u));
     cluster.boundsMax = asfloat(buffer.Load4(offset + 48u));
     cluster.sphereCenterRadius = asfloat(buffer.Load4(offset + 64u));
@@ -222,8 +231,8 @@ HikariClusterPage HikariLoadClusterPage(
     page.indexCount = v0.w;
     page.firstVertex = v1.x;
     page.vertexCount = v1.y;
-    page.reserved0 = v1.z;
-    page.reserved1 = v1.w;
+    page.firstPrimitive = v1.z;
+    page.primitiveCount = v1.w;
     page.boundsMin = asfloat(buffer.Load4(offset + 32u));
     page.boundsMax = asfloat(buffer.Load4(offset + 48u));
     return page;
@@ -250,6 +259,22 @@ uint HikariLoadClusterIndex(
     uint indexIndex)
 {
     return buffer.Load(header.indexOffsetBytes + indexIndex * 4u);
+}
+
+HikariMeshletPrimitive HikariLoadMeshletPrimitive(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint primitiveIndex)
+{
+    HikariMeshletPrimitive primitive = (HikariMeshletPrimitive)0;
+    uint offset = header.meshletPrimitiveOffsetBytes +
+        primitiveIndex * HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES;
+    uint4 v0 = buffer.Load4(offset);
+    primitive.i0 = v0.x;
+    primitive.i1 = v0.y;
+    primitive.i2 = v0.z;
+    primitive.reserved0 = v0.w;
+    return primitive;
 }
 
 #endif

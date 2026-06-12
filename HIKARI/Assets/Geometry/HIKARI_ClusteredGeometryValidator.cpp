@@ -75,11 +75,42 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return true;
         }
 
+        bool MeshletPrimitiveTableValid(
+            const RENDER3D::CLUSTER::ClusteredGeometryAsset& asset,
+            const RENDER3D::CLUSTER::MeshCluster& cluster) {
+
+            if (cluster.primitiveCount != cluster.triangleCount ||
+                !RangeValid(cluster.firstPrimitive, cluster.primitiveCount, asset.meshletPrimitives.size())) {
+                return false;
+            }
+
+            for (uint32_t i = 0; i < cluster.primitiveCount; ++i) {
+                const RENDER3D::CLUSTER::MeshletPrimitive& primitive =
+                    asset.meshletPrimitives[cluster.firstPrimitive + i];
+                if (primitive.i0 >= cluster.vertexCount ||
+                    primitive.i1 >= cluster.vertexCount ||
+                    primitive.i2 >= cluster.vertexCount) {
+                    return false;
+                }
+
+                const uint32_t packedIndex = cluster.firstIndex + i * 3u;
+                if (packedIndex + 2u >= asset.packedIndices.size() ||
+                    asset.packedIndices[packedIndex + 0u] != primitive.i0 ||
+                    asset.packedIndices[packedIndex + 1u] != primitive.i1 ||
+                    asset.packedIndices[packedIndex + 2u] != primitive.i2) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         bool RequiredAssetFlagsValid(const RENDER3D::CLUSTER::ClusteredGeometryAsset& asset) {
             using RENDER3D::CLUSTER::ClusteredGeometryFlags;
             return RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::NodeTransformBaked) &&
                 RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::ClusterLocalIndices) &&
-                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::SourceMapping);
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::SourceMapping) &&
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::MeshletPrimitiveTable) &&
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::MeshletReady);
         }
 
         bool SurfaceSourceMappingValid(const RENDER3D::CLUSTER::ClusterSurface& surface) {
@@ -114,6 +145,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
         if (asset.packedIndices.empty()) {
             AddMessage(result, "no packed indices");
         }
+        if (asset.meshletPrimitives.empty()) {
+            AddMessage(result, "no meshlet primitives");
+        }
         if (!asset.sourceModelGuid.IsValid()) {
             assetMetadataValid = false;
             AddMessage(result, "missing source model guid");
@@ -145,10 +179,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
             if (surface.clusterCount == 0u ||
                 surface.indexCount == 0u ||
                 surface.vertexCount == 0u ||
+                surface.primitiveCount == 0u ||
                 (surface.indexCount % 3u) != 0u ||
+                surface.primitiveCount * 3u != surface.indexCount ||
                 !RangeValid(surface.firstCluster, surface.clusterCount, asset.clusters.size()) ||
                 !RangeValid(surface.firstIndex, surface.indexCount, asset.packedIndices.size()) ||
                 !RangeValid(surface.firstVertex, surface.vertexCount, asset.packedVertices.size()) ||
+                !RangeValid(surface.firstPrimitive, surface.primitiveCount, asset.meshletPrimitives.size()) ||
                 !RangeValid(surface.firstPage, surface.pageCount, asset.pages.size())) {
                 surfaceValid = false;
             }
@@ -173,7 +210,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                         asset.clusters[surface.firstCluster + clusterOffset];
                     if (cluster.surfaceIndex != i ||
                         !RangeContains(surface.firstIndex, surface.indexCount, cluster.firstIndex, cluster.indexCount) ||
-                        !RangeContains(surface.firstVertex, surface.vertexCount, cluster.firstVertex, cluster.vertexCount)) {
+                        !RangeContains(surface.firstVertex, surface.vertexCount, cluster.firstVertex, cluster.vertexCount) ||
+                        !RangeContains(surface.firstPrimitive, surface.primitiveCount, cluster.firstPrimitive, cluster.primitiveCount)) {
                         surfaceValid = false;
                         break;
                     }
@@ -185,7 +223,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                         asset.pages[surface.firstPage + pageOffset];
                     if (!RangeContains(surface.firstCluster, surface.clusterCount, page.firstCluster, page.clusterCount) ||
                         !RangeContains(surface.firstIndex, surface.indexCount, page.firstIndex, page.indexCount) ||
-                        !RangeContains(surface.firstVertex, surface.vertexCount, page.firstVertex, page.vertexCount)) {
+                        !RangeContains(surface.firstVertex, surface.vertexCount, page.firstVertex, page.vertexCount) ||
+                        !RangeContains(surface.firstPrimitive, surface.primitiveCount, page.firstPrimitive, page.primitiveCount)) {
                         surfaceValid = false;
                         break;
                     }
@@ -206,9 +245,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 cluster.vertexCount == 0u ||
                 cluster.vertexCount > RENDER3D::CLUSTER::kHcmeshMaxVerticesPerCluster ||
                 cluster.indexCount != cluster.triangleCount * 3u ||
+                cluster.primitiveCount != cluster.triangleCount ||
                 !RangeValid(cluster.firstIndex, cluster.indexCount, asset.packedIndices.size()) ||
                 !RangeValid(cluster.firstVertex, cluster.vertexCount, asset.packedVertices.size()) ||
-                !ClusterMicroIndicesValid(asset, cluster)) {
+                !ClusterMicroIndicesValid(asset, cluster) ||
+                !MeshletPrimitiveTableValid(asset, cluster)) {
                 clusterValid = false;
             }
             if (!IsFiniteBounds(cluster.localBounds) ||
@@ -232,9 +273,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
             bool pageValid = true;
             if (page.clusterCount == 0u ||
                 page.clusterCount > RENDER3D::CLUSTER::kHcmeshMaxClustersPerPage ||
+                page.primitiveCount * 3u != page.indexCount ||
                 !RangeValid(page.firstCluster, page.clusterCount, asset.clusters.size()) ||
                 !RangeValid(page.firstIndex, page.indexCount, asset.packedIndices.size()) ||
-                !RangeValid(page.firstVertex, page.vertexCount, asset.packedVertices.size())) {
+                !RangeValid(page.firstVertex, page.vertexCount, asset.packedVertices.size()) ||
+                !RangeValid(page.firstPrimitive, page.primitiveCount, asset.meshletPrimitives.size())) {
                 pageValid = false;
             }
             if (!IsFiniteBounds(page.localBounds) || !BOUNDS::IsUsable(page.localBounds)) {
@@ -246,7 +289,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     const RENDER3D::CLUSTER::MeshCluster& cluster =
                         asset.clusters[page.firstCluster + clusterOffset];
                     if (!RangeContains(page.firstIndex, page.indexCount, cluster.firstIndex, cluster.indexCount) ||
-                        !RangeContains(page.firstVertex, page.vertexCount, cluster.firstVertex, cluster.vertexCount)) {
+                        !RangeContains(page.firstVertex, page.vertexCount, cluster.firstVertex, cluster.vertexCount) ||
+                        !RangeContains(page.firstPrimitive, page.primitiveCount, cluster.firstPrimitive, cluster.primitiveCount)) {
                         pageValid = false;
                         break;
                     }
@@ -265,6 +309,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             !asset.clusters.empty() &&
             !asset.packedVertices.empty() &&
             !asset.packedIndices.empty() &&
+            !asset.meshletPrimitives.empty() &&
             result.invalidSurfaceCount == 0u &&
             result.invalidClusterCount == 0u &&
             result.invalidPageCount == 0u &&

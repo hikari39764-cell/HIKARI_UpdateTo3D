@@ -325,7 +325,7 @@ namespace HIKARI::MESHRENDERER {
         clusterGeometryPoolRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
         // 既存 slot を動かさず、GPU-driven 用のリソースプールを末尾へ追加する。
-        D3D12_ROOT_PARAMETER params[ROOT_PARAM::ClusterGeometryPool + 1]{};
+        D3D12_ROOT_PARAMETER params[ROOT_PARAM::MeshletVisibleRanges + 1]{};
         params[ROOT_PARAM::Camera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Camera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
@@ -445,9 +445,14 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::SurfaceGpuSceneControl].Constants.Num32BitValues = 4;
 
         params[ROOT_PARAM::ClusterGeometryPool].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[ROOT_PARAM::ClusterGeometryPool].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+        params[ROOT_PARAM::ClusterGeometryPool].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::ClusterGeometryPool].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::ClusterGeometryPool].DescriptorTable.pDescriptorRanges = &clusterGeometryPoolRange;
+
+        params[ROOT_PARAM::MeshletVisibleRanges].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+        params[ROOT_PARAM::MeshletVisibleRanges].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::MeshletVisibleRanges].Descriptor.ShaderRegister = 18;
+        params[ROOT_PARAM::MeshletVisibleRanges].Descriptor.RegisterSpace = 0;
 
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -493,7 +498,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        D3D12_ROOT_PARAMETER skinnedParams[ROOT_PARAM::ClusterGeometryPool + 1]{};
+        D3D12_ROOT_PARAMETER skinnedParams[ROOT_PARAM::MeshletVisibleRanges + 1]{};
         for (size_t i = 0; i < std::size(params); ++i) {
             skinnedParams[i] = params[i];
         }

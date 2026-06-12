@@ -93,6 +93,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 header.pageCount == asset.pages.size() &&
                 header.vertexCount == asset.packedVertices.size() &&
                 header.indexCount == asset.packedIndices.size() &&
+                header.meshletPrimitiveCount == asset.meshletPrimitives.size() &&
                 header.materialSlotCount == asset.materialSlotMapping.size();
         }
     }
@@ -103,7 +104,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
         std::string& outMessage) {
 
         if (!asset.valid || asset.surfaces.empty() || asset.clusters.empty() ||
-            asset.packedVertices.empty() || asset.packedIndices.empty()) {
+            asset.packedVertices.empty() || asset.packedIndices.empty() ||
+            asset.meshletPrimitives.empty()) {
             outMessage = "[HCMESH] invalid clustered geometry data";
             return false;
         }
@@ -127,6 +129,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         header.pageCount = static_cast<uint32_t>(asset.pages.size());
         header.vertexCount = static_cast<uint32_t>(asset.packedVertices.size());
         header.indexCount = static_cast<uint32_t>(asset.packedIndices.size());
+        header.meshletPrimitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size());
         header.materialSlotCount = static_cast<uint32_t>(asset.materialSlotMapping.size());
         header.flags = asset.flags;
 
@@ -149,6 +152,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             WritePodVector(ofs, asset.pages) &&
             WritePodVector(ofs, asset.packedVertices) &&
             WritePodVector(ofs, asset.packedIndices) &&
+            WritePodVector(ofs, asset.meshletPrimitives) &&
             WritePodVector(ofs, asset.materialSlotMapping);
 
         if (!ok || !ofs.good()) {
@@ -197,6 +201,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             !ReadPodVector(ifs, asset.pages) ||
             !ReadPodVector(ifs, asset.packedVertices) ||
             !ReadPodVector(ifs, asset.packedIndices) ||
+            !ReadPodVector(ifs, asset.meshletPrimitives) ||
             !ReadPodVector(ifs, asset.materialSlotMapping)) {
             outMessage = "[HCMESH] failed while reading: " + path.generic_string();
             return false;

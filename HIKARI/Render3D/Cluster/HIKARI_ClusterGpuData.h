@@ -7,7 +7,7 @@
 namespace HIKARI::RENDER3D::CLUSTER {
 
     constexpr uint32_t kClusterGeometryGpuMagic = 0x534c4348u; // HCLS
-    constexpr uint32_t kClusterGeometryGpuVersion = 2u;
+    constexpr uint32_t kClusterGeometryGpuVersion = 3u;
     constexpr uint32_t kClusterGeometryGpuSectionAlignment = 16u;
 
     struct ClusterGeometryGpuHeader {
@@ -33,8 +33,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         uint32_t indexOffsetBytes = 0;
         uint32_t materialSlotOffsetBytes = 0;
-        uint32_t reserved0 = 0;
-        uint32_t reserved1 = 0;
+        uint32_t meshletPrimitiveCount = 0;
+        uint32_t meshletPrimitiveOffsetBytes = 0;
 
         MATH::Vec4 localBoundsMin{};
         MATH::Vec4 localBoundsMax{};
@@ -57,8 +57,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstPage = 0;
 
         uint32_t pageCount = 0;
-        uint32_t reserved0 = 0;
-        uint32_t reserved1 = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
         uint32_t reserved2 = 0;
 
         MATH::Vec4 boundsMin{};
@@ -74,7 +74,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t vertexCount = 0;
         uint32_t triangleCount = 0;
         uint32_t flags = 0;
-        uint32_t reserved0 = 0;
+        uint32_t firstPrimitive = 0;
 
         MATH::Vec4 boundsMin{};
         MATH::Vec4 boundsMax{};
@@ -90,8 +90,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         uint32_t firstVertex = 0;
         uint32_t vertexCount = 0;
-        uint32_t reserved0 = 0;
-        uint32_t reserved1 = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
 
         MATH::Vec4 boundsMin{};
         MATH::Vec4 boundsMax{};
@@ -103,6 +103,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         MATH::Vec4 tangent{};
         MATH::Vec4 uv01{};
         MATH::Vec4 color{};
+    };
+
+    struct ClusterGeometryGpuMeshletPrimitive {
+        uint32_t i0 = 0;
+        uint32_t i1 = 0;
+        uint32_t i2 = 0;
+        uint32_t reserved0 = 0;
     };
 
     struct ClusterGeometrySurfaceRange {
@@ -123,6 +130,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         uint32_t firstPage = 0;
         uint32_t pageCount = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
     };
 
     static_assert((sizeof(ClusterGeometryGpuHeader) % kClusterGeometryGpuSectionAlignment) == 0);
@@ -130,5 +139,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
     static_assert((sizeof(ClusterGeometryGpuCluster) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuPage) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuVertex) % kClusterGeometryGpuSectionAlignment) == 0);
+    static_assert((sizeof(ClusterGeometryGpuMeshletPrimitive) % kClusterGeometryGpuSectionAlignment) == 0);
 
 } // namespace HIKARI::RENDER3D::CLUSTER

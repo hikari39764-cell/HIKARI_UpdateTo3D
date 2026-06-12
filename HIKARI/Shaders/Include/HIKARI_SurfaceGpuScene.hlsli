@@ -60,6 +60,7 @@ static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SURFACE_RAN
 
 StructuredBuffer<HikariSurfaceGpuSceneInstance> gSurfaceGpuSceneBuffer : register(t17);
 
+#ifndef HIKARI_SURFACE_GPU_SCENE_SKIP_CONTROL_CB
 cbuffer SurfaceGpuSceneControlCB : register(b8)
 {
     uint gSurfaceGpuSceneBaseIndex;
@@ -67,7 +68,9 @@ cbuffer SurfaceGpuSceneControlCB : register(b8)
     uint gSurfaceGpuSceneDrawCommandIndex;
     uint gSurfaceGpuSceneDrawPassKind;
 };
+#endif
 
+#ifndef HIKARI_SURFACE_GPU_SCENE_SKIP_CONTROL_HELPERS
 uint HikariGetSurfaceGpuSceneAbsoluteIndex(uint instanceId)
 {
     return gSurfaceGpuSceneBaseIndex + instanceId;
@@ -82,5 +85,6 @@ HikariSurfaceGpuSceneInstance HikariGetSurfaceGpuSceneInstance(uint instanceId)
 {
     return HikariGetSurfaceGpuSceneInstanceAt(HikariGetSurfaceGpuSceneAbsoluteIndex(instanceId));
 }
+#endif
 
 #endif

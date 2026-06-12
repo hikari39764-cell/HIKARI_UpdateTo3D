@@ -15,6 +15,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
@@ -76,6 +77,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
         RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
         RENDER3D::CLUSTER::ClusterMainlineFrame staticOpaqueClusterMainlineFrame{};
+        RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* surfacePacketBuilder = nullptr;
         const std::vector<uint32_t>* surfacePacketOpaqueExecutionIndices = nullptr;

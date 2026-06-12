@@ -37,6 +37,15 @@ struct ClusterCullIndirectDrawArgument
     uint startInstanceLocation;
 };
 
+struct ClusterCullMeshletDispatchArgument
+{
+    uint4 rootConstants;
+    uint threadGroupCountX;
+    uint threadGroupCountY;
+    uint threadGroupCountZ;
+    uint reserved0;
+};
+
 struct ClusterCullPageTask
 {
     float4x4 clusterWorld;
@@ -71,10 +80,10 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullSurfaceGpuSceneBaseIndex;
     uint gClusterCullPassKind;
     uint gClusterCullPageTaskCapacity;
-    uint gClusterCullReserved0;
-    uint gClusterCullReserved1;
-    uint gClusterCullReserved2;
-    uint gClusterCullReserved3;
+    uint gClusterCullMergeGapIndexLimit;
+    uint gClusterCullMergeRunGapIndexBudget;
+    uint gClusterCullMergeMaxIndexSpan;
+    uint gClusterCullMergeClusterGapLimit;
 };
 
 RWStructuredBuffer<ClusterCullVisibleRange> gClusterCullVisibleRanges : register(u0);
@@ -82,6 +91,7 @@ RWByteAddressBuffer gClusterCullCounters : register(u1);
 RWStructuredBuffer<ClusterCullIndirectDrawArgument> gClusterCullDrawArguments : register(u2);
 RWStructuredBuffer<ClusterCullPageTask> gClusterCullPageTasks : register(u3);
 RWStructuredBuffer<uint3> gClusterCullDispatchArguments : register(u4);
+RWStructuredBuffer<ClusterCullMeshletDispatchArgument> gClusterCullMeshletDispatchArguments : register(u5);
 
 #include "Include/HIKARI_SurfaceGpuScene.hlsli"
 #include "Include/HIKARI_ClusterGpuData.hlsli"
@@ -107,6 +117,14 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_CONE_TESTED_COUNT = 56u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_DOUBLE_SIDED_CLUSTER_COUNT = 60u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_COUNT = 64u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_OVERFLOW_COUNT = 68u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_COUNT = 72u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_INDEX_COUNT = 76u;
+
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 384u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 2048u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 8192u;
+// クラスタ間の穴埋めは描画量を増やしやすいため、既定では無効にする。
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 0u;
 
 ByteAddressBuffer gClusterGeometryPool[111] : register(t0, space1);
 
@@ -220,6 +238,34 @@ bool HikariClusterCullIsDoubleSided(uint flags)
     return (flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) != 0u;
 }
 
+uint HikariClusterCullMergeGapIndexLimit()
+{
+    return gClusterCullMergeGapIndexLimit != 0u
+        ? gClusterCullMergeGapIndexLimit
+        : HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT;
+}
+
+uint HikariClusterCullMergeRunGapBudget()
+{
+    return gClusterCullMergeRunGapIndexBudget != 0u
+        ? gClusterCullMergeRunGapIndexBudget
+        : HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET;
+}
+
+uint HikariClusterCullMergeMaxIndexSpan()
+{
+    return gClusterCullMergeMaxIndexSpan != 0u
+        ? gClusterCullMergeMaxIndexSpan
+        : HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN;
+}
+
+uint HikariClusterCullMergeClusterGapLimit()
+{
+    return gClusterCullMergeClusterGapLimit != 0u
+        ? gClusterCullMergeClusterGapLimit
+        : HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT;
+}
+
 float3 HikariClusterCullTransformNormalAxis(float4x4 world, float3 localAxis)
 {
     float3 axisX = float3(world._11, world._21, world._31);
@@ -284,19 +330,31 @@ void HikariClusterCullEmitDraw(
     ClusterCullInput input,
     uint firstCluster,
     uint clusterCount,
+    uint visibleClusterCount,
     uint firstIndex,
-    uint indexCount)
+    uint indexCount,
+    uint mergedGapCount,
+    uint mergedGapIndexCount)
 {
     uint visibleIndex = 0;
     gClusterCullCounters.InterlockedAdd(
         HIKARI_CLUSTER_CULL_COUNTER_VISIBLE_RANGE_COUNT,
         1,
         visibleIndex);
+    if (mergedGapCount != 0u)
+    {
+        gClusterCullCounters.InterlockedAdd(
+            HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_COUNT,
+            mergedGapCount);
+        gClusterCullCounters.InterlockedAdd(
+            HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_INDEX_COUNT,
+            mergedGapIndexCount);
+    }
     if (gClusterCullEnableDebugCounters != 0u)
     {
         gClusterCullCounters.InterlockedAdd(
             HIKARI_CLUSTER_CULL_COUNTER_VISIBLE_CLUSTER_COUNT,
-            clusterCount);
+            visibleClusterCount);
     }
 
     if (visibleIndex >= gClusterCullVisibleRangeCapacity)
@@ -348,6 +406,18 @@ void HikariClusterCullEmitDraw(
     drawArgument.startVertexLocation = 0;
     drawArgument.startInstanceLocation = 0;
     gClusterCullDrawArguments[globalDrawIndex] = drawArgument;
+
+    ClusterCullMeshletDispatchArgument meshletArgument;
+    meshletArgument.rootConstants = uint4(
+        visibleIndex,
+        input.passKind,
+        bucket,
+        0u);
+    meshletArgument.threadGroupCountX = 1u;
+    meshletArgument.threadGroupCountY = 1u;
+    meshletArgument.threadGroupCountZ = 1u;
+    meshletArgument.reserved0 = 0u;
+    gClusterCullMeshletDispatchArguments[globalDrawIndex] = meshletArgument;
 }
 
 void HikariClusterCullFlushVisibleRun(
@@ -355,8 +425,11 @@ void HikariClusterCullFlushVisibleRun(
     inout bool hasRun,
     inout uint runFirstCluster,
     inout uint runClusterCount,
+    inout uint runVisibleClusterCount,
     inout uint runFirstIndex,
-    inout uint runIndexCount)
+    inout uint runIndexCount,
+    inout uint runMergedGapCount,
+    inout uint runMergedGapIndexCount)
 {
     if (!hasRun)
     {
@@ -367,14 +440,20 @@ void HikariClusterCullFlushVisibleRun(
         input,
         runFirstCluster,
         runClusterCount,
+        runVisibleClusterCount,
         runFirstIndex,
-        runIndexCount);
+        runIndexCount,
+        runMergedGapCount,
+        runMergedGapIndexCount);
 
     hasRun = false;
     runFirstCluster = 0u;
     runClusterCount = 0u;
+    runVisibleClusterCount = 0u;
     runFirstIndex = 0u;
     runIndexCount = 0u;
+    runMergedGapCount = 0u;
+    runMergedGapIndexCount = 0u;
 }
 
 void HikariClusterCullAppendVisibleCluster(
@@ -384,22 +463,47 @@ void HikariClusterCullAppendVisibleCluster(
     inout bool hasRun,
     inout uint runFirstCluster,
     inout uint runClusterCount,
+    inout uint runVisibleClusterCount,
     inout uint runFirstIndex,
-    inout uint runIndexCount)
+    inout uint runIndexCount,
+    inout uint runMergedGapCount,
+    inout uint runMergedGapIndexCount)
 {
     if (!hasRun)
     {
         hasRun = true;
         runFirstCluster = clusterIndex;
         runClusterCount = 1u;
+        runVisibleClusterCount = 1u;
         runFirstIndex = cluster.firstIndex;
         runIndexCount = cluster.indexCount;
+        runMergedGapCount = 0u;
+        runMergedGapIndexCount = 0u;
         return;
     }
 
+    uint runEndCluster = runFirstCluster + runClusterCount;
+    uint runEndIndex = runFirstIndex + runIndexCount;
+    bool clusterForward = clusterIndex >= runEndCluster;
+    uint clusterGap = clusterForward ? clusterIndex - runEndCluster : 0xffffffffu;
+    bool indexForward = cluster.firstIndex >= runEndIndex;
+    uint indexGap = indexForward ? cluster.firstIndex - runEndIndex : 0xffffffffu;
+    uint clusterEndIndex = cluster.firstIndex + cluster.indexCount;
+    uint mergedIndexCount = clusterEndIndex >= runFirstIndex
+        ? clusterEndIndex - runFirstIndex
+        : 0xffffffffu;
+    uint mergedClusterCount = clusterIndex >= runFirstCluster
+        ? clusterIndex - runFirstCluster + 1u
+        : 0xffffffffu;
+
+    // 同一 surface/page 内の小さな欠けだけを吸収し、細かすぎる draw args を GPU 側で圧縮する。
     bool canMerge =
-        clusterIndex == runFirstCluster + runClusterCount &&
-        cluster.firstIndex == runFirstIndex + runIndexCount;
+        clusterForward &&
+        indexForward &&
+        clusterGap <= HikariClusterCullMergeClusterGapLimit() &&
+        indexGap <= HikariClusterCullMergeGapIndexLimit() &&
+        runMergedGapIndexCount + indexGap <= HikariClusterCullMergeRunGapBudget() &&
+        mergedIndexCount <= HikariClusterCullMergeMaxIndexSpan();
     if (!canMerge)
     {
         HikariClusterCullFlushVisibleRun(
@@ -407,18 +511,30 @@ void HikariClusterCullAppendVisibleCluster(
             hasRun,
             runFirstCluster,
             runClusterCount,
+            runVisibleClusterCount,
             runFirstIndex,
-            runIndexCount);
+            runIndexCount,
+            runMergedGapCount,
+            runMergedGapIndexCount);
         hasRun = true;
         runFirstCluster = clusterIndex;
         runClusterCount = 1u;
+        runVisibleClusterCount = 1u;
         runFirstIndex = cluster.firstIndex;
         runIndexCount = cluster.indexCount;
+        runMergedGapCount = 0u;
+        runMergedGapIndexCount = 0u;
         return;
     }
 
-    ++runClusterCount;
-    runIndexCount += cluster.indexCount;
+    runClusterCount = mergedClusterCount;
+    ++runVisibleClusterCount;
+    runIndexCount = mergedIndexCount;
+    if (clusterGap != 0u || indexGap != 0u)
+    {
+        ++runMergedGapCount;
+        runMergedGapIndexCount += indexGap;
+    }
 }
 
 bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance)
@@ -477,8 +593,11 @@ void HikariClusterCullProcessPage(
     bool hasRun = false;
     uint runFirstCluster = 0u;
     uint runClusterCount = 0u;
+    uint runVisibleClusterCount = 0u;
     uint runFirstIndex = 0u;
     uint runIndexCount = 0u;
+    uint runMergedGapCount = 0u;
+    uint runMergedGapIndexCount = 0u;
 
     if (pageIndex >= header.pageCount)
     {
@@ -521,8 +640,11 @@ void HikariClusterCullProcessPage(
             hasRun,
             runFirstCluster,
             runClusterCount,
+            runVisibleClusterCount,
             runFirstIndex,
-            runIndexCount);
+            runIndexCount,
+            runMergedGapCount,
+            runMergedGapIndexCount);
         return;
     }
 
@@ -539,8 +661,11 @@ void HikariClusterCullProcessPage(
                 hasRun,
                 runFirstCluster,
                 runClusterCount,
+                runVisibleClusterCount,
                 runFirstIndex,
-                runIndexCount);
+                runIndexCount,
+                runMergedGapCount,
+                runMergedGapIndexCount);
             continue;
         }
 
@@ -564,13 +689,6 @@ void HikariClusterCullProcessPage(
                     HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_FRUSTUM_CULLED_COUNT,
                     1);
             }
-            HikariClusterCullFlushVisibleRun(
-                input,
-                hasRun,
-                runFirstCluster,
-                runClusterCount,
-                runFirstIndex,
-                runIndexCount);
             continue;
         }
 
@@ -602,13 +720,6 @@ void HikariClusterCullProcessPage(
                         HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_CONE_CULLED_COUNT,
                         1);
                 }
-                HikariClusterCullFlushVisibleRun(
-                    input,
-                    hasRun,
-                    runFirstCluster,
-                    runClusterCount,
-                    runFirstIndex,
-                    runIndexCount);
                 continue;
             }
         }
@@ -620,8 +731,11 @@ void HikariClusterCullProcessPage(
             hasRun,
             runFirstCluster,
             runClusterCount,
+            runVisibleClusterCount,
             runFirstIndex,
-            runIndexCount);
+            runIndexCount,
+            runMergedGapCount,
+            runMergedGapIndexCount);
     }
 
     HikariClusterCullFlushVisibleRun(
@@ -629,8 +743,11 @@ void HikariClusterCullProcessPage(
         hasRun,
         runFirstCluster,
         runClusterCount,
+        runVisibleClusterCount,
         runFirstIndex,
-        runIndexCount);
+        runIndexCount,
+        runMergedGapCount,
+        runMergedGapIndexCount);
 }
 
 ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask task)

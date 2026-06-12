@@ -388,6 +388,8 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuDrawCommandOverflowCount = 0;
         size_t clusterGpuCullGpuBackFaceDrawCommandOverflowCount = 0;
         size_t clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount = 0;
+        size_t clusterGpuCullGpuMergedGapCount = 0;
+        size_t clusterGpuCullGpuMergedGapIndexCount = 0;
         size_t clusterGpuCullDispatchCount = 0;
         size_t clusterGpuCullWorkgroupCount = 0;
         size_t clusterGpuCullInputCapacity = 0;
@@ -417,6 +419,9 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterDrawDoubleSidedSubmitCallCount = 0;
         size_t clusterDrawBypassedLegacyCommandCount = 0;
         size_t clusterDrawBypassedLegacyPacketCount = 0;
+        size_t meshletBackendPipelineCreateRequestCount = 0;
+        size_t meshletBackendPipelineCreateReadyCount = 0;
+        uint32_t meshletBackendMeshShaderTier = 0;
         size_t clusterMainlineOwnedCommandCount = 0;
         size_t clusterMainlineOwnedPacketCount = 0;
         size_t clusterMainlineGeometryAuxCommandCount = 0;
@@ -443,6 +448,14 @@ namespace HIKARI::MESHRENDERER {
         bool clusterDrawGeometryBufferPipelineReady = false;
         bool clusterDrawArgumentBufferReady = false;
         bool clusterDrawCommandSignatureReady = false;
+        bool meshletBackendInitialized = false;
+        bool meshletBackendShaderModel65Supported = false;
+        bool meshletBackendMeshShaderSupported = false;
+        bool meshletBackendPipelineStatsSupported = false;
+        bool meshletBackendShaderCompileReady = false;
+        bool meshletBackendForwardPipelineReady = false;
+        bool meshletBackendGeometryBufferPipelineReady = false;
+        bool meshletBackendPipelineReady = false;
         bool directionalEnabled = false;
         float directionalIntensity = 0.0f;
         float ambientIntensity = 0.0f;
