@@ -59,6 +59,21 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return static_cast<uint64_t>(static_cast<int64_t>(value) + 0x100000000ll);
         }
 
+        uint64_t BuildSurfaceFilterKey(uint32_t nodeIndex, uint32_t meshIndex, uint32_t primitiveIndex) {
+            uint64_t key = 1469598103934665603ull;
+            key = HashAppend(key, nodeIndex);
+            key = HashAppend(key, meshIndex);
+            key = HashAppend(key, primitiveIndex);
+            return key;
+        }
+
+        uint64_t BuildSurfaceFilterKey(const SurfaceDrawPacket& packet) {
+            return BuildSurfaceFilterKey(
+                packet.nodeIndex,
+                packet.meshIndex,
+                packet.primitiveIndex);
+        }
+
         uint64_t BuildStableStringKey(std::string_view tag, const std::string& value) {
             if (value.empty()) {
                 return 0;
@@ -1060,14 +1075,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 const SurfaceDrawPacket& packet = packets[packetIndex];
                 if (packet.key.depthAware) {
                     forwardOpaqueCommandBuilder.Flush();
-                    const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
-                    if (!fullCoverage) {
-                        if (packet.forwardCandidate) {
-                            ++outStats.skippedPartialCoveragePacketCount;
-                        }
-                        forwardDepthAwareCommandBuilder.Flush();
-                        continue;
-                    }
                     if (!IsForwardSafePacket(packet, nullptr)) {
                         forwardDepthAwareCommandBuilder.Flush();
                         continue;
@@ -1089,15 +1096,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     continue;
                 }
                 if (packet.key.transparent) {
-                    forwardOpaqueCommandBuilder.Flush();
-                    forwardDepthAwareCommandBuilder.Flush();
-                    continue;
-                }
-                const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
-                if (!fullCoverage) {
-                    if (packet.forwardCandidate) {
-                        ++outStats.skippedPartialCoveragePacketCount;
-                    }
                     forwardOpaqueCommandBuilder.Flush();
                     forwardDepthAwareCommandBuilder.Flush();
                     continue;
@@ -1140,12 +1138,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     continue;
                 }
 
-                const bool fullCoverage = HasFullForwardCoverageForObject(packet.objectId);
-                if (!fullCoverage) {
-                    ++outStats.skippedPartialCoveragePacketCount;
-                    forwardTransparentCommandBuilder.Flush();
-                    continue;
-                }
                 if (!IsForwardSafePacket(packet, nullptr)) {
                     forwardTransparentCommandBuilder.Flush();
                     continue;
@@ -1291,14 +1283,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 }
 
                 const SurfaceDrawPacket& packet = packets[packetIndex];
-                const bool fullCoverage = HasFullShadowCoverageForObject(packet.objectId);
-                if (!fullCoverage) {
-                    if (packet.shadowCandidate) {
-                        ++outStats.shadowSkippedPartialCoveragePacketCount;
-                    }
-                    shadowCommandBuilder.Flush();
-                    continue;
-                }
                 if (!IsShadowSafePacket(packet, nullptr)) {
                     shadowCommandBuilder.Flush();
                     continue;
@@ -1359,6 +1343,33 @@ namespace HIKARI::RENDER3D::RUNTIME {
             coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount;
     }
 
+    bool SurfaceDrawPacketPlanner::HasForwardCoverageForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = objectCoverage_.find(objectId.value);
+        return found != objectCoverage_.end() &&
+            found->second.expectedForwardPacketCount > 0;
+    }
+
+    bool SurfaceDrawPacketPlanner::ShouldBypassLegacyForwardSurface(
+        SceneRenderObjectId objectId,
+        uint32_t nodeIndex,
+        uint32_t meshIndex,
+        uint32_t primitiveIndex) const {
+
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = objectCoverage_.find(objectId.value);
+        if (found == objectCoverage_.end()) {
+            return false;
+        }
+        return found->second.forwardBypassSurfaceKeys.find(
+            BuildSurfaceFilterKey(nodeIndex, meshIndex, primitiveIndex)) !=
+            found->second.forwardBypassSurfaceKeys.end();
+    }
+
     const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaquePacketIndices() const {
         return executableForwardOpaquePacketIndices_;
     }
@@ -1410,6 +1421,33 @@ namespace HIKARI::RENDER3D::RUNTIME {
             coverage.safeShadowPacketCount == coverage.expectedShadowPacketCount;
     }
 
+    bool SurfaceDrawPacketPlanner::HasShadowCoverageForObject(SceneRenderObjectId objectId) const {
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = objectCoverage_.find(objectId.value);
+        return found != objectCoverage_.end() &&
+            found->second.expectedShadowPacketCount > 0;
+    }
+
+    bool SurfaceDrawPacketPlanner::ShouldBypassLegacyShadowSurface(
+        SceneRenderObjectId objectId,
+        uint32_t nodeIndex,
+        uint32_t meshIndex,
+        uint32_t primitiveIndex) const {
+
+        if (!objectId.IsValid()) {
+            return false;
+        }
+        const auto found = objectCoverage_.find(objectId.value);
+        if (found == objectCoverage_.end()) {
+            return false;
+        }
+        return found->second.shadowBypassSurfaceKeys.find(
+            BuildSurfaceFilterKey(nodeIndex, meshIndex, primitiveIndex)) !=
+            found->second.shadowBypassSurfaceKeys.end();
+    }
+
     const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableShadowPacketIndices() const {
         return executableShadowPacketIndices_;
     }
@@ -1452,6 +1490,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++coverage.expectedForwardPacketCount;
                 if (IsSurfaceDrawRouteAccepted(forwardReason)) {
                     ++coverage.safeForwardPacketCount;
+                    coverage.forwardBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
                 }
             }
 
@@ -1462,6 +1501,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++coverage.expectedShadowPacketCount;
                 if (IsSurfaceDrawRouteAccepted(shadowReason)) {
                     ++coverage.safeShadowPacketCount;
+                    coverage.shadowBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
                 }
             }
         }

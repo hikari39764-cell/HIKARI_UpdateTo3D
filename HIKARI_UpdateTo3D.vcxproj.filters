@@ -160,11 +160,17 @@
     <Filter Include="Header Files\ThirdParty\ImGuizmo">
       <UniqueIdentifier>{2D5BD914-6A91-4521-8F75-E5D892C05E65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ThirdParty\MeshOptimizer">
+      <UniqueIdentifier>{0B5727EF-8B7E-4D5D-B825-FAE4EEC3E0DF}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Tools">
       <UniqueIdentifier>{1702F989-0B1A-4E2F-B881-11441E8700D1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Tools\Baking">
       <UniqueIdentifier>{DB8E6705-8A25-465A-8B62-0639518FEAD7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Tools\Geometry">
+      <UniqueIdentifier>{4EF48C2B-1814-4C65-A414-EB4B71140428}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Vfx">
       <UniqueIdentifier>{E5E496B5-9BAD-53F3-9451-E7C2FED7FBCA}</UniqueIdentifier>
@@ -403,11 +409,17 @@
     <Filter Include="Source Files\ThirdParty\ImGuizmo">
       <UniqueIdentifier>{87BE430E-317D-43F9-BDF2-A7D9FE8CE71B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ThirdParty\MeshOptimizer">
+      <UniqueIdentifier>{F10E72B7-4E83-4A20-8BF3-79D834C822A6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Tools">
       <UniqueIdentifier>{A2B18E50-A536-43D9-866C-F48EC0F15C80}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Tools\Baking">
       <UniqueIdentifier>{C13C544A-21A5-462C-8F80-243C4EAB59D9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Tools\Geometry">
+      <UniqueIdentifier>{4F06B244-44ED-4E46-A003-81850FAEB7AE}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Vfx">
       <UniqueIdentifier>{743EC9F5-0053-50E6-A9ED-33AFF1E33CB2}</UniqueIdentifier>
@@ -573,7 +585,7 @@
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp">
       <Filter>Source Files\Render3D\Reflection</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp">
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.cpp">
       <Filter>Source Files\Render3D\ScreenSpace</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.cpp">
@@ -1053,6 +1065,66 @@
     <ClCompile Include="ThirdParty\ImGuizmo\ImGuizmo.cpp">
       <Filter>Source Files\ThirdParty\ImGuizmo</Filter>
     </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\allocator.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\clusterizer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexanalyzer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexcodec.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexgenerator.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\meshletcodec.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\meshletutils.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\opacitymap.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\overdrawoptimizer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\partition.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\quantization.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\rasterizer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\simplifier.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\spatialorder.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\stripifier.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\tangentspace.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vcacheoptimizer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vertexcodec.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vertexfilter.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vfetchoptimizer.cpp">
+      <Filter>Source Files\ThirdParty\MeshOptimizer</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -1257,6 +1329,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Tools\Geometry\HIKARI_MeshLodGenerator.cpp">
+      <Filter>Source Files\Tools\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1482,7 +1557,7 @@
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
       <Filter>Header Files\Render3D\Diagnostics</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h">
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.h">
       <Filter>Header Files\Render3D\ScreenSpace</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.h">
@@ -1586,6 +1661,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.h">
       <Filter>Header Files\Tools\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Tools\Geometry\HIKARI_MeshLodGenerator.h">
+      <Filter>Header Files\Tools\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Formats\HIKARI_HmodelFormat.h">
       <Filter>Header Files\Assets\Formats</Filter>
@@ -1887,6 +1965,9 @@
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h">
       <Filter>Header Files\ThirdParty\ImGuizmo</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\meshoptimizer\src\meshoptimizer.h">
+      <Filter>Header Files\ThirdParty\MeshOptimizer</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -2051,7 +2132,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
-    <None Include="HIKARI\Shaders\Render3D_GeometryBufferPS.hlsl">
+    <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">

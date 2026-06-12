@@ -22,6 +22,7 @@
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
 #include <utility>
+#include <vector>
 
 namespace HIKARI {
 
@@ -159,6 +160,85 @@ namespace HIKARI {
                 id.value = reinterpret_cast<uint64_t>(&object);
             }
             return id;
+        }
+
+        struct LegacySurfaceFallbackSubmitStats {
+            uint32_t itemCount = 0;
+            uint32_t forwardItemCount = 0;
+            uint32_t shadowItemCount = 0;
+        };
+
+        LegacySurfaceFallbackSubmitStats SubmitLegacySurfaceFallbacks(
+            const ModelRenderItem& baseItem,
+            RENDER3D::RUNTIME::SceneRenderObjectId objectId,
+            const RENDER3D::RUNTIME::SurfaceDrawPacketPlanner& planner,
+            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets,
+            bool submitForwardFallbacks,
+            bool submitShadowFallbacks) {
+
+            LegacySurfaceFallbackSubmitStats stats{};
+            if (!objectId.IsValid() ||
+                (!submitForwardFallbacks && !submitShadowFallbacks)) {
+                return stats;
+            }
+
+            for (const RENDER3D::RUNTIME::SurfaceDrawPacket& packet : packets) {
+                if (packet.objectId.value != objectId.value ||
+                    packet.meshIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
+                    packet.primitiveIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
+                    continue;
+                }
+
+                const bool forwardLegacy =
+                    submitForwardFallbacks &&
+                    packet.forwardCandidate &&
+                    !planner.ShouldBypassLegacyForwardSurface(
+                        packet.objectId,
+                        packet.nodeIndex,
+                        packet.meshIndex,
+                        packet.primitiveIndex);
+                const bool shadowLegacy =
+                    submitShadowFallbacks &&
+                    packet.shadowCandidate &&
+                    !planner.ShouldBypassLegacyShadowSurface(
+                        packet.objectId,
+                        packet.nodeIndex,
+                        packet.meshIndex,
+                        packet.primitiveIndex);
+                if (!forwardLegacy && !shadowLegacy) {
+                    continue;
+                }
+
+                ModelRenderItem item = baseItem;
+                item.model = packet.model != nullptr ? packet.model : baseItem.model;
+                item.materialOverride = packet.materialOverride;
+                item.worldTransform = packet.objectWorldTransform;
+                item.materialFxProfileId = packet.materialFxProfileId;
+                item.postGroupMask = packet.postGroupMask;
+                for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                    item.materialFxParamValues[i] = packet.materialFxParamValues[i];
+                }
+                item.materialFxValuesInitialized = packet.materialFxValuesInitialized;
+                item.castShadow = packet.castShadow;
+                item.receiveShadow = packet.receiveShadow;
+                item.submitForward = forwardLegacy;
+                item.submitShadow = shadowLegacy;
+                item.useSurfaceFilter = true;
+                item.nodeIndexFilter = packet.nodeIndex;
+                item.meshIndexFilter = packet.meshIndex;
+                item.primitiveIndexFilter = packet.primitiveIndex;
+
+                MODELRENDERER::SubmitModel(item);
+                ++stats.itemCount;
+                if (forwardLegacy) {
+                    ++stats.forwardItemCount;
+                }
+                if (shadowLegacy) {
+                    ++stats.shadowItemCount;
+                }
+            }
+
+            return stats;
         }
     }
 
@@ -361,8 +441,12 @@ namespace HIKARI {
                     ResolveSceneRenderObjectId(object);
                 bool forwardHandledBySurfacePacket = false;
                 bool shadowHandledBySurfacePacket = false;
+                bool forwardHasSurfacePacketCoverage = false;
+                bool shadowHasSurfacePacketCoverage = false;
 
                 if (bypassLegacyForward) {
+                    forwardHasSurfacePacketCoverage =
+                        sSurfaceDrawPacketPlanner_.HasForwardCoverageForObject(renderObjectId);
                     forwardHandledBySurfacePacket =
                         sSurfaceDrawPacketPlanner_.HasFullForwardCoverageForObject(renderObjectId);
                     if (forwardHandledBySurfacePacket) {
@@ -371,6 +455,8 @@ namespace HIKARI {
                     }
                 }
                 if (bypassLegacyShadow && model.GetCastShadow()) {
+                    shadowHasSurfacePacketCoverage =
+                        sSurfaceDrawPacketPlanner_.HasShadowCoverageForObject(renderObjectId);
                     shadowHandledBySurfacePacket =
                         sSurfaceDrawPacketPlanner_.HasFullShadowCoverageForObject(renderObjectId);
                     if (shadowHandledBySurfacePacket) {
@@ -470,6 +556,44 @@ namespace HIKARI {
                 }
 
                 ++sDebugStats_.runtimeSpecialModelCount;
+
+                const bool splitForwardFallback =
+                    item.submitForward &&
+                    bypassLegacyForward &&
+                    forwardHasSurfacePacketCoverage &&
+                    !forwardHandledBySurfacePacket;
+                const bool splitShadowFallback =
+                    item.submitShadow &&
+                    bypassLegacyShadow &&
+                    shadowHasSurfacePacketCoverage &&
+                    !shadowHandledBySurfacePacket;
+                if (splitForwardFallback || splitShadowFallback) {
+                    const LegacySurfaceFallbackSubmitStats fallbackStats =
+                        SubmitLegacySurfaceFallbacks(
+                            item,
+                            renderObjectId,
+                            sSurfaceDrawPacketPlanner_,
+                            sSurfaceDrawPacketBuilder_.GetPackets(),
+                            splitForwardFallback,
+                            splitShadowFallback);
+                    sDebugStats_.submittedModelCount +=
+                        static_cast<int>(fallbackStats.itemCount);
+                    sDebugStats_.runtimeSpecialForwardModelCount +=
+                        static_cast<int>(fallbackStats.forwardItemCount);
+                    sDebugStats_.runtimeSpecialShadowModelCount +=
+                        static_cast<int>(fallbackStats.shadowItemCount);
+
+                    if (splitForwardFallback) {
+                        item.submitForward = false;
+                    }
+                    if (splitShadowFallback) {
+                        item.submitShadow = false;
+                    }
+                    if (!item.submitForward && !item.submitShadow) {
+                        return;
+                    }
+                }
+
                 if (item.submitForward) {
                     ++sDebugStats_.runtimeSpecialForwardModelCount;
                 }

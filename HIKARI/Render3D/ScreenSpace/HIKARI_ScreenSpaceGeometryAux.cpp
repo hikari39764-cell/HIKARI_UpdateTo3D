@@ -1,4 +1,4 @@
-#include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
+#include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 
 #include <algorithm>
 
@@ -12,7 +12,7 @@
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
-    bool SceneGeometryBuffer::EnsureSize(uint32_t width, uint32_t height) {
+    bool ScreenSpaceGeometryAux::EnsureSize(uint32_t width, uint32_t height) {
         width = std::max(1u, width);
         height = std::max(1u, height);
         if (IsValid() && width_ == width && height_ == height) {
@@ -23,7 +23,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         return CreateResources(width, height);
     }
 
-    void SceneGeometryBuffer::Release() {
+    void ScreenSpaceGeometryAux::Release() {
         normalRoughness_.Reset();
         rtvHeap_.Reset();
         normalRoughnessRtv_ = {};
@@ -34,7 +34,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         normalRoughnessState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
     }
 
-    bool SceneGeometryBuffer::CreateResources(uint32_t width, uint32_t height) {
+    bool ScreenSpaceGeometryAux::CreateResources(uint32_t width, uint32_t height) {
         ID3D12Device* device = SERVICES::gCtx.device;
         ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
         if (device == nullptr || srvHeap == nullptr) {
@@ -64,8 +64,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             &clearValue,
             IID_PPV_ARGS(normalRoughness_.GetAddressOf()));
-        if (!HIKARI_DX_CHECK(hr, "SceneGeometryBuffer::Create normal/roughness")) {
-            DEBUGLOG::PushRenderError("[SceneGeometryBuffer][ERROR] normal/roughness resource creation failed.");
+        if (!HIKARI_DX_CHECK(hr, "ScreenSpaceGeometryAux::Create normal/roughness")) {
+            DEBUGLOG::PushRenderError("[ScreenSpaceGeometryAux][ERROR] normal/roughness resource creation failed.");
             return false;
         }
 
@@ -73,7 +73,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.NumDescriptors = 1;
         hr = device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap_.GetAddressOf()));
-        if (!HIKARI_DX_CHECK(hr, "SceneGeometryBuffer::Create RTV heap")) {
+        if (!HIKARI_DX_CHECK(hr, "ScreenSpaceGeometryAux::Create RTV heap")) {
             return false;
         }
 
@@ -97,11 +97,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         height_ = height;
         normalRoughnessState_ = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         normalRoughness_->SetName(L"HIKARI.SceneNormalRoughness");
-        HIKARI_LOG_INFO("[SceneGeometryBuffer] resized normal/roughness " + std::to_string(width_) + "x" + std::to_string(height_));
+        HIKARI_LOG_INFO("[ScreenSpaceGeometryAux] resized normal/roughness " + std::to_string(width_) + "x" + std::to_string(height_));
         return true;
     }
 
-    void SceneGeometryBuffer::BeginNormalRoughnessPass(ID3D12GraphicsCommandList* cmd, D3D12_CPU_DESCRIPTOR_HANDLE depthDsv) {
+    void ScreenSpaceGeometryAux::BeginNormalRoughnessPass(ID3D12GraphicsCommandList* cmd, D3D12_CPU_DESCRIPTOR_HANDLE depthDsv) {
         if (cmd == nullptr || !IsValid()) {
             return;
         }
@@ -128,7 +128,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         cmd->RSSetScissorRects(1, &scissor);
     }
 
-    void SceneGeometryBuffer::EndNormalRoughnessPass(ID3D12GraphicsCommandList* cmd) {
+    void ScreenSpaceGeometryAux::EndNormalRoughnessPass(ID3D12GraphicsCommandList* cmd) {
         if (cmd == nullptr || !IsValid()) {
             return;
         }
@@ -143,7 +143,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         }
     }
 
-    bool SceneGeometryBuffer::IsValid() const {
+    bool ScreenSpaceGeometryAux::IsValid() const {
         return normalRoughness_ != nullptr && normalRoughnessSrvGpu_.ptr != 0 && normalRoughnessRtv_.ptr != 0;
     }
 

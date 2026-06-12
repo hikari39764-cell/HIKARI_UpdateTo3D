@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
+#include "Tools/Geometry/HIKARI_MeshLodGenerator.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
 
@@ -14,6 +15,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         using RENDER3D::CLUSTER::ClusterPage;
         using RENDER3D::CLUSTER::ClusterSurface;
         using RENDER3D::CLUSTER::ClusterSurfaceFlags;
+        using RENDER3D::CLUSTER::ClusterSurfaceLodRange;
         using RENDER3D::CLUSTER::ClusterVertex;
         using RENDER3D::CLUSTER::ClusteredGeometryAsset;
         using RENDER3D::CLUSTER::ClusteredGeometryBuildReport;
@@ -36,6 +38,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
             uint32_t flags = 0;
             std::vector<ClusterVertex> vertices{};
             std::vector<uint32_t> indices{};
+        };
+
+        struct SurfaceLodBuildResult {
+            SurfaceWork work{};
+            float geometricError = 0.0f;
         };
 
         bool IsFiniteVec3(const MATH::Vec3& v) {
@@ -317,6 +324,135 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return triangles;
         }
 
+        uint32_t CountWorkTriangles(const SurfaceWork& work) {
+            return static_cast<uint32_t>(work.indices.size() / 3u);
+        }
+
+        bool ShouldBuildReducedLods(uint32_t flags) {
+            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Transparent)) {
+                return false;
+            }
+            return true;
+        }
+
+        float ResolveLodTargetRatio(uint32_t flags, uint32_t lodIndex, const ClusterCookSettings& settings) {
+            float ratio = settings.lod4TriangleRatio;
+            switch (lodIndex) {
+            case 1u:
+                ratio = settings.lod1TriangleRatio;
+                break;
+            case 2u:
+                ratio = settings.lod2TriangleRatio;
+                break;
+            case 3u:
+                ratio = settings.lod3TriangleRatio;
+                break;
+            default:
+                break;
+            }
+            ratio = (std::max)(0.05f, (std::min)(ratio, 0.95f));
+            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask) ||
+                RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+                // 両面/マスク材質は輪郭破綻が目立つので、通常 opaque より控えめに落とす。
+                ratio = std::sqrt(ratio);
+            }
+            return ratio;
+        }
+
+        float ResolveLodTargetError(uint32_t flags, uint32_t lodIndex, const ClusterCookSettings& settings) {
+            float error = settings.lod4TargetError;
+            switch (lodIndex) {
+            case 1u:
+                error = settings.lod1TargetError;
+                break;
+            case 2u:
+                error = settings.lod2TargetError;
+                break;
+            case 3u:
+                error = settings.lod3TargetError;
+                break;
+            default:
+                break;
+            }
+            error = (std::max)(0.0001f, (std::min)(error, 0.08f));
+            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask) ||
+                RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+                error *= 0.65f;
+            }
+            return error;
+        }
+
+        float ResolveLodMinScreenRadius(uint32_t lodIndex, const ClusterCookSettings& settings) {
+            if (lodIndex == 0u) {
+                return (std::max)(settings.lod0MinScreenRadius, settings.lod1MinScreenRadius);
+            }
+            if (lodIndex == 1u) {
+                return (std::max)(settings.lod1MinScreenRadius, settings.lod2MinScreenRadius);
+            }
+            if (lodIndex == 2u) {
+                return (std::max)(settings.lod2MinScreenRadius, settings.lod3MinScreenRadius);
+            }
+            if (lodIndex == 3u) {
+                return (std::max)(settings.lod3MinScreenRadius, settings.lod4MinScreenRadius);
+            }
+            return (std::max)(0.0f, settings.lod4MinScreenRadius);
+        }
+
+        bool BuildReducedSurfaceLodWork(
+            const SurfaceWork& source,
+            uint32_t lodIndex,
+            uint32_t previousTriangleCount,
+            const ClusterCookSettings& settings,
+            SurfaceLodBuildResult& outResult) {
+
+            outResult = {};
+            if (!settings.buildSurfaceLods ||
+                settings.maxSurfaceLodCount <= lodIndex ||
+                !ShouldBuildReducedLods(source.flags)) {
+                return false;
+            }
+
+            const uint32_t sourceTriangleCount = CountWorkTriangles(source);
+            if (sourceTriangleCount < 96u || previousTriangleCount < 48u) {
+                return false;
+            }
+
+            const float targetRatio = ResolveLodTargetRatio(source.flags, lodIndex, settings);
+            const uint32_t minimumUsefulReduction =
+                (std::max)(1u, static_cast<uint32_t>(
+                    std::floor(static_cast<float>(previousTriangleCount) * 0.92f)));
+
+            TOOLS::GEOMETRY::MeshLodGeneratorSettings lodSettings{};
+            lodSettings.lodIndex = lodIndex;
+            lodSettings.targetTriangleRatio = targetRatio;
+            lodSettings.targetError = ResolveLodTargetError(source.flags, lodIndex, settings);
+            lodSettings.lockOpenBorders = true;
+            lodSettings.preserveAttributes = true;
+            lodSettings.optimizeVertexCache = true;
+
+            TOOLS::GEOMETRY::MeshLodGeneratorResult lodResult{};
+            if (!TOOLS::GEOMETRY::GenerateClusterSurfaceLod(
+                    source.vertices,
+                    source.indices,
+                    lodSettings,
+                    lodResult)) {
+                return false;
+            }
+
+            SurfaceWork lodWork = source;
+            lodWork.vertices = std::move(lodResult.vertices);
+            lodWork.indices = std::move(lodResult.indices);
+
+            const uint32_t lodTriangleCount = CountWorkTriangles(lodWork);
+            if (lodTriangleCount == 0u || lodTriangleCount >= minimumUsefulReduction) {
+                return false;
+            }
+
+            outResult.work = std::move(lodWork);
+            outResult.geometricError = lodResult.geometricError;
+            return outResult.geometricError >= 0.0f;
+        }
+
         uint32_t CountSharedVertices(
             const SourceTriangle& tri,
             const std::unordered_set<uint32_t>& clusterVertices) {
@@ -557,20 +693,23 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return static_cast<uint32_t>(asset.clusters.size() - 1u);
         }
 
-        void BuildPagesForSurface(
-            ClusterSurface& surface,
+        void AppendPagesForClusterRange(
+            uint32_t firstCluster,
+            uint32_t clusterCount,
             const ClusterCookSettings& settings,
-            ClusteredGeometryAsset& asset) {
+            ClusteredGeometryAsset& asset,
+            uint32_t& outFirstPage,
+            uint32_t& outPageCount) {
 
-            surface.firstPage = static_cast<uint32_t>(asset.pages.size());
-            surface.pageCount = 0u;
-            if (!settings.buildClusterPages || surface.clusterCount == 0u) {
+            outFirstPage = static_cast<uint32_t>(asset.pages.size());
+            outPageCount = 0u;
+            if (!settings.buildClusterPages || clusterCount == 0u) {
                 return;
             }
 
             const uint32_t maxPerPage = (std::max)(1u, settings.maxClustersPerPage);
-            uint32_t remaining = surface.clusterCount;
-            uint32_t clusterCursor = surface.firstCluster;
+            uint32_t remaining = clusterCount;
+            uint32_t clusterCursor = firstCluster;
             while (remaining > 0u) {
                 const uint32_t pageClusterCount = (std::min)(remaining, maxPerPage);
                 ClusterPage page{};
@@ -602,7 +741,157 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 clusterCursor += pageClusterCount;
                 remaining -= pageClusterCount;
             }
-            surface.pageCount = static_cast<uint32_t>(asset.pages.size()) - surface.firstPage;
+            outPageCount = static_cast<uint32_t>(asset.pages.size()) - outFirstPage;
+        }
+
+        void BuildPagesForSurface(
+            ClusterSurface& surface,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryAsset& asset) {
+
+            AppendPagesForClusterRange(
+                surface.firstCluster,
+                surface.clusterCount,
+                settings,
+                asset,
+                surface.firstPage,
+                surface.pageCount);
+        }
+
+        void AppendLod0RangeForSurface(
+            ClusterSurface& surface,
+            uint32_t surfaceIndex,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryAsset& asset) {
+
+            ClusterSurfaceLodRange lodRange{};
+            lodRange.surfaceIndex = surfaceIndex;
+            lodRange.lodIndex = 0u;
+            lodRange.firstCluster = surface.firstCluster;
+            lodRange.clusterCount = surface.clusterCount;
+            lodRange.firstIndex = surface.firstIndex;
+            lodRange.indexCount = surface.indexCount;
+            lodRange.firstVertex = surface.firstVertex;
+            lodRange.vertexCount = surface.vertexCount;
+            lodRange.firstPage = surface.firstPage;
+            lodRange.pageCount = surface.pageCount;
+            lodRange.firstPrimitive = surface.firstPrimitive;
+            lodRange.primitiveCount = surface.primitiveCount;
+            lodRange.minScreenRadius = ResolveLodMinScreenRadius(0u, settings);
+            lodRange.flags = surface.flags;
+
+            surface.firstLodRange = static_cast<uint32_t>(asset.surfaceLodRanges.size());
+            surface.lodRangeCount = 1u;
+            asset.surfaceLodRanges.push_back(lodRange);
+        }
+
+        bool AppendReducedLodRangeForSurface(
+            ClusterSurface& surface,
+            uint32_t surfaceIndex,
+            uint32_t lodIndex,
+            const SurfaceWork& lodWork,
+            float geometricError,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryAsset& asset) {
+
+            const std::vector<SourceTriangle> lodTriangles =
+                BuildTriangles(lodWork.vertices, lodWork.indices);
+            if (lodTriangles.empty()) {
+                return false;
+            }
+
+            ClusterSurfaceLodRange lodRange{};
+            lodRange.surfaceIndex = surfaceIndex;
+            lodRange.lodIndex = lodIndex;
+            lodRange.firstCluster = static_cast<uint32_t>(asset.clusters.size());
+            lodRange.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
+            lodRange.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
+            lodRange.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
+            lodRange.geometricError = geometricError;
+            lodRange.minScreenRadius = ResolveLodMinScreenRadius(lodIndex, settings);
+            lodRange.flags = surface.flags;
+
+            const std::vector<std::vector<uint32_t>> lodGroups =
+                BuildClusterTriangleGroups(lodTriangles, lodWork.vertices.size(), settings);
+            for (const std::vector<uint32_t>& group : lodGroups) {
+                if (group.empty()) {
+                    continue;
+                }
+                AppendClusterGeometry(lodWork, lodTriangles, group, surfaceIndex, settings, asset);
+            }
+
+            lodRange.clusterCount =
+                static_cast<uint32_t>(asset.clusters.size()) - lodRange.firstCluster;
+            lodRange.indexCount =
+                static_cast<uint32_t>(asset.packedIndices.size()) - lodRange.firstIndex;
+            lodRange.vertexCount =
+                static_cast<uint32_t>(asset.packedVertices.size()) - lodRange.firstVertex;
+            lodRange.primitiveCount =
+                static_cast<uint32_t>(asset.meshletPrimitives.size()) - lodRange.firstPrimitive;
+            if (lodRange.clusterCount == 0u ||
+                lodRange.indexCount == 0u ||
+                lodRange.vertexCount == 0u ||
+                lodRange.primitiveCount == 0u) {
+                return false;
+            }
+
+            AppendPagesForClusterRange(
+                lodRange.firstCluster,
+                lodRange.clusterCount,
+                settings,
+                asset,
+                lodRange.firstPage,
+                lodRange.pageCount);
+            if (lodRange.pageCount == 0u && settings.buildClusterPages) {
+                return false;
+            }
+
+            asset.surfaceLodRanges.push_back(lodRange);
+            ++surface.lodRangeCount;
+            return true;
+        }
+
+        void AppendReducedLodRangesForSurface(
+            ClusterSurface& surface,
+            uint32_t surfaceIndex,
+            const SurfaceWork& sourceWork,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryAsset& asset) {
+
+            SurfaceWork currentSource = sourceWork;
+            uint32_t previousTriangleCount = surface.primitiveCount;
+            const uint32_t maxLodCount = (std::min)(settings.maxSurfaceLodCount, 5u);
+            for (uint32_t lodIndex = 1u; lodIndex < maxLodCount; ++lodIndex) {
+                SurfaceLodBuildResult lodResult{};
+                if (!BuildReducedSurfaceLodWork(
+                        currentSource,
+                        lodIndex,
+                        previousTriangleCount,
+                        settings,
+                        lodResult)) {
+                    break;
+                }
+
+                const uint32_t lodTriangleCount = CountWorkTriangles(lodResult.work);
+                if (lodTriangleCount == 0u ||
+                    lodTriangleCount >= previousTriangleCount) {
+                    break;
+                }
+
+                if (AppendReducedLodRangeForSurface(
+                        surface,
+                        surfaceIndex,
+                        lodIndex,
+                        lodResult.work,
+                        lodResult.geometricError,
+                        settings,
+                        asset)) {
+                    previousTriangleCount = lodTriangleCount;
+                    currentSource = std::move(lodResult.work);
+                } else {
+                    break;
+                }
+            }
         }
 
         bool CookSurfaceWork(
@@ -653,6 +942,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
 
             BuildPagesForSurface(surface, settings, asset);
+            AppendLod0RangeForSurface(surface, static_cast<uint32_t>(asset.surfaces.size()), settings, asset);
+            AppendReducedLodRangesForSurface(
+                surface,
+                static_cast<uint32_t>(asset.surfaces.size()),
+                work,
+                settings,
+                asset);
             asset.surfaces.push_back(surface);
             return true;
         }
@@ -758,6 +1054,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         void FillReportFromAsset(const ClusteredGeometryAsset& asset, ClusteredGeometryBuildReport& report) {
             report.surfaceCount = static_cast<uint32_t>(asset.surfaces.size());
+            report.surfaceLodRangeCount = static_cast<uint32_t>(asset.surfaceLodRanges.size());
             report.clusterCount = static_cast<uint32_t>(asset.clusters.size());
             report.pageCount = static_cast<uint32_t>(asset.pages.size());
             report.meshletPrimitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size());
@@ -795,6 +1092,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
         RENDER3D::CLUSTER::AddFlag(
             outAsset.flags,
             RENDER3D::CLUSTER::ClusteredGeometryFlags::MeshletReady);
+        RENDER3D::CLUSTER::AddFlag(
+            outAsset.flags,
+            RENDER3D::CLUSTER::ClusteredGeometryFlags::LodRanges);
         AppendMaterialSlots(model, outAsset);
 
         if (model.meshes.empty()) {
@@ -865,6 +1165,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         outAsset.localBounds = ComputeVertexBounds(outAsset.packedVertices);
         outAsset.valid =
             !outAsset.surfaces.empty() &&
+            !outAsset.surfaceLodRanges.empty() &&
             !outAsset.clusters.empty() &&
             !outAsset.packedVertices.empty() &&
             !outAsset.packedIndices.empty() &&

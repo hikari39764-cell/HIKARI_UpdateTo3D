@@ -20,7 +20,7 @@ namespace HIKARI::RENDER3D {
         struct SurfaceGpuSceneInstance;
     }
     namespace SCREENSPACE {
-        class SceneGeometryBuffer;
+        class ScreenSpaceGeometryAux;
     }
 }
 
@@ -30,6 +30,7 @@ namespace HIKARI::MESHRENDERER {
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
+    void SubmitSkinnedSubmesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SetSurfaceDrawPacketExecutionPlans(
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* opaqueExecutablePacketIndices,
@@ -46,9 +47,9 @@ namespace HIKARI::MESHRENDERER {
     bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment, uint32_t screenWidth, uint32_t screenHeight);
     const RENDER3D::RenderQueue& BuildRenderQueue();
     const CameraCB* GetCameraConstants();
-    bool RenderGeometryBufferPass(
+    bool RenderGeometryAuxPass(
         const RENDER3D::RenderQueue& queue,
-        RENDER3D::SCREENSPACE::SceneGeometryBuffer& geometryBuffer,
+        RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
     bool RenderForwardOpaquePass(
         const RENDER3D::RenderQueue& queue,

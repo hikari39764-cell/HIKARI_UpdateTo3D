@@ -215,7 +215,7 @@ namespace HIKARI::MESHRENDERER {
         if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_StaticPS.hlsl", "main", GFX::ShaderStage::Pixel, store.psBlob.GetAddressOf())) {
             return false;
         }
-        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl", "main", GFX::ShaderStage::Pixel, store.geometryPsBlob.GetAddressOf())) {
+        if (!GFX::CompileShaderFileSm6(L"HIKARI/Shaders/Render3D_GeometryAuxPS.hlsl", "main", GFX::ShaderStage::Pixel, store.geometryPsBlob.GetAddressOf())) {
             return false;
         }
 

@@ -194,10 +194,12 @@ namespace HIKARI::GFX::GPU_PROFILE {
     const char* ToString(Pass pass) {
         switch (pass) {
         case Pass::ShadowMap: return "ShadowMap";
-        case Pass::GeometryBuffer: return "GeometryBuffer";
+        case Pass::GeometryAux: return "GeometryAux";
         case Pass::ClusterCull: return "Cluster Cull";
-        case Pass::ClusterDrawGeometry: return "Cluster Draw Geometry";
+        case Pass::ClusterDrawGeometryAux: return "Cluster Draw GeometryAux";
         case Pass::ClusterDrawForward: return "Cluster Draw Forward";
+        case Pass::MeshletDrawGeometryAux: return "Meshlet Draw GeometryAux";
+        case Pass::MeshletDrawForward: return "Meshlet Draw Forward";
         case Pass::SsaoMain: return "SSAO Main";
         case Pass::SsaoBlur: return "SSAO Blur";
         case Pass::ForwardOpaque: return "ForwardOpaque";

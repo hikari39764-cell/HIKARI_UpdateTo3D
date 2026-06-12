@@ -61,7 +61,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             id == "Render3D_StaticPS" ||
             id == "Render3D_StaticFxPS" ||
             id == "Render3D_FxWaterPS" ||
-            id == "Render3D_GeometryBufferPS";
+            id == "Render3D_GeometryAuxPS";
     }
 
     SurfaceDrawShaderRoute ResolveSurfaceDrawShaderRoute(

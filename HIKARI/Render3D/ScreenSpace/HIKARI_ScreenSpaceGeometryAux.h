@@ -8,7 +8,7 @@
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
-    class SceneGeometryBuffer {
+    class ScreenSpaceGeometryAux {
     public:
         bool EnsureSize(uint32_t width, uint32_t height);
         void Release();

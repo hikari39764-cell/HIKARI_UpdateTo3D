@@ -105,8 +105,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         const wchar_t* GeometryDebugName(ClusterDrawCullModeBucket bucket) {
             return bucket == ClusterDrawCullModeBucket::DoubleSided
-                ? L"Cluster Draw GeometryBuffer DoubleSided PSO"
-                : L"Cluster Draw GeometryBuffer BackFace PSO";
+                ? L"Cluster Draw GeometryAux DoubleSided PSO"
+                : L"Cluster Draw GeometryAux BackFace PSO";
         }
 
         const char* PipelineEventName(
@@ -114,10 +114,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
             ClusterDrawCullModeBucket bucket) {
 
             switch (kind) {
-            case ClusterDrawPipelineKind::GeometryBuffer:
+            case ClusterDrawPipelineKind::GeometryAux:
                 return bucket == ClusterDrawCullModeBucket::DoubleSided
-                    ? "ClusterDraw.GeometryBuffer.DoubleSided"
-                    : "ClusterDraw.GeometryBuffer.BackFace";
+                    ? "ClusterDraw.GeometryAux.DoubleSided"
+                    : "ClusterDraw.GeometryAux.BackFace";
             case ClusterDrawPipelineKind::ForwardOpaque:
             default:
                 return bucket == ClusterDrawCullModeBucket::DoubleSided
@@ -160,7 +160,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
         if (!GFX::CompileShaderFileSm6(
-            L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl",
+            L"HIKARI/Shaders/Render3D_GeometryAuxPS.hlsl",
             "main",
             GFX::ShaderStage::Pixel,
             geometryPixelShader.GetAddressOf())) {
@@ -188,8 +188,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 geometryPixelShader.Get(),
                 CullModeForBucket(bucket),
                 GeometryDebugName(bucket),
-                geometryBufferPipelineStates_[bucketIndex].GetAddressOf())) {
-                geometryBufferPipelineStates_[bucketIndex].Reset();
+                geometryAuxPipelineStates_[bucketIndex].GetAddressOf())) {
+                geometryAuxPipelineStates_[bucketIndex].Reset();
                 return false;
             }
         }
@@ -200,7 +200,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         for (auto& pipeline : forwardPipelineStates_) {
             pipeline.Reset();
         }
-        for (auto& pipeline : geometryBufferPipelineStates_) {
+        for (auto& pipeline : geometryAuxPipelineStates_) {
             pipeline.Reset();
         }
         stats_ = {};
@@ -209,9 +209,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
     void ClusterDrawExecutor::ResetFrame() {
         stats_ = {};
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
-        stats_.geometryBufferPipelineReady = ArePipelinesReady(geometryBufferPipelineStates_);
+        stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.drawPipelineReady =
-            stats_.forwardPipelineReady && stats_.geometryBufferPipelineReady;
+            stats_.forwardPipelineReady && stats_.geometryAuxPipelineReady;
     }
 
     bool ClusterDrawExecutor::Execute(const ClusterDrawExecutionContext& ctx) {
@@ -225,9 +225,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.drawArgumentBufferReady = ctx.cullingPass->GetDrawArgumentBuffer() != nullptr;
         stats_.drawCommandSignatureReady = ctx.cullingPass->GetDrawCommandSignature() != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
-        stats_.geometryBufferPipelineReady = ArePipelinesReady(geometryBufferPipelineStates_);
+        stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.drawPipelineReady =
-            stats_.forwardPipelineReady && stats_.geometryBufferPipelineReady;
+            stats_.forwardPipelineReady && stats_.geometryAuxPipelineReady;
 
         if (requestedDrawCount == 0) {
             return false;
@@ -262,8 +262,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool submittedAnyBucket = false;
         GFX::GPU_PROFILE::ScopedGpuTimer gpuDraw(
             ctx.commandList,
-            ctx.pipelineKind == ClusterDrawPipelineKind::GeometryBuffer
-                ? GFX::GPU_PROFILE::Pass::ClusterDrawGeometry
+            ctx.pipelineKind == ClusterDrawPipelineKind::GeometryAux
+                ? GFX::GPU_PROFILE::Pass::ClusterDrawGeometryAux
                 : GFX::GPU_PROFILE::Pass::ClusterDrawForward);
         for (size_t bucketIndex = 0; bucketIndex < kClusterDrawCullModeBucketCount; ++bucketIndex) {
             const ClusterDrawCullModeBucket bucket =
@@ -279,8 +279,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             }
 
             ++stats_.submitCallCount;
-            if (ctx.pipelineKind == ClusterDrawPipelineKind::GeometryBuffer) {
-                ++stats_.geometryBufferSubmitCallCount;
+            if (ctx.pipelineKind == ClusterDrawPipelineKind::GeometryAux) {
+                ++stats_.geometryAuxSubmitCallCount;
             } else {
                 ++stats_.forwardSubmitCallCount;
             }
@@ -313,8 +313,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         stats_.submittedDrawCount += requestedDrawCount;
-        if (ctx.pipelineKind == ClusterDrawPipelineKind::GeometryBuffer) {
-            stats_.geometryBufferSubmittedDrawCount += requestedDrawCount;
+        if (ctx.pipelineKind == ClusterDrawPipelineKind::GeometryAux) {
+            stats_.geometryAuxSubmittedDrawCount += requestedDrawCount;
         } else {
             stats_.forwardSubmittedDrawCount += requestedDrawCount;
         }
@@ -344,8 +344,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return nullptr;
         }
         switch (kind) {
-        case ClusterDrawPipelineKind::GeometryBuffer:
-            return geometryBufferPipelineStates_[bucketIndex].Get();
+        case ClusterDrawPipelineKind::GeometryAux:
+            return geometryAuxPipelineStates_[bucketIndex].Get();
         case ClusterDrawPipelineKind::ForwardOpaque:
         default:
             return forwardPipelineStates_[bucketIndex].Get();

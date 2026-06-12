@@ -75,6 +75,7 @@ namespace HIKARI::SHADOW {
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow);
     void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, bool castShadow);
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, bool castShadow);
+    void SubmitSkinnedSubmesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, uint32_t meshIndex, uint32_t primitiveIndex, bool castShadow);
     void SetSurfaceDrawPacketExecutionPlan(
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* executablePacketIndices,

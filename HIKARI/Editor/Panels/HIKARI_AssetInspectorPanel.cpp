@@ -276,8 +276,9 @@ namespace HIKARI {
                 ImGui::Text("Message: %s", cluster.value("message", "").c_str());
                 if (cluster.contains("summary") && cluster["summary"].is_object()) {
                     const nlohmann::json& summary = cluster["summary"];
-                    ImGui::Text("Surfaces / Clusters / Pages: %d / %d / %d",
+                    ImGui::Text("Surfaces / LOD Ranges / Clusters / Pages: %d / %d / %d / %d",
                         summary.value("surfaces", 0),
+                        summary.value("surfaceLodRanges", 0),
                         summary.value("clusters", 0),
                         summary.value("pages", 0));
                     ImGui::Text("Triangles / Vertices: %d / %d",

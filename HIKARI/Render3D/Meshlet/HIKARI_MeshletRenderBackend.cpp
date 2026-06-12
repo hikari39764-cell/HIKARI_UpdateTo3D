@@ -75,8 +75,8 @@ namespace HIKARI::RENDER3D::MESHLET {
 
         const wchar_t* GeometryDebugName(MeshletCullModeBucket bucket) {
             return bucket == MeshletCullModeBucket::DoubleSided
-                ? L"Meshlet GeometryBuffer DoubleSided PSO"
-                : L"Meshlet GeometryBuffer BackFace PSO";
+                ? L"Meshlet GeometryAux DoubleSided PSO"
+                : L"Meshlet GeometryAux BackFace PSO";
         }
 
         const char* PipelineEventName(
@@ -84,10 +84,10 @@ namespace HIKARI::RENDER3D::MESHLET {
             MeshletCullModeBucket bucket) {
 
             switch (kind) {
-            case MeshletPipelineKind::GeometryBuffer:
+            case MeshletPipelineKind::GeometryAux:
                 return bucket == MeshletCullModeBucket::DoubleSided
-                    ? "MeshletDraw.GeometryBuffer.DoubleSided"
-                    : "MeshletDraw.GeometryBuffer.BackFace";
+                    ? "MeshletDraw.GeometryAux.DoubleSided"
+                    : "MeshletDraw.GeometryAux.BackFace";
             case MeshletPipelineKind::ForwardOpaque:
             default:
                 return bucket == MeshletCullModeBucket::DoubleSided
@@ -234,7 +234,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                 GFX::ShaderStage::Pixel,
                 forwardPixelShader.GetAddressOf()) ||
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_GeometryBufferPS.hlsl",
+                L"HIKARI/Shaders/Render3D_GeometryAuxPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 geometryPixelShader.GetAddressOf())) {
@@ -270,7 +270,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
                     GeometryDebugName(bucket),
-                    geometryBufferPipelineStates_[bucketIndex].GetAddressOf())) {
+                    geometryAuxPipelineStates_[bucketIndex].GetAddressOf())) {
                 ++stats_.pipelineCreateReadyCount;
             }
         }
@@ -283,7 +283,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         for (auto& pipeline : forwardPipelineStates_) {
             pipeline.Reset();
         }
-        for (auto& pipeline : geometryBufferPipelineStates_) {
+        for (auto& pipeline : geometryAuxPipelineStates_) {
             pipeline.Reset();
         }
         stats_ = {};
@@ -305,9 +305,9 @@ namespace HIKARI::RENDER3D::MESHLET {
             persistent.pipelineCreateReadyCount;
 
         const bool forwardReady = ArePipelinesReady(forwardPipelineStates_);
-        const bool geometryReady = ArePipelinesReady(geometryBufferPipelineStates_);
+        const bool geometryReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.forwardPipelineReady = forwardReady;
-        stats_.geometryBufferPipelineReady = geometryReady;
+        stats_.geometryAuxPipelineReady = geometryReady;
         stats_.pipelineReady = forwardReady && geometryReady;
     }
 
@@ -325,12 +325,12 @@ namespace HIKARI::RENDER3D::MESHLET {
         stats_.dispatchCommandSignatureReady =
             ctx.cullingPass->GetMeshletDispatchCommandSignature() != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
-        stats_.geometryBufferPipelineReady = ArePipelinesReady(geometryBufferPipelineStates_);
+        stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.pipelineReady =
-            stats_.forwardPipelineReady && stats_.geometryBufferPipelineReady;
+            stats_.forwardPipelineReady && stats_.geometryAuxPipelineReady;
         const bool requestedPipelineReady =
-            ctx.pipelineKind == MeshletPipelineKind::GeometryBuffer
-                ? stats_.geometryBufferPipelineReady
+            ctx.pipelineKind == MeshletPipelineKind::GeometryAux
+                ? stats_.geometryAuxPipelineReady
                 : stats_.forwardPipelineReady;
 
         if (requestedDispatchCount == 0) {
@@ -358,20 +358,18 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
 
         const size_t bucketCapacity = ctx.cullingPass->GetDrawArgumentBucketCapacity();
-        const UINT maxCommandCount = static_cast<UINT>((std::min)(
-            bucketCapacity,
-            static_cast<size_t>((std::numeric_limits<UINT>::max)())));
-        if (maxCommandCount == 0) {
+        if (bucketCapacity == 0) {
             stats_.skippedDispatchCount += requestedDispatchCount;
             return false;
         }
+        constexpr UINT maxCommandCount = 1u;
 
         bool submittedAnyBucket = false;
         GFX::GPU_PROFILE::ScopedGpuTimer gpuDraw(
             ctx.commandList,
-            ctx.pipelineKind == MeshletPipelineKind::GeometryBuffer
-                ? GFX::GPU_PROFILE::Pass::ClusterDrawGeometry
-                : GFX::GPU_PROFILE::Pass::ClusterDrawForward);
+            ctx.pipelineKind == MeshletPipelineKind::GeometryAux
+                ? GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux
+                : GFX::GPU_PROFILE::Pass::MeshletDrawForward);
         for (size_t bucketIndex = 0; bucketIndex < kMeshletCullModeBucketCount; ++bucketIndex) {
             const MeshletCullModeBucket bucket =
                 static_cast<MeshletCullModeBucket>(bucketIndex);
@@ -417,8 +415,8 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
 
         stats_.submittedDispatchCount += requestedDispatchCount;
-        if (ctx.pipelineKind == MeshletPipelineKind::GeometryBuffer) {
-            stats_.geometryBufferSubmittedDispatchCount += requestedDispatchCount;
+        if (ctx.pipelineKind == MeshletPipelineKind::GeometryAux) {
+            stats_.geometryAuxSubmittedDispatchCount += requestedDispatchCount;
         } else {
             stats_.forwardSubmittedDispatchCount += requestedDispatchCount;
         }
@@ -437,8 +435,8 @@ namespace HIKARI::RENDER3D::MESHLET {
         if (index >= kMeshletCullModeBucketCount) {
             return nullptr;
         }
-        return kind == MeshletPipelineKind::GeometryBuffer
-            ? geometryBufferPipelineStates_[index].Get()
+        return kind == MeshletPipelineKind::GeometryAux
+            ? geometryAuxPipelineStates_[index].Get()
             : forwardPipelineStates_[index].Get();
     }
 

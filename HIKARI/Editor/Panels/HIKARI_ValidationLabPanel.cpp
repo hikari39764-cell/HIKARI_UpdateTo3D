@@ -406,10 +406,10 @@ namespace HIKARI {
                 meshStats.clusterGpuCullCommandSignatureReady ? "Ready" : "Missing",
                 meshStats.clusterGpuCullGpuPageTaskCount,
                 meshStats.clusterGpuCullDrawArgumentCapacity);
-            ImGui::Text("Cluster Draw Executor Pipeline / Forward / Geometry / Args / Signature: %s / %s / %s / %s / %s",
+            ImGui::Text("Legacy ClusterDraw Fallback / Forward / Geometry / Args / Signature: %s / %s / %s / %s / %s",
                 meshStats.clusterDrawPipelineReady ? "Ready" : "Pending",
                 meshStats.clusterDrawForwardPipelineReady ? "Ready" : "Pending",
-                meshStats.clusterDrawGeometryBufferPipelineReady ? "Ready" : "Pending",
+                meshStats.clusterDrawGeometryAuxPipelineReady ? "Ready" : "Pending",
                 meshStats.clusterDrawArgumentBufferReady ? "Ready" : "Missing",
                 meshStats.clusterDrawCommandSignatureReady ? "Ready" : "Missing");
             ImGui::Text("Meshlet Backend Ready / SM6.5 / Tier / Fwd / GBuffer / PSO: %s / %s / %u / %s / %s / %zu/%zu",
@@ -417,13 +417,19 @@ namespace HIKARI {
                 meshStats.meshletBackendShaderModel65Supported ? "yes" : "no",
                 meshStats.meshletBackendMeshShaderTier,
                 meshStats.meshletBackendForwardPipelineReady ? "Ready" : "Pending",
-                meshStats.meshletBackendGeometryBufferPipelineReady ? "Ready" : "Pending",
+                meshStats.meshletBackendGeometryAuxPipelineReady ? "Ready" : "Pending",
                 meshStats.meshletBackendPipelineCreateReadyCount,
                 meshStats.meshletBackendPipelineCreateRequestCount);
+            ImGui::Text("Meshlet Draw Args / Signature / Requested / Submitted / Calls: %s / %s / %zu / %zu / %zu",
+                meshStats.meshletBackendDispatchArgumentBufferReady ? "Ready" : "Missing",
+                meshStats.meshletBackendDispatchCommandSignatureReady ? "Ready" : "Missing",
+                meshStats.meshletBackendRequestedDispatchCount,
+                meshStats.meshletBackendSubmittedDispatchCount,
+                meshStats.meshletBackendSubmitCallCount);
             ImGui::Text("Cluster Mainline Ready / Forward / GeometryAux / Seeds / OverflowBlock: %s / %s / %s / %s / %s",
                 meshStats.clusterMainlineReady ? "Ready" : "Blocked",
                 meshStats.clusterMainlineForwardReady ? "Ready" : "Blocked",
-                meshStats.clusterMainlineGeometryBufferReady ? "Ready" : "Blocked",
+                meshStats.clusterMainlineGeometryAuxReady ? "Ready" : "Blocked",
                 meshStats.clusterMainlineHasDrawSeeds ? "yes" : "no",
                 meshStats.clusterMainlineOverflowBlocked ? "yes" : "no");
             ImGui::Text("Opaque Ownership Cluster / GeometryAux / Legacy Commands: %zu / %zu / %zu",
@@ -434,20 +440,17 @@ namespace HIKARI {
                 meshStats.clusterMainlineOwnedPacketCount,
                 meshStats.clusterMainlineGeometryAuxPacketCount,
                 meshStats.clusterMainlineLegacyPacketCount);
-            ImGui::Text("Cluster Draw Requested / Submitted / Skipped / Calls / EmptyBuckets: %zu / %zu / %zu / %zu / %zu",
+            ImGui::Text("Meshlet Draw Forward / Geometry / BackFace / DoubleSided Calls: %zu / %zu / %zu / %zu",
+                meshStats.meshletBackendForwardSubmittedDispatchCount,
+                meshStats.meshletBackendGeometryAuxSubmittedDispatchCount,
+                meshStats.meshletBackendBackFaceSubmitCallCount,
+                meshStats.meshletBackendDoubleSidedSubmitCallCount);
+            ImGui::Text("Legacy ClusterDraw Requested / Submitted / Skipped / Calls / EmptyBuckets: %zu / %zu / %zu / %zu / %zu",
                 meshStats.clusterDrawRequestedCount,
                 meshStats.clusterDrawSubmittedCount,
                 meshStats.clusterDrawSkippedCount,
                 meshStats.clusterDrawSubmitCallCount,
                 meshStats.clusterDrawSkippedBucketCount);
-            ImGui::Text("Cluster Draw Forward / Geometry Submitted / Calls: %zu / %zu / %zu / %zu",
-                meshStats.clusterDrawForwardSubmittedCount,
-                meshStats.clusterDrawGeometryBufferSubmittedCount,
-                meshStats.clusterDrawForwardSubmitCallCount,
-                meshStats.clusterDrawGeometryBufferSubmitCallCount);
-            ImGui::Text("Cluster Draw Bucket Calls BackFace / DoubleSided: %zu / %zu",
-                meshStats.clusterDrawBackFaceSubmitCallCount,
-                meshStats.clusterDrawDoubleSidedSubmitCallCount);
             ImGui::Text("Cluster Mainline Legacy Bypass Commands / Packets: %zu / %zu",
                 meshStats.clusterDrawBypassedLegacyCommandCount,
                 meshStats.clusterDrawBypassedLegacyPacketCount);
@@ -594,8 +597,9 @@ namespace HIKARI {
             ImGui::Text("Valid / Invalid: %u / %u",
                 clusterStats.validAssetCount,
                 clusterStats.invalidAssetCount);
-            ImGui::Text("Surfaces / Clusters / Pages: %u / %u / %u",
+            ImGui::Text("Surfaces / LOD Ranges / Clusters / Pages: %u / %u / %u / %u",
                 clusterStats.surfaceCount,
+                clusterStats.surfaceLodRangeCount,
                 clusterStats.clusterCount,
                 clusterStats.pageCount);
             ImGui::Text("Triangles / Vertices: %u / %u",
@@ -626,8 +630,9 @@ namespace HIKARI {
                 clusterResourceStats.shaderVisibleResourceCount,
                 clusterResourceStats.missingDescriptorCount,
                 clusterResourceStats.descriptorAllocationFailedCount);
-            ImGui::Text("GPU Surfaces / Clusters / Pages: %u / %u / %u",
+            ImGui::Text("GPU Surfaces / LOD Ranges / Clusters / Pages: %u / %u / %u / %u",
                 clusterResourceStats.surfaceCount,
+                clusterResourceStats.surfaceLodRangeCount,
                 clusterResourceStats.clusterCount,
                 clusterResourceStats.pageCount);
             ImGui::Text("GPU Surface Ranges: %u", clusterResourceStats.surfaceRangeCount);

@@ -1240,6 +1240,36 @@ namespace HIKARI::SHADOW {
         QueueSkinnedItem(std::move(item));
     }
 
+    void SubmitSkinnedSubmesh(
+        const ModelAsset& asset,
+        const Transform3D& transform,
+        const std::vector<MATH::Mat4>& jointPalette,
+        uint32_t meshIndex,
+        uint32_t primitiveIndex,
+        bool castShadow) {
+
+        if (!castShadow) {
+            CountSkippedNoCastShadow();
+            return;
+        }
+        if (meshIndex >= asset.meshes.size()) {
+            return;
+        }
+        const MeshAsset& mesh = asset.meshes[meshIndex];
+        if (primitiveIndex >= mesh.primitives.size()) {
+            return;
+        }
+
+        DrawItem item{};
+        item.asset = &asset;
+        item.transform = transform;
+        item.jointPalette = jointPalette;
+        item.usePrimitiveFilter = true;
+        item.meshIndexFilter = meshIndex;
+        item.primitiveIndexFilter = primitiveIndex;
+        QueueSkinnedItem(std::move(item));
+    }
+
     void SetSurfaceDrawPacketExecutionPlan(
         const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
         const std::vector<uint32_t>* executablePacketIndices,
@@ -1473,8 +1503,16 @@ namespace HIKARI::SHADOW {
             if (item.asset == nullptr || item.jointPalette.empty()) {
                 continue;
             }
-            for (const MeshAsset& meshAsset : item.asset->meshes) {
-                for (const MeshPrimitive& primitive : meshAsset.primitives) {
+            for (size_t meshIndex = 0; meshIndex < item.asset->meshes.size(); ++meshIndex) {
+                if (item.usePrimitiveFilter && meshIndex != item.meshIndexFilter) {
+                    continue;
+                }
+                const MeshAsset& meshAsset = item.asset->meshes[meshIndex];
+                for (size_t primitiveIndex = 0; primitiveIndex < meshAsset.primitives.size(); ++primitiveIndex) {
+                    if (item.usePrimitiveFilter && primitiveIndex != item.primitiveIndexFilter) {
+                        continue;
+                    }
+                    const MeshPrimitive& primitive = meshAsset.primitives[primitiveIndex];
                     Mesh* mesh = !primitive.skinnedVertices.empty() ? GetOrCreateSkinnedPrimitiveMesh(primitive) : GetOrCreatePrimitiveMesh(primitive);
                     drawPrimitive(item, primitive, mesh, !primitive.skinnedVertices.empty());
                 }

@@ -51,8 +51,10 @@ namespace HIKARI {
         bool IsClusterSubpass(GFX::GPU_PROFILE::Pass pass) {
             return
                 pass == GFX::GPU_PROFILE::Pass::ClusterCull ||
-                pass == GFX::GPU_PROFILE::Pass::ClusterDrawGeometry ||
-                pass == GFX::GPU_PROFILE::Pass::ClusterDrawForward;
+                pass == GFX::GPU_PROFILE::Pass::ClusterDrawGeometryAux ||
+                pass == GFX::GPU_PROFILE::Pass::ClusterDrawForward ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward;
         }
 
         const char* TimingScopeText(GFX::GPU_PROFILE::Pass pass) {
@@ -152,9 +154,13 @@ namespace HIKARI {
         }
 
         void DrawFrameSummary(const RuntimePerformanceSnapshot& s) {
+            const size_t mainlineSubmittedCount =
+                s.mesh.meshletBackendSubmittedDispatchCount > 0
+                    ? s.mesh.meshletBackendSubmittedDispatchCount
+                    : s.mesh.clusterDrawSubmittedCount;
             const bool clusterMainline =
                 s.mesh.clusterGpuCullSubmittedInstanceCount > 0 ||
-                s.mesh.clusterDrawSubmittedCount > 0;
+                mainlineSubmittedCount > 0;
             const bool gpuDrivenReady =
                 s.mesh.surfaceGpuSceneSrvValid &&
                 s.mesh.surfaceGpuSceneBufferReady &&
@@ -177,7 +183,7 @@ namespace HIKARI {
                 ImGui::TableNextColumn();
                 ImGui::TextColored(StatusColor(clusterMainline), "cluster %s", clusterMainline ? "Active" : "Idle");
                 ImGui::Text("submitted %zu / eligible %zu",
-                    s.mesh.clusterDrawSubmittedCount,
+                    mainlineSubmittedCount,
                     s.mesh.clusterDrawEligibleCommandCount);
 
                 ImGui::TableNextColumn();
@@ -252,21 +258,17 @@ namespace HIKARI {
         void DrawClusterRuntimeTable(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Cluster Runtime");
             if (BeginMetricTable("ClusterRuntimeMetrics")) {
-                MetricRow("GPU Cull GPUScene Source / Candidate / Submitted Inst / Overflow", "%zu / %zu / %zu / %zu",
+                MetricRow("GPU Cull Instances Source / Submitted / Overflow", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullSourceInstanceCount,
-                    s.mesh.clusterGpuCullCandidateInstanceCount,
                     s.mesh.clusterGpuCullSubmittedInstanceCount,
                     s.mesh.clusterGpuCullOverflowInstanceCount);
-                MetricRow("GPU Cull Source SingleSided / DoubleSided Inst", "%zu / %zu",
+                MetricRow("GPU Cull Buckets SingleSided / DoubleSided", "%zu / %zu",
                     s.mesh.clusterGpuCullSourceSingleSidedInstanceCount,
                     s.mesh.clusterGpuCullSourceDoubleSidedInstanceCount);
-                MetricRow("GPU Cull Page Tasks CPU Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
+                MetricRow("GPU PageTasks CPU Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullSourcePageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskOverflowCount);
-                MetricRowText(
-                    "GPU Cull Debug Counters",
-                    s.mesh.clusterGpuCullDebugCountersEnabled ? "on" : "off");
                 MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuInputFrustumCulledCount,
@@ -280,59 +282,35 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuClusterTestedCount,
                     s.mesh.clusterGpuCullGpuClusterFrustumCulledCount,
                     s.mesh.clusterGpuCullGpuClusterConeCulledCount);
-                MetricRow("Cone Tested / DoubleSided Skip Cone", "%zu / %zu",
-                    s.mesh.clusterGpuCullGpuClusterConeTestedCount,
-                    s.mesh.clusterGpuCullGpuDoubleSidedClusterCount);
-                MetricRow("Clusters per DrawArg / Ranges per DrawArg", "%.2f / %.2f",
-                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
-                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount));
-                MetricRow("BackFace / DoubleSided DrawArgs", "%zu / %zu",
+                MetricRow("DrawArgs BackFace / DoubleSided / DoubleSided Share", "%zu / %zu / %.1f%%",
                     s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
-                    s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount);
-                MetricRow("DrawArg Merge Gaps / Extra Indices", "%zu / %zu",
-                    s.mesh.clusterGpuCullGpuMergedGapCount,
-                    s.mesh.clusterGpuCullGpuMergedGapIndexCount);
-                MetricRow("DoubleSided Cluster / DrawArg Share", "%.1f%% / %.1f%%",
-                    SafeRatio(
-                        s.mesh.clusterGpuCullGpuDoubleSidedClusterCount,
-                        s.mesh.clusterGpuCullGpuClusterTestedCount) * 100.0,
+                    s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
                     SafeRatio(
                         s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
                         s.mesh.clusterGpuCullGpuDrawCommandCount) * 100.0);
-                MetricRow("Mainline / Forward / GeometryAux / Seeds / OverflowBlock", "%s / %s / %s / %s / %s",
+                MetricRow("Batch Quality ClustersPerDraw / RangesPerDraw / MergeGaps", "%.2f / %.2f / %zu",
+                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
+                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
+                    s.mesh.clusterGpuCullGpuMergedGapCount);
+                MetricRow("Mainline Ready / Seeds / OverflowBlock", "%s / %s / %s",
                     s.mesh.clusterMainlineReady ? "Ready" : "Blocked",
-                    s.mesh.clusterMainlineForwardReady ? "Ready" : "Blocked",
-                    s.mesh.clusterMainlineGeometryBufferReady ? "Ready" : "Blocked",
                     s.mesh.clusterMainlineHasDrawSeeds ? "yes" : "no",
                     s.mesh.clusterMainlineOverflowBlocked ? "yes" : "no");
                 MetricRow("Opaque Ownership Cluster / GeometryAux / Legacy Cmd", "%zu / %zu / %zu",
                     s.mesh.clusterMainlineOwnedCommandCount,
                     s.mesh.clusterMainlineGeometryAuxCommandCount,
                     s.mesh.clusterMainlineLegacyCommandCount);
-                MetricRow("Opaque Ownership Cluster / GeometryAux / Legacy Pkt", "%zu / %zu / %zu",
-                    s.mesh.clusterMainlineOwnedPacketCount,
-                    s.mesh.clusterMainlineGeometryAuxPacketCount,
-                    s.mesh.clusterMainlineLegacyPacketCount);
-                MetricRow("Cluster Draw Submitted / Requested / Calls / EmptyBuckets", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterDrawSubmittedCount,
-                    s.mesh.clusterDrawRequestedCount,
-                    s.mesh.clusterDrawSubmitCallCount,
-                    s.mesh.clusterDrawSkippedBucketCount);
-                MetricRow("Forward / Geometry Submitted", "%zu / %zu",
-                    s.mesh.clusterDrawForwardSubmittedCount,
-                    s.mesh.clusterDrawGeometryBufferSubmittedCount);
-                MetricRow("Mainline Legacy Bypass Commands / Packets", "%zu / %zu",
+                MetricRow("Meshlet ExecuteIndirect Calls BackFace / DoubleSided / EmptyBuckets", "%zu / %zu / %zu",
+                    s.mesh.meshletBackendBackFaceSubmitCallCount,
+                    s.mesh.meshletBackendDoubleSidedSubmitCallCount,
+                    s.mesh.meshletBackendSkippedBucketCount);
+                MetricRow("Meshlet Ranges Forward / Geometry / Requested", "%zu / %zu / %zu",
+                    s.mesh.meshletBackendForwardSubmittedDispatchCount,
+                    s.mesh.meshletBackendGeometryAuxSubmittedDispatchCount,
+                    s.mesh.meshletBackendRequestedDispatchCount);
+                MetricRow("Legacy Bypass Commands / Packets", "%zu / %zu",
                     s.mesh.clusterDrawBypassedLegacyCommandCount,
                     s.mesh.clusterDrawBypassedLegacyPacketCount);
-                MetricRow("Reject Mainline / Backend / Transparent", "%zu / %zu / %zu",
-                    s.mesh.clusterDrawRejectMainlineCommandCount,
-                    s.mesh.clusterDrawRejectBackendCommandCount,
-                    s.mesh.clusterDrawRejectTransparentCommandCount);
-                MetricRow("Reject Range / Resource / MaterialFx / Material", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterDrawRejectRangeCommandCount,
-                    s.mesh.clusterDrawRejectInstanceResourceCommandCount,
-                    s.mesh.clusterDrawRejectMaterialFxCommandCount,
-                    s.mesh.clusterDrawRejectMaterialPatchCommandCount);
                 ImGui::EndTable();
             }
         }
@@ -390,8 +368,9 @@ namespace HIKARI {
                     s.clusterResources.hitCount,
                     s.clusterResources.missCount,
                     s.clusterResources.loadedCount);
-                MetricRow("Surfaces / Clusters / Pages / Ranges", "%u / %u / %u / %u",
+                MetricRow("Surfaces / LOD Ranges / Clusters / Pages / Ranges", "%u / %u / %u / %u / %u",
                     s.clusterResources.surfaceCount,
+                    s.clusterResources.surfaceLodRangeCount,
                     s.clusterResources.clusterCount,
                     s.clusterResources.pageCount,
                     s.clusterResources.surfaceRangeCount);
@@ -425,7 +404,7 @@ namespace HIKARI {
                     s.ssao.sampleCount,
                     s.ssao.blurIterations);
                 MetricRow("SSAO CPU Geometry / Main / Blur / Total", "%.3f / %.3f / %.3f / %.3f ms",
-                    s.ssao.geometryBufferCpuMs,
+                    s.ssao.geometryAuxCpuMs,
                     s.ssao.mainCpuMs,
                     s.ssao.blurCpuMs,
                     s.ssao.totalCpuMs);
@@ -449,7 +428,10 @@ namespace HIKARI {
                 TextStatus("Indirect Args", s.mesh.surfaceIndirectArgumentBufferReady && s.mesh.surfaceIndirectCommandSignatureReady);
                 ImGui::TableNextColumn();
                 TextStatus("Cluster Cull", s.mesh.clusterGpuCullReady && s.mesh.clusterGpuCullDrawArgsReady);
-                TextStatus("Cluster Draw", s.mesh.clusterDrawPipelineReady && s.mesh.clusterDrawCommandSignatureReady);
+                TextStatus("Meshlet Draw",
+                    s.mesh.meshletBackendPipelineReady &&
+                    s.mesh.meshletBackendDispatchArgumentBufferReady &&
+                    s.mesh.meshletBackendDispatchCommandSignatureReady);
                 ImGui::TableNextColumn();
                 TextStatus("Cluster Resource", s.clusterResources.initialized && s.clusterResources.readyResourceCount > 0);
                 TextStatus("Meshlet Backend", s.mesh.meshletBackendPipelineReady);

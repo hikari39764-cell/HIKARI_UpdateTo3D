@@ -41,6 +41,10 @@ namespace HIKARI {
         bool receiveShadow = true;
         bool submitForward = true;
         bool submitShadow = true;
+        bool useSurfaceFilter = false;
+        uint32_t nodeIndexFilter = 0;
+        uint32_t meshIndexFilter = 0;
+        uint32_t primitiveIndexFilter = 0;
         ModelGeometryDebugMode geometryDebugMode = ModelGeometryDebugMode::Normal;
     };
 }

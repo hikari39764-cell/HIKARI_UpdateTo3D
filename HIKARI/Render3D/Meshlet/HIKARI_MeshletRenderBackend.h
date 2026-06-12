@@ -15,7 +15,7 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     enum class MeshletPipelineKind : uint32_t {
         ForwardOpaque,
-        GeometryBuffer,
+        GeometryAux,
     };
 
     enum class MeshletCullModeBucket : uint32_t {
@@ -34,7 +34,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         bool dispatchArgumentBufferReady = false;
         bool dispatchCommandSignatureReady = false;
         bool forwardPipelineReady = false;
-        bool geometryBufferPipelineReady = false;
+        bool geometryAuxPipelineReady = false;
         bool pipelineReady = false;
         uint32_t meshShaderTier = 0;
         size_t pipelineCreateRequestCount = 0;
@@ -45,7 +45,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         size_t submitCallCount = 0;
         size_t skippedBucketCount = 0;
         size_t forwardSubmittedDispatchCount = 0;
-        size_t geometryBufferSubmittedDispatchCount = 0;
+        size_t geometryAuxSubmittedDispatchCount = 0;
         size_t backFaceSubmitCallCount = 0;
         size_t doubleSidedSubmitCallCount = 0;
     };
@@ -73,7 +73,7 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     private:
         PipelineBucketArray forwardPipelineStates_{};
-        PipelineBucketArray geometryBufferPipelineStates_{};
+        PipelineBucketArray geometryAuxPipelineStates_{};
         MeshletRenderBackendStats stats_{};
     };
 

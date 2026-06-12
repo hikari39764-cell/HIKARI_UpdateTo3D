@@ -17,6 +17,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t validAssetCount = 0;
         uint32_t invalidAssetCount = 0;
         uint32_t surfaceCount = 0;
+        uint32_t surfaceLodRangeCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t totalTriangleCount = 0;

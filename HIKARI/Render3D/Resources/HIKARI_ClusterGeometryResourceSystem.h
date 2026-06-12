@@ -16,6 +16,7 @@ namespace HIKARI::RENDER3D {
 
     struct ClusterGeometryGpuLayout {
         uint32_t surfaceCount = 0;
+        uint32_t surfaceLodRangeCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t vertexCount = 0;
@@ -24,6 +25,7 @@ namespace HIKARI::RENDER3D {
         uint32_t materialSlotCount = 0;
 
         uint32_t surfaceOffsetBytes = 0;
+        uint32_t surfaceLodRangeOffsetBytes = 0;
         uint32_t clusterOffsetBytes = 0;
         uint32_t pageOffsetBytes = 0;
         uint32_t vertexOffsetBytes = 0;
@@ -46,6 +48,7 @@ namespace HIKARI::RENDER3D {
         std::filesystem::path sourcePath{};
         ClusterGeometryGpuLayout layout{};
         std::vector<CLUSTER::ClusterGeometrySurfaceRange> surfaceRanges{};
+        std::vector<CLUSTER::ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
         RenderResourceView srv{};
         bool ready = false;
     };
@@ -65,6 +68,7 @@ namespace HIKARI::RENDER3D {
         uint32_t descriptorAllocationFailedCount = 0;
         uint32_t upgradedVirtualHandleCount = 0;
         uint32_t surfaceCount = 0;
+        uint32_t surfaceLodRangeCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t vertexCount = 0;
@@ -89,6 +93,12 @@ namespace HIKARI::RENDER3D {
         uint32_t nodeIndex,
         uint32_t meshIndex,
         uint32_t primitiveIndex);
+
+    const CLUSTER::ClusterGeometrySurfaceLodRange* FindClusterGeometrySurfaceLodRange(
+        ClusterGeometryResourceHandle handle,
+        uint32_t firstLodRange,
+        uint32_t lodRangeCount,
+        uint32_t lodIndex);
 
     ClusterGeometryResourceSystemStats GetClusterGeometryResourceSystemStats();
 

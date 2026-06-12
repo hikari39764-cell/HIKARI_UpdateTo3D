@@ -9,13 +9,14 @@
 namespace HIKARI::ASSETS::GEOMETRY {
 
     constexpr uint32_t kHcmeshMagic = 0x48434D48u; // HCMH
-    constexpr uint32_t kHcmeshVersion = 6u;
+    constexpr uint32_t kHcmeshVersion = 9u;
 
     struct HcmeshHeader {
         uint32_t magic = kHcmeshMagic;
         uint32_t version = kHcmeshVersion;
 
         uint32_t surfaceCount = 0;
+        uint32_t surfaceLodRangeCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
 

@@ -282,6 +282,7 @@ namespace HIKARI {
                 }
                 clusterJson["summary"] = {
                     { "surfaces", clusteredReport->surfaceCount },
+                    { "surfaceLodRanges", clusteredReport->surfaceLodRangeCount },
                     { "clusters", clusteredReport->clusterCount },
                     { "pages", clusteredReport->pageCount },
                     { "triangles", clusteredReport->triangleCount },

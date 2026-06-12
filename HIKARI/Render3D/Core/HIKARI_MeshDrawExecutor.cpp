@@ -307,7 +307,7 @@ namespace HIKARI::MESHRENDERER {
         bool VariantCanUseObjectDataOnly(
             MeshDrawPassKind passKind,
             const VFX::VariantKey& variant) {
-            if (passKind == MeshDrawPassKind::GeometryBuffer) {
+            if (passKind == MeshDrawPassKind::GeometryAux) {
                 return RENDER3D::RUNTIME::IsSurfaceObjectDataVertexShader(variant.vertexShaderId);
             }
             return
@@ -321,7 +321,7 @@ namespace HIKARI::MESHRENDERER {
             if (!RENDER3D::RUNTIME::IsSurfaceObjectDataVertexShader(variant.vertexShaderId)) {
                 return false;
             }
-            if (passKind == MeshDrawPassKind::GeometryBuffer) {
+            if (passKind == MeshDrawPassKind::GeometryAux) {
                 return true;
             }
 
@@ -383,7 +383,7 @@ namespace HIKARI::MESHRENDERER {
                 return;
             }
 
-            if (ctx.passKind == MeshDrawPassKind::GeometryBuffer) {
+            if (ctx.passKind == MeshDrawPassKind::GeometryAux) {
                 ID3D12PipelineState* pso = GetGeometryPso(*ctx.services.pipelines, drawingSkinned);
                 if (pso == nullptr) {
                     return;
@@ -654,14 +654,14 @@ namespace HIKARI::MESHRENDERER {
                 outState.runtimeMaterial != nullptr ? nullptr : outState.materialAsset,
                 &primitive);
             outState.objectDataCompatible = VariantCanUseObjectDataOnly(ctx.passKind, outState.variant);
-            if (ctx.passKind == MeshDrawPassKind::GeometryBuffer && !outState.objectDataCompatible) {
+            if (ctx.passKind == MeshDrawPassKind::GeometryAux && !outState.objectDataCompatible) {
                 return false;
             }
 
             BindMaterialDataIndex(ctx.binding, 0u);
 
             ID3D12PipelineState* pso = nullptr;
-            if (ctx.passKind == MeshDrawPassKind::GeometryBuffer) {
+            if (ctx.passKind == MeshDrawPassKind::GeometryAux) {
                 pso = GetGeometryPso(*ctx.services.pipelines, false);
             } else {
                 pso = GetOrCreateVariantPso(
@@ -1084,7 +1084,7 @@ namespace HIKARI::MESHRENDERER {
 
             const bool supportedPass =
                 ctx.passKind == MeshDrawPassKind::Forward ||
-                (ctx.passKind == MeshDrawPassKind::GeometryBuffer && !command.transparent);
+                (ctx.passKind == MeshDrawPassKind::GeometryAux && !command.transparent);
             const bool supportedCommandPass =
                 command.pass == RENDER3D::RUNTIME::SurfaceDrawCommandPass::Forward ||
                 (ctx.passKind == MeshDrawPassKind::Forward &&
@@ -1106,8 +1106,8 @@ namespace HIKARI::MESHRENDERER {
                 lhs.transparent != rhs.transparent) {
                 return false;
             }
-            if (ctx.passKind == MeshDrawPassKind::GeometryBuffer) {
-                // GeometryBuffer は固定 PSO で描くため、Forward 用 PSO key の差で分割しない。
+            if (ctx.passKind == MeshDrawPassKind::GeometryAux) {
+                // GeometryAux は固定 PSO で描くため、Forward 用 PSO key の差で分割しない。
                 return !lhs.transparent;
             }
             return

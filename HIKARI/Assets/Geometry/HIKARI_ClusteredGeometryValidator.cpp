@@ -110,7 +110,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::ClusterLocalIndices) &&
                 RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::SourceMapping) &&
                 RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::MeshletPrimitiveTable) &&
-                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::MeshletReady);
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::MeshletReady) &&
+                RENDER3D::CLUSTER::HasFlag(asset.flags, ClusteredGeometryFlags::LodRanges);
         }
 
         bool SurfaceSourceMappingValid(const RENDER3D::CLUSTER::ClusterSurface& surface) {
@@ -147,6 +148,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
         }
         if (asset.meshletPrimitives.empty()) {
             AddMessage(result, "no meshlet primitives");
+        }
+        if (asset.surfaceLodRanges.empty()) {
+            AddMessage(result, "no surface lod ranges");
         }
         if (!asset.sourceModelGuid.IsValid()) {
             assetMetadataValid = false;
@@ -186,7 +190,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 !RangeValid(surface.firstIndex, surface.indexCount, asset.packedIndices.size()) ||
                 !RangeValid(surface.firstVertex, surface.vertexCount, asset.packedVertices.size()) ||
                 !RangeValid(surface.firstPrimitive, surface.primitiveCount, asset.meshletPrimitives.size()) ||
-                !RangeValid(surface.firstPage, surface.pageCount, asset.pages.size())) {
+                !RangeValid(surface.firstPage, surface.pageCount, asset.pages.size()) ||
+                !RangeValid(surface.firstLodRange, surface.lodRangeCount, asset.surfaceLodRanges.size())) {
                 surfaceValid = false;
             }
             if (surface.materialIndex >= asset.materialSlotMapping.size()) {
@@ -203,6 +208,79 @@ namespace HIKARI::ASSETS::GEOMETRY {
             if (!IsFiniteBounds(surface.localBounds) || !BOUNDS::IsUsable(surface.localBounds)) {
                 ++result.invalidBoundsCount;
                 surfaceValid = false;
+            }
+            if (surfaceValid) {
+                bool hasLod0 = false;
+                for (uint32_t lodOffset = 0; lodOffset < surface.lodRangeCount; ++lodOffset) {
+                    const RENDER3D::CLUSTER::ClusterSurfaceLodRange& lodRange =
+                        asset.surfaceLodRanges[surface.firstLodRange + lodOffset];
+                    const bool rangeValid =
+                        lodRange.surfaceIndex == i &&
+                        lodRange.clusterCount != 0u &&
+                        lodRange.indexCount != 0u &&
+                        lodRange.vertexCount != 0u &&
+                        lodRange.primitiveCount != 0u &&
+                        lodRange.primitiveCount * 3u == lodRange.indexCount &&
+                        IsFinite(lodRange.geometricError) &&
+                        IsFinite(lodRange.minScreenRadius) &&
+                        RangeValid(lodRange.firstCluster, lodRange.clusterCount, asset.clusters.size()) &&
+                        RangeValid(lodRange.firstIndex, lodRange.indexCount, asset.packedIndices.size()) &&
+                        RangeValid(lodRange.firstVertex, lodRange.vertexCount, asset.packedVertices.size()) &&
+                        RangeValid(lodRange.firstPage, lodRange.pageCount, asset.pages.size()) &&
+                        RangeValid(lodRange.firstPrimitive, lodRange.primitiveCount, asset.meshletPrimitives.size());
+                    if (!rangeValid) {
+                        surfaceValid = false;
+                        break;
+                    }
+                    if (lodRange.lodIndex == 0u) {
+                        hasLod0 =
+                            lodRange.firstCluster == surface.firstCluster &&
+                            lodRange.clusterCount == surface.clusterCount &&
+                            lodRange.firstIndex == surface.firstIndex &&
+                            lodRange.indexCount == surface.indexCount &&
+                            lodRange.firstVertex == surface.firstVertex &&
+                            lodRange.vertexCount == surface.vertexCount &&
+                            lodRange.firstPage == surface.firstPage &&
+                            lodRange.pageCount == surface.pageCount &&
+                            lodRange.firstPrimitive == surface.firstPrimitive &&
+                            lodRange.primitiveCount == surface.primitiveCount;
+                    }
+                    if (rangeValid) {
+                        for (uint32_t clusterOffset = 0; clusterOffset < lodRange.clusterCount; ++clusterOffset) {
+                            const RENDER3D::CLUSTER::MeshCluster& cluster =
+                                asset.clusters[lodRange.firstCluster + clusterOffset];
+                            if (cluster.surfaceIndex != i ||
+                                !RangeContains(lodRange.firstIndex, lodRange.indexCount, cluster.firstIndex, cluster.indexCount) ||
+                                !RangeContains(lodRange.firstVertex, lodRange.vertexCount, cluster.firstVertex, cluster.vertexCount) ||
+                                !RangeContains(lodRange.firstPrimitive, lodRange.primitiveCount, cluster.firstPrimitive, cluster.primitiveCount)) {
+                                surfaceValid = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!surfaceValid) {
+                        break;
+                    }
+                    if (rangeValid) {
+                        for (uint32_t pageOffset = 0; pageOffset < lodRange.pageCount; ++pageOffset) {
+                            const RENDER3D::CLUSTER::ClusterPage& page =
+                                asset.pages[lodRange.firstPage + pageOffset];
+                            if (!RangeContains(lodRange.firstCluster, lodRange.clusterCount, page.firstCluster, page.clusterCount) ||
+                                !RangeContains(lodRange.firstIndex, lodRange.indexCount, page.firstIndex, page.indexCount) ||
+                                !RangeContains(lodRange.firstVertex, lodRange.vertexCount, page.firstVertex, page.vertexCount) ||
+                                !RangeContains(lodRange.firstPrimitive, lodRange.primitiveCount, page.firstPrimitive, page.primitiveCount)) {
+                                surfaceValid = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!surfaceValid) {
+                        break;
+                    }
+                }
+                if (!hasLod0) {
+                    surfaceValid = false;
+                }
             }
             if (surfaceValid) {
                 for (uint32_t clusterOffset = 0; clusterOffset < surface.clusterCount; ++clusterOffset) {
@@ -306,6 +384,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             asset.valid &&
             assetMetadataValid &&
             !asset.surfaces.empty() &&
+            !asset.surfaceLodRanges.empty() &&
             !asset.clusters.empty() &&
             !asset.packedVertices.empty() &&
             !asset.packedIndices.empty() &&

@@ -626,16 +626,31 @@ namespace HIKARI::MODELRENDERER {
             const ModelAsset& expandedAsset,
             const Transform3D& nodeTransform) {
 
-            MESHRENDERER::SubmitStaticMesh(
-                expandedAsset,
-                nodeTransform,
-                item.materialFxProfileId,
-                item.postGroupMask,
-                item.materialFxParamValues,
-                item.materialFxValuesInitialized,
-                item.receiveShadow,
-                ToMeshRenderDebugMode(item.geometryDebugMode),
-                item.materialOverride);
+            if (item.useSurfaceFilter) {
+                MESHRENDERER::SubmitStaticSubmesh(
+                    expandedAsset,
+                    nodeTransform,
+                    0u,
+                    item.primitiveIndexFilter,
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
+            } else {
+                MESHRENDERER::SubmitStaticMesh(
+                    expandedAsset,
+                    nodeTransform,
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
+            }
             return true;
         }
 
@@ -644,7 +659,16 @@ namespace HIKARI::MODELRENDERER {
             const ModelAsset& expandedAsset,
             const Transform3D& nodeTransform) {
 
-            SHADOW::SubmitStaticMesh(expandedAsset, nodeTransform, item.castShadow);
+            if (item.useSurfaceFilter) {
+                SHADOW::SubmitStaticSubmesh(
+                    expandedAsset,
+                    nodeTransform,
+                    0u,
+                    item.primitiveIndexFilter,
+                    item.castShadow);
+            } else {
+                SHADOW::SubmitStaticMesh(expandedAsset, nodeTransform, item.castShadow);
+            }
             return item.castShadow;
         }
 
@@ -681,8 +705,15 @@ namespace HIKARI::MODELRENDERER {
             bool submitted = false;
             std::unordered_set<int> submittedDebugSkins;
             for (size_t nodeIndex = 0; nodeIndex < item.model->nodes.size(); ++nodeIndex) {
+                if (item.useSurfaceFilter && nodeIndex != item.nodeIndexFilter) {
+                    continue;
+                }
                 const ModelNode& node = item.model->nodes[nodeIndex];
                 if (node.meshIndex < 0 || node.meshIndex >= static_cast<int>(item.model->meshes.size())) {
+                    continue;
+                }
+                if (item.useSurfaceFilter &&
+                    static_cast<uint32_t>(node.meshIndex) != item.meshIndexFilter) {
                     continue;
                 }
 
@@ -737,20 +768,46 @@ namespace HIKARI::MODELRENDERER {
                         if (expandedAsset != nullptr && !expandedAsset->meshes.empty() && MeshHasSkinnedPrimitives(*item.model, node.meshIndex)) {
                             Transform3D skinnedTransform = item.worldTransform;
                             if (submitForward) {
-                                MESHRENDERER::SubmitSkinnedMesh(
-                                    *expandedAsset,
-                                    skinnedTransform,
-                                    *jointPalette,
-                                    item.materialFxProfileId,
-                                    item.postGroupMask,
-                                    item.materialFxParamValues,
-                                    item.materialFxValuesInitialized,
-                                    item.receiveShadow,
-                                    ToMeshRenderDebugMode(item.geometryDebugMode),
-                                    item.materialOverride);
+                                if (item.useSurfaceFilter) {
+                                    MESHRENDERER::SubmitSkinnedSubmesh(
+                                        *expandedAsset,
+                                        skinnedTransform,
+                                        *jointPalette,
+                                        0u,
+                                        item.primitiveIndexFilter,
+                                        item.materialFxProfileId,
+                                        item.postGroupMask,
+                                        item.materialFxParamValues,
+                                        item.materialFxValuesInitialized,
+                                        item.receiveShadow,
+                                        ToMeshRenderDebugMode(item.geometryDebugMode),
+                                        item.materialOverride);
+                                } else {
+                                    MESHRENDERER::SubmitSkinnedMesh(
+                                        *expandedAsset,
+                                        skinnedTransform,
+                                        *jointPalette,
+                                        item.materialFxProfileId,
+                                        item.postGroupMask,
+                                        item.materialFxParamValues,
+                                        item.materialFxValuesInitialized,
+                                        item.receiveShadow,
+                                        ToMeshRenderDebugMode(item.geometryDebugMode),
+                                        item.materialOverride);
+                                }
                             }
                             if (submitShadow) {
-                                SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
+                                if (item.useSurfaceFilter) {
+                                    SHADOW::SubmitSkinnedSubmesh(
+                                        *expandedAsset,
+                                        skinnedTransform,
+                                        *jointPalette,
+                                        0u,
+                                        item.primitiveIndexFilter,
+                                        item.castShadow);
+                                } else {
+                                    SHADOW::SubmitSkinnedMesh(*expandedAsset, skinnedTransform, *jointPalette, item.castShadow);
+                                }
                             }
                             ++gDebugStats.frame.structuredNodeSubmittedCount;
                             submittedSkinned = true;
@@ -840,19 +897,43 @@ namespace HIKARI::MODELRENDERER {
 
             const Transform3D animatedTransform = BuildAnimatedTransform(item);
             if (item.submitForward) {
-                MESHRENDERER::SubmitStaticMesh(
-                    *item.model,
-                    animatedTransform,
-                    item.materialFxProfileId,
-                    item.postGroupMask,
-                    item.materialFxParamValues,
-                    item.materialFxValuesInitialized,
-                    item.receiveShadow,
-                    ToMeshRenderDebugMode(item.geometryDebugMode),
-                    item.materialOverride);
+                if (item.useSurfaceFilter) {
+                    MESHRENDERER::SubmitStaticSubmesh(
+                        *item.model,
+                        animatedTransform,
+                        item.meshIndexFilter,
+                        item.primitiveIndexFilter,
+                        item.materialFxProfileId,
+                        item.postGroupMask,
+                        item.materialFxParamValues,
+                        item.materialFxValuesInitialized,
+                        item.receiveShadow,
+                        ToMeshRenderDebugMode(item.geometryDebugMode),
+                        item.materialOverride);
+                } else {
+                    MESHRENDERER::SubmitStaticMesh(
+                        *item.model,
+                        animatedTransform,
+                        item.materialFxProfileId,
+                        item.postGroupMask,
+                        item.materialFxParamValues,
+                        item.materialFxValuesInitialized,
+                        item.receiveShadow,
+                        ToMeshRenderDebugMode(item.geometryDebugMode),
+                        item.materialOverride);
+                }
             }
             if (item.submitShadow) {
-                SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
+                if (item.useSurfaceFilter) {
+                    SHADOW::SubmitStaticSubmesh(
+                        *item.model,
+                        animatedTransform,
+                        item.meshIndexFilter,
+                        item.primitiveIndexFilter,
+                        item.castShadow);
+                } else {
+                    SHADOW::SubmitStaticMesh(*item.model, animatedTransform, item.castShadow);
+                }
             }
         }
 
@@ -885,16 +966,31 @@ namespace HIKARI::MODELRENDERER {
             }
 
             const Transform3D animatedTransform = BuildAnimatedTransform(item);
-            MESHRENDERER::SubmitStaticMesh(
-                *item.model,
-                animatedTransform,
-                item.materialFxProfileId,
-                item.postGroupMask,
-                item.materialFxParamValues,
-                item.materialFxValuesInitialized,
-                item.receiveShadow,
-                ToMeshRenderDebugMode(item.geometryDebugMode),
-                item.materialOverride);
+            if (item.useSurfaceFilter) {
+                MESHRENDERER::SubmitStaticSubmesh(
+                    *item.model,
+                    animatedTransform,
+                    item.meshIndexFilter,
+                    item.primitiveIndexFilter,
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
+            } else {
+                MESHRENDERER::SubmitStaticMesh(
+                    *item.model,
+                    animatedTransform,
+                    item.materialFxProfileId,
+                    item.postGroupMask,
+                    item.materialFxParamValues,
+                    item.materialFxValuesInitialized,
+                    item.receiveShadow,
+                    ToMeshRenderDebugMode(item.geometryDebugMode),
+                    item.materialOverride);
+            }
         }
 
         // Probe capture は shadow / SSAO / depth-aware を含めない。

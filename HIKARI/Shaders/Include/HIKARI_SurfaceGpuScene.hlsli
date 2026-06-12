@@ -40,6 +40,11 @@ struct HikariSurfaceGpuSceneInstance
     uint clusterSurfaceIndex;
     uint clusterIndexCount;
 
+    uint clusterLodRangeIndex;
+    uint clusterLodRangeCount;
+    uint clusterSelectedLodIndex;
+    uint clusterLodFlags;
+
     float4 fxUser[8];
 };
 
@@ -57,6 +62,7 @@ static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_MATERIAL = 1u << 1;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY = 1u << 2;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SHADER_VISIBLE = 1u << 3;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SURFACE_RANGE = 1u << 4;
+static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_LOD_RANGES = 1u << 5;
 
 StructuredBuffer<HikariSurfaceGpuSceneInstance> gSurfaceGpuSceneBuffer : register(t17);
 

@@ -225,9 +225,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t mergeRunGapIndexBudget = 0;
             uint32_t mergeMaxIndexSpan = 0;
             uint32_t mergeClusterGapLimit = 0;
+            float lodTargetErrorNdc = 0.0f;
+            uint32_t enableLodErrorSelection = 0;
+            uint32_t reserved0 = 0;
+            uint32_t reserved1 = 0;
         };
 
-        static_assert(sizeof(GpuConstants) == 144u);
+        static_assert(sizeof(GpuConstants) == 160u);
 
         bool EnsurePipeline(ID3D12Device* device);
         bool EnsureDispatchCommandSignature(ID3D12Device* device);
@@ -254,6 +258,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> expandPageTasksPipelineState_;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> finalizeDispatchPipelineState_;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> finalizeMeshletDispatchPipelineState_;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> cullPageTasksPipelineState_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> dispatchCommandSignature_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> drawCommandSignature_;

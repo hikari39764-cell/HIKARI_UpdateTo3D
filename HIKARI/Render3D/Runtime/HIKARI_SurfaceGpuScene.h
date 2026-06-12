@@ -32,6 +32,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         ClusterGeometry = 1u << 2,
         ClusterGeometryShaderVisible = 1u << 3,
         ClusterGeometrySurfaceRange = 1u << 4,
+        ClusterGeometryLodRanges = 1u << 5,
     };
 
     // GPU scene buffer にそのまま並べる packet 由来の instance。
@@ -72,10 +73,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t clusterSurfaceIndex = kInvalidRenderSurfaceIndex;
         uint32_t clusterIndexCount = 0;
 
+        uint32_t clusterLodRangeIndex = kInvalidRenderSurfaceIndex;
+        uint32_t clusterLodRangeCount = 0;
+        uint32_t clusterSelectedLodIndex = 0;
+        uint32_t clusterLodFlags = 0;
+
         MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
     };
 
-    static_assert(sizeof(SurfaceGpuSceneInstance) == 496u);
+    static_assert(sizeof(SurfaceGpuSceneInstance) == 512u);
 
     struct SurfaceGpuSceneBuildStats {
         uint32_t commandCount = 0;

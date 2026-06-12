@@ -23,6 +23,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t kClusterCullMergeMaxIndexSpan = 8192u;
         // クラスタ間の空白をまたぐ結合は過剰描画になりやすいので、正式なcompactまで無効化する。
         constexpr uint32_t kClusterCullMergeClusterGapLimit = 0u;
+        constexpr float kClusterCullLodTargetErrorNdc = 0.0025f;
 
         constexpr UINT AlignConstantBufferSize(size_t size) {
             return static_cast<UINT>((size + 255u) & ~255u);
@@ -143,6 +144,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.psoReady =
             expandPageTasksPipelineState_ != nullptr &&
             finalizeDispatchPipelineState_ != nullptr &&
+            finalizeMeshletDispatchPipelineState_ != nullptr &&
             cullPageTasksPipelineState_ != nullptr;
         stats_.threadGroupSize = kThreadGroupSize;
         return true;
@@ -166,6 +168,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         rootSignature_.Reset();
         expandPageTasksPipelineState_.Reset();
         finalizeDispatchPipelineState_.Reset();
+        finalizeMeshletDispatchPipelineState_.Reset();
         cullPageTasksPipelineState_.Reset();
         dispatchCommandSignature_.Reset();
         drawCommandSignature_.Reset();
@@ -189,6 +192,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         if (rootSignature_ != nullptr &&
             expandPageTasksPipelineState_ != nullptr &&
             finalizeDispatchPipelineState_ != nullptr &&
+            finalizeMeshletDispatchPipelineState_ != nullptr &&
             cullPageTasksPipelineState_ != nullptr) {
             return true;
         }
@@ -288,6 +292,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
             "FinalizePageTaskDispatchCS",
             L"Cluster GPU Finalize Page Task Dispatch PSO",
             finalizeDispatchPipelineState_.GetAddressOf())) {
+            return false;
+        }
+        if (!CreateComputePipelineState(
+            device,
+            rootSignature_.Get(),
+            "FinalizeMeshletDispatchCS",
+            L"Cluster GPU Finalize Meshlet Dispatch PSO",
+            finalizeMeshletDispatchPipelineState_.GetAddressOf())) {
             return false;
         }
         if (!CreateComputePipelineState(
@@ -421,10 +433,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         const size_t requestedPageTaskCapacity =
             NextCapacity(pageTaskCapacity, kDefaultClusterGpuPageTaskCapacity);
-        const size_t requestedVisibleCapacity =
-            NextCapacity(visibleRangeCapacity, kDefaultClusterGpuCullingVisibleRangeCapacity);
         const size_t requestedDrawArgumentCapacity =
             NextCapacity(drawArgumentCapacity, kDefaultClusterGpuDrawArgumentCapacity);
+        const size_t requestedVisibleCapacity =
+            NextCapacity(
+                (std::max)(visibleRangeCapacity, requestedDrawArgumentCapacity),
+                kDefaultClusterGpuCullingVisibleRangeCapacity);
         if (constantsUploadBuffer_ != nullptr &&
             counterResetUploadBuffer_ != nullptr &&
             pageTaskBuffer_ != nullptr &&
@@ -637,6 +651,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const bool initialized = rootSignature_ != nullptr &&
             expandPageTasksPipelineState_ != nullptr &&
             finalizeDispatchPipelineState_ != nullptr &&
+            finalizeMeshletDispatchPipelineState_ != nullptr &&
             cullPageTasksPipelineState_ != nullptr &&
             constantsUploadBuffer_ != nullptr &&
             counterResetUploadBuffer_ != nullptr &&
@@ -652,6 +667,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.psoReady =
             expandPageTasksPipelineState_ != nullptr &&
             finalizeDispatchPipelineState_ != nullptr &&
+            finalizeMeshletDispatchPipelineState_ != nullptr &&
             cullPageTasksPipelineState_ != nullptr;
         stats_.inputBufferReady = true;
         stats_.pageTaskBufferReady = pageTaskBuffer_ != nullptr;
@@ -842,6 +858,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constants.mergeRunGapIndexBudget = kClusterCullMergeRunGapIndexBudget;
         constants.mergeMaxIndexSpan = kClusterCullMergeMaxIndexSpan;
         constants.mergeClusterGapLimit = kClusterCullMergeClusterGapLimit;
+        constants.lodTargetErrorNdc = kClusterCullLodTargetErrorNdc;
+        constants.enableLodErrorSelection = 1u;
         *constantsMapped_ = constants;
         stats_.debugCountersEnabled = constants.enableDebugCounters != 0u;
 
@@ -1012,6 +1030,23 @@ namespace HIKARI::RENDER3D::CLUSTER {
         };
         commandList->ResourceBarrier(static_cast<UINT>(std::size(barriers)), barriers);
 
+        {
+            GFX::PIX::ScopedGpuEvent meshletFinalizePix(
+                commandList,
+                GFX::PIX::kColorRender,
+                "ClusterGpuCulling.FinalizeMeshletDispatch");
+            commandList->SetPipelineState(finalizeMeshletDispatchPipelineState_.Get());
+            commandList->Dispatch(1u, 1u, 1u);
+        }
+
+        D3D12_RESOURCE_BARRIER meshletFinalizeBarriers[] = {
+            CD3DX12_RESOURCE_BARRIER::UAV(meshletDispatchArgumentBuffer_.Get()),
+            CD3DX12_RESOURCE_BARRIER::UAV(counterBuffer_.Get()),
+        };
+        commandList->ResourceBarrier(
+            static_cast<UINT>(std::size(meshletFinalizeBarriers)),
+            meshletFinalizeBarriers);
+
         auto counterToCopy = CD3DX12_RESOURCE_BARRIER::Transition(
             counterBuffer_.Get(),
             counterBufferState_,
@@ -1044,8 +1079,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
         counterBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
 
-        stats_.dispatchCount = 3;
-        stats_.workgroupCount = expandGroupCount + 1u;
+        stats_.dispatchCount = 4;
+        stats_.workgroupCount = expandGroupCount + 2u;
         return true;
     }
 

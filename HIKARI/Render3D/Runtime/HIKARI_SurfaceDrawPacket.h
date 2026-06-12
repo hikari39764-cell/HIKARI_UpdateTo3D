@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <DirectXMath.h>
@@ -348,6 +349,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         bool HasFullForwardCoverageForObject(SceneRenderObjectId objectId) const;
         bool HasFullShadowCoverageForObject(SceneRenderObjectId objectId) const;
+        bool HasForwardCoverageForObject(SceneRenderObjectId objectId) const;
+        bool HasShadowCoverageForObject(SceneRenderObjectId objectId) const;
+        bool ShouldBypassLegacyForwardSurface(SceneRenderObjectId objectId, uint32_t nodeIndex, uint32_t meshIndex, uint32_t primitiveIndex) const;
+        bool ShouldBypassLegacyShadowSurface(SceneRenderObjectId objectId, uint32_t nodeIndex, uint32_t meshIndex, uint32_t primitiveIndex) const;
         const std::vector<uint32_t>& GetExecutableForwardOpaquePacketIndices() const;
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardOpaqueCommands() const;
         const std::vector<SurfaceGpuSceneInstance>& GetForwardOpaqueGpuSceneInstances() const;
@@ -367,6 +372,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t safeForwardPacketCount = 0;
             uint32_t expectedShadowPacketCount = 0;
             uint32_t safeShadowPacketCount = 0;
+            std::unordered_set<uint64_t> forwardBypassSurfaceKeys{};
+            std::unordered_set<uint64_t> shadowBypassSurfaceKeys{};
         };
 
         bool IsForwardSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketPlanStats* stats) const;

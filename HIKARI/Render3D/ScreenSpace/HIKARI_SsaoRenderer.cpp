@@ -174,7 +174,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         return settings.mode;
     }
 
-    bool SsaoRequiresGeometryBuffer(const AmbientOcclusionSettings& settings) {
+    bool SsaoRequiresGeometryAux(const AmbientOcclusionSettings& settings) {
         const SsaoResolvedMode resolved = ResolveModeParameters(settings);
         return resolved.mode != SsaoMode::Off;
     }
@@ -185,18 +185,18 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const AmbientOcclusionSettings& settings) {
 
         FillDebugStateBase(width, height, settings);
-        gDebugState.geometryBufferEnabled =
-            SsaoRequiresGeometryBuffer(settings) &&
+        gDebugState.geometryAuxEnabled =
+            SsaoRequiresGeometryAux(settings) &&
             !settings.editorViewportSuppressed;
-        gDebugState.geometryBufferWritten = false;
-        gDebugState.geometryBufferFormat = DXGI_FORMAT_UNKNOWN;
-        gDebugState.geometryBufferCpuMs = 0.0f;
+        gDebugState.geometryAuxWritten = false;
+        gDebugState.geometryAuxFormat = DXGI_FORMAT_UNKNOWN;
+        gDebugState.geometryAuxCpuMs = 0.0f;
     }
 
-    void RecordSsaoGeometryBufferDebug(bool written, float cpuMs, DXGI_FORMAT format) {
-        gDebugState.geometryBufferWritten = written;
-        gDebugState.geometryBufferFormat = format;
-        gDebugState.geometryBufferCpuMs = cpuMs;
+    void RecordSsaoGeometryAuxDebug(bool written, float cpuMs, DXGI_FORMAT format) {
+        gDebugState.geometryAuxWritten = written;
+        gDebugState.geometryAuxFormat = format;
+        gDebugState.geometryAuxCpuMs = cpuMs;
     }
 
     void RecordSsaoCompositeDebug(float cpuMs) {
@@ -205,22 +205,22 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
     bool SsaoRenderer::Render(
         ID3D12GraphicsCommandList* cmd,
-        const SceneGeometryBuffer& geometryBuffer,
+        const ScreenSpaceGeometryAux& geometryAux,
         D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
         const MESHRENDERER::CameraCB& camera,
         const AmbientOcclusionSettings& settings) {
 
-        if (!geometryBuffer.IsValid()) {
+        if (!geometryAux.IsValid()) {
             valid_ = false;
             lastAoSrv_ = {};
             return false;
         }
         return RenderInternal(
             cmd,
-            geometryBuffer.GetWidth(),
-            geometryBuffer.GetHeight(),
+            geometryAux.GetWidth(),
+            geometryAux.GetHeight(),
             sceneDepthSrv,
-            geometryBuffer.GetNormalRoughnessSrv(),
+            geometryAux.GetNormalRoughnessSrv(),
             camera,
             settings);
     }
@@ -237,7 +237,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const CpuClock::time_point totalStart = CpuClock::now();
         const SsaoResolvedMode modeParams = ResolveModeParameters(settings);
         FillDebugStateBase(width, height, settings);
-        gDebugState.geometryBufferEnabled = modeParams.mode != SsaoMode::Off;
+        gDebugState.geometryAuxEnabled = modeParams.mode != SsaoMode::Off;
 
         valid_ = false;
         lastAoSrv_ = {};
@@ -434,7 +434,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         valid_ = lastAoSrv_.ptr != 0;
         gDebugState.valid = valid_;
         gDebugState.totalCpuMs =
-            gDebugState.geometryBufferCpuMs +
+            gDebugState.geometryAuxCpuMs +
             ElapsedMs(totalStart, CpuClock::now()) +
             gDebugState.compositeCpuMs;
         return valid_;
@@ -449,10 +449,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         lastAoSrv_ = {};
 
         FillDebugStateBase(width, height, settings);
-        gDebugState.geometryBufferEnabled = false;
-        gDebugState.geometryBufferWritten = false;
-        gDebugState.geometryBufferFormat = DXGI_FORMAT_UNKNOWN;
-        gDebugState.geometryBufferCpuMs = 0.0f;
+        gDebugState.geometryAuxEnabled = false;
+        gDebugState.geometryAuxWritten = false;
+        gDebugState.geometryAuxFormat = DXGI_FORMAT_UNKNOWN;
+        gDebugState.geometryAuxCpuMs = 0.0f;
     }
 
     bool SsaoRenderer::EnsureResources(uint32_t width, uint32_t height, bool halfResolution) {

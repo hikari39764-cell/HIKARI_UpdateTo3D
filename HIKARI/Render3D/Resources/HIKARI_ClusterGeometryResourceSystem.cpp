@@ -21,16 +21,19 @@ namespace HIKARI::RENDER3D {
     namespace {
         using ClusterGeometryGpuHeader = CLUSTER::ClusterGeometryGpuHeader;
         using ClusterGeometryGpuSurface = CLUSTER::ClusterGeometryGpuSurface;
+        using ClusterGeometryGpuSurfaceLodRange = CLUSTER::ClusterGeometryGpuSurfaceLodRange;
         using ClusterGeometryGpuCluster = CLUSTER::ClusterGeometryGpuCluster;
         using ClusterGeometryGpuPage = CLUSTER::ClusterGeometryGpuPage;
         using ClusterGeometryGpuVertex = CLUSTER::ClusterGeometryGpuVertex;
         using ClusterGeometryGpuMeshletPrimitive = CLUSTER::ClusterGeometryGpuMeshletPrimitive;
         using ClusterGeometrySurfaceRange = CLUSTER::ClusterGeometrySurfaceRange;
+        using ClusterGeometrySurfaceLodRange = CLUSTER::ClusterGeometrySurfaceLodRange;
 
         struct PackedClusterGeometry {
             std::vector<uint8_t> bytes{};
             ClusterGeometryGpuLayout layout{};
             std::vector<ClusterGeometrySurfaceRange> surfaceRanges{};
+            std::vector<ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
         };
 
         struct ClusterGeometryResourceSystemState {
@@ -103,6 +106,8 @@ namespace HIKARI::RENDER3D {
             range.pageCount = source.pageCount;
             range.firstPrimitive = source.firstPrimitive;
             range.primitiveCount = source.primitiveCount;
+            range.firstLodRange = source.firstLodRange;
+            range.lodRangeCount = source.lodRangeCount;
             return range;
         }
 
@@ -123,9 +128,55 @@ namespace HIKARI::RENDER3D {
             gpu.pageCount = source.pageCount;
             gpu.firstPrimitive = source.firstPrimitive;
             gpu.primitiveCount = source.primitiveCount;
+            gpu.firstLodRange = source.firstLodRange;
+            gpu.lodRangeCount = source.lodRangeCount;
             gpu.boundsMin = BoundsMin4(source.localBounds);
             gpu.boundsMax = BoundsMax4(source.localBounds);
             return gpu;
+        }
+
+        ClusterGeometryGpuSurfaceLodRange ToGpuSurfaceLodRange(
+            const CLUSTER::ClusterSurfaceLodRange& source) {
+
+            ClusterGeometryGpuSurfaceLodRange gpu{};
+            gpu.surfaceIndex = source.surfaceIndex;
+            gpu.lodIndex = source.lodIndex;
+            gpu.firstCluster = source.firstCluster;
+            gpu.clusterCount = source.clusterCount;
+            gpu.firstIndex = source.firstIndex;
+            gpu.indexCount = source.indexCount;
+            gpu.firstVertex = source.firstVertex;
+            gpu.vertexCount = source.vertexCount;
+            gpu.firstPage = source.firstPage;
+            gpu.pageCount = source.pageCount;
+            gpu.firstPrimitive = source.firstPrimitive;
+            gpu.primitiveCount = source.primitiveCount;
+            gpu.geometricError = source.geometricError;
+            gpu.minScreenRadius = source.minScreenRadius;
+            gpu.flags = source.flags;
+            return gpu;
+        }
+
+        ClusterGeometrySurfaceLodRange ToSurfaceLodRange(
+            const CLUSTER::ClusterSurfaceLodRange& source) {
+
+            ClusterGeometrySurfaceLodRange range{};
+            range.surfaceIndex = source.surfaceIndex;
+            range.lodIndex = source.lodIndex;
+            range.firstCluster = source.firstCluster;
+            range.clusterCount = source.clusterCount;
+            range.firstIndex = source.firstIndex;
+            range.indexCount = source.indexCount;
+            range.firstVertex = source.firstVertex;
+            range.vertexCount = source.vertexCount;
+            range.firstPage = source.firstPage;
+            range.pageCount = source.pageCount;
+            range.firstPrimitive = source.firstPrimitive;
+            range.primitiveCount = source.primitiveCount;
+            range.geometricError = source.geometricError;
+            range.minScreenRadius = source.minScreenRadius;
+            range.flags = source.flags;
+            return range;
         }
 
         ClusterGeometryGpuCluster ToGpuCluster(const CLUSTER::MeshCluster& source) {
@@ -198,6 +249,7 @@ namespace HIKARI::RENDER3D {
             ClusterGeometryGpuHeader header{};
             header.flags = asset.flags;
             header.surfaceCount = ClampToUint32(asset.surfaces.size());
+            header.surfaceLodRangeCount = ClampToUint32(asset.surfaceLodRanges.size());
             header.clusterCount = ClampToUint32(asset.clusters.size());
             header.pageCount = ClampToUint32(asset.pages.size());
             header.vertexCount = ClampToUint32(asset.packedVertices.size());
@@ -215,6 +267,13 @@ namespace HIKARI::RENDER3D {
                 const CLUSTER::ClusterSurface& surface = asset.surfaces[surfaceIndex];
                 AppendPod(packed.bytes, ToGpuSurface(surface));
                 packed.surfaceRanges.push_back(ToSurfaceRange(ClampToUint32(surfaceIndex), surface));
+            }
+
+            header.surfaceLodRangeOffsetBytes = AlignSection(packed.bytes);
+            packed.surfaceLodRanges.reserve(asset.surfaceLodRanges.size());
+            for (const CLUSTER::ClusterSurfaceLodRange& lodRange : asset.surfaceLodRanges) {
+                AppendPod(packed.bytes, ToGpuSurfaceLodRange(lodRange));
+                packed.surfaceLodRanges.push_back(ToSurfaceLodRange(lodRange));
             }
 
             header.clusterOffsetBytes = AlignSection(packed.bytes);
@@ -267,12 +326,14 @@ namespace HIKARI::RENDER3D {
             std::memcpy(packed.bytes.data(), &header, sizeof(header));
 
             packed.layout.surfaceCount = header.surfaceCount;
+            packed.layout.surfaceLodRangeCount = header.surfaceLodRangeCount;
             packed.layout.clusterCount = header.clusterCount;
             packed.layout.pageCount = header.pageCount;
             packed.layout.vertexCount = header.vertexCount;
             packed.layout.indexCount = header.indexCount;
             packed.layout.materialSlotCount = header.materialSlotCount;
             packed.layout.surfaceOffsetBytes = header.surfaceOffsetBytes;
+            packed.layout.surfaceLodRangeOffsetBytes = header.surfaceLodRangeOffsetBytes;
             packed.layout.clusterOffsetBytes = header.clusterOffsetBytes;
             packed.layout.pageOffsetBytes = header.pageOffsetBytes;
             packed.layout.vertexOffsetBytes = header.vertexOffsetBytes;
@@ -415,6 +476,7 @@ namespace HIKARI::RENDER3D {
                     ++stats.missingDescriptorCount;
                 }
                 stats.surfaceCount += record.layout.surfaceCount;
+                stats.surfaceLodRangeCount += record.layout.surfaceLodRangeCount;
                 stats.clusterCount += record.layout.clusterCount;
                 stats.pageCount += record.layout.pageCount;
                 stats.vertexCount += record.layout.vertexCount;
@@ -548,6 +610,7 @@ namespace HIKARI::RENDER3D {
         record.sourcePath = hcmeshPath;
         record.layout = packed.layout;
         record.surfaceRanges = packed.surfaceRanges;
+        record.surfaceLodRanges = packed.surfaceLodRanges;
         record.srv = srv;
         record.ready = true;
         state.recordsBySourceKey[sourceKey] = std::move(record);
@@ -610,6 +673,34 @@ namespace HIKARI::RENDER3D {
         }
 
         // HCMESH は node transform を頂点へ bake しているため、node が違う surface は別ジオメトリとして扱う。
+        return nullptr;
+    }
+
+    const CLUSTER::ClusterGeometrySurfaceLodRange* FindClusterGeometrySurfaceLodRange(
+        ClusterGeometryResourceHandle handle,
+        uint32_t firstLodRange,
+        uint32_t lodRangeCount,
+        uint32_t lodIndex) {
+
+        const ClusterGeometryResourceRecord* record = GetClusterGeometryResource(handle);
+        if (record == nullptr ||
+            !record->ready ||
+            lodRangeCount == 0u ||
+            firstLodRange >= record->surfaceLodRanges.size()) {
+            return nullptr;
+        }
+
+        const uint64_t begin = firstLodRange;
+        const uint64_t end = (std::min)(
+            begin + static_cast<uint64_t>(lodRangeCount),
+            static_cast<uint64_t>(record->surfaceLodRanges.size()));
+        for (uint64_t i = begin; i < end; ++i) {
+            const CLUSTER::ClusterGeometrySurfaceLodRange& range =
+                record->surfaceLodRanges[static_cast<size_t>(i)];
+            if (range.lodIndex == lodIndex) {
+                return &range;
+            }
+        }
         return nullptr;
     }
 

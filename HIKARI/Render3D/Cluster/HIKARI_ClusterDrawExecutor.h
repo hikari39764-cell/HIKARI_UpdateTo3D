@@ -13,7 +13,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     enum class ClusterDrawPipelineKind : uint32_t {
         ForwardOpaque,
-        GeometryBuffer,
+        GeometryAux,
     };
 
     struct ClusterDrawExecutorStats {
@@ -21,16 +21,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool drawCommandSignatureReady = false;
         bool drawPipelineReady = false;
         bool forwardPipelineReady = false;
-        bool geometryBufferPipelineReady = false;
+        bool geometryAuxPipelineReady = false;
         size_t requestedDrawCount = 0;
         size_t submittedDrawCount = 0;
         size_t skippedDrawCount = 0;
         size_t skippedBucketCount = 0;
         size_t submitCallCount = 0;
         size_t forwardSubmittedDrawCount = 0;
-        size_t geometryBufferSubmittedDrawCount = 0;
+        size_t geometryAuxSubmittedDrawCount = 0;
         size_t forwardSubmitCallCount = 0;
-        size_t geometryBufferSubmitCallCount = 0;
+        size_t geometryAuxSubmitCallCount = 0;
         size_t backFaceSubmitCallCount = 0;
         size_t doubleSidedSubmitCallCount = 0;
     };
@@ -60,7 +60,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     private:
         PipelineBucketArray forwardPipelineStates_{};
-        PipelineBucketArray geometryBufferPipelineStates_{};
+        PipelineBucketArray geometryAuxPipelineStates_{};
         ClusterDrawExecutorStats stats_{};
     };
 

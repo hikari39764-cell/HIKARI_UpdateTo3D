@@ -6,7 +6,7 @@
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/Pipeline/HIKARI_RenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
-#include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
+#include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
 
 namespace HIKARI {
@@ -16,7 +16,7 @@ namespace HIKARI {
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
     struct ScreenSpaceRuntimeState {
-        SceneGeometryBuffer geometryBuffer{};
+        ScreenSpaceGeometryAux geometryAux{};
         SsaoRenderer ssaoRenderer{};
         RENDER3D::TextureResourceHandle fallbackAoTextureResource{};
         int fallbackAoTextureHandle = -1;
@@ -25,7 +25,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     };
 
     struct ScreenSpaceFrameResult {
-        bool geometryBufferWritten = false;
+        bool geometryAuxWritten = false;
         bool ssaoRendered = false;
         D3D12_GPU_DESCRIPTOR_HANDLE aoSrv{};
         RENDER3D::TextureResourceHandle fallbackAoTextureResource{};

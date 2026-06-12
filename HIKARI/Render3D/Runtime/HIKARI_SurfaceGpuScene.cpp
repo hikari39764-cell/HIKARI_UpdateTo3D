@@ -168,11 +168,32 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
 
             instance.clusterSurfaceIndex = range->surfaceIndex;
-            instance.clusterRangeIndex = range->firstCluster;
-            instance.clusterRangeCount = range->clusterCount;
-            instance.clusterIndexCount = range->indexCount;
+            instance.clusterLodRangeIndex = range->firstLodRange;
+            instance.clusterLodRangeCount = range->lodRangeCount;
+            instance.clusterSelectedLodIndex = range->selectedLodIndex;
+            const CLUSTER::ClusterGeometrySurfaceLodRange* lod0Range =
+                FindClusterGeometrySurfaceLodRange(
+                    resources.clusterGeometry,
+                    range->firstLodRange,
+                    range->lodRangeCount,
+                    0u);
+            if (lod0Range != nullptr) {
+                instance.clusterRangeIndex = lod0Range->firstCluster;
+                instance.clusterRangeCount = lod0Range->clusterCount;
+                instance.clusterIndexCount = lod0Range->indexCount;
+                instance.clusterSelectedLodIndex = lod0Range->lodIndex;
+                instance.clusterLodFlags = lod0Range->flags;
+            } else {
+                instance.clusterRangeIndex = range->firstCluster;
+                instance.clusterRangeCount = range->clusterCount;
+                instance.clusterIndexCount = range->indexCount;
+            }
             instance.resourceFlags |= ToResourceFlag(
                 SurfaceGpuSceneResourceFlags::ClusterGeometrySurfaceRange);
+            if (range->lodRangeCount > 0u) {
+                instance.resourceFlags |= ToResourceFlag(
+                    SurfaceGpuSceneResourceFlags::ClusterGeometryLodRanges);
+            }
             if (stats != nullptr) {
                 ++stats->clusterSurfaceRangeInstanceCount;
             }

@@ -9,10 +9,12 @@ namespace HIKARI::GFX::GPU_PROFILE {
 
     enum class Pass : uint32_t {
         ShadowMap = 0,
-        GeometryBuffer,
+        GeometryAux,
         ClusterCull,
-        ClusterDrawGeometry,
+        ClusterDrawGeometryAux,
         ClusterDrawForward,
+        MeshletDrawGeometryAux,
+        MeshletDrawForward,
         SsaoMain,
         SsaoBlur,
         ForwardOpaque,

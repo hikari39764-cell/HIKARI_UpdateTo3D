@@ -47,6 +47,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         SourceMapping = 1u << 2,
         MeshletPrimitiveTable = 1u << 3,
         MeshletReady = 1u << 4,
+        LodRanges = 1u << 5,
     };
 
     inline uint32_t ToBits(ClusteredGeometryFlags value) {
@@ -98,9 +99,37 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstPrimitive = 0;
         uint32_t primitiveCount = 0;
 
+        uint32_t firstLodRange = 0;
+        uint32_t lodRangeCount = 0;
+
         Bounds localBounds{};
 
         uint32_t flags = 0;
+    };
+
+    struct ClusterSurfaceLodRange {
+        uint32_t surfaceIndex = 0;
+        uint32_t lodIndex = 0;
+
+        uint32_t firstCluster = 0;
+        uint32_t clusterCount = 0;
+
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+
+        uint32_t firstVertex = 0;
+        uint32_t vertexCount = 0;
+
+        uint32_t firstPage = 0;
+        uint32_t pageCount = 0;
+
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
+        float geometricError = 0.0f;
+        float minScreenRadius = 0.0f;
+        uint32_t flags = 0;
+        uint32_t reserved0 = 0;
     };
 
     struct MeshCluster {
@@ -154,6 +183,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t flags = 0;
 
         std::vector<ClusterSurface> surfaces{};
+        std::vector<ClusterSurfaceLodRange> surfaceLodRanges{};
         std::vector<MeshCluster> clusters{};
         std::vector<ClusterPage> pages{};
 
@@ -181,6 +211,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     struct ClusteredGeometryBuildReport {
         uint32_t surfaceCount = 0;
+        uint32_t surfaceLodRangeCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t meshletPrimitiveCount = 0;

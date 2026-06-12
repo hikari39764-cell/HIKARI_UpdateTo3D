@@ -25,7 +25,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     }
 
     void ReleaseScreenSpaceRuntimeState() {
-        gScreenSpaceState.geometryBuffer.Release();
+        gScreenSpaceState.geometryAux.Release();
         gScreenSpaceState.ssaoRenderer.Release();
         RENDER3D::ReleaseTextureResource(gScreenSpaceState.fallbackAoTextureResource);
         gScreenSpaceState.fallbackAoTextureResource = {};
@@ -78,7 +78,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         const SsaoMode ssaoMode = ResolveEffectiveSsaoMode(environment.ambientOcclusion);
 
-        // Off 時は GeometryBuffer も作らない。
+        // Off 時は GeometryAux も作らない。
         if (ssaoMode == SsaoMode::Off ||
             environment.ambientOcclusion.editorViewportSuppressed) {
             state.ssaoRenderer.RecordSkipped(
@@ -90,22 +90,22 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return result;
         }
 
-        GFX::PIX::ScopedGpuEvent pixGeometry(context.cmd, GFX::PIX::kColorRender, "GeometryBuffer");
+        GFX::PIX::ScopedGpuEvent pixGeometry(context.cmd, GFX::PIX::kColorRender, "GeometryAux");
         GFX::GPU_PROFILE::ScopedGpuTimer gpuGeometry(
             context.cmd,
-            GFX::GPU_PROFILE::Pass::GeometryBuffer);
+            GFX::GPU_PROFILE::Pass::GeometryAux);
         const CpuClock::time_point geometryStart = CpuClock::now();
-        result.geometryBufferWritten = MESHRENDERER::RenderGeometryBufferPass(
+        result.geometryAuxWritten = MESHRENDERER::RenderGeometryAuxPass(
             queue,
-            state.geometryBuffer,
+            state.geometryAux,
             context.sceneDsv);
         context.renderTargetAccess.Rebind();
-        RecordSsaoGeometryBufferDebug(
-            result.geometryBufferWritten,
+        RecordSsaoGeometryAuxDebug(
+            result.geometryAuxWritten,
             ElapsedMs(geometryStart, CpuClock::now()),
-            state.geometryBuffer.GetFormat());
+            state.geometryAux.GetFormat());
 
-        state.geometryValid = result.geometryBufferWritten && state.geometryBuffer.IsValid();
+        state.geometryValid = result.geometryAuxWritten && state.geometryAux.IsValid();
         if (!state.geometryValid ||
             !context.depthReadable ||
             context.sceneDepthSrv.ptr == 0) {
@@ -117,7 +117,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         if (context.renderTargetAccess.BeginDepthRead()) {
             ssaoOk = state.ssaoRenderer.Render(
                 context.cmd,
-                state.geometryBuffer,
+                state.geometryAux,
                 context.sceneDepthSrv,
                 cameraCb,
                 environment.ambientOcclusion);

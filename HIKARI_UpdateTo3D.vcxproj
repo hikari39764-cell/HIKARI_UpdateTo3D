@@ -328,7 +328,7 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.cpp" />
-    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
@@ -393,6 +393,7 @@
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.cpp" />
+    <ClCompile Include="HIKARI\Tools\Geometry\HIKARI_MeshLodGenerator.cpp" />
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRuntimeBuilder.cpp" />
@@ -445,6 +446,66 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix3x3.cpp" />
     <ClCompile Include="SpineDefaultExtensionShim.cpp" />
+    <ClCompile Include="ThirdParty\meshoptimizer\src\allocator.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\clusterizer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexanalyzer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexcodec.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\indexgenerator.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\meshletcodec.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\meshletutils.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\opacitymap.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\overdrawoptimizer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\partition.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\quantization.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\rasterizer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\simplifier.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\spatialorder.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\stripifier.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\tangentspace.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vcacheoptimizer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vertexcodec.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vertexfilter.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\meshoptimizer\src\vfetchoptimizer.cpp">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
     <ClCompile Include="ThirdParty\spine\src\spine\Animation.cpp" />
     <ClCompile Include="ThirdParty\spine\src\spine\AnimationState.cpp" />
     <ClCompile Include="ThirdParty\spine\src\spine\AnimationStateData.cpp" />
@@ -583,7 +644,7 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h" />
-    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SceneGeometryBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
@@ -756,7 +817,9 @@
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ProbeCubemapCaptureTarget.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeCaptureValidator.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_ReflectionProbeBaker.h" />
+    <ClInclude Include="HIKARI\Tools\Geometry\HIKARI_MeshLodGenerator.h" />
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
+    <ClInclude Include="ThirdParty\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
     <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
@@ -823,7 +886,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
-    <None Include="HIKARI\Shaders\Render3D_GeometryBufferPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl" />

@@ -41,7 +41,7 @@ namespace HIKARI::MESHRENDERER {
 
     enum class MeshDrawPassKind {
         Forward,
-        GeometryBuffer,
+        GeometryAux,
     };
 
     using MeshDrawCommandFilter =

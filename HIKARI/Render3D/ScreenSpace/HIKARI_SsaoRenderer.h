@@ -8,7 +8,7 @@
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
-#include "Render3D/ScreenSpace/HIKARI_SceneGeometryBuffer.h"
+#include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
@@ -17,9 +17,9 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         bool valid = false;
         bool suppressed = false;
         SsaoMode mode = SsaoMode::Off;
-        bool geometryBufferEnabled = false;
-        bool geometryBufferWritten = false;
-        DXGI_FORMAT geometryBufferFormat = DXGI_FORMAT_UNKNOWN;
+        bool geometryAuxEnabled = false;
+        bool geometryAuxWritten = false;
+        DXGI_FORMAT geometryAuxFormat = DXGI_FORMAT_UNKNOWN;
         uint32_t width = 0;
         uint32_t height = 0;
         uint32_t internalWidth = 0;
@@ -34,7 +34,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         float power = 0.0f;
         bool pixMarkersAvailable = false;
         bool gpuTimingAvailable = false;
-        float geometryBufferCpuMs = 0.0f;
+        float geometryAuxCpuMs = 0.0f;
         float mainCpuMs = 0.0f;
         float blurCpuMs = 0.0f;
         float compositeCpuMs = 0.0f;
@@ -45,7 +45,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     public:
         bool Render(
             ID3D12GraphicsCommandList* cmd,
-            const SceneGeometryBuffer& geometryBuffer,
+            const ScreenSpaceGeometryAux& geometryAux,
             D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
             const MESHRENDERER::CameraCB& camera,
             const AmbientOcclusionSettings& settings);
@@ -120,9 +120,9 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     const SsaoDebugState& GetSsaoDebugState();
     const char* ToString(SsaoMode mode);
     SsaoMode ResolveEffectiveSsaoMode(const AmbientOcclusionSettings& settings);
-    bool SsaoRequiresGeometryBuffer(const AmbientOcclusionSettings& settings);
+    bool SsaoRequiresGeometryAux(const AmbientOcclusionSettings& settings);
     void BeginSsaoDebugFrame(uint32_t width, uint32_t height, const AmbientOcclusionSettings& settings);
-    void RecordSsaoGeometryBufferDebug(bool written, float cpuMs, DXGI_FORMAT format);
+    void RecordSsaoGeometryAuxDebug(bool written, float cpuMs, DXGI_FORMAT format);
     void RecordSsaoCompositeDebug(float cpuMs);
 
 } // namespace HIKARI::RENDER3D::SCREENSPACE
