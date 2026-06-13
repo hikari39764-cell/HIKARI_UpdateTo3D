@@ -60,7 +60,8 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
     bool RenderMeshLightingFrame(
         const Camera3D& camera,
-        const SceneEnvironment& environment) {
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
 
         if (!MESHRENDERER::HasSubmittedItems()) {
             return true;
@@ -72,7 +73,8 @@ namespace HIKARI::RENDER3D::PIPELINE {
             camera,
             environment,
             screenSpaceContext.width,
-            screenSpaceContext.height)) {
+            screenSpaceContext.height,
+            debugView)) {
             MESHRENDERER::EndFrame();
             return false;
         }

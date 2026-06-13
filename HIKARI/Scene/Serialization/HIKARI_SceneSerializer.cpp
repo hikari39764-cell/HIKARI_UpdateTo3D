@@ -258,7 +258,6 @@ namespace HIKARI {
             out["toneMapping"]["exposure"] = environment.toneMapping.exposure;
             out["toneMapping"]["gamma"] = environment.toneMapping.gamma;
             out["toneMapping"]["mode"] = environment.toneMapping.mode;
-            out["debugView"] = static_cast<int>(environment.debugView);
 
             out["specularIntensity"] = environment.specularIntensity;
             out["specularPower"] = environment.specularPower;
@@ -435,9 +434,6 @@ namespace HIKARI {
                 environment.toneMapping.gamma = toneMapping.value("gamma", environment.toneMapping.gamma);
                 environment.toneMapping.mode = toneMapping.value("mode", environment.toneMapping.mode);
             }
-            environment.debugView = static_cast<RenderDebugView>(
-                std::clamp(in.value("debugView", static_cast<int>(environment.debugView)), 0, 12));
-
             environment.specularIntensity = in.value("specularIntensity", environment.specularIntensity);
             environment.specularPower = in.value("specularPower", environment.specularPower);
             environment.showLightDebug = in.value("showLightDebug", environment.showLightDebug);

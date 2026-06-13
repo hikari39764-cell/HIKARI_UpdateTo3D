@@ -1255,13 +1255,7 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.cpp">
-      <Filter>Source Files\Render3D\Cluster</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp">
-      <Filter>Source Files\Render3D\Cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
@@ -1556,6 +1550,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
       <Filter>Header Files\Render3D\Diagnostics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugView.h">
+      <Filter>Header Files\Render3D\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.h">
       <Filter>Header Files\Render3D\ScreenSpace</Filter>
@@ -2022,19 +2019,10 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.h">
-      <Filter>Header Files\Render3D\Cluster</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.h">
-      <Filter>Header Files\Render3D\Cluster</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h">
-      <Filter>Header Files\Render3D\Cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">

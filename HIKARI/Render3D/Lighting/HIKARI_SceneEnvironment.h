@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <DirectXMath.h>
+#include "Render3D/Debug/HIKARI_RenderDebugView.h"
 #include "Render3D/HIKARI_Math3D.h"
 
 namespace HIKARI {
@@ -147,22 +148,6 @@ namespace HIKARI {
         int mode = 1; // 0=None, 1=Reinhard, 2=ACES approximate
     };
 
-    enum class RenderDebugView {
-        None = 0,
-        Normal,
-        Tangent,
-        LightingOnly,
-        BaseColor,
-        Roughness,
-        Metallic,
-        Occlusion,
-        Shadow,
-        NdotL,
-        Emissive,
-        SceneDepth,
-        SceneColor,
-    };
-
     struct ScenePostSettings {
         bool enabled = false;
         std::string globalPostProfileId{};
@@ -181,7 +166,6 @@ namespace HIKARI {
         BloomSettings bloom{};
         FogSettings fog{};
         ToneMappingSettings toneMapping{};
-        RenderDebugView debugView = RenderDebugView::None;
         float specularIntensity = 0.2f;
         float specularPower = 32.0f;
         bool showLightDebug = true;

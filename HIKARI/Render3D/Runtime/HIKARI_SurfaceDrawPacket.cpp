@@ -497,7 +497,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             const SurfaceDrawPacket& packet,
             const SurfaceDrawPacketPlanOptions& options) {
 
-            if (!options.enableFrustumCulling || !options.hasCameraViewProj) {
+            if (!options.enableCpuFrustumCulling || !options.hasCameraViewProj) {
                 return false;
             }
             // world bounds は既に world 空間なので viewProjection だけで判定する。
@@ -1084,12 +1084,15 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     if (IsPacketCulledByCamera(packet, options)) {
                         ++outStats.culledPacketCount;
                         ++outStats.handledForwardPacketCount;
+                        RecordHandledForwardPacket(packet);
                         forwardDepthAwareCommandBuilder.Flush();
                         continue;
                     }
 
                     // DepthAware は opaque 後、transparent 前に実行する独立 stream として積む。
-                    forwardDepthAwareCommandBuilder.AppendPacket(packetIndex);
+                    if (forwardDepthAwareCommandBuilder.AppendPacket(packetIndex)) {
+                        RecordHandledForwardPacket(packet);
+                    }
                     ++outStats.submittedForwardPacketCount;
                     ++outStats.submittedForwardDepthAwarePacketCount;
                     ++outStats.handledForwardPacketCount;
@@ -1110,13 +1113,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 if (IsPacketCulledByCamera(packet, options)) {
                     ++outStats.culledPacketCount;
                     ++outStats.handledForwardPacketCount;
+                    RecordHandledForwardPacket(packet);
                     forwardOpaqueCommandBuilder.Flush();
                     forwardDepthAwareCommandBuilder.Flush();
                     continue;
                 }
 
                 // executor が直接描画する packet だけを登録する。
-                forwardOpaqueCommandBuilder.AppendPacket(packetIndex);
+                if (forwardOpaqueCommandBuilder.AppendPacket(packetIndex)) {
+                    RecordHandledForwardPacket(packet);
+                }
                 ++outStats.submittedForwardPacketCount;
                 ++outStats.submittedForwardOpaquePacketCount;
                 ++outStats.handledForwardPacketCount;
@@ -1147,6 +1153,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 if (IsPacketCulledByCamera(packet, options)) {
                     ++outStats.culledPacketCount;
                     ++outStats.handledForwardPacketCount;
+                    RecordHandledForwardPacket(packet);
                     continue;
                 }
 
@@ -1162,7 +1169,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             SortTransparentDepthEntries(transparentDepthEntries, options, outStats);
             for (const TransparentDepthSortEntry& entry : transparentDepthEntries) {
                 // Transparent は深度順を優先し、その上で隣接する同一 geometry だけを batch 化する。
-                forwardTransparentCommandBuilder.AppendPacket(entry.packetIndex);
+                if (forwardTransparentCommandBuilder.AppendPacket(entry.packetIndex)) {
+                    RecordHandledForwardPacket(packets[entry.packetIndex]);
+                }
                 ++outStats.submittedForwardPacketCount;
                 ++outStats.submittedForwardTransparentPacketCount;
                 ++outStats.handledForwardPacketCount;
@@ -1290,7 +1299,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
                 ++outStats.shadowCandidatePacketCount;
                 // shadow pass も submit queue を経由せず、plan から直接実行する。
-                shadowCommandBuilder.AppendPacket(packetIndex);
+                if (shadowCommandBuilder.AppendPacket(packetIndex)) {
+                    RecordHandledShadowPacket(packet);
+                }
                 ++outStats.plannedShadowPacketCount;
                 ++outStats.handledShadowPacketCount;
             }
@@ -1340,7 +1351,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const ObjectCoverage& coverage = found->second;
         return
             coverage.expectedForwardPacketCount > 0 &&
-            coverage.safeForwardPacketCount == coverage.expectedForwardPacketCount;
+            coverage.handledForwardPacketCount == coverage.expectedForwardPacketCount;
     }
 
     bool SurfaceDrawPacketPlanner::HasForwardCoverageForObject(SceneRenderObjectId objectId) const {
@@ -1418,7 +1429,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const ObjectCoverage& coverage = found->second;
         return
             coverage.expectedShadowPacketCount > 0 &&
-            coverage.safeShadowPacketCount == coverage.expectedShadowPacketCount;
+            coverage.handledShadowPacketCount == coverage.expectedShadowPacketCount;
     }
 
     bool SurfaceDrawPacketPlanner::HasShadowCoverageForObject(SceneRenderObjectId objectId) const {
@@ -1478,6 +1489,24 @@ namespace HIKARI::RENDER3D::RUNTIME {
         return IsSurfaceDrawRouteAccepted(reason);
     }
 
+    void SurfaceDrawPacketPlanner::RecordHandledForwardPacket(const SurfaceDrawPacket& packet) {
+        if (!packet.forwardCandidate || !packet.objectId.IsValid()) {
+            return;
+        }
+        ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
+        ++coverage.handledForwardPacketCount;
+        coverage.forwardBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
+    }
+
+    void SurfaceDrawPacketPlanner::RecordHandledShadowPacket(const SurfaceDrawPacket& packet) {
+        if (!packet.shadowCandidate || !packet.objectId.IsValid()) {
+            return;
+        }
+        ObjectCoverage& coverage = objectCoverage_[packet.objectId.value];
+        ++coverage.handledShadowPacketCount;
+        coverage.shadowBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
+    }
+
     void SurfaceDrawPacketPlanner::BuildCoverage(
         const std::vector<SurfaceDrawPacket>& packets,
         SurfaceDrawPacketPlanStats& stats) {
@@ -1490,7 +1519,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++coverage.expectedForwardPacketCount;
                 if (IsSurfaceDrawRouteAccepted(forwardReason)) {
                     ++coverage.safeForwardPacketCount;
-                    coverage.forwardBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
                 }
             }
 
@@ -1501,7 +1529,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 ++coverage.expectedShadowPacketCount;
                 if (IsSurfaceDrawRouteAccepted(shadowReason)) {
                     ++coverage.safeShadowPacketCount;
-                    coverage.shadowBypassSurfaceKeys.insert(BuildSurfaceFilterKey(packet));
                 }
             }
         }

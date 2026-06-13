@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 
 #include "../../../ThirdParty/meshoptimizer/src/meshoptimizer.h"
@@ -14,6 +16,41 @@ namespace HIKARI::TOOLS::GEOMETRY {
         using RENDER3D::CLUSTER::ClusterVertex;
 
         constexpr size_t kLodAttributeCount = 15u;
+
+        struct PositionKey {
+            uint32_t x = 0;
+            uint32_t y = 0;
+            uint32_t z = 0;
+
+            bool operator==(const PositionKey& rhs) const {
+                return x == rhs.x && y == rhs.y && z == rhs.z;
+            }
+        };
+
+        struct PositionKeyHash {
+            size_t operator()(const PositionKey& key) const {
+                size_t h = static_cast<size_t>(key.x) * 73856093u;
+                h ^= static_cast<size_t>(key.y) * 19349663u;
+                h ^= static_cast<size_t>(key.z) * 83492791u;
+                return h;
+            }
+        };
+
+        struct EdgeKey {
+            uint32_t a = 0;
+            uint32_t b = 0;
+
+            bool operator==(const EdgeKey& rhs) const {
+                return a == rhs.a && b == rhs.b;
+            }
+        };
+
+        struct EdgeKeyHash {
+            size_t operator()(const EdgeKey& key) const {
+                return (static_cast<size_t>(key.a) * 16777619u) ^
+                    static_cast<size_t>(key.b);
+            }
+        };
 
         size_t AlignIndexCountToTriangles(size_t indexCount) {
             return indexCount - (indexCount % 3u);
@@ -31,6 +68,31 @@ namespace HIKARI::TOOLS::GEOMETRY {
                 return 0.006f;
             }
             return (std::max)(0.0001f, (std::min)(value, 0.08f));
+        }
+
+        uint32_t FloatBits(float value) {
+            if (value == 0.0f) {
+                return 0u;
+            }
+
+            uint32_t bits = 0u;
+            std::memcpy(&bits, &value, sizeof(bits));
+            return bits;
+        }
+
+        PositionKey MakePositionKey(const ClusterVertex& vertex) {
+            return {
+                FloatBits(vertex.position.x),
+                FloatBits(vertex.position.y),
+                FloatBits(vertex.position.z)
+            };
+        }
+
+        EdgeKey MakeEdgeKey(uint32_t a, uint32_t b) {
+            if (a <= b) {
+                return { a, b };
+            }
+            return { b, a };
         }
 
         void BuildSimplifierStreams(
@@ -65,6 +127,98 @@ namespace HIKARI::TOOLS::GEOMETRY {
                 outAttributes.push_back(vertex.color.z);
                 outAttributes.push_back(vertex.color.w);
             }
+        }
+
+        std::vector<uint32_t> BuildPositionIds(const std::vector<ClusterVertex>& vertices) {
+            std::unordered_map<PositionKey, uint32_t, PositionKeyHash> positionRemap{};
+            positionRemap.reserve(vertices.size());
+
+            std::vector<uint32_t> positionIds(vertices.size(), 0u);
+            for (size_t i = 0; i < vertices.size(); ++i) {
+                const PositionKey key = MakePositionKey(vertices[i]);
+                const auto found = positionRemap.find(key);
+                if (found != positionRemap.end()) {
+                    positionIds[i] = found->second;
+                    continue;
+                }
+
+                const uint32_t id = static_cast<uint32_t>(positionRemap.size());
+                positionRemap.emplace(key, id);
+                positionIds[i] = id;
+            }
+            return positionIds;
+        }
+
+        std::vector<unsigned char> BuildGeometricBorderLocks(
+            const std::vector<ClusterVertex>& vertices,
+            const std::vector<unsigned int>& indices) {
+
+            std::vector<unsigned char> locks(vertices.size(), 0u);
+            if (vertices.empty() || indices.size() < 3u) {
+                return {};
+            }
+
+            const std::vector<uint32_t> positionIds = BuildPositionIds(vertices);
+            uint32_t positionIdCount = 0u;
+            for (uint32_t id : positionIds) {
+                positionIdCount = (std::max)(positionIdCount, id + 1u);
+            }
+
+            std::unordered_map<EdgeKey, uint32_t, EdgeKeyHash> edgeUseCount{};
+            edgeUseCount.reserve(indices.size());
+
+            auto addEdge = [&](uint32_t ia, uint32_t ib) {
+                if (ia >= positionIds.size() || ib >= positionIds.size()) {
+                    return;
+                }
+
+                const uint32_t pa = positionIds[ia];
+                const uint32_t pb = positionIds[ib];
+                if (pa == pb) {
+                    return;
+                }
+
+                uint32_t& count = edgeUseCount[MakeEdgeKey(pa, pb)];
+                if (count < (std::numeric_limits<uint32_t>::max)()) {
+                    ++count;
+                }
+            };
+
+            for (size_t i = 0; i + 2u < indices.size(); i += 3u) {
+                const uint32_t i0 = indices[i + 0u];
+                const uint32_t i1 = indices[i + 1u];
+                const uint32_t i2 = indices[i + 2u];
+                if (i0 >= vertices.size() || i1 >= vertices.size() || i2 >= vertices.size()) {
+                    continue;
+                }
+                addEdge(i0, i1);
+                addEdge(i1, i2);
+                addEdge(i2, i0);
+            }
+
+            std::vector<unsigned char> borderPositions(positionIdCount, 0u);
+            for (const auto& entry : edgeUseCount) {
+                if (entry.second != 1u) {
+                    continue;
+                }
+                borderPositions[entry.first.a] = 1u;
+                borderPositions[entry.first.b] = 1u;
+            }
+
+            uint32_t lockedCount = 0u;
+            for (size_t i = 0; i < positionIds.size(); ++i) {
+                if (borderPositions[positionIds[i]] == 0u) {
+                    continue;
+                }
+                // 位置で見た本当の外周だけを固定し、UV/法線 seam は簡略化対象に残す。
+                locks[i] = static_cast<unsigned char>(meshopt_SimplifyVertex_Lock);
+                ++lockedCount;
+            }
+
+            if (lockedCount == 0u) {
+                return {};
+            }
+            return locks;
         }
 
         bool CompactLodVertices(
@@ -162,9 +316,21 @@ namespace HIKARI::TOOLS::GEOMETRY {
 
         std::vector<unsigned int> simplifiedIndices(sourceIndexCount);
         const std::array<float, kLodAttributeCount> attributeWeights = BuildAttributeWeights();
-        const unsigned int options =
-            (settings.lockOpenBorders ? meshopt_SimplifyLockBorder : 0u) |
-            meshopt_SimplifyRegularizeLight;
+        unsigned int options = meshopt_SimplifyRegularizeLight;
+        if (settings.lockOpenBorders) {
+            options |= meshopt_SimplifyLockBorder;
+        }
+        if (settings.allowAttributeSeamCollapse) {
+            options |= meshopt_SimplifyPermissive;
+        }
+        if (settings.pruneIsolatedComponents) {
+            options |= meshopt_SimplifyPrune;
+        }
+
+        std::vector<unsigned char> vertexLocks{};
+        if (settings.protectGeometricBorders) {
+            vertexLocks = BuildGeometricBorderLocks(sourceVertices, sourceIndexData);
+        }
 
         float resultError = 0.0f;
         size_t simplifiedIndexCount = 0u;
@@ -180,7 +346,7 @@ namespace HIKARI::TOOLS::GEOMETRY {
                 sizeof(float) * kLodAttributeCount,
                 attributeWeights.data(),
                 kLodAttributeCount,
-                nullptr,
+                vertexLocks.empty() ? nullptr : vertexLocks.data(),
                 targetIndexCount,
                 ClampTargetError(settings.targetError),
                 options,

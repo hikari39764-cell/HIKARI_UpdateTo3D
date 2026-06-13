@@ -90,6 +90,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t gpuDoubleSidedDrawCommandOverflowCount = 0;
         uint32_t gpuMergedGapCount = 0;
         uint32_t gpuMergedGapIndexCount = 0;
+        uint32_t gpuLod0SelectedCount = 0;
+        uint32_t gpuLod1SelectedCount = 0;
+        uint32_t gpuLod2SelectedCount = 0;
+        uint32_t gpuLod3PlusSelectedCount = 0;
         size_t dispatchCount = 0;
         size_t workgroupCount = 0;
         uint32_t threadGroupSize = 64;
@@ -138,9 +142,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t passKind = 0;
             uint32_t flags = 0;
             uint32_t clusterIndex = RUNTIME::kInvalidRenderSurfaceIndex;
+            uint32_t lodIndex = 0;
+            uint32_t pageIndex = RUNTIME::kInvalidRenderSurfaceIndex;
+            uint32_t drawBucket = 0;
+            uint32_t reserved0 = 0;
         };
 
-        static_assert(sizeof(GpuVisibleRange) == 32u);
+        static_assert(sizeof(GpuVisibleRange) == 48u);
 
         struct GpuIndirectDrawArgument {
             uint32_t rootConstants[4]{};
@@ -168,7 +176,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t passKind = 0;
             uint32_t flags = 0;
             uint32_t pageIndex = RUNTIME::kInvalidRenderSurfaceIndex;
-            uint32_t reserved0 = 0;
+            uint32_t lodIndex = 0;
             uint32_t reserved1 = 0;
             uint32_t reserved2 = 0;
             uint32_t reserved3 = 0;
@@ -197,9 +205,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t pageTaskOverflowCount = 0;
             uint32_t mergedGapCount = 0;
             uint32_t mergedGapIndexCount = 0;
+            uint32_t lod0SelectedCount = 0;
+            uint32_t lod1SelectedCount = 0;
+            uint32_t lod2SelectedCount = 0;
+            uint32_t lod3PlusSelectedCount = 0;
         };
 
-        static_assert(sizeof(GpuCounters) == 80u);
+        static_assert(sizeof(GpuCounters) == 96u);
 
         struct CounterReadbackSlot {
             Microsoft::WRL::ComPtr<ID3D12Resource> buffer{};

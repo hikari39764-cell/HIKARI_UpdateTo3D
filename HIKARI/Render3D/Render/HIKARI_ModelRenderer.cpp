@@ -877,7 +877,10 @@ namespace HIKARI::MODELRENDERER {
         gQueue.push_back(item);
     }
 
-    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
+    void RenderAll(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
         ++gFrameIndex;
         BeginModelRendererFrame(ModelRendererFrameKind::MainView);
         SHADOW::BeginFrame(environment, camera);
@@ -938,7 +941,7 @@ namespace HIKARI::MODELRENDERER {
         }
 
         SHADOW::RenderDirectionalShadowMap();
-        MESHRENDERER::RenderAll(camera, environment);
+        MESHRENDERER::RenderAll(camera, environment, debugView);
         gQueue.clear();
         PrunePoseCache();
     }

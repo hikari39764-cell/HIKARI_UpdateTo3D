@@ -292,6 +292,11 @@ namespace HIKARI {
                     SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
                     SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
                     s.mesh.clusterGpuCullGpuMergedGapCount);
+                MetricRow("GPU LOD Selected L0 / L1 / L2 / L3+", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuLod0SelectedCount,
+                    s.mesh.clusterGpuCullGpuLod1SelectedCount,
+                    s.mesh.clusterGpuCullGpuLod2SelectedCount,
+                    s.mesh.clusterGpuCullGpuLod3PlusSelectedCount);
                 MetricRow("Mainline Ready / Seeds / OverflowBlock", "%s / %s / %s",
                     s.mesh.clusterMainlineReady ? "Ready" : "Blocked",
                     s.mesh.clusterMainlineHasDrawSeeds ? "yes" : "no",

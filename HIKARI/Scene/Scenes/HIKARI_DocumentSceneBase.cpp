@@ -489,14 +489,8 @@ namespace HIKARI {
         world_.Render();
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         RenderSubmissionSystem::SetActiveRenderCamera(&camera_);
-        RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
-            clusteredGeometryPreviewState_.renderMode,
-            &assetRegistry_,
-            assetDatabase_.GetProjectRoot(),
-            selectedGizmoObjectId_.value,
-            clusteredGeometryPreviewState_.debugOptions);
+        RenderSubmissionSystem::SetAssetContext(&assetRegistry_, assetDatabase_.GetProjectRoot());
         systemScheduler_.PreRender(world_, frame);
-        RenderSubmissionSystem::ClearClusteredCpuPreviewTarget();
         RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
         systemScheduler_.Render(world_, frame);
         systemScheduler_.PostRender(world_, frame);
@@ -533,7 +527,7 @@ namespace HIKARI {
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
-        MODELRENDERER::RenderAll(camera_, activeEnvironment);
+        MODELRENDERER::RenderAll(camera_, activeEnvironment, viewportDebugViewState_.renderView);
         RENDERER3D::RenderAll(camera_, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(camera_);
     }
@@ -625,8 +619,8 @@ namespace HIKARI {
     void DocumentSceneBase::SetViewportPerformanceState(const ViewportPerformanceState& state) {
         viewportPerformanceState_ = state;
     }
-    void DocumentSceneBase::SetClusteredGeometryPreviewState(const ClusteredGeometryPreviewState& state) {
-        clusteredGeometryPreviewState_ = state;
+    void DocumentSceneBase::SetViewportDebugViewState(const ViewportDebugViewState& state) {
+        viewportDebugViewState_ = state;
     }
     void DocumentSceneBase::SetViewportGizmoInteracting(bool interacting) {
         viewportGizmoInteracting_ = interacting;
@@ -1353,6 +1347,7 @@ namespace HIKARI {
 
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         RenderSubmissionSystem::SetActiveRenderCamera(&faceCamera);
+        RenderSubmissionSystem::SetAssetContext(&assetRegistry_, assetDatabase_.GetProjectRoot());
         systemScheduler_.PreRender(world_, frame);
         RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
 
@@ -1394,6 +1389,7 @@ namespace HIKARI {
 
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
         RenderSubmissionSystem::SetActiveRenderCamera(&faceCamera);
+        RenderSubmissionSystem::SetAssetContext(&assetRegistry_, assetDatabase_.GetProjectRoot());
         systemScheduler_.PreRender(world_, frame);
         RenderSubmissionSystem::SetActiveRenderCamera(nullptr);
 
@@ -1451,7 +1447,6 @@ namespace HIKARI {
             captureEnvironment.toneMapping.enabled = false;
             captureEnvironment.post.enabled = false;
             captureEnvironment.directionalShadow.enabled = false;
-            captureEnvironment.debugView = RenderDebugView::None;
             captureEnvironment.showLightDebug = false;
             captureEnvironment.showPointLightMarkers = false;
             captureEnvironment.showSkyDebugInfo = false;
@@ -1670,7 +1665,6 @@ namespace HIKARI {
                 captureEnvironment.toneMapping.enabled = false;
                 captureEnvironment.post.enabled = false;
                 captureEnvironment.directionalShadow.enabled = false;
-                captureEnvironment.debugView = RenderDebugView::None;
                 captureEnvironment.showLightDebug = false;
                 captureEnvironment.showPointLightMarkers = false;
                 captureEnvironment.showSkyDebugInfo = false;

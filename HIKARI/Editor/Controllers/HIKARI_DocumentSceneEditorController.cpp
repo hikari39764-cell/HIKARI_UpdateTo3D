@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <cmath>
 #include <cstdio>
+#include <iterator>
 #include <utility>
 #include <json.hpp>
 
@@ -192,6 +193,92 @@ namespace HIKARI {
             ImGui::Separator();
             ImGui::Checkbox("Disable SSAO In Editor", &performance.disableSsaoInEditorViewport);
             ImGui::Checkbox("Disable SSAO While Gizmo Active", &performance.disableSsaoWhileGizmoActive);
+        }
+
+        struct RenderDebugViewOption {
+            RenderDebugView view = RenderDebugView::None;
+            const char* label = "Lit";
+        };
+
+        constexpr RenderDebugViewOption kRenderDebugViewOptions[] = {
+            { RenderDebugView::None, "Lit" },
+            { RenderDebugView::BaseColor, "Base Color" },
+            { RenderDebugView::Normal, "Normal" },
+            { RenderDebugView::Tangent, "Tangent" },
+            { RenderDebugView::Roughness, "Roughness" },
+            { RenderDebugView::Metallic, "Metallic" },
+            { RenderDebugView::Occlusion, "Occlusion" },
+            { RenderDebugView::Shadow, "Shadow" },
+            { RenderDebugView::NdotL, "NdotL" },
+            { RenderDebugView::Emissive, "Emissive" },
+            { RenderDebugView::SceneDepth, "Scene Depth" },
+            { RenderDebugView::SceneColor, "Scene Color" },
+            { RenderDebugView::MeshletId, "Meshlet ID" },
+            { RenderDebugView::ClusterId, "Cluster ID" },
+            { RenderDebugView::SurfaceId, "Surface ID" },
+            { RenderDebugView::LodLevel, "LOD Level" },
+            { RenderDebugView::LodHeat, "LOD Heat" },
+            { RenderDebugView::DrawBucket, "Draw Bucket" },
+        };
+
+        int RenderDebugViewOptionIndex(RenderDebugView view) {
+            for (int i = 0; i < static_cast<int>(std::size(kRenderDebugViewOptions)); ++i) {
+                if (kRenderDebugViewOptions[i].view == view) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        bool DrawRenderDebugViewCombo(const char* label, ViewportDebugViewState& debugView, float width) {
+            const int currentIndex = RenderDebugViewOptionIndex(debugView.renderView);
+            int selectedIndex = currentIndex;
+            bool changed = false;
+            ImGui::SetNextItemWidth(width);
+            if (ImGui::BeginCombo(label, kRenderDebugViewOptions[currentIndex].label, ImGuiComboFlags_NoArrowButton)) {
+                ImGui::SeparatorText("Shading");
+                for (int i = 0; i < static_cast<int>(std::size(kRenderDebugViewOptions)); ++i) {
+                    if (i == 12) {
+                        ImGui::SeparatorText("Meshlet");
+                    }
+                    const bool selected = (i == selectedIndex);
+                    if (ImGui::Selectable(kRenderDebugViewOptions[i].label, selected)) {
+                        selectedIndex = i;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            if (changed) {
+                debugView.renderView = kRenderDebugViewOptions[selectedIndex].view;
+            }
+            return changed;
+        }
+
+        bool DrawMiniTextToggle(const char* text, const char* id, bool selected, const char* tooltip) {
+            ImGui::PushID(id);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
+            ImGui::PushStyleColor(
+                ImGuiCol_Button,
+                selected ? ImVec4(0.14f, 0.42f, 0.48f, 0.92f) : ImVec4(0.08f, 0.10f, 0.13f, 0.82f));
+            ImGui::PushStyleColor(
+                ImGuiCol_ButtonHovered,
+                selected ? ImVec4(0.18f, 0.50f, 0.56f, 0.96f) : ImVec4(0.15f, 0.20f, 0.24f, 0.92f));
+            ImGui::PushStyleColor(
+                ImGuiCol_ButtonActive,
+                ImVec4(0.12f, 0.30f, 0.36f, 1.0f));
+            const bool pressed = ImGui::Button(text, ImVec2(30.0f, 26.0f));
+            if (tooltip && ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s", tooltip);
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar(2);
+            ImGui::PopID();
+            return pressed;
         }
 
         bool ProjectWorldToViewport(
@@ -522,6 +609,7 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Lighting Bake", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
+                ImGui::DockBuilderDockWindow("Debug View", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Performance Audit", rightDebugNode);
 
                 // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
@@ -557,7 +645,7 @@ namespace HIKARI {
         scene.SetComponentGizmoState(context_.gizmos);
         scene.SetViewportOverlayState(context_.overlays);
         scene.SetViewportPerformanceState(context_.viewportPerformance);
-        scene.SetClusteredGeometryPreviewState(context_.clusteredGeometry);
+        scene.SetViewportDebugViewState(context_.viewportDebug);
 
         bool resetDockingLayoutRequested = false;
         debugMenuBar_.Draw(
@@ -686,6 +774,9 @@ namespace HIKARI {
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);
         }
+        if (context_.windows.runtime.showDebugView) {
+            DrawDebugViewWindow(scene, context_.windows.runtime.showDebugView);
+        }
         if (context_.windows.runtime.showPerformanceAudit) {
             performanceAuditPanel_.Draw(context_.windows.runtime.showPerformanceAudit);
         }
@@ -770,76 +861,13 @@ namespace HIKARI {
                 }
 
                 ImGui::SameLine();
-                if (ImGui::SmallButton("Overlays")) {
-                    ImGui::OpenPopup("GameViewOverlayOptions");
-                }
-                if (ImGui::BeginPopup("GameViewOverlayOptions")) {
-                    DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
-                    ImGui::EndPopup();
-                }
-                ImGui::SameLine();
-                ImGui::Checkbox("Gizmos", &context_.gizmos.showComponentGizmos);
-                ImGui::SameLine();
-                ImGui::Checkbox("Player Bounds", &context_.gizmos.showPlayerBounds);
-                ImGui::SameLine();
-                ImGui::Checkbox("Game Only", &context_.windows.viewport.gameOnlyMode);
-                ImGui::SameLine();
-                ImGui::Checkbox("Transform", &context_.transformGizmo.enabled);
-                ImGui::SameLine();
-                if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Translate,
-                    "TransformTranslate",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Translate,
-                    "Translate")) {
-                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Translate;
-                }
-                ImGui::SameLine();
-                if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Rotate,
-                    "TransformRotate",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Rotate,
-                    "Rotate")) {
-                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Rotate;
-                }
-                ImGui::SameLine();
-                if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Scale,
-                    "TransformScale",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Scale,
-                    "Scale")) {
-                    context_.transformGizmo.operation = EditorTransformGizmoOperation::Scale;
-                }
-                ImGui::SameLine();
-                const char* modeLabel = context_.transformGizmo.mode == EditorTransformGizmoMode::Local
-                    ? "Local"
-                    : "World";
-                ImGui::SetNextItemWidth(70.0f);
-                if (ImGui::BeginCombo("Space", modeLabel, ImGuiComboFlags_NoArrowButton)) {
-                    if (ImGui::Selectable("World", context_.transformGizmo.mode == EditorTransformGizmoMode::World)) {
-                        context_.transformGizmo.mode = EditorTransformGizmoMode::World;
-                    }
-                    if (ImGui::Selectable("Local", context_.transformGizmo.mode == EditorTransformGizmoMode::Local)) {
-                        context_.transformGizmo.mode = EditorTransformGizmoMode::Local;
-                    }
-                    ImGui::EndCombo();
-                }
-                ImGui::SameLine();
-                ImGui::Checkbox("Snap", &context_.transformGizmo.snapEnabled);
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Snap Settings")) {
-                    ImGui::OpenPopup("TransformSnapSettings");
-                }
-                if (ImGui::BeginPopup("TransformSnapSettings")) {
-                    ImGui::TextUnformatted("Snap");
-                    ImGui::Separator();
-                    ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
-                    ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
-                    ImGui::DragFloat("Scale", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
-                    ImGui::TextDisabled("Ctrl enables snap while held.");
-                    ImGui::EndPopup();
+                DrawRenderDebugViewCombo("Debug", context_.viewportDebug, 132.0f);
+                if (context_.viewportDebug.renderView != RenderDebugView::None) {
+                    ImGui::SameLine();
+                    ImGui::TextColored(
+                        ImVec4(0.45f, 0.95f, 0.62f, 1.0f),
+                        "%s",
+                        IsGeometryRenderDebugView(context_.viewportDebug.renderView) ? "Meshlet" : "Shading");
                 }
             }
             ImGui::EndChild();
@@ -932,6 +960,118 @@ namespace HIKARI {
             scene.SetViewportGizmoInteracting(gizmoCapture);
         };
 
+        auto drawViewportFloatingTools = [&]() {
+            const ImVec2 savedCursor = ImGui::GetCursorScreenPos();
+            ImGui::SetCursorScreenPos(ImVec2(imageOrigin.x + 10.0f, imageOrigin.y + 10.0f));
+            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.055f, 0.065f, 0.080f, 0.96f));
+            ImGui::BeginGroup();
+            if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Transform,
+                    "ViewportTransformEnabled",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.enabled,
+                    "Transform Gizmo")) {
+                context_.transformGizmo.enabled = !context_.transformGizmo.enabled;
+            }
+            if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Translate,
+                    "ViewportTransformTranslate",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Translate,
+                    "Translate")) {
+                context_.transformGizmo.operation = EditorTransformGizmoOperation::Translate;
+                context_.transformGizmo.enabled = true;
+            }
+            if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Rotate,
+                    "ViewportTransformRotate",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Rotate,
+                    "Rotate")) {
+                context_.transformGizmo.operation = EditorTransformGizmoOperation::Rotate;
+                context_.transformGizmo.enabled = true;
+            }
+            if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Scale,
+                    "ViewportTransformScale",
+                    ImVec2(30.0f, 30.0f),
+                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Scale,
+                    "Scale")) {
+                context_.transformGizmo.operation = EditorTransformGizmoOperation::Scale;
+                context_.transformGizmo.enabled = true;
+            }
+            if (DrawMiniTextToggle(
+                    context_.transformGizmo.mode == EditorTransformGizmoMode::Local ? "L" : "W",
+                    "ViewportTransformSpace",
+                    context_.transformGizmo.mode == EditorTransformGizmoMode::Local,
+                    "World / Local Space")) {
+                context_.transformGizmo.mode = context_.transformGizmo.mode == EditorTransformGizmoMode::World
+                    ? EditorTransformGizmoMode::Local
+                    : EditorTransformGizmoMode::World;
+            }
+            if (DrawMiniTextToggle(
+                    "S",
+                    "ViewportSnap",
+                    context_.transformGizmo.snapEnabled,
+                    "Snap")) {
+                context_.transformGizmo.snapEnabled = !context_.transformGizmo.snapEnabled;
+            }
+            if (DrawMiniTextToggle(
+                    "G",
+                    "ViewportGrid",
+                    context_.overlays.showGrid,
+                    "Grid")) {
+                context_.overlays.showGrid = !context_.overlays.showGrid;
+            }
+            if (DrawMiniTextToggle(
+                    "L",
+                    "ViewportLights",
+                    context_.overlays.showLights,
+                    "Light Icons")) {
+                context_.overlays.showLights = !context_.overlays.showLights;
+            }
+            if (DrawMiniTextToggle(
+                    "Z",
+                    "ViewportGizmos",
+                    context_.gizmos.showComponentGizmos,
+                    "Component Gizmos")) {
+                context_.gizmos.showComponentGizmos = !context_.gizmos.showComponentGizmos;
+            }
+            if (DrawMiniTextToggle(
+                    "P",
+                    "ViewportPlayerBounds",
+                    context_.gizmos.showPlayerBounds,
+                    "Player Bounds")) {
+                context_.gizmos.showPlayerBounds = !context_.gizmos.showPlayerBounds;
+            }
+            if (EDITOR::EditorIconManager::IconButton(
+                    EDITOR::EditorIconKind::Settings,
+                    "ViewportToolSettings",
+                    ImVec2(30.0f, 30.0f),
+                    false,
+                    "Viewport Options")) {
+                ImGui::OpenPopup("ViewportToolSettingsPopup");
+            }
+            if (ImGui::BeginPopup("ViewportToolSettingsPopup")) {
+                ImGui::SeparatorText("Viewport");
+                DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
+                ImGui::SeparatorText("Gizmos");
+                ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
+                ImGui::Checkbox("Trigger Volumes", &context_.gizmos.showTriggerVolumes);
+                ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
+                ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
+                ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
+                ImGui::SeparatorText("Snap");
+                ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
+                ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
+                ImGui::DragFloat("Scale", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
+                ImGui::EndPopup();
+            }
+            ImGui::EndGroup();
+            ImGui::PopStyleColor();
+            ImGui::SetCursorScreenPos(savedCursor);
+        };
+
         const bool ready = POST::PostSystem::EndSceneCaptureToEditorViewport();
         const D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv = POST::PostSystem::GetEditorViewportSrv();
         if (ready && viewportSrv.ptr != 0) {
@@ -940,6 +1080,7 @@ namespace HIKARI {
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
             DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
+            drawViewportFloatingTools();
             HandleGameViewportAssetDrop(scene);
         } else {
             const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
@@ -951,6 +1092,7 @@ namespace HIKARI {
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
             DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
+            drawViewportFloatingTools();
             HandleGameViewportAssetDrop(scene);
         }
 
@@ -1252,33 +1394,6 @@ namespace HIKARI {
                 }
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Viewport")) {
-                ImGui::SeparatorText("Viewport Overlays");
-                if (ImGui::CollapsingHeader("Viewport Overlays", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
-                    ImGui::Separator();
-                    ImGui::Checkbox("Component Gizmos", &context_.gizmos.showComponentGizmos);
-                    ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
-                    ImGui::Checkbox("Trigger Volumes", &context_.gizmos.showTriggerVolumes);
-                    ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
-                    ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
-                    ImGui::Checkbox("Player Bounds", &context_.gizmos.showPlayerBounds);
-                    ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
-                }
-                if (ImGui::CollapsingHeader("Transform Gizmo", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::Checkbox("Enabled", &context_.transformGizmo.enabled);
-                    ImGui::Checkbox("Snap", &context_.transformGizmo.snapEnabled);
-                    ImGui::DragFloat3("Translate Snap", &context_.transformGizmo.translateSnap.x, 0.05f, 0.01f, 100.0f);
-                    ImGui::DragFloat("Rotate Snap", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
-                    ImGui::DragFloat("Scale Snap", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
-                    ImGui::TextDisabled("W/E/R shortcuts are reserved until camera input separation is stricter.");
-                }
-                ImGui::SeparatorText("Camera");
-                if (ImGui::CollapsingHeader("Debug Camera")) {
-                    debugCameraPanel_.DrawContents(scene.GetDebugCamera());
-                }
-                ImGui::EndTabItem();
-            }
             if (ImGui::BeginTabItem("Time")) {
                 ImGui::SeparatorText("Timeline");
                 timePanel_.DrawContents();
@@ -1309,6 +1424,105 @@ namespace HIKARI {
         ImGui::End();
 #else
         (void)scene;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawDebugViewWindow(DocumentSceneBase& scene, bool& open) {
+#if defined(HIKARI_WITH_EDITOR)
+        if (!ImGui::Begin("Debug View", &open)) {
+            ImGui::End();
+            return;
+        }
+
+        ImGui::SeparatorText("Global View");
+        DrawRenderDebugViewCombo("Mode", context_.viewportDebug, 220.0f);
+        ImGui::SameLine();
+        if (ImGui::Button("Lit")) {
+            context_.viewportDebug.renderView = RenderDebugView::None;
+        }
+        ImGui::Checkbox("Show Legend", &context_.viewportDebug.showLegend);
+
+        if (context_.viewportDebug.renderView == RenderDebugView::None) {
+            ImGui::TextDisabled("The viewport is using the normal shaded output.");
+        } else {
+            ImGui::Text("Active: %s", ToString(context_.viewportDebug.renderView));
+            ImGui::TextDisabled(
+                IsGeometryRenderDebugView(context_.viewportDebug.renderView)
+                    ? "Meshlet modes are generated by the active GPU meshlet path."
+                    : "Shading modes reuse the final material/light pixel shader.");
+        }
+
+        ImGui::SeparatorText("Shading");
+        if (ImGui::BeginTable("DebugViewShadingModes", 3, ImGuiTableFlags_SizingStretchSame)) {
+            const RenderDebugView shadingModes[] = {
+                RenderDebugView::BaseColor,
+                RenderDebugView::Normal,
+                RenderDebugView::Roughness,
+                RenderDebugView::Metallic,
+                RenderDebugView::Shadow,
+                RenderDebugView::SceneDepth,
+            };
+            for (RenderDebugView mode : shadingModes) {
+                ImGui::TableNextColumn();
+                const bool selected = context_.viewportDebug.renderView == mode;
+                if (ImGui::Selectable(ToString(mode), selected, 0, ImVec2(0.0f, 0.0f))) {
+                    context_.viewportDebug.renderView = mode;
+                }
+            }
+            ImGui::EndTable();
+        }
+
+        ImGui::SeparatorText("Meshlet");
+        if (ImGui::BeginTable("DebugViewMeshletModes", 3, ImGuiTableFlags_SizingStretchSame)) {
+            const RenderDebugView meshletModes[] = {
+                RenderDebugView::MeshletId,
+                RenderDebugView::ClusterId,
+                RenderDebugView::SurfaceId,
+                RenderDebugView::LodLevel,
+                RenderDebugView::LodHeat,
+                RenderDebugView::DrawBucket,
+            };
+            for (RenderDebugView mode : meshletModes) {
+                ImGui::TableNextColumn();
+                const bool selected = context_.viewportDebug.renderView == mode;
+                if (ImGui::Selectable(ToString(mode), selected, 0, ImVec2(0.0f, 0.0f))) {
+                    context_.viewportDebug.renderView = mode;
+                }
+            }
+            ImGui::EndTable();
+        }
+
+        if (context_.viewportDebug.showLegend) {
+            ImGui::SeparatorText("LOD Legend");
+            const ImVec4 lodColors[] = {
+                { 0.95f, 0.20f, 0.18f, 1.0f },
+                { 0.95f, 0.70f, 0.16f, 1.0f },
+                { 0.38f, 0.86f, 0.30f, 1.0f },
+                { 0.18f, 0.72f, 0.96f, 1.0f },
+                { 0.55f, 0.38f, 0.95f, 1.0f },
+            };
+            const char* labels[] = { "LOD0", "LOD1", "LOD2", "LOD3", "LOD4+" };
+            for (int i = 0; i < 5; ++i) {
+                ImGui::ColorButton(labels[i], lodColors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(18.0f, 18.0f));
+                ImGui::SameLine();
+                ImGui::TextUnformatted(labels[i]);
+                if (i < 4) {
+                    ImGui::SameLine();
+                }
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Viewport Tools")) {
+            DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
+        }
+        if (ImGui::CollapsingHeader("Debug Camera")) {
+            debugCameraPanel_.DrawContents(scene.GetDebugCamera());
+        }
+
+        ImGui::End();
+#else
+        (void)scene;
+        (void)open;
 #endif
     }
 

@@ -13,7 +13,7 @@ struct ClusterCullInput
     uint firstPage;
     uint pageCount;
     uint pageTaskBaseIndex;
-    uint reserved0;
+    uint lodIndex;
 };
 
 struct ClusterCullVisibleRange
@@ -26,6 +26,10 @@ struct ClusterCullVisibleRange
     uint passKind;
     uint flags;
     uint clusterIndex;
+    uint lodIndex;
+    uint pageIndex;
+    uint drawBucket;
+    uint reserved0;
 };
 
 struct ClusterCullIndirectDrawArgument
@@ -58,7 +62,7 @@ struct ClusterCullPageTask
     uint passKind;
     uint flags;
     uint pageIndex;
-    uint reserved0;
+    uint lodIndex;
     uint reserved1;
     uint reserved2;
     uint reserved3;
@@ -123,6 +127,10 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_COUNT = 64u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_OVERFLOW_COUNT = 68u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_COUNT = 72u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_MERGED_GAP_INDEX_COUNT = 76u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD0_SELECTED_COUNT = 80u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD1_SELECTED_COUNT = 84u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD2_SELECTED_COUNT = 88u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD3_PLUS_SELECTED_COUNT = 92u;
 
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 384u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 2048u;
@@ -417,6 +425,10 @@ void HikariClusterCullEmitDraw(
     visible.passKind = input.passKind;
     visible.flags = input.flags;
     visible.clusterIndex = firstCluster;
+    visible.lodIndex = input.lodIndex;
+    visible.pageIndex = input.firstPage;
+    visible.drawBucket = bucket;
+    visible.reserved0 = 0u;
     gClusterCullVisibleRanges[visibleIndex] = visible;
 
     ClusterCullIndirectDrawArgument drawArgument;
@@ -644,6 +656,24 @@ bool HikariClusterCullSelectSurfaceLodRange(
     return hasFallback;
 }
 
+void HikariClusterCullRecordSelectedLod(uint lodIndex)
+{
+    uint counterOffset = HIKARI_CLUSTER_CULL_COUNTER_LOD3_PLUS_SELECTED_COUNT;
+    if (lodIndex == 0u)
+    {
+        counterOffset = HIKARI_CLUSTER_CULL_COUNTER_LOD0_SELECTED_COUNT;
+    }
+    else if (lodIndex == 1u)
+    {
+        counterOffset = HIKARI_CLUSTER_CULL_COUNTER_LOD1_SELECTED_COUNT;
+    }
+    else if (lodIndex == 2u)
+    {
+        counterOffset = HIKARI_CLUSTER_CULL_COUNTER_LOD2_SELECTED_COUNT;
+    }
+    gClusterCullCounters.InterlockedAdd(counterOffset, 1);
+}
+
 ClusterCullInput HikariClusterCullBuildInput(
     uint surfaceGpuSceneIndex,
     HikariSurfaceGpuSceneInstance instance,
@@ -663,6 +693,7 @@ ClusterCullInput HikariClusterCullBuildInput(
     input.firstPage = lodRange.firstPage;
     input.pageCount = lodRange.pageCount;
     input.pageTaskBaseIndex = 0u;
+    input.lodIndex = lodRange.lodIndex;
     return input;
 }
 
@@ -853,6 +884,7 @@ ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask tas
     input.firstPage = task.pageIndex;
     input.pageCount = 1u;
     input.pageTaskBaseIndex = 0u;
+    input.lodIndex = task.lodIndex;
     return input;
 }
 
@@ -903,6 +935,7 @@ void HikariClusterCullEmitPageTasks(
         task.passKind = input.passKind;
         task.flags = input.flags;
         task.pageIndex = firstPage + pageOffset;
+        task.lodIndex = input.lodIndex;
         gClusterCullPageTasks[taskBase + pageOffset] = task;
     }
 }
@@ -1007,6 +1040,7 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
+    HikariClusterCullRecordSelectedLod(selectedRange.lodIndex);
     HikariClusterCullEmitPageTasks(
         input,
         firstCluster,

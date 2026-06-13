@@ -49,6 +49,7 @@ namespace HIKARI {
         void DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugWorkspaceWindow(DocumentSceneBase& scene);
+        void DrawDebugViewWindow(DocumentSceneBase& scene, bool& open);
         void HandleGameViewportAssetDrop(DocumentSceneBase& scene);
         void DrawPendingSceneOpenModal(DocumentSceneBase& scene);
         bool OpenSceneAssetFromEditor(DocumentSceneBase& scene, const AssetGuid& sceneGuid);

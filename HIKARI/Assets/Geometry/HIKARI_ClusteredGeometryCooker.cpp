@@ -335,6 +335,15 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return true;
         }
 
+        bool ShouldUsePermissiveOpaqueLods(uint32_t flags) {
+            return RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Opaque) &&
+                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask) &&
+                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Transparent) &&
+                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided) &&
+                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Skinned) &&
+                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Unsupported);
+        }
+
         float ResolveLodTargetRatio(uint32_t flags, uint32_t lodIndex, const ClusterCookSettings& settings) {
             float ratio = settings.lod4TriangleRatio;
             switch (lodIndex) {
@@ -426,9 +435,14 @@ namespace HIKARI::ASSETS::GEOMETRY {
             lodSettings.lodIndex = lodIndex;
             lodSettings.targetTriangleRatio = targetRatio;
             lodSettings.targetError = ResolveLodTargetError(source.flags, lodIndex, settings);
-            lodSettings.lockOpenBorders = true;
+            const bool permissiveOpaqueLod = ShouldUsePermissiveOpaqueLods(source.flags);
+            // 通常 opaque は UV/法線 seam を越えて簡略化し、位置で見た本当の外周だけを固定する。
+            lodSettings.lockOpenBorders = !permissiveOpaqueLod;
             lodSettings.preserveAttributes = true;
             lodSettings.optimizeVertexCache = true;
+            lodSettings.allowAttributeSeamCollapse = permissiveOpaqueLod;
+            lodSettings.protectGeometricBorders = permissiveOpaqueLod;
+            lodSettings.pruneIsolatedComponents = false;
 
             TOOLS::GEOMETRY::MeshLodGeneratorResult lodResult{};
             if (!TOOLS::GEOMETRY::GenerateClusterSurfaceLod(

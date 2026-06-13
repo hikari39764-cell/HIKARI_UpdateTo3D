@@ -19,7 +19,11 @@ namespace HIKARI::MESHRENDERER {
         MeshRendererDebugStats* stats = nullptr;
     };
 
-    void FillLightCB(const SceneEnvironment& environment, LightCB& out, MeshRendererDebugStats& stats);
+    void FillLightCB(
+        const SceneEnvironment& environment,
+        RenderDebugView debugView,
+        LightCB& out,
+        MeshRendererDebugStats& stats);
     void FillShadowCB(const SceneEnvironment& environment, ShadowCB& out);
     void FillSkyEnvironmentCB(const SceneEnvironment& environment, SkyEnvironmentCB& out);
 

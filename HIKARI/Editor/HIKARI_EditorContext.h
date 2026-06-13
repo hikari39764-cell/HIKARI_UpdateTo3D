@@ -4,8 +4,7 @@
 #include <string>
 
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
-#include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
+#include "Render3D/Debug/HIKARI_RenderDebugView.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 
 namespace HIKARI {
@@ -82,9 +81,9 @@ namespace HIKARI {
         bool disableSsaoWhileGizmoActive = true;
     };
 
-    struct ClusteredGeometryPreviewState {
-        RENDER3D::CLUSTER::ClusteredRenderMode renderMode = RENDER3D::CLUSTER::ClusteredRenderMode::Off;
-        RENDER3D::CLUSTER::ClusterDebugOptions debugOptions{};
+    struct ViewportDebugViewState {
+        RenderDebugView renderView = RenderDebugView::None;
+        bool showLegend = true;
     };
 
     struct ViewportWindowState {
@@ -106,6 +105,7 @@ namespace HIKARI {
 
     struct RuntimeDebugWindowState {
         bool showDebugWorkspace = true;
+        bool showDebugView = true;
         bool showPerformanceAudit = true;
         bool showValidationLab = true;
     };
@@ -123,7 +123,7 @@ namespace HIKARI {
         EditorTransformGizmoState transformGizmo{};
         ViewportOverlayState overlays{};
         ViewportPerformanceState viewportPerformance{};
-        ClusteredGeometryPreviewState clusteredGeometry{};
+        ViewportDebugViewState viewportDebug{};
         EditorSelection selection{};
 
         std::string sceneNameEditBuffer{ "Untitled" };

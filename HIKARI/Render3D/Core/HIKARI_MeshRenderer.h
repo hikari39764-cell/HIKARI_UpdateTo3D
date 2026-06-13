@@ -43,8 +43,16 @@ namespace HIKARI::MESHRENDERER {
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands,
         const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* transparentGpuSceneInstances);
     bool HasSubmittedItems();
-    bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment);
-    bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment, uint32_t screenWidth, uint32_t screenHeight);
+    bool BeginFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
+    bool BeginFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        uint32_t screenWidth,
+        uint32_t screenHeight,
+        RenderDebugView debugView = RenderDebugView::None);
     const RENDER3D::RenderQueue& BuildRenderQueue();
     const CameraCB* GetCameraConstants();
     bool RenderGeometryAuxPass(
@@ -63,7 +71,10 @@ namespace HIKARI::MESHRENDERER {
         const MeshPassResources& passResources);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();
-    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
+    void RenderAll(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
     const MeshRendererDebugStats& GetDebugStats();
 
 } // namespace HIKARI::MESHRENDERER

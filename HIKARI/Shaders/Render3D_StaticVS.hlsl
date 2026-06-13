@@ -39,6 +39,10 @@ struct VSOutput
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 VSOutput main(VSInput input)
@@ -57,5 +61,9 @@ VSOutput main(VSInput input)
     output.receiveShadow = objectData.receiveShadow;
     output.objectDataIndex = objectDataIndex;
     output.surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
+    output.debugClusterId = 0u;
+    output.debugSurfaceId = 0u;
+    output.debugLodIndex = 0u;
+    output.debugDrawBucket = 0u;
     return output;
 }

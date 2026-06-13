@@ -61,7 +61,11 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
-    void FillLightCB(const SceneEnvironment& environment, LightCB& out, MeshRendererDebugStats& stats) {
+    void FillLightCB(
+        const SceneEnvironment& environment,
+        RenderDebugView debugView,
+        LightCB& out,
+        MeshRendererDebugStats& stats) {
         out = {};
         const SKYRENDERER::SkyEnvironmentData& skyData = SKYRENDERER::GetEnvironmentData();
 
@@ -118,7 +122,7 @@ namespace HIKARI::MESHRENDERER {
             std::max(0.1f, environment.fog.endDistance),
             std::max(0.0f, environment.fog.heightFalloff)
         };
-        out.debugView = static_cast<uint32_t>(environment.debugView);
+        out.debugView = static_cast<uint32_t>(debugView);
 
         constexpr uint32_t kMaxPointLights = 8;
         uint32_t uploadedCount = 0;

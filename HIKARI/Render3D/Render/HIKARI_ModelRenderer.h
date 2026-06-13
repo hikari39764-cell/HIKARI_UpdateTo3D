@@ -82,7 +82,10 @@ namespace HIKARI::MODELRENDERER {
     void ResetModelRendererFrameStats();
     void BeginModelRendererFrame(ModelRendererFrameKind kind);
     void SubmitModel(const ModelRenderItem& item);
-    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment);
+    void RenderAll(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
     void RenderOpaqueForReflectionProbeCapture(
         const Camera3D& camera,
         const SceneEnvironment& environment,

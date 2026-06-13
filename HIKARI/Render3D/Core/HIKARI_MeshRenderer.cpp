@@ -551,6 +551,14 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuMergedGapCount;
             g.debugStats.clusterGpuCullGpuMergedGapIndexCount =
                 clusterCullStats.gpuMergedGapIndexCount;
+            g.debugStats.clusterGpuCullGpuLod0SelectedCount =
+                clusterCullStats.gpuLod0SelectedCount;
+            g.debugStats.clusterGpuCullGpuLod1SelectedCount =
+                clusterCullStats.gpuLod1SelectedCount;
+            g.debugStats.clusterGpuCullGpuLod2SelectedCount =
+                clusterCullStats.gpuLod2SelectedCount;
+            g.debugStats.clusterGpuCullGpuLod3PlusSelectedCount =
+                clusterCullStats.gpuLod3PlusSelectedCount;
             g.debugStats.clusterGpuCullGpuCulledInstanceCount =
                 clusterCullStats.gpuInputFrustumCulledCount;
             g.debugStats.clusterGpuCullDispatchCount =
@@ -814,6 +822,7 @@ namespace HIKARI::MESHRENDERER {
         bool PrepareMeshFrame(
             const Camera3D& camera,
             const SceneEnvironment& environment,
+            RenderDebugView debugView,
             uint32_t overrideScreenWidth = 0,
             uint32_t overrideScreenHeight = 0) {
             if (g.cameraMapped == nullptr || g.lightMapped == nullptr || g.shadowMapped == nullptr || g.skyEnvironmentMapped == nullptr) {
@@ -840,7 +849,7 @@ namespace HIKARI::MESHRENDERER {
                 1.0f / static_cast<float>(screenH)
             };
 
-            FillLightCB(environment, *g.lightMapped, g.debugStats);
+            FillLightCB(environment, debugView, *g.lightMapped, g.debugStats);
             FillShadowCB(environment, *g.shadowMapped);
             FillSkyEnvironmentCB(environment, *g.skyEnvironmentMapped);
             return true;
@@ -1368,11 +1377,14 @@ namespace HIKARI::MESHRENDERER {
         return !g.drawItems.empty() || HasAnySurfacePacketExecutionPlan();
     }
 
-    bool BeginFrame(const Camera3D& camera, const SceneEnvironment& environment) {
+    bool BeginFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
         if (!EnsureInitialized()) {
             return false;
         }
-        if (!PrepareMeshFrame(camera, environment)) {
+        if (!PrepareMeshFrame(camera, environment, debugView)) {
             return false;
         }
 
@@ -1414,13 +1426,14 @@ namespace HIKARI::MESHRENDERER {
         const Camera3D& camera,
         const SceneEnvironment& environment,
         uint32_t screenWidth,
-        uint32_t screenHeight) {
+        uint32_t screenHeight,
+        RenderDebugView debugView) {
 
         if (!EnsureInitialized()) {
             return false;
         }
         // Capture 用の固定解像度を camera constants に反映する。
-        if (!PrepareMeshFrame(camera, environment, screenWidth, screenHeight)) {
+        if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
             return false;
         }
 
@@ -1565,8 +1578,11 @@ namespace HIKARI::MESHRENDERER {
         g.staticOpaqueClusterMainlineFrame.Reset();
     }
 
-    void RenderAll(const Camera3D& camera, const SceneEnvironment& environment) {
-        (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(camera, environment);
+    void RenderAll(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
+        (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(camera, environment, debugView);
     }
 
     const MeshRendererDebugStats& GetDebugStats() {

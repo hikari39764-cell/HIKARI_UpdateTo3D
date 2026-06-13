@@ -14,6 +14,9 @@ namespace HIKARI::TOOLS::GEOMETRY {
         bool lockOpenBorders = true;
         bool preserveAttributes = true;
         bool optimizeVertexCache = true;
+        bool allowAttributeSeamCollapse = false;
+        bool protectGeometricBorders = false;
+        bool pruneIsolatedComponents = false;
     };
 
     struct MeshLodGeneratorResult {

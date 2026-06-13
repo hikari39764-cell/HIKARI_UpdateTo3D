@@ -38,6 +38,10 @@ struct HikariMeshletVertexOut
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 HikariMeshletVertexOut HikariBuildEmptyMeshletVertex()
@@ -74,8 +78,10 @@ bool HikariResolveMeshletVertex(
 
 HikariMeshletVertexOut HikariBuildMeshletVertex(
     HikariSurfaceGpuSceneInstance instance,
+    HikariMeshletVisibleRange visible,
     HikariClusterVertex vertex,
-    uint surfaceGpuSceneIndex)
+    uint surfaceGpuSceneIndex,
+    uint clusterIndex)
 {
     HikariMeshletVertexOut output = HikariBuildEmptyMeshletVertex();
     float4 worldPos = mul(instance.clusterWorld, float4(vertex.position.xyz, 1.0f));
@@ -91,6 +97,10 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u ? 1u : 0u;
     output.objectDataIndex = surfaceGpuSceneIndex;
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
+    output.debugClusterId = clusterIndex;
+    output.debugSurfaceId = visible.clusterSurfaceIndex;
+    output.debugLodIndex = visible.lodIndex;
+    output.debugDrawBucket = visible.drawBucket;
     return output;
 }
 
@@ -157,7 +167,12 @@ void main(
         if (HikariResolveMeshletVertex(geometry, header, cluster, groupIndex, vertex))
         {
             vertices[groupIndex] =
-                HikariBuildMeshletVertex(instance, vertex, visible.gpuSceneInstanceIndex);
+                HikariBuildMeshletVertex(
+                    instance,
+                    visible,
+                    vertex,
+                    visible.gpuSceneInstanceIndex,
+                    clusterIndex);
         }
         else
         {

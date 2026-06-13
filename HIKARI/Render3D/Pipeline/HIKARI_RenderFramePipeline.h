@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "Render3D/Debug/HIKARI_RenderDebugView.h"
+
 namespace HIKARI {
     class Camera3D;
     struct SceneEnvironment;
@@ -11,7 +13,8 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
     bool RenderMeshLightingFrame(
         const Camera3D& camera,
-        const SceneEnvironment& environment);
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
 
     bool RenderMeshCaptureOpaqueFrame(
         const Camera3D& camera,

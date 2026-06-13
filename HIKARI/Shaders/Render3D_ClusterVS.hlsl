@@ -40,6 +40,10 @@ struct VSOutput
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 VSOutput HikariBuildEmptyClusterVertex()
@@ -65,6 +69,10 @@ VSOutput main(VSInput input)
     output.receiveShadow = objectData.receiveShadow;
     output.objectDataIndex = surfaceGpuSceneIndex;
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
+    output.debugClusterId = 0u;
+    output.debugSurfaceId = instance.clusterSurfaceIndex;
+    output.debugLodIndex = instance.clusterSelectedLodIndex;
+    output.debugDrawBucket = 0u;
 
     if (instance.clusterGeometrySrvDescriptorIndex < HIKARI_CLUSTER_SRV_POOL_BEGIN)
     {

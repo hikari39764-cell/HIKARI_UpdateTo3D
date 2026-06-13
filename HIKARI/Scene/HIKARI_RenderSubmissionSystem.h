@@ -6,8 +6,6 @@
 
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
-#include "Render3D/Cluster/HIKARI_ClusteredRenderMode.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
@@ -44,26 +42,14 @@ namespace HIKARI {
 
     class RenderSubmissionSystem final : public ISystem {
     public:
-        struct ClusteredCpuPreviewTarget {
-            RENDER3D::CLUSTER::ClusteredRenderMode mode = RENDER3D::CLUSTER::ClusteredRenderMode::Off;
-            const AssetRegistry* assetRegistry = nullptr;
-            std::filesystem::path projectRoot{};
-            uint64_t selectedObjectId = 0;
-            RENDER3D::CLUSTER::ClusterDebugOptions debugOptions{};
-        };
-
         std::string_view GetName() const override { return "RenderSubmissionSystem"; }
 
         void PreRender(World& world, const FrameContext& frame) override;
 
         static void SetActiveRenderCamera(const Camera3D* camera);
-        static void SetClusteredCpuPreviewTarget(
-            RENDER3D::CLUSTER::ClusteredRenderMode mode,
+        static void SetAssetContext(
             const AssetRegistry* assetRegistry,
-            std::filesystem::path projectRoot,
-            uint64_t selectedObjectId,
-            RENDER3D::CLUSTER::ClusterDebugOptions debugOptions);
-        static void ClearClusteredCpuPreviewTarget();
+            std::filesystem::path projectRoot);
         static void SetRouteMode(RenderSubmissionRouteMode mode);
         static RenderSubmissionRouteMode GetRouteMode();
         static const RenderSubmissionDebugStats& GetDebugStats();
@@ -83,8 +69,8 @@ namespace HIKARI {
         static RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats sSurfaceDrawPacketPlanStats_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
         static RenderSubmissionRouteMode sRouteMode_;
-
-        static ClusteredCpuPreviewTarget sClusteredCpuPreviewTarget_;
+        static const AssetRegistry* sAssetRegistry_;
+        static std::filesystem::path sProjectRoot_;
     };
 
 } // namespace HIKARI

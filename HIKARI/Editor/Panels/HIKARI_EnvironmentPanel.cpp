@@ -277,7 +277,6 @@ namespace HIKARI {
                 lhs.toneMapping.exposure != rhs.toneMapping.exposure ||
                 lhs.toneMapping.gamma != rhs.toneMapping.gamma ||
                 lhs.toneMapping.mode != rhs.toneMapping.mode ||
-                lhs.debugView != rhs.debugView ||
                 lhs.specularIntensity != rhs.specularIntensity ||
                 lhs.specularPower != rhs.specularPower ||
                 lhs.showLightDebug != rhs.showLightDebug ||
@@ -322,55 +321,6 @@ namespace HIKARI {
             const MATH::Vec3 dir = MATH::Normalize(direction);
             yawDeg = RadToDeg(std::atan2(dir.x, dir.z));
             pitchDeg = RadToDeg(std::asin(std::clamp(-dir.y, -1.0f, 1.0f)));
-        }
-
-        const char* DebugViewName(RenderDebugView view) {
-            switch (view) {
-            case RenderDebugView::Normal: return "Normal";
-            case RenderDebugView::Tangent: return "Tangent";
-            case RenderDebugView::LightingOnly: return "Lighting Only";
-            case RenderDebugView::BaseColor: return "Base Color";
-            case RenderDebugView::Roughness: return "Roughness";
-            case RenderDebugView::Metallic: return "Metallic";
-            case RenderDebugView::Occlusion: return "Occlusion";
-            case RenderDebugView::Shadow: return "Shadow";
-            case RenderDebugView::NdotL: return "NdotL";
-            case RenderDebugView::Emissive: return "Emissive";
-            case RenderDebugView::SceneDepth: return "Scene Depth";
-            case RenderDebugView::SceneColor: return "Scene Color";
-            case RenderDebugView::None:
-            default: return "None";
-            }
-        }
-
-        struct DebugViewOption {
-            RenderDebugView view = RenderDebugView::None;
-            const char* label = "None";
-        };
-
-        constexpr DebugViewOption kDebugViewOptions[] = {
-            { RenderDebugView::None, "None" },
-            { RenderDebugView::Normal, "Normal" },
-            { RenderDebugView::Tangent, "Tangent" },
-            { RenderDebugView::LightingOnly, "Lighting Only" },
-            { RenderDebugView::BaseColor, "Base Color" },
-            { RenderDebugView::Roughness, "Roughness" },
-            { RenderDebugView::Metallic, "Metallic" },
-            { RenderDebugView::Occlusion, "Occlusion" },
-            { RenderDebugView::Shadow, "Shadow" },
-            { RenderDebugView::NdotL, "NdotL" },
-            { RenderDebugView::Emissive, "Emissive" },
-            { RenderDebugView::SceneDepth, "Scene Depth" },
-            { RenderDebugView::SceneColor, "Scene Color" },
-        };
-
-        int DebugViewOptionIndex(RenderDebugView view) {
-            for (int i = 0; i < static_cast<int>(std::size(kDebugViewOptions)); ++i) {
-                if (kDebugViewOptions[i].view == view) {
-                    return i;
-                }
-            }
-            return 0;
         }
 
         struct SkyPickerEntry {
@@ -1035,34 +985,6 @@ namespace HIKARI {
             ImGui::Checkbox("Show Light Debug", &environment.showLightDebug);
             ImGui::Checkbox("Show Point Light Markers", &environment.showPointLightMarkers);
             ImGui::Checkbox("Show Sky Debug Info", &environment.showSkyDebugInfo);
-
-            int debugViewIndex = DebugViewOptionIndex(environment.debugView);
-            int selectedDebugViewIndex = debugViewIndex;
-            bool debugViewChanged = false;
-            const char* debugPreview = kDebugViewOptions[debugViewIndex].label;
-            if (ImGui::BeginCombo("Render Debug View", debugPreview)) {
-                for (int i = 0; i < static_cast<int>(std::size(kDebugViewOptions)); ++i) {
-                    const bool selected = (i == selectedDebugViewIndex);
-                    ImGui::PushID(i);
-                    if (ImGui::Selectable(kDebugViewOptions[i].label, selected)) {
-                        selectedDebugViewIndex = i;
-                        debugViewChanged = true;
-                    }
-                    if (selected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::PopID();
-                }
-                ImGui::EndCombo();
-            }
-            if (debugViewChanged) {
-                environment.debugView = kDebugViewOptions[selectedDebugViewIndex].view;
-            }
-
-            ImGui::Text("Active Debug View: %s", DebugViewName(environment.debugView));
-            if (environment.debugView != RenderDebugView::None) {
-                ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Debug view overrides the final shaded output.");
-            }
 
             ImGui::TextDisabled("Runtime: %s | %s | Errors %u",
                 RENDER3D::DIAGNOSTICS::ResolveSkySummaryLabel(runtimeSnapshot),

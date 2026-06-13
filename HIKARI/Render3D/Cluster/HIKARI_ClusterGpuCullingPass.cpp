@@ -724,6 +724,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 latestGpuCounters_.mergedGapCount;
             stats_.gpuMergedGapIndexCount =
                 latestGpuCounters_.mergedGapIndexCount;
+            stats_.gpuLod0SelectedCount =
+                latestGpuCounters_.lod0SelectedCount;
+            stats_.gpuLod1SelectedCount =
+                latestGpuCounters_.lod1SelectedCount;
+            stats_.gpuLod2SelectedCount =
+                latestGpuCounters_.lod2SelectedCount;
+            stats_.gpuLod3PlusSelectedCount =
+                latestGpuCounters_.lod3PlusSelectedCount;
         }
     }
 

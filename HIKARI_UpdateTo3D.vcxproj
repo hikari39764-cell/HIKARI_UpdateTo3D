@@ -303,9 +303,7 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.cpp" />
@@ -703,6 +701,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugView.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.h" />
@@ -720,11 +719,8 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.h" />
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredCpuPreviewRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h" />
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryDebug.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h" />
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredRenderMode.h" />
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.h" />

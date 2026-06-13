@@ -69,6 +69,10 @@ struct VSOutput
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 float4x4 ResolveJointMatrix(uint jointIndex)
@@ -106,5 +110,9 @@ VSOutput main(VSInput input)
     output.uv = input.uv0;
     output.materialDataIndex = gMaterialDataIndex;
     output.receiveShadow = gReceiveShadow;
+    output.debugClusterId = 0u;
+    output.debugSurfaceId = 0u;
+    output.debugLodIndex = 0u;
+    output.debugDrawBucket = 0u;
     return output;
 }

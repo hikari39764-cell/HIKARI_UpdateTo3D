@@ -1,13 +1,9 @@
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #include "Assets/HIKARI_AssetRegistry.h"
-#include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_FrameContext.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
-#include "Render3D/Cluster/HIKARI_ClusteredCpuPreviewRenderer.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryDebug.h"
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
@@ -27,133 +23,6 @@
 namespace HIKARI {
 
     namespace {
-        std::filesystem::path ResolvePreviewHcmeshPath(
-            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
-            const ModelComponent& model) {
-
-            if (!target.assetRegistry || model.GetAssetId().empty()) {
-                return {};
-            }
-
-            const auto* descriptor =
-                target.assetRegistry->FindAs<ModelAssetDescriptor>(AssetId{ model.GetAssetId() });
-            if (descriptor == nullptr || descriptor->clusteredGeometryPath.empty()) {
-                return {};
-            }
-
-            std::filesystem::path path = descriptor->clusteredGeometryPath;
-            if (!path.is_absolute() && !target.projectRoot.empty()) {
-                path = (target.projectRoot / path).lexically_normal();
-            }
-            return path;
-        }
-
-        bool IsSelectedClusterTarget(
-            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
-            const GameObject& object) {
-
-            return target.selectedObjectId != 0u &&
-                object.GetDocumentId().value == target.selectedObjectId;
-        }
-
-        const RENDER3D::CLUSTER::ClusteredGeometryAsset* LoadClusteredGeometryForObject(
-            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
-            const ModelComponent& model) {
-
-            const std::filesystem::path hcmeshPath = ResolvePreviewHcmeshPath(target, model);
-            if (hcmeshPath.empty()) {
-                return nullptr;
-            }
-            return RENDER3D::CLUSTER::GetClusteredGeometryManager().LoadOrGet(hcmeshPath);
-        }
-
-        bool TrySubmitSelectedClusterTools(
-            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
-            const GameObject& object,
-            const ModelComponent& model,
-            const ModelAsset& asset) {
-
-            const bool wantsPreview =
-                target.mode == RENDER3D::CLUSTER::ClusteredRenderMode::SelectedPreview;
-            const bool wantsDebug =
-                target.debugOptions.mode != RENDER3D::CLUSTER::ClusterDebugViewMode::Off;
-            const bool wantsColorMesh =
-                RENDER3D::CLUSTER::IsClusterDebugColorMeshMode(target.debugOptions.mode);
-            if ((!wantsPreview && !wantsDebug) || !IsSelectedClusterTarget(target, object)) {
-                return false;
-            }
-
-            const RENDER3D::CLUSTER::ClusteredGeometryAsset* clusteredGeometry =
-                LoadClusteredGeometryForObject(target, model);
-            if (clusteredGeometry == nullptr) {
-                return false;
-            }
-
-            if (wantsDebug && !wantsColorMesh) {
-                RENDER3D::CLUSTER::SubmitClusterDebugOverlay(
-                    *clusteredGeometry,
-                    object.Transform(),
-                    target.debugOptions);
-            }
-            if (wantsColorMesh) {
-                return RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
-                    *clusteredGeometry,
-                    object.Transform(),
-                    &asset,
-                    false,
-                    MESHRENDERER::MeshRenderDebugMode::Normal,
-                    nullptr,
-                    &target.debugOptions);
-            }
-            if (!wantsPreview) {
-                return false;
-            }
-
-            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer().SubmitSelectedObjectPreview(
-                *clusteredGeometry,
-                object.Transform(),
-                &asset,
-                model.GetReceiveShadow(),
-                MESHRENDERER::MeshRenderDebugMode::WireOverlay,
-                model.GetRuntimeMaterialOverride());
-            return false;
-        }
-
-        bool TrySubmitClusteredCpuReference(
-            const RenderSubmissionSystem::ClusteredCpuPreviewTarget& target,
-            const ModelComponent& model,
-            const ModelAsset& asset,
-            ModelRenderDebugMode debugMode) {
-
-            if (target.mode != RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference ||
-                !model.IsRenderStatic()) {
-                return false;
-            }
-
-            RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& referenceRenderer =
-                RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer();
-            referenceRenderer.RecordReferenceCandidate();
-
-            if (model.GetSourceKind() != ModelSourceKind::Asset ||
-                model.GetAssetId().empty() ||
-                debugMode != ModelRenderDebugMode::Normal ||
-                asset.HasSkinnedMesh()) {
-                referenceRenderer.RecordFallbackObject();
-                return false;
-            }
-
-            const RENDER3D::CLUSTER::ClusteredGeometryAsset* clusteredGeometry =
-                LoadClusteredGeometryForObject(target, model);
-            if (clusteredGeometry == nullptr || !clusteredGeometry->valid) {
-                referenceRenderer.RecordFallbackObject();
-                return false;
-            }
-
-            // CPU reference は HCMESH 側の描画が安定するまで旧描画を維持する。
-            referenceRenderer.RecordFallbackObject(static_cast<uint32_t>(clusteredGeometry->surfaces.size()));
-            return false;
-        }
-
         RENDER3D::RUNTIME::SceneRenderObjectId ResolveSceneRenderObjectId(const GameObject& object) {
             RENDER3D::RUNTIME::SceneRenderObjectId id{ object.GetDocumentId().value };
             if (!id.IsValid()) {
@@ -244,13 +113,14 @@ namespace HIKARI {
 
     RenderSubmissionDebugStats RenderSubmissionSystem::sDebugStats_{};
     const Camera3D* RenderSubmissionSystem::sActiveRenderCamera_ = nullptr;
+    const AssetRegistry* RenderSubmissionSystem::sAssetRegistry_ = nullptr;
+    std::filesystem::path RenderSubmissionSystem::sProjectRoot_{};
     RENDER3D::RUNTIME::SceneRenderCache RenderSubmissionSystem::sSceneRenderCache_{};
     RENDER3D::RUNTIME::SurfaceDrawPacketBuilder RenderSubmissionSystem::sSurfaceDrawPacketBuilder_{};
     RENDER3D::RUNTIME::SurfaceDrawPacketPlanner RenderSubmissionSystem::sSurfaceDrawPacketPlanner_{};
     RENDER3D::RUNTIME::SurfaceDrawPacketPlanOptions RenderSubmissionSystem::sSurfaceDrawPacketPlanOptions_{};
     RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats RenderSubmissionSystem::sSurfaceDrawPacketPlanStats_{};
     SceneRenderCacheSync RenderSubmissionSystem::sSceneRenderCacheSync_{};
-    RenderSubmissionSystem::ClusteredCpuPreviewTarget RenderSubmissionSystem::sClusteredCpuPreviewTarget_{};
     RenderSubmissionRouteMode RenderSubmissionSystem::sRouteMode_ =
         RenderSubmissionRouteMode::SurfacePacketMainline;
 
@@ -269,22 +139,12 @@ namespace HIKARI {
         sActiveRenderCamera_ = camera;
     }
 
-    void RenderSubmissionSystem::SetClusteredCpuPreviewTarget(
-        RENDER3D::CLUSTER::ClusteredRenderMode mode,
+    void RenderSubmissionSystem::SetAssetContext(
         const AssetRegistry* assetRegistry,
-        std::filesystem::path projectRoot,
-        uint64_t selectedObjectId,
-        RENDER3D::CLUSTER::ClusterDebugOptions debugOptions) {
+        std::filesystem::path projectRoot) {
 
-        sClusteredCpuPreviewTarget_.mode = mode;
-        sClusteredCpuPreviewTarget_.assetRegistry = assetRegistry;
-        sClusteredCpuPreviewTarget_.projectRoot = std::move(projectRoot);
-        sClusteredCpuPreviewTarget_.selectedObjectId = selectedObjectId;
-        sClusteredCpuPreviewTarget_.debugOptions = debugOptions;
-    }
-
-    void RenderSubmissionSystem::ClearClusteredCpuPreviewTarget() {
-        sClusteredCpuPreviewTarget_ = {};
+        sAssetRegistry_ = assetRegistry;
+        sProjectRoot_ = std::move(projectRoot);
     }
 
     void RenderSubmissionSystem::SetRouteMode(RenderSubmissionRouteMode mode) {
@@ -335,29 +195,21 @@ namespace HIKARI {
         sDebugStats_.routeMode = sRouteMode_;
         sDebugStats_.surfacePacketForceLegacyActive =
             sRouteMode_ == RenderSubmissionRouteMode::ForceLegacy;
-        sDebugStats_.frustumCullingEnabled = sActiveRenderCamera_ != nullptr;
-
-        RENDER3D::CLUSTER::ClusteredCpuPreviewRenderer& clusteredPreview =
-            RENDER3D::CLUSTER::GetClusteredCpuPreviewRenderer();
-        clusteredPreview.SetMode(sClusteredCpuPreviewTarget_.mode);
-        clusteredPreview.ResetFrameStats();
+        sDebugStats_.frustumCullingEnabled = false;
 
         sSceneRenderCacheSync_.Sync(
             world,
             MODELRENDERER::GetRenderModelCache(),
             sSceneRenderCache_,
             frame.frameIndex,
-            sClusteredCpuPreviewTarget_.assetRegistry,
-            sClusteredCpuPreviewTarget_.projectRoot);
+            sAssetRegistry_,
+            sProjectRoot_);
         // SceneSurfaceInstance から、実行可能な draw packet view を構築する。
         sSurfaceDrawPacketBuilder_.BuildFromSceneRenderCache(sSceneRenderCache_);
 
-        const bool clusteredCpuReferenceActive =
-            sClusteredCpuPreviewTarget_.mode == RENDER3D::CLUSTER::ClusteredRenderMode::CpuReference;
         const bool surfacePacketMainRouteActive =
             sRouteMode_ != RenderSubmissionRouteMode::ForceLegacy;
-        const bool surfacePacketForwardActive =
-            surfacePacketMainRouteActive && !clusteredCpuReferenceActive;
+        const bool surfacePacketForwardActive = surfacePacketMainRouteActive;
         const bool surfacePacketShadowActive = surfacePacketMainRouteActive;
         const bool bypassLegacyForward = surfacePacketForwardActive;
         const bool bypassLegacyShadow = surfacePacketShadowActive;
@@ -368,7 +220,13 @@ namespace HIKARI {
         sSurfaceDrawPacketPlanOptions_.bypassLegacyForward = bypassLegacyForward;
         sSurfaceDrawPacketPlanOptions_.buildShadowPlan = surfacePacketShadowActive;
         sSurfaceDrawPacketPlanOptions_.bypassLegacyShadow = bypassLegacyShadow;
-        sSurfaceDrawPacketPlanOptions_.enableFrustumCulling = true;
+        // GPU 主線では packet 生成時に CPU 側で視錐台 cull しない。
+        // SurfaceGpuScene を広く渡し、cluster / meshlet cull が可視性を決める。
+        sSurfaceDrawPacketPlanOptions_.enableCpuFrustumCulling =
+            !surfacePacketMainRouteActive;
+        sDebugStats_.frustumCullingEnabled =
+            sActiveRenderCamera_ != nullptr &&
+            sSurfaceDrawPacketPlanOptions_.enableCpuFrustumCulling;
         if (sActiveRenderCamera_ != nullptr) {
             // Runtime planner には Camera3D ではなく必要な行列だけを渡す。
             sSurfaceDrawPacketPlanOptions_.cameraView = sActiveRenderCamera_->GetView();
@@ -465,7 +323,15 @@ namespace HIKARI {
                     }
                 }
 
-                if (sActiveRenderCamera_ != nullptr) {
+                const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
+                const bool fullyHandledBySurfacePacket =
+                    forwardHandledBySurfacePacket &&
+                    (!model.GetCastShadow() || shadowHandledBySurfacePacket);
+                const bool needsLegacyOrDebugCull =
+                    !fullyHandledBySurfacePacket ||
+                    debugMode != ModelRenderDebugMode::Normal;
+
+                if (needsLegacyOrDebugCull && sActiveRenderCamera_ != nullptr) {
                     if (asset->HasSkinnedMesh()) {
                         // skinning 後の bounds は未確定なので、安全側で描画する。
                         ++sDebugStats_.skinnedCullSkippedCount;
@@ -482,29 +348,14 @@ namespace HIKARI {
                     }
                 }
 
-                const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
                 if (debugMode == ModelRenderDebugMode::BoundsOnly) {
                     MESHWIREDEBUG::SubmitModelBounds(*asset, object.Transform(), model.GetWireColor());
                     ++sDebugStats_.submittedModelCount;
                     return;
                 }
 
-                const bool clusteredForwardHandled = TrySubmitClusteredCpuReference(
-                    sClusteredCpuPreviewTarget_,
-                    model,
-                    *asset,
-                    debugMode);
-                const bool selectedClusterDebugForwardHandled = TrySubmitSelectedClusterTools(
-                    sClusteredCpuPreviewTarget_,
-                    object,
-                    model,
-                    *asset);
-
-                if ((forwardHandledBySurfacePacket || selectedClusterDebugForwardHandled) &&
+                if (forwardHandledBySurfacePacket &&
                     (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
-                    return;
-                }
-                if (clusteredForwardHandled && (!model.GetCastShadow() || shadowHandledBySurfacePacket)) {
                     return;
                 }
 
@@ -523,12 +374,6 @@ namespace HIKARI {
                 item.castShadow = model.GetCastShadow();
                 item.receiveShadow = model.GetReceiveShadow();
                 if (forwardHandledBySurfacePacket) {
-                    item.submitForward = false;
-                }
-                if (clusteredForwardHandled) {
-                    item.submitForward = false;
-                }
-                if (selectedClusterDebugForwardHandled) {
                     item.submitForward = false;
                 }
                 if (shadowHandledBySurfacePacket) {

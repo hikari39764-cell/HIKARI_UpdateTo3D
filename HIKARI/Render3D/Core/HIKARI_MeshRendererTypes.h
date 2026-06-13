@@ -390,6 +390,10 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount = 0;
         size_t clusterGpuCullGpuMergedGapCount = 0;
         size_t clusterGpuCullGpuMergedGapIndexCount = 0;
+        size_t clusterGpuCullGpuLod0SelectedCount = 0;
+        size_t clusterGpuCullGpuLod1SelectedCount = 0;
+        size_t clusterGpuCullGpuLod2SelectedCount = 0;
+        size_t clusterGpuCullGpuLod3PlusSelectedCount = 0;
         size_t clusterGpuCullDispatchCount = 0;
         size_t clusterGpuCullWorkgroupCount = 0;
         size_t clusterGpuCullInputCapacity = 0;

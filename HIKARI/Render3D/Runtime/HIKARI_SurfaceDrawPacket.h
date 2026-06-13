@@ -134,7 +134,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         MATH::Mat4 cameraView{};
         bool hasCameraViewProj = false;
         bool hasCameraView = false;
-        bool enableFrustumCulling = true;
+        bool enableCpuFrustumCulling = true;
     };
 
     struct SurfaceDrawRouteBucketStats {
@@ -370,8 +370,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         struct ObjectCoverage {
             uint32_t expectedForwardPacketCount = 0;
             uint32_t safeForwardPacketCount = 0;
+            uint32_t handledForwardPacketCount = 0;
             uint32_t expectedShadowPacketCount = 0;
             uint32_t safeShadowPacketCount = 0;
+            uint32_t handledShadowPacketCount = 0;
             std::unordered_set<uint64_t> forwardBypassSurfaceKeys{};
             std::unordered_set<uint64_t> shadowBypassSurfaceKeys{};
         };
@@ -379,6 +381,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool IsForwardSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketPlanStats* stats) const;
         bool IsShadowSafePacket(const SurfaceDrawPacket& packet, SurfaceDrawPacketPlanStats* stats) const;
         void BuildCoverage(const std::vector<SurfaceDrawPacket>& packets, SurfaceDrawPacketPlanStats& stats);
+        void RecordHandledForwardPacket(const SurfaceDrawPacket& packet);
+        void RecordHandledShadowPacket(const SurfaceDrawPacket& packet);
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
         std::vector<uint32_t> executableForwardOpaquePacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardOpaqueCommands_{};

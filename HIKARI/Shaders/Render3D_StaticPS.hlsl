@@ -146,7 +146,45 @@ struct PSInput
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
+
+uint HikariHashDebugId(uint value)
+{
+    value ^= value >> 16u;
+    value *= 0x7feb352du;
+    value ^= value >> 15u;
+    value *= 0x846ca68bu;
+    value ^= value >> 16u;
+    return value;
+}
+
+float3 HikariDebugColorFromId(uint value)
+{
+    uint h = HikariHashDebugId(value + 1u);
+    return float3(
+        0.18f + float((h >> 0u) & 255u) / 255.0f * 0.78f,
+        0.18f + float((h >> 8u) & 255u) / 255.0f * 0.78f,
+        0.18f + float((h >> 16u) & 255u) / 255.0f * 0.78f);
+}
+
+float3 HikariLodDebugColor(uint lodIndex)
+{
+    if (lodIndex == 0u) return float3(0.95f, 0.20f, 0.18f);
+    if (lodIndex == 1u) return float3(0.95f, 0.70f, 0.16f);
+    if (lodIndex == 2u) return float3(0.38f, 0.86f, 0.30f);
+    if (lodIndex == 3u) return float3(0.18f, 0.72f, 0.96f);
+    return float3(0.55f, 0.38f, 0.95f);
+}
+
+float3 HikariLodHeatColor(uint lodIndex)
+{
+    float t = saturate(float(lodIndex) / 4.0f);
+    return lerp(float3(1.0f, 0.16f, 0.10f), float3(0.14f, 0.45f, 1.0f), t);
+}
 
 float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS, float4 tangentWS, float2 uv)
 {
@@ -503,6 +541,37 @@ float4 main(PSInput input) : SV_TARGET
     {
         float2 screenUv = input.position.xy * gScreenParams.zw;
         return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
+    }
+    if (gDebugView == 32)
+    {
+        uint meshletKey =
+            input.debugClusterId ^
+            (input.debugSurfaceId * 1664525u) ^
+            (input.debugLodIndex * 1013904223u);
+        return float4(HikariDebugColorFromId(meshletKey), albedo.a);
+    }
+    if (gDebugView == 33)
+    {
+        return float4(HikariDebugColorFromId(input.debugClusterId), albedo.a);
+    }
+    if (gDebugView == 34)
+    {
+        return float4(HikariDebugColorFromId(input.debugSurfaceId), albedo.a);
+    }
+    if (gDebugView == 35)
+    {
+        return float4(HikariLodDebugColor(input.debugLodIndex), albedo.a);
+    }
+    if (gDebugView == 36)
+    {
+        return float4(HikariLodHeatColor(input.debugLodIndex), albedo.a);
+    }
+    if (gDebugView == 37)
+    {
+        float3 bucketColor = input.debugDrawBucket == 0u
+            ? float3(0.28f, 0.92f, 0.48f)
+            : float3(0.25f, 0.68f, 1.0f);
+        return float4(bucketColor, albedo.a);
     }
 
     float3 finalColor = shadedColor + emissive;
