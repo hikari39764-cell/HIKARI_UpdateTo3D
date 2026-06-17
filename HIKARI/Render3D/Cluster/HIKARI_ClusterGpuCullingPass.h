@@ -38,6 +38,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t surfaceGpuSceneBaseIndex = 0;
         uint32_t instanceCount = 0;
         ClusterGpuCullingPassKind passKind = ClusterGpuCullingPassKind::ForwardOpaque;
+        // 0 / 0 は GPU 側で bucket 分類する主線を表す。
         uint32_t singleSidedInstanceCount = 0;
         uint32_t doubleSidedInstanceCount = 0;
     };
@@ -110,6 +111,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             size_t visibleRangeCapacity = kDefaultClusterGpuCullingVisibleRangeCapacity,
             size_t drawArgumentCapacity = kDefaultClusterGpuDrawArgumentCapacity);
         void Reset();
+        void BeginFrame(bool collectCounterReadback);
 
         bool Dispatch(
             ID3D12GraphicsCommandList* commandList,
@@ -145,10 +147,18 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t lodIndex = 0;
             uint32_t pageIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t drawBucket = 0;
+            uint32_t sectionIndex = 0;
+            uint32_t clusterOffsetBytes = 0;
+            uint32_t vertexOffsetBytes = 0;
+            uint32_t vertexCount = 0;
+            uint32_t meshletPrimitiveOffsetBytes = 0;
+            uint32_t meshletPrimitiveCount = 0;
+            uint32_t geometryClusterCount = 0;
             uint32_t reserved0 = 0;
+            uint32_t reserved1 = 0;
         };
 
-        static_assert(sizeof(GpuVisibleRange) == 48u);
+        static_assert(sizeof(GpuVisibleRange) == 80u);
 
         struct GpuIndirectDrawArgument {
             uint32_t rootConstants[4]{};
@@ -177,12 +187,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t flags = 0;
             uint32_t pageIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t lodIndex = 0;
+            uint32_t sectionIndex = 0;
+            uint32_t clusterOffsetBytes = 0;
+            uint32_t vertexOffsetBytes = 0;
+            uint32_t vertexCount = 0;
+            uint32_t meshletPrimitiveOffsetBytes = 0;
+            uint32_t meshletPrimitiveCount = 0;
+            uint32_t geometryClusterCount = 0;
+            uint32_t reserved0 = 0;
             uint32_t reserved1 = 0;
             uint32_t reserved2 = 0;
             uint32_t reserved3 = 0;
         };
 
-        static_assert(sizeof(GpuPageTask) == 128u);
+        static_assert(sizeof(GpuPageTask) == 160u);
 
         struct GpuCounters {
             uint32_t inputCount = 0;

@@ -89,6 +89,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             ++stats_.validAssetCount;
             stats_.surfaceCount += static_cast<uint32_t>(asset->surfaces.size());
             stats_.surfaceLodRangeCount += static_cast<uint32_t>(asset->surfaceLodRanges.size());
+            stats_.surfaceSectionCount += static_cast<uint32_t>(asset->surfaceSections.size());
             stats_.clusterCount += static_cast<uint32_t>(asset->clusters.size());
             stats_.pageCount += static_cast<uint32_t>(asset->pages.size());
             stats_.totalTriangleCount += asset->totalTriangleCount;

@@ -124,6 +124,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     };
 
+    SurfaceDrawPacket BuildSurfaceDrawPacketFromSceneSurface(
+        const SceneSurfaceInstance& surfaceInstance,
+        uint32_t sourceSurfaceInstanceIndex);
+
     struct SurfaceDrawPacketPlanOptions {
         bool buildForwardPlan = false;
         bool bypassLegacyForward = false;
@@ -354,14 +358,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool ShouldBypassLegacyForwardSurface(SceneRenderObjectId objectId, uint32_t nodeIndex, uint32_t meshIndex, uint32_t primitiveIndex) const;
         bool ShouldBypassLegacyShadowSurface(SceneRenderObjectId objectId, uint32_t nodeIndex, uint32_t meshIndex, uint32_t primitiveIndex) const;
         const std::vector<uint32_t>& GetExecutableForwardOpaquePacketIndices() const;
+        std::vector<SurfaceDrawCommand>& GetExecutableForwardOpaqueCommands();
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardOpaqueCommands() const;
-        const std::vector<SurfaceGpuSceneInstance>& GetForwardOpaqueGpuSceneInstances() const;
         const std::vector<uint32_t>& GetExecutableForwardDepthAwarePacketIndices() const;
+        std::vector<SurfaceDrawCommand>& GetExecutableForwardDepthAwareCommands();
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardDepthAwareCommands() const;
-        const std::vector<SurfaceGpuSceneInstance>& GetForwardDepthAwareGpuSceneInstances() const;
         const std::vector<uint32_t>& GetExecutableForwardTransparentPacketIndices() const;
+        std::vector<SurfaceDrawCommand>& GetExecutableForwardTransparentCommands();
         const std::vector<SurfaceDrawCommand>& GetExecutableForwardTransparentCommands() const;
-        const std::vector<SurfaceGpuSceneInstance>& GetForwardTransparentGpuSceneInstances() const;
         const std::vector<uint32_t>& GetExecutableShadowPacketIndices() const;
         const std::vector<SurfaceDrawCommand>& GetExecutableShadowCommands() const;
         const std::vector<SurfaceGpuSceneInstance>& GetShadowGpuSceneInstances() const;
@@ -386,13 +390,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
         std::vector<uint32_t> executableForwardOpaquePacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardOpaqueCommands_{};
-        std::vector<SurfaceGpuSceneInstance> forwardOpaqueGpuSceneInstances_{};
         std::vector<uint32_t> executableForwardDepthAwarePacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardDepthAwareCommands_{};
-        std::vector<SurfaceGpuSceneInstance> forwardDepthAwareGpuSceneInstances_{};
         std::vector<uint32_t> executableForwardTransparentPacketIndices_{};
         std::vector<SurfaceDrawCommand> executableForwardTransparentCommands_{};
-        std::vector<SurfaceGpuSceneInstance> forwardTransparentGpuSceneInstances_{};
         std::vector<uint32_t> executableShadowPacketIndices_{};
         std::vector<SurfaceDrawCommand> executableShadowCommands_{};
         std::vector<SurfaceGpuSceneInstance> shadowGpuSceneInstances_{};

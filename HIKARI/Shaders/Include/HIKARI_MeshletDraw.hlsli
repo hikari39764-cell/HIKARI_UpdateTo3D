@@ -14,7 +14,15 @@ struct HikariMeshletVisibleRange
     uint lodIndex;
     uint pageIndex;
     uint drawBucket;
+    uint sectionIndex;
+    uint clusterOffsetBytes;
+    uint vertexOffsetBytes;
+    uint vertexCount;
+    uint meshletPrimitiveOffsetBytes;
+    uint meshletPrimitiveCount;
+    uint geometryClusterCount;
     uint reserved0;
+    uint reserved1;
 };
 
 cbuffer MeshletDrawControlCB : register(b8)

@@ -1,5 +1,7 @@
 #include "HIKARI_GameObject.h"
 
+#include "HIKARI_World.h"
+
 namespace HIKARI {
 
     GameObject::GameObject(std::string name)
@@ -12,10 +14,16 @@ namespace HIKARI {
 
     void GameObject::SetName(const std::string& name) {
         name_ = name;
+        MarkRenderStateDirty();
     }
 
     void GameObject::SetDocumentId(SceneObjectId id) {
+        const uint64_t oldStableId = GetRenderStableId();
         documentId_ = id;
+        if (ownerWorld_ != nullptr && oldStableId != GetRenderStableId()) {
+            ownerWorld_->MarkRenderObjectRemoved(oldStableId);
+        }
+        MarkRenderStateDirty();
     }
 
     SceneObjectId GameObject::GetDocumentId() const {
@@ -23,6 +31,7 @@ namespace HIKARI {
     }
 
     Transform3D& GameObject::Transform() {
+        MarkRenderStateDirty();
         return transform_;
     }
 
@@ -69,11 +78,48 @@ namespace HIKARI {
         ptr->SetOwner(this);
         ptr->OnAttach();
         components_.push_back(std::move(component));
+        MarkRenderStateDirty();
         return ptr;
     }
 
     const std::vector<std::unique_ptr<IComponent>>& GameObject::GetComponents() const {
         return components_;
+    }
+
+    void GameObject::MarkRenderStateDirty() {
+        ++renderStateRevision_;
+        if (!renderStateDirty_) {
+            renderStateDirty_ = true;
+        }
+        if (ownerWorld_ != nullptr) {
+            ownerWorld_->MarkRenderObjectDirty(this);
+        }
+    }
+
+    void GameObject::ClearRenderStateDirty() {
+        renderStateDirty_ = false;
+    }
+
+    bool GameObject::IsRenderStateDirty() const {
+        return renderStateDirty_;
+    }
+
+    uint64_t GameObject::GetRenderStateRevision() const {
+        return renderStateRevision_;
+    }
+
+    uint64_t GameObject::GetRenderStableId() const {
+        if (documentId_.value != 0) {
+            return documentId_.value;
+        }
+        return reinterpret_cast<uint64_t>(this);
+    }
+
+    void GameObject::SetOwnerWorld(World* world) {
+        ownerWorld_ = world;
+        if (ownerWorld_ != nullptr) {
+            ownerWorld_->MarkRenderObjectDirty(this);
+        }
     }
 
 } // namespace HIKARI

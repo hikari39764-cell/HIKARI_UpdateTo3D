@@ -57,7 +57,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
         const MESHRENDERER::CameraCB& cameraCb,
         const SceneEnvironment& environment,
-        const RENDER3D::RenderQueue& queue) {
+        const RENDER3D::CpuRenderQueue& queue) {
 
         ScreenSpaceFrameResult result{};
         const bool fallbackReady = EnsureScreenSpaceFallbacks(state);

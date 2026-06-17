@@ -429,6 +429,8 @@ namespace HIKARI {
                 { "sourceHasTranslucentAlpha", settings.sourceHasTranslucentAlpha },
                 { "sourceHasCutoutAlpha", settings.sourceHasCutoutAlpha },
                 { "sourceAlphaNonOpaqueRatio", settings.sourceAlphaNonOpaqueRatio },
+                { "sourceAlphaTranslucentRatio", settings.sourceAlphaTranslucentRatio },
+                { "sourceAlphaCutoutRatio", settings.sourceAlphaCutoutRatio },
             } },
         }.dump(2);
         result.artifacts.push_back(AssetArtifactDesc{

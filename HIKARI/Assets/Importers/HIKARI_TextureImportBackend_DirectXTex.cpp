@@ -219,6 +219,8 @@ namespace HIKARI {
             bool hasTranslucentAlpha = false;
             bool hasCutoutAlpha = false;
             float nonOpaqueRatio = 0.0f;
+            float translucentRatio = 0.0f;
+            float cutoutRatio = 0.0f;
         };
 
         bool IsRgba8Format(DXGI_FORMAT format) {
@@ -312,6 +314,10 @@ namespace HIKARI {
             result.hasCutoutAlpha = cutoutCount > 0u;
             result.nonOpaqueRatio =
                 static_cast<float>(static_cast<double>(nonOpaqueCount) / static_cast<double>(pixelCount));
+            result.translucentRatio =
+                static_cast<float>(static_cast<double>(translucentCount) / static_cast<double>(pixelCount));
+            result.cutoutRatio =
+                static_cast<float>(static_cast<double>(cutoutCount) / static_cast<double>(pixelCount));
             return result;
         }
     }
@@ -340,6 +346,8 @@ namespace HIKARI {
         inOutSettings.sourceHasTranslucentAlpha = alpha.hasTranslucentAlpha;
         inOutSettings.sourceHasCutoutAlpha = alpha.hasCutoutAlpha;
         inOutSettings.sourceAlphaNonOpaqueRatio = alpha.nonOpaqueRatio;
+        inOutSettings.sourceAlphaTranslucentRatio = alpha.translucentRatio;
+        inOutSettings.sourceAlphaCutoutRatio = alpha.cutoutRatio;
         return true;
     }
 
@@ -379,6 +387,8 @@ namespace HIKARI {
         inOutSettings.sourceHasTranslucentAlpha = alpha.hasTranslucentAlpha;
         inOutSettings.sourceHasCutoutAlpha = alpha.hasCutoutAlpha;
         inOutSettings.sourceAlphaNonOpaqueRatio = alpha.nonOpaqueRatio;
+        inOutSettings.sourceAlphaTranslucentRatio = alpha.translucentRatio;
+        inOutSettings.sourceAlphaCutoutRatio = alpha.cutoutRatio;
 
         std::ostringstream oss;
         oss << "[DirectXTexBackend] inspected "

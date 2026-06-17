@@ -200,15 +200,75 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     }
 
+    SurfaceGpuSceneBuildStats SurfaceGpuSceneWriter::BuildPacketList(
+        const std::vector<SurfaceDrawPacket>& packets,
+        const std::vector<uint32_t>& packetIndices,
+        std::vector<SurfaceGpuSceneInstance>& outInstances) {
+
+        outInstances.clear();
+        outInstances.reserve(packetIndices.size());
+        return AppendPacketList(packets, packetIndices, outInstances);
+    }
+
+    SurfaceGpuSceneBuildStats SurfaceGpuSceneWriter::AppendPacketList(
+        const std::vector<SurfaceDrawPacket>& packets,
+        const std::vector<uint32_t>& packetIndices,
+        std::vector<SurfaceGpuSceneInstance>& outInstances) {
+
+        SurfaceGpuSceneBuildStats stats{};
+        outInstances.reserve(outInstances.size() + packetIndices.size());
+
+        uint32_t localIndex = 0;
+        for (const uint32_t packetIndex : packetIndices) {
+            if (packetIndex >= packets.size()) {
+                ++stats.skippedInvalidPacketCount;
+                ++localIndex;
+                continue;
+            }
+
+            SurfaceGpuSceneInstance instance = BuildInstance(
+                packets[packetIndex],
+                packetIndex,
+                localIndex);
+            FillClusterGeometryData(packets[packetIndex], instance, &stats);
+            if (packets[packetIndex].key.resources.HasPoolHandles()) {
+                ++stats.resourceBackedInstanceCount;
+            } else {
+                ++stats.missingResourceHandleInstanceCount;
+            }
+            outInstances.push_back(instance);
+            ++stats.instanceCount;
+            stats.maxCommandInstanceCount =
+                (std::max)(stats.maxCommandInstanceCount, 1u);
+            ++localIndex;
+        }
+
+        return stats;
+    }
+
     SurfaceGpuSceneBuildStats SurfaceGpuSceneWriter::BuildCommandRanges(
         const std::vector<SurfaceDrawPacket>& packets,
         const std::vector<uint32_t>& executablePacketIndices,
         std::vector<SurfaceDrawCommand>& commands,
         std::vector<SurfaceGpuSceneInstance>& outInstances) {
 
-        SurfaceGpuSceneBuildStats stats{};
         outInstances.clear();
         outInstances.reserve(executablePacketIndices.size());
+        return AppendCommandRanges(
+            packets,
+            executablePacketIndices,
+            commands,
+            outInstances);
+    }
+
+    SurfaceGpuSceneBuildStats SurfaceGpuSceneWriter::AppendCommandRanges(
+        const std::vector<SurfaceDrawPacket>& packets,
+        const std::vector<uint32_t>& executablePacketIndices,
+        std::vector<SurfaceDrawCommand>& commands,
+        std::vector<SurfaceGpuSceneInstance>& outInstances) {
+
+        SurfaceGpuSceneBuildStats stats{};
+        outInstances.reserve(outInstances.size() + executablePacketIndices.size());
 
         for (SurfaceDrawCommand& command : commands) {
             command.backend = SurfaceDrawCommandBackend::CpuDirect;
@@ -288,6 +348,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         instance.clusterWorld = packet.objectWorldTransform.GetWorldMatrix();
         instance.clusterNormalMatrix = BuildNormalMatrixFromWorld(instance.clusterWorld);
         instance.boundsCenterRadius = BuildBoundsCenterRadius(packet.worldBounds);
+        // LOD 判定だけは object 全体の見た目サイズを参照できるようにし、分割済み surface の過剰降段を防ぐ。
         instance.sourcePacketIndex = sourcePacketIndex;
         instance.sourceSurfaceInstanceIndex = packet.sourceSurfaceInstanceIndex;
         instance.objectIdLow = static_cast<uint32_t>(packet.objectId.value & 0xffffffffull);

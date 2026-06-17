@@ -359,9 +359,11 @@ namespace HIKARI::MESHRENDERER {
         size_t surfaceGpuSceneMaterialPatchFailCount = 0;
         size_t surfaceGpuSceneBufferBindCount = 0;
         size_t surfaceGpuSceneBufferSkipCount = 0;
+        size_t gpuDrivenWorklistPassCount = 0;
+        size_t gpuDrivenWorklistClusterPassCount = 0;
+        size_t gpuDrivenWorklistSourceInstanceCount = 0;
+        size_t gpuDrivenWorklistClusterInstanceCount = 0;
         size_t clusterGpuCullSourceInstanceCount = 0;
-        size_t clusterGpuCullSourceSingleSidedInstanceCount = 0;
-        size_t clusterGpuCullSourceDoubleSidedInstanceCount = 0;
         size_t clusterGpuCullCandidateInstanceCount = 0;
         size_t clusterGpuCullSubmittedInstanceCount = 0;
         size_t clusterGpuCullSourcePageTaskCount = 0;

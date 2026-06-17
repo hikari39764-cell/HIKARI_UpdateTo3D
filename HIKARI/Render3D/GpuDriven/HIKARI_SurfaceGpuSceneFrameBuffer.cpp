@@ -1,4 +1,4 @@
-#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 
 #include <algorithm>
 #include <cstring>
@@ -7,7 +7,7 @@
 
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
         D3D12_SHADER_RESOURCE_VIEW_DESC BuildSurfaceGpuSceneSrvDesc(size_t elementCount) {
@@ -40,7 +40,7 @@ namespace HIKARI::RENDER3D::CORE {
         stats_ = {};
         stats_.srv = srvGpu;
 
-        // 実バッファ作成に失敗しても t17 の descriptor table は常に有効にしておく。
+        // 実バッファの確保に失敗しても、descriptor table は常に有効にしておく。
         D3D12_SHADER_RESOURCE_VIEW_DESC nullSrvDesc = BuildSurfaceGpuSceneSrvDesc(1);
         device->CreateShaderResourceView(nullptr, &nullSrvDesc, srvCpu);
 
@@ -99,6 +99,27 @@ namespace HIKARI::RENDER3D::CORE {
         stats_.srv = srv;
     }
 
+    void SurfaceGpuSceneFrameBuffer::ReuseFrame(size_t residentInstanceCount) {
+        const size_t capacity = stats_.capacity;
+        const bool initialized = stats_.initialized;
+        const D3D12_GPU_DESCRIPTOR_HANDLE srv = stats_.srv;
+        const size_t residentCount =
+            (std::min)(
+                residentInstanceCount,
+                (std::min)(cursor_, capacity_));
+
+        // GPU scene が同じ場合は mapped buffer の中身を再利用し、CPU upload を発生させない。
+        stats_ = {};
+        stats_.capacity = capacity;
+        stats_.initialized = initialized;
+        stats_.srv = srv;
+        stats_.requestedInstanceCount = residentInstanceCount;
+        stats_.uploadedInstanceCount = residentCount;
+        if (residentCount < residentInstanceCount) {
+            stats_.overflowInstanceCount = residentInstanceCount - residentCount;
+        }
+    }
+
     void SurfaceGpuSceneFrameBuffer::Upload(
         const RUNTIME::SurfaceGpuSceneInstance* instances,
         size_t count) {
@@ -132,6 +153,32 @@ namespace HIKARI::RENDER3D::CORE {
         const std::vector<RUNTIME::SurfaceGpuSceneInstance>& instances) {
 
         Upload(instances.data(), instances.size());
+    }
+
+    bool SurfaceGpuSceneFrameBuffer::UpdateRange(
+        size_t firstInstance,
+        const RUNTIME::SurfaceGpuSceneInstance* instances,
+        size_t count) {
+
+        stats_.requestedInstanceCount += count;
+        ++stats_.uploadCallCount;
+        if (instances == nullptr || count == 0) {
+            return true;
+        }
+        if (mapped_ == nullptr ||
+            firstInstance >= capacity_ ||
+            count > capacity_ - firstInstance) {
+            stats_.overflowInstanceCount += count;
+            return false;
+        }
+
+        std::memcpy(
+            mapped_ + firstInstance,
+            instances,
+            sizeof(RUNTIME::SurfaceGpuSceneInstance) * count);
+        stats_.uploadedInstanceCount =
+            (std::max)(stats_.uploadedInstanceCount, firstInstance + count);
+        return true;
     }
 
     bool SurfaceGpuSceneFrameBuffer::PatchMaterialDataIndex(
@@ -170,4 +217,4 @@ namespace HIKARI::RENDER3D::CORE {
         return stats_;
     }
 
-} // namespace HIKARI::RENDER3D::CORE
+} // namespace HIKARI::RENDER3D::GPUDRIVEN

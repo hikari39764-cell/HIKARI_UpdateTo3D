@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <initializer_list>
 #include <sstream>
+#include <unordered_set>
 
 #include "HIKARI_3D.h"
 #include "HIKARI_DxTexture.h"
@@ -75,6 +76,35 @@ namespace HIKARI {
                 ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
             }
             return value;
+        }
+
+        bool HasMissingAssetDescriptors(
+            const AssetRegistry& registry,
+            AssetType expectedType,
+            const std::unordered_set<std::string>& assetIds) {
+
+            for (const std::string& assetId : assetIds) {
+                if (assetId.empty()) {
+                    continue;
+                }
+
+                const AssetDescriptor* descriptor = registry.FindDescriptor(assetId);
+                if (descriptor == nullptr || descriptor->type != expectedType) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        bool NeedsRuntimeDependencyRegistryRefresh(
+            const AssetRegistry& registry,
+            const SceneDependencySet& dependencies) {
+
+            return
+                HasMissingAssetDescriptors(registry, AssetType::Model, dependencies.modelAssetIds) ||
+                HasMissingAssetDescriptors(registry, AssetType::Material, dependencies.materialAssetIds) ||
+                HasMissingAssetDescriptors(registry, AssetType::Sky, dependencies.skyAssetIds);
         }
 
         const char* ToModelTextureUsageText(ModelTextureUsage usage) {
@@ -785,7 +815,16 @@ namespace HIKARI {
         return OpenStartupSceneAsset();
     }
     bool DocumentSceneBase::RebuildRuntimeWorld() {
-        const SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        if (NeedsRuntimeDependencyRegistryRefresh(assetRegistry_, deps)) {
+            // Editor 側で追加・再import された asset descriptor を runtime build 前に同期する。
+            if (ReloadAssets()) {
+                deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+            } else {
+                HIKARI_LOG_WARN("[SceneRuntime] asset registry refresh failed before runtime rebuild.");
+            }
+        }
+
         runtimeBuilder_.PreloadDependencies(
             deps,
             assetRegistry_,
@@ -1002,6 +1041,22 @@ namespace HIKARI {
 
     int DocumentSceneBase::RebindModelComponents() {
         int reboundCount = 0;
+        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        if (NeedsRuntimeDependencyRegistryRefresh(assetRegistry_, deps)) {
+            if (ReloadAssets()) {
+                deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+            } else {
+                HIKARI_LOG_WARN("[SceneRuntime] asset registry refresh failed before model rebind.");
+            }
+        }
+
+        runtimeBuilder_.PreloadDependencies(
+            deps,
+            assetRegistry_,
+            modelManager_,
+            skyManager_,
+            assetDatabase_.GetProjectRoot(),
+            currentSceneAssetGuid_.value);
 
         world_.ForEachObjectWith<ModelComponent>(
             [this, &reboundCount](GameObject&, ModelComponent& modelComponent) {

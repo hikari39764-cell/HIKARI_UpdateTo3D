@@ -36,8 +36,16 @@
   "displayName": "gd",
   "guid": "d5ccc1f0001329c9ce9f8617dceed38c",
   "importSettings": {
+    "clusterGeometry": {
+      "largeSurfaceTargetExtent": 0.5,
+      "lockPartitionBorders": true,
+      "lodQualityBias": 1.0,
+      "maxLodCount": 5,
+      "partitionLargeSurfaces": true,
+      "profile": "Character"
+    },
     "cookModel": true,
-    "futureMeshFormat": "HMESH",
+    "futureMeshFormat": "HCMESH",
     "loadMaterials": true,
     "loadTextures": true,
     "outputFormat": "HMODEL",
@@ -45,7 +53,7 @@
     "unitScale": 1.0
   },
   "importerId": "ModelImporter",
-  "importerVersion": 8,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/Models/gd.gltf",
   "type": "Model"

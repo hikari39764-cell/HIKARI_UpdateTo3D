@@ -141,6 +141,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             uint32_t invalidSurfaceInstanceCount = 0;
             uint32_t missingSurfaceMatrixCount = 0;
             uint32_t invalidSurfaceBoundsCount = 0;
+
+            uint32_t dirtySurfaceInstanceCount = 0;
         };
 
         void Clear();
@@ -148,6 +150,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         void BeginSync(uint64_t frameIndex);
         void Upsert(const SceneRenderObjectDesc& desc);
         void EndSync();
+        void BeginPatchSync(uint64_t frameIndex);
+        void EndPatchSync();
 
         void Remove(SceneRenderObjectId id);
         void OnSceneLoaded();
@@ -158,20 +162,37 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const SceneRenderObject* Find(SceneRenderObjectId id) const;
         const std::vector<SceneRenderObject>& GetObjects() const;
         const std::vector<SceneSurfaceInstance>& GetSurfaceInstances() const;
+        const std::vector<uint32_t>& GetDirtySurfaceIndices() const;
+        uint64_t GetSurfaceVersion() const;
+        uint64_t GetSurfaceRoutingVersion() const;
+        uint64_t GetSurfaceDataVersion() const;
         const Stats& GetStats() const;
 
     private:
         void RemoveAt(size_t index);
         void RebuildIndex();
         void RebuildSurfaceInstances();
+        void UpdateSurfaceInstancesForObject(size_t objectIndex);
+        void MarkSurfaceTopologyDirty();
+        void MarkSurfaceRoutingDirty();
+        void MarkSurfaceDataDirty();
+        void MarkDirtySurfaceIndex(uint32_t surfaceIndex);
+        void MarkAllSurfaceInstancesDirty();
         void RefreshStats();
 
         std::vector<SceneRenderObject> objects_{};
         std::vector<SceneSurfaceInstance> surfaceInstances_{};
+        std::vector<uint32_t> dirtySurfaceIndices_{};
         std::unordered_map<uint64_t, size_t> indexById_{};
 
         Stats frameStats_{};
         uint64_t currentSyncFrame_ = 0;
+        uint64_t surfaceVersion_ = 0;
+        uint64_t surfaceRoutingVersion_ = 0;
+        uint64_t surfaceDataVersion_ = 0;
+        bool surfaceTopologyDirty_ = true;
+        bool surfaceRoutingDirty_ = true;
+        bool surfaceDataDirty_ = true;
     };
 
 }

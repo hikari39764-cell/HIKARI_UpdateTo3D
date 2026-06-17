@@ -66,6 +66,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr && cache->cbvAddresses[rootParam] == address) {
                 if (stats != nullptr) {
@@ -101,6 +104,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return false;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr && cache->descriptorTables[rootParam].ptr == handle.ptr) {
                 if (stats != nullptr) {
@@ -128,6 +134,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr &&
                 cache->descriptorTables[ROOT_PARAM::ObjectData].ptr == handle.ptr) {
@@ -155,6 +164,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr &&
                 cache->descriptorTables[ROOT_PARAM::MaterialData].ptr == handle.ptr) {
@@ -184,6 +196,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr &&
                 cache->descriptorTables[ROOT_PARAM::SurfaceGpuScene].ptr == handle.ptr) {
@@ -212,6 +227,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache* cache = ctx.cache;
+            if (cache != nullptr && cache->rootSignature == nullptr) {
+                return;
+            }
             MeshRendererDebugStats* stats = ctx.stats;
             if (cache != nullptr &&
                 cache->rootConstantValid[rootParam] &&
@@ -341,6 +359,9 @@ namespace HIKARI::MESHRENDERER {
             ROOT_PARAM::SurfaceGpuSceneControl >= kTrackedRootParamCount) {
             return;
         }
+        if (ctx.cache != nullptr && ctx.cache->rootSignature == nullptr) {
+            return;
+        }
 
         const uint32_t constants[4] = {
             baseInstanceIndex,
@@ -391,6 +412,9 @@ namespace HIKARI::MESHRENDERER {
         }
 
         MeshBindingStateCache* cache = ctx.cache;
+        if (cache != nullptr && cache->rootSignature == nullptr) {
+            return;
+        }
         if (cache != nullptr &&
             cache->cbvAddresses[ROOT_PARAM::MeshletVisibleRanges] == visibleRangeAddress) {
             return;

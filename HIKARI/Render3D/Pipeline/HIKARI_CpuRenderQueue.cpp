@@ -1,4 +1,4 @@
-#include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -8,7 +8,7 @@ namespace HIKARI::RENDER3D {
     namespace {
         const std::vector<const MESHRENDERER::DrawItem*> kEmptyPhase{};
 
-        // DrawItem の MaterialFX 設定から、現在の surface phase を決める。
+        // DrawItem の MaterialFX 設定から CPU 実行用の phase を決める。
         RenderPhase ResolvePhase(const MESHRENDERER::DrawItem& item) {
             if (item.hasResolvedMaterialFxProfile &&
                 item.resolvedMaterialFxProfile.renderPhase == MaterialFxRenderPhase::DepthAware) {
@@ -19,15 +19,15 @@ namespace HIKARI::RENDER3D {
         }
     }
 
-    // 現在の surface route が実際に生成する phase だけを保持する。
-    void RenderQueue::Clear() {
+    // CPU で投入された DrawItem だけを phase 別に保持する。
+    void CpuRenderQueue::Clear() {
         opaque_.clear();
         depthAware_.clear();
         transparent_.clear();
     }
 
-    // DrawItem 配列を Opaque / DepthAware / Transparent の実行単位へ分類する。
-    void RenderQueue::Build(const std::vector<MESHRENDERER::DrawItem>& items) {
+    // GPU-driven resident scene ではなく、CPU 側 DrawItem 配列を実行 phase に分配する。
+    void CpuRenderQueue::Build(const std::vector<MESHRENDERER::DrawItem>& items) {
         Clear();
 
         for (const MESHRENDERER::DrawItem& item : items) {
@@ -46,8 +46,8 @@ namespace HIKARI::RENDER3D {
         }
     }
 
-    // 指定 phase の描画アイテムを返す。
-    const std::vector<const MESHRENDERER::DrawItem*>& RenderQueue::GetPhase(RenderPhase phase) const {
+    // 指定 phase の CPU 描画アイテムを返す。
+    const std::vector<const MESHRENDERER::DrawItem*>& CpuRenderQueue::GetPhase(RenderPhase phase) const {
         switch (phase) {
         case RenderPhase::Opaque:
             return opaque_;
@@ -60,8 +60,8 @@ namespace HIKARI::RENDER3D {
         }
     }
 
-    // 指定 phase に実行対象があるかを返す。
-    bool RenderQueue::HasPhase(RenderPhase phase) const {
+    // 指定 phase に CPU 描画対象があるかを返す。
+    bool CpuRenderQueue::HasPhase(RenderPhase phase) const {
         return !GetPhase(phase).empty();
     }
 

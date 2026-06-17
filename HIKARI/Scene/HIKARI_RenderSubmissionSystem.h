@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string_view>
 
+#include "Render3D/GpuDriven/HIKARI_GpuSceneRegistry.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Scene/HIKARI_SceneRenderCacheSync.h"
 #include "Scene/HIKARI_ISystem.h"
 
@@ -15,7 +16,7 @@ namespace HIKARI {
     class Camera3D;
 
     enum class RenderSubmissionRouteMode : uint8_t {
-        SurfacePacketMainline,
+        GpuDrivenMainline,
         ForceLegacy,
     };
 
@@ -29,14 +30,14 @@ namespace HIKARI {
         int missingBoundsCount = 0;
         int skinnedCullSkippedCount = 0;
         int fallbackWireCount = 0;
-        int surfacePacketForwardSkipCount = 0;
-        int surfacePacketShadowSkipCount = 0;
+        int gpuDrivenForwardBypassCount = 0;
+        int gpuDrivenShadowBypassCount = 0;
         int runtimeSpecialModelCount = 0;
         int runtimeSpecialForwardModelCount = 0;
         int runtimeSpecialShadowModelCount = 0;
-        RenderSubmissionRouteMode routeMode = RenderSubmissionRouteMode::SurfacePacketMainline;
-        bool surfacePacketMainRouteActive = false;
-        bool surfacePacketForceLegacyActive = false;
+        RenderSubmissionRouteMode routeMode = RenderSubmissionRouteMode::GpuDrivenMainline;
+        bool gpuDrivenMainRouteActive = false;
+        bool forceLegacyActive = false;
         bool frustumCullingEnabled = false;
     };
 
@@ -55,20 +56,17 @@ namespace HIKARI {
         static const RenderSubmissionDebugStats& GetDebugStats();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
         static const RENDER3D::RUNTIME::SceneRenderCache::Stats& GetSceneRenderCacheStats();
-        static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder();
-        static const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats& GetSurfaceDrawPacketStats();
-        static const RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats& GetSurfaceDrawPacketPlanStats();
+        static const RENDER3D::GPUDRIVEN::GpuSceneRegistryStats& GetGpuSceneRegistryStats();
 
     private:
         static RenderSubmissionDebugStats sDebugStats_;
         static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketBuilder sSurfaceDrawPacketBuilder_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanner sSurfaceDrawPacketPlanner_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanOptions sSurfaceDrawPacketPlanOptions_;
-        static RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats sSurfaceDrawPacketPlanStats_;
+        static RENDER3D::GPUDRIVEN::GpuSceneRegistry sGpuSceneRegistry_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
         static RenderSubmissionRouteMode sRouteMode_;
+        static bool sGpuSceneRegistryValid_;
+        static bool sGpuDrivenSceneSyncInitialized_;
         static const AssetRegistry* sAssetRegistry_;
         static std::filesystem::path sProjectRoot_;
     };

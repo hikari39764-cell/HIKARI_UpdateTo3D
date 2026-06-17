@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -9,6 +10,8 @@
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI {
+
+    class World;
 
     class GameObject {
     public:
@@ -30,6 +33,7 @@ namespace HIKARI {
             ptr->SetOwner(this);
             ptr->OnAttach();
             components_.push_back(std::move(component));
+            MarkRenderStateDirty();
             return ptr;
         }
 
@@ -62,11 +66,24 @@ namespace HIKARI {
 
         const std::vector<std::unique_ptr<IComponent>>& GetComponents() const;
 
+        void MarkRenderStateDirty();
+        void ClearRenderStateDirty();
+        bool IsRenderStateDirty() const;
+        uint64_t GetRenderStateRevision() const;
+        uint64_t GetRenderStableId() const;
+
     private:
+        friend class World;
+
+        void SetOwnerWorld(World* world);
+
         std::string name_;
         SceneObjectId documentId_{};
         Transform3D transform_{};
         std::vector<std::unique_ptr<IComponent>> components_;
+        World* ownerWorld_ = nullptr;
+        uint64_t renderStateRevision_ = 1;
+        bool renderStateDirty_ = true;
         bool active_ = true;
     };
 

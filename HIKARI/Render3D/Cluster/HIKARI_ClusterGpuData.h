@@ -7,7 +7,7 @@
 namespace HIKARI::RENDER3D::CLUSTER {
 
     constexpr uint32_t kClusterGeometryGpuMagic = 0x534c4348u; // HCLS
-    constexpr uint32_t kClusterGeometryGpuVersion = 4u;
+    constexpr uint32_t kClusterGeometryGpuVersion = 8u;
     constexpr uint32_t kClusterGeometryGpuSectionAlignment = 16u;
 
     struct ClusterGeometryGpuHeader {
@@ -38,8 +38,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         uint32_t surfaceLodRangeCount = 0;
         uint32_t surfaceLodRangeOffsetBytes = 0;
-        uint32_t reserved0 = 0;
-        uint32_t reserved1 = 0;
+        uint32_t surfaceSectionCount = 0;
+        uint32_t surfaceSectionOffsetBytes = 0;
 
         MATH::Vec4 localBoundsMin{};
         MATH::Vec4 localBoundsMax{};
@@ -67,8 +67,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t firstLodRange = 0;
 
         uint32_t lodRangeCount = 0;
-        uint32_t reserved2 = 0;
-        uint32_t reserved3 = 0;
+        uint32_t firstSection = 0;
+        uint32_t sectionCount = 0;
         uint32_t reserved4 = 0;
 
         MATH::Vec4 boundsMin{};
@@ -94,7 +94,38 @@ namespace HIKARI::RENDER3D::CLUSTER {
         float geometricError = 0.0f;
         float minScreenRadius = 0.0f;
         uint32_t flags = 0;
+        uint32_t sectionIndex = 0;
+    };
+
+    struct ClusterGeometryGpuSurfaceSection {
+        uint32_t surfaceIndex = 0;
+        uint32_t sectionIndex = 0;
+        uint32_t firstCluster = 0;
+        uint32_t clusterCount = 0;
+
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+        uint32_t firstVertex = 0;
+        uint32_t vertexCount = 0;
+
+        uint32_t firstPage = 0;
+        uint32_t pageCount = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
+        uint32_t firstLodRange = 0;
+        uint32_t lodRangeCount = 0;
+        uint32_t flags = 0;
         uint32_t reserved0 = 0;
+
+        MATH::Vec4 boundsMin{};
+        MATH::Vec4 boundsMax{};
+        MATH::Vec4 lodMetricCenterRadius{};
+
+        float lodErrorBudgetNdc = 0.006f;
+        uint32_t reserved1 = 0;
+        uint32_t reserved2 = 0;
+        uint32_t reserved3 = 0;
     };
 
     struct ClusterGeometryGpuCluster {
@@ -111,6 +142,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         MATH::Vec4 boundsMin{};
         MATH::Vec4 boundsMax{};
         MATH::Vec4 sphereCenterRadius{};
+        MATH::Vec4 coneApex{};
         MATH::Vec4 coneAxisCutoff{};
     };
 
@@ -163,7 +195,38 @@ namespace HIKARI::RENDER3D::CLUSTER {
         float geometricError = 0.0f;
         float minScreenRadius = 0.0f;
         uint32_t flags = 0;
+        uint32_t sectionIndex = 0;
+    };
+
+    struct ClusterGeometrySurfaceSection {
+        uint32_t surfaceIndex = 0;
+        uint32_t sectionIndex = 0;
+        uint32_t firstCluster = 0;
+        uint32_t clusterCount = 0;
+
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+        uint32_t firstVertex = 0;
+        uint32_t vertexCount = 0;
+
+        uint32_t firstPage = 0;
+        uint32_t pageCount = 0;
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
+        uint32_t firstLodRange = 0;
+        uint32_t lodRangeCount = 0;
+        uint32_t flags = 0;
         uint32_t reserved0 = 0;
+
+        MATH::Vec4 boundsMin{};
+        MATH::Vec4 boundsMax{};
+        MATH::Vec4 lodMetricCenterRadius{};
+
+        float lodErrorBudgetNdc = 0.006f;
+        uint32_t reserved1 = 0;
+        uint32_t reserved2 = 0;
+        uint32_t reserved3 = 0;
     };
 
     struct ClusterGeometrySurfaceRange {
@@ -196,7 +259,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
     static_assert((sizeof(ClusterGeometryGpuHeader) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuSurface) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuSurfaceLodRange) % kClusterGeometryGpuSectionAlignment) == 0);
+    static_assert((sizeof(ClusterGeometryGpuSurfaceSection) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometrySurfaceLodRange) % kClusterGeometryGpuSectionAlignment) == 0);
+    static_assert((sizeof(ClusterGeometrySurfaceSection) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuCluster) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuPage) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuVertex) % kClusterGeometryGpuSectionAlignment) == 0);

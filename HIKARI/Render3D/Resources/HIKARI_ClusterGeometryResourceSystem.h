@@ -17,6 +17,7 @@ namespace HIKARI::RENDER3D {
     struct ClusterGeometryGpuLayout {
         uint32_t surfaceCount = 0;
         uint32_t surfaceLodRangeCount = 0;
+        uint32_t surfaceSectionCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t vertexCount = 0;
@@ -26,6 +27,7 @@ namespace HIKARI::RENDER3D {
 
         uint32_t surfaceOffsetBytes = 0;
         uint32_t surfaceLodRangeOffsetBytes = 0;
+        uint32_t surfaceSectionOffsetBytes = 0;
         uint32_t clusterOffsetBytes = 0;
         uint32_t pageOffsetBytes = 0;
         uint32_t vertexOffsetBytes = 0;
@@ -49,6 +51,7 @@ namespace HIKARI::RENDER3D {
         ClusterGeometryGpuLayout layout{};
         std::vector<CLUSTER::ClusterGeometrySurfaceRange> surfaceRanges{};
         std::vector<CLUSTER::ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
+        std::vector<CLUSTER::ClusterGeometrySurfaceSection> surfaceSections{};
         RenderResourceView srv{};
         bool ready = false;
     };
@@ -69,6 +72,7 @@ namespace HIKARI::RENDER3D {
         uint32_t upgradedVirtualHandleCount = 0;
         uint32_t surfaceCount = 0;
         uint32_t surfaceLodRangeCount = 0;
+        uint32_t surfaceSectionCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t vertexCount = 0;

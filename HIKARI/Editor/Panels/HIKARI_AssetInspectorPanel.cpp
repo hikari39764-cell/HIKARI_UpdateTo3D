@@ -77,6 +77,10 @@ namespace HIKARI {
             "IfMissing", "Always", "Never"
         };
 
+        const char* ModelGeometryProfileItems[] = {
+            "Scene", "Character"
+        };
+
         int FindItemIndex(const char* const* items, int count, const std::string& value) {
             for (int i = 0; i < count; ++i) {
                 if (value == items[i]) {
@@ -172,6 +176,81 @@ namespace HIKARI {
                 return true;
             }
             return false;
+        }
+
+        nlohmann::json& EnsureClusterGeometrySettings(nlohmann::json& settings) {
+            if (!settings.contains("clusterGeometry") || !settings["clusterGeometry"].is_object()) {
+                settings["clusterGeometry"] = nlohmann::json::object();
+            }
+            return settings["clusterGeometry"];
+        }
+
+        bool DrawClampedIntSetting(
+            const char* label,
+            nlohmann::json& settings,
+            const char* key,
+            int fallback,
+            int minimum,
+            int maximum) {
+
+            int value = settings.value(key, fallback);
+            if (ImGui::InputInt(label, &value)) {
+                settings[key] = (std::max)(minimum, (std::min)(value, maximum));
+                return true;
+            }
+            return false;
+        }
+
+        bool DrawClampedFloatSetting(
+            const char* label,
+            nlohmann::json& settings,
+            const char* key,
+            float fallback,
+            float minimum,
+            float maximum) {
+
+            float value = settings.value(key, fallback);
+            if (ImGui::InputFloat(label, &value)) {
+                settings[key] = (std::max)(minimum, (std::min)(value, maximum));
+                return true;
+            }
+            return false;
+        }
+
+        bool DrawModelClusterCookSettings(nlohmann::json& settings) {
+            nlohmann::json& cluster = EnsureClusterGeometrySettings(settings);
+            bool dirty = false;
+
+            ImGui::SeparatorText("Cluster Geometry");
+            dirty = DrawBoolSetting("Build HCMESH", cluster, "enabled", true) || dirty;
+
+            int profile = FindItemIndex(
+                ModelGeometryProfileItems,
+                IM_ARRAYSIZE(ModelGeometryProfileItems),
+                cluster.value("profile", std::string("Scene")));
+            if (ImGui::Combo(
+                    "Cook Profile",
+                    &profile,
+                    ModelGeometryProfileItems,
+                    IM_ARRAYSIZE(ModelGeometryProfileItems))) {
+                cluster["profile"] = ModelGeometryProfileItems[profile];
+                cluster["partitionLargeSurfaces"] = true;
+                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
+                dirty = true;
+            }
+
+            const bool characterProfile = profile == 1;
+            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
+            dirty = DrawClampedIntSetting("LOD Count", cluster, "maxLodCount", 5, 1, 5) || dirty;
+            dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.25f, 4.0f) || dirty;
+            dirty = DrawBoolSetting("Partition Large Surfaces", cluster, "partitionLargeSurfaces", true) || dirty;
+            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.50f, 64.0f) || dirty;
+            dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
+
+            if (dirty) {
+                settings["futureMeshFormat"] = "HCMESH";
+            }
+            return dirty;
         }
 
         void DrawPathRow(const char* label, const std::filesystem::path& path) {
@@ -273,7 +352,19 @@ namespace HIKARI {
                 const nlohmann::json& cluster = diagnostics["clusteredGeometry"];
                 ImGui::SeparatorText("HCMESH Diagnostics");
                 ImGui::Text("Ready: %s", cluster.value("ready", false) ? "Yes" : "No");
+                ImGui::Text("Profile: %s", cluster.value("profile", "Scene").c_str());
                 ImGui::Text("Message: %s", cluster.value("message", "").c_str());
+                if (cluster.contains("cookSettings") && cluster["cookSettings"].is_object()) {
+                    const nlohmann::json& cook = cluster["cookSettings"];
+                    ImGui::Text("LOD Count / Partition: %d / %s",
+                        cook.value("maxSurfaceLodCount", 0),
+                        cook.value("partitionLargeStaticSurfaces", false) ? "Yes" : "No");
+                    ImGui::Text("Partition Policy: %s",
+                        cook.value("surfacePartitionPolicy", "SceneStatic").c_str());
+                    ImGui::Text("Partition Extent / Border Lock: %.2f / %s",
+                        cook.value("largeSurfacePartitionMaxExtent", 0.0f),
+                        cook.value("lockPartitionBorders", false) ? "Yes" : "No");
+                }
                 if (cluster.contains("summary") && cluster["summary"].is_object()) {
                     const nlohmann::json& summary = cluster["summary"];
                     ImGui::Text("Surfaces / LOD Ranges / Clusters / Pages: %d / %d / %d / %d",
@@ -618,6 +709,7 @@ namespace HIKARI {
                     dirty = DrawComboSetting("Generate Tangents", settings, "generateTangents", GeneratePolicyItems, IM_ARRAYSIZE(GeneratePolicyItems)) || dirty;
                     dirty = DrawBoolSetting("Load Materials", settings, "loadMaterials", true) || dirty;
                     dirty = DrawBoolSetting("Load Textures", settings, "loadTextures", true) || dirty;
+                    dirty = DrawModelClusterCookSettings(settings) || dirty;
                 } else if (record->type == AssetType::Scene) {
                     dirty = DrawBoolSetting("Cook Scene", settings, "cookScene", false) || dirty;
                     ImGui::TextDisabled("Scene cook is reserved; SceneSerializer JSON remains the runtime source.");

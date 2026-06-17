@@ -64,6 +64,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             bool transform = false;
             bool material = false;
             bool model = false;
+            bool routing = false;
         };
 
         DirtyFlags BuildDirtyFlags(const SceneRenderObjectDesc& oldDesc, const SceneRenderObjectDesc& newDesc) {
@@ -86,9 +87,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 oldDesc.materialFxValuesInitialized != newDesc.materialFxValuesInitialized ||
                 !EqualMaterialFxValues(oldDesc.materialFxParamValues, newDesc.materialFxParamValues);
 
-            flags.any =
-                flags.model ||
-                flags.transform ||
+            flags.routing =
                 flags.material ||
                 oldDesc.visible != newDesc.visible ||
                 oldDesc.isStatic != newDesc.isStatic ||
@@ -97,6 +96,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 oldDesc.hasRuntimeAnimation != newDesc.hasRuntimeAnimation ||
                 oldDesc.hasSpecialRenderDebug != newDesc.hasSpecialRenderDebug ||
                 oldDesc.allowStaticCachedForward != newDesc.allowStaticCachedForward;
+
+            flags.any =
+                flags.model ||
+                flags.transform ||
+                flags.routing;
 
             return flags;
         }
@@ -182,14 +186,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
     void SceneRenderCache::Clear() {
         objects_.clear();
         surfaceInstances_.clear();
+        dirtySurfaceIndices_.clear();
         indexById_.clear();
         frameStats_ = {};
         currentSyncFrame_ = 0;
+        surfaceVersion_ = 0;
+        surfaceRoutingVersion_ = 0;
+        surfaceDataVersion_ = 0;
+        surfaceTopologyDirty_ = true;
+        surfaceRoutingDirty_ = true;
+        surfaceDataDirty_ = true;
     }
 
     void SceneRenderCache::BeginSync(uint64_t frameIndex) {
         currentSyncFrame_ = frameIndex;
         frameStats_ = {};
+        dirtySurfaceIndices_.clear();
     }
 
     void SceneRenderCache::Upsert(const SceneRenderObjectDesc& desc) {
@@ -212,6 +224,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             indexById_[desc.id.value] = objects_.size();
             objects_.push_back(std::move(object));
+            MarkSurfaceTopologyDirty();
             ++frameStats_.insertedCount;
             return;
         }
@@ -228,6 +241,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
             object.materialDirty = dirty.material;
             object.modelDirty = dirty.model;
             ++object.version;
+            if (dirty.model) {
+                MarkSurfaceTopologyDirty();
+            } else {
+                UpdateSurfaceInstancesForObject(found->second);
+                if (dirty.routing) {
+                    MarkSurfaceRoutingDirty();
+                } else {
+                    MarkSurfaceDataDirty();
+                }
+            }
             ++frameStats_.updatedCount;
         } else {
             object.dirty = false;
@@ -241,11 +264,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
         for (size_t i = 0; i < objects_.size();) {
             if (objects_[i].lastTouchedFrame != currentSyncFrame_) {
                 RemoveAt(i);
+                MarkSurfaceTopologyDirty();
                 ++frameStats_.removedCount;
                 continue;
             }
             ++i;
         }
+        RefreshStats();
+    }
+
+    void SceneRenderCache::BeginPatchSync(uint64_t frameIndex) {
+        currentSyncFrame_ = frameIndex;
+        frameStats_ = {};
+        dirtySurfaceIndices_.clear();
+    }
+
+    void SceneRenderCache::EndPatchSync() {
         RefreshStats();
     }
 
@@ -259,7 +293,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
         RemoveAt(found->second);
         ++frameStats_.removedCount;
-        RebuildSurfaceInstances();
+        MarkSurfaceTopologyDirty();
         RefreshStats();
     }
 
@@ -279,13 +313,31 @@ namespace HIKARI::RENDER3D::RUNTIME {
             object.modelDirty = true;
             ++object.version;
         }
-        RebuildSurfaceInstances();
+        MarkSurfaceTopologyDirty();
         RefreshStats();
     }
 
     void SceneRenderCache::PreRenderSync() {
-        // draw packet ではなく scene 上の surface instance だけを展開する。
-        RebuildSurfaceInstances();
+        if (surfaceTopologyDirty_) {
+            RebuildSurfaceInstances();
+            MarkAllSurfaceInstancesDirty();
+            surfaceTopologyDirty_ = false;
+            surfaceRoutingDirty_ = false;
+            surfaceDataDirty_ = false;
+            ++surfaceVersion_;
+            ++surfaceRoutingVersion_;
+            ++surfaceDataVersion_;
+        } else {
+            if (surfaceRoutingDirty_) {
+                ++surfaceRoutingVersion_;
+                ++surfaceDataVersion_;
+                surfaceRoutingDirty_ = false;
+                surfaceDataDirty_ = false;
+            } else if (surfaceDataDirty_) {
+                ++surfaceDataVersion_;
+                surfaceDataDirty_ = false;
+            }
+        }
         RefreshStats();
     }
 
@@ -306,6 +358,22 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     const std::vector<SceneSurfaceInstance>& SceneRenderCache::GetSurfaceInstances() const {
         return surfaceInstances_;
+    }
+
+    const std::vector<uint32_t>& SceneRenderCache::GetDirtySurfaceIndices() const {
+        return dirtySurfaceIndices_;
+    }
+
+    uint64_t SceneRenderCache::GetSurfaceVersion() const {
+        return surfaceVersion_;
+    }
+
+    uint64_t SceneRenderCache::GetSurfaceRoutingVersion() const {
+        return surfaceRoutingVersion_;
+    }
+
+    uint64_t SceneRenderCache::GetSurfaceDataVersion() const {
+        return surfaceDataVersion_;
     }
 
     const SceneRenderCache::Stats& SceneRenderCache::GetStats() const {
@@ -361,6 +429,92 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     }
 
+    void SceneRenderCache::UpdateSurfaceInstancesForObject(size_t objectIndex) {
+        if (surfaceTopologyDirty_ || objectIndex >= objects_.size()) {
+            return;
+        }
+
+        const SceneRenderObject& object = objects_[objectIndex];
+        if (!IsSurfaceSourceUsable(object)) {
+            MarkSurfaceTopologyDirty();
+            return;
+        }
+
+        const RenderModelAsset& renderModel = *object.desc.renderModel;
+        const std::vector<MATH::Mat4> nodeGlobals = BuildRenderModelNodeGlobals(renderModel);
+        uint32_t updatedSurfaceCount = 0;
+        for (size_t surfaceInstanceIndex = 0;
+            surfaceInstanceIndex < surfaceInstances_.size();
+            ++surfaceInstanceIndex) {
+
+            SceneSurfaceInstance& surfaceInstance = surfaceInstances_[surfaceInstanceIndex];
+            if (surfaceInstance.objectIndex != ClampToUint32(objectIndex)) {
+                continue;
+            }
+            if (surfaceInstance.surfaceIndex >= renderModel.surfaces.size()) {
+                MarkSurfaceTopologyDirty();
+                return;
+            }
+
+            surfaceInstance = BuildSurfaceInstance(
+                object,
+                ClampToUint32(objectIndex),
+                renderModel.surfaces[surfaceInstance.surfaceIndex],
+                surfaceInstance.surfaceIndex,
+                nodeGlobals);
+            MarkDirtySurfaceIndex(ClampToUint32(surfaceInstanceIndex));
+            ++updatedSurfaceCount;
+        }
+
+        if (updatedSurfaceCount == 0 && !renderModel.surfaces.empty()) {
+            MarkSurfaceTopologyDirty();
+        }
+    }
+
+    void SceneRenderCache::MarkSurfaceTopologyDirty() {
+        surfaceTopologyDirty_ = true;
+        surfaceRoutingDirty_ = true;
+        surfaceDataDirty_ = true;
+    }
+
+    void SceneRenderCache::MarkSurfaceRoutingDirty() {
+        if (surfaceTopologyDirty_) {
+            return;
+        }
+        surfaceRoutingDirty_ = true;
+        surfaceDataDirty_ = true;
+    }
+
+    void SceneRenderCache::MarkSurfaceDataDirty() {
+        if (surfaceTopologyDirty_ || surfaceRoutingDirty_) {
+            return;
+        }
+        surfaceDataDirty_ = true;
+    }
+
+    void SceneRenderCache::MarkDirtySurfaceIndex(uint32_t surfaceIndex) {
+        if (surfaceIndex >= surfaceInstances_.size()) {
+            return;
+        }
+        if (std::find(
+            dirtySurfaceIndices_.begin(),
+            dirtySurfaceIndices_.end(),
+            surfaceIndex) != dirtySurfaceIndices_.end()) {
+            return;
+        }
+        dirtySurfaceIndices_.push_back(surfaceIndex);
+    }
+
+    void SceneRenderCache::MarkAllSurfaceInstancesDirty() {
+        dirtySurfaceIndices_.clear();
+        dirtySurfaceIndices_.reserve(surfaceInstances_.size());
+        for (uint32_t surfaceIndex = 0;
+            surfaceIndex < surfaceInstances_.size();
+            ++surfaceIndex) {
+            dirtySurfaceIndices_.push_back(surfaceIndex);
+        }
+    }
+
     void SceneRenderCache::RefreshStats() {
         const uint32_t insertedCount = frameStats_.insertedCount;
         const uint32_t updatedCount = frameStats_.updatedCount;
@@ -399,6 +553,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         stats.surfaceInstanceCount = ClampToUint32(surfaceInstances_.size());
+        stats.dirtySurfaceInstanceCount = ClampToUint32(dirtySurfaceIndices_.size());
         for (const SceneSurfaceInstance& instance : surfaceInstances_) {
             if (instance.visible) {
                 ++stats.visibleSurfaceInstanceCount;

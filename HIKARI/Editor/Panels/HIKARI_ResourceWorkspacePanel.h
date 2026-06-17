@@ -18,6 +18,14 @@ namespace HIKARI {
         bool currentSceneDirty = false;
     };
 
+    struct ResourceImportBatchMonitor {
+        int attempted = 0;
+        int succeeded = 0;
+        int failed = 0;
+        bool hasResult = false;
+        std::string label{};
+    };
+
     class ResourceWorkspacePanel {
     public:
         void Draw(
@@ -38,7 +46,9 @@ namespace HIKARI {
         mutable AssetBrowserPanel assetBrowserPanel_{};
         mutable AssetInspectorPanel assetInspectorPanel_{};
         mutable bool showPreviewLog_ = false;
+        mutable bool showInspector_ = false;
         mutable bool refreshCurrentSceneResourcesRequested_ = false;
+        mutable ResourceImportBatchMonitor importMonitor_{};
         mutable AssetBrowserScope activeScope_ = AssetBrowserScope::Project;
     };
 

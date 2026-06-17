@@ -146,6 +146,9 @@ struct PSInput
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
+    // VS/MS 側の TEXCOORD スロットと一致させ、PSO リンク時の再割り当てを避ける。
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
     nointerpolation uint debugClusterId : TEXCOORD6;
     nointerpolation uint debugSurfaceId : TEXCOORD7;
     nointerpolation uint debugLodIndex : TEXCOORD8;

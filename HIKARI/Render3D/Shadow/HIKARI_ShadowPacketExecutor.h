@@ -21,7 +21,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
     struct SurfaceDrawCommand;
 }
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
     class SurfaceIndirectDrawBuffer;
     class SurfaceGpuSceneFrameBuffer;
 }
@@ -49,8 +49,8 @@ namespace HIKARI::SHADOW::PACKET {
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv{};
-        RENDER3D::CORE::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
-        RENDER3D::CORE::SurfaceIndirectDrawBuffer* indirectDrawBuffer = nullptr;
+        RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
+        RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer* indirectDrawBuffer = nullptr;
         ResolveShadowPacketMeshFn resolveStaticMesh = nullptr;
     };
 

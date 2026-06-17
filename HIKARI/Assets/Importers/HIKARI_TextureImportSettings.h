@@ -23,6 +23,8 @@ namespace HIKARI {
         bool sourceHasTranslucentAlpha = false;
         bool sourceHasCutoutAlpha = false;
         float sourceAlphaNonOpaqueRatio = 0.0f;
+        float sourceAlphaTranslucentRatio = 0.0f;
+        float sourceAlphaCutoutRatio = 0.0f;
     };
 
 } // namespace HIKARI

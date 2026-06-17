@@ -98,7 +98,7 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
     output.objectDataIndex = surfaceGpuSceneIndex;
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
     output.debugClusterId = clusterIndex;
-    output.debugSurfaceId = visible.clusterSurfaceIndex;
+    output.debugSurfaceId = visible.clusterSurfaceIndex * 4099u + visible.sectionIndex;
     output.debugLodIndex = visible.lodIndex;
     output.debugDrawBucket = visible.drawBucket;
     return output;
@@ -127,11 +127,19 @@ void main(
 
     ByteAddressBuffer geometry =
         gClusterGeometryPool[NonUniformResourceIndex(safeClusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(geometry);
+    HikariClusterGeometryHeader header = (HikariClusterGeometryHeader)0;
+    header.clusterOffsetBytes = visible.clusterOffsetBytes;
+    header.vertexOffsetBytes = visible.vertexOffsetBytes;
+    header.vertexCount = visible.vertexCount;
+    header.meshletPrimitiveOffsetBytes = visible.meshletPrimitiveOffsetBytes;
+    header.meshletPrimitiveCount = visible.meshletPrimitiveCount;
+    header.clusterCount = visible.geometryClusterCount;
     uint clusterIndex = visible.firstCluster + groupId.x;
     valid =
         valid &&
-        HikariIsValidClusterGeometryHeader(header) &&
+        header.clusterOffsetBytes != 0u &&
+        header.vertexOffsetBytes != 0u &&
+        header.meshletPrimitiveOffsetBytes != 0u &&
         clusterIndex < header.clusterCount;
     uint safeClusterIndex = valid ? clusterIndex : 0u;
 

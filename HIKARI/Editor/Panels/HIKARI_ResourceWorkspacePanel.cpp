@@ -216,6 +216,52 @@ namespace HIKARI {
             ImGui::SetTooltip("Refreshes AssetDatabase and reloads resources used by the current scene.");
         }
         ImGui::SameLine();
+        if (ImGui::SmallButton("Import Outdated")) {
+            const AssetImportBatchResult result = assetDatabase.ImportAllOutdated();
+            assetDatabase.ScanAssets(false);
+            importMonitor_ = ResourceImportBatchMonitor{
+                result.attempted,
+                result.succeeded,
+                result.failed,
+                true,
+                "Outdated assets"
+            };
+        }
+        ImGui::SameLine();
+        if (selectedRecord == nullptr) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::SmallButton("Import Dependencies")) {
+            const AssetImportBatchResult result = assetDatabase.ImportDependencies(selectedRecord->guid, false);
+            assetDatabase.ScanAssets(false);
+            importMonitor_ = ResourceImportBatchMonitor{
+                result.attempted,
+                result.succeeded,
+                result.failed,
+                true,
+                "Selected dependencies"
+            };
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Reimport Selected")) {
+            const bool ok = assetDatabase.ImportAsset(selectedRecord->guid);
+            assetDatabase.ScanAssets(false);
+            importMonitor_ = ResourceImportBatchMonitor{
+                selectedRecord != nullptr ? 1 : 0,
+                ok ? 1 : 0,
+                ok ? 0 : 1,
+                true,
+                "Selected asset"
+            };
+        }
+        if (selectedRecord == nullptr) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton(showInspector_ ? "Hide Inspector" : "Inspector")) {
+            showInspector_ = !showInspector_;
+        }
+        ImGui::SameLine();
         if (EDITOR::EditorIconManager::IconButton(
             EDITOR::EditorIconKind::Settings,
             "ResourceImportLogToggle",
@@ -225,10 +271,25 @@ namespace HIKARI {
             showPreviewLog_ = !showPreviewLog_;
         }
         ImGui::Separator();
+        if (importMonitor_.hasResult) {
+            const float progress = importMonitor_.attempted > 0
+                ? static_cast<float>(importMonitor_.succeeded + importMonitor_.failed) /
+                    static_cast<float>(importMonitor_.attempted)
+                : 1.0f;
+            ImGui::ProgressBar(progress, ImVec2(220.0f, 0.0f));
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "%s: %d attempted, %d ok, %d failed",
+                importMonitor_.label.c_str(),
+                importMonitor_.attempted,
+                importMonitor_.succeeded,
+                importMonitor_.failed);
+            ImGui::Separator();
+        }
 
         const ImVec2 available = ImGui::GetContentRegionAvail();
         const bool wideLayout = available.x >= 980.0f;
-        const bool showInspector = selectedRecord != nullptr;
+        const bool showInspector = showInspector_ && selectedRecord != nullptr;
         const bool canShowBottom = showPreviewLog_ && available.y >= 520.0f;
         const float bottomHeight = canShowBottom
             ? (std::min)(170.0f, (std::max)(112.0f, available.y * 0.22f))

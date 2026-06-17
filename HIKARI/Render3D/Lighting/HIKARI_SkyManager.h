@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "Render3D/HIKARI_SkyAsset.h"
+#include "Render3D/Lighting/HIKARI_SkyAsset.h"
 
 namespace HIKARI {
 

@@ -1,0 +1,105 @@
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
+
+namespace HIKARI::RENDER3D::GPUDRIVEN {
+
+    void GpuDrivenPassSource::Reset() {
+        instances = nullptr;
+        materialSources = nullptr;
+        gpuSceneBaseIndex = 0;
+        gpuSceneInstanceCount = 0;
+        preferredBackend = GpuDrivenBackendKind::TraditionalIndirect;
+        clusterEligible = false;
+        dirtyRanges.clear();
+    }
+
+    bool GpuDrivenPassSource::HasGpuSceneRange() const {
+        return gpuSceneInstanceCount != 0u;
+    }
+
+    bool GpuDrivenPassSource::HasGpuSceneInstances() const {
+        return instances != nullptr && !instances->empty();
+    }
+
+    bool GpuDrivenPassSource::HasDirtyGpuSceneRanges() const {
+        for (const GpuSceneDirtyRange& range : dirtyRanges) {
+            if (range.IsValid()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    GpuDrivenPassBuildInput GpuDrivenPassSource::ToFrameBuildInput() const {
+        GpuDrivenPassBuildInput input{};
+        input.instances = instances;
+        input.gpuSceneBaseIndex = gpuSceneBaseIndex;
+        input.gpuSceneInstanceCount = gpuSceneInstanceCount;
+        input.preferredBackend = preferredBackend;
+        input.clusterEligible = clusterEligible;
+        return input;
+    }
+
+    void GpuDrivenSceneSource::Reset() {
+        for (GpuDrivenPassSource& pass : passes) {
+            pass.Reset();
+        }
+        layoutVersion = 0;
+        sourceVersion = 0;
+        sourceInstanceCount = 0;
+    }
+
+    GpuDrivenPassSource& GpuDrivenSceneSource::GetPass(
+        GpuDrivenPassKind passKind) {
+
+        return passes[ToPassIndex(passKind)];
+    }
+
+    const GpuDrivenPassSource& GpuDrivenSceneSource::GetPass(
+        GpuDrivenPassKind passKind) const {
+
+        return passes[ToPassIndex(passKind)];
+    }
+
+    bool GpuDrivenSceneSource::HasAnyGpuSceneRanges() const {
+        for (const GpuDrivenPassSource& pass : passes) {
+            if (pass.HasGpuSceneRange()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool GpuDrivenSceneSource::HasAnyGpuSceneInstances() const {
+        return HasAnyGpuSceneRanges();
+    }
+
+    bool GpuDrivenSceneSource::HasAnyDirtyGpuSceneRanges() const {
+        for (const GpuDrivenPassSource& pass : passes) {
+            if (pass.HasDirtyGpuSceneRanges()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    size_t GpuDrivenSceneSource::CountGpuSceneInstances() const {
+        size_t count = 0;
+        for (const GpuDrivenPassSource& pass : passes) {
+            if (pass.HasGpuSceneRange()) {
+                count += pass.gpuSceneInstanceCount;
+            }
+        }
+        return count;
+    }
+
+    GpuDrivenFrameBuildInput BuildGpuDrivenFrameInput(
+        const GpuDrivenSceneSource& source) {
+
+        GpuDrivenFrameBuildInput input{};
+        for (size_t i = 0; i < kGpuDrivenPassCount; ++i) {
+            input.passes[i] = source.passes[i].ToFrameBuildInput();
+        }
+        return input;
+    }
+
+} // namespace HIKARI::RENDER3D::GPUDRIVEN

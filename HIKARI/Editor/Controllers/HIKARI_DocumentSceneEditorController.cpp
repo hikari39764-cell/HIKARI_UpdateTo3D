@@ -1077,11 +1077,12 @@ namespace HIKARI {
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
+            // Drop target は viewport image の直後に登録し、後続の overlay item に奪わせない。
+            HandleGameViewportAssetDrop(scene);
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
             DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
             drawViewportFloatingTools();
-            HandleGameViewportAssetDrop(scene);
         } else {
             const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
             ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -1089,11 +1090,12 @@ namespace HIKARI {
             drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
             drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
+            // Dummy が viewport 全体の hit rect になるため、overlay 描画前に drop target にする。
+            HandleGameViewportAssetDrop(scene);
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
             DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
             drawViewportFloatingTools();
-            HandleGameViewportAssetDrop(scene);
         }
 
         if (!viewportDropMessage_.empty()) {

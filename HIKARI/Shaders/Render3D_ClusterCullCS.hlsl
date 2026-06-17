@@ -14,6 +14,13 @@ struct ClusterCullInput
     uint pageCount;
     uint pageTaskBaseIndex;
     uint lodIndex;
+    uint sectionIndex;
+    uint clusterOffsetBytes;
+    uint vertexOffsetBytes;
+    uint vertexCount;
+    uint meshletPrimitiveOffsetBytes;
+    uint meshletPrimitiveCount;
+    uint geometryClusterCount;
 };
 
 struct ClusterCullVisibleRange
@@ -29,7 +36,15 @@ struct ClusterCullVisibleRange
     uint lodIndex;
     uint pageIndex;
     uint drawBucket;
+    uint sectionIndex;
+    uint clusterOffsetBytes;
+    uint vertexOffsetBytes;
+    uint vertexCount;
+    uint meshletPrimitiveOffsetBytes;
+    uint meshletPrimitiveCount;
+    uint geometryClusterCount;
     uint reserved0;
+    uint reserved1;
 };
 
 struct ClusterCullIndirectDrawArgument
@@ -63,6 +78,14 @@ struct ClusterCullPageTask
     uint flags;
     uint pageIndex;
     uint lodIndex;
+    uint sectionIndex;
+    uint clusterOffsetBytes;
+    uint vertexOffsetBytes;
+    uint vertexCount;
+    uint meshletPrimitiveOffsetBytes;
+    uint meshletPrimitiveCount;
+    uint geometryClusterCount;
+    uint reserved0;
     uint reserved1;
     uint reserved2;
     uint reserved3;
@@ -326,6 +349,11 @@ float3 HikariClusterCullTransformNormalAxis(float4x4 world, float3 localAxis)
     return normalize(normalAxis);
 }
 
+float3 HikariClusterCullTransformPoint(float4x4 world, float3 localPoint)
+{
+    return mul(world, float4(localPoint, 1.0f)).xyz;
+}
+
 bool HikariClusterCullConeBackfacing(
     float4x4 world,
     HikariMeshCluster cluster,
@@ -333,10 +361,10 @@ bool HikariClusterCullConeBackfacing(
 {
     float3 localAxis = cluster.coneAxisCutoff.xyz;
     float localAxisLength = length(localAxis);
-    float coneCos = cluster.coneAxisCutoff.w;
+    float coneCutoff = cluster.coneAxisCutoff.w;
     if (localAxisLength <= 0.000001f ||
-        coneCos <= 0.0f ||
-        coneCos > 1.0f)
+        coneCutoff <= 0.0f ||
+        coneCutoff >= 1.0f)
     {
         return false;
     }
@@ -347,22 +375,16 @@ bool HikariClusterCullConeBackfacing(
         return false;
     }
 
-    float3 toCamera = gClusterCullCameraPosition.xyz - worldSphere.xyz;
-    float distanceToCamera = length(toCamera);
-    float radius = max(worldSphere.w, 0.0f);
-    if (distanceToCamera <= radius + 0.0001f)
+    float3 worldApex = HikariClusterCullTransformPoint(world, cluster.coneApex.xyz);
+    float3 view = worldApex - gClusterCullCameraPosition.xyz;
+    float viewLength = length(view);
+    if (viewLength <= 0.0001f)
     {
         return false;
     }
 
-    float3 viewDir = toCamera / distanceToCamera;
-    float sinNormalCone = sqrt(saturate(1.0f - coneCos * coneCos));
-    float sinViewCone = saturate(radius / max(distanceToCamera, 0.0001f));
-    float cosViewCone = sqrt(saturate(1.0f - sinViewCone * sinViewCone));
-    float conservativeCutoff =
-        -(sinNormalCone * cosViewCone + coneCos * sinViewCone);
-
-    return dot(axis, viewDir) <= conservativeCutoff - 0.001f;
+    // meshoptimizer の perspective cone 判定。epsilon は境界のちらつきを抑えるため少し保守的にする。
+    return dot(view / viewLength, axis) >= coneCutoff + 0.001f;
 }
 
 void HikariClusterCullEmitDraw(
@@ -428,7 +450,15 @@ void HikariClusterCullEmitDraw(
     visible.lodIndex = input.lodIndex;
     visible.pageIndex = input.firstPage;
     visible.drawBucket = bucket;
+    visible.sectionIndex = input.sectionIndex;
+    visible.clusterOffsetBytes = input.clusterOffsetBytes;
+    visible.vertexOffsetBytes = input.vertexOffsetBytes;
+    visible.vertexCount = input.vertexCount;
+    visible.meshletPrimitiveOffsetBytes = input.meshletPrimitiveOffsetBytes;
+    visible.meshletPrimitiveCount = input.meshletPrimitiveCount;
+    visible.geometryClusterCount = input.geometryClusterCount;
     visible.reserved0 = 0u;
+    visible.reserved1 = 0u;
     gClusterCullVisibleRanges[visibleIndex] = visible;
 
     ClusterCullIndirectDrawArgument drawArgument;
@@ -586,10 +616,12 @@ bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance
 bool HikariClusterCullLodRangeUsable(
     HikariClusterGeometryHeader header,
     HikariClusterGeometrySurfaceLodRange range,
-    uint surfaceIndex)
+    uint surfaceIndex,
+    uint sectionIndex)
 {
     return
         range.surfaceIndex == surfaceIndex &&
+        range.sectionIndex == sectionIndex &&
         range.clusterCount > 0u &&
         range.indexCount > 0u &&
         range.pageCount > 0u &&
@@ -599,24 +631,59 @@ bool HikariClusterCullLodRangeUsable(
         range.firstPage + range.pageCount <= header.pageCount;
 }
 
-bool HikariClusterCullSelectSurfaceLodRange(
+float4 HikariClusterCullResolveSectionLodWorldSphere(
+    HikariSurfaceGpuSceneInstance instance,
+    HikariClusterGeometrySurfaceSection section,
+    float4 sectionWorldSphere)
+{
+    if (section.lodMetricCenterRadius.w <= 0.000001f)
+    {
+        return sectionWorldSphere;
+    }
+
+    return HikariClusterCullBuildWorldSphere(
+        instance.clusterWorld,
+        section.lodMetricCenterRadius,
+        section.boundsMin,
+        section.boundsMax);
+}
+
+float HikariClusterCullResolveProjectedErrorBudget()
+{
+    return max(gClusterCullLodTargetErrorNdc, 0.0f);
+}
+
+float HikariClusterCullResolveSectionErrorBudget(
+    HikariClusterGeometrySurfaceSection section,
+    HikariClusterGeometrySurfaceLodRange range)
+{
+    float baseBudget = max(section.lodErrorBudgetNdc, HikariClusterCullResolveProjectedErrorBudget());
+    float lodRelax = 1.0f + min((float)range.lodIndex, 4.0f) * 0.50f;
+    return max(baseBudget * lodRelax, 0.0f);
+}
+
+bool HikariClusterCullSelectSectionLodRange(
     ByteAddressBuffer geometry,
     HikariClusterGeometryHeader header,
     HikariSurfaceGpuSceneInstance instance,
+    HikariClusterGeometrySurfaceSection section,
+    float4 sectionWorldSphere,
     out HikariClusterGeometrySurfaceLodRange selectedRange)
 {
     selectedRange = (HikariClusterGeometrySurfaceLodRange)0;
     if ((instance.resourceFlags & HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_LOD_RANGES) == 0u ||
-        instance.clusterLodRangeCount == 0u ||
-        instance.clusterLodRangeIndex >= header.surfaceLodRangeCount)
+        section.lodRangeCount == 0u ||
+        section.firstLodRange >= header.surfaceLodRangeCount)
     {
         return false;
     }
 
-    uint rangeBegin = instance.clusterLodRangeIndex;
-    uint rangeEnd = min(rangeBegin + instance.clusterLodRangeCount, header.surfaceLodRangeCount);
-    float screenRadius = HikariClusterCullProjectedScreenRadius(instance.boundsCenterRadius);
-    float targetProjectedError = max(gClusterCullLodTargetErrorNdc, 0.0f);
+    uint rangeBegin = section.firstLodRange;
+    uint rangeEnd = min(rangeBegin + section.lodRangeCount, header.surfaceLodRangeCount);
+    float4 lodWorldSphere =
+        HikariClusterCullResolveSectionLodWorldSphere(instance, section, sectionWorldSphere);
+    float screenRadius = HikariClusterCullProjectedScreenRadius(lodWorldSphere);
+    float targetProjectedError = HikariClusterCullResolveProjectedErrorBudget();
     bool useProjectedError =
         gClusterCullEnableLodErrorSelection != 0u &&
         targetProjectedError > 0.0f;
@@ -626,7 +693,11 @@ bool HikariClusterCullSelectSurfaceLodRange(
     {
         HikariClusterGeometrySurfaceLodRange range =
             HikariLoadClusterGeometrySurfaceLodRange(geometry, header, rangeIndex);
-        if (!HikariClusterCullLodRangeUsable(header, range, instance.clusterSurfaceIndex))
+        if (!HikariClusterCullLodRangeUsable(
+                header,
+                range,
+                instance.clusterSurfaceIndex,
+                section.sectionIndex))
         {
             continue;
         }
@@ -638,14 +709,16 @@ bool HikariClusterCullSelectSurfaceLodRange(
             continue;
         }
 
-        // 大きな surface は包囲半径だけだと高 LOD に固定されるため、投影誤差でも降段を許可する。
+        // LOD の段階変更は見た目サイズと幾何誤差の両方で決める。
+        // 片方だけで落とすと、高密度キャラクターが遠距離で最終 LOD に張り付きやすい。
+        float transitionRadius = max(selectedRange.minScreenRadius, range.minScreenRadius);
         bool radiusAllowsStepDown =
-            screenRadius < max(selectedRange.minScreenRadius, 0.0f);
+            screenRadius < max(transitionRadius, 0.0f);
         bool errorAllowsStepDown =
-            useProjectedError &&
-            HikariClusterCullProjectedLodError(instance.boundsCenterRadius, range) <=
-                targetProjectedError;
-        if (!radiusAllowsStepDown && !errorAllowsStepDown)
+            !useProjectedError ||
+            HikariClusterCullProjectedLodError(lodWorldSphere, range) <=
+                HikariClusterCullResolveSectionErrorBudget(section, range);
+        if (!radiusAllowsStepDown || !errorAllowsStepDown)
         {
             break;
         }
@@ -677,11 +750,13 @@ void HikariClusterCullRecordSelectedLod(uint lodIndex)
 ClusterCullInput HikariClusterCullBuildInput(
     uint surfaceGpuSceneIndex,
     HikariSurfaceGpuSceneInstance instance,
-    HikariClusterGeometrySurfaceLodRange lodRange)
+    HikariClusterGeometryHeader header,
+    HikariClusterGeometrySurfaceLodRange lodRange,
+    float4 boundsCenterRadius)
 {
     ClusterCullInput input = (ClusterCullInput)0;
     input.clusterWorld = instance.clusterWorld;
-    input.boundsCenterRadius = instance.boundsCenterRadius;
+    input.boundsCenterRadius = boundsCenterRadius;
     input.gpuSceneInstanceIndex = surfaceGpuSceneIndex;
     input.clusterGeometrySrvDescriptorIndex = instance.clusterGeometrySrvDescriptorIndex;
     input.firstCluster = lodRange.firstCluster;
@@ -694,6 +769,13 @@ ClusterCullInput HikariClusterCullBuildInput(
     input.pageCount = lodRange.pageCount;
     input.pageTaskBaseIndex = 0u;
     input.lodIndex = lodRange.lodIndex;
+    input.sectionIndex = lodRange.sectionIndex;
+    input.clusterOffsetBytes = header.clusterOffsetBytes;
+    input.vertexOffsetBytes = header.vertexOffsetBytes;
+    input.vertexCount = header.vertexCount;
+    input.meshletPrimitiveOffsetBytes = header.meshletPrimitiveOffsetBytes;
+    input.meshletPrimitiveCount = header.meshletPrimitiveCount;
+    input.geometryClusterCount = header.clusterCount;
     return input;
 }
 
@@ -885,6 +967,13 @@ ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask tas
     input.pageCount = 1u;
     input.pageTaskBaseIndex = 0u;
     input.lodIndex = task.lodIndex;
+    input.sectionIndex = task.sectionIndex;
+    input.clusterOffsetBytes = task.clusterOffsetBytes;
+    input.vertexOffsetBytes = task.vertexOffsetBytes;
+    input.vertexCount = task.vertexCount;
+    input.meshletPrimitiveOffsetBytes = task.meshletPrimitiveOffsetBytes;
+    input.meshletPrimitiveCount = task.meshletPrimitiveCount;
+    input.geometryClusterCount = task.geometryClusterCount;
     return input;
 }
 
@@ -936,6 +1025,17 @@ void HikariClusterCullEmitPageTasks(
         task.flags = input.flags;
         task.pageIndex = firstPage + pageOffset;
         task.lodIndex = input.lodIndex;
+        task.sectionIndex = input.sectionIndex;
+        task.clusterOffsetBytes = input.clusterOffsetBytes;
+        task.vertexOffsetBytes = input.vertexOffsetBytes;
+        task.vertexCount = input.vertexCount;
+        task.meshletPrimitiveOffsetBytes = input.meshletPrimitiveOffsetBytes;
+        task.meshletPrimitiveCount = input.meshletPrimitiveCount;
+        task.geometryClusterCount = input.geometryClusterCount;
+        task.reserved0 = 0u;
+        task.reserved1 = 0u;
+        task.reserved2 = 0u;
+        task.reserved3 = 0u;
         gClusterCullPageTasks[taskBase + pageOffset] = task;
     }
 }
@@ -989,64 +1089,92 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         HikariLoadClusterGeometrySurface(geometry, header, instance.clusterSurfaceIndex);
     if (surface.clusterCount == 0u ||
         surface.indexCount == 0u ||
-        surface.firstLodRange >= header.surfaceLodRangeCount ||
-        surface.lodRangeCount == 0u)
+        surface.firstSection >= header.surfaceSectionCount ||
+        surface.sectionCount == 0u)
     {
         return;
     }
 
-    HikariClusterGeometrySurfaceLodRange selectedRange;
-    if (!HikariClusterCullSelectSurfaceLodRange(
-            geometry,
-            header,
-            instance,
-            selectedRange))
+    uint sectionBegin = surface.firstSection;
+    uint sectionEnd = min(sectionBegin + surface.sectionCount, header.surfaceSectionCount);
+    for (uint sectionTableIndex = sectionBegin; sectionTableIndex < sectionEnd; ++sectionTableIndex)
     {
-        return;
-    }
-
-    ClusterCullInput input =
-        HikariClusterCullBuildInput(surfaceGpuSceneIndex, instance, selectedRange);
-    if (input.clusterIndexCount == 0u ||
-        input.firstCluster >= header.clusterCount)
-    {
-        return;
-    }
-
-    if (!HikariClusterCullSphereVisible(input.boundsCenterRadius))
-    {
-        if (gClusterCullEnableDebugCounters != 0u)
+        HikariClusterGeometrySurfaceSection section =
+            HikariLoadClusterGeometrySurfaceSection(geometry, header, sectionTableIndex);
+        if (section.surfaceIndex != instance.clusterSurfaceIndex ||
+            section.clusterCount == 0u ||
+            section.indexCount == 0u ||
+            section.firstLodRange >= header.surfaceLodRangeCount ||
+            section.lodRangeCount == 0u)
         {
-            gClusterCullCounters.InterlockedAdd(
-                HIKARI_CLUSTER_CULL_COUNTER_INPUT_FRUSTUM_CULLED_COUNT,
-                1);
+            continue;
         }
-        return;
-    }
 
-    uint inputEndCluster = min(input.firstCluster + input.clusterCount, header.clusterCount);
-    uint firstCluster = input.firstCluster;
-    uint endCluster = inputEndCluster;
-    if (firstCluster >= endCluster)
-    {
-        return;
-    }
+        float4 sectionWorldSphere = HikariClusterCullBuildWorldSphere(
+            instance.clusterWorld,
+            float4(0.0f, 0.0f, 0.0f, 0.0f),
+            section.boundsMin,
+            section.boundsMax);
+        if (!HikariClusterCullSphereVisible(sectionWorldSphere))
+        {
+            if (gClusterCullEnableDebugCounters != 0u)
+            {
+                gClusterCullCounters.InterlockedAdd(
+                    HIKARI_CLUSTER_CULL_COUNTER_INPUT_FRUSTUM_CULLED_COUNT,
+                    1);
+            }
+            continue;
+        }
 
-    uint inputPageEnd = min(input.firstPage + input.pageCount, header.pageCount);
-    uint firstPage = input.firstPage;
-    uint endPage = inputPageEnd;
-    if (firstPage >= endPage)
-    {
-        return;
-    }
+        HikariClusterGeometrySurfaceLodRange selectedRange;
+        if (!HikariClusterCullSelectSectionLodRange(
+                geometry,
+                header,
+                instance,
+                section,
+                sectionWorldSphere,
+                selectedRange))
+        {
+            continue;
+        }
 
-    HikariClusterCullRecordSelectedLod(selectedRange.lodIndex);
-    HikariClusterCullEmitPageTasks(
-        input,
-        firstCluster,
-        endCluster,
-        firstPage,
-        endPage);
+        ClusterCullInput input =
+            HikariClusterCullBuildInput(
+                surfaceGpuSceneIndex,
+                instance,
+                header,
+                selectedRange,
+                sectionWorldSphere);
+        if (input.clusterIndexCount == 0u ||
+            input.firstCluster >= header.clusterCount)
+        {
+            continue;
+        }
+
+        uint inputEndCluster = min(input.firstCluster + input.clusterCount, header.clusterCount);
+        uint firstCluster = input.firstCluster;
+        uint endCluster = inputEndCluster;
+        if (firstCluster >= endCluster)
+        {
+            continue;
+        }
+
+        uint inputPageEnd = min(input.firstPage + input.pageCount, header.pageCount);
+        uint firstPage = input.firstPage;
+        uint endPage = inputPageEnd;
+        if (firstPage >= endPage)
+        {
+            continue;
+        }
+
+        HikariClusterCullRecordSelectedLod(selectedRange.lodIndex);
+        HikariClusterCullEmitPageTasks(
+            input,
+            firstCluster,
+            endCluster,
+            firstPage,
+            endPage);
+    }
 }
 
 [numthreads(1, 1, 1)]

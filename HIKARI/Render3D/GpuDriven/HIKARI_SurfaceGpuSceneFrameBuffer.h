@@ -9,7 +9,7 @@
 
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     constexpr size_t kDefaultSurfaceGpuSceneInstanceCapacity = 8192u;
 
@@ -32,8 +32,13 @@ namespace HIKARI::RENDER3D::CORE {
             size_t capacity = kDefaultSurfaceGpuSceneInstanceCapacity);
 
         void ResetFrame();
+        void ReuseFrame(size_t residentInstanceCount);
         void Upload(const RUNTIME::SurfaceGpuSceneInstance* instances, size_t count);
         void Upload(const std::vector<RUNTIME::SurfaceGpuSceneInstance>& instances);
+        bool UpdateRange(
+            size_t firstInstance,
+            const RUNTIME::SurfaceGpuSceneInstance* instances,
+            size_t count);
         bool PatchMaterialDataIndex(size_t instanceIndex, uint32_t materialDataIndex);
         bool HasMaterialDataIndex(size_t instanceIndex) const;
 
@@ -49,4 +54,4 @@ namespace HIKARI::RENDER3D::CORE {
         SurfaceGpuSceneFrameBufferStats stats_{};
     };
 
-} // namespace HIKARI::RENDER3D::CORE
+} // namespace HIKARI::RENDER3D::GPUDRIVEN

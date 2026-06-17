@@ -160,6 +160,100 @@ namespace HIKARI {
             }
             return ModelImporterKind::Gltf;
         }
+
+        nlohmann::json ReadImportSettings(const AssetRecord& record) {
+            nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
+            return settings.is_object() ? settings : nlohmann::json::object();
+        }
+
+        const nlohmann::json& ClusterGeometrySettingsOrEmpty(const nlohmann::json& settings) {
+            static const nlohmann::json empty = nlohmann::json::object();
+            if (settings.contains("clusterGeometry") && settings["clusterGeometry"].is_object()) {
+                return settings["clusterGeometry"];
+            }
+            return empty;
+        }
+
+        ModelGeometryCookProfile ParseModelGeometryCookProfile(const nlohmann::json& settings) {
+            const nlohmann::json& cluster = ClusterGeometrySettingsOrEmpty(settings);
+            const std::string value = cluster.value(
+                "profile",
+                settings.value("geometryProfile", settings.value("clusterGeometryProfile", "Scene")));
+            if (value == "Character" || value == "character") {
+                return ModelGeometryCookProfile::Character;
+            }
+            return ModelGeometryCookProfile::Scene;
+        }
+
+        bool ReadClusterBool(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            bool fallback) {
+
+            if (cluster.contains(key)) {
+                return cluster.value(key, fallback);
+            }
+            return settings.value(key, fallback);
+        }
+
+        uint32_t ReadClusterUint(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            uint32_t fallback,
+            uint32_t minimum,
+            uint32_t maximum) {
+
+            uint32_t value = fallback;
+            if (cluster.contains(key)) {
+                value = cluster.value(key, fallback);
+            } else {
+                value = settings.value(key, fallback);
+            }
+            return (std::max)(minimum, (std::min)(value, maximum));
+        }
+
+        float ReadClusterFloat(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            float fallback,
+            float minimum,
+            float maximum) {
+
+            float value = fallback;
+            if (cluster.contains(key)) {
+                value = cluster.value(key, fallback);
+            } else {
+                value = settings.value(key, fallback);
+            }
+            return (std::max)(minimum, (std::min)(value, maximum));
+        }
+
+        ModelClusterCookOptions ParseModelClusterCookOptions(const nlohmann::json& settings) {
+            const nlohmann::json& cluster = ClusterGeometrySettingsOrEmpty(settings);
+            ModelClusterCookOptions options{};
+            options.profile = ParseModelGeometryCookProfile(settings);
+            if (options.profile == ModelGeometryCookProfile::Character) {
+                options.largeSurfaceTargetExtent = 1.25f;
+            } else {
+                options.largeSurfaceTargetExtent = 3.0f;
+            }
+            options.buildClusterGeometry = ReadClusterBool(settings, cluster, "enabled", true);
+            options.maxLodCount = ReadClusterUint(settings, cluster, "maxLodCount", options.maxLodCount, 1u, 5u);
+            options.lodQualityBias = ReadClusterFloat(settings, cluster, "lodQualityBias", options.lodQualityBias, 0.25f, 4.0f);
+            options.partitionLargeSurfaces = ReadClusterBool(settings, cluster, "partitionLargeSurfaces", options.partitionLargeSurfaces);
+            options.largeSurfaceTargetExtent = ReadClusterFloat(
+                settings,
+                cluster,
+                "largeSurfaceTargetExtent",
+                options.largeSurfaceTargetExtent,
+                0.50f,
+                64.0f);
+            options.lockPartitionBorders = ReadClusterBool(settings, cluster, "lockPartitionBorders", options.lockPartitionBorders);
+            return options;
+        }
     }
 
     bool AssetRegistryBuilder::AppendToRegistry(const AssetDatabase& assetDatabase, AssetRegistry& registry) const {
@@ -207,6 +301,10 @@ namespace HIKARI {
                     FindArtifactPathByFormat(*record, "ClusteredGeometry", "HCMESH");
                 descriptor->version = record->meta.importerVersion;
                 descriptor->importer = GuessModelImporter(record->sourcePath);
+                const nlohmann::json settings = ReadImportSettings(*record);
+                descriptor->importOptions.loadMaterials = settings.value("loadMaterials", true);
+                descriptor->importOptions.loadTextures = settings.value("loadTextures", true);
+                descriptor->importOptions.clusterGeometry = ParseModelClusterCookOptions(settings);
                 ok = registry.RegisterDescriptor(std::move(descriptor)) && ok;
             } else if (record->type == AssetType::Sky) {
                 auto descriptor = std::make_unique<SkyAssetDescriptor>();

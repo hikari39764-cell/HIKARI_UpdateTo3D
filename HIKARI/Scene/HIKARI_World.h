@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -21,6 +22,12 @@ namespace HIKARI {
         void Clear();
 
         const std::vector<std::unique_ptr<GameObject>>& GetObjects() const;
+        const std::vector<GameObject*>& GetRenderDirtyObjects() const;
+        const std::vector<uint64_t>& GetRemovedRenderObjectIds() const;
+        void MarkRenderObjectDirty(GameObject* object);
+        void MarkRenderObjectRemoved(uint64_t renderObjectId);
+        void AcknowledgeRenderDirtyObjects();
+        void AcknowledgeAllRenderObjects();
 
         template<class T, class Fn>
         void ForEachObjectWith(Fn&& fn) {
@@ -44,6 +51,8 @@ namespace HIKARI {
 
     private:
         std::vector<std::unique_ptr<GameObject>> objects_;
+        std::vector<GameObject*> renderDirtyObjects_{};
+        std::vector<uint64_t> removedRenderObjectIds_{};
     };
 
 } // namespace HIKARI

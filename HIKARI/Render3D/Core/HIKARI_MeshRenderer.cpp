@@ -23,11 +23,11 @@
 #include "Render3D/Core/HIKARI_MeshRendererState.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
-#include "Render3D/Cluster/HIKARI_ClusterMainline.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkReadiness.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
-#include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
@@ -43,16 +43,47 @@ namespace HIKARI::MESHRENDERER {
     namespace {
         MeshRendererState g;
 
-        RENDER3D::CLUSTER::ClusterMainlinePass ToClusterMainlinePass(
+        RENDER3D::GPUDRIVEN::GpuDrivenWorkPass ToGpuDrivenWorkPass(
             MeshDrawPassKind passKind) {
 
             return passKind == MeshDrawPassKind::GeometryAux
-                ? RENDER3D::CLUSTER::ClusterMainlinePass::GeometryAux
-                : RENDER3D::CLUSTER::ClusterMainlinePass::ForwardOpaque;
+                ? RENDER3D::GPUDRIVEN::GpuDrivenWorkPass::GeometryAux
+                : RENDER3D::GPUDRIVEN::GpuDrivenWorkPass::ForwardOpaque;
         }
 
-        RENDER3D::CLUSTER::ClusterMainlinePolicy ResolveOpaqueMainlinePolicy();
+        RENDER3D::GPUDRIVEN::GpuDrivenWorkPolicy ResolveGpuDrivenWorkPolicy();
+        void UpdateClusterDrawDebugStats();
         void UpdateMeshletBackendDebugStats();
+        void UpdateGpuDrivenWorkReadyDebugStats();
+        void BuildGpuDrivenFrameState();
+        void UpdateGpuDrivenWorkOwnershipDebugStats();
+        void BuildGpuDrivenWorkFrame();
+
+        const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& GetSceneSourcePass(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
+
+            return g.gpuDrivenSceneSource.GetPass(passKind);
+        }
+
+        RENDER3D::GPUDRIVEN::GpuDrivenPassSource& GetMutableSceneSourcePass(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
+
+            return g.gpuDrivenSceneSource.GetPass(passKind);
+        }
+
+        uint32_t CountSceneSourceInstances(
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& source) {
+
+            if (source.gpuSceneInstanceCount != 0u) {
+                return source.gpuSceneInstanceCount;
+            }
+            return source.instances != nullptr
+                ? static_cast<uint32_t>(
+                    (std::min)(
+                        source.instances->size(),
+                        static_cast<size_t>(UINT32_MAX)))
+                : 0u;
+        }
 
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
             D3D12_GPU_DESCRIPTOR_HANDLE handle{};
@@ -283,33 +314,106 @@ namespace HIKARI::MESHRENDERER {
             const MeshPassResources& passResources);
 
         void UploadSurfaceGpuSceneFrame() {
-            g.surfaceGpuSceneBuffer.ResetFrame();
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& opaque =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
 
             g.debugStats.surfaceGpuSceneOpaqueInstanceCount =
-                g.surfacePacketOpaqueGpuSceneInstances != nullptr
-                    ? g.surfacePacketOpaqueGpuSceneInstances->size()
-                    : 0;
+                CountSceneSourceInstances(opaque);
             g.debugStats.surfaceGpuSceneDepthAwareInstanceCount =
-                g.surfacePacketDepthAwareGpuSceneInstances != nullptr
-                    ? g.surfacePacketDepthAwareGpuSceneInstances->size()
-                    : 0;
+                CountSceneSourceInstances(depthAware);
             g.debugStats.surfaceGpuSceneTransparentInstanceCount =
-                g.surfacePacketTransparentGpuSceneInstances != nullptr
-                    ? g.surfacePacketTransparentGpuSceneInstances->size()
-                    : 0;
+                CountSceneSourceInstances(transparent);
 
-            if (g.surfacePacketOpaqueGpuSceneInstances != nullptr) {
-                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketOpaqueGpuSceneInstances);
-            }
-            if (g.surfacePacketDepthAwareGpuSceneInstances != nullptr) {
-                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketDepthAwareGpuSceneInstances);
-            }
-            if (g.surfacePacketTransparentGpuSceneInstances != nullptr) {
-                g.surfaceGpuSceneBuffer.Upload(*g.surfacePacketTransparentGpuSceneInstances);
+            const auto uploadFullScene = [&]() {
+                g.surfaceGpuSceneBuffer.ResetFrame();
+                if (opaque.HasGpuSceneInstances()) {
+                    g.surfaceGpuSceneBuffer.Upload(*opaque.instances);
+                }
+                if (depthAware.HasGpuSceneInstances()) {
+                    g.surfaceGpuSceneBuffer.Upload(*depthAware.instances);
+                }
+                if (transparent.HasGpuSceneInstances()) {
+                    g.surfaceGpuSceneBuffer.Upload(*transparent.instances);
+                }
+            };
+
+            const auto patchDirtyPass =
+                [&](const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass) -> bool {
+
+                if (!pass.HasDirtyGpuSceneRanges()) {
+                    return true;
+                }
+                if (pass.instances == nullptr) {
+                    return false;
+                }
+                for (const RENDER3D::GPUDRIVEN::GpuSceneDirtyRange& range : pass.dirtyRanges) {
+                    if (!range.IsValid()) {
+                        continue;
+                    }
+                    const size_t localBegin = range.firstInstance;
+                    const size_t localCount = range.instanceCount;
+                    if (localBegin >= pass.instances->size() ||
+                        localCount > pass.instances->size() - localBegin) {
+                        return false;
+                    }
+                    if (!g.surfaceGpuSceneBuffer.UpdateRange(
+                        static_cast<size_t>(pass.gpuSceneBaseIndex) + localBegin,
+                        pass.instances->data() + localBegin,
+                        localCount)) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const uint64_t layoutVersion = g.gpuDrivenSceneSource.layoutVersion;
+            const uint64_t sourceVersion = g.gpuDrivenSceneSource.sourceVersion;
+            const size_t sourceInstanceCount =
+                g.gpuDrivenSceneSource.sourceInstanceCount != 0
+                    ? g.gpuDrivenSceneSource.sourceInstanceCount
+                    : g.gpuDrivenSceneSource.CountGpuSceneInstances();
+            const bool residentLayoutMatches =
+                g.gpuDrivenSceneResident &&
+                g.gpuDrivenResidentSceneLayoutVersion == layoutVersion &&
+                g.gpuDrivenResidentSceneInstanceCount == sourceInstanceCount;
+
+            if (sourceInstanceCount == 0) {
+                g.surfaceGpuSceneBuffer.ResetFrame();
+                g.gpuDrivenSceneResident = false;
+                g.gpuDrivenResidentSceneLayoutVersion = 0;
+                g.gpuDrivenResidentSceneDataVersion = 0;
+                g.gpuDrivenResidentSceneInstanceCount = 0;
+            } else if (residentLayoutMatches) {
+                g.surfaceGpuSceneBuffer.ReuseFrame(sourceInstanceCount);
+                if (g.gpuDrivenResidentSceneDataVersion != sourceVersion) {
+                    const bool patched =
+                        g.gpuDrivenSceneSource.HasAnyDirtyGpuSceneRanges() &&
+                        patchDirtyPass(opaque) &&
+                        patchDirtyPass(depthAware) &&
+                        patchDirtyPass(transparent);
+                    if (!patched) {
+                        uploadFullScene();
+                    }
+                }
+            } else {
+                uploadFullScene();
             }
 
-            const RENDER3D::CORE::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
+            const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
                 g.surfaceGpuSceneBuffer.GetStats();
+            g.gpuDrivenSceneResident =
+                sourceInstanceCount != 0 &&
+                gpuSceneStats.overflowInstanceCount == 0 &&
+                gpuSceneStats.uploadedInstanceCount == sourceInstanceCount;
+            if (g.gpuDrivenSceneResident) {
+                g.gpuDrivenResidentSceneLayoutVersion = layoutVersion;
+                g.gpuDrivenResidentSceneDataVersion = sourceVersion;
+                g.gpuDrivenResidentSceneInstanceCount = sourceInstanceCount;
+            }
             g.debugStats.surfaceGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.surfaceGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
             g.debugStats.surfaceGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
@@ -320,87 +424,40 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void PrepareSurfaceGpuSceneMaterialFrame() {
-            if (g.surfacePacketBuilder == nullptr) {
-                return;
-            }
-
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                g.surfacePacketBuilder->GetPackets();
             MeshDrawContext drawCtx = BuildDrawContext(false, MeshDrawPassKind::Forward, {});
-            drawCtx.surfaceGpuSceneBaseOffset = 0;
-            if (g.surfacePacketOpaqueExecutionIndices != nullptr &&
-                g.surfacePacketOpaqueExecutionCommands != nullptr) {
-                PrepareSurfacePacketGpuSceneMaterials(
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& opaque =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            drawCtx.surfaceGpuSceneBaseOffset = opaque.gpuSceneBaseIndex;
+            if (opaque.materialSources != nullptr && !opaque.materialSources->empty()) {
+                PrepareSurfaceGpuSceneMaterialSources(
                     drawCtx,
-                    packets.data(),
-                    packets.size(),
-                    g.surfacePacketOpaqueExecutionIndices->data(),
-                    g.surfacePacketOpaqueExecutionIndices->size(),
-                    g.surfacePacketOpaqueExecutionCommands->data(),
-                    g.surfacePacketOpaqueExecutionCommands->size());
+                    opaque.materialSources->data(),
+                    opaque.materialSources->size());
             }
 
-            drawCtx.surfaceGpuSceneBaseOffset = g.debugStats.surfaceGpuSceneOpaqueInstanceCount;
-            if (g.surfacePacketDepthAwareExecutionIndices != nullptr &&
-                g.surfacePacketDepthAwareExecutionCommands != nullptr) {
-                PrepareSurfacePacketGpuSceneMaterials(
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
+            drawCtx.surfaceGpuSceneBaseOffset = depthAware.gpuSceneBaseIndex;
+            if (depthAware.materialSources != nullptr && !depthAware.materialSources->empty()) {
+                PrepareSurfaceGpuSceneMaterialSources(
                     drawCtx,
-                    packets.data(),
-                    packets.size(),
-                    g.surfacePacketDepthAwareExecutionIndices->data(),
-                    g.surfacePacketDepthAwareExecutionIndices->size(),
-                    g.surfacePacketDepthAwareExecutionCommands->data(),
-                    g.surfacePacketDepthAwareExecutionCommands->size());
+                    depthAware.materialSources->data(),
+                    depthAware.materialSources->size());
             }
 
-            drawCtx.surfaceGpuSceneBaseOffset =
-                g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
-                g.debugStats.surfaceGpuSceneDepthAwareInstanceCount;
-            if (g.surfacePacketTransparentExecutionIndices != nullptr &&
-                g.surfacePacketTransparentExecutionCommands != nullptr) {
-                PrepareSurfacePacketGpuSceneMaterials(
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
+            drawCtx.surfaceGpuSceneBaseOffset = transparent.gpuSceneBaseIndex;
+            if (transparent.materialSources != nullptr && !transparent.materialSources->empty()) {
+                PrepareSurfaceGpuSceneMaterialSources(
                     drawCtx,
-                    packets.data(),
-                    packets.size(),
-                    g.surfacePacketTransparentExecutionIndices->data(),
-                    g.surfacePacketTransparentExecutionIndices->size(),
-                    g.surfacePacketTransparentExecutionCommands->data(),
-                    g.surfacePacketTransparentExecutionCommands->size());
+                    transparent.materialSources->data(),
+                    transparent.materialSources->size());
             }
         }
 
-        void UploadSurfaceIndirectDrawFrame() {
-            g.surfaceIndirectDrawBuffer.ResetFrame();
-
-            if (g.surfacePacketOpaqueExecutionCommands != nullptr) {
-                const RENDER3D::CLUSTER::ClusterMainlineCommandContext clusterFilter{
-                    ResolveOpaqueMainlinePolicy(),
-                    &g.staticOpaqueClusterMainlineFrame,
-                    true,
-                    ToClusterMainlinePass(MeshDrawPassKind::Forward),
-                    g.surfacePacketOpaqueGpuSceneInstances,
-                    &g.surfaceGpuSceneBuffer,
-                    0u
-                };
-                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                    *g.surfacePacketOpaqueExecutionCommands,
-                    0u,
-                    RENDER3D::CLUSTER::ShouldUploadSurfaceIndirectCommand,
-                    &clusterFilter);
-            }
-            if (g.surfacePacketDepthAwareExecutionCommands != nullptr) {
-                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                    *g.surfacePacketDepthAwareExecutionCommands,
-                    static_cast<uint32_t>(g.debugStats.surfaceGpuSceneOpaqueInstanceCount));
-            }
-            if (g.surfacePacketTransparentExecutionCommands != nullptr) {
-                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                    *g.surfacePacketTransparentExecutionCommands,
-                    static_cast<uint32_t>(
-                        g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
-                        g.debugStats.surfaceGpuSceneDepthAwareInstanceCount));
-            }
-            const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
+        void UpdateSurfaceIndirectDrawStats() {
+            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.surfaceIndirectDrawBuffer.GetStats();
             g.debugStats.surfaceIndirectCommandCapacity = indirectStats.capacity;
             g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
@@ -416,36 +473,77 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
         }
 
-        void DispatchClusterGpuCullingFrame() {
-            std::vector<RENDER3D::CLUSTER::ClusterGpuCullingSourceRange> ranges{};
+        void UpdateGpuDrivenWorklistDebugStats() {
+            g.debugStats.gpuDrivenWorklistPassCount =
+                g.gpuDrivenFrame.CountActivePasses();
+            g.debugStats.gpuDrivenWorklistClusterPassCount =
+                g.gpuDrivenFrame.CountClusterEligiblePasses();
+            g.debugStats.gpuDrivenWorklistSourceInstanceCount =
+                g.gpuDrivenFrame.CountSourceInstances();
+            g.debugStats.gpuDrivenWorklistClusterInstanceCount =
+                g.gpuDrivenFrame.CountClusterEligibleInstances();
+        }
 
-            if (g.surfacePacketOpaqueGpuSceneInstances != nullptr &&
-                !g.surfacePacketOpaqueGpuSceneInstances->empty()) {
-                const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances =
-                    *g.surfacePacketOpaqueGpuSceneInstances;
-                uint32_t singleSidedInstanceCount = 0;
-                uint32_t doubleSidedInstanceCount = 0;
-                constexpr uint32_t doubleSidedFlag =
-                    static_cast<uint32_t>(
-                        RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::DoubleSided);
-                for (const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance : instances) {
-                    if ((instance.flags & doubleSidedFlag) != 0u) {
-                        ++doubleSidedInstanceCount;
-                    }
-                    else {
-                        ++singleSidedInstanceCount;
-                    }
-                }
-                // Cluster cull は CPU command ではなく、opaque GPU scene の instance range を入口にする。
-                ranges.push_back({
-                    0u,
-                    static_cast<uint32_t>(instances.size()),
-                    RENDER3D::CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque,
-                    singleSidedInstanceCount,
-                    doubleSidedInstanceCount
-                });
+        void UploadSurfaceIndirectDrawFrame() {
+            // GPU-driven 主線では draw args を GPU 側の work frame から生成する。
+            // 旧 SurfaceDrawCommand の CPU upload は legacy handoff 側だけに閉じ込める。
+            g.surfaceIndirectDrawBuffer.ResetFrame();
+            UpdateSurfaceIndirectDrawStats();
+        }
+
+        void BuildGpuDrivenFrameState() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenFrameBuildInput input =
+                RENDER3D::GPUDRIVEN::BuildGpuDrivenFrameInput(
+                    g.gpuDrivenSceneSource);
+            g.gpuDrivenFrame =
+                RENDER3D::GPUDRIVEN::BuildGpuDrivenFrame(input);
+            UpdateGpuDrivenWorklistDebugStats();
+        }
+
+        void ResetGpuDrivenFrameState() {
+            UploadSurfaceGpuSceneFrame();
+            g.gpuDrivenFrame.Reset();
+            UpdateGpuDrivenWorklistDebugStats();
+            g.clusterGpuCullingPass.BeginFrame(false);
+            g.clusterDrawExecutor.ResetFrame();
+            UpdateClusterDrawDebugStats();
+            g.meshletRenderBackend.ResetFrame();
+            UpdateMeshletBackendDebugStats();
+            UpdateGpuDrivenWorkReadyDebugStats();
+            UpdateGpuDrivenWorkOwnershipDebugStats();
+            g.surfaceIndirectDrawBuffer.ResetFrame();
+            UpdateSurfaceIndirectDrawStats();
+        }
+
+        void PrepareGpuDrivenFrameState() {
+            UploadSurfaceGpuSceneFrame();
+            if (!g.gpuDrivenSceneResident) {
+                g.gpuDrivenFrame.Reset();
+                UpdateGpuDrivenWorklistDebugStats();
+                g.clusterGpuCullingPass.BeginFrame(false);
+                g.clusterDrawExecutor.ResetFrame();
+                UpdateClusterDrawDebugStats();
+                g.meshletRenderBackend.ResetFrame();
+                UpdateMeshletBackendDebugStats();
+                UpdateGpuDrivenWorkReadyDebugStats();
+                UpdateGpuDrivenWorkOwnershipDebugStats();
+                g.surfaceIndirectDrawBuffer.ResetFrame();
+                UpdateSurfaceIndirectDrawStats();
+                return;
             }
+            PrepareSurfaceGpuSceneMaterialFrame();
+            BuildGpuDrivenFrameState();
+            BuildGpuDrivenWorkFrame();
+            g.clusterDrawExecutor.ResetFrame();
+            UpdateClusterDrawDebugStats();
+            g.meshletRenderBackend.ResetFrame();
+            UpdateMeshletBackendDebugStats();
+            UpdateGpuDrivenWorkReadyDebugStats();
+            UpdateGpuDrivenWorkOwnershipDebugStats();
+            UploadSurfaceIndirectDrawFrame();
+        }
 
+        void BuildGpuDrivenWorkFrame() {
             const MATH::Mat4 viewProj =
                 g.cameraMapped != nullptr ? g.cameraMapped->viewProj : MATH::Mat4::Identity();
             const MATH::Vec3 cameraPosition =
@@ -461,17 +559,22 @@ namespace HIKARI::MESHRENDERER {
                 ID3D12DescriptorHeap* heaps[] = { srvHeap };
                 SERVICES::gCtx.cmdList->SetDescriptorHeaps(1, heaps);
             }
-            g.clusterGpuCullingPass.Dispatch(
-                SERVICES::gCtx.cmdList,
-                viewProj,
-                cameraPosition,
-                ResolveClusterGeometryPoolSrv(),
-                g.surfaceGpuSceneBuffer.GetGpuVirtualAddress(),
-                ranges.empty() ? nullptr : ranges.data(),
-                ranges.size());
+            RENDER3D::GPUDRIVEN::GpuDrivenClusterWorkContext workContext{};
+            workContext.cullingPass = &g.clusterGpuCullingPass;
+            workContext.commandList = SERVICES::gCtx.cmdList;
+            workContext.viewProj = viewProj;
+            workContext.cameraPosition = cameraPosition;
+            workContext.clusterGeometryPoolSrv = ResolveClusterGeometryPoolSrv();
+            workContext.surfaceGpuSceneGpuAddress =
+                g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
+            workContext.frame = &g.gpuDrivenFrame;
+            const RENDER3D::GPUDRIVEN::GpuDrivenClusterWorkResult workResult =
+                RENDER3D::GPUDRIVEN::BuildGpuDrivenClusterWork(workContext);
 
             const RENDER3D::CLUSTER::ClusterGpuCullingPassStats& clusterCullStats =
-                g.clusterGpuCullingPass.GetStats();
+                workResult.stats != nullptr
+                    ? *workResult.stats
+                    : g.clusterGpuCullingPass.GetStats();
             g.debugStats.clusterGpuCullReady =
                 clusterCullStats.initialized &&
                 clusterCullStats.psoReady &&
@@ -485,10 +588,6 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.drawCommandSignatureReady;
             g.debugStats.clusterGpuCullSourceInstanceCount =
                 clusterCullStats.sourceInstanceCount;
-            g.debugStats.clusterGpuCullSourceSingleSidedInstanceCount =
-                clusterCullStats.sourceSingleSidedInstanceCount;
-            g.debugStats.clusterGpuCullSourceDoubleSidedInstanceCount =
-                clusterCullStats.sourceDoubleSidedInstanceCount;
             g.debugStats.clusterGpuCullCandidateInstanceCount =
                 clusterCullStats.candidateInstanceCount;
             g.debugStats.clusterGpuCullSubmittedInstanceCount =
@@ -661,8 +760,8 @@ namespace HIKARI::MESHRENDERER {
                 meshletStats.pipelineCreateReadyCount;
         }
 
-        RENDER3D::CLUSTER::ClusterMainlineSignals BuildClusterMainlineSignals() {
-            RENDER3D::CLUSTER::ClusterMainlineSignals signals{};
+        RENDER3D::GPUDRIVEN::GpuDrivenWorkSignals BuildGpuDrivenWorkSignals() {
+            RENDER3D::GPUDRIVEN::GpuDrivenWorkSignals signals{};
             const bool meshletDispatchReady =
                 g.debugStats.meshletBackendDispatchArgumentBufferReady &&
                 g.debugStats.meshletBackendDispatchCommandSignatureReady;
@@ -699,15 +798,15 @@ namespace HIKARI::MESHRENDERER {
             return signals;
         }
 
-        RENDER3D::CLUSTER::ClusterMainlinePolicy ResolveOpaqueMainlinePolicy() {
-            return RENDER3D::CLUSTER::ResolveClusterMainlinePolicy(
-                BuildClusterMainlineSignals());
+        RENDER3D::GPUDRIVEN::GpuDrivenWorkPolicy ResolveGpuDrivenWorkPolicy() {
+            return RENDER3D::GPUDRIVEN::ResolveGpuDrivenWorkPolicy(
+                BuildGpuDrivenWorkSignals());
         }
 
-        void UpdateClusterMainlineDebugStats() {
-            const RENDER3D::CLUSTER::ClusterMainlineState state =
-                RENDER3D::CLUSTER::ResolveClusterMainlineState(
-                    BuildClusterMainlineSignals());
+        void UpdateGpuDrivenWorkReadyDebugStats() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenWorkReadiness state =
+                RENDER3D::GPUDRIVEN::ResolveGpuDrivenWorkReadiness(
+                    BuildGpuDrivenWorkSignals());
             g.debugStats.clusterMainlineReady = state.forwardReady;
             g.debugStats.clusterMainlineForwardReady = state.forwardReady;
             g.debugStats.clusterMainlineGeometryAuxReady = state.geometryAuxReady;
@@ -715,17 +814,8 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterMainlineOverflowBlocked = state.overflowBlocked;
         }
 
-        void BuildStaticOpaqueClusterMainlineFrame() {
-            RENDER3D::CLUSTER::BuildStaticOpaqueFrame(
-                ResolveOpaqueMainlinePolicy(),
-                g.surfacePacketOpaqueGpuSceneInstances,
-                &g.surfaceGpuSceneBuffer,
-                0u,
-                g.staticOpaqueClusterMainlineFrame);
-        }
-
-        void ApplyClusterMainlineOwnershipDebugStats(
-            const RENDER3D::CLUSTER::ClusterMainlineOwnershipStats& stats) {
+        void ApplyGpuDrivenWorkOwnershipDebugStats(
+            const RENDER3D::GPUDRIVEN::GpuDrivenWorkOwnershipStats& stats) {
 
             g.debugStats.clusterMainlineOwnedCommandCount = stats.ownedCommandCount;
             g.debugStats.clusterMainlineOwnedPacketCount = stats.ownedPacketCount;
@@ -748,27 +838,30 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterDrawRejectMaterialPatchCommandCount = stats.rejectMaterialPatchCommandCount;
         }
 
-        void UpdateOpaqueMainlineOwnershipDebugStats() {
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* commands =
-                g.surfacePacketOpaqueExecutionCommands;
-            const RENDER3D::CLUSTER::ClusterMainlineOwnershipStats stats =
-                RENDER3D::CLUSTER::BuildOpaqueOwnershipStats(
-                    g.staticOpaqueClusterMainlineFrame,
-                    commands != nullptr ? commands->data() : nullptr,
-                    commands != nullptr ? commands->size() : 0u);
-            ApplyClusterMainlineOwnershipDebugStats(stats);
+        void UpdateGpuDrivenWorkOwnershipDebugStats() {
+            RENDER3D::GPUDRIVEN::GpuDrivenWorkOwnershipStats stats{};
+            if (ResolveGpuDrivenWorkPolicy().OwnsForwardOpaque()) {
+                // GPU 主導ルートでは CPU 側で per-surface 所有 mask を作らない。
+                // ここではレガシー抑止の概算だけを表示し、実際の可視性/LOD は GPU counter に任せる。
+                stats.ownedCommandCount = g.debugStats.clusterGpuCullSubmittedInstanceCount;
+                stats.ownedPacketCount = g.debugStats.clusterGpuCullSubmittedInstanceCount;
+                stats.eligibleCommandCount = stats.ownedCommandCount;
+                stats.bypassedLegacyCommandCount = stats.ownedCommandCount;
+                stats.bypassedLegacyPacketCount = stats.ownedPacketCount;
+            }
+            ApplyGpuDrivenWorkOwnershipDebugStats(stats);
         }
 
-        bool IsClusterMainlinePreparedForPass(MeshDrawPassKind passKind) {
-            return ResolveOpaqueMainlinePolicy().OwnsPass(
-                ToClusterMainlinePass(passKind));
+        bool IsGpuDrivenWorkPreparedForPass(MeshDrawPassKind passKind) {
+            return ResolveGpuDrivenWorkPolicy().OwnsPass(
+                ToGpuDrivenWorkPass(passKind));
         }
 
         bool ExecuteClusterDrawFrame(
             const MeshPassResources& passResources,
             MeshDrawPassKind passKind,
             RENDER3D::CLUSTER::ClusterDrawPipelineKind pipelineKind) {
-            if (!IsClusterMainlinePreparedForPass(passKind)) {
+            if (!IsGpuDrivenWorkPreparedForPass(passKind)) {
                 return false;
             }
 
@@ -783,7 +876,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.pipelineKind = pipelineKind;
             const bool executed = g.clusterDrawExecutor.Execute(ctx);
             UpdateClusterDrawDebugStats();
-            UpdateClusterMainlineDebugStats();
+            UpdateGpuDrivenWorkReadyDebugStats();
             return executed;
         }
 
@@ -791,7 +884,7 @@ namespace HIKARI::MESHRENDERER {
             const MeshPassResources& passResources,
             MeshDrawPassKind passKind,
             RENDER3D::MESHLET::MeshletPipelineKind pipelineKind) {
-            if (!IsClusterMainlinePreparedForPass(passKind)) {
+            if (!IsGpuDrivenWorkPreparedForPass(passKind)) {
                 return false;
             }
 
@@ -815,7 +908,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.pipelineKind = pipelineKind;
             const bool executed = g.meshletRenderBackend.Execute(ctx);
             UpdateMeshletBackendDebugStats();
-            UpdateClusterMainlineDebugStats();
+            UpdateGpuDrivenWorkReadyDebugStats();
             return executed;
         }
 
@@ -905,242 +998,27 @@ namespace HIKARI::MESHRENDERER {
             return ctx;
         }
 
-        enum class SurfacePacketExecutionKind {
-            Opaque,
-            DepthAware,
-            Transparent,
-        };
-
-        bool HasSurfacePacketExecutionPlan(
-            const std::vector<uint32_t>* executableIndices,
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands) {
-            return
-                g.surfacePacketBuilder != nullptr &&
-                executableIndices != nullptr &&
-                executableCommands != nullptr &&
-                !executableIndices->empty() &&
-                !executableCommands->empty();
+        bool HasGpuDrivenSceneSource() {
+            return g.gpuDrivenSceneSource.HasAnyGpuSceneRanges();
         }
 
-        bool HasSurfacePacketOpaqueExecutionPlan() {
-            return HasSurfacePacketExecutionPlan(
-                g.surfacePacketOpaqueExecutionIndices,
-                g.surfacePacketOpaqueExecutionCommands);
-        }
-
-        bool HasSurfacePacketTransparentExecutionPlan() {
-            return HasSurfacePacketExecutionPlan(
-                g.surfacePacketTransparentExecutionIndices,
-                g.surfacePacketTransparentExecutionCommands);
-        }
-
-        bool HasSurfacePacketDepthAwareExecutionPlan() {
-            return HasSurfacePacketExecutionPlan(
-                g.surfacePacketDepthAwareExecutionIndices,
-                g.surfacePacketDepthAwareExecutionCommands);
-        }
-
-        bool HasAnySurfacePacketExecutionPlan() {
-            return HasSurfacePacketOpaqueExecutionPlan() ||
-                HasSurfacePacketDepthAwareExecutionPlan() ||
-                HasSurfacePacketTransparentExecutionPlan();
-        }
-
-        void RecordSurfacePacketExecutorCommandStats(
-            SurfacePacketExecutionKind executionKind,
-            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
-
-            ++g.debugStats.surfacePacketExecutorCommandCount;
-            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
-                ++g.debugStats.surfacePacketExecutorDepthAwareCommandCount;
-            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                ++g.debugStats.surfacePacketExecutorTransparentCommandCount;
-            } else {
-                ++g.debugStats.surfacePacketExecutorOpaqueCommandCount;
-            }
-            if (command.singlePacket) {
-                ++g.debugStats.surfacePacketExecutorSinglePacketCommandCount;
-            } else {
-                ++g.debugStats.surfacePacketExecutorMergedCommandCount;
-                if (command.packetCount > 1) {
-                    g.debugStats.surfacePacketExecutorSavedCommandCount +=
-                        static_cast<size_t>(command.packetCount - 1);
-                }
-            }
-            if (command.drawArgsValid) {
-                ++g.debugStats.surfacePacketExecutorIndirectReadyCommandCount;
-            } else {
-                ++g.debugStats.surfacePacketExecutorMissingDrawArgsCommandCount;
-            }
-            g.debugStats.surfacePacketExecutorMaxCommandPacketCount =
-                (std::max)(
-                    g.debugStats.surfacePacketExecutorMaxCommandPacketCount,
-                    static_cast<size_t>(command.packetCount));
-        }
-
-        void RecordSurfacePacketExecutorDrawStats(
-            SurfacePacketExecutionKind executionKind,
-            MeshDrawPassKind passKind,
-            const SurfacePacketCommandDrawResult& result) {
-
-            g.debugStats.surfacePacketExecutorPacketCount += result.submittedPacketCount;
-            g.debugStats.surfacePacketExecutorSkippedPacketCount += result.skippedPacketCount;
-            if (passKind == MeshDrawPassKind::GeometryAux) {
-                g.debugStats.surfacePacketExecutorGeometryDrawCount += result.drawCallCount;
-            } else {
-                g.debugStats.surfacePacketExecutorForwardDrawCount += result.drawCallCount;
-                if (executionKind == SurfacePacketExecutionKind::DepthAware) {
-                    g.debugStats.surfacePacketExecutorDepthAwareDrawCount += result.drawCallCount;
-                } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                    g.debugStats.surfacePacketExecutorTransparentDrawCount += result.drawCallCount;
-                } else {
-                    g.debugStats.surfacePacketExecutorOpaqueDrawCount += result.drawCallCount;
-                }
-            }
-            g.debugStats.surfacePacketExecutorInstancedDrawCount += result.instancedDrawCount;
-            g.debugStats.surfacePacketExecutorInstancedPacketCount += result.instancedPacketCount;
-            g.debugStats.surfacePacketExecutorMaxInstanceCount =
-                (std::max)(
-                    g.debugStats.surfacePacketExecutorMaxInstanceCount,
-                    result.maxInstanceCount);
-        }
-
-        bool RenderSurfacePacketPlan(
-            SurfacePacketExecutionKind executionKind,
+        bool RenderGpuDrivenFallbackCommands(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind sourcePassKind,
             MeshDrawPassKind passKind,
             size_t& objectIndex,
             const MeshPassResources& passResources) {
-            const std::vector<uint32_t>* executableIndices = g.surfacePacketOpaqueExecutionIndices;
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands =
-                g.surfacePacketOpaqueExecutionCommands;
-            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
-                executableIndices = g.surfacePacketDepthAwareExecutionIndices;
-                executableCommands = g.surfacePacketDepthAwareExecutionCommands;
-            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                executableIndices = g.surfacePacketTransparentExecutionIndices;
-                executableCommands = g.surfacePacketTransparentExecutionCommands;
-            }
-            if (!HasSurfacePacketExecutionPlan(executableIndices, executableCommands)) {
-                return true;
-            }
 
-            const char* eventName = "SurfacePacketExecutor.ForwardOpaque";
-            if (passKind == MeshDrawPassKind::GeometryAux) {
-                eventName = "SurfacePacketExecutor.GeometryAux";
-            } else if (executionKind == SurfacePacketExecutionKind::DepthAware) {
-                eventName = "SurfacePacketExecutor.ForwardDepthAware";
-            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                eventName = "SurfacePacketExecutor.ForwardTransparent";
-            }
-            GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
-
-            MeshBindingStateCache bindingCache{};
-            const bool depthAwarePhase = executionKind == SurfacePacketExecutionKind::DepthAware;
-            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
-            drawCtx.binding.cache = &bindingCache;
-            // GPU Scene buffer は Opaque -> DepthAware -> Transparent の順で連続配置する。
-            drawCtx.surfaceGpuSceneBaseOffset = 0;
-            if (executionKind == SurfacePacketExecutionKind::DepthAware) {
-                drawCtx.surfaceGpuSceneBaseOffset = g.debugStats.surfaceGpuSceneOpaqueInstanceCount;
-            } else if (executionKind == SurfacePacketExecutionKind::Transparent) {
-                drawCtx.surfaceGpuSceneBaseOffset =
-                    g.debugStats.surfaceGpuSceneOpaqueInstanceCount +
-                    g.debugStats.surfaceGpuSceneDepthAwareInstanceCount;
-            }
-            BindSurfacePacketFrameResources(drawCtx);
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                g.surfacePacketBuilder->GetPackets();
-            const RENDER3D::CLUSTER::ClusterMainlineCommandContext clusterFilter{
-                ResolveOpaqueMainlinePolicy(),
-                &g.staticOpaqueClusterMainlineFrame,
-                executionKind == SurfacePacketExecutionKind::Opaque,
-                ToClusterMainlinePass(passKind),
-                g.surfacePacketOpaqueGpuSceneInstances,
-                &g.surfaceGpuSceneBuffer,
-                drawCtx.surfaceGpuSceneBaseOffset
-            };
-            drawCtx.surfaceIndirectCommandFilter =
-                RENDER3D::CLUSTER::ShouldUploadSurfaceIndirectCommand;
-            drawCtx.surfaceIndirectCommandFilterUserData = &clusterFilter;
-            if ((passKind == MeshDrawPassKind::Forward ||
-                passKind == MeshDrawPassKind::GeometryAux) &&
-                PrepareSurfacePacketIndirectDrawBindings(
-                    drawCtx,
-                    packets.data(),
-                    packets.size(),
-                    executableIndices->data(),
-                    executableIndices->size(),
-                    executableCommands->data(),
-                    executableCommands->size())) {
-                g.surfaceIndirectDrawBuffer.FlushToGpu(SERVICES::gCtx.cmdList);
-                const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
-                    g.surfaceIndirectDrawBuffer.GetStats();
-                g.debugStats.surfaceIndirectDrawBindingPatchCount =
-                    indirectStats.drawBindingPatchCount;
-            }
-
-            const bool useIndirectCommandRange =
-                executionKind != SurfacePacketExecutionKind::Transparent &&
-                (passKind == MeshDrawPassKind::Forward ||
-                    passKind == MeshDrawPassKind::GeometryAux);
-            size_t commandIndex = 0;
-            while (commandIndex < executableCommands->size()) {
-                const RENDER3D::RUNTIME::SurfaceDrawCommand& command =
-                    (*executableCommands)[commandIndex];
-                if (passKind == MeshDrawPassKind::GeometryAux && command.transparent) {
-                    ++commandIndex;
-                    continue;
-                }
-                if (RENDER3D::CLUSTER::ShouldOwnSurfaceCommand(
-                    clusterFilter,
-                    command)) {
-                    ++commandIndex;
-                    continue;
-                }
-
-                const size_t firstCommandIndex = commandIndex;
-                SurfacePacketCommandDrawResult result{};
-                if (useIndirectCommandRange) {
-                    result = DrawSurfacePacketCommandRange(
-                        drawCtx,
-                        packets.data(),
-                        packets.size(),
-                        executableIndices->data(),
-                        executableIndices->size(),
-                        executableCommands->data(),
-                        executableCommands->size(),
-                        commandIndex,
-                        objectIndex);
-                } else {
-                    result = DrawSurfacePacketCommand(
-                        drawCtx,
-                        packets.data(),
-                        packets.size(),
-                        executableIndices->data(),
-                        executableIndices->size(),
-                        command,
-                        objectIndex);
-                    ++commandIndex;
-                }
-
-                if (commandIndex <= firstCommandIndex) {
-                    commandIndex = firstCommandIndex + 1;
-                }
-
-                for (size_t statsCommandIndex = firstCommandIndex;
-                    statsCommandIndex < commandIndex && statsCommandIndex < executableCommands->size();
-                    ++statsCommandIndex) {
-                    RecordSurfacePacketExecutorCommandStats(
-                        executionKind,
-                        (*executableCommands)[statsCommandIndex]);
-                }
-                RecordSurfacePacketExecutorDrawStats(executionKind, passKind, result);
-            }
+            (void)sourcePassKind;
+            (void)passKind;
+            (void)objectIndex;
+            (void)passResources;
+            // GPU-driven 主線では旧 packet fallback executor を走らせない。
+            // 非対応 surface は RenderSubmissionSystem の handoff から従来 backend に渡す。
             return true;
         }
 
         bool RenderMeshPhase(
-            const RENDER3D::RenderQueue& queue,
+            const RENDER3D::CpuRenderQueue& queue,
             RENDER3D::RenderPhase phase,
             MeshDrawPassKind passKind,
             size_t& objectIndex,
@@ -1169,10 +1047,11 @@ namespace HIKARI::MESHRENDERER {
         }
 
         bool RenderGeometryAuxPassInternal(
-            const RENDER3D::RenderQueue& queue,
+            const RENDER3D::CpuRenderQueue& queue,
             RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
             D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
-            if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque) && !HasSurfacePacketOpaqueExecutionPlan()) {
+            if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque) &&
+                !HasGpuDrivenSceneSource()) {
                 return false;
             }
 
@@ -1199,8 +1078,8 @@ namespace HIKARI::MESHRENDERER {
                     MeshDrawPassKind::GeometryAux,
                     RENDER3D::CLUSTER::ClusterDrawPipelineKind::GeometryAux);
             }
-            const bool packetOk = RenderSurfacePacketPlan(
-                SurfacePacketExecutionKind::Opaque,
+            const bool packetOk = RenderGpuDrivenFallbackCommands(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
                 MeshDrawPassKind::GeometryAux,
                 geometryObjectIndex,
                 passResources);
@@ -1254,20 +1133,10 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
-        g.renderQueue.Clear();
+        g.cpuRenderQueue.Clear();
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
-        g.surfacePacketBuilder = nullptr;
-        g.surfacePacketOpaqueExecutionIndices = nullptr;
-        g.surfacePacketOpaqueExecutionCommands = nullptr;
-        g.surfacePacketOpaqueGpuSceneInstances = nullptr;
-        g.surfacePacketDepthAwareExecutionIndices = nullptr;
-        g.surfacePacketDepthAwareExecutionCommands = nullptr;
-        g.surfacePacketDepthAwareGpuSceneInstances = nullptr;
-        g.surfacePacketTransparentExecutionIndices = nullptr;
-        g.surfacePacketTransparentExecutionCommands = nullptr;
-        g.surfacePacketTransparentGpuSceneInstances = nullptr;
-        g.staticOpaqueClusterMainlineFrame.Reset();
+        g.gpuDrivenSceneSource.Reset();
         g.debugStats = {};
     }
 
@@ -1350,31 +1219,18 @@ namespace HIKARI::MESHRENDERER {
         g.drawItems.push_back(std::move(item));
     }
 
-    void SetSurfaceDrawPacketExecutionPlans(
-        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
-        const std::vector<uint32_t>* opaqueExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* opaqueExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* opaqueGpuSceneInstances,
-        const std::vector<uint32_t>* depthAwareExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* depthAwareExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* depthAwareGpuSceneInstances,
-        const std::vector<uint32_t>* transparentExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* transparentGpuSceneInstances) {
-        g.surfacePacketBuilder = builder;
-        g.surfacePacketOpaqueExecutionIndices = opaqueExecutablePacketIndices;
-        g.surfacePacketOpaqueExecutionCommands = opaqueExecutableCommands;
-        g.surfacePacketOpaqueGpuSceneInstances = opaqueGpuSceneInstances;
-        g.surfacePacketDepthAwareExecutionIndices = depthAwareExecutablePacketIndices;
-        g.surfacePacketDepthAwareExecutionCommands = depthAwareExecutableCommands;
-        g.surfacePacketDepthAwareGpuSceneInstances = depthAwareGpuSceneInstances;
-        g.surfacePacketTransparentExecutionIndices = transparentExecutablePacketIndices;
-        g.surfacePacketTransparentExecutionCommands = transparentExecutableCommands;
-        g.surfacePacketTransparentGpuSceneInstances = transparentGpuSceneInstances;
+    void SetGpuDrivenSceneSource(
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source) {
+
+        g.gpuDrivenSceneSource.Reset();
+        if (source == nullptr) {
+            return;
+        }
+        g.gpuDrivenSceneSource = *source;
     }
 
     bool HasSubmittedItems() {
-        return !g.drawItems.empty() || HasAnySurfacePacketExecutionPlan();
+        return !g.drawItems.empty() || HasGpuDrivenSceneSource();
     }
 
     bool BeginFrame(
@@ -1401,17 +1257,11 @@ namespace HIKARI::MESHRENDERER {
 
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
-        UploadSurfaceGpuSceneFrame();
-        PrepareSurfaceGpuSceneMaterialFrame();
-        DispatchClusterGpuCullingFrame();
-        g.clusterDrawExecutor.ResetFrame();
-        UpdateClusterDrawDebugStats();
-        g.meshletRenderBackend.ResetFrame();
-        UpdateMeshletBackendDebugStats();
-        UpdateClusterMainlineDebugStats();
-        BuildStaticOpaqueClusterMainlineFrame();
-        UpdateOpaqueMainlineOwnershipDebugStats();
-        UploadSurfaceIndirectDrawFrame();
+        if (HasGpuDrivenSceneSource()) {
+            PrepareGpuDrivenFrameState();
+        } else {
+            ResetGpuDrivenFrameState();
+        }
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
@@ -1450,17 +1300,11 @@ namespace HIKARI::MESHRENDERER {
 
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
-        UploadSurfaceGpuSceneFrame();
-        PrepareSurfaceGpuSceneMaterialFrame();
-        DispatchClusterGpuCullingFrame();
-        g.clusterDrawExecutor.ResetFrame();
-        UpdateClusterDrawDebugStats();
-        g.meshletRenderBackend.ResetFrame();
-        UpdateMeshletBackendDebugStats();
-        UpdateClusterMainlineDebugStats();
-        BuildStaticOpaqueClusterMainlineFrame();
-        UpdateOpaqueMainlineOwnershipDebugStats();
-        UploadSurfaceIndirectDrawFrame();
+        if (HasGpuDrivenSceneSource()) {
+            PrepareGpuDrivenFrameState();
+        } else {
+            ResetGpuDrivenFrameState();
+        }
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
         if (srvHeap != nullptr) {
@@ -1471,10 +1315,10 @@ namespace HIKARI::MESHRENDERER {
         return true;
     }
 
-    const RENDER3D::RenderQueue& BuildRenderQueue() {
-        g.renderQueue.Clear();
-        g.renderQueue.Build(g.drawItems);
-        return g.renderQueue;
+    const RENDER3D::CpuRenderQueue& BuildCpuRenderQueue() {
+        g.cpuRenderQueue.Clear();
+        g.cpuRenderQueue.Build(g.drawItems);
+        return g.cpuRenderQueue;
     }
 
     const CameraCB* GetCameraConstants() {
@@ -1482,14 +1326,14 @@ namespace HIKARI::MESHRENDERER {
     }
 
     bool RenderGeometryAuxPass(
-        const RENDER3D::RenderQueue& queue,
+            const RENDER3D::CpuRenderQueue& queue,
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
         return RenderGeometryAuxPassInternal(queue, geometryAux, sceneDsv);
     }
 
     bool RenderForwardOpaquePass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
         if (!ExecuteMeshletDrawFrame(
             passResources,
@@ -1501,8 +1345,8 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
         }
         // SurfacePacket は queue を経由せず、先に opaque plan を直接実行する。
-        const bool packetOk = RenderSurfacePacketPlan(
-            SurfacePacketExecutionKind::Opaque,
+        const bool packetOk = RenderGpuDrivenFallbackCommands(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
             passResources);
@@ -1516,11 +1360,11 @@ namespace HIKARI::MESHRENDERER {
     }
 
     bool RenderForwardTransparentPass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
         // Transparent は独立 plan として、opaque/depth-aware の後に実行する。
-        const bool packetOk = RenderSurfacePacketPlan(
-            SurfacePacketExecutionKind::Transparent,
+        const bool packetOk = RenderGpuDrivenFallbackCommands(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
             passResources);
@@ -1533,16 +1377,15 @@ namespace HIKARI::MESHRENDERER {
         return packetOk && queueOk;
     }
 
-    bool HasDepthAwarePassWork(const RENDER3D::RenderQueue& queue) {
-        return queue.HasPhase(RENDER3D::RenderPhase::DepthAware) ||
-            HasSurfacePacketDepthAwareExecutionPlan();
+    bool HasDepthAwarePassWork(const RENDER3D::CpuRenderQueue& queue) {
+        return queue.HasPhase(RENDER3D::RenderPhase::DepthAware);
     }
 
     bool RenderDepthAwarePass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
-        const bool packetOk = RenderSurfacePacketPlan(
-            SurfacePacketExecutionKind::DepthAware,
+        const bool packetOk = RenderGpuDrivenFallbackCommands(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
             MeshDrawPassKind::Forward,
             g.frameObjectIndex,
             passResources);
@@ -1563,19 +1406,9 @@ namespace HIKARI::MESHRENDERER {
 
     void EndFrame() {
         g.drawItems.clear();
-        g.renderQueue.Clear();
+        g.cpuRenderQueue.Clear();
         g.frameObjectIndex = 0;
-        g.surfacePacketBuilder = nullptr;
-        g.surfacePacketOpaqueExecutionIndices = nullptr;
-        g.surfacePacketOpaqueExecutionCommands = nullptr;
-        g.surfacePacketOpaqueGpuSceneInstances = nullptr;
-        g.surfacePacketDepthAwareExecutionIndices = nullptr;
-        g.surfacePacketDepthAwareExecutionCommands = nullptr;
-        g.surfacePacketDepthAwareGpuSceneInstances = nullptr;
-        g.surfacePacketTransparentExecutionIndices = nullptr;
-        g.surfacePacketTransparentExecutionCommands = nullptr;
-        g.surfacePacketTransparentGpuSceneInstances = nullptr;
-        g.staticOpaqueClusterMainlineFrame.Reset();
+        g.gpuDrivenSceneSource.Reset();
     }
 
     void RenderAll(

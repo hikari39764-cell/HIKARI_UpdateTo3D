@@ -10,7 +10,7 @@ namespace HIKARI::MESHRENDERER {
 
 namespace HIKARI::RENDER3D {
 
-    class RenderQueue {
+    class CpuRenderQueue {
     public:
         void Clear();
         void Build(const std::vector<MESHRENDERER::DrawItem>& items);

@@ -124,6 +124,8 @@ namespace HIKARI {
         void ResetMaterialFxToProfileDefaults();
 
     private:
+        void NotifyRenderStateDirty();
+
         ModelAsset* asset_ = nullptr;
         std::string assetId_{};
         bool visible_ = true;

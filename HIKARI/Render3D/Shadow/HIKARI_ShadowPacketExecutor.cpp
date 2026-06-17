@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <limits>
 
-#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/HIKARI_ModelAsset.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
@@ -104,7 +104,7 @@ namespace HIKARI::SHADOW::PACKET {
                 kShadowStaticRootParamTexturePool,
                 ctx.texturePoolSrv);
 
-            const uint32_t constants[RENDER3D::CORE::kSurfaceIndirectRootConstantCount] = {
+            const uint32_t constants[RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount] = {
                 surfaceGpuSceneBaseIndex,
                 useSurfaceGpuScene ? 1u : 0u,
                 0u,
@@ -112,7 +112,7 @@ namespace HIKARI::SHADOW::PACKET {
             };
             ctx.cmd->SetGraphicsRoot32BitConstants(
                 kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::CORE::kSurfaceIndirectRootConstantCount,
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount,
                 constants,
                 0);
             ctx.cmd->SetGraphicsRoot32BitConstant(
@@ -287,7 +287,7 @@ namespace HIKARI::SHADOW::PACKET {
             }
 
             const UINT64 argumentStride =
-                static_cast<UINT64>(sizeof(RENDER3D::CORE::SurfaceIndirectDrawArgument));
+                static_cast<UINT64>(sizeof(RENDER3D::GPUDRIVEN::SurfaceIndirectDrawArgument));
             const size_t maxIndirectCommandCount =
                 static_cast<size_t>((std::numeric_limits<UINT>::max)());
 

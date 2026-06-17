@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <unordered_map>
+#include <utility>
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -67,36 +68,43 @@ namespace HIKARI {
             }
             return {};
         }
-    }
 
-    void SceneRenderCacheSync::Sync(
-        World& world,
-        RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
-        RENDER3D::RUNTIME::SceneRenderCache& sceneRenderCache,
-        uint64_t frameIndex,
-        const AssetRegistry* assetRegistry,
-        std::filesystem::path projectRoot) {
+        class ClusteredGeometryPathResolver {
+        public:
+            ClusteredGeometryPathResolver(
+                const AssetRegistry* assetRegistry,
+                std::filesystem::path projectRoot)
+                : assetRegistry_(assetRegistry)
+                , projectRoot_(std::move(projectRoot)) {
+            }
 
-        sceneRenderCache.BeginSync(frameIndex);
-        std::unordered_map<std::string, std::string> clusteredGeometryPathCache{};
-
-        auto resolveClusteredGeometryPath =
-            [&](const ModelComponent& model) -> std::string {
+            std::string Resolve(const ModelComponent& model) {
                 if (model.GetSourceKind() != ModelSourceKind::Asset || model.GetAssetId().empty()) {
                     return {};
                 }
                 const std::string& assetId = model.GetAssetId();
-                const auto found = clusteredGeometryPathCache.find(assetId);
-                if (found != clusteredGeometryPathCache.end()) {
+                const auto found = pathByAssetId_.find(assetId);
+                if (found != pathByAssetId_.end()) {
                     return found->second;
                 }
 
-                std::string path = ResolveClusteredGeometryPath(model, assetRegistry, projectRoot);
-                clusteredGeometryPathCache.emplace(assetId, path);
+                std::string path = ResolveClusteredGeometryPath(model, assetRegistry_, projectRoot_);
+                pathByAssetId_.emplace(assetId, path);
                 return path;
-            };
+            }
 
-        world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
+        private:
+            const AssetRegistry* assetRegistry_ = nullptr;
+            std::filesystem::path projectRoot_{};
+            std::unordered_map<std::string, std::string> pathByAssetId_{};
+        };
+
+        RENDER3D::RUNTIME::SceneRenderObjectDesc BuildSceneRenderObjectDesc(
+            const GameObject& object,
+            ModelComponent& model,
+            RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
+            ClusteredGeometryPathResolver& clusteredGeometryPaths) {
+
             RENDER3D::RUNTIME::SceneRenderObjectDesc desc{};
             desc.id = ResolveSceneRenderObjectId(object);
             desc.visible = model.IsVisible();
@@ -109,10 +117,12 @@ namespace HIKARI {
 
             desc.worldTransform = object.Transform();
             desc.localBounds = ResolveLocalBounds(desc.model, desc.renderModel);
-            desc.worldBounds = BOUNDS::TransformBounds(desc.localBounds, desc.worldTransform.GetWorldMatrix());
+            desc.worldBounds = BOUNDS::TransformBounds(
+                desc.localBounds,
+                desc.worldTransform.GetWorldMatrix());
 
             desc.isStatic = model.IsRenderStatic();
-            desc.clusteredGeometryPath = resolveClusteredGeometryPath(model);
+            desc.clusteredGeometryPath = clusteredGeometryPaths.Resolve(model);
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
             desc.hasRuntimeAnimation = object.GetComponent<AnimatorComponent>() != nullptr;
@@ -129,12 +139,75 @@ namespace HIKARI {
             for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 desc.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
             }
+            return desc;
+        }
+    }
 
-            sceneRenderCache.Upsert(desc);
+    void SceneRenderCacheSync::Sync(
+        World& world,
+        RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
+        RENDER3D::RUNTIME::SceneRenderCache& sceneRenderCache,
+        uint64_t frameIndex,
+        const AssetRegistry* assetRegistry,
+        std::filesystem::path projectRoot) {
+
+        sceneRenderCache.BeginSync(frameIndex);
+        ClusteredGeometryPathResolver clusteredGeometryPaths(
+            assetRegistry,
+            std::move(projectRoot));
+
+        world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
+            sceneRenderCache.Upsert(BuildSceneRenderObjectDesc(
+                object,
+                model,
+                renderModelCache,
+                clusteredGeometryPaths));
         });
 
         sceneRenderCache.EndSync();
         sceneRenderCache.PreRenderSync();
+        world.AcknowledgeAllRenderObjects();
+    }
+
+    void SceneRenderCacheSync::SyncDirty(
+        World& world,
+        RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
+        RENDER3D::RUNTIME::SceneRenderCache& sceneRenderCache,
+        uint64_t frameIndex,
+        const AssetRegistry* assetRegistry,
+        std::filesystem::path projectRoot) {
+
+        sceneRenderCache.BeginPatchSync(frameIndex);
+        for (const uint64_t removedObjectId : world.GetRemovedRenderObjectIds()) {
+            sceneRenderCache.Remove(RENDER3D::RUNTIME::SceneRenderObjectId{ removedObjectId });
+        }
+
+        ClusteredGeometryPathResolver clusteredGeometryPaths(
+            assetRegistry,
+            std::move(projectRoot));
+
+        for (GameObject* object : world.GetRenderDirtyObjects()) {
+            if (object == nullptr) {
+                continue;
+            }
+
+            ModelComponent* model = object->GetComponent<ModelComponent>();
+            if (model == nullptr) {
+                sceneRenderCache.Remove(
+                    RENDER3D::RUNTIME::SceneRenderObjectId{ object->GetRenderStableId() });
+                continue;
+            }
+
+            sceneRenderCache.Upsert(BuildSceneRenderObjectDesc(
+                *object,
+                *model,
+                renderModelCache,
+                clusteredGeometryPaths));
+        }
+
+        sceneRenderCache.EndPatchSync();
+        sceneRenderCache.PreRenderSync();
+        world.AcknowledgeRenderDirtyObjects();
     }
 
 }

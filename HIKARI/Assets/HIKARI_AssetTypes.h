@@ -44,6 +44,21 @@ namespace HIKARI {
         Always,
     };
 
+    enum class ModelGeometryCookProfile {
+        Scene,
+        Character,
+    };
+
+    struct ModelClusterCookOptions {
+        bool buildClusterGeometry = true;
+        ModelGeometryCookProfile profile = ModelGeometryCookProfile::Scene;
+        uint32_t maxLodCount = 5;
+        float lodQualityBias = 1.0f;
+        bool partitionLargeSurfaces = true;
+        float largeSurfaceTargetExtent = 3.0f;
+        bool lockPartitionBorders = true;
+    };
+
     struct AnimationClipAlias {
         std::string name;
         std::string sourceName;
@@ -65,6 +80,8 @@ namespace HIKARI {
         bool loadTextures = true;
         bool loadAnimations = true;
         bool loadSkins = true;
+
+        ModelClusterCookOptions clusterGeometry{};
     };
 
     struct ModelMaterialOverrideDesc {

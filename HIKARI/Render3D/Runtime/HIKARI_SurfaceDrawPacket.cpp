@@ -722,6 +722,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 packet.materialFxParamValues[i] = source.materialFxParamValues[i];
             }
         }
+
     }
 
     void SurfaceDrawPacketBuilder::Clear() {
@@ -780,7 +781,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         return result;
     }
 
-    void SurfaceDrawPacketBuilder::AppendPacket(
+    SurfaceDrawPacket BuildSurfaceDrawPacketFromSceneSurface(
         const SceneSurfaceInstance& surfaceInstance,
         uint32_t sourceSurfaceInstanceIndex) {
 
@@ -827,7 +828,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         // sorter 用の安定キーと resource identity を構築する。
         packet.key = BuildPacketKey(packet);
 
-        const SurfaceDrawPacketValidationResult validation = ValidatePacket(packet);
+        const SurfaceDrawPacketValidationResult validation =
+            SurfaceDrawPacketBuilder::ValidatePacket(packet);
         packet.valid = validation.IsValid();
         if (!packet.valid) {
             packet.forwardCandidate = false;
@@ -836,6 +838,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
             packet.key = BuildPacketKey(packet);
         }
 
+        return packet;
+    }
+
+    void SurfaceDrawPacketBuilder::AppendPacket(
+        const SceneSurfaceInstance& surfaceInstance,
+        uint32_t sourceSurfaceInstanceIndex) {
+
+        SurfaceDrawPacket packet =
+            BuildSurfaceDrawPacketFromSceneSurface(
+                surfaceInstance,
+                sourceSurfaceInstanceIndex);
         packets_.push_back(std::move(packet));
     }
 
@@ -1050,9 +1063,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         forwardDepthAwareCommandBuilder.ClearOutput();
         forwardTransparentCommandBuilder.ClearOutput();
         shadowCommandBuilder.ClearOutput();
-        forwardOpaqueGpuSceneInstances_.clear();
-        forwardDepthAwareGpuSceneInstances_.clear();
-        forwardTransparentGpuSceneInstances_.clear();
         shadowGpuSceneInstances_.clear();
 
         outStats.sourcePacketCount = ClampToUint32(packets.size());
@@ -1119,8 +1129,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     continue;
                 }
 
-                // executor が直接描画する packet だけを登録する。
-                if (forwardOpaqueCommandBuilder.AppendPacket(packetIndex)) {
+                if (packet.key.clusterMainlineEligible) {
+                    RecordHandledForwardPacket(packet);
+                } else if (forwardOpaqueCommandBuilder.AppendPacket(packetIndex)) {
                     RecordHandledForwardPacket(packet);
                 }
                 ++outStats.submittedForwardPacketCount;
@@ -1225,62 +1236,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
                     (std::max)(
                         depthAwareCommandStats.maxCommandPacketCount,
                         transparentCommandStats.maxCommandPacketCount));
-
-            const SurfaceGpuSceneBuildStats opaqueGpuSceneStats =
-                SurfaceGpuSceneWriter::BuildCommandRanges(
-                    packets,
-                    executableForwardOpaquePacketIndices_,
-                    executableForwardOpaqueCommands_,
-                    forwardOpaqueGpuSceneInstances_);
-            const SurfaceGpuSceneBuildStats depthAwareGpuSceneStats =
-                SurfaceGpuSceneWriter::BuildCommandRanges(
-                    packets,
-                    executableForwardDepthAwarePacketIndices_,
-                    executableForwardDepthAwareCommands_,
-                    forwardDepthAwareGpuSceneInstances_);
-            const SurfaceGpuSceneBuildStats transparentGpuSceneStats =
-                SurfaceGpuSceneWriter::BuildCommandRanges(
-                    packets,
-                    executableForwardTransparentPacketIndices_,
-                    executableForwardTransparentCommands_,
-                    forwardTransparentGpuSceneInstances_);
-            outStats.submittedOpaqueGpuSceneInstanceCount = opaqueGpuSceneStats.instanceCount;
-            outStats.submittedDepthAwareGpuSceneInstanceCount = depthAwareGpuSceneStats.instanceCount;
-            outStats.submittedTransparentGpuSceneInstanceCount = transparentGpuSceneStats.instanceCount;
-            outStats.submittedGpuSceneInstanceCount =
-                opaqueGpuSceneStats.instanceCount +
-                depthAwareGpuSceneStats.instanceCount +
-                transparentGpuSceneStats.instanceCount;
-            outStats.submittedMaxGpuSceneCommandInstanceCount =
-                (std::max)(
-                    opaqueGpuSceneStats.maxCommandInstanceCount,
-                    (std::max)(
-                        depthAwareGpuSceneStats.maxCommandInstanceCount,
-                        transparentGpuSceneStats.maxCommandInstanceCount));
-            outStats.submittedGpuSceneResourceInstanceCount =
-                opaqueGpuSceneStats.resourceBackedInstanceCount +
-                depthAwareGpuSceneStats.resourceBackedInstanceCount +
-                transparentGpuSceneStats.resourceBackedInstanceCount;
-            outStats.submittedGpuSceneMissingResourceInstanceCount =
-                opaqueGpuSceneStats.missingResourceHandleInstanceCount +
-                depthAwareGpuSceneStats.missingResourceHandleInstanceCount +
-                transparentGpuSceneStats.missingResourceHandleInstanceCount;
-            outStats.submittedGpuSceneClusterResourceInstanceCount =
-                opaqueGpuSceneStats.clusterResourceInstanceCount +
-                depthAwareGpuSceneStats.clusterResourceInstanceCount +
-                transparentGpuSceneStats.clusterResourceInstanceCount;
-            outStats.submittedGpuSceneClusterShaderVisibleInstanceCount =
-                opaqueGpuSceneStats.clusterShaderVisibleInstanceCount +
-                depthAwareGpuSceneStats.clusterShaderVisibleInstanceCount +
-                transparentGpuSceneStats.clusterShaderVisibleInstanceCount;
-            outStats.submittedGpuSceneClusterSurfaceRangeInstanceCount =
-                opaqueGpuSceneStats.clusterSurfaceRangeInstanceCount +
-                depthAwareGpuSceneStats.clusterSurfaceRangeInstanceCount +
-                transparentGpuSceneStats.clusterSurfaceRangeInstanceCount;
-            outStats.submittedGpuSceneClusterMissingSurfaceRangeInstanceCount =
-                opaqueGpuSceneStats.clusterMissingSurfaceRangeInstanceCount +
-                depthAwareGpuSceneStats.clusterMissingSurfaceRangeInstanceCount +
-                transparentGpuSceneStats.clusterMissingSurfaceRangeInstanceCount;
         }
 
 
@@ -1385,36 +1340,36 @@ namespace HIKARI::RENDER3D::RUNTIME {
         return executableForwardOpaquePacketIndices_;
     }
 
-    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaqueCommands() const {
+    std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaqueCommands() {
         return executableForwardOpaqueCommands_;
     }
 
-    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardOpaqueGpuSceneInstances() const {
-        return forwardOpaqueGpuSceneInstances_;
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardOpaqueCommands() const {
+        return executableForwardOpaqueCommands_;
     }
 
     const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwarePacketIndices() const {
         return executableForwardDepthAwarePacketIndices_;
     }
 
-    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwareCommands() const {
+    std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwareCommands() {
         return executableForwardDepthAwareCommands_;
     }
 
-    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardDepthAwareGpuSceneInstances() const {
-        return forwardDepthAwareGpuSceneInstances_;
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardDepthAwareCommands() const {
+        return executableForwardDepthAwareCommands_;
     }
 
     const std::vector<uint32_t>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentPacketIndices() const {
         return executableForwardTransparentPacketIndices_;
     }
 
-    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentCommands() const {
+    std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentCommands() {
         return executableForwardTransparentCommands_;
     }
 
-    const std::vector<SurfaceGpuSceneInstance>& SurfaceDrawPacketPlanner::GetForwardTransparentGpuSceneInstances() const {
-        return forwardTransparentGpuSceneInstances_;
+    const std::vector<SurfaceDrawCommand>& SurfaceDrawPacketPlanner::GetExecutableForwardTransparentCommands() const {
+        return executableForwardTransparentCommands_;
     }
 
     bool SurfaceDrawPacketPlanner::HasFullShadowCoverageForObject(SceneRenderObjectId objectId) const {

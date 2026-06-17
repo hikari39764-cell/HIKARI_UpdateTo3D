@@ -8,6 +8,7 @@
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
+#include "Scene/HIKARI_GameObject.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 #include <cstring>
@@ -200,11 +201,18 @@ namespace HIKARI {
 
     ModelComponent::~ModelComponent() = default;
 
+    void ModelComponent::NotifyRenderStateDirty() {
+        if (GameObject* owner = GetOwner()) {
+            owner->MarkRenderStateDirty();
+        }
+    }
+
     void ModelComponent::SetModelAsset(ModelAsset* asset) {
         asset_ = asset;
         if (asset_) {
             assetId_ = asset_->GetName();
         }
+        NotifyRenderStateDirty();
     }
 
     ModelAsset* ModelComponent::GetModelAsset() {
@@ -229,6 +237,7 @@ namespace HIKARI {
 
     void ModelComponent::SetVisible(bool visible) {
         visible_ = visible;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::IsVisible() const {
@@ -237,6 +246,7 @@ namespace HIKARI {
 
     void ModelComponent::SetSkeletonDebugVisible(bool visible) {
         showSkeletonDebug_ = visible;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::IsSkeletonDebugVisible() const {
@@ -245,6 +255,7 @@ namespace HIKARI {
 
     void ModelComponent::SetSkeletonDebugXRay(bool enabled) {
         skeletonDebugXRay_ = enabled;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::IsSkeletonDebugXRay() const {
@@ -253,6 +264,7 @@ namespace HIKARI {
 
     void ModelComponent::SetCastShadow(bool enabled) {
         castShadow_ = enabled;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::GetCastShadow() const {
@@ -261,6 +273,7 @@ namespace HIKARI {
 
     void ModelComponent::SetReceiveShadow(bool enabled) {
         receiveShadow_ = enabled;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::GetReceiveShadow() const {
@@ -269,21 +282,37 @@ namespace HIKARI {
 
     void ModelComponent::SetRenderStatic(bool enabled) {
         renderStatic_ = enabled;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::IsRenderStatic() const {
         return renderStatic_;
     }
 
-    void ModelComponent::SetSourceKind(ModelSourceKind kind) { sourceKind_ = kind; }
+    void ModelComponent::SetSourceKind(ModelSourceKind kind) {
+        sourceKind_ = kind;
+        NotifyRenderStateDirty();
+    }
     ModelSourceKind ModelComponent::GetSourceKind() const { return sourceKind_; }
-    void ModelComponent::SetProceduralSettings(const ProceduralModelSettings& settings) { procedural_ = settings; }
+    void ModelComponent::SetProceduralSettings(const ProceduralModelSettings& settings) {
+        procedural_ = settings;
+        NotifyRenderStateDirty();
+    }
     const ProceduralModelSettings& ModelComponent::GetProceduralSettings() const { return procedural_; }
-    void ModelComponent::SetRenderDebugMode(ModelRenderDebugMode mode) { debugRenderMode_ = mode; }
+    void ModelComponent::SetRenderDebugMode(ModelRenderDebugMode mode) {
+        debugRenderMode_ = mode;
+        NotifyRenderStateDirty();
+    }
     ModelRenderDebugMode ModelComponent::GetRenderDebugMode() const { return debugRenderMode_; }
-    void ModelComponent::SetWireColor(uint32_t color) { wireColor_ = color; }
+    void ModelComponent::SetWireColor(uint32_t color) {
+        wireColor_ = color;
+        NotifyRenderStateDirty();
+    }
     uint32_t ModelComponent::GetWireColor() const { return wireColor_; }
-    void ModelComponent::SetMaxWireLines(uint32_t count) { maxWireLines_ = count; }
+    void ModelComponent::SetMaxWireLines(uint32_t count) {
+        maxWireLines_ = count;
+        NotifyRenderStateDirty();
+    }
     uint32_t ModelComponent::GetMaxWireLines() const { return maxWireLines_; }
     bool ModelComponent::GetWirePerPrimitiveColor() const { return wirePerPrimitiveColor_; }
 
@@ -293,10 +322,12 @@ namespace HIKARI {
 
     void ModelComponent::SetAssetId(std::string assetId) {
         assetId_ = std::move(assetId);
+        NotifyRenderStateDirty();
     }
 
     void ModelComponent::SetPostGroupMask(uint32_t mask) {
         postGroupMask_ = mask;
+        NotifyRenderStateDirty();
     }
 
     uint32_t ModelComponent::GetPostGroupMask() const {
@@ -306,6 +337,7 @@ namespace HIKARI {
     void ModelComponent::SetMaterialFxProfileId(std::string profileId) {
         materialFxProfileId_ = std::move(profileId);
         ResetMaterialFxToProfileDefaults();
+        NotifyRenderStateDirty();
     }
 
     const std::string& ModelComponent::GetMaterialFxProfileId() const {
@@ -321,12 +353,14 @@ namespace HIKARI {
             if (slot.slotIndex == slotIndex) {
                 slot.materialAssetGuid = std::move(materialGuid);
                 ClearRuntimeMaterialOverride();
+                NotifyRenderStateDirty();
                 return;
             }
         }
 
         materialOverrides_.push_back(ModelMaterialOverrideSlot{ slotIndex, std::move(materialGuid) });
         ClearRuntimeMaterialOverride();
+        NotifyRenderStateDirty();
     }
 
     void ModelComponent::ClearMaterialOverride(uint32_t slotIndex) {
@@ -336,6 +370,7 @@ namespace HIKARI {
             }),
             materialOverrides_.end());
         ClearRuntimeMaterialOverride();
+        NotifyRenderStateDirty();
     }
 
     const Material* ModelComponent::GetRuntimeMaterialOverride() const {
@@ -345,11 +380,13 @@ namespace HIKARI {
     void ModelComponent::SetRuntimeMaterialOverride(std::unique_ptr<Material> material, AssetGuid guid) {
         runtimeMaterialOverride_ = std::move(material);
         runtimeMaterialOverrideGuid_ = std::move(guid);
+        NotifyRenderStateDirty();
     }
 
     void ModelComponent::ClearRuntimeMaterialOverride() {
         runtimeMaterialOverride_.reset();
         runtimeMaterialOverrideGuid_ = {};
+        NotifyRenderStateDirty();
     }
 
     const AssetGuid& ModelComponent::GetRuntimeMaterialOverrideGuid() const {
@@ -373,6 +410,7 @@ namespace HIKARI {
             materialFxParamValues_[i] = values[i];
         }
         materialFxValuesInitialized_ = initialized;
+        NotifyRenderStateDirty();
     }
 
     bool ModelComponent::SetMaterialFxFloat(const std::string& key, float value) {
@@ -399,6 +437,7 @@ namespace HIKARI {
         float* dst = &materialFxParamValues_[ref.slot].x;
         dst[ref.channel] = value;
         materialFxValuesInitialized_ = true;
+        NotifyRenderStateDirty();
         return true;
     }
 
@@ -426,6 +465,7 @@ namespace HIKARI {
         dst[ref.channel] = value.x;
         dst[ref.channel + 1] = value.y;
         materialFxValuesInitialized_ = true;
+        NotifyRenderStateDirty();
         return true;
     }
 
@@ -454,6 +494,7 @@ namespace HIKARI {
         dst[ref.channel + 1] = value.y;
         dst[ref.channel + 2] = value.z;
         materialFxValuesInitialized_ = true;
+        NotifyRenderStateDirty();
         return true;
     }
 
@@ -479,6 +520,7 @@ namespace HIKARI {
         }
         materialFxParamValues_[ref.slot] = value;
         materialFxValuesInitialized_ = true;
+        NotifyRenderStateDirty();
         return true;
     }
 
@@ -525,6 +567,7 @@ namespace HIKARI {
         }
         profile.CopyValuesTo(materialFxParamValues_);
         materialFxValuesInitialized_ = true;
+        NotifyRenderStateDirty();
     }
 
     void ModelComponent::Serialize(nlohmann::json& out) const {
@@ -642,6 +685,7 @@ namespace HIKARI {
                 value = {};
             }
         }
+        NotifyRenderStateDirty();
     }
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {

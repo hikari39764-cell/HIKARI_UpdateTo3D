@@ -29,8 +29,7 @@ namespace HIKARI {
             float fpsRaw = 0.0f;
             RenderSubmissionDebugStats submission{};
             RENDER3D::RUNTIME::SceneRenderCache::Stats scene{};
-            RENDER3D::RUNTIME::SurfaceDrawPacketBuilder::Stats packets{};
-            RENDER3D::RUNTIME::SurfaceDrawPacketPlanStats plan{};
+            RENDER3D::GPUDRIVEN::GpuSceneRegistryStats gpuRegistry{};
             MESHRENDERER::MeshRendererDebugStats mesh{};
             SHADOW::ShadowMapDebugStats shadow{};
             RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
@@ -115,8 +114,7 @@ namespace HIKARI {
             out.fpsRaw = frame.rawDt > 0.0f ? 1.0f / frame.rawDt : 0.0f;
             out.submission = RenderSubmissionSystem::GetDebugStats();
             out.scene = RenderSubmissionSystem::GetSceneRenderCacheStats();
-            out.packets = RenderSubmissionSystem::GetSurfaceDrawPacketStats();
-            out.plan = RenderSubmissionSystem::GetSurfaceDrawPacketPlanStats();
+            out.gpuRegistry = RenderSubmissionSystem::GetGpuSceneRegistryStats();
             out.mesh = MESHRENDERER::GetDebugStats();
             out.shadow = SHADOW::GetDebugStats();
             out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
@@ -262,13 +260,15 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullSourceInstanceCount,
                     s.mesh.clusterGpuCullSubmittedInstanceCount,
                     s.mesh.clusterGpuCullOverflowInstanceCount);
-                MetricRow("GPU Cull Buckets SingleSided / DoubleSided", "%zu / %zu",
-                    s.mesh.clusterGpuCullSourceSingleSidedInstanceCount,
-                    s.mesh.clusterGpuCullSourceDoubleSidedInstanceCount);
-                MetricRow("GPU PageTasks CPU Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
+                MetricRow("GPU PageTasks GPUScene Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullSourcePageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskOverflowCount);
+                MetricRow("GPU Driven Worklist Passes / Cluster / Instances / Cluster Inst", "%zu / %zu / %zu / %zu",
+                    s.mesh.gpuDrivenWorklistPassCount,
+                    s.mesh.gpuDrivenWorklistClusterPassCount,
+                    s.mesh.gpuDrivenWorklistSourceInstanceCount,
+                    s.mesh.gpuDrivenWorklistClusterInstanceCount);
                 MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuInputFrustumCulledCount,
@@ -301,10 +301,6 @@ namespace HIKARI {
                     s.mesh.clusterMainlineReady ? "Ready" : "Blocked",
                     s.mesh.clusterMainlineHasDrawSeeds ? "yes" : "no",
                     s.mesh.clusterMainlineOverflowBlocked ? "yes" : "no");
-                MetricRow("Opaque Ownership Cluster / GeometryAux / Legacy Cmd", "%zu / %zu / %zu",
-                    s.mesh.clusterMainlineOwnedCommandCount,
-                    s.mesh.clusterMainlineGeometryAuxCommandCount,
-                    s.mesh.clusterMainlineLegacyCommandCount);
                 MetricRow("Meshlet ExecuteIndirect Calls BackFace / DoubleSided / EmptyBuckets", "%zu / %zu / %zu",
                     s.mesh.meshletBackendBackFaceSubmitCallCount,
                     s.mesh.meshletBackendDoubleSidedSubmitCallCount,
@@ -313,9 +309,6 @@ namespace HIKARI {
                     s.mesh.meshletBackendForwardSubmittedDispatchCount,
                     s.mesh.meshletBackendGeometryAuxSubmittedDispatchCount,
                     s.mesh.meshletBackendRequestedDispatchCount);
-                MetricRow("Legacy Bypass Commands / Packets", "%zu / %zu",
-                    s.mesh.clusterDrawBypassedLegacyCommandCount,
-                    s.mesh.clusterDrawBypassedLegacyPacketCount);
                 ImGui::EndTable();
             }
         }
@@ -325,8 +318,8 @@ namespace HIKARI {
             if (BeginMetricTable("SubmissionMetrics")) {
                 MetricRowText("Route Mode", ToString(s.submission.routeMode));
                 MetricRow("Mainline / ForceLegacy", "%s / %s",
-                    s.submission.surfacePacketMainRouteActive ? "on" : "off",
-                    s.submission.surfacePacketForceLegacyActive ? "on" : "off");
+                    s.submission.gpuDrivenMainRouteActive ? "on" : "off",
+                    s.submission.forceLegacyActive ? "on" : "off");
                 MetricRow("Scene Scanned / Submitted / Culled / Hidden", "%d / %d / %d / %d",
                     s.submission.scannedModelCount,
                     s.submission.submittedModelCount,
@@ -335,15 +328,18 @@ namespace HIKARI {
                 MetricRow("Surface Instances / Cluster Instances", "%u / %u",
                     s.scene.surfaceInstanceCount,
                     s.scene.clusteredGeometrySurfaceInstanceCount);
-                MetricRow("Packets / Valid / Cluster Backend / Cluster Resource", "%u / %u / %u / %u",
-                    s.packets.packetCount,
-                    s.packets.validPacketCount,
-                    s.packets.clusterGeometryBackendPacketCount,
-                    s.packets.clusterGeometryResourcePacketCount);
-                MetricRow("Plan Opaque / DepthAware / Transparent", "%u / %u / %u",
-                    s.plan.submittedOpaqueCommandCount,
-                    s.plan.submittedDepthAwareCommandCount,
-                    s.plan.submittedTransparentCommandCount);
+                MetricRow("GPU Records Source / Routed / Unsupported", "%u / %u / %u",
+                    s.gpuRegistry.sourceRecordCount,
+                    s.gpuRegistry.forwardRoutedRecordCount,
+                    s.gpuRegistry.unsupportedForwardRecordCount);
+                MetricRow("GPU Resident Opaque / Cluster Candidate / Instances", "%u / %u / %u",
+                    s.gpuRegistry.forwardOpaqueResidentRecordCount,
+                    s.gpuRegistry.forwardOpaqueClusterCandidateRecordCount,
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount);
+                MetricRow("GPU Resource Instances / Missing / Cluster Ranges", "%u / %u / %u",
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.resourceBackedInstanceCount,
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount,
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.clusterSurfaceRangeInstanceCount);
                 MetricRow("Surface ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
                     s.mesh.surfaceIndirectOpaqueCommandCount,
                     s.mesh.surfaceIndirectDepthAwareCommandCount,

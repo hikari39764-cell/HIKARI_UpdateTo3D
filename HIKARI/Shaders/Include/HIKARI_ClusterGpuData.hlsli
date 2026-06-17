@@ -2,12 +2,13 @@
 #define HIKARI_CLUSTER_GPU_DATA_INCLUDED
 
 static const uint HIKARI_CLUSTER_GEOMETRY_GPU_MAGIC = 0x534c4348u;
-static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 4u;
+static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 8u;
 static const uint HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX = 0xffffffffu;
 static const uint HIKARI_CLUSTER_GEOMETRY_HEADER_BYTES = 128u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_LOD_RANGE_BYTES = 64u;
-static const uint HIKARI_CLUSTER_GEOMETRY_CLUSTER_BYTES = 96u;
+static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_SECTION_BYTES = 128u;
+static const uint HIKARI_CLUSTER_GEOMETRY_CLUSTER_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_PAGE_BYTES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES = 80u;
 static const uint HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES = 16u;
@@ -43,8 +44,8 @@ struct HikariClusterGeometryHeader
 
     uint surfaceLodRangeCount;
     uint surfaceLodRangeOffsetBytes;
-    uint reserved0;
-    uint reserved1;
+    uint surfaceSectionCount;
+    uint surfaceSectionOffsetBytes;
 
     float4 localBoundsMin;
     float4 localBoundsMax;
@@ -73,8 +74,8 @@ struct HikariClusterGeometrySurface
     uint firstLodRange;
 
     uint lodRangeCount;
-    uint reserved2;
-    uint reserved3;
+    uint firstSection;
+    uint sectionCount;
     uint reserved4;
 
     float4 boundsMin;
@@ -101,7 +102,39 @@ struct HikariClusterGeometrySurfaceLodRange
     float geometricError;
     float minScreenRadius;
     uint flags;
+    uint sectionIndex;
+};
+
+struct HikariClusterGeometrySurfaceSection
+{
+    uint surfaceIndex;
+    uint sectionIndex;
+    uint firstCluster;
+    uint clusterCount;
+
+    uint firstIndex;
+    uint indexCount;
+    uint firstVertex;
+    uint vertexCount;
+
+    uint firstPage;
+    uint pageCount;
+    uint firstPrimitive;
+    uint primitiveCount;
+
+    uint firstLodRange;
+    uint lodRangeCount;
+    uint flags;
     uint reserved0;
+
+    float4 boundsMin;
+    float4 boundsMax;
+    float4 lodMetricCenterRadius;
+
+    float lodErrorBudgetNdc;
+    uint reserved1;
+    uint reserved2;
+    uint reserved3;
 };
 
 struct HikariMeshCluster
@@ -119,6 +152,7 @@ struct HikariMeshCluster
     float4 boundsMin;
     float4 boundsMax;
     float4 sphereCenterRadius;
+    float4 coneApex;
     float4 coneAxisCutoff;
 };
 
@@ -194,8 +228,8 @@ HikariClusterGeometryHeader HikariLoadClusterGeometryHeader(ByteAddressBuffer bu
     header.meshletPrimitiveOffsetBytes = v4.w;
     header.surfaceLodRangeCount = v5.x;
     header.surfaceLodRangeOffsetBytes = v5.y;
-    header.reserved0 = v5.z;
-    header.reserved1 = v5.w;
+    header.surfaceSectionCount = v5.z;
+    header.surfaceSectionOffsetBytes = v5.w;
     header.localBoundsMin = asfloat(buffer.Load4(96u));
     header.localBoundsMax = asfloat(buffer.Load4(112u));
     return header;
@@ -230,8 +264,8 @@ HikariClusterGeometrySurface HikariLoadClusterGeometrySurface(
     surface.primitiveCount = v3.z;
     surface.firstLodRange = v3.w;
     surface.lodRangeCount = v4.x;
-    surface.reserved2 = v4.y;
-    surface.reserved3 = v4.z;
+    surface.firstSection = v4.y;
+    surface.sectionCount = v4.z;
     surface.reserved4 = v4.w;
     surface.boundsMin = asfloat(buffer.Load4(offset + 80u));
     surface.boundsMax = asfloat(buffer.Load4(offset + 96u));
@@ -265,8 +299,47 @@ HikariClusterGeometrySurfaceLodRange HikariLoadClusterGeometrySurfaceLodRange(
     range.geometricError = asfloat(v3.x);
     range.minScreenRadius = asfloat(v3.y);
     range.flags = v3.z;
-    range.reserved0 = v3.w;
+    range.sectionIndex = v3.w;
     return range;
+}
+
+HikariClusterGeometrySurfaceSection HikariLoadClusterGeometrySurfaceSection(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint sectionTableIndex)
+{
+    HikariClusterGeometrySurfaceSection section = (HikariClusterGeometrySurfaceSection)0;
+    uint offset = header.surfaceSectionOffsetBytes +
+        sectionTableIndex * HIKARI_CLUSTER_GEOMETRY_SURFACE_SECTION_BYTES;
+    uint4 v0 = buffer.Load4(offset + 0u);
+    uint4 v1 = buffer.Load4(offset + 16u);
+    uint4 v2 = buffer.Load4(offset + 32u);
+    uint4 v3 = buffer.Load4(offset + 48u);
+    section.surfaceIndex = v0.x;
+    section.sectionIndex = v0.y;
+    section.firstCluster = v0.z;
+    section.clusterCount = v0.w;
+    section.firstIndex = v1.x;
+    section.indexCount = v1.y;
+    section.firstVertex = v1.z;
+    section.vertexCount = v1.w;
+    section.firstPage = v2.x;
+    section.pageCount = v2.y;
+    section.firstPrimitive = v2.z;
+    section.primitiveCount = v2.w;
+    section.firstLodRange = v3.x;
+    section.lodRangeCount = v3.y;
+    section.flags = v3.z;
+    section.reserved0 = v3.w;
+    section.boundsMin = asfloat(buffer.Load4(offset + 64u));
+    section.boundsMax = asfloat(buffer.Load4(offset + 80u));
+    section.lodMetricCenterRadius = asfloat(buffer.Load4(offset + 96u));
+    uint4 v4 = buffer.Load4(offset + 112u);
+    section.lodErrorBudgetNdc = asfloat(v4.x);
+    section.reserved1 = v4.y;
+    section.reserved2 = v4.z;
+    section.reserved3 = v4.w;
+    return section;
 }
 
 HikariMeshCluster HikariLoadMeshCluster(
@@ -289,7 +362,8 @@ HikariMeshCluster HikariLoadMeshCluster(
     cluster.boundsMin = asfloat(buffer.Load4(offset + 32u));
     cluster.boundsMax = asfloat(buffer.Load4(offset + 48u));
     cluster.sphereCenterRadius = asfloat(buffer.Load4(offset + 64u));
-    cluster.coneAxisCutoff = asfloat(buffer.Load4(offset + 80u));
+    cluster.coneApex = asfloat(buffer.Load4(offset + 80u));
+    cluster.coneAxisCutoff = asfloat(buffer.Load4(offset + 96u));
     return cluster;
 }
 

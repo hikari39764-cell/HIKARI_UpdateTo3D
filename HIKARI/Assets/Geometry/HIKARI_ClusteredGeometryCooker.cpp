@@ -3,11 +3,12 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Tools/Geometry/HIKARI_MeshLodGenerator.h"
+#include "../../../ThirdParty/meshoptimizer/src/meshoptimizer.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
 
@@ -16,6 +17,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         using RENDER3D::CLUSTER::ClusterSurface;
         using RENDER3D::CLUSTER::ClusterSurfaceFlags;
         using RENDER3D::CLUSTER::ClusterSurfaceLodRange;
+        using RENDER3D::CLUSTER::ClusterSurfaceSection;
         using RENDER3D::CLUSTER::ClusterVertex;
         using RENDER3D::CLUSTER::ClusteredGeometryAsset;
         using RENDER3D::CLUSTER::ClusteredGeometryBuildReport;
@@ -44,6 +46,89 @@ namespace HIKARI::ASSETS::GEOMETRY {
             SurfaceWork work{};
             float geometricError = 0.0f;
         };
+
+        struct SurfaceSectionBuildSource {
+            std::vector<uint32_t> triangleIndices{};
+            std::vector<std::vector<uint32_t>> groups{};
+        };
+
+        std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
+            const std::vector<ClusterVertex>& vertices,
+            const std::vector<SourceTriangle>& triangles,
+            const ClusterCookSettings& settings);
+
+        bool IsFiniteVec3(const MATH::Vec3& v);
+
+        bool ApplyMeshoptMeshletBounds(
+            const ClusteredGeometryAsset& asset,
+            const MeshCluster& cluster,
+            MeshCluster& outCluster) {
+
+            if (cluster.vertexCount == 0u ||
+                cluster.primitiveCount == 0u ||
+                cluster.firstVertex + cluster.vertexCount > asset.packedVertices.size() ||
+                cluster.firstPrimitive + cluster.primitiveCount > asset.meshletPrimitives.size()) {
+                return false;
+            }
+
+            std::vector<unsigned int> meshletVertices(cluster.vertexCount);
+            std::iota(meshletVertices.begin(), meshletVertices.end(), 0u);
+
+            std::vector<unsigned char> meshletTriangles{};
+            meshletTriangles.reserve(static_cast<size_t>(cluster.primitiveCount) * 3u);
+            for (uint32_t primitiveOffset = 0; primitiveOffset < cluster.primitiveCount; ++primitiveOffset) {
+                const MeshletPrimitive& primitive =
+                    asset.meshletPrimitives[cluster.firstPrimitive + primitiveOffset];
+                if (primitive.i0 >= cluster.vertexCount ||
+                    primitive.i1 >= cluster.vertexCount ||
+                    primitive.i2 >= cluster.vertexCount) {
+                    return false;
+                }
+                meshletTriangles.push_back(static_cast<unsigned char>(primitive.i0));
+                meshletTriangles.push_back(static_cast<unsigned char>(primitive.i1));
+                meshletTriangles.push_back(static_cast<unsigned char>(primitive.i2));
+            }
+
+            const ClusterVertex* firstVertex = asset.packedVertices.data() + cluster.firstVertex;
+            const meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+                meshletVertices.data(),
+                meshletTriangles.data(),
+                cluster.primitiveCount,
+                &firstVertex->position.x,
+                cluster.vertexCount,
+                sizeof(ClusterVertex));
+
+            if (!std::isfinite(bounds.radius) || bounds.radius <= 0.0f) {
+                return false;
+            }
+
+            outCluster.sphereCenter = {
+                bounds.center[0],
+                bounds.center[1],
+                bounds.center[2]
+            };
+            outCluster.sphereRadius = bounds.radius;
+            outCluster.coneApex = {
+                bounds.cone_apex[0],
+                bounds.cone_apex[1],
+                bounds.cone_apex[2]
+            };
+            outCluster.coneAxis = {
+                bounds.cone_axis[0],
+                bounds.cone_axis[1],
+                bounds.cone_axis[2]
+            };
+            outCluster.coneCutoff = bounds.cone_cutoff;
+            if (!IsFiniteVec3(outCluster.coneApex) ||
+                !IsFiniteVec3(outCluster.coneAxis) ||
+                !std::isfinite(outCluster.coneCutoff) ||
+                MATH::Length(outCluster.coneAxis) <= 1.0e-5f) {
+                outCluster.coneApex = outCluster.sphereCenter;
+                outCluster.coneAxis = { 0.0f, 1.0f, 0.0f };
+                outCluster.coneCutoff = 1.0f;
+            }
+            return true;
+        }
 
         bool IsFiniteVec3(const MATH::Vec3& v) {
             return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
@@ -344,6 +429,407 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Unsupported);
         }
 
+        float BoundsExtentOnAxis(const Bounds& bounds, uint32_t axis) {
+            switch (axis) {
+            case 0u:
+                return (std::max)(0.0f, bounds.max.x - bounds.min.x);
+            case 1u:
+                return (std::max)(0.0f, bounds.max.y - bounds.min.y);
+            default:
+                return (std::max)(0.0f, bounds.max.z - bounds.min.z);
+            }
+        }
+
+        uint32_t LongestBoundsAxis(const Bounds& bounds) {
+            const float extentX = BoundsExtentOnAxis(bounds, 0u);
+            const float extentY = BoundsExtentOnAxis(bounds, 1u);
+            const float extentZ = BoundsExtentOnAxis(bounds, 2u);
+            if (extentX >= extentY && extentX >= extentZ) {
+                return 0u;
+            }
+            return extentY >= extentZ ? 1u : 2u;
+        }
+
+        float MaxBoundsExtent(const Bounds& bounds) {
+            return (std::max)(
+                BoundsExtentOnAxis(bounds, 0u),
+                (std::max)(BoundsExtentOnAxis(bounds, 1u), BoundsExtentOnAxis(bounds, 2u)));
+        }
+
+        MATH::Vec3 BoundsCenter(const Bounds& bounds) {
+            return {
+                (bounds.min.x + bounds.max.x) * 0.5f,
+                (bounds.min.y + bounds.max.y) * 0.5f,
+                (bounds.min.z + bounds.max.z) * 0.5f,
+            };
+        }
+
+        float BoundsRadius(const Bounds& bounds) {
+            const MATH::Vec3 center = BoundsCenter(bounds);
+            const MATH::Vec3 extent{
+                (std::max)(bounds.max.x - center.x, 0.0f),
+                (std::max)(bounds.max.y - center.y, 0.0f),
+                (std::max)(bounds.max.z - center.z, 0.0f),
+            };
+            return std::sqrt(extent.x * extent.x + extent.y * extent.y + extent.z * extent.z);
+        }
+
+        Bounds BuildCenterRadiusBounds(const MATH::Vec3& center, float radius) {
+            const float safeRadius = (std::max)(radius, 0.0f);
+            Bounds bounds{};
+            bounds.min = {
+                center.x - safeRadius,
+                center.y - safeRadius,
+                center.z - safeRadius,
+            };
+            bounds.max = {
+                center.x + safeRadius,
+                center.y + safeRadius,
+                center.z + safeRadius,
+            };
+            return bounds;
+        }
+
+        float ResolveSectionLodErrorBudgetNdc(const ClusterCookSettings& settings) {
+            float budget = settings.lod1TargetError;
+            if (settings.surfacePartitionPolicy == SurfacePartitionPolicy::SceneStatic) {
+                budget = (std::max)(budget, settings.lod2TargetError * 0.80f);
+            } else if (settings.surfacePartitionPolicy == SurfacePartitionPolicy::CharacterStatic) {
+                budget = (std::max)(budget, settings.lod2TargetError * 0.75f);
+            }
+
+            // 後段 LOD は section 単位で選ばれるため、LOD1 だけの誤差予算だと
+            // LOD3/4 が遠距離まで選ばれにくい。近景は screen radius で守る。
+            return (std::max)(budget, 0.0005f);
+        }
+
+        Bounds ResolveSectionLodMetricBounds(
+            const ClusterCookSettings& settings,
+            const Bounds& sectionBounds,
+            const Bounds& surfaceBounds,
+            const Bounds& assetBounds,
+            size_t assetSurfaceCount,
+            bool partitioned) {
+
+            if (!BOUNDS::IsUsable(sectionBounds)) {
+                return sectionBounds;
+            }
+
+            const float sectionRadius = BoundsRadius(sectionBounds);
+            if (sectionRadius <= 0.000001f) {
+                return sectionBounds;
+            }
+
+            if (partitioned) {
+                if (settings.surfacePartitionPolicy != SurfacePartitionPolicy::SceneStatic) {
+                    return sectionBounds;
+                }
+
+                // Scene の平面 section は見た目の対角線で LOD 判定が引っ張られやすい。
+                // 可視判定用 bounds はそのまま使い、LOD metric だけを cook 時の目標粒度へ寄せる。
+                const float targetRadius =
+                    (std::max)(0.35f, settings.largeSurfacePartitionMaxExtent * 0.50f);
+                const float metricRadius = (std::min)(sectionRadius, targetRadius);
+                if (metricRadius >= sectionRadius * 0.98f) {
+                    return sectionBounds;
+                }
+                return BuildCenterRadiusBounds(BoundsCenter(sectionBounds), metricRadius);
+            }
+
+            float referenceRadius = BOUNDS::IsUsable(surfaceBounds)
+                ? BoundsRadius(surfaceBounds)
+                : sectionRadius;
+
+            // Character は部位ごとの LOD 判定を優先するため、asset 全体半径で section を膨らませない。
+            const float compactAssetScale =
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::CharacterStatic
+                    ? 0.0f
+                    : (settings.surfacePartitionPolicy == SurfacePartitionPolicy::SceneStatic ? 0.15f : 0.30f);
+            if (compactAssetScale > 0.0f && assetSurfaceCount <= 16u && BOUNDS::IsUsable(assetBounds)) {
+                const float assetRadius = BoundsRadius(assetBounds);
+                referenceRadius = (std::max)(referenceRadius, assetRadius * compactAssetScale);
+            }
+
+            const float sectionMetricScale =
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::CharacterStatic ? 0.20f : 0.35f;
+            const float minMetricRadius = referenceRadius * sectionMetricScale;
+            const float metricRadius = (std::max)(sectionRadius, minMetricRadius);
+            if (metricRadius <= sectionRadius * 1.01f) {
+                return sectionBounds;
+            }
+
+            return BuildCenterRadiusBounds(BoundsCenter(sectionBounds), metricRadius);
+        }
+
+        void ConfigureSectionLodMetric(
+            ClusterSurfaceSection& section,
+            const ClusterCookSettings& settings,
+            const Bounds& metricBounds) {
+
+            section.lodMetricBounds = BOUNDS::IsUsable(metricBounds)
+                ? metricBounds
+                : section.localBounds;
+            section.lodErrorBudgetNdc = ResolveSectionLodErrorBudgetNdc(settings);
+        }
+
+        void FinalizeAssetLodMetrics(
+            ClusteredGeometryAsset& asset,
+            const ClusterCookSettings& settings) {
+
+            for (ClusterSurfaceSection& section : asset.surfaceSections) {
+                const ClusterSurface* surface = nullptr;
+                if (section.surfaceIndex < asset.surfaces.size()) {
+                    surface = &asset.surfaces[section.surfaceIndex];
+                }
+
+                const Bounds& surfaceBounds = surface != nullptr
+                    ? surface->localBounds
+                    : section.localBounds;
+                const bool partitioned = surface != nullptr && surface->sectionCount > 1u;
+
+                ConfigureSectionLodMetric(
+                    section,
+                    settings,
+                    ResolveSectionLodMetricBounds(
+                        settings,
+                        section.localBounds,
+                        surfaceBounds,
+                        asset.localBounds,
+                        asset.surfaces.size(),
+                        partitioned));
+            }
+        }
+
+        float TriangleCenterOnAxis(const SourceTriangle& tri, uint32_t axis) {
+            switch (axis) {
+            case 0u:
+                return (tri.bounds.min.x + tri.bounds.max.x) * 0.5f;
+            case 1u:
+                return (tri.bounds.min.y + tri.bounds.max.y) * 0.5f;
+            default:
+                return (tri.bounds.min.z + tri.bounds.max.z) * 0.5f;
+            }
+        }
+
+        Bounds ComputeTriangleSubsetBounds(
+            const std::vector<SourceTriangle>& triangles,
+            const std::vector<uint32_t>& triangleIndices) {
+
+            Bounds bounds{};
+            bool hasBounds = false;
+            for (uint32_t triangleIndex : triangleIndices) {
+                if (triangleIndex >= triangles.size()) {
+                    continue;
+                }
+                const Bounds& triBounds = triangles[triangleIndex].bounds;
+                if (!BOUNDS::IsUsable(triBounds)) {
+                    continue;
+                }
+                bounds = hasBounds ? MergeBounds(bounds, triBounds) : triBounds;
+                hasBounds = true;
+            }
+            return hasBounds ? bounds : Bounds{};
+        }
+
+        bool ShouldPartitionLargeStaticSurface(
+            const SurfaceWork& work,
+            const Bounds& bounds,
+            const ClusterCookSettings& settings) {
+
+            if (!settings.partitionLargeStaticSurfaces ||
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::Disabled ||
+                !ShouldUsePermissiveOpaqueLods(work.flags) ||
+                CountWorkTriangles(work) < settings.largeSurfacePartitionMinTriangles ||
+                !BOUNDS::IsUsable(bounds)) {
+                return false;
+            }
+
+            const float maxExtent =
+                (std::max)(0.5f, settings.largeSurfacePartitionMaxExtent);
+            return MaxBoundsExtent(bounds) > maxExtent;
+        }
+
+        void PartitionTriangleIndicesRecursive(
+            const std::vector<SourceTriangle>& triangles,
+            std::vector<uint32_t> triangleIndices,
+            const ClusterCookSettings& settings,
+            uint32_t depth,
+            std::vector<std::vector<uint32_t>>& outPartitions) {
+
+            const Bounds bounds = ComputeTriangleSubsetBounds(triangles, triangleIndices);
+            const uint32_t minChunkTriangles =
+                (std::max)(1u, settings.largeSurfacePartitionMinTrianglesPerChunk);
+            const float maxExtent =
+                (std::max)(0.5f, settings.largeSurfacePartitionMaxExtent);
+            if (triangleIndices.size() < static_cast<size_t>(minChunkTriangles) * 2u ||
+                depth >= settings.largeSurfacePartitionMaxDepth ||
+                !BOUNDS::IsUsable(bounds) ||
+                MaxBoundsExtent(bounds) <= maxExtent) {
+                outPartitions.push_back(std::move(triangleIndices));
+                return;
+            }
+
+            const uint32_t axis = LongestBoundsAxis(bounds);
+            auto middle = triangleIndices.begin() +
+                static_cast<std::ptrdiff_t>(triangleIndices.size() / 2u);
+            std::nth_element(
+                triangleIndices.begin(),
+                middle,
+                triangleIndices.end(),
+                [&](uint32_t lhs, uint32_t rhs) {
+                    const float lhsCenter =
+                        TriangleCenterOnAxis(triangles[lhs], axis);
+                    const float rhsCenter =
+                        TriangleCenterOnAxis(triangles[rhs], axis);
+                    if (lhsCenter == rhsCenter) {
+                        return lhs < rhs;
+                    }
+                    return lhsCenter < rhsCenter;
+                });
+
+            std::vector<uint32_t> left(triangleIndices.begin(), middle);
+            std::vector<uint32_t> right(middle, triangleIndices.end());
+            if (left.size() < minChunkTriangles || right.size() < minChunkTriangles) {
+                outPartitions.push_back(std::move(triangleIndices));
+                return;
+            }
+
+            PartitionTriangleIndicesRecursive(
+                triangles,
+                std::move(left),
+                settings,
+                depth + 1u,
+                outPartitions);
+            PartitionTriangleIndicesRecursive(
+                triangles,
+                std::move(right),
+                settings,
+                depth + 1u,
+                outPartitions);
+        }
+
+        bool BuildLargeStaticSurfaceSectionSources(
+            const SurfaceWork& work,
+            const std::vector<SourceTriangle>& triangles,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryBuildReport& report,
+            std::vector<SurfaceSectionBuildSource>& outSections) {
+
+            outSections.clear();
+            const Bounds sourceBounds = ComputeVertexBounds(work.vertices);
+            if (!ShouldPartitionLargeStaticSurface(work, sourceBounds, settings)) {
+                return false;
+            }
+
+            if (triangles.size() < settings.largeSurfacePartitionMinTriangles) {
+                return false;
+            }
+
+            std::vector<uint32_t> triangleIndices(triangles.size());
+            std::iota(triangleIndices.begin(), triangleIndices.end(), 0u);
+
+            std::vector<std::vector<uint32_t>> partitions{};
+            PartitionTriangleIndicesRecursive(
+                triangles,
+                std::move(triangleIndices),
+                settings,
+                0u,
+                partitions);
+            if (partitions.size() <= 1u) {
+                return false;
+            }
+
+            // SurfaceGpuScene は primitive 単位で 1 つの surface を参照するため、
+            // cook では runtime surface を分割せず、cluster/page の粒度だけを分割境界に寄せる。
+            for (const std::vector<uint32_t>& partition : partitions) {
+                if (partition.empty()) {
+                    continue;
+                }
+
+                std::vector<SourceTriangle> partitionTriangles{};
+                partitionTriangles.reserve(partition.size());
+                for (uint32_t triangleIndex : partition) {
+                    if (triangleIndex < triangles.size()) {
+                        partitionTriangles.push_back(triangles[triangleIndex]);
+                    }
+                }
+                if (partitionTriangles.empty()) {
+                    continue;
+                }
+
+                const std::vector<std::vector<uint32_t>> partitionGroups =
+                    BuildClusterTriangleGroups(work.vertices, partitionTriangles, settings);
+                SurfaceSectionBuildSource section{};
+                section.triangleIndices = partition;
+                for (const std::vector<uint32_t>& localGroup : partitionGroups) {
+                    std::vector<uint32_t> group{};
+                    group.reserve(localGroup.size());
+                    for (uint32_t localTriangleIndex : localGroup) {
+                        if (localTriangleIndex < partition.size()) {
+                            group.push_back(partition[localTriangleIndex]);
+                        }
+                    }
+                    if (!group.empty()) {
+                        section.groups.push_back(std::move(group));
+                    }
+                }
+                if (!section.groups.empty()) {
+                    outSections.push_back(std::move(section));
+                }
+            }
+            if (outSections.empty()) {
+                return false;
+            }
+
+            ++report.partitionedSurfaceCount;
+            report.partitionedSurfaceChunkCount += static_cast<uint32_t>(outSections.size());
+            return true;
+        }
+
+        SurfaceWork BuildSectionSurfaceWork(
+            const SurfaceWork& source,
+            const std::vector<SourceTriangle>& triangles,
+            const std::vector<uint32_t>& triangleIndices) {
+
+            SurfaceWork sectionWork{};
+            sectionWork.nodeIndex = source.nodeIndex;
+            sectionWork.meshIndex = source.meshIndex;
+            sectionWork.primitiveIndex = source.primitiveIndex;
+            sectionWork.materialIndex = source.materialIndex;
+            sectionWork.flags = source.flags;
+
+            std::unordered_map<uint32_t, uint32_t> vertexRemap{};
+            vertexRemap.reserve(triangleIndices.size() * 3u);
+            sectionWork.indices.reserve(triangleIndices.size() * 3u);
+
+            for (uint32_t triangleIndex : triangleIndices) {
+                if (triangleIndex >= triangles.size()) {
+                    continue;
+                }
+
+                const SourceTriangle& tri = triangles[triangleIndex];
+                const uint32_t sourceIndices[3] = { tri.i0, tri.i1, tri.i2 };
+                for (uint32_t sourceIndex : sourceIndices) {
+                    if (sourceIndex >= source.vertices.size()) {
+                        continue;
+                    }
+
+                    auto it = vertexRemap.find(sourceIndex);
+                    if (it == vertexRemap.end()) {
+                        const uint32_t remappedIndex =
+                            static_cast<uint32_t>(sectionWork.vertices.size());
+                        vertexRemap[sourceIndex] = remappedIndex;
+                        sectionWork.vertices.push_back(source.vertices[sourceIndex]);
+                        sectionWork.indices.push_back(remappedIndex);
+                    } else {
+                        sectionWork.indices.push_back(it->second);
+                    }
+                }
+            }
+
+            return sectionWork;
+        }
+
         float ResolveLodTargetRatio(uint32_t flags, uint32_t lodIndex, const ClusterCookSettings& settings) {
             float ratio = settings.lod4TriangleRatio;
             switch (lodIndex) {
@@ -360,10 +846,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 break;
             }
             ratio = (std::max)(0.05f, (std::min)(ratio, 0.95f));
-            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask) ||
-                RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask)) {
                 // 両面/マスク材質は輪郭破綻が目立つので、通常 opaque より控えめに落とす。
                 ratio = std::sqrt(ratio);
+            } else if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+                ratio = ratio * 0.85f + std::sqrt(ratio) * 0.15f;
             }
             return ratio;
         }
@@ -384,9 +871,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 break;
             }
             error = (std::max)(0.0001f, (std::min)(error, 0.08f));
-            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask) ||
-                RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+            if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::AlphaMask)) {
                 error *= 0.65f;
+            } else if (RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::DoubleSided)) {
+                error *= 0.85f;
             }
             return error;
         }
@@ -412,6 +900,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             uint32_t lodIndex,
             uint32_t previousTriangleCount,
             const ClusterCookSettings& settings,
+            bool lockSectionBorders,
             SurfaceLodBuildResult& outResult) {
 
             outResult = {};
@@ -436,12 +925,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
             lodSettings.targetTriangleRatio = targetRatio;
             lodSettings.targetError = ResolveLodTargetError(source.flags, lodIndex, settings);
             const bool permissiveOpaqueLod = ShouldUsePermissiveOpaqueLods(source.flags);
-            // 通常 opaque は UV/法線 seam を越えて簡略化し、位置で見た本当の外周だけを固定する。
-            lodSettings.lockOpenBorders = !permissiveOpaqueLod;
+            // 通常 opaque は seam 越しの簡略化を許可し、section 境界だけは裂け防止で固定する。
             lodSettings.preserveAttributes = true;
+            lodSettings.lockOpenBorders = lockSectionBorders || !permissiveOpaqueLod;
             lodSettings.optimizeVertexCache = true;
-            lodSettings.allowAttributeSeamCollapse = permissiveOpaqueLod;
-            lodSettings.protectGeometricBorders = permissiveOpaqueLod;
+            lodSettings.allowAttributeSeamCollapse = permissiveOpaqueLod && !lockSectionBorders;
+            lodSettings.protectGeometricBorders = permissiveOpaqueLod || lockSectionBorders;
             lodSettings.pruneIsolatedComponents = false;
 
             TOOLS::GEOMETRY::MeshLodGeneratorResult lodResult{};
@@ -467,163 +956,196 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return outResult.geometricError >= 0.0f;
         }
 
-        uint32_t CountSharedVertices(
-            const SourceTriangle& tri,
-            const std::unordered_set<uint32_t>& clusterVertices) {
+        struct TriangleKey {
+            uint32_t i0 = 0;
+            uint32_t i1 = 0;
+            uint32_t i2 = 0;
 
-            uint32_t shared = 0;
-            shared += clusterVertices.find(tri.i0) != clusterVertices.end() ? 1u : 0u;
-            shared += clusterVertices.find(tri.i1) != clusterVertices.end() ? 1u : 0u;
-            shared += clusterVertices.find(tri.i2) != clusterVertices.end() ? 1u : 0u;
-            return shared;
-        }
-
-        uint32_t CountNewVertices(
-            const SourceTriangle& tri,
-            const std::unordered_set<uint32_t>& clusterVertices) {
-
-            uint32_t added = 0;
-            added += clusterVertices.find(tri.i0) == clusterVertices.end() ? 1u : 0u;
-            added += clusterVertices.find(tri.i1) == clusterVertices.end() ? 1u : 0u;
-            added += clusterVertices.find(tri.i2) == clusterVertices.end() ? 1u : 0u;
-            return added;
-        }
-
-        void AddTriangleVertices(const SourceTriangle& tri, std::unordered_set<uint32_t>& clusterVertices) {
-            clusterVertices.insert(tri.i0);
-            clusterVertices.insert(tri.i1);
-            clusterVertices.insert(tri.i2);
-        }
-
-        void AddNeighborCandidates(
-            uint32_t triIndex,
-            const std::vector<SourceTriangle>& triangles,
-            const std::vector<std::vector<uint32_t>>& vertexToTriangles,
-            const std::vector<uint8_t>& assigned,
-            std::vector<uint32_t>& candidates) {
-
-            const SourceTriangle& tri = triangles[triIndex];
-            const uint32_t ids[3] = { tri.i0, tri.i1, tri.i2 };
-            for (uint32_t vertexIndex : ids) {
-                if (vertexIndex >= vertexToTriangles.size()) {
-                    continue;
-                }
-                for (uint32_t candidate : vertexToTriangles[vertexIndex]) {
-                    if (candidate < assigned.size() && assigned[candidate] == 0u) {
-                        candidates.push_back(candidate);
-                    }
-                }
+            bool operator==(const TriangleKey& rhs) const {
+                return i0 == rhs.i0 && i1 == rhs.i1 && i2 == rhs.i2;
             }
-        }
+        };
 
-        std::vector<std::vector<uint32_t>> BuildVertexAdjacency(
-            const std::vector<SourceTriangle>& triangles,
-            size_t vertexCount) {
-
-            std::vector<std::vector<uint32_t>> vertexToTriangles(vertexCount);
-            for (uint32_t i = 0; i < triangles.size(); ++i) {
-                const SourceTriangle& tri = triangles[i];
-                vertexToTriangles[tri.i0].push_back(i);
-                vertexToTriangles[tri.i1].push_back(i);
-                vertexToTriangles[tri.i2].push_back(i);
-            }
-            return vertexToTriangles;
-        }
-
-        float ScoreCandidate(
-            const SourceTriangle& tri,
-            const Bounds& currentBounds,
-            const std::unordered_set<uint32_t>& clusterVertices,
-            uint32_t maxVerticesPerCluster) {
-
-            const uint32_t shared = CountSharedVertices(tri, clusterVertices);
-            const uint32_t newVertices = CountNewVertices(tri, clusterVertices);
-            const Bounds expanded = MergeBounds(currentBounds, tri.bounds);
-            const float expansionPenalty = BoundsVolume(expanded) - BoundsVolume(currentBounds);
-            const float vertexPenalty =
-                static_cast<float>(clusterVertices.size() + newVertices) /
-                static_cast<float>((std::max)(1u, maxVerticesPerCluster));
-            return static_cast<float>(shared) * 12.0f - expansionPenalty * 0.02f - vertexPenalty * 2.0f;
-        }
-
-        std::vector<uint32_t> GrowCluster(
-            uint32_t seedIndex,
-            const std::vector<SourceTriangle>& triangles,
-            const std::vector<std::vector<uint32_t>>& vertexToTriangles,
-            std::vector<uint8_t>& assigned,
-            const ClusterCookSettings& settings) {
-
-            std::vector<uint32_t> clusterTriangles{};
-            std::vector<uint32_t> candidates{};
-            std::unordered_set<uint32_t> clusterVertices{};
-
-            assigned[seedIndex] = 1u;
-            clusterTriangles.push_back(seedIndex);
-            AddTriangleVertices(triangles[seedIndex], clusterVertices);
-            Bounds currentBounds = triangles[seedIndex].bounds;
-            AddNeighborCandidates(seedIndex, triangles, vertexToTriangles, assigned, candidates);
-
-            while (clusterTriangles.size() < settings.maxTrianglesPerCluster) {
-                uint32_t bestTri = RENDER3D::CLUSTER::kInvalidClusterIndex;
-                float bestScore = -std::numeric_limits<float>::infinity();
-
-                std::sort(candidates.begin(), candidates.end());
-                candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-
-                for (uint32_t candidate : candidates) {
-                    if (candidate >= triangles.size() || assigned[candidate] != 0u) {
-                        continue;
-                    }
-                    const SourceTriangle& tri = triangles[candidate];
-                    const uint32_t newVertices = CountNewVertices(tri, clusterVertices);
-                    if (clusterVertices.size() + newVertices > settings.maxVerticesPerCluster) {
-                        continue;
-                    }
-                    const uint32_t shared = CountSharedVertices(tri, clusterVertices);
-                    if (settings.buildAdjacency && shared == 0u) {
-                        continue;
-                    }
-
-                    const float score = ScoreCandidate(tri, currentBounds, clusterVertices, settings.maxVerticesPerCluster);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestTri = candidate;
-                    }
+        struct TriangleKeyHash {
+            size_t operator()(const TriangleKey& key) const {
+                uint64_t h = 1469598103934665603ull;
+                const uint32_t values[3] = { key.i0, key.i1, key.i2 };
+                for (uint32_t value : values) {
+                    h ^= static_cast<uint64_t>(value);
+                    h *= 1099511628211ull;
                 }
-
-                if (bestTri == RENDER3D::CLUSTER::kInvalidClusterIndex) {
-                    break;
-                }
-
-                assigned[bestTri] = 1u;
-                clusterTriangles.push_back(bestTri);
-                AddTriangleVertices(triangles[bestTri], clusterVertices);
-                currentBounds = MergeBounds(currentBounds, triangles[bestTri].bounds);
-                AddNeighborCandidates(bestTri, triangles, vertexToTriangles, assigned, candidates);
+                return static_cast<size_t>(h);
             }
+        };
 
-            return clusterTriangles;
+        TriangleKey MakeTriangleKey(const SourceTriangle& tri) {
+            return { tri.i0, tri.i1, tri.i2 };
         }
 
-        std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
+        std::vector<std::vector<uint32_t>> BuildSequentialTriangleGroups(
             const std::vector<SourceTriangle>& triangles,
-            size_t vertexCount,
             const ClusterCookSettings& settings) {
 
             std::vector<std::vector<uint32_t>> groups{};
-            std::vector<uint8_t> assigned(triangles.size(), 0u);
-            const std::vector<std::vector<uint32_t>> adjacency =
-                settings.buildAdjacency
-                    ? BuildVertexAdjacency(triangles, vertexCount)
-                    : std::vector<std::vector<uint32_t>>(vertexCount);
-
-            for (uint32_t i = 0; i < triangles.size(); ++i) {
-                if (assigned[i] != 0u) {
-                    continue;
+            const uint32_t maxTriangles =
+                (std::max)(1u, settings.maxTrianglesPerCluster);
+            const uint32_t maxVertices =
+                (std::max)(3u, settings.maxVerticesPerCluster);
+            auto countNewVertices = [](const SourceTriangle& tri, const std::vector<uint32_t>& vertices) {
+                uint32_t added = 0;
+                const uint32_t ids[3] = { tri.i0, tri.i1, tri.i2 };
+                for (uint32_t id : ids) {
+                    if (std::find(vertices.begin(), vertices.end(), id) == vertices.end()) {
+                        ++added;
+                    }
                 }
-                groups.push_back(GrowCluster(i, triangles, adjacency, assigned, settings));
+                return added;
+            };
+            auto appendTriangleVertices = [](const SourceTriangle& tri, std::vector<uint32_t>& vertices) {
+                const uint32_t ids[3] = { tri.i0, tri.i1, tri.i2 };
+                for (uint32_t id : ids) {
+                    if (std::find(vertices.begin(), vertices.end(), id) == vertices.end()) {
+                        vertices.push_back(id);
+                    }
+                }
+            };
+            for (uint32_t i = 0; i < triangles.size();) {
+                std::vector<uint32_t> group{};
+                group.reserve(maxTriangles);
+                std::vector<uint32_t> groupVertices{};
+                groupVertices.reserve(maxVertices);
+                for (; i < triangles.size() && group.size() < maxTriangles;) {
+                    const uint32_t newVertices = countNewVertices(triangles[i], groupVertices);
+                    if (!group.empty() && groupVertices.size() + newVertices > maxVertices) {
+                        break;
+                    }
+                    group.push_back(i);
+                    appendTriangleVertices(triangles[i], groupVertices);
+                    ++i;
+                }
+                if (!group.empty()) {
+                    groups.push_back(std::move(group));
+                } else {
+                    ++i;
+                }
             }
             return groups;
+        }
+
+        std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
+            const std::vector<ClusterVertex>& vertices,
+            const std::vector<SourceTriangle>& triangles,
+            const ClusterCookSettings& settings) {
+
+            if (vertices.empty() || triangles.empty()) {
+                return {};
+            }
+
+            const size_t maxVertices =
+                (std::min<size_t>)((std::max)(1u, settings.maxVerticesPerCluster), 256u);
+            const size_t maxTriangles =
+                (std::min<size_t>)((std::max)(1u, settings.maxTrianglesPerCluster), 512u);
+            const size_t minTriangles =
+                (std::min<size_t>)(
+                    (std::max<size_t>)(1u, settings.minTrianglesPerCluster),
+                    maxTriangles);
+            if (maxVertices < 3u || maxTriangles == 0u) {
+                return BuildSequentialTriangleGroups(triangles, settings);
+            }
+
+            std::vector<unsigned int> indices{};
+            indices.reserve(triangles.size() * 3u);
+            std::unordered_map<TriangleKey, std::vector<uint32_t>, TriangleKeyHash> triangleLookup{};
+            triangleLookup.reserve(triangles.size());
+            for (uint32_t triangleIndex = 0; triangleIndex < triangles.size(); ++triangleIndex) {
+                const SourceTriangle& tri = triangles[triangleIndex];
+                if (tri.i0 >= vertices.size() || tri.i1 >= vertices.size() || tri.i2 >= vertices.size()) {
+                    continue;
+                }
+
+                indices.push_back(tri.i0);
+                indices.push_back(tri.i1);
+                indices.push_back(tri.i2);
+                triangleLookup[MakeTriangleKey(tri)].push_back(triangleIndex);
+            }
+            if (indices.empty()) {
+                return {};
+            }
+
+            const size_t meshletBound =
+                meshopt_buildMeshletsBound(indices.size(), maxVertices, minTriangles);
+            std::vector<meshopt_Meshlet> meshlets(meshletBound);
+            std::vector<unsigned int> meshletVertices(indices.size());
+            std::vector<unsigned char> meshletTriangles(indices.size());
+
+            // 正式な meshlet builder で cluster を作り、後段の独自 HCMESH レイアウトへ変換する。
+            const size_t meshletCount = meshopt_buildMeshletsFlex(
+                meshlets.data(),
+                meshletVertices.data(),
+                meshletTriangles.data(),
+                indices.data(),
+                indices.size(),
+                &vertices[0].position.x,
+                vertices.size(),
+                sizeof(ClusterVertex),
+                maxVertices,
+                minTriangles,
+                maxTriangles,
+                (std::max)(0.0f, settings.meshletConeWeight),
+                (std::max)(0.0f, settings.meshletSplitFactor));
+            if (meshletCount == 0u) {
+                return BuildSequentialTriangleGroups(triangles, settings);
+            }
+
+            std::vector<std::vector<uint32_t>> groups{};
+            groups.reserve(meshletCount);
+            for (size_t meshletIndex = 0; meshletIndex < meshletCount; ++meshletIndex) {
+                const meshopt_Meshlet& meshlet = meshlets[meshletIndex];
+                if (meshlet.triangle_count == 0u || meshlet.vertex_count == 0u) {
+                    continue;
+                }
+
+                meshopt_optimizeMeshlet(
+                    meshletVertices.data() + meshlet.vertex_offset,
+                    meshletTriangles.data() + meshlet.triangle_offset,
+                    meshlet.triangle_count,
+                    meshlet.vertex_count);
+
+                std::vector<uint32_t> group{};
+                group.reserve(meshlet.triangle_count);
+                for (uint32_t triOffset = 0; triOffset < meshlet.triangle_count; ++triOffset) {
+                    const uint32_t base = meshlet.triangle_offset + triOffset * 3u;
+                    const unsigned char local0 = meshletTriangles[base + 0u];
+                    const unsigned char local1 = meshletTriangles[base + 1u];
+                    const unsigned char local2 = meshletTriangles[base + 2u];
+                    if (local0 >= meshlet.vertex_count ||
+                        local1 >= meshlet.vertex_count ||
+                        local2 >= meshlet.vertex_count) {
+                        continue;
+                    }
+
+                    TriangleKey key{};
+                    key.i0 = meshletVertices[meshlet.vertex_offset + local0];
+                    key.i1 = meshletVertices[meshlet.vertex_offset + local1];
+                    key.i2 = meshletVertices[meshlet.vertex_offset + local2];
+
+                    auto it = triangleLookup.find(key);
+                    if (it == triangleLookup.end() || it->second.empty()) {
+                        return BuildSequentialTriangleGroups(triangles, settings);
+                    }
+
+                    group.push_back(it->second.back());
+                    it->second.pop_back();
+                }
+
+                if (!group.empty()) {
+                    groups.push_back(std::move(group));
+                }
+            }
+
+            return groups.empty()
+                ? BuildSequentialTriangleGroups(triangles, settings)
+                : groups;
         }
 
         uint32_t AppendClusterGeometry(
@@ -647,7 +1169,6 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             Bounds bounds{};
             bool hasBounds = false;
-            MATH::Vec3 normalSum{};
             for (uint32_t triangleIndex : group) {
                 const SourceTriangle& tri = triangles[triangleIndex];
                 const uint32_t sourceIndices[3] = { tri.i0, tri.i1, tri.i2 };
@@ -676,7 +1197,6 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 primitive.i1 = localIndices[1];
                 primitive.i2 = localIndices[2];
                 asset.meshletPrimitives.push_back(primitive);
-                normalSum = normalSum + tri.normal;
             }
 
             cluster.indexCount = static_cast<uint32_t>(asset.packedIndices.size()) - cluster.firstIndex;
@@ -691,14 +1211,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     MATH::Length(vertex.position - cluster.sphereCenter));
             }
 
+            cluster.coneApex = cluster.sphereCenter;
+            cluster.coneAxis = { 0.0f, 1.0f, 0.0f };
+            cluster.coneCutoff = 1.0f;
             if (settings.buildNormalCone) {
-                cluster.coneAxis = MATH::Normalize(normalSum);
-                if (MATH::Length(cluster.coneAxis) <= 1e-5f) {
-                    cluster.coneAxis = { 0.0f, 1.0f, 0.0f };
-                }
-                cluster.coneCutoff = 1.0f;
-                for (uint32_t triangleIndex : group) {
-                    cluster.coneCutoff = (std::min)(cluster.coneCutoff, MATH::Dot(cluster.coneAxis, triangles[triangleIndex].normal));
+                MeshCluster meshoptCluster = cluster;
+                if (ApplyMeshoptMeshletBounds(asset, cluster, meshoptCluster)) {
+                    cluster = meshoptCluster;
                 }
             }
 
@@ -758,22 +1277,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             outPageCount = static_cast<uint32_t>(asset.pages.size()) - outFirstPage;
         }
 
-        void BuildPagesForSurface(
-            ClusterSurface& surface,
-            const ClusterCookSettings& settings,
-            ClusteredGeometryAsset& asset) {
-
-            AppendPagesForClusterRange(
-                surface.firstCluster,
-                surface.clusterCount,
-                settings,
-                asset,
-                surface.firstPage,
-                surface.pageCount);
-        }
-
-        void AppendLod0RangeForSurface(
-            ClusterSurface& surface,
+        void AppendLod0RangeForSection(
+            ClusterSurfaceSection& section,
             uint32_t surfaceIndex,
             const ClusterCookSettings& settings,
             ClusteredGeometryAsset& asset) {
@@ -781,26 +1286,27 @@ namespace HIKARI::ASSETS::GEOMETRY {
             ClusterSurfaceLodRange lodRange{};
             lodRange.surfaceIndex = surfaceIndex;
             lodRange.lodIndex = 0u;
-            lodRange.firstCluster = surface.firstCluster;
-            lodRange.clusterCount = surface.clusterCount;
-            lodRange.firstIndex = surface.firstIndex;
-            lodRange.indexCount = surface.indexCount;
-            lodRange.firstVertex = surface.firstVertex;
-            lodRange.vertexCount = surface.vertexCount;
-            lodRange.firstPage = surface.firstPage;
-            lodRange.pageCount = surface.pageCount;
-            lodRange.firstPrimitive = surface.firstPrimitive;
-            lodRange.primitiveCount = surface.primitiveCount;
+            lodRange.firstCluster = section.firstCluster;
+            lodRange.clusterCount = section.clusterCount;
+            lodRange.firstIndex = section.firstIndex;
+            lodRange.indexCount = section.indexCount;
+            lodRange.firstVertex = section.firstVertex;
+            lodRange.vertexCount = section.vertexCount;
+            lodRange.firstPage = section.firstPage;
+            lodRange.pageCount = section.pageCount;
+            lodRange.firstPrimitive = section.firstPrimitive;
+            lodRange.primitiveCount = section.primitiveCount;
             lodRange.minScreenRadius = ResolveLodMinScreenRadius(0u, settings);
-            lodRange.flags = surface.flags;
+            lodRange.flags = section.flags;
+            lodRange.sectionIndex = section.sectionIndex;
 
-            surface.firstLodRange = static_cast<uint32_t>(asset.surfaceLodRanges.size());
-            surface.lodRangeCount = 1u;
+            section.firstLodRange = static_cast<uint32_t>(asset.surfaceLodRanges.size());
+            section.lodRangeCount = 1u;
             asset.surfaceLodRanges.push_back(lodRange);
         }
 
-        bool AppendReducedLodRangeForSurface(
-            ClusterSurface& surface,
+        bool AppendReducedLodRangeForSection(
+            ClusterSurfaceSection& section,
             uint32_t surfaceIndex,
             uint32_t lodIndex,
             const SurfaceWork& lodWork,
@@ -823,10 +1329,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
             lodRange.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
             lodRange.geometricError = geometricError;
             lodRange.minScreenRadius = ResolveLodMinScreenRadius(lodIndex, settings);
-            lodRange.flags = surface.flags;
+            lodRange.flags = section.flags;
+            lodRange.sectionIndex = section.sectionIndex;
 
             const std::vector<std::vector<uint32_t>> lodGroups =
-                BuildClusterTriangleGroups(lodTriangles, lodWork.vertices.size(), settings);
+                BuildClusterTriangleGroups(lodWork.vertices, lodTriangles, settings);
             for (const std::vector<uint32_t>& group : lodGroups) {
                 if (group.empty()) {
                     continue;
@@ -861,19 +1368,20 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
 
             asset.surfaceLodRanges.push_back(lodRange);
-            ++surface.lodRangeCount;
+            ++section.lodRangeCount;
             return true;
         }
 
-        void AppendReducedLodRangesForSurface(
-            ClusterSurface& surface,
+        void AppendReducedLodRangesForSection(
+            ClusterSurfaceSection& section,
             uint32_t surfaceIndex,
             const SurfaceWork& sourceWork,
             const ClusterCookSettings& settings,
+            bool lockSectionBorders,
             ClusteredGeometryAsset& asset) {
 
             SurfaceWork currentSource = sourceWork;
-            uint32_t previousTriangleCount = surface.primitiveCount;
+            uint32_t previousTriangleCount = section.primitiveCount;
             const uint32_t maxLodCount = (std::min)(settings.maxSurfaceLodCount, 5u);
             for (uint32_t lodIndex = 1u; lodIndex < maxLodCount; ++lodIndex) {
                 SurfaceLodBuildResult lodResult{};
@@ -882,6 +1390,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                         lodIndex,
                         previousTriangleCount,
                         settings,
+                        lockSectionBorders,
                         lodResult)) {
                     break;
                 }
@@ -892,8 +1401,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     break;
                 }
 
-                if (AppendReducedLodRangeForSurface(
-                        surface,
+                if (AppendReducedLodRangeForSection(
+                        section,
                         surfaceIndex,
                         lodIndex,
                         lodResult.work,
@@ -930,19 +1439,77 @@ namespace HIKARI::ASSETS::GEOMETRY {
             surface.meshIndex = work.meshIndex;
             surface.primitiveIndex = work.primitiveIndex;
             surface.materialIndex = work.materialIndex;
+            const uint32_t surfaceIndex = static_cast<uint32_t>(asset.surfaces.size());
             surface.firstCluster = static_cast<uint32_t>(asset.clusters.size());
             surface.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
             surface.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
             surface.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
+            surface.firstSection = static_cast<uint32_t>(asset.surfaceSections.size());
             surface.flags = work.flags;
 
-            const std::vector<std::vector<uint32_t>> groups =
-                BuildClusterTriangleGroups(triangles, work.vertices.size(), settings);
-            for (const std::vector<uint32_t>& group : groups) {
-                if (group.empty()) {
+            std::vector<SurfaceSectionBuildSource> sectionSources{};
+            const bool partitioned = BuildLargeStaticSurfaceSectionSources(
+                work,
+                triangles,
+                settings,
+                report,
+                sectionSources);
+            if (!partitioned) {
+                SurfaceSectionBuildSource wholeSurface{};
+                wholeSurface.triangleIndices.resize(triangles.size());
+                std::iota(wholeSurface.triangleIndices.begin(), wholeSurface.triangleIndices.end(), 0u);
+                wholeSurface.groups = BuildClusterTriangleGroups(work.vertices, triangles, settings);
+                sectionSources.push_back(std::move(wholeSurface));
+            }
+
+            std::vector<ClusterSurfaceSection> sections{};
+            std::vector<SurfaceWork> sectionWorks{};
+            sections.reserve(sectionSources.size());
+            sectionWorks.reserve(sectionSources.size());
+
+            for (const SurfaceSectionBuildSource& sectionSource : sectionSources) {
+                ClusterSurfaceSection section{};
+                section.surfaceIndex = surfaceIndex;
+                section.sectionIndex = static_cast<uint32_t>(sections.size());
+                section.firstCluster = static_cast<uint32_t>(asset.clusters.size());
+                section.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
+                section.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
+                section.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
+                section.flags = work.flags;
+
+                SurfaceWork sectionWork = partitioned
+                    ? BuildSectionSurfaceWork(work, triangles, sectionSource.triangleIndices)
+                    : work;
+                if (sectionWork.vertices.empty() || sectionWork.indices.size() < 3u) {
                     continue;
                 }
-                AppendClusterGeometry(work, triangles, group, static_cast<uint32_t>(asset.surfaces.size()), settings, asset);
+
+                for (const std::vector<uint32_t>& group : sectionSource.groups) {
+                    if (group.empty()) {
+                        continue;
+                    }
+                    AppendClusterGeometry(work, triangles, group, surfaceIndex, settings, asset);
+                }
+
+                section.clusterCount = static_cast<uint32_t>(asset.clusters.size()) - section.firstCluster;
+                section.indexCount = static_cast<uint32_t>(asset.packedIndices.size()) - section.firstIndex;
+                section.vertexCount = static_cast<uint32_t>(asset.packedVertices.size()) - section.firstVertex;
+                section.primitiveCount =
+                    static_cast<uint32_t>(asset.meshletPrimitives.size()) - section.firstPrimitive;
+                section.localBounds = ComputeTriangleSubsetBounds(triangles, sectionSource.triangleIndices);
+                if (!BOUNDS::IsUsable(section.localBounds)) {
+                    section.localBounds = ComputeVertexBounds(work.vertices);
+                }
+                ConfigureSectionLodMetric(
+                    section,
+                    settings,
+                    section.localBounds);
+                if (section.clusterCount == 0u) {
+                    continue;
+                }
+
+                sections.push_back(section);
+                sectionWorks.push_back(std::move(sectionWork));
             }
 
             surface.clusterCount = static_cast<uint32_t>(asset.clusters.size()) - surface.firstCluster;
@@ -950,19 +1517,44 @@ namespace HIKARI::ASSETS::GEOMETRY {
             surface.vertexCount = static_cast<uint32_t>(asset.packedVertices.size()) - surface.firstVertex;
             surface.primitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size()) - surface.firstPrimitive;
             surface.localBounds = ComputeVertexBounds(work.vertices);
-            if (surface.clusterCount == 0u) {
+            surface.firstLodRange = static_cast<uint32_t>(asset.surfaceLodRanges.size());
+            if (surface.clusterCount == 0u || sections.empty()) {
                 ++report.skippedInvalidPrimitiveCount;
                 return false;
             }
 
-            BuildPagesForSurface(surface, settings, asset);
-            AppendLod0RangeForSurface(surface, static_cast<uint32_t>(asset.surfaces.size()), settings, asset);
-            AppendReducedLodRangesForSurface(
-                surface,
-                static_cast<uint32_t>(asset.surfaces.size()),
-                work,
-                settings,
-                asset);
+            for (size_t sectionIndex = 0; sectionIndex < sections.size(); ++sectionIndex) {
+                ClusterSurfaceSection& section = sections[sectionIndex];
+                AppendPagesForClusterRange(
+                    section.firstCluster,
+                    section.clusterCount,
+                    settings,
+                    asset,
+                    section.firstPage,
+                    section.pageCount);
+                if (section.pageCount == 0u && settings.buildClusterPages) {
+                    continue;
+                }
+
+                AppendLod0RangeForSection(section, surfaceIndex, settings, asset);
+                AppendReducedLodRangesForSection(
+                    section,
+                    surfaceIndex,
+                    sectionWorks[sectionIndex],
+                    settings,
+                    partitioned && settings.lockPartitionBorders,
+                    asset);
+                asset.surfaceSections.push_back(section);
+            }
+
+            surface.sectionCount = static_cast<uint32_t>(asset.surfaceSections.size()) - surface.firstSection;
+            surface.lodRangeCount =
+                static_cast<uint32_t>(asset.surfaceLodRanges.size()) - surface.firstLodRange;
+            if (surface.sectionCount == 0u || surface.lodRangeCount == 0u) {
+                ++report.skippedInvalidPrimitiveCount;
+                return false;
+            }
+
             asset.surfaces.push_back(surface);
             return true;
         }
@@ -1069,6 +1661,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         void FillReportFromAsset(const ClusteredGeometryAsset& asset, ClusteredGeometryBuildReport& report) {
             report.surfaceCount = static_cast<uint32_t>(asset.surfaces.size());
             report.surfaceLodRangeCount = static_cast<uint32_t>(asset.surfaceLodRanges.size());
+            report.surfaceSectionCount = static_cast<uint32_t>(asset.surfaceSections.size());
             report.clusterCount = static_cast<uint32_t>(asset.clusters.size());
             report.pageCount = static_cast<uint32_t>(asset.pages.size());
             report.meshletPrimitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size());
@@ -1177,9 +1770,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
         outAsset.totalTriangleCount = RENDER3D::CLUSTER::CountClusterTriangles(outAsset);
         outAsset.totalVertexCount = static_cast<uint32_t>(outAsset.packedVertices.size());
         outAsset.localBounds = ComputeVertexBounds(outAsset.packedVertices);
+        FinalizeAssetLodMetrics(outAsset, settings);
         outAsset.valid =
             !outAsset.surfaces.empty() &&
             !outAsset.surfaceLodRanges.empty() &&
+            !outAsset.surfaceSections.empty() &&
             !outAsset.clusters.empty() &&
             !outAsset.packedVertices.empty() &&
             !outAsset.packedIndices.empty() &&

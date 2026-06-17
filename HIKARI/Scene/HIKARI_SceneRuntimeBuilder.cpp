@@ -37,6 +37,28 @@ namespace HIKARI {
             modelManager.LoadAssetNow(descriptor.id.value);
         }
 
+        ModelAsset* ResolveModelAssetNow(
+            ModelManager& modelManager,
+            const AssetRegistry& assetRegistry,
+            const std::string& assetId) {
+
+            if (assetId.empty()) {
+                return nullptr;
+            }
+
+            const auto* descriptor = assetRegistry.FindAs<ModelAssetDescriptor>(AssetId{ assetId });
+            if (descriptor != nullptr) {
+                EnsureModelLoaded(modelManager, *descriptor);
+                return modelManager.FindAsset(assetId);
+            }
+
+            ModelAsset* existing = modelManager.FindAsset(assetId);
+            if (existing != nullptr && existing->GetState() == ModelAsset::State::Unloaded) {
+                modelManager.LoadAssetNow(assetId);
+            }
+            return modelManager.FindAsset(assetId);
+        }
+
         void BuildModelMaterialOverride(
             ModelComponent& modelComponent,
             const AssetRegistry& assetRegistry) {
@@ -226,7 +248,10 @@ namespace HIKARI {
                 component->Deserialize(componentData.properties);
 
                 if (auto* modelComponent = dynamic_cast<ModelComponent*>(component)) {
-                    modelComponent->SetModelAsset(modelManager.FindAsset(modelComponent->GetAssetId()));
+                    modelComponent->SetModelAsset(ResolveModelAssetNow(
+                        modelManager,
+                        assetRegistry,
+                        modelComponent->GetAssetId()));
                     BuildModelMaterialOverride(*modelComponent, assetRegistry);
                 }
             }

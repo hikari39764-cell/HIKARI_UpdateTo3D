@@ -10,7 +10,7 @@
 
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPlan.h"
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     constexpr size_t kDefaultSurfaceIndirectDrawCommandCapacity = 4096u;
     constexpr UINT kSurfaceIndirectRootConstantCount = 4u;
@@ -84,4 +84,4 @@ namespace HIKARI::RENDER3D::CORE {
         SurfaceIndirectDrawBufferStats stats_{};
     };
 
-} // namespace HIKARI::RENDER3D::CORE
+} // namespace HIKARI::RENDER3D::GPUDRIVEN

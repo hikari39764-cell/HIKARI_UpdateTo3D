@@ -15,8 +15,8 @@
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
-#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
@@ -515,7 +515,7 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            const RENDER3D::CORE::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
+            const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
                 ctx.surfaceGpuSceneFrameBuffer->GetStats();
             if (!gpuSceneStats.initialized) {
                 return false;
@@ -578,6 +578,35 @@ namespace HIKARI::MESHRENDERER {
             return textures;
         }
 
+        ResolvedMaterialTextures ResolveGpuSceneMaterialSourceTextures(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source,
+            const MaterialAsset* materialAsset) {
+
+            ResolvedMaterialTextures textures{};
+            if (source.materialOverride != nullptr) {
+                const MaterialTextureHandles handles =
+                    ResolveRuntimeMaterialTextureHandles(source.materialOverride, ctx.binding, ctx.materialFill);
+                textures.baseColor = handles.baseColor;
+                textures.normal = handles.normal;
+                textures.emissive = handles.emissive;
+                textures.metallicRoughness = handles.metallicRoughness;
+                textures.occlusion = handles.occlusion;
+                return textures;
+            }
+
+            if (ctx.services.materialResolver != nullptr && source.model != nullptr) {
+                return ctx.services.materialResolver->Resolve(*source.model, materialAsset, ctx.services.stats);
+            }
+
+            textures.baseColor = ctx.binding.fallbackTextureHandle;
+            textures.normal = ctx.binding.fallbackNormalTextureHandle;
+            textures.emissive = ctx.materialFill.fallbackBlackTextureHandle;
+            textures.metallicRoughness = ctx.binding.fallbackTextureHandle;
+            textures.occlusion = ctx.binding.fallbackTextureHandle;
+            return textures;
+        }
+
         MaterialTextureHandles ToMaterialTextureHandles(const ResolvedMaterialTextures& textures) {
             return {
                 textures.baseColor,
@@ -613,16 +642,14 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool PrepareSurfacePacketBatch(
+        bool ResolveSurfacePacketBatchState(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
             SurfacePacketBatchState& outState) {
 
-            if (ctx.cmd == nullptr ||
-                ctx.services.device == nullptr ||
+            if (ctx.services.device == nullptr ||
                 ctx.services.pipelines == nullptr ||
-                ctx.services.stats == nullptr ||
                 firstPacket.model == nullptr ||
                 firstPacket.meshIndex >= firstPacket.model->meshes.size()) {
                 return false;
@@ -655,6 +682,21 @@ namespace HIKARI::MESHRENDERER {
                 &primitive);
             outState.objectDataCompatible = VariantCanUseObjectDataOnly(ctx.passKind, outState.variant);
             if (ctx.passKind == MeshDrawPassKind::GeometryAux && !outState.objectDataCompatible) {
+                return false;
+            }
+
+            return true;
+        }
+
+        bool PrepareSurfacePacketBatch(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
+            SurfacePacketBatchState& outState) {
+
+            if (ctx.cmd == nullptr ||
+                ctx.services.stats == nullptr ||
+                !ResolveSurfacePacketBatchState(ctx, firstPacket, command, outState)) {
                 return false;
             }
 
@@ -824,6 +866,56 @@ namespace HIKARI::MESHRENDERER {
             const uint32_t materialDataIndex = UploadMaterialData(
                 ctx,
                 BuildMaterialDataKey(packet.key.materialKey, materialData),
+                materialData);
+
+            outPrepared.object = obj;
+            outPrepared.materialDataIndex =
+                materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
+            return true;
+        }
+
+        bool PrepareGpuSceneMaterialSourceData(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source,
+            SurfacePacketPreparedObject& outPrepared) {
+
+            if (source.model == nullptr) {
+                return false;
+            }
+
+            const MaterialAsset* materialAsset =
+                GetPrimitiveMaterial(*source.model, source.materialIndex);
+            const ResolvedMaterialTextures textures =
+                ResolveGpuSceneMaterialSourceTextures(ctx, source, materialAsset);
+
+            ObjectCB obj{};
+            obj.world = source.world;
+            obj.normalMatrix = source.normalMatrix;
+            FillMaterialValues(
+                obj,
+                materialAsset,
+                textures.normal,
+                textures.emissive,
+                textures.metallicRoughness,
+                textures.occlusion,
+                ctx.materialFill);
+            if (source.materialOverride != nullptr) {
+                FillRuntimeMaterialValues(obj, *source.materialOverride);
+            }
+            obj.hasBaseColorTexture =
+                (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
+            obj.receiveShadow = source.receiveShadow ? 1u : 0u;
+            obj.fxFlags = source.fxFlags;
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                obj.fxUser[i] = source.fxUser[i];
+            }
+
+            const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
+            const MaterialGpuData materialData = BuildMaterialGpuData(obj, textureHandles);
+            RecordMaterialTexturePoolStats(ctx, materialData);
+            const uint32_t materialDataIndex = UploadMaterialData(
+                ctx,
+                BuildMaterialDataKey(source.materialKey, materialData),
                 materialData);
 
             outPrepared.object = obj;
@@ -1257,7 +1349,7 @@ namespace HIKARI::MESHRENDERER {
             const RENDER3D::RUNTIME::SurfaceDrawBatchKey rangeKey =
                 commands[commandIndex].batchKey;
             const UINT64 argumentStride =
-                static_cast<UINT64>(sizeof(RENDER3D::CORE::SurfaceIndirectDrawArgument));
+                static_cast<UINT64>(sizeof(RENDER3D::GPUDRIVEN::SurfaceIndirectDrawArgument));
             UINT64 firstArgumentOffset = 0;
             size_t preparedCommandCount = 0;
             size_t preparedPacketCount = 0;
@@ -1758,7 +1850,8 @@ namespace HIKARI::MESHRENDERER {
 
             SurfacePacketBatchState state{};
             const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
-            if (!PrepareSurfacePacketBatch(ctx, firstPacket, command, state) ||
+            // GPU Scene の material patch は frame 準備段階なので、command list の root 状態を触らない。
+            if (!ResolveSurfacePacketBatchState(ctx, firstPacket, command, state) ||
                 !CanUseSurfaceGpuSceneCommand(ctx, state, command) ||
                 !IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, firstPacket)) {
                 continue;
@@ -1792,6 +1885,77 @@ namespace HIKARI::MESHRENDERER {
                     patchedAny;
                 ++localIndex;
             }
+        }
+
+        return patchedAny;
+    }
+
+    bool PrepareSurfaceGpuSceneInstanceMaterials(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
+        size_t instanceCount) {
+
+        if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
+            packets == nullptr ||
+            instances == nullptr) {
+            return false;
+        }
+
+        bool patchedAny = false;
+        for (size_t instanceIndex = 0; instanceIndex < instanceCount; ++instanceIndex) {
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance =
+                instances[instanceIndex];
+            if (instance.sourcePacketIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
+                instance.sourcePacketIndex >= packetCount) {
+                continue;
+            }
+
+            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet =
+                packets[instance.sourcePacketIndex];
+
+            SurfacePacketPreparedObject prepared{};
+            if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+                continue;
+            }
+
+            // GPUScene 主線は command range ではなく instance 順に material data を確定する。
+            patchedAny =
+                PatchSurfaceGpuSceneMaterialData(
+                    ctx,
+                    ctx.surfaceGpuSceneBaseOffset + instanceIndex,
+                    prepared.materialDataIndex) ||
+                patchedAny;
+        }
+
+        return patchedAny;
+    }
+
+    bool PrepareSurfaceGpuSceneMaterialSources(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
+        size_t sourceCount) {
+
+        if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
+            sources == nullptr) {
+            return false;
+        }
+
+        bool patchedAny = false;
+        for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
+            SurfacePacketPreparedObject prepared{};
+            if (!PrepareGpuSceneMaterialSourceData(ctx, sources[sourceIndex], prepared)) {
+                continue;
+            }
+
+            // GPU scene 主線は packet ではなく material source の並びで material data を確定する。
+            patchedAny =
+                PatchSurfaceGpuSceneMaterialData(
+                    ctx,
+                    ctx.surfaceGpuSceneBaseOffset + sourceIndex,
+                    prepared.materialDataIndex) ||
+                patchedAny;
         }
 
         return patchedAny;

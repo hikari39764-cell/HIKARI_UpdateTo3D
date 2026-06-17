@@ -18,9 +18,11 @@ namespace HIKARI {
 namespace HIKARI::RENDER3D::RUNTIME {
     struct SurfaceDrawPacket;
     struct SurfaceDrawCommand;
+    struct SurfaceGpuSceneInstance;
+    struct SurfaceGpuSceneMaterialSource;
 }
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
     class SurfaceGpuSceneFrameBuffer;
     class SurfaceIndirectDrawBuffer;
 }
@@ -63,8 +65,8 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
-        RENDER3D::CORE::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
-        RENDER3D::CORE::SurfaceIndirectDrawBuffer* surfaceIndirectDrawBuffer = nullptr;
+        RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
+        RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer* surfaceIndirectDrawBuffer = nullptr;
         size_t surfaceGpuSceneBaseOffset = 0;
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
@@ -102,6 +104,18 @@ namespace HIKARI::MESHRENDERER {
         size_t executablePacketIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount);
+
+    bool PrepareSurfaceGpuSceneInstanceMaterials(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
+        size_t instanceCount);
+
+    bool PrepareSurfaceGpuSceneMaterialSources(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
+        size_t sourceCount);
 
     struct SurfacePacketCommandDrawResult {
         size_t submittedPacketCount = 0;

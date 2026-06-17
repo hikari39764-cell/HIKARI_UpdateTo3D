@@ -97,6 +97,9 @@
     <Filter Include="Header Files\Render3D\Cluster">
       <UniqueIdentifier>{07AE88EF-98D9-443D-A5E8-4C94D5F1128B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\GpuDriven">
+      <UniqueIdentifier>{5A5F66D2-2B7F-4C10-9056-6E42FD7E80B1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Meshlet">
       <UniqueIdentifier>{D2AA28DB-0E86-43B5-9275-016F628A384C}</UniqueIdentifier>
     </Filter>
@@ -342,6 +345,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Cluster">
       <UniqueIdentifier>{87491D43-B4C7-4D08-8A94-65F075579BBE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\GpuDriven">
+      <UniqueIdentifier>{C914ED57-737F-44AD-9FF5-D76B77BA0203}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Meshlet">
       <UniqueIdentifier>{A9499146-4201-4146-9BBE-F8D176810E42}</UniqueIdentifier>
@@ -599,9 +605,6 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\HIKARI_SkyAsset.cpp">
-      <Filter>Source Files\Render3D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
@@ -1176,9 +1179,6 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_LightingPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1237,29 +1237,47 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp">
+      <Filter>Source Files\Render3D\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_CpuRenderQueue.cpp">
+      <Filter>Source Files\Render3D\Pipeline</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.cpp">
-      <Filter>Source Files\Render3D\Cluster</Filter>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkReadiness.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrame.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenSceneSource.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneSurfaceRecord.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneRegistry.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp">
       <Filter>Source Files\Render3D\Meshlet</Filter>
@@ -1395,11 +1413,11 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceGpuSceneFrameBuffer.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_SurfaceIndirectDrawBuffer.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">
       <Filter>Header Files\Render3D\Core</Filter>
@@ -1569,8 +1587,8 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\HIKARI_SkyAsset.h">
-      <Filter>Header Files\Render3D</Filter>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyAsset.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
@@ -1935,9 +1953,6 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_LightingPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -2004,9 +2019,12 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
-    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
-    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPipeline.h" />
-    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderQueue.h" />
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h">
+      <Filter>Header Files\Render3D\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_CpuRenderQueue.h">
+      <Filter>Header Files\Render3D\Pipeline</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
@@ -2016,14 +2034,29 @@
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterMainline.h">
-      <Filter>Header Files\Render3D\Cluster</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkReadiness.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrame.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenSceneSource.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneSurfaceRecord.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneRegistry.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">
       <Filter>Header Files\Render3D\Meshlet</Filter>

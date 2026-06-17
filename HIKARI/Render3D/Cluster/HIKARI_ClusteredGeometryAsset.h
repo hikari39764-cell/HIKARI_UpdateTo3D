@@ -101,6 +101,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         uint32_t firstLodRange = 0;
         uint32_t lodRangeCount = 0;
+        uint32_t firstSection = 0;
+        uint32_t sectionCount = 0;
 
         Bounds localBounds{};
 
@@ -129,7 +131,38 @@ namespace HIKARI::RENDER3D::CLUSTER {
         float geometricError = 0.0f;
         float minScreenRadius = 0.0f;
         uint32_t flags = 0;
+        uint32_t sectionIndex = 0;
+    };
+
+    struct ClusterSurfaceSection {
+        uint32_t surfaceIndex = 0;
+        uint32_t sectionIndex = 0;
+
+        uint32_t firstCluster = 0;
+        uint32_t clusterCount = 0;
+
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+
+        uint32_t firstVertex = 0;
+        uint32_t vertexCount = 0;
+
+        uint32_t firstPage = 0;
+        uint32_t pageCount = 0;
+
+        uint32_t firstPrimitive = 0;
+        uint32_t primitiveCount = 0;
+
+        uint32_t firstLodRange = 0;
+        uint32_t lodRangeCount = 0;
+
+        Bounds localBounds{};
+        Bounds lodMetricBounds{};
+
+        uint32_t flags = 0;
+        float lodErrorBudgetNdc = 0.006f;
         uint32_t reserved0 = 0;
+        uint32_t reserved1 = 0;
     };
 
     struct MeshCluster {
@@ -149,6 +182,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         MATH::Vec3 sphereCenter{};
         float sphereRadius = 0.0f;
+
+        // perspective cone culling 用。meshoptimizer の apex/axis/cutoff をそのまま保持する。
+        MATH::Vec3 coneApex{};
+        float coneReserved = 0.0f;
 
         MATH::Vec3 coneAxis{ 0.0f, 1.0f, 0.0f };
         float coneCutoff = 0.0f;
@@ -184,6 +221,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         std::vector<ClusterSurface> surfaces{};
         std::vector<ClusterSurfaceLodRange> surfaceLodRanges{};
+        std::vector<ClusterSurfaceSection> surfaceSections{};
         std::vector<MeshCluster> clusters{};
         std::vector<ClusterPage> pages{};
 
@@ -212,6 +250,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
     struct ClusteredGeometryBuildReport {
         uint32_t surfaceCount = 0;
         uint32_t surfaceLodRangeCount = 0;
+        uint32_t surfaceSectionCount = 0;
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t meshletPrimitiveCount = 0;
@@ -223,6 +262,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t skippedInvalidPrimitiveCount = 0;
         uint32_t unsupportedPrimitiveModeCount = 0;
         uint32_t unsupportedFeatureCount = 0;
+        uint32_t partitionedSurfaceCount = 0;
+        uint32_t partitionedSurfaceChunkCount = 0;
         std::vector<std::string> messages{};
     };
 

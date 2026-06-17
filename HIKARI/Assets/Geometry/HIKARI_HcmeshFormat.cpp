@@ -90,6 +90,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             return header.surfaceCount == asset.surfaces.size() &&
                 header.surfaceLodRangeCount == asset.surfaceLodRanges.size() &&
+                header.surfaceSectionCount == asset.surfaceSections.size() &&
                 header.clusterCount == asset.clusters.size() &&
                 header.pageCount == asset.pages.size() &&
                 header.vertexCount == asset.packedVertices.size() &&
@@ -127,6 +128,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         HcmeshHeader header{};
         header.surfaceCount = static_cast<uint32_t>(asset.surfaces.size());
         header.surfaceLodRangeCount = static_cast<uint32_t>(asset.surfaceLodRanges.size());
+        header.surfaceSectionCount = static_cast<uint32_t>(asset.surfaceSections.size());
         header.clusterCount = static_cast<uint32_t>(asset.clusters.size());
         header.pageCount = static_cast<uint32_t>(asset.pages.size());
         header.vertexCount = static_cast<uint32_t>(asset.packedVertices.size());
@@ -151,6 +153,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             WritePod(ofs, asset.unsupportedFeatureCount) &&
             WritePodVector(ofs, asset.surfaces) &&
             WritePodVector(ofs, asset.surfaceLodRanges) &&
+            WritePodVector(ofs, asset.surfaceSections) &&
             WritePodVector(ofs, asset.clusters) &&
             WritePodVector(ofs, asset.pages) &&
             WritePodVector(ofs, asset.packedVertices) &&
@@ -201,6 +204,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             !ReadPod(ifs, asset.unsupportedFeatureCount) ||
             !ReadPodVector(ifs, asset.surfaces) ||
             !ReadPodVector(ifs, asset.surfaceLodRanges) ||
+            !ReadPodVector(ifs, asset.surfaceSections) ||
             !ReadPodVector(ifs, asset.clusters) ||
             !ReadPodVector(ifs, asset.pages) ||
             !ReadPodVector(ifs, asset.packedVertices) ||

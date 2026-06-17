@@ -23,7 +23,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t kClusterCullMergeMaxIndexSpan = 8192u;
         // クラスタ間の空白をまたぐ結合は過剰描画になりやすいので、正式なcompactまで無効化する。
         constexpr uint32_t kClusterCullMergeClusterGapLimit = 0u;
-        constexpr float kClusterCullLodTargetErrorNdc = 0.0025f;
+        constexpr float kClusterCullLodTargetErrorNdc = 0.0060f;
 
         constexpr UINT AlignConstantBufferSize(size_t size) {
             return static_cast<UINT>((size + 255u) & ~255u);
@@ -186,6 +186,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
         dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         stats_ = {};
+    }
+
+    void ClusterGpuCullingPass::BeginFrame(bool collectCounterReadback) {
+        if (collectCounterReadback && !counterReadbackSlots_.empty()) {
+            CollectCounterReadback(
+                counterReadbackSlots_[counterReadbackWriteIndex_ % counterReadbackSlots_.size()]);
+        } else if (!collectCounterReadback) {
+            latestGpuCountersValid_ = false;
+        }
+        ResetFrameStats();
+        if (!collectCounterReadback) {
+            stats_.gpuCounterReadbackReady = false;
+            stats_.gpuCounterReadbackValid = false;
+        }
     }
 
     bool ClusterGpuCullingPass::EnsurePipeline(ID3D12Device* device) {
@@ -791,18 +805,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 stats_.sourceSingleSidedInstanceCount += range.singleSidedInstanceCount;
                 stats_.sourceDoubleSidedInstanceCount += range.doubleSidedInstanceCount;
             }
-            else {
-                stats_.sourceSingleSidedInstanceCount += range.instanceCount;
-            }
         }
 
         // GPU scene driven の主線では、CPU は候補圧縮を行わない。
         // ここでは dispatch seed 数だけを記録し、実際の candidate/draw 数は GPU counter で読む。
         stats_.candidateInstanceCount = stats_.sourceInstanceCount;
         stats_.submittedInstanceCount = stats_.sourceInstanceCount;
-        stats_.sourcePageTaskCount = stats_.sourceInstanceCount;
-        stats_.submittedPageTaskCount = stats_.sourceInstanceCount;
-        stats_.submittedDrawSeedCount = stats_.sourceInstanceCount;
+        stats_.sourcePageTaskCount = rangeCount;
+        stats_.submittedPageTaskCount = rangeCount;
+        stats_.submittedDrawSeedCount = rangeCount;
     }
 
     bool ClusterGpuCullingPass::Dispatch(
@@ -814,11 +825,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const ClusterGpuCullingSourceRange* ranges,
         size_t rangeCount) {
 
-        if (!counterReadbackSlots_.empty()) {
-            CollectCounterReadback(
-                counterReadbackSlots_[counterReadbackWriteIndex_ % counterReadbackSlots_.size()]);
-        }
-        ResetFrameStats();
+        const bool counterReadbackEnabled =
+            GFX::GetGfxDebugConfig().enableClusterGpuCullDebugCounters;
+        BeginFrame(counterReadbackEnabled);
         BuildRangeStats(ranges, rangeCount);
 
         if (!stats_.initialized ||
@@ -856,8 +865,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constants.clusterSrvPoolBegin = GFX::DESCRIPTOR::kSystemSrvDynamicBegin;
         constants.clusterSrvPoolCount = GFX::DESCRIPTOR::kSystemSrvDynamicCount;
         constants.enableConeCull = 1u;
-        constants.enableDebugCounters =
-            GFX::GetGfxDebugConfig().enableClusterGpuCullDebugCounters ? 1u : 0u;
+        constants.enableDebugCounters = counterReadbackEnabled ? 1u : 0u;
         constants.surfaceGpuSceneBaseIndex = range.surfaceGpuSceneBaseIndex;
         constants.passKind = static_cast<uint32_t>(range.passKind);
         constants.pageTaskCapacity = static_cast<uint32_t>(pageTaskCapacity_);
@@ -1055,13 +1063,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
             static_cast<UINT>(std::size(meshletFinalizeBarriers)),
             meshletFinalizeBarriers);
 
-        auto counterToCopy = CD3DX12_RESOURCE_BARRIER::Transition(
-            counterBuffer_.Get(),
-            counterBufferState_,
-            D3D12_RESOURCE_STATE_COPY_SOURCE);
-        commandList->ResourceBarrier(1, &counterToCopy);
-        counterBufferState_ = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        QueueCounterReadback(commandList);
+        if (counterReadbackEnabled) {
+            auto counterToCopy = CD3DX12_RESOURCE_BARRIER::Transition(
+                counterBuffer_.Get(),
+                counterBufferState_,
+                D3D12_RESOURCE_STATE_COPY_SOURCE);
+            commandList->ResourceBarrier(1, &counterToCopy);
+            counterBufferState_ = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            QueueCounterReadback(commandList);
+        }
 
         D3D12_RESOURCE_BARRIER readyBarriers[] = {
             CD3DX12_RESOURCE_BARRIER::Transition(

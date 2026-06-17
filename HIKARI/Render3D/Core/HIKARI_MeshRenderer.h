@@ -13,11 +13,14 @@
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
 namespace HIKARI::RENDER3D {
-    class RenderQueue;
+    class CpuRenderQueue;
     namespace RUNTIME {
         class SurfaceDrawPacketBuilder;
         struct SurfaceDrawCommand;
         struct SurfaceGpuSceneInstance;
+    }
+    namespace GPUDRIVEN {
+        struct GpuDrivenSceneSource;
     }
     namespace SCREENSPACE {
         class ScreenSpaceGeometryAux;
@@ -31,17 +34,8 @@ namespace HIKARI::MESHRENDERER {
     void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SubmitSkinnedSubmesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
-    void SetSurfaceDrawPacketExecutionPlans(
-        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
-        const std::vector<uint32_t>* opaqueExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* opaqueExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* opaqueGpuSceneInstances,
-        const std::vector<uint32_t>* depthAwareExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* depthAwareExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* depthAwareGpuSceneInstances,
-        const std::vector<uint32_t>* transparentExecutablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* transparentExecutableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* transparentGpuSceneInstances);
+    void SetGpuDrivenSceneSource(
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source);
     bool HasSubmittedItems();
     bool BeginFrame(
         const Camera3D& camera,
@@ -53,21 +47,21 @@ namespace HIKARI::MESHRENDERER {
         uint32_t screenWidth,
         uint32_t screenHeight,
         RenderDebugView debugView = RenderDebugView::None);
-    const RENDER3D::RenderQueue& BuildRenderQueue();
+    const RENDER3D::CpuRenderQueue& BuildCpuRenderQueue();
     const CameraCB* GetCameraConstants();
     bool RenderGeometryAuxPass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
     bool RenderForwardOpaquePass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
     bool RenderForwardTransparentPass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
-    bool HasDepthAwarePassWork(const RENDER3D::RenderQueue& queue);
+    bool HasDepthAwarePassWork(const RENDER3D::CpuRenderQueue& queue);
     bool RenderDepthAwarePass(
-        const RENDER3D::RenderQueue& queue,
+        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();

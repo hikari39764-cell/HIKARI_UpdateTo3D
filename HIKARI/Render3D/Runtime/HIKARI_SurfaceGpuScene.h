@@ -8,6 +8,10 @@
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPlan.h"
 #include "Vfx/Common/HIKARI_FxTypes.h"
 
+namespace HIKARI {
+    class Material;
+}
+
 namespace HIKARI::RENDER3D::RUNTIME {
 
     struct SurfaceDrawPacket;
@@ -83,6 +87,23 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     static_assert(sizeof(SurfaceGpuSceneInstance) == 512u);
 
+    // GPU scene が material patch に必要な最小情報。
+    // 旧 SurfaceDrawPacket を frame 実行経路に持ち込まないため、instance と並行して保持する。
+    struct SurfaceGpuSceneMaterialSource {
+        const ModelAsset* model = nullptr;
+        const Material* materialOverride = nullptr;
+
+        uint32_t materialIndex = 0;
+        uint64_t materialKey = 0;
+
+        MATH::Mat4 world{};
+        MATH::Mat4 normalMatrix{};
+        bool receiveShadow = true;
+
+        uint32_t fxFlags = 0;
+        MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
+    };
+
     struct SurfaceGpuSceneBuildStats {
         uint32_t commandCount = 0;
         uint32_t instanceCount = 0;
@@ -99,7 +120,20 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     class SurfaceGpuSceneWriter final {
     public:
+        static SurfaceGpuSceneBuildStats BuildPacketList(
+            const std::vector<SurfaceDrawPacket>& packets,
+            const std::vector<uint32_t>& packetIndices,
+            std::vector<SurfaceGpuSceneInstance>& outInstances);
+        static SurfaceGpuSceneBuildStats AppendPacketList(
+            const std::vector<SurfaceDrawPacket>& packets,
+            const std::vector<uint32_t>& packetIndices,
+            std::vector<SurfaceGpuSceneInstance>& outInstances);
         static SurfaceGpuSceneBuildStats BuildCommandRanges(
+            const std::vector<SurfaceDrawPacket>& packets,
+            const std::vector<uint32_t>& executablePacketIndices,
+            std::vector<SurfaceDrawCommand>& commands,
+            std::vector<SurfaceGpuSceneInstance>& outInstances);
+        static SurfaceGpuSceneBuildStats AppendCommandRanges(
             const std::vector<SurfaceDrawPacket>& packets,
             const std::vector<uint32_t>& executablePacketIndices,
             std::vector<SurfaceDrawCommand>& commands,

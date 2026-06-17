@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -112,6 +113,224 @@ namespace HIKARI {
             }
         }
 
+        const char* ToString(ModelGeometryCookProfile profile) {
+            switch (profile) {
+            case ModelGeometryCookProfile::Character: return "Character";
+            case ModelGeometryCookProfile::Scene:
+            default: return "Scene";
+            }
+        }
+
+        const char* ToString(ASSETS::GEOMETRY::SurfacePartitionPolicy policy) {
+            switch (policy) {
+            case ASSETS::GEOMETRY::SurfacePartitionPolicy::Disabled: return "Disabled";
+            case ASSETS::GEOMETRY::SurfacePartitionPolicy::CharacterStatic: return "CharacterStatic";
+            case ASSETS::GEOMETRY::SurfacePartitionPolicy::SceneStatic:
+            default: return "SceneStatic";
+            }
+        }
+
+        nlohmann::json ReadImportSettings(const AssetRecord& record) {
+            nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
+            return settings.is_object() ? settings : nlohmann::json::object();
+        }
+
+        nlohmann::json ReadClusterGeometrySettings(const nlohmann::json& settings) {
+            if (settings.contains("clusterGeometry") && settings["clusterGeometry"].is_object()) {
+                return settings["clusterGeometry"];
+            }
+            return nlohmann::json::object();
+        }
+
+        ModelGeometryCookProfile ParseGeometryCookProfile(const nlohmann::json& settings) {
+            const nlohmann::json cluster = ReadClusterGeometrySettings(settings);
+            const std::string value = cluster.value(
+                "profile",
+                settings.value("geometryProfile", settings.value("clusterGeometryProfile", "Scene")));
+            if (value == "Character" || value == "character") {
+                return ModelGeometryCookProfile::Character;
+            }
+            return ModelGeometryCookProfile::Scene;
+        }
+
+        bool ReadClusterBool(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            bool fallback) {
+
+            if (cluster.contains(key)) {
+                return cluster.value(key, fallback);
+            }
+            return settings.value(key, fallback);
+        }
+
+        uint32_t ReadClusterUint(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            uint32_t fallback,
+            uint32_t minimum,
+            uint32_t maximum) {
+
+            uint32_t value = fallback;
+            if (cluster.contains(key)) {
+                value = cluster.value(key, fallback);
+            } else {
+                value = settings.value(key, fallback);
+            }
+            return (std::max)(minimum, (std::min)(value, maximum));
+        }
+
+        float ReadClusterFloat(
+            const nlohmann::json& settings,
+            const nlohmann::json& cluster,
+            const char* key,
+            float fallback,
+            float minimum,
+            float maximum) {
+
+            float value = fallback;
+            if (cluster.contains(key)) {
+                value = cluster.value(key, fallback);
+            } else {
+                value = settings.value(key, fallback);
+            }
+            return (std::max)(minimum, (std::min)(value, maximum));
+        }
+
+        float ApplyLodQualityBiasToRatio(float ratio, float qualityBias) {
+            const float safeBias = (std::max)(0.25f, (std::min)(qualityBias, 4.0f));
+            const float reduction = (1.0f - ratio) / safeBias;
+            return (std::max)(0.05f, (std::min)(1.0f - reduction, 0.95f));
+        }
+
+        float ApplyLodQualityBiasToError(float error, float qualityBias) {
+            const float safeBias = (std::max)(0.25f, (std::min)(qualityBias, 4.0f));
+            return (std::max)(0.0001f, (std::min)(error / safeBias, 0.12f));
+        }
+
+        ASSETS::GEOMETRY::ClusterCookSettings BuildClusterCookSettings(
+            const nlohmann::json& settings,
+            ModelGeometryCookProfile profile) {
+
+            const nlohmann::json cluster = ReadClusterGeometrySettings(settings);
+            ASSETS::GEOMETRY::ClusterCookSettings cook{};
+            cook.maxTrianglesPerCluster = 64u;
+            cook.maxVerticesPerCluster = 128u;
+            cook.maxClustersPerPage = 64u;
+
+            if (profile == ModelGeometryCookProfile::Character) {
+                cook.maxSurfaceLodCount = 5u;
+                cook.lod1TriangleRatio = 0.50f;
+                cook.lod2TriangleRatio = 0.50f;
+                cook.lod3TriangleRatio = 0.30f;
+                cook.lod4TriangleRatio = 0.20f;
+                cook.lod1TargetError = 0.004f;
+                cook.lod2TargetError = 0.016f;
+                cook.lod3TargetError = 0.045f;
+                cook.lod4TargetError = 0.080f;
+                cook.lod0MinScreenRadius = 0.12f;
+                cook.lod1MinScreenRadius = 0.060f;
+                cook.lod2MinScreenRadius = 0.040f;
+                cook.lod3MinScreenRadius = 0.022f;
+                cook.surfacePartitionPolicy = ASSETS::GEOMETRY::SurfacePartitionPolicy::CharacterStatic;
+                cook.partitionLargeStaticSurfaces = true;
+                cook.largeSurfacePartitionMinTriangles = 192u;
+                cook.largeSurfacePartitionMinTrianglesPerChunk = 96u;
+                cook.largeSurfacePartitionMaxDepth = 5u;
+                cook.largeSurfacePartitionMaxExtent = 1.25f;
+                cook.lockPartitionBorders = true;
+            } else {
+                cook.maxSurfaceLodCount = 5u;
+                cook.lod1TriangleRatio = 0.58f;
+                cook.lod2TriangleRatio = 0.42f;
+                cook.lod3TriangleRatio = 0.28f;
+                cook.lod4TriangleRatio = 0.22f;
+                cook.lod1TargetError = 0.008f;
+                cook.lod2TargetError = 0.024f;
+                cook.lod3TargetError = 0.060f;
+                cook.lod4TargetError = 0.080f;
+                cook.lod0MinScreenRadius = 0.16f;
+                cook.lod1MinScreenRadius = 0.095f;
+                cook.lod2MinScreenRadius = 0.060f;
+                cook.lod3MinScreenRadius = 0.034f;
+                cook.surfacePartitionPolicy = ASSETS::GEOMETRY::SurfacePartitionPolicy::SceneStatic;
+                cook.partitionLargeStaticSurfaces = true;
+                cook.largeSurfacePartitionMinTriangles = 384u;
+                cook.largeSurfacePartitionMinTrianglesPerChunk = 128u;
+                cook.largeSurfacePartitionMaxDepth = 6u;
+                cook.largeSurfacePartitionMaxExtent = 3.0f;
+                cook.lockPartitionBorders = true;
+            }
+
+            const float qualityBias = ReadClusterFloat(
+                settings,
+                cluster,
+                "lodQualityBias",
+                1.0f,
+                0.25f,
+                4.0f);
+            cook.maxSurfaceLodCount = ReadClusterUint(
+                settings,
+                cluster,
+                "maxLodCount",
+                cook.maxSurfaceLodCount,
+                1u,
+                5u);
+            cook.partitionLargeStaticSurfaces = ReadClusterBool(
+                settings,
+                cluster,
+                "partitionLargeSurfaces",
+                cook.partitionLargeStaticSurfaces);
+            cook.surfacePartitionPolicy = cook.partitionLargeStaticSurfaces
+                ? cook.surfacePartitionPolicy
+                : ASSETS::GEOMETRY::SurfacePartitionPolicy::Disabled;
+            cook.largeSurfacePartitionMinTriangles = ReadClusterUint(
+                settings,
+                cluster,
+                "partitionMinTriangles",
+                cook.largeSurfacePartitionMinTriangles,
+                32u,
+                65536u);
+            cook.largeSurfacePartitionMinTrianglesPerChunk = ReadClusterUint(
+                settings,
+                cluster,
+                "partitionMinTrianglesPerChunk",
+                cook.largeSurfacePartitionMinTrianglesPerChunk,
+                16u,
+                32768u);
+            cook.largeSurfacePartitionMaxDepth = ReadClusterUint(
+                settings,
+                cluster,
+                "partitionMaxDepth",
+                cook.largeSurfacePartitionMaxDepth,
+                1u,
+                12u);
+            cook.largeSurfacePartitionMaxExtent = ReadClusterFloat(
+                settings,
+                cluster,
+                "largeSurfaceTargetExtent",
+                cook.largeSurfacePartitionMaxExtent,
+                0.50f,
+                64.0f);
+            cook.lockPartitionBorders = ReadClusterBool(
+                settings,
+                cluster,
+                "lockPartitionBorders",
+                cook.lockPartitionBorders);
+
+            cook.lod1TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod1TriangleRatio, qualityBias);
+            cook.lod2TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod2TriangleRatio, qualityBias);
+            cook.lod3TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod3TriangleRatio, qualityBias);
+            cook.lod4TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod4TriangleRatio, qualityBias);
+            cook.lod1TargetError = ApplyLodQualityBiasToError(cook.lod1TargetError, qualityBias);
+            cook.lod2TargetError = ApplyLodQualityBiasToError(cook.lod2TargetError, qualityBias);
+            cook.lod3TargetError = ApplyLodQualityBiasToError(cook.lod3TargetError, qualityBias);
+            cook.lod4TargetError = ApplyLodQualityBiasToError(cook.lod4TargetError, qualityBias);
+            return cook;
+        }
+
         struct TextureCookDiagnostic {
             int index = -1;
             std::string name{};
@@ -123,6 +342,9 @@ namespace HIKARI {
             bool sourceHasMeaningfulAlpha = false;
             bool sourceHasTranslucentAlpha = false;
             bool sourceHasCutoutAlpha = false;
+            float sourceAlphaNonOpaqueRatio = 0.0f;
+            float sourceAlphaTranslucentRatio = 0.0f;
+            float sourceAlphaCutoutRatio = 0.0f;
         };
 
         nlohmann::json SlotToJson(
@@ -147,6 +369,9 @@ namespace HIKARI {
                 json["sourceHasMeaningfulAlpha"] = texture.sourceHasMeaningfulAlpha;
                 json["sourceHasTranslucentAlpha"] = texture.sourceHasTranslucentAlpha;
                 json["sourceHasCutoutAlpha"] = texture.sourceHasCutoutAlpha;
+                json["sourceAlphaNonOpaqueRatio"] = texture.sourceAlphaNonOpaqueRatio;
+                json["sourceAlphaTranslucentRatio"] = texture.sourceAlphaTranslucentRatio;
+                json["sourceAlphaCutoutRatio"] = texture.sourceAlphaCutoutRatio;
             }
             return json;
         }
@@ -158,6 +383,8 @@ namespace HIKARI {
             int fallbackTextureCount,
             const RENDER3D::CLUSTER::ClusteredGeometryBuildReport* clusteredReport,
             const ASSETS::GEOMETRY::ClusteredGeometryValidationResult* clusteredValidation,
+            ModelGeometryCookProfile clusterProfile,
+            const ASSETS::GEOMETRY::ClusterCookSettings* clusterSettings,
             bool hcmeshReady,
             const std::string& hcmeshMessage) {
 
@@ -187,6 +414,9 @@ namespace HIKARI {
                     { "sourceHasMeaningfulAlpha", texture.sourceHasMeaningfulAlpha },
                     { "sourceHasTranslucentAlpha", texture.sourceHasTranslucentAlpha },
                     { "sourceHasCutoutAlpha", texture.sourceHasCutoutAlpha },
+                    { "sourceAlphaNonOpaqueRatio", texture.sourceAlphaNonOpaqueRatio },
+                    { "sourceAlphaTranslucentRatio", texture.sourceAlphaTranslucentRatio },
+                    { "sourceAlphaCutoutRatio", texture.sourceAlphaCutoutRatio },
                 });
             }
 
@@ -272,9 +502,43 @@ namespace HIKARI {
 
             nlohmann::json clusterJson{
                 { "format", "HCMESH" },
+                { "profile", ToString(clusterProfile) },
                 { "ready", hcmeshReady },
                 { "message", hcmeshMessage },
             };
+            if (clusterSettings != nullptr) {
+                clusterJson["cookSettings"] = {
+                    { "maxTrianglesPerCluster", clusterSettings->maxTrianglesPerCluster },
+                    { "maxVerticesPerCluster", clusterSettings->maxVerticesPerCluster },
+                    { "maxClustersPerPage", clusterSettings->maxClustersPerPage },
+                    { "maxSurfaceLodCount", clusterSettings->maxSurfaceLodCount },
+                    { "lodTriangleRatios", nlohmann::json::array({
+                        clusterSettings->lod1TriangleRatio,
+                        clusterSettings->lod2TriangleRatio,
+                        clusterSettings->lod3TriangleRatio,
+                        clusterSettings->lod4TriangleRatio,
+                    }) },
+                    { "lodTargetErrors", nlohmann::json::array({
+                        clusterSettings->lod1TargetError,
+                        clusterSettings->lod2TargetError,
+                        clusterSettings->lod3TargetError,
+                        clusterSettings->lod4TargetError,
+                    }) },
+                    { "lodMinScreenRadii", nlohmann::json::array({
+                        clusterSettings->lod0MinScreenRadius,
+                        clusterSettings->lod1MinScreenRadius,
+                        clusterSettings->lod2MinScreenRadius,
+                        clusterSettings->lod3MinScreenRadius,
+                    }) },
+                    { "surfacePartitionPolicy", ToString(clusterSettings->surfacePartitionPolicy) },
+                    { "partitionLargeStaticSurfaces", clusterSettings->partitionLargeStaticSurfaces },
+                    { "largeSurfacePartitionMaxExtent", clusterSettings->largeSurfacePartitionMaxExtent },
+                    { "largeSurfacePartitionMinTriangles", clusterSettings->largeSurfacePartitionMinTriangles },
+                    { "largeSurfacePartitionMinTrianglesPerChunk", clusterSettings->largeSurfacePartitionMinTrianglesPerChunk },
+                    { "largeSurfacePartitionMaxDepth", clusterSettings->largeSurfacePartitionMaxDepth },
+                    { "lockPartitionBorders", clusterSettings->lockPartitionBorders },
+                };
+            }
             if (clusteredReport != nullptr) {
                 nlohmann::json messages = nlohmann::json::array();
                 for (const std::string& message : clusteredReport->messages) {
@@ -283,6 +547,7 @@ namespace HIKARI {
                 clusterJson["summary"] = {
                     { "surfaces", clusteredReport->surfaceCount },
                     { "surfaceLodRanges", clusteredReport->surfaceLodRangeCount },
+                    { "surfaceSections", clusteredReport->surfaceSectionCount },
                     { "clusters", clusteredReport->clusterCount },
                     { "pages", clusteredReport->pageCount },
                     { "triangles", clusteredReport->triangleCount },
@@ -299,6 +564,8 @@ namespace HIKARI {
                     { "skippedInvalidPrimitives", clusteredReport->skippedInvalidPrimitiveCount },
                     { "unsupportedPrimitiveModes", clusteredReport->unsupportedPrimitiveModeCount },
                     { "unsupportedFeatures", clusteredReport->unsupportedFeatureCount },
+                    { "partitionedSurfaces", clusteredReport->partitionedSurfaceCount },
+                    { "partitionedSurfaceChunks", clusteredReport->partitionedSurfaceChunkCount },
                 };
                 clusterJson["messages"] = std::move(messages);
             }
@@ -347,7 +614,9 @@ namespace HIKARI {
             const nlohmann::json& texture = diagnostics["texture"];
             if (!texture.contains("sourceHasMeaningfulAlpha") ||
                 !texture.contains("sourceHasTranslucentAlpha") ||
-                !texture.contains("sourceHasCutoutAlpha")) {
+                !texture.contains("sourceHasCutoutAlpha") ||
+                !texture.contains("sourceAlphaTranslucentRatio") ||
+                !texture.contains("sourceAlphaCutoutRatio")) {
                 return false;
             }
             inOutDiagnostic.sourceHasMeaningfulAlpha =
@@ -356,6 +625,12 @@ namespace HIKARI {
                 texture.value("sourceHasTranslucentAlpha", false);
             inOutDiagnostic.sourceHasCutoutAlpha =
                 texture.value("sourceHasCutoutAlpha", false);
+            inOutDiagnostic.sourceAlphaNonOpaqueRatio =
+                texture.value("sourceAlphaNonOpaqueRatio", 0.0f);
+            inOutDiagnostic.sourceAlphaTranslucentRatio =
+                texture.value("sourceAlphaTranslucentRatio", 0.0f);
+            inOutDiagnostic.sourceAlphaCutoutRatio =
+                texture.value("sourceAlphaCutoutRatio", 0.0f);
             return true;
         }
 
@@ -366,6 +641,24 @@ namespace HIKARI {
             inOutDiagnostic.sourceHasMeaningfulAlpha = settings.sourceHasMeaningfulAlpha;
             inOutDiagnostic.sourceHasTranslucentAlpha = settings.sourceHasTranslucentAlpha;
             inOutDiagnostic.sourceHasCutoutAlpha = settings.sourceHasCutoutAlpha;
+            inOutDiagnostic.sourceAlphaNonOpaqueRatio = settings.sourceAlphaNonOpaqueRatio;
+            inOutDiagnostic.sourceAlphaTranslucentRatio = settings.sourceAlphaTranslucentRatio;
+            inOutDiagnostic.sourceAlphaCutoutRatio = settings.sourceAlphaCutoutRatio;
+        }
+
+        bool IsCutoutDominantAlpha(const TextureCookDiagnostic& texture) {
+            if (!texture.sourceHasCutoutAlpha) {
+                return false;
+            }
+
+            const float cutoutRatio = texture.sourceAlphaCutoutRatio;
+            const float translucentRatio = texture.sourceAlphaTranslucentRatio;
+            if (cutoutRatio <= 0.0f && translucentRatio <= 0.0f) {
+                return !texture.sourceHasTranslucentAlpha;
+            }
+
+            // BLEND と記録された抜き材質を、実際の alpha 分布に合わせて MASK へ寄せる。
+            return cutoutRatio >= translucentRatio;
         }
 
         bool InspectSourceTextureAlpha(
@@ -460,6 +753,14 @@ namespace HIKARI {
                     continue;
                 }
 
+                if (IsCutoutDominantAlpha(texture)) {
+                    material.doubleSided = true;
+                    material.alphaMode = AlphaMode::Mask;
+                    material.featureBits |= MATERIAL_FEATURES::AlphaMask;
+                    material.featureBits &= ~MATERIAL_FEATURES::ThinTransparentSurface;
+                    continue;
+                }
+
                 material.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
                 material.doubleSided = true;
 
@@ -481,7 +782,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 8;
+        return 12;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -508,6 +809,15 @@ namespace HIKARI {
             { "futureMeshFormat", "HCMESH" },
             { "loadMaterials", true },
             { "loadTextures", true },
+            { "clusterGeometry", {
+                { "enabled", true },
+                { "profile", "Scene" },
+                { "maxLodCount", 5 },
+                { "lodQualityBias", 1.0f },
+                { "partitionLargeSurfaces", true },
+                { "largeSurfaceTargetExtent", 3.0f },
+                { "lockPartitionBorders", true },
+            } },
         }.dump(2);
         return meta;
     }
@@ -526,6 +836,17 @@ namespace HIKARI {
             HIKARI_LOG_ERROR(result.message);
             return result;
         }
+
+        const nlohmann::json importSettings = ReadImportSettings(record);
+        const nlohmann::json clusterSettingsJson = ReadClusterGeometrySettings(importSettings);
+        const ModelGeometryCookProfile clusterProfile = ParseGeometryCookProfile(importSettings);
+        const bool buildClusterGeometry = ReadClusterBool(
+            importSettings,
+            clusterSettingsJson,
+            "enabled",
+            true);
+        const ASSETS::GEOMETRY::ClusterCookSettings clusterSettings =
+            BuildClusterCookSettings(importSettings, clusterProfile);
 
         const std::filesystem::path absoluteSource = ResolveProjectPath(context.projectRoot, record.sourcePath);
 
@@ -603,44 +924,49 @@ namespace HIKARI {
         std::string hcmeshMessage{};
         RENDER3D::CLUSTER::ClusteredGeometryBuildReport clusteredReport{};
         ASSETS::GEOMETRY::ClusteredGeometryValidationResult clusteredValidation{};
-        RENDER3D::CLUSTER::ClusteredGeometryAsset clusteredGeometry{};
-        ASSETS::GEOMETRY::ClusterCookSettings clusterSettings{};
-        clusterSettings.maxTrianglesPerCluster = 64u;
-        clusterSettings.maxVerticesPerCluster = 128u;
-        clusterSettings.maxClustersPerPage = 64u;
-        if (ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
+        const RENDER3D::CLUSTER::ClusteredGeometryBuildReport* clusteredReportPtr = nullptr;
+        const ASSETS::GEOMETRY::ClusteredGeometryValidationResult* clusteredValidationPtr = nullptr;
+
+        if (!buildClusterGeometry) {
+            hcmeshMessage = "[AssetImporter] HCMESH cook disabled by model import settings";
+        } else {
+            RENDER3D::CLUSTER::ClusteredGeometryAsset clusteredGeometry{};
+            clusteredReportPtr = &clusteredReport;
+            if (ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
                 model,
                 record.guid,
                 clusterSettings,
                 clusteredGeometry,
                 clusteredReport)) {
-            clusteredValidation = ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(clusteredGeometry);
-            if (clusteredValidation.valid) {
-                const std::filesystem::path finalHcmeshPath = context.importedDirectory / "clustered_mesh.hcmesh";
-                const std::filesystem::path tempHcmeshPath = context.importedDirectory / "clustered_mesh.importing.hcmesh";
-                std::error_code removeHcmeshEc{};
-                std::filesystem::remove(tempHcmeshPath, removeHcmeshEc);
-                if (removeHcmeshEc) {
-                    hcmeshMessage = "[AssetImporter] failed to clear stale temporary HCMESH: " +
-                        tempHcmeshPath.generic_string();
-                } else if (ASSETS::GEOMETRY::WriteHcmeshFile(tempHcmeshPath, clusteredGeometry, hcmeshMessage) &&
-                    ReplaceFileWithTemp(tempHcmeshPath, finalHcmeshPath, "HCMESH", hcmeshMessage)) {
-                    hcmeshReady = true;
-                    result.artifacts.push_back(AssetArtifactDesc{
-                        "ClusteredGeometry",
-                        MakeProjectRelative(context.projectRoot, finalHcmeshPath).generic_string(),
-                        "HCMESH"
-                    });
+                clusteredValidation = ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(clusteredGeometry);
+                clusteredValidationPtr = &clusteredValidation;
+                if (clusteredValidation.valid) {
+                    const std::filesystem::path finalHcmeshPath = context.importedDirectory / "clustered_mesh.hcmesh";
+                    const std::filesystem::path tempHcmeshPath = context.importedDirectory / "clustered_mesh.importing.hcmesh";
+                    std::error_code removeHcmeshEc{};
+                    std::filesystem::remove(tempHcmeshPath, removeHcmeshEc);
+                    if (removeHcmeshEc) {
+                        hcmeshMessage = "[AssetImporter] failed to clear stale temporary HCMESH: " +
+                            tempHcmeshPath.generic_string();
+                    } else if (ASSETS::GEOMETRY::WriteHcmeshFile(tempHcmeshPath, clusteredGeometry, hcmeshMessage) &&
+                        ReplaceFileWithTemp(tempHcmeshPath, finalHcmeshPath, "HCMESH", hcmeshMessage)) {
+                        hcmeshReady = true;
+                        result.artifacts.push_back(AssetArtifactDesc{
+                            "ClusteredGeometry",
+                            MakeProjectRelative(context.projectRoot, finalHcmeshPath).generic_string(),
+                            "HCMESH"
+                        });
+                    }
+                } else {
+                    hcmeshMessage = clusteredValidation.messages.empty()
+                        ? "[AssetImporter] HCMESH validation failed"
+                        : clusteredValidation.messages.front();
                 }
             } else {
-                hcmeshMessage = clusteredValidation.messages.empty()
-                    ? "[AssetImporter] HCMESH validation failed"
-                    : clusteredValidation.messages.front();
+                hcmeshMessage = clusteredReport.messages.empty()
+                    ? "[AssetImporter] HCMESH cook produced no clusterable primitive"
+                    : clusteredReport.messages.front();
             }
-        } else {
-            hcmeshMessage = clusteredReport.messages.empty()
-                ? "[AssetImporter] HCMESH cook produced no clusterable primitive"
-                : clusteredReport.messages.front();
         }
 
         result.success = true;
@@ -656,8 +982,10 @@ namespace HIKARI {
             textureDiagnostics,
             htexReferenceCount,
             fallbackTextureCount,
-            &clusteredReport,
-            &clusteredValidation,
+            clusteredReportPtr,
+            clusteredValidationPtr,
+            clusterProfile,
+            &clusterSettings,
             hcmeshReady,
             hcmeshMessage).dump(2);
         result.artifacts.push_back(AssetArtifactDesc{

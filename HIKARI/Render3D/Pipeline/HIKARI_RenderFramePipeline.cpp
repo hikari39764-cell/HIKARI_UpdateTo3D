@@ -79,7 +79,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
             return false;
         }
 
-        const RENDER3D::RenderQueue& queue = MESHRENDERER::BuildRenderQueue();
+        const RENDER3D::CpuRenderQueue& queue = MESHRENDERER::BuildCpuRenderQueue();
         const MESHRENDERER::CameraCB* cameraCb = MESHRENDERER::GetCameraConstants();
 
         RENDER3D::SCREENSPACE::ScreenSpaceFrameResult screenResult{};
@@ -168,7 +168,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
             return false;
         }
 
-        const RENDER3D::RenderQueue& queue = MESHRENDERER::BuildRenderQueue();
+        const RENDER3D::CpuRenderQueue& queue = MESHRENDERER::BuildCpuRenderQueue();
         MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(false);
 
         // Capture は後処理と depth-aware phase を含めない。

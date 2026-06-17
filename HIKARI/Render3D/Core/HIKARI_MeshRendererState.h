@@ -10,13 +10,14 @@
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
 #include "Render3D/Cluster/HIKARI_ClusterDrawExecutor.h"
 #include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
-#include "Render3D/Cluster/HIKARI_ClusterMainline.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
-#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
-#include "Render3D/Pipeline/HIKARI_RenderQueue.h"
+#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
@@ -65,30 +66,25 @@ namespace HIKARI::MESHRENDERER {
 
         MeshPrimitiveCache primitiveCache;
         MeshMaterialResolver materialResolver;
-        RENDER3D::RenderQueue renderQueue;
+        RENDER3D::CpuRenderQueue cpuRenderQueue;
         size_t frameObjectIndex = 0;
         MaterialDataFrameTable materialDataFrameTable{};
         D3D12_CPU_DESCRIPTOR_HANDLE objectDataSrvCpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrvGpu{};
         D3D12_CPU_DESCRIPTOR_HANDLE materialDataSrvCpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
-        RENDER3D::CORE::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
-        RENDER3D::CORE::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+        RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
+        RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+        RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
         RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
-        RENDER3D::CLUSTER::ClusterMainlineFrame staticOpaqueClusterMainlineFrame{};
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
-        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* surfacePacketBuilder = nullptr;
-        const std::vector<uint32_t>* surfacePacketOpaqueExecutionIndices = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* surfacePacketOpaqueExecutionCommands = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* surfacePacketOpaqueGpuSceneInstances = nullptr;
-        const std::vector<uint32_t>* surfacePacketDepthAwareExecutionIndices = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* surfacePacketDepthAwareExecutionCommands = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* surfacePacketDepthAwareGpuSceneInstances = nullptr;
-        const std::vector<uint32_t>* surfacePacketTransparentExecutionIndices = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* surfacePacketTransparentExecutionCommands = nullptr;
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* surfacePacketTransparentGpuSceneInstances = nullptr;
+        RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};
+        uint64_t gpuDrivenResidentSceneLayoutVersion = 0;
+        uint64_t gpuDrivenResidentSceneDataVersion = 0;
+        size_t gpuDrivenResidentSceneInstanceCount = 0;
+        bool gpuDrivenSceneResident = false;
 
         float elapsedTimeSec = 0.0f;
     };

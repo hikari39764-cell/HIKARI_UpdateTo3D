@@ -196,15 +196,21 @@
   "displayName": "cscj",
   "guid": "66f2e16ac0e301d5f3f9dd001830a1c2",
   "importSettings": {
+    "clusterGeometry": {
+      "largeSurfaceTargetExtent": 0.5,
+      "maxLodCount": 5,
+      "partitionLargeSurfaces": true,
+      "profile": "Scene"
+    },
     "cookModel": true,
-    "futureMeshFormat": "HMESH",
+    "futureMeshFormat": "HCMESH",
     "loadMaterials": true,
     "loadTextures": true,
     "outputFormat": "HMODEL",
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 8,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/GITest/cscj.gltf",
   "type": "Model"

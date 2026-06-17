@@ -22,8 +22,8 @@
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
-#include "Render3D/Core/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -108,8 +108,8 @@ namespace HIKARI::SHADOW {
             const std::vector<uint32_t>* shadowPacketExecutionIndices = nullptr;
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* shadowPacketExecutionCommands = nullptr;
             const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* shadowPacketGpuSceneInstances = nullptr;
-            RENDER3D::CORE::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
-            RENDER3D::CORE::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+            RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
+            RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
@@ -282,7 +282,7 @@ namespace HIKARI::SHADOW {
                     texturePoolSrv);
             }
 
-            const uint32_t constants[RENDER3D::CORE::kSurfaceIndirectRootConstantCount] = {
+            const uint32_t constants[RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount] = {
                 0u,
                 0u,
                 0u,
@@ -290,7 +290,7 @@ namespace HIKARI::SHADOW {
             };
             cmd->SetGraphicsRoot32BitConstants(
                 PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::CORE::kSurfaceIndirectRootConstantCount,
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount,
                 constants,
                 0);
             cmd->SetGraphicsRoot32BitConstant(
@@ -774,7 +774,7 @@ namespace HIKARI::SHADOW {
             params[5].Constants.RegisterSpace = 0;
             // ExecuteIndirect と direct path の両方で同じ SurfaceGpuSceneControl を使う。
             params[5].Constants.Num32BitValues =
-                RENDER3D::CORE::kSurfaceIndirectRootConstantCount;
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount;
 
             params[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -894,7 +894,7 @@ namespace HIKARI::SHADOW {
                 device,
                 g.rootSig.Get(),
                 PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::CORE::kSurfaceIndirectRootConstantCount)) {
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow packet path will be used.");
             }
             return true;
@@ -1094,7 +1094,7 @@ namespace HIKARI::SHADOW {
                 g.surfaceGpuSceneBuffer.Upload(*g.shadowPacketGpuSceneInstances);
             }
 
-            const RENDER3D::CORE::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
+            const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
                 g.surfaceGpuSceneBuffer.GetStats();
             g.debugStats.shadowGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.shadowGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
@@ -1113,7 +1113,7 @@ namespace HIKARI::SHADOW {
                     0u);
             }
 
-            const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
+            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.surfaceIndirectDrawBuffer.GetStats();
             g.debugStats.shadowIndirectCapacity = indirectStats.capacity;
             g.debugStats.shadowIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
@@ -1401,7 +1401,7 @@ namespace HIKARI::SHADOW {
                 g.shadowPacketExecutionIndices->size(),
                 *g.shadowPacketExecutionCommands)) {
                 g.surfaceIndirectDrawBuffer.FlushToGpu(cmd);
-                const RENDER3D::CORE::SurfaceIndirectDrawBufferStats& indirectStats =
+                const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                     g.surfaceIndirectDrawBuffer.GetStats();
                 g.debugStats.shadowIndirectDrawBindingPatchCount =
                     indirectStats.drawBindingPatchCount;

@@ -1,4 +1,4 @@
-#include "Render3D/Core/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 
 #include <algorithm>
 #include <iterator>
@@ -7,7 +7,7 @@
 
 #include "Gfx/HIKARI_DXCheck.h"
 
-namespace HIKARI::RENDER3D::CORE {
+namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
         D3D12_DRAW_INDEXED_ARGUMENTS ToD3D12DrawArgs(
@@ -182,8 +182,8 @@ namespace HIKARI::RENDER3D::CORE {
             const size_t argumentIndex = cursor_;
             SurfaceIndirectDrawArgument& dst = mapped_[cursor_++];
             dst = {};
-            // command signature と struct の draw offset を固定するため、root constants は常に4 DWORDにする。
-            // root constants[0] は pass ごとのインスタンス基点。
+            // command signature と構造体の draw offset を固定するため、root constants は常に 4 DWORD にする。
+            // root constants[0] は pass ごとのインスタンス基点として扱う。
             // Forward は SurfaceGpuScene、Shadow は ShadowObjectData の base index として読む。
             dst.rootConstants[0] = rootBaseOffset + command.firstGpuSceneInstanceIndex;
             dst.rootConstants[1] = 1u;
@@ -282,4 +282,4 @@ namespace HIKARI::RENDER3D::CORE {
         return stats_;
     }
 
-} // namespace HIKARI::RENDER3D::CORE
+} // namespace HIKARI::RENDER3D::GPUDRIVEN
