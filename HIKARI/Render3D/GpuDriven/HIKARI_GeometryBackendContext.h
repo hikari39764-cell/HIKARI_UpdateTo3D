@@ -1,0 +1,30 @@
+#pragma once
+
+#include <cstdint>
+
+#include <d3d12.h>
+
+#include "Render3D/GpuDriven/HIKARI_GpuCommandBuildResult.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
+#include "Render3D/GpuDriven/HIKARI_GpuSceneFrame.h"
+#include "Render3D/GpuDriven/HIKARI_GpuVisibilityResult.h"
+
+namespace HIKARI::RENDER3D::GPUDRIVEN {
+
+    enum class GeometryBackendKind : uint32_t {
+        CpuDirect,
+        GpuDrivenTraditionalVS,
+        GpuDrivenClusterVS,
+        GpuDrivenMeshShader,
+    };
+
+    struct GeometryBackendContext {
+        ID3D12GraphicsCommandList* commandList = nullptr;
+        GpuDrivenPassKind pass = GpuDrivenPassKind::ForwardOpaque;
+        GeometryBackendKind backend = GeometryBackendKind::CpuDirect;
+        const GpuSceneFrame* scene = nullptr;
+        const GpuVisibilityResult* visibility = nullptr;
+        const GpuCommandBuildResult* commands = nullptr;
+    };
+
+} // namespace HIKARI::RENDER3D::GPUDRIVEN

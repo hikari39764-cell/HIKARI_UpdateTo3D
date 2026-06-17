@@ -83,18 +83,36 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         bool HasSourceForBucket(
-            const ClusterGpuCullingPassStats& stats,
+            const GPUDRIVEN::GpuVisibilityResult& visibility,
             ClusterDrawCullModeBucket bucket) {
 
             const size_t knownBucketSourceCount =
-                stats.sourceSingleSidedInstanceCount +
-                stats.sourceDoubleSidedInstanceCount;
+                visibility.sourceSingleSidedInstanceCount +
+                visibility.sourceDoubleSidedInstanceCount;
             if (knownBucketSourceCount == 0) {
                 return true;
             }
             return bucket == ClusterDrawCullModeBucket::DoubleSided
-                ? stats.sourceDoubleSidedInstanceCount > 0
-                : stats.sourceSingleSidedInstanceCount > 0;
+                ? visibility.sourceDoubleSidedInstanceCount > 0
+                : visibility.sourceSingleSidedInstanceCount > 0;
+        }
+
+        UINT64 DrawArgumentOffsetForBucket(
+            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            ClusterDrawCullModeBucket bucket) {
+
+            return bucket == ClusterDrawCullModeBucket::DoubleSided
+                ? layout.doubleSidedDrawArgumentOffset
+                : layout.backFaceDrawArgumentOffset;
+        }
+
+        UINT64 CounterOffsetForBucket(
+            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            ClusterDrawCullModeBucket bucket) {
+
+            return bucket == ClusterDrawCullModeBucket::DoubleSided
+                ? layout.doubleSidedCounterOffset
+                : layout.backFaceCounterOffset;
         }
 
         const wchar_t* ForwardDebugName(ClusterDrawCullModeBucket bucket) {
@@ -215,15 +233,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
     }
 
     bool ClusterDrawExecutor::Execute(const ClusterDrawExecutionContext& ctx) {
-        if (ctx.cullingPass == nullptr) {
+        if (ctx.visibility == nullptr || ctx.commands == nullptr) {
             return false;
         }
 
-        const ClusterGpuCullingPassStats& cullStats = ctx.cullingPass->GetStats();
-        const size_t requestedDrawCount = cullStats.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
+        const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
+        const size_t requestedDrawCount = visibility.submittedDrawSeedCount;
         stats_.requestedDrawCount += requestedDrawCount;
-        stats_.drawArgumentBufferReady = ctx.cullingPass->GetDrawArgumentBuffer() != nullptr;
-        stats_.drawCommandSignatureReady = ctx.cullingPass->GetDrawCommandSignature() != nullptr;
+        stats_.drawArgumentBufferReady = commands.clusterDrawArgs != nullptr;
+        stats_.drawCommandSignatureReady = commands.clusterDrawSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.drawPipelineReady =
@@ -239,10 +258,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        ID3D12Resource* argumentBuffer = ctx.cullingPass->GetDrawArgumentBuffer();
-        ID3D12Resource* countBuffer = ctx.cullingPass->GetCounterBuffer();
-        ID3D12CommandSignature* commandSignature =
-            ctx.cullingPass->GetDrawCommandSignature();
+        ID3D12Resource* argumentBuffer = commands.clusterDrawArgs;
+        ID3D12Resource* countBuffer = visibility.counterBuffer;
+        ID3D12CommandSignature* commandSignature = commands.clusterDrawSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -250,7 +268,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        const size_t bucketCapacity = ctx.cullingPass->GetDrawArgumentBucketCapacity();
+        const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
+        const size_t bucketCapacity = layout.drawArgumentBucketCapacity;
         const UINT maxCommandCount = static_cast<UINT>((std::min)(
             bucketCapacity,
             static_cast<size_t>((std::numeric_limits<UINT>::max)())));
@@ -268,7 +287,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         for (size_t bucketIndex = 0; bucketIndex < kClusterDrawCullModeBucketCount; ++bucketIndex) {
             const ClusterDrawCullModeBucket bucket =
                 static_cast<ClusterDrawCullModeBucket>(bucketIndex);
-            if (!HasSourceForBucket(cullStats, bucket)) {
+            if (!HasSourceForBucket(visibility, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
             }
@@ -301,9 +320,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 commandSignature,
                 maxCommandCount,
                 argumentBuffer,
-                ctx.cullingPass->GetDrawArgumentBufferOffset(bucket),
+                DrawArgumentOffsetForBucket(layout, bucket),
                 countBuffer,
-                ctx.cullingPass->GetDrawCommandCounterOffset(bucket));
+                CounterOffsetForBucket(layout, bucket));
             submittedAnyBucket = true;
         }
 

@@ -5,22 +5,10 @@
 #include <cstdint>
 #include <vector>
 
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
-
-    enum class GpuDrivenPassKind : uint32_t {
-        ForwardOpaque = 0,
-        ForwardDepthAware = 1,
-        ForwardTransparent = 2,
-        Shadow = 3,
-        Count = 4,
-    };
-
-    constexpr size_t kGpuDrivenPassCount =
-        static_cast<size_t>(GpuDrivenPassKind::Count);
-
-    size_t ToPassIndex(GpuDrivenPassKind passKind);
 
     enum class GpuDrivenBackendKind : uint32_t {
         MeshShader,

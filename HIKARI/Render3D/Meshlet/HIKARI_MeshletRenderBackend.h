@@ -7,9 +7,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
-namespace HIKARI::RENDER3D::CLUSTER {
-    class ClusterGpuCullingPass;
-}
+#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
 
 namespace HIKARI::RENDER3D::MESHLET {
 
@@ -52,7 +50,8 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     struct MeshletRenderExecutionContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
-        const CLUSTER::ClusterGpuCullingPass* cullingPass = nullptr;
+        const GPUDRIVEN::GpuVisibilityResult* visibility = nullptr;
+        const GPUDRIVEN::GpuCommandBuildResult* commands = nullptr;
         MeshletPipelineKind pipelineKind = MeshletPipelineKind::ForwardOpaque;
     };
 

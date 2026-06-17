@@ -1243,6 +1243,15 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp">
       <Filter>Source Files\Render3D\Pipeline</Filter>
     </ClCompile>
@@ -1417,6 +1426,42 @@
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendContext.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuCommandBuildResult.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrameContext.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPass.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassDesc.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenStats.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenView.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneFrame.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuVisibilityResult.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">

@@ -8,6 +8,7 @@
 #include <wrl/client.h>
 
 #include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
+#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
 
@@ -37,7 +38,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     struct ClusterDrawExecutionContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
-        const ClusterGpuCullingPass* cullingPass = nullptr;
+        const GPUDRIVEN::GpuVisibilityResult* visibility = nullptr;
+        const GPUDRIVEN::GpuCommandBuildResult* commands = nullptr;
         ClusterDrawPipelineKind pipelineKind = ClusterDrawPipelineKind::ForwardOpaque;
     };
 

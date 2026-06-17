@@ -11,8 +11,6 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
-#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
-
 namespace HIKARI::RENDER3D::MESHLET {
 
     namespace {
@@ -46,25 +44,37 @@ namespace HIKARI::RENDER3D::MESHLET {
                 : D3D12_CULL_MODE_BACK;
         }
 
-        CLUSTER::ClusterDrawCullModeBucket ToClusterBucket(MeshletCullModeBucket bucket) {
-            return bucket == MeshletCullModeBucket::DoubleSided
-                ? CLUSTER::ClusterDrawCullModeBucket::DoubleSided
-                : CLUSTER::ClusterDrawCullModeBucket::BackFace;
-        }
-
         bool HasSourceForBucket(
-            const CLUSTER::ClusterGpuCullingPassStats& stats,
+            const GPUDRIVEN::GpuVisibilityResult& visibility,
             MeshletCullModeBucket bucket) {
 
             const size_t knownBucketSourceCount =
-                stats.sourceSingleSidedInstanceCount +
-                stats.sourceDoubleSidedInstanceCount;
+                visibility.sourceSingleSidedInstanceCount +
+                visibility.sourceDoubleSidedInstanceCount;
             if (knownBucketSourceCount == 0) {
                 return true;
             }
             return bucket == MeshletCullModeBucket::DoubleSided
-                ? stats.sourceDoubleSidedInstanceCount > 0
-                : stats.sourceSingleSidedInstanceCount > 0;
+                ? visibility.sourceDoubleSidedInstanceCount > 0
+                : visibility.sourceSingleSidedInstanceCount > 0;
+        }
+
+        UINT64 DispatchArgumentOffsetForBucket(
+            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            MeshletCullModeBucket bucket) {
+
+            return bucket == MeshletCullModeBucket::DoubleSided
+                ? layout.meshletDoubleSidedDispatchOffset
+                : layout.meshletBackFaceDispatchOffset;
+        }
+
+        UINT64 CounterOffsetForBucket(
+            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            MeshletCullModeBucket bucket) {
+
+            return bucket == MeshletCullModeBucket::DoubleSided
+                ? layout.doubleSidedCounterOffset
+                : layout.backFaceCounterOffset;
         }
 
         const wchar_t* ForwardDebugName(MeshletCullModeBucket bucket) {
@@ -312,18 +322,18 @@ namespace HIKARI::RENDER3D::MESHLET {
     }
 
     bool MeshletRenderBackend::Execute(const MeshletRenderExecutionContext& ctx) {
-        if (ctx.cullingPass == nullptr) {
+        if (ctx.visibility == nullptr || ctx.commands == nullptr) {
             return false;
         }
 
-        const CLUSTER::ClusterGpuCullingPassStats& cullStats =
-            ctx.cullingPass->GetStats();
-        const size_t requestedDispatchCount = cullStats.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
+        const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
+        const size_t requestedDispatchCount = visibility.submittedDrawSeedCount;
         stats_.requestedDispatchCount += requestedDispatchCount;
         stats_.dispatchArgumentBufferReady =
-            ctx.cullingPass->GetMeshletDispatchArgumentBuffer() != nullptr;
+            commands.meshletDispatchArgs != nullptr;
         stats_.dispatchCommandSignatureReady =
-            ctx.cullingPass->GetMeshletDispatchCommandSignature() != nullptr;
+            commands.meshletDispatchSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.pipelineReady =
@@ -340,16 +350,15 @@ namespace HIKARI::RENDER3D::MESHLET {
             !stats_.dispatchArgumentBufferReady ||
             !stats_.dispatchCommandSignatureReady ||
             !requestedPipelineReady ||
-            ctx.cullingPass->GetVisibleRangeBuffer() == nullptr) {
+            visibility.visibleMeshletRangeBuffer == nullptr) {
             stats_.skippedDispatchCount += requestedDispatchCount;
             return false;
         }
 
-        ID3D12Resource* argumentBuffer =
-            ctx.cullingPass->GetMeshletDispatchArgumentBuffer();
-        ID3D12Resource* countBuffer = ctx.cullingPass->GetCounterBuffer();
+        ID3D12Resource* argumentBuffer = commands.meshletDispatchArgs;
+        ID3D12Resource* countBuffer = visibility.counterBuffer;
         ID3D12CommandSignature* commandSignature =
-            ctx.cullingPass->GetMeshletDispatchCommandSignature();
+            commands.meshletDispatchSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -357,7 +366,8 @@ namespace HIKARI::RENDER3D::MESHLET {
             return false;
         }
 
-        const size_t bucketCapacity = ctx.cullingPass->GetDrawArgumentBucketCapacity();
+        const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
+        const size_t bucketCapacity = layout.drawArgumentBucketCapacity;
         if (bucketCapacity == 0) {
             stats_.skippedDispatchCount += requestedDispatchCount;
             return false;
@@ -373,7 +383,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         for (size_t bucketIndex = 0; bucketIndex < kMeshletCullModeBucketCount; ++bucketIndex) {
             const MeshletCullModeBucket bucket =
                 static_cast<MeshletCullModeBucket>(bucketIndex);
-            if (!HasSourceForBucket(cullStats, bucket)) {
+            if (!HasSourceForBucket(visibility, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
             }
@@ -391,8 +401,6 @@ namespace HIKARI::RENDER3D::MESHLET {
                 ++stats_.backFaceSubmitCallCount;
             }
 
-            const CLUSTER::ClusterDrawCullModeBucket clusterBucket =
-                ToClusterBucket(bucket);
             GFX::PIX::ScopedGpuEvent pix(
                 ctx.commandList,
                 GFX::PIX::kColorRender,
@@ -403,9 +411,9 @@ namespace HIKARI::RENDER3D::MESHLET {
                 commandSignature,
                 maxCommandCount,
                 argumentBuffer,
-                ctx.cullingPass->GetMeshletDispatchArgumentBufferOffset(clusterBucket),
+                DispatchArgumentOffsetForBucket(layout, bucket),
                 countBuffer,
-                ctx.cullingPass->GetDrawCommandCounterOffset(clusterBucket));
+                CounterOffsetForBucket(layout, bucket));
             submittedAnyBucket = true;
         }
 

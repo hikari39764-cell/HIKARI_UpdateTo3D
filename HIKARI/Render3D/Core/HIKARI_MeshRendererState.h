@@ -13,6 +13,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
@@ -76,6 +77,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
         RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
         RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
+        RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
         RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
