@@ -1,29 +1,45 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 
 #include <d3d12.h>
 
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
+
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
+    struct GpuDrivenCommandBucketLayout {
+        UINT64 gpuDrawIndexedArgumentOffset = 0;
+        UINT64 meshDispatchArgumentOffset = 0;
+        UINT64 counterOffset = 0;
+    };
+
     struct GpuDrivenCommandLayout {
-        size_t drawArgumentBucketCapacity = 0;
-        UINT64 backFaceDrawArgumentOffset = 0;
-        UINT64 doubleSidedDrawArgumentOffset = 0;
-        UINT64 backFaceCounterOffset = 0;
-        UINT64 doubleSidedCounterOffset = 0;
-        UINT64 meshletBackFaceDispatchOffset = 0;
-        UINT64 meshletDoubleSidedDispatchOffset = 0;
+        size_t commandBucketCapacity = 0;
+        std::array<GpuDrivenCommandBucketLayout, kGpuDrivenCommandBucketCount> buckets{};
+
+        const GpuDrivenCommandBucketLayout& GetBucket(
+            GpuDrivenCommandBucket bucket) const {
+
+            return buckets[ToCommandBucketIndex(bucket)];
+        }
+
+        GpuDrivenCommandBucketLayout& GetBucket(
+            GpuDrivenCommandBucket bucket) {
+
+            return buckets[ToCommandBucketIndex(bucket)];
+        }
     };
 
     struct GpuCommandBuildResult {
-        ID3D12Resource* drawIndexedArgs = nullptr;
-        ID3D12Resource* clusterDrawArgs = nullptr;
-        ID3D12Resource* meshletDispatchArgs = nullptr;
+        ID3D12Resource* surfaceDrawIndexedArgs = nullptr;
+        ID3D12Resource* gpuDrawIndexedArgs = nullptr;
+        ID3D12Resource* meshDispatchArgs = nullptr;
 
-        ID3D12CommandSignature* drawIndexedSignature = nullptr;
-        ID3D12CommandSignature* clusterDrawSignature = nullptr;
-        ID3D12CommandSignature* meshletDispatchSignature = nullptr;
+        ID3D12CommandSignature* surfaceDrawIndexedSignature = nullptr;
+        ID3D12CommandSignature* gpuDrawIndexedSignature = nullptr;
+        ID3D12CommandSignature* meshDispatchSignature = nullptr;
 
         GpuDrivenCommandLayout layout{};
     };

@@ -8,6 +8,7 @@
 #include <wrl/client.h>
 
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 
 namespace HIKARI::RENDER3D::MESHLET {
 
@@ -15,13 +16,6 @@ namespace HIKARI::RENDER3D::MESHLET {
         ForwardOpaque,
         GeometryAux,
     };
-
-    enum class MeshletCullModeBucket : uint32_t {
-        BackFace,
-        DoubleSided,
-    };
-
-    constexpr size_t kMeshletCullModeBucketCount = 2u;
 
     struct MeshletRenderBackendStats {
         bool initialized = false;
@@ -58,7 +52,7 @@ namespace HIKARI::RENDER3D::MESHLET {
     class MeshletRenderBackend final {
     public:
         using PipelineBucketArray =
-            std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kMeshletCullModeBucketCount>;
+            std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, GPUDRIVEN::kGpuDrivenCommandBucketCount>;
 
         bool Initialize(ID3D12Device* device, ID3D12RootSignature* rootSignature);
         void Reset();
@@ -68,7 +62,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         const MeshletRenderBackendStats& GetStats() const;
         ID3D12PipelineState* GetPipelineState(
             MeshletPipelineKind kind,
-            MeshletCullModeBucket bucket) const;
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) const;
 
     private:
         PipelineBucketArray forwardPipelineStates_{};

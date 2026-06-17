@@ -5,15 +5,16 @@
 
 #include <d3d12.h>
 
-#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenProducer.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     class SurfaceGpuSceneFrameBuffer;
     class SurfaceIndirectDrawBuffer;
     struct GpuDrivenSceneSource;
+    class IGpuDrivenProducer;
 
     class GpuDrivenLayer final {
     public:
@@ -26,7 +27,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void Attach(
             SurfaceGpuSceneFrameBuffer* sceneBuffer,
             SurfaceIndirectDrawBuffer* indirectDrawBuffer,
-            CLUSTER::ClusterGpuCullingPass* clusterCullingPass);
+            IGpuDrivenProducer* producer);
 
         void ResetFrame();
         bool BeginFrame(const GpuDrivenSceneSource* source);
@@ -37,8 +38,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t transparentBaseIndex,
             bool sceneResident);
         void PrepareSurfaceGpuSceneMaterialFrame();
-        void DispatchVisibility(
-            const CLUSTER::ClusterGpuCullingPassStats& stats);
+        void ImportProducerOutput(
+            const GpuDrivenProducerFrameOutput& output);
         void BuildCommandBuffers();
 
         GeometryBackendContext BuildGeometryBackendContext(
@@ -48,13 +49,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         SurfaceGpuSceneFrameBuffer* GetSceneBuffer() const;
         SurfaceIndirectDrawBuffer* GetIndirectDrawBuffer() const;
-        CLUSTER::ClusterGpuCullingPass* GetClusterCullingPass() const;
+        IGpuDrivenProducer* GetProducer() const;
         const GpuDrivenFrameContext& GetFrameContext() const;
 
     private:
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
         SurfaceIndirectDrawBuffer* indirectDrawBuffer_ = nullptr;
-        CLUSTER::ClusterGpuCullingPass* clusterCullingPass_ = nullptr;
+        IGpuDrivenProducer* producer_ = nullptr;
         GpuDrivenFrameContext frameContext_{};
     };
 

@@ -38,69 +38,57 @@ namespace HIKARI::RENDER3D::MESHLET {
             return true;
         }
 
-        D3D12_CULL_MODE CullModeForBucket(MeshletCullModeBucket bucket) {
-            return bucket == MeshletCullModeBucket::DoubleSided
+        D3D12_CULL_MODE CullModeForBucket(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? D3D12_CULL_MODE_NONE
                 : D3D12_CULL_MODE_BACK;
         }
 
         bool HasSourceForBucket(
             const GPUDRIVEN::GpuVisibilityResult& visibility,
-            MeshletCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            const size_t knownBucketSourceCount =
-                visibility.sourceSingleSidedInstanceCount +
-                visibility.sourceDoubleSidedInstanceCount;
-            if (knownBucketSourceCount == 0) {
-                return true;
-            }
-            return bucket == MeshletCullModeBucket::DoubleSided
-                ? visibility.sourceDoubleSidedInstanceCount > 0
-                : visibility.sourceSingleSidedInstanceCount > 0;
+            return visibility.HasSourceForBucket(bucket);
         }
 
         UINT64 DispatchArgumentOffsetForBucket(
             const GPUDRIVEN::GpuDrivenCommandLayout& layout,
-            MeshletCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return bucket == MeshletCullModeBucket::DoubleSided
-                ? layout.meshletDoubleSidedDispatchOffset
-                : layout.meshletBackFaceDispatchOffset;
+            return layout.GetBucket(bucket).meshDispatchArgumentOffset;
         }
 
         UINT64 CounterOffsetForBucket(
             const GPUDRIVEN::GpuDrivenCommandLayout& layout,
-            MeshletCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return bucket == MeshletCullModeBucket::DoubleSided
-                ? layout.doubleSidedCounterOffset
-                : layout.backFaceCounterOffset;
+            return layout.GetBucket(bucket).counterOffset;
         }
 
-        const wchar_t* ForwardDebugName(MeshletCullModeBucket bucket) {
-            return bucket == MeshletCullModeBucket::DoubleSided
+        const wchar_t* ForwardDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? L"Meshlet Forward DoubleSided PSO"
                 : L"Meshlet Forward BackFace PSO";
         }
 
-        const wchar_t* GeometryDebugName(MeshletCullModeBucket bucket) {
-            return bucket == MeshletCullModeBucket::DoubleSided
+        const wchar_t* GeometryDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? L"Meshlet GeometryAux DoubleSided PSO"
                 : L"Meshlet GeometryAux BackFace PSO";
         }
 
         const char* PipelineEventName(
             MeshletPipelineKind kind,
-            MeshletCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             switch (kind) {
             case MeshletPipelineKind::GeometryAux:
-                return bucket == MeshletCullModeBucket::DoubleSided
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "MeshletDraw.GeometryAux.DoubleSided"
                     : "MeshletDraw.GeometryAux.BackFace";
             case MeshletPipelineKind::ForwardOpaque:
             default:
-                return bucket == MeshletCullModeBucket::DoubleSided
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "MeshletDraw.ForwardOpaque.DoubleSided"
                     : "MeshletDraw.ForwardOpaque.BackFace";
             }
@@ -252,9 +240,9 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         stats_.shaderCompileReady = true;
 
-        for (size_t bucketIndex = 0; bucketIndex < kMeshletCullModeBucketCount; ++bucketIndex) {
-            const MeshletCullModeBucket bucket =
-                static_cast<MeshletCullModeBucket>(bucketIndex);
+        for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
+            const GPUDRIVEN::GpuDrivenCommandBucket bucket =
+                static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
 
             ++stats_.pipelineCreateRequestCount;
             if (CreateMeshletPipelineState(
@@ -331,9 +319,9 @@ namespace HIKARI::RENDER3D::MESHLET {
         const size_t requestedDispatchCount = visibility.submittedDrawSeedCount;
         stats_.requestedDispatchCount += requestedDispatchCount;
         stats_.dispatchArgumentBufferReady =
-            commands.meshletDispatchArgs != nullptr;
+            commands.meshDispatchArgs != nullptr;
         stats_.dispatchCommandSignatureReady =
-            commands.meshletDispatchSignature != nullptr;
+            commands.meshDispatchSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.pipelineReady =
@@ -355,10 +343,10 @@ namespace HIKARI::RENDER3D::MESHLET {
             return false;
         }
 
-        ID3D12Resource* argumentBuffer = commands.meshletDispatchArgs;
+        ID3D12Resource* argumentBuffer = commands.meshDispatchArgs;
         ID3D12Resource* countBuffer = visibility.counterBuffer;
         ID3D12CommandSignature* commandSignature =
-            commands.meshletDispatchSignature;
+            commands.meshDispatchSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -367,7 +355,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
 
         const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
-        const size_t bucketCapacity = layout.drawArgumentBucketCapacity;
+        const size_t bucketCapacity = layout.commandBucketCapacity;
         if (bucketCapacity == 0) {
             stats_.skippedDispatchCount += requestedDispatchCount;
             return false;
@@ -380,9 +368,9 @@ namespace HIKARI::RENDER3D::MESHLET {
             ctx.pipelineKind == MeshletPipelineKind::GeometryAux
                 ? GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux
                 : GFX::GPU_PROFILE::Pass::MeshletDrawForward);
-        for (size_t bucketIndex = 0; bucketIndex < kMeshletCullModeBucketCount; ++bucketIndex) {
-            const MeshletCullModeBucket bucket =
-                static_cast<MeshletCullModeBucket>(bucketIndex);
+        for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
+            const GPUDRIVEN::GpuDrivenCommandBucket bucket =
+                static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
             if (!HasSourceForBucket(visibility, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
@@ -395,7 +383,7 @@ namespace HIKARI::RENDER3D::MESHLET {
             }
 
             ++stats_.submitCallCount;
-            if (bucket == MeshletCullModeBucket::DoubleSided) {
+            if (bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided) {
                 ++stats_.doubleSidedSubmitCallCount;
             } else {
                 ++stats_.backFaceSubmitCallCount;
@@ -437,10 +425,10 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     ID3D12PipelineState* MeshletRenderBackend::GetPipelineState(
         MeshletPipelineKind kind,
-        MeshletCullModeBucket bucket) const {
+        GPUDRIVEN::GpuDrivenCommandBucket bucket) const {
 
-        const size_t index = static_cast<size_t>(bucket);
-        if (index >= kMeshletCullModeBucketCount) {
+        const size_t index = GPUDRIVEN::ToCommandBucketIndex(bucket);
+        if (index >= GPUDRIVEN::kGpuDrivenCommandBucketCount) {
             return nullptr;
         }
         return kind == MeshletPipelineKind::GeometryAux

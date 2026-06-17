@@ -18,17 +18,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         (void)rootConstantCount;
         return sceneBuffer_ != nullptr ||
             indirectDrawBuffer_ != nullptr ||
-            clusterCullingPass_ != nullptr;
+            producer_ != nullptr;
     }
 
     void GpuDrivenLayer::Attach(
         SurfaceGpuSceneFrameBuffer* sceneBuffer,
         SurfaceIndirectDrawBuffer* indirectDrawBuffer,
-        CLUSTER::ClusterGpuCullingPass* clusterCullingPass) {
+        IGpuDrivenProducer* producer) {
 
         sceneBuffer_ = sceneBuffer;
         indirectDrawBuffer_ = indirectDrawBuffer;
-        clusterCullingPass_ = clusterCullingPass;
+        producer_ = producer;
         frameContext_.scene.instanceBuffer = sceneBuffer_;
     }
 
@@ -65,83 +65,42 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuDrivenLayer::PrepareSurfaceGpuSceneMaterialFrame() {
     }
 
-    void GpuDrivenLayer::DispatchVisibility(
-        const CLUSTER::ClusterGpuCullingPassStats& stats) {
+    void GpuDrivenLayer::ImportProducerOutput(
+        const GpuDrivenProducerFrameOutput& output) {
 
-        if (clusterCullingPass_ == nullptr) {
-            frameContext_.visibility = {};
-            frameContext_.stats.visibilityReady = false;
-            return;
-        }
+        ID3D12Resource* surfaceDrawIndexedArgs =
+            frameContext_.commands.surfaceDrawIndexedArgs;
+        ID3D12CommandSignature* surfaceDrawIndexedSignature =
+            frameContext_.commands.surfaceDrawIndexedSignature;
 
-        frameContext_.visibility.visibleInstanceBuffer = nullptr;
-        frameContext_.visibility.visibleClusterRangeBuffer =
-            clusterCullingPass_->GetVisibleRangeBuffer();
-        frameContext_.visibility.visibleMeshletRangeBuffer =
-            clusterCullingPass_->GetVisibleRangeBuffer();
-        frameContext_.visibility.counterBuffer =
-            clusterCullingPass_->GetCounterBuffer();
-        frameContext_.visibility.sourceSingleSidedInstanceCount =
-            stats.sourceSingleSidedInstanceCount;
-        frameContext_.visibility.sourceDoubleSidedInstanceCount =
-            stats.sourceDoubleSidedInstanceCount;
-        frameContext_.visibility.submittedDrawSeedCount =
-            stats.submittedDrawSeedCount;
-        frameContext_.stats.visibilitySeedCount =
-            stats.submittedDrawSeedCount;
-        frameContext_.stats.visibilityReady =
-            stats.initialized &&
-            stats.visibleRangeBufferReady &&
-            stats.counterBufferReady;
+        frameContext_.visibility = output.visibility;
+        frameContext_.commands = output.commands;
+        frameContext_.commands.surfaceDrawIndexedArgs =
+            surfaceDrawIndexedArgs;
+        frameContext_.commands.surfaceDrawIndexedSignature =
+            surfaceDrawIndexedSignature;
+        frameContext_.stats.visibilityReady = output.visibilityReady;
+        frameContext_.stats.visibilitySeedCount = output.visibilitySeedCount;
+        frameContext_.stats.commandBuildReady =
+            output.commandBuildReady ||
+            frameContext_.commands.surfaceDrawIndexedArgs != nullptr;
     }
 
     void GpuDrivenLayer::BuildCommandBuffers() {
-        frameContext_.commands = {};
-
         if (indirectDrawBuffer_ != nullptr) {
-            frameContext_.commands.drawIndexedArgs =
+            frameContext_.commands.surfaceDrawIndexedArgs =
                 indirectDrawBuffer_->GetArgumentBuffer();
-            frameContext_.commands.drawIndexedSignature =
+            frameContext_.commands.surfaceDrawIndexedSignature =
                 indirectDrawBuffer_->GetCommandSignature();
-        }
-
-        if (clusterCullingPass_ != nullptr) {
-            frameContext_.commands.clusterDrawArgs =
-                clusterCullingPass_->GetDrawArgumentBuffer();
-            frameContext_.commands.meshletDispatchArgs =
-                clusterCullingPass_->GetMeshletDispatchArgumentBuffer();
-            frameContext_.commands.clusterDrawSignature =
-                clusterCullingPass_->GetDrawCommandSignature();
-            frameContext_.commands.meshletDispatchSignature =
-                clusterCullingPass_->GetMeshletDispatchCommandSignature();
-
-            GpuDrivenCommandLayout& layout = frameContext_.commands.layout;
-            layout.drawArgumentBucketCapacity =
-                clusterCullingPass_->GetDrawArgumentBucketCapacity();
-            layout.backFaceDrawArgumentOffset =
-                clusterCullingPass_->GetDrawArgumentBufferOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::BackFace);
-            layout.doubleSidedDrawArgumentOffset =
-                clusterCullingPass_->GetDrawArgumentBufferOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::DoubleSided);
-            layout.backFaceCounterOffset =
-                clusterCullingPass_->GetDrawCommandCounterOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::BackFace);
-            layout.doubleSidedCounterOffset =
-                clusterCullingPass_->GetDrawCommandCounterOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::DoubleSided);
-            layout.meshletBackFaceDispatchOffset =
-                clusterCullingPass_->GetMeshletDispatchArgumentBufferOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::BackFace);
-            layout.meshletDoubleSidedDispatchOffset =
-                clusterCullingPass_->GetMeshletDispatchArgumentBufferOffset(
-                    CLUSTER::ClusterDrawCullModeBucket::DoubleSided);
+        } else {
+            frameContext_.commands.surfaceDrawIndexedArgs = nullptr;
+            frameContext_.commands.surfaceDrawIndexedSignature = nullptr;
         }
 
         frameContext_.stats.commandBuildReady =
-            frameContext_.commands.clusterDrawArgs != nullptr ||
-            frameContext_.commands.meshletDispatchArgs != nullptr ||
-            frameContext_.commands.drawIndexedArgs != nullptr;
+            frameContext_.commands.gpuDrawIndexedArgs != nullptr ||
+            frameContext_.commands.meshDispatchArgs != nullptr ||
+            frameContext_.commands.surfaceDrawIndexedArgs != nullptr;
     }
 
     GeometryBackendContext GpuDrivenLayer::BuildGeometryBackendContext(
@@ -167,8 +126,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return indirectDrawBuffer_;
     }
 
-    CLUSTER::ClusterGpuCullingPass* GpuDrivenLayer::GetClusterCullingPass() const {
-        return clusterCullingPass_;
+    IGpuDrivenProducer* GpuDrivenLayer::GetProducer() const {
+        return producer_;
     }
 
     const GpuDrivenFrameContext& GpuDrivenLayer::GetFrameContext() const {

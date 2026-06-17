@@ -7,7 +7,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
-#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
@@ -46,7 +46,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
     class ClusterDrawExecutor final {
     public:
         using PipelineBucketArray =
-            std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kClusterDrawCullModeBucketCount>;
+            std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, GPUDRIVEN::kGpuDrivenCommandBucketCount>;
 
         bool Initialize(ID3D12Device* device, ID3D12RootSignature* rootSignature);
         void Reset();
@@ -58,7 +58,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         ID3D12PipelineState* GetPipelineState(ClusterDrawPipelineKind kind) const;
         ID3D12PipelineState* GetPipelineState(
             ClusterDrawPipelineKind kind,
-            ClusterDrawCullModeBucket bucket) const;
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) const;
 
     private:
         PipelineBucketArray forwardPipelineStates_{};

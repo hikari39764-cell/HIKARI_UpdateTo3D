@@ -76,69 +76,57 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return true;
         }
 
-        D3D12_CULL_MODE CullModeForBucket(ClusterDrawCullModeBucket bucket) {
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
+        D3D12_CULL_MODE CullModeForBucket(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? D3D12_CULL_MODE_NONE
                 : D3D12_CULL_MODE_BACK;
         }
 
         bool HasSourceForBucket(
             const GPUDRIVEN::GpuVisibilityResult& visibility,
-            ClusterDrawCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            const size_t knownBucketSourceCount =
-                visibility.sourceSingleSidedInstanceCount +
-                visibility.sourceDoubleSidedInstanceCount;
-            if (knownBucketSourceCount == 0) {
-                return true;
-            }
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
-                ? visibility.sourceDoubleSidedInstanceCount > 0
-                : visibility.sourceSingleSidedInstanceCount > 0;
+            return visibility.HasSourceForBucket(bucket);
         }
 
         UINT64 DrawArgumentOffsetForBucket(
             const GPUDRIVEN::GpuDrivenCommandLayout& layout,
-            ClusterDrawCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
-                ? layout.doubleSidedDrawArgumentOffset
-                : layout.backFaceDrawArgumentOffset;
+            return layout.GetBucket(bucket).gpuDrawIndexedArgumentOffset;
         }
 
         UINT64 CounterOffsetForBucket(
             const GPUDRIVEN::GpuDrivenCommandLayout& layout,
-            ClusterDrawCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
-                ? layout.doubleSidedCounterOffset
-                : layout.backFaceCounterOffset;
+            return layout.GetBucket(bucket).counterOffset;
         }
 
-        const wchar_t* ForwardDebugName(ClusterDrawCullModeBucket bucket) {
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
+        const wchar_t* ForwardDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? L"Cluster Draw Forward DoubleSided PSO"
                 : L"Cluster Draw Forward BackFace PSO";
         }
 
-        const wchar_t* GeometryDebugName(ClusterDrawCullModeBucket bucket) {
-            return bucket == ClusterDrawCullModeBucket::DoubleSided
+        const wchar_t* GeometryDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                 ? L"Cluster Draw GeometryAux DoubleSided PSO"
                 : L"Cluster Draw GeometryAux BackFace PSO";
         }
 
         const char* PipelineEventName(
             ClusterDrawPipelineKind kind,
-            ClusterDrawCullModeBucket bucket) {
+            GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             switch (kind) {
             case ClusterDrawPipelineKind::GeometryAux:
-                return bucket == ClusterDrawCullModeBucket::DoubleSided
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "ClusterDraw.GeometryAux.DoubleSided"
                     : "ClusterDraw.GeometryAux.BackFace";
             case ClusterDrawPipelineKind::ForwardOpaque:
             default:
-                return bucket == ClusterDrawCullModeBucket::DoubleSided
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "ClusterDraw.ForwardOpaque.DoubleSided"
                     : "ClusterDraw.ForwardOpaque.BackFace";
             }
@@ -185,9 +173,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        for (size_t bucketIndex = 0; bucketIndex < kClusterDrawCullModeBucketCount; ++bucketIndex) {
-            const ClusterDrawCullModeBucket bucket =
-                static_cast<ClusterDrawCullModeBucket>(bucketIndex);
+        for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
+            const GPUDRIVEN::GpuDrivenCommandBucket bucket =
+                static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
             if (!CreateClusterPipelineState(
                 device,
                 rootSignature,
@@ -241,8 +229,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
         const size_t requestedDrawCount = visibility.submittedDrawSeedCount;
         stats_.requestedDrawCount += requestedDrawCount;
-        stats_.drawArgumentBufferReady = commands.clusterDrawArgs != nullptr;
-        stats_.drawCommandSignatureReady = commands.clusterDrawSignature != nullptr;
+        stats_.drawArgumentBufferReady = commands.gpuDrawIndexedArgs != nullptr;
+        stats_.drawCommandSignatureReady = commands.gpuDrawIndexedSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.drawPipelineReady =
@@ -258,9 +246,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        ID3D12Resource* argumentBuffer = commands.clusterDrawArgs;
+        ID3D12Resource* argumentBuffer = commands.gpuDrawIndexedArgs;
         ID3D12Resource* countBuffer = visibility.counterBuffer;
-        ID3D12CommandSignature* commandSignature = commands.clusterDrawSignature;
+        ID3D12CommandSignature* commandSignature = commands.gpuDrawIndexedSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -269,7 +257,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
-        const size_t bucketCapacity = layout.drawArgumentBucketCapacity;
+        const size_t bucketCapacity = layout.commandBucketCapacity;
         const UINT maxCommandCount = static_cast<UINT>((std::min)(
             bucketCapacity,
             static_cast<size_t>((std::numeric_limits<UINT>::max)())));
@@ -284,9 +272,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             ctx.pipelineKind == ClusterDrawPipelineKind::GeometryAux
                 ? GFX::GPU_PROFILE::Pass::ClusterDrawGeometryAux
                 : GFX::GPU_PROFILE::Pass::ClusterDrawForward);
-        for (size_t bucketIndex = 0; bucketIndex < kClusterDrawCullModeBucketCount; ++bucketIndex) {
-            const ClusterDrawCullModeBucket bucket =
-                static_cast<ClusterDrawCullModeBucket>(bucketIndex);
+        for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
+            const GPUDRIVEN::GpuDrivenCommandBucket bucket =
+                static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
             if (!HasSourceForBucket(visibility, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
@@ -303,7 +291,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             } else {
                 ++stats_.forwardSubmitCallCount;
             }
-            if (bucket == ClusterDrawCullModeBucket::DoubleSided) {
+            if (bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided) {
                 ++stats_.doubleSidedSubmitCallCount;
             } else {
                 ++stats_.backFaceSubmitCallCount;
@@ -351,15 +339,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
     ID3D12PipelineState* ClusterDrawExecutor::GetPipelineState(
         ClusterDrawPipelineKind kind) const {
 
-        return GetPipelineState(kind, ClusterDrawCullModeBucket::BackFace);
+        return GetPipelineState(kind, GPUDRIVEN::GpuDrivenCommandBucket::BackFaceCulled);
     }
 
     ID3D12PipelineState* ClusterDrawExecutor::GetPipelineState(
         ClusterDrawPipelineKind kind,
-        ClusterDrawCullModeBucket bucket) const {
+        GPUDRIVEN::GpuDrivenCommandBucket bucket) const {
 
-        const size_t bucketIndex = static_cast<size_t>(bucket);
-        if (bucketIndex >= kClusterDrawCullModeBucketCount) {
+        const size_t bucketIndex = GPUDRIVEN::ToCommandBucketIndex(bucket);
+        if (bucketIndex >= GPUDRIVEN::kGpuDrivenCommandBucketCount) {
             return nullptr;
         }
         switch (kind) {

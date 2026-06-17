@@ -12,6 +12,7 @@
 #include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/GpuDriven/HIKARI_ClusterGpuDrivenProducerAdapter.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
@@ -79,6 +80,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
         RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
+        RENDER3D::GPUDRIVEN::ClusterGpuDrivenProducerAdapter clusterGpuDrivenProducer{};
         RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
