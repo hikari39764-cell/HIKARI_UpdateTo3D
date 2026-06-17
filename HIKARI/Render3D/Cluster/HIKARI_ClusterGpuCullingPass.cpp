@@ -18,6 +18,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     namespace {
         constexpr uint32_t kThreadGroupSize = 64u;
+        constexpr size_t kClusterGpuCullingMaxSourceRangeCount = 8u;
         constexpr uint32_t kClusterCullMergeGapIndexLimit = 384u;
         constexpr uint32_t kClusterCullMergeRunGapIndexBudget = 2048u;
         constexpr uint32_t kClusterCullMergeMaxIndexSpan = 8192u;
@@ -57,6 +58,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t CullBucketIndex(ClusterDrawCullModeBucket bucket) {
             const size_t index = static_cast<size_t>(bucket);
             return index < kClusterDrawCullModeBucketCount ? index : 0u;
+        }
+
+        size_t CullPassIndex(ClusterGpuCullingPassKind passKind) {
+            const size_t index = static_cast<size_t>(passKind);
+            return index < kClusterGpuCullingPassKindCount ? index : 0u;
         }
 
         bool CreateComputePipelineState(
@@ -499,8 +505,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         const auto readbackHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 
+        const UINT constantsStride = AlignConstantBufferSize(sizeof(GpuConstants));
         auto constantsDesc =
-            CD3DX12_RESOURCE_DESC::Buffer(AlignConstantBufferSize(sizeof(GpuConstants)));
+            CD3DX12_RESOURCE_DESC::Buffer(
+                static_cast<UINT64>(constantsStride) *
+                static_cast<UINT64>(kClusterGpuCullingMaxSourceRangeCount));
         HRESULT hr = device->CreateCommittedResource(
             &uploadHeap,
             D3D12_HEAP_FLAG_NONE,
@@ -517,7 +526,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
         GFX::SetD3D12Name(constantsUploadBuffer_.Get(), L"Cluster GPU Culling Constants");
 
-        auto counterUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GpuCounters));
+        auto counterUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GpuCounterBuffer));
         hr = device->CreateCommittedResource(
             &uploadHeap,
             D3D12_HEAP_FLAG_NONE,
@@ -624,7 +633,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         GFX::SetD3D12Name(dispatchArgumentBuffer_.Get(), L"Cluster GPU Cull Dispatch Arguments");
 
         auto counterDesc = CD3DX12_RESOURCE_DESC::Buffer(
-            sizeof(GpuCounters),
+            sizeof(GpuCounterBuffer),
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         hr = device->CreateCommittedResource(
             &defaultHeap,
@@ -638,7 +647,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
         GFX::SetD3D12Name(counterBuffer_.Get(), L"Cluster GPU Culling Counters");
 
-        auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GpuCounters));
+        auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GpuCounterBuffer));
         for (size_t i = 0; i < counterReadbackSlots_.size(); ++i) {
             hr = device->CreateCommittedResource(
                 &readbackHeap,
@@ -698,54 +707,55 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.gpuCounterReadbackReady = counterReadbackSlots_[0].buffer != nullptr;
         stats_.gpuCounterReadbackValid = latestGpuCountersValid_;
         if (latestGpuCountersValid_) {
-            stats_.gpuInputCount = latestGpuCounters_.inputCount;
-            stats_.gpuPageTaskCount = latestGpuCounters_.pageTaskCount;
-            stats_.gpuPageTaskOverflowCount = latestGpuCounters_.pageTaskOverflowCount;
-            stats_.gpuVisibleRangeCount = latestGpuCounters_.visibleRangeCount;
-            stats_.gpuVisibleClusterCount = latestGpuCounters_.visibleClusterCount;
-            stats_.gpuOverflowCount = latestGpuCounters_.overflowCount;
+            const GpuCounters& globalCounters = latestGpuCounters_.global;
+            stats_.gpuInputCount = globalCounters.inputCount;
+            stats_.gpuPageTaskCount = globalCounters.pageTaskCount;
+            stats_.gpuPageTaskOverflowCount = globalCounters.pageTaskOverflowCount;
+            stats_.gpuVisibleRangeCount = globalCounters.visibleRangeCount;
+            stats_.gpuVisibleClusterCount = globalCounters.visibleClusterCount;
+            stats_.gpuOverflowCount = globalCounters.overflowCount;
             stats_.gpuInputFrustumCulledCount =
-                latestGpuCounters_.inputFrustumCulledCount;
+                globalCounters.inputFrustumCulledCount;
             stats_.gpuPageTestedCount =
-                latestGpuCounters_.pageTestedCount;
+                globalCounters.pageTestedCount;
             stats_.gpuPageFrustumCulledCount =
-                latestGpuCounters_.pageFrustumCulledCount;
+                globalCounters.pageFrustumCulledCount;
             stats_.gpuClusterTestedCount =
-                latestGpuCounters_.clusterTestedCount;
+                globalCounters.clusterTestedCount;
             stats_.gpuClusterFrustumCulledCount =
-                latestGpuCounters_.clusterFrustumCulledCount;
+                globalCounters.clusterFrustumCulledCount;
             stats_.gpuClusterConeCulledCount =
-                latestGpuCounters_.clusterConeCulledCount;
+                globalCounters.clusterConeCulledCount;
             stats_.gpuClusterConeTestedCount =
-                latestGpuCounters_.clusterConeTestedCount;
+                globalCounters.clusterConeTestedCount;
             stats_.gpuDoubleSidedClusterCount =
-                latestGpuCounters_.doubleSidedClusterCount;
+                globalCounters.doubleSidedClusterCount;
             stats_.gpuBackFaceDrawCommandCount =
-                latestGpuCounters_.backFaceDrawCommandCount;
+                globalCounters.backFaceDrawCommandCount;
             stats_.gpuDoubleSidedDrawCommandCount =
-                latestGpuCounters_.doubleSidedDrawCommandCount;
+                globalCounters.doubleSidedDrawCommandCount;
             stats_.gpuDrawCommandCount =
                 stats_.gpuBackFaceDrawCommandCount +
                 stats_.gpuDoubleSidedDrawCommandCount;
             stats_.gpuBackFaceDrawCommandOverflowCount =
-                latestGpuCounters_.backFaceDrawCommandOverflowCount;
+                globalCounters.backFaceDrawCommandOverflowCount;
             stats_.gpuDoubleSidedDrawCommandOverflowCount =
-                latestGpuCounters_.doubleSidedDrawCommandOverflowCount;
+                globalCounters.doubleSidedDrawCommandOverflowCount;
             stats_.gpuDrawCommandOverflowCount =
                 stats_.gpuBackFaceDrawCommandOverflowCount +
                 stats_.gpuDoubleSidedDrawCommandOverflowCount;
             stats_.gpuMergedGapCount =
-                latestGpuCounters_.mergedGapCount;
+                globalCounters.mergedGapCount;
             stats_.gpuMergedGapIndexCount =
-                latestGpuCounters_.mergedGapIndexCount;
+                globalCounters.mergedGapIndexCount;
             stats_.gpuLod0SelectedCount =
-                latestGpuCounters_.lod0SelectedCount;
+                globalCounters.lod0SelectedCount;
             stats_.gpuLod1SelectedCount =
-                latestGpuCounters_.lod1SelectedCount;
+                globalCounters.lod1SelectedCount;
             stats_.gpuLod2SelectedCount =
-                latestGpuCounters_.lod2SelectedCount;
+                globalCounters.lod2SelectedCount;
             stats_.gpuLod3PlusSelectedCount =
-                latestGpuCounters_.lod3PlusSelectedCount;
+                globalCounters.lod3PlusSelectedCount;
         }
     }
 
@@ -754,12 +764,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return;
         }
 
-        const D3D12_RANGE readRange{ 0, sizeof(GpuCounters) };
+        const D3D12_RANGE readRange{ 0, sizeof(GpuCounterBuffer) };
         void* mapped = nullptr;
         if (FAILED(slot.buffer->Map(0, &readRange, &mapped)) || mapped == nullptr) {
             return;
         }
-        latestGpuCounters_ = *static_cast<const GpuCounters*>(mapped);
+        latestGpuCounters_ = *static_cast<const GpuCounterBuffer*>(mapped);
         const D3D12_RANGE writeRange{ 0, 0 };
         slot.buffer->Unmap(0, &writeRange);
         slot.resolved = false;
@@ -784,7 +794,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             0,
             counterBuffer_.Get(),
             0,
-            sizeof(GpuCounters));
+            sizeof(GpuCounterBuffer));
         slot.resolved = true;
     }
 
@@ -798,22 +808,34 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         for (size_t rangeIndex = 0; rangeIndex < rangeCount; ++rangeIndex) {
             const ClusterGpuCullingSourceRange& range = ranges[rangeIndex];
+            if (range.instanceCount == 0u) {
+                continue;
+            }
+
+            ClusterGpuCullingPassStats::PassOutputStats& passStats =
+                stats_.passOutputs[CullPassIndex(range.passKind)];
             stats_.sourceInstanceCount += range.instanceCount;
+            passStats.sourceInstanceCount += range.instanceCount;
             const uint32_t explicitBucketCount =
                 range.singleSidedInstanceCount + range.doubleSidedInstanceCount;
             if (explicitBucketCount > 0u) {
                 stats_.sourceSingleSidedInstanceCount += range.singleSidedInstanceCount;
                 stats_.sourceDoubleSidedInstanceCount += range.doubleSidedInstanceCount;
+                passStats.sourceSingleSidedInstanceCount +=
+                    range.singleSidedInstanceCount;
+                passStats.sourceDoubleSidedInstanceCount +=
+                    range.doubleSidedInstanceCount;
             }
+            ++passStats.submittedDrawSeedCount;
+            ++stats_.sourcePageTaskCount;
+            ++stats_.submittedPageTaskCount;
+            ++stats_.submittedDrawSeedCount;
         }
 
         // GPU scene driven の主線では、CPU は候補圧縮を行わない。
         // ここでは dispatch seed 数だけを記録し、実際の candidate/draw 数は GPU counter で読む。
         stats_.candidateInstanceCount = stats_.sourceInstanceCount;
         stats_.submittedInstanceCount = stats_.sourceInstanceCount;
-        stats_.sourcePageTaskCount = rangeCount;
-        stats_.submittedPageTaskCount = rangeCount;
-        stats_.submittedDrawSeedCount = rangeCount;
     }
 
     bool ClusterGpuCullingPass::Dispatch(
@@ -828,7 +850,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const bool counterReadbackEnabled =
             GFX::GetGfxDebugConfig().enableClusterGpuCullDebugCounters;
         BeginFrame(counterReadbackEnabled);
-        BuildRangeStats(ranges, rangeCount);
 
         if (!stats_.initialized ||
             commandList == nullptr ||
@@ -838,48 +859,71 @@ namespace HIKARI::RENDER3D::CLUSTER {
             surfaceGpuSceneGpuAddress == 0 ||
             ranges == nullptr ||
             rangeCount == 0 ||
-            stats_.sourceInstanceCount == 0) {
+            rangeCount > kClusterGpuCullingMaxSourceRangeCount) {
             return false;
         }
 
-        const ClusterGpuCullingSourceRange& range = ranges[0];
-        const uint32_t submittedCount = range.instanceCount;
-        if (submittedCount == 0) {
+        BuildRangeStats(ranges, rangeCount);
+        if (stats_.sourceInstanceCount == 0) {
             return false;
         }
 
-        GpuConstants constants{};
-        constants.viewProj = viewProj;
-        constants.cameraPosition = {
+        GpuConstants baseConstants{};
+        baseConstants.viewProj = viewProj;
+        baseConstants.cameraPosition = {
             cameraPosition.x,
             cameraPosition.y,
             cameraPosition.z,
             0.0f
         };
-        constants.inputCount = submittedCount;
-        constants.visibleRangeCapacity = static_cast<uint32_t>(visibleRangeCapacity_);
-        constants.drawArgumentCapacity = static_cast<uint32_t>(drawArgumentCapacity_);
-        constants.enableFrustumCull = 1u;
-        constants.drawArgumentBucketCapacity =
+        baseConstants.visibleRangeCapacity = static_cast<uint32_t>(visibleRangeCapacity_);
+        baseConstants.drawArgumentCapacity = static_cast<uint32_t>(drawArgumentCapacity_);
+        baseConstants.enableFrustumCull = 1u;
+        baseConstants.drawArgumentBucketCapacity =
             static_cast<uint32_t>(GetDrawArgumentBucketCapacity());
-        constants.clusterSrvPoolBegin = GFX::DESCRIPTOR::kSystemSrvDynamicBegin;
-        constants.clusterSrvPoolCount = GFX::DESCRIPTOR::kSystemSrvDynamicCount;
-        constants.enableConeCull = 1u;
-        constants.enableDebugCounters = counterReadbackEnabled ? 1u : 0u;
-        constants.surfaceGpuSceneBaseIndex = range.surfaceGpuSceneBaseIndex;
-        constants.passKind = static_cast<uint32_t>(range.passKind);
-        constants.pageTaskCapacity = static_cast<uint32_t>(pageTaskCapacity_);
+        baseConstants.clusterSrvPoolBegin = GFX::DESCRIPTOR::kSystemSrvDynamicBegin;
+        baseConstants.clusterSrvPoolCount = GFX::DESCRIPTOR::kSystemSrvDynamicCount;
+        baseConstants.enableConeCull = 1u;
+        baseConstants.enableDebugCounters = counterReadbackEnabled ? 1u : 0u;
+        baseConstants.pageTaskCapacity = static_cast<uint32_t>(pageTaskCapacity_);
         // GPU 側の draw args 圧縮は小さな index gap だけを吸収し、過剰な overdraw を上限で止める。
-        constants.mergeGapIndexLimit = kClusterCullMergeGapIndexLimit;
-        constants.mergeRunGapIndexBudget = kClusterCullMergeRunGapIndexBudget;
-        constants.mergeMaxIndexSpan = kClusterCullMergeMaxIndexSpan;
-        constants.mergeClusterGapLimit = kClusterCullMergeClusterGapLimit;
-        constants.lodTargetErrorNdc = kClusterCullLodTargetErrorNdc;
-        constants.enableLodErrorSelection = 1u;
-        *constantsMapped_ = constants;
-        stats_.debugCountersEnabled = constants.enableDebugCounters != 0u;
+        baseConstants.mergeGapIndexLimit = kClusterCullMergeGapIndexLimit;
+        baseConstants.mergeRunGapIndexBudget = kClusterCullMergeRunGapIndexBudget;
+        baseConstants.mergeMaxIndexSpan = kClusterCullMergeMaxIndexSpan;
+        baseConstants.mergeClusterGapLimit = kClusterCullMergeClusterGapLimit;
+        baseConstants.lodTargetErrorNdc = kClusterCullLodTargetErrorNdc;
+        baseConstants.enableLodErrorSelection = 1u;
+        stats_.debugCountersEnabled = baseConstants.enableDebugCounters != 0u;
 
-        GpuCounters counters{};
+        const UINT constantsStride = AlignConstantBufferSize(sizeof(GpuConstants));
+        std::array<UINT, kClusterGpuCullingMaxSourceRangeCount> expandGroupCounts{};
+        size_t activeRangeCount = 0;
+        for (size_t rangeIndex = 0; rangeIndex < rangeCount; ++rangeIndex) {
+            const ClusterGpuCullingSourceRange& range = ranges[rangeIndex];
+            if (range.instanceCount == 0u) {
+                continue;
+            }
+
+            GpuConstants constants = baseConstants;
+            constants.inputCount = range.instanceCount;
+            constants.surfaceGpuSceneBaseIndex = range.surfaceGpuSceneBaseIndex;
+            constants.passKind = static_cast<uint32_t>(range.passKind);
+            auto* constantsSlot = reinterpret_cast<GpuConstants*>(
+                constantsMapped_ +
+                static_cast<size_t>(constantsStride) * activeRangeCount);
+            *constantsSlot = constants;
+            expandGroupCounts[activeRangeCount] =
+                static_cast<UINT>(
+                    (static_cast<size_t>(range.instanceCount) +
+                        kThreadGroupSize - 1u) /
+                    kThreadGroupSize);
+            ++activeRangeCount;
+        }
+        if (activeRangeCount == 0) {
+            return false;
+        }
+
+        GpuCounterBuffer counters{};
         *counterResetMapped_ = counters;
 
         GFX::PIX::ScopedGpuEvent pix(
@@ -943,7 +987,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             0,
             counterResetUploadBuffer_.Get(),
             0,
-            sizeof(GpuCounters));
+            sizeof(GpuCounterBuffer));
 
         auto counterToUav = CD3DX12_RESOURCE_BARRIER::Transition(
             counterBuffer_.Get(),
@@ -953,9 +997,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
         counterBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
         commandList->SetComputeRootSignature(rootSignature_.Get());
-        commandList->SetComputeRootConstantBufferView(
-            0,
-            constantsUploadBuffer_->GetGPUVirtualAddress());
         commandList->SetComputeRootShaderResourceView(
             1,
             surfaceGpuSceneGpuAddress);
@@ -979,15 +1020,22 @@ namespace HIKARI::RENDER3D::CLUSTER {
             8,
             meshletDispatchArgumentBuffer_->GetGPUVirtualAddress());
 
-        const UINT expandGroupCount =
-            static_cast<UINT>((static_cast<size_t>(submittedCount) + kThreadGroupSize - 1u) / kThreadGroupSize);
+        size_t expandWorkgroupCount = 0;
         {
             GFX::PIX::ScopedGpuEvent expandPix(
                 commandList,
                 GFX::PIX::kColorRender,
                 "ClusterGpuCulling.ExpandPageTasks");
             commandList->SetPipelineState(expandPageTasksPipelineState_.Get());
-            commandList->Dispatch(expandGroupCount, 1u, 1u);
+            for (size_t slot = 0; slot < activeRangeCount; ++slot) {
+                commandList->SetComputeRootConstantBufferView(
+                    0,
+                    constantsUploadBuffer_->GetGPUVirtualAddress() +
+                        static_cast<UINT64>(constantsStride) *
+                        static_cast<UINT64>(slot));
+                commandList->Dispatch(expandGroupCounts[slot], 1u, 1u);
+                expandWorkgroupCount += expandGroupCounts[slot];
+            }
         }
 
         D3D12_RESOURCE_BARRIER expandBarriers[] = {
@@ -1097,13 +1145,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
         counterBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
 
-        stats_.dispatchCount = 4;
-        stats_.workgroupCount = expandGroupCount + 2u;
+        stats_.dispatchCount = activeRangeCount + 3u;
+        stats_.workgroupCount = expandWorkgroupCount + 2u;
         return true;
     }
 
     const ClusterGpuCullingPassStats& ClusterGpuCullingPass::GetStats() const {
         return stats_;
+    }
+
+    const ClusterGpuCullingPassStats::PassOutputStats&
+        ClusterGpuCullingPass::GetPassStats(
+            ClusterGpuCullingPassKind passKind) const {
+
+        return stats_.passOutputs[CullPassIndex(passKind)];
     }
 
     ID3D12Resource* ClusterGpuCullingPass::GetVisibleRangeBuffer() const {
@@ -1131,36 +1186,60 @@ namespace HIKARI::RENDER3D::CLUSTER {
     }
 
     size_t ClusterGpuCullingPass::GetDrawArgumentBucketCapacity() const {
-        return drawArgumentCapacity_ / kClusterDrawCullModeBucketCount;
+        return drawArgumentCapacity_ /
+            (kClusterGpuCullingPassKindCount * kClusterDrawCullModeBucketCount);
     }
 
     UINT64 ClusterGpuCullingPass::GetDrawArgumentBufferOffset(
+        ClusterGpuCullingPassKind passKind,
         ClusterDrawCullModeBucket bucket) const {
 
+        const UINT64 passBase =
+            static_cast<UINT64>(CullPassIndex(passKind)) *
+            static_cast<UINT64>(kClusterDrawCullModeBucketCount) *
+            static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
+            static_cast<UINT64>(sizeof(GpuIndirectDrawArgument));
         return
+            passBase +
             static_cast<UINT64>(CullBucketIndex(bucket)) *
             static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
             static_cast<UINT64>(sizeof(GpuIndirectDrawArgument));
     }
 
     UINT64 ClusterGpuCullingPass::GetMeshletDispatchArgumentBufferOffset(
+        ClusterGpuCullingPassKind passKind,
         ClusterDrawCullModeBucket bucket) const {
 
+        const UINT64 passBase =
+            static_cast<UINT64>(CullPassIndex(passKind)) *
+            static_cast<UINT64>(kClusterDrawCullModeBucketCount) *
+            static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
+            static_cast<UINT64>(sizeof(GpuIndirectMeshletDispatchArgument));
         return
+            passBase +
             static_cast<UINT64>(CullBucketIndex(bucket)) *
             static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
             static_cast<UINT64>(sizeof(GpuIndirectMeshletDispatchArgument));
     }
 
     UINT64 ClusterGpuCullingPass::GetDrawCommandCounterOffset(
+        ClusterGpuCullingPassKind passKind,
         ClusterDrawCullModeBucket bucket) const {
 
+        const UINT64 passOffset =
+            static_cast<UINT64>(offsetof(GpuCounterBuffer, passes)) +
+            static_cast<UINT64>(CullPassIndex(passKind)) *
+                static_cast<UINT64>(sizeof(GpuPassCounters));
         switch (bucket) {
         case ClusterDrawCullModeBucket::DoubleSided:
-            return kClusterGpuCullDoubleSidedDrawCommandCounterOffsetBytes;
+            return passOffset + offsetof(
+                GpuPassCounters,
+                doubleSidedDrawCommandCount);
         case ClusterDrawCullModeBucket::BackFace:
         default:
-            return kClusterGpuCullDrawCommandCounterOffsetBytes;
+            return passOffset + offsetof(
+                GpuPassCounters,
+                backFaceDrawCommandCount);
         }
     }
 

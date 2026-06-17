@@ -32,7 +32,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
         ForwardDepthAware = 1,
         ForwardTransparent = 2,
         Shadow = 3,
+        Count = 4,
     };
+
+    constexpr size_t kClusterGpuCullingPassKindCount =
+        static_cast<size_t>(ClusterGpuCullingPassKind::Count);
 
     struct ClusterGpuCullingSourceRange {
         uint32_t surfaceGpuSceneBaseIndex = 0;
@@ -44,6 +48,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
     };
 
     struct ClusterGpuCullingPassStats {
+        struct PassOutputStats {
+            size_t sourceInstanceCount = 0;
+            size_t sourceSingleSidedInstanceCount = 0;
+            size_t sourceDoubleSidedInstanceCount = 0;
+            size_t submittedDrawSeedCount = 0;
+        };
+
         bool initialized = false;
         bool psoReady = false;
         bool inputBufferReady = false;
@@ -60,6 +71,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t sourceInstanceCount = 0;
         size_t sourceSingleSidedInstanceCount = 0;
         size_t sourceDoubleSidedInstanceCount = 0;
+        std::array<PassOutputStats, kClusterGpuCullingPassKindCount> passOutputs{};
         size_t candidateInstanceCount = 0;
         size_t submittedInstanceCount = 0;
         size_t sourcePageTaskCount = 0;
@@ -123,6 +135,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             size_t rangeCount);
 
         const ClusterGpuCullingPassStats& GetStats() const;
+        const ClusterGpuCullingPassStats::PassOutputStats& GetPassStats(
+            ClusterGpuCullingPassKind passKind) const;
         ID3D12Resource* GetVisibleRangeBuffer() const;
         ID3D12Resource* GetDrawArgumentBuffer() const;
         ID3D12Resource* GetMeshletDispatchArgumentBuffer() const;
@@ -130,9 +144,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
         ID3D12CommandSignature* GetDrawCommandSignature() const;
         ID3D12CommandSignature* GetMeshletDispatchCommandSignature() const;
         size_t GetDrawArgumentBucketCapacity() const;
-        UINT64 GetDrawArgumentBufferOffset(ClusterDrawCullModeBucket bucket) const;
-        UINT64 GetMeshletDispatchArgumentBufferOffset(ClusterDrawCullModeBucket bucket) const;
-        UINT64 GetDrawCommandCounterOffset(ClusterDrawCullModeBucket bucket) const;
+        UINT64 GetDrawArgumentBufferOffset(
+            ClusterGpuCullingPassKind passKind,
+            ClusterDrawCullModeBucket bucket) const;
+        UINT64 GetMeshletDispatchArgumentBufferOffset(
+            ClusterGpuCullingPassKind passKind,
+            ClusterDrawCullModeBucket bucket) const;
+        UINT64 GetDrawCommandCounterOffset(
+            ClusterGpuCullingPassKind passKind,
+            ClusterDrawCullModeBucket bucket) const;
 
     private:
         struct GpuVisibleRange {
@@ -231,6 +251,23 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         static_assert(sizeof(GpuCounters) == 96u);
 
+        struct GpuPassCounters {
+            uint32_t backFaceDrawCommandCount = 0;
+            uint32_t doubleSidedDrawCommandCount = 0;
+            uint32_t backFaceDrawCommandOverflowCount = 0;
+            uint32_t doubleSidedDrawCommandOverflowCount = 0;
+        };
+
+        static_assert(sizeof(GpuPassCounters) == 16u);
+
+        struct GpuCounterBuffer {
+            GpuCounters global{};
+            std::array<GpuPassCounters, kClusterGpuCullingPassKindCount> passes{};
+        };
+
+        static_assert(offsetof(GpuCounterBuffer, passes) == 96u);
+        static_assert(sizeof(GpuCounterBuffer) == 160u);
+
         struct CounterReadbackSlot {
             Microsoft::WRL::ComPtr<ID3D12Resource> buffer{};
             bool resolved = false;
@@ -303,9 +340,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         Microsoft::WRL::ComPtr<ID3D12Resource> counterBuffer_;
         std::array<CounterReadbackSlot, 3> counterReadbackSlots_{};
 
-        GpuConstants* constantsMapped_ = nullptr;
-        GpuCounters* counterResetMapped_ = nullptr;
-        GpuCounters latestGpuCounters_{};
+        uint8_t* constantsMapped_ = nullptr;
+        GpuCounterBuffer* counterResetMapped_ = nullptr;
+        GpuCounterBuffer latestGpuCounters_{};
         size_t pageTaskCapacity_ = 0;
         size_t visibleRangeCapacity_ = 0;
         size_t drawArgumentCapacity_ = 0;

@@ -129,6 +129,8 @@ RWStructuredBuffer<ClusterCullMeshletDispatchArgument> gClusterCullMeshletDispat
 
 static const uint HIKARI_CLUSTER_DRAW_BUCKET_BACK_FACE = 0u;
 static const uint HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED = 1u;
+static const uint HIKARI_CLUSTER_DRAW_BUCKET_COUNT = 2u;
+static const uint HIKARI_CLUSTER_CULL_PASS_COUNT = 4u;
 
 static const uint HIKARI_CLUSTER_CULL_COUNTER_INPUT_COUNT = 0u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_VISIBLE_RANGE_COUNT = 4u;
@@ -154,6 +156,12 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD0_SELECTED_COUNT = 80u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD1_SELECTED_COUNT = 84u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD2_SELECTED_COUNT = 88u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD3_PLUS_SELECTED_COUNT = 92u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE = 96u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE = 16u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_COUNT = 0u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_COUNT = 4u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_OVERFLOW_COUNT = 8u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_OVERFLOW_COUNT = 12u;
 
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 384u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 2048u;
@@ -300,6 +308,40 @@ bool HikariClusterCullIsDoubleSided(uint flags)
     return (flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) != 0u;
 }
 
+uint HikariClusterCullPassIndex(uint passKind)
+{
+    return passKind < HIKARI_CLUSTER_CULL_PASS_COUNT ? passKind : 0u;
+}
+
+uint HikariClusterCullPassBucketBaseIndex(uint passKind, uint bucket)
+{
+    uint passIndex = HikariClusterCullPassIndex(passKind);
+    return (passIndex * HIKARI_CLUSTER_DRAW_BUCKET_COUNT + bucket) *
+        gClusterCullDrawArgumentBucketCapacity;
+}
+
+uint HikariClusterCullPassDrawCounterOffset(uint passKind, uint bucket)
+{
+    uint passIndex = HikariClusterCullPassIndex(passKind);
+    uint bucketOffset = bucket == HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED
+        ? HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_COUNT
+        : HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_COUNT;
+    return HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE +
+        passIndex * HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE +
+        bucketOffset;
+}
+
+uint HikariClusterCullPassDrawOverflowCounterOffset(uint passKind, uint bucket)
+{
+    uint passIndex = HikariClusterCullPassIndex(passKind);
+    uint bucketOffset = bucket == HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED
+        ? HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_OVERFLOW_COUNT
+        : HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_OVERFLOW_COUNT;
+    return HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE +
+        passIndex * HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE +
+        bucketOffset;
+}
+
 uint HikariClusterCullMergeGapIndexLimit()
 {
     return gClusterCullMergeGapIndexLimit != 0u
@@ -408,23 +450,32 @@ void HikariClusterCullEmitDraw(
     }
 
     uint bucket = HikariClusterCullResolveBucket(input.flags);
-    uint drawCounterOffset = HIKARI_CLUSTER_CULL_COUNTER_BACK_FACE_DRAW_COUNT + bucket * 4u;
-    uint overflowCounterOffset =
+    uint aggregateDrawCounterOffset =
+        HIKARI_CLUSTER_CULL_COUNTER_BACK_FACE_DRAW_COUNT + bucket * 4u;
+    uint aggregateOverflowCounterOffset =
         HIKARI_CLUSTER_CULL_COUNTER_BACK_FACE_DRAW_OVERFLOW_COUNT + bucket * 4u;
+    uint drawCounterOffset =
+        HikariClusterCullPassDrawCounterOffset(input.passKind, bucket);
+    uint overflowCounterOffset =
+        HikariClusterCullPassDrawOverflowCounterOffset(input.passKind, bucket);
     uint drawIndex = 0;
+    gClusterCullCounters.InterlockedAdd(aggregateDrawCounterOffset, 1);
     gClusterCullCounters.InterlockedAdd(drawCounterOffset, 1, drawIndex);
     if (drawIndex >= gClusterCullDrawArgumentBucketCapacity)
     {
         gClusterCullCounters.InterlockedAdd(overflowCounterOffset, 1);
+        gClusterCullCounters.InterlockedAdd(aggregateOverflowCounterOffset, 1);
         return;
     }
 
-    uint globalDrawIndex = bucket * gClusterCullDrawArgumentBucketCapacity + drawIndex;
+    uint globalDrawIndex =
+        HikariClusterCullPassBucketBaseIndex(input.passKind, bucket) + drawIndex;
     uint visibleIndex = globalDrawIndex;
     if (globalDrawIndex >= gClusterCullDrawArgumentCapacity ||
         visibleIndex >= gClusterCullVisibleRangeCapacity)
     {
         gClusterCullCounters.InterlockedAdd(overflowCounterOffset, 1);
+        gClusterCullCounters.InterlockedAdd(aggregateOverflowCounterOffset, 1);
         return;
     }
 
@@ -1192,25 +1243,29 @@ void FinalizePageTaskDispatchCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 void FinalizeMeshletDispatchCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     [unroll]
-    for (uint bucket = 0u; bucket < 2u; ++bucket)
+    for (uint passKind = 0u; passKind < HIKARI_CLUSTER_CULL_PASS_COUNT; ++passKind)
     {
-        uint drawCounterOffset =
-            HIKARI_CLUSTER_CULL_COUNTER_BACK_FACE_DRAW_COUNT + bucket * 4u;
-        uint drawCount = gClusterCullCounters.Load(drawCounterOffset);
-        uint clampedDrawCount = min(drawCount, gClusterCullDrawArgumentBucketCapacity);
-        uint bucketBase = bucket * gClusterCullDrawArgumentBucketCapacity;
+        [unroll]
+        for (uint bucket = 0u; bucket < HIKARI_CLUSTER_DRAW_BUCKET_COUNT; ++bucket)
+        {
+            uint drawCounterOffset =
+                HikariClusterCullPassDrawCounterOffset(passKind, bucket);
+            uint drawCount = gClusterCullCounters.Load(drawCounterOffset);
+            uint clampedDrawCount = min(drawCount, gClusterCullDrawArgumentBucketCapacity);
+            uint bucketBase = HikariClusterCullPassBucketBaseIndex(passKind, bucket);
 
-        ClusterCullMeshletDispatchArgument meshletArgument;
-        meshletArgument.rootConstants = uint4(
-            bucketBase,
-            gClusterCullPassKind,
-            bucket,
-            1u);
-        meshletArgument.threadGroupCountX = clampedDrawCount;
-        meshletArgument.threadGroupCountY = 1u;
-        meshletArgument.threadGroupCountZ = 1u;
-        meshletArgument.reserved0 = 0u;
-        gClusterCullMeshletDispatchArguments[bucketBase] = meshletArgument;
+            ClusterCullMeshletDispatchArgument meshletArgument;
+            meshletArgument.rootConstants = uint4(
+                bucketBase,
+                passKind,
+                bucket,
+                1u);
+            meshletArgument.threadGroupCountX = clampedDrawCount;
+            meshletArgument.threadGroupCountY = 1u;
+            meshletArgument.threadGroupCountZ = 1u;
+            meshletArgument.reserved0 = 0u;
+            gClusterCullMeshletDispatchArguments[bucketBase] = meshletArgument;
+        }
     }
 }
 

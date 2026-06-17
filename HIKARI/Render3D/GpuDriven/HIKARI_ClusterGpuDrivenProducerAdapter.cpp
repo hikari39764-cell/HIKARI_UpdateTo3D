@@ -15,19 +15,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : GpuDrivenCommandBucket::BackFaceCulled;
         }
 
-        CLUSTER::ClusterGpuCullingPassKind ToClusterCullPassKind(
-            GpuDrivenPassKind passKind) {
+        bool TryToClusterCullPassKind(
+            GpuDrivenPassKind passKind,
+            CLUSTER::ClusterGpuCullingPassKind& outPassKind) {
 
             switch (passKind) {
             case GpuDrivenPassKind::ForwardDepthAware:
-                return CLUSTER::ClusterGpuCullingPassKind::ForwardDepthAware;
+                outPassKind = CLUSTER::ClusterGpuCullingPassKind::ForwardDepthAware;
+                return true;
             case GpuDrivenPassKind::ForwardTransparent:
-                return CLUSTER::ClusterGpuCullingPassKind::ForwardTransparent;
+                outPassKind = CLUSTER::ClusterGpuCullingPassKind::ForwardTransparent;
+                return true;
             case GpuDrivenPassKind::Shadow:
-                return CLUSTER::ClusterGpuCullingPassKind::Shadow;
+                outPassKind = CLUSTER::ClusterGpuCullingPassKind::Shadow;
+                return true;
             case GpuDrivenPassKind::ForwardOpaque:
+                outPassKind = CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque;
+                return true;
             default:
-                return CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque;
+                return false;
             }
         }
 
@@ -35,9 +41,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuVisibilityResult& visibility,
             GpuCommandBuildResult& commands,
             GpuDrivenPassKind pass,
-            const CLUSTER::ClusterGpuCullingPassStats& stats,
+            CLUSTER::ClusterGpuCullingPassKind clusterPass,
             const CLUSTER::ClusterGpuCullingPass& cullingPass) {
 
+            const CLUSTER::ClusterGpuCullingPassStats::PassOutputStats& stats =
+                cullingPass.GetPassStats(clusterPass);
             GpuVisibilityPassResult& passVisibility =
                 visibility.GetPass(pass);
             passVisibility.buckets[ToCommandBucketIndex(
@@ -63,11 +71,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 GpuDrivenCommandBucketLayout& bucketLayout =
                     layout.GetBucket(ToGpuDrivenCommandBucket(sourceBucket));
                 bucketLayout.gpuDrawIndexedArgumentOffset =
-                    cullingPass.GetDrawArgumentBufferOffset(sourceBucket);
+                    cullingPass.GetDrawArgumentBufferOffset(
+                        clusterPass,
+                        sourceBucket);
                 bucketLayout.meshDispatchArgumentOffset =
-                    cullingPass.GetMeshletDispatchArgumentBufferOffset(sourceBucket);
+                    cullingPass.GetMeshletDispatchArgumentBufferOffset(
+                        clusterPass,
+                        sourceBucket);
                 bucketLayout.counterOffset =
-                    cullingPass.GetDrawCommandCounterOffset(sourceBucket);
+                    cullingPass.GetDrawCommandCounterOffset(
+                        clusterPass,
+                        sourceBucket);
             }
         }
     }
@@ -127,13 +141,32 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             output.visibility,
             output.commands,
             GpuDrivenPassKind::ForwardOpaque,
-            stats,
+            CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque,
             *cullingPass_);
         FillClusterPassOutput(
             output.visibility,
             output.commands,
+            GpuDrivenPassKind::ForwardDepthAware,
+            CLUSTER::ClusterGpuCullingPassKind::ForwardDepthAware,
+            *cullingPass_);
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
+            GpuDrivenPassKind::ForwardTransparent,
+            CLUSTER::ClusterGpuCullingPassKind::ForwardTransparent,
+            *cullingPass_);
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
+            GpuDrivenPassKind::Shadow,
+            CLUSTER::ClusterGpuCullingPassKind::Shadow,
+            *cullingPass_);
+        // GeometryAux draws the opaque visibility set with a different PSO.
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
             GpuDrivenPassKind::GeometryAux,
-            stats,
+            CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque,
             *cullingPass_);
 
         output.commandBuildReady =
@@ -157,22 +190,29 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return result;
         }
 
-        std::array<CLUSTER::ClusterGpuCullingSourceRange, 1> ranges{};
+        std::array<CLUSTER::ClusterGpuCullingSourceRange, kGpuDrivenPassCount> ranges{};
         size_t rangeCount = 0;
 
         if (context.frame != nullptr) {
-            const GpuDrivenPassFrame& forwardOpaque =
-                context.frame->GetPass(GpuDrivenPassKind::ForwardOpaque);
-            if (forwardOpaque.HasSource() && forwardOpaque.clusterEligible) {
-                const GpuSceneRange& range = forwardOpaque.gpuSceneRange;
-                ranges[0] = {
+            for (const GpuDrivenPassFrame& pass : context.frame->passes) {
+                if (!pass.HasSource() || !pass.clusterEligible) {
+                    continue;
+                }
+
+                CLUSTER::ClusterGpuCullingPassKind clusterPass{};
+                const GpuSceneRange& range = pass.gpuSceneRange;
+                if (!TryToClusterCullPassKind(range.passKind, clusterPass)) {
+                    continue;
+                }
+
+                ranges[rangeCount] = {
                     range.baseIndex,
                     range.instanceCount,
-                    ToClusterCullPassKind(range.passKind),
+                    clusterPass,
                     0u,
                     0u
                 };
-                rangeCount = 1;
+                ++rangeCount;
             }
         }
 
