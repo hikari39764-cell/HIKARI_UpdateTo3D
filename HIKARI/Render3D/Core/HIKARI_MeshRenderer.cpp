@@ -25,7 +25,6 @@
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
-#include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkReadiness.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -44,25 +43,9 @@ namespace HIKARI::MESHRENDERER {
     namespace {
         MeshRendererState g;
 
-        RENDER3D::GPUDRIVEN::GpuDrivenWorkPass ToGpuDrivenWorkPass(
-            MeshDrawPassKind passKind) {
-
-            return passKind == MeshDrawPassKind::GeometryAux
-                ? RENDER3D::GPUDRIVEN::GpuDrivenWorkPass::GeometryAux
-                : RENDER3D::GPUDRIVEN::GpuDrivenWorkPass::ForwardOpaque;
-        }
-
-        RENDER3D::GPUDRIVEN::GpuDrivenPassKind ToGpuDrivenPassKind(
-            MeshDrawPassKind passKind) {
-
-            return passKind == MeshDrawPassKind::GeometryAux
-                ? RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux
-                : RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque;
-        }
-
-        RENDER3D::GPUDRIVEN::GpuDrivenWorkPolicy ResolveGpuDrivenWorkPolicy();
         void UpdateClusterDrawDebugStats();
         void UpdateMeshletBackendDebugStats();
+        void SyncGpuDrivenBackendAvailability();
         void UpdateGpuDrivenWorkReadyDebugStats();
         void BuildGpuDrivenFrameState();
         void UpdateGpuDrivenWorkOwnershipDebugStats();
@@ -807,58 +790,46 @@ namespace HIKARI::MESHRENDERER {
                 meshletStats.pipelineCreateReadyCount;
         }
 
-        RENDER3D::GPUDRIVEN::GpuDrivenWorkSignals BuildGpuDrivenWorkSignals() {
-            RENDER3D::GPUDRIVEN::GpuDrivenWorkSignals signals{};
-            const bool meshletDispatchReady =
-                g.debugStats.meshletBackendDispatchArgumentBufferReady &&
-                g.debugStats.meshletBackendDispatchCommandSignatureReady;
-            const bool meshletForwardReady =
-                g.debugStats.meshletBackendForwardPipelineReady &&
-                meshletDispatchReady;
-            const bool meshletGeometryReady =
-                g.debugStats.meshletBackendGeometryAuxPipelineReady &&
-                meshletDispatchReady;
-            const bool legacyForwardReady =
-                g.debugStats.clusterDrawForwardPipelineReady &&
-                g.debugStats.clusterDrawArgumentBufferReady &&
-                g.debugStats.clusterDrawCommandSignatureReady;
-            const bool legacyGeometryReady =
-                g.debugStats.clusterDrawGeometryAuxPipelineReady &&
-                g.debugStats.clusterDrawArgumentBufferReady &&
-                g.debugStats.clusterDrawCommandSignatureReady;
-            signals.gpuCullReady = g.debugStats.clusterGpuCullReady;
-            signals.drawArgsReady =
-                g.debugStats.clusterGpuCullDrawArgsReady ||
-                g.debugStats.meshletBackendDispatchArgumentBufferReady;
-            signals.commandSignatureReady =
-                g.debugStats.clusterGpuCullCommandSignatureReady ||
-                g.debugStats.meshletBackendDispatchCommandSignatureReady;
-            signals.forwardPipelineReady =
-                meshletForwardReady ||
-                legacyForwardReady;
-            signals.geometryAuxPipelineReady =
-                meshletGeometryReady ||
-                legacyGeometryReady;
-            signals.candidateInstanceCount = g.debugStats.clusterGpuCullCandidateInstanceCount;
-            signals.drawSeedCount = g.debugStats.clusterGpuCullDrawSeedCount;
-            signals.overflowInstanceCount = g.debugStats.clusterGpuCullOverflowInstanceCount;
-            return signals;
-        }
+        void SyncGpuDrivenBackendAvailability() {
+            RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
+            const RENDER3D::MESHLET::MeshletRenderBackendStats& meshletStats =
+                g.meshletRenderBackend.GetStats();
+            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterStats =
+                g.clusterDrawExecutor.GetStats();
+            const RENDER3D::GPUDRIVEN::GpuCommandBuildResult& commands =
+                g.gpuDrivenLayer.GetFrameContext().commands;
 
-        RENDER3D::GPUDRIVEN::GpuDrivenWorkPolicy ResolveGpuDrivenWorkPolicy() {
-            return RENDER3D::GPUDRIVEN::ResolveGpuDrivenWorkPolicy(
-                BuildGpuDrivenWorkSignals());
+            availability.meshShaderForwardPipelineReady =
+                meshletStats.forwardPipelineReady;
+            availability.meshShaderGeometryAuxPipelineReady =
+                meshletStats.geometryAuxPipelineReady;
+            availability.clusterVsForwardPipelineReady =
+                clusterStats.forwardPipelineReady;
+            availability.clusterVsGeometryAuxPipelineReady =
+                clusterStats.geometryAuxPipelineReady;
+            availability.traditionalIndirectPipelineReady =
+                commands.surfaceDrawIndexedArgs != nullptr &&
+                commands.surfaceDrawIndexedSignature != nullptr;
+            g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
 
         void UpdateGpuDrivenWorkReadyDebugStats() {
-            const RENDER3D::GPUDRIVEN::GpuDrivenWorkReadiness state =
-                RENDER3D::GPUDRIVEN::ResolveGpuDrivenWorkReadiness(
-                    BuildGpuDrivenWorkSignals());
-            g.debugStats.clusterMainlineReady = state.forwardReady;
-            g.debugStats.clusterMainlineForwardReady = state.forwardReady;
-            g.debugStats.clusterMainlineGeometryAuxReady = state.geometryAuxReady;
-            g.debugStats.clusterMainlineHasDrawSeeds = state.hasDrawSeeds;
-            g.debugStats.clusterMainlineOverflowBlocked = state.overflowBlocked;
+            SyncGpuDrivenBackendAvailability();
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassExecutionState& forward =
+                g.gpuDrivenLayer.GetPassExecutionState(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassExecutionState& geometry =
+                g.gpuDrivenLayer.GetPassExecutionState(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux);
+            g.debugStats.clusterMainlineReady = forward.gpuBackendReady;
+            g.debugStats.clusterMainlineForwardReady = forward.gpuBackendReady;
+            g.debugStats.clusterMainlineGeometryAuxReady = geometry.gpuBackendReady;
+            g.debugStats.clusterMainlineHasDrawSeeds =
+                forward.hasDrawSeeds ||
+                geometry.hasDrawSeeds;
+            g.debugStats.clusterMainlineOverflowBlocked =
+                forward.overflowBlocked ||
+                geometry.overflowBlocked;
         }
 
         void ApplyGpuDrivenWorkOwnershipDebugStats(
@@ -886,22 +857,35 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void UpdateGpuDrivenWorkOwnershipDebugStats() {
+            SyncGpuDrivenBackendAvailability();
             RENDER3D::GPUDRIVEN::GpuDrivenWorkOwnershipStats stats{};
-            if (ResolveGpuDrivenWorkPolicy().OwnsForwardOpaque()) {
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassExecutionState& forward =
+                g.gpuDrivenLayer.GetPassExecutionState(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassExecutionState& geometry =
+                g.gpuDrivenLayer.GetPassExecutionState(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux);
+            if (forward.gpuBackendReady) {
                 // GPU 主導ルートでは CPU 側で per-surface 所有 mask を作らない。
                 // ここではレガシー抑止の概算だけを表示し、実際の可視性/LOD は GPU counter に任せる。
-                stats.ownedCommandCount = g.debugStats.clusterGpuCullSubmittedInstanceCount;
-                stats.ownedPacketCount = g.debugStats.clusterGpuCullSubmittedInstanceCount;
+                stats.ownedCommandCount = forward.sourceInstanceCount;
+                stats.ownedPacketCount = forward.sourceInstanceCount;
                 stats.eligibleCommandCount = stats.ownedCommandCount;
                 stats.bypassedLegacyCommandCount = stats.ownedCommandCount;
                 stats.bypassedLegacyPacketCount = stats.ownedPacketCount;
             }
+            if (geometry.gpuBackendReady) {
+                stats.geometryAuxCommandCount = geometry.sourceInstanceCount;
+                stats.geometryAuxPacketCount = geometry.sourceInstanceCount;
+            }
             ApplyGpuDrivenWorkOwnershipDebugStats(stats);
         }
 
-        bool IsGpuDrivenWorkPreparedForPass(MeshDrawPassKind passKind) {
-            return ResolveGpuDrivenWorkPolicy().OwnsPass(
-                ToGpuDrivenWorkPass(passKind));
+        bool IsGpuDrivenWorkPreparedForPass(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind pass) {
+
+            SyncGpuDrivenBackendAvailability();
+            return g.gpuDrivenLayer.IsPassGpuReady(pass);
         }
 
         struct GeometryBackendExecutionResult {
@@ -913,9 +897,10 @@ namespace HIKARI::MESHRENDERER {
 
         bool ExecuteClusterDrawFrame(
             const MeshPassResources& passResources,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
             MeshDrawPassKind passKind,
             RENDER3D::CLUSTER::ClusterDrawPipelineKind pipelineKind) {
-            if (!IsGpuDrivenWorkPreparedForPass(passKind)) {
+            if (!IsGpuDrivenWorkPreparedForPass(gpuPass)) {
                 return false;
             }
 
@@ -927,7 +912,7 @@ namespace HIKARI::MESHRENDERER {
             const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
                 g.gpuDrivenLayer.BuildGeometryBackendContext(
                     SERVICES::gCtx.cmdList,
-                    ToGpuDrivenPassKind(passKind),
+                    gpuPass,
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS);
             RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
             ctx.commandList = backendContext.commandList;
@@ -943,16 +928,17 @@ namespace HIKARI::MESHRENDERER {
 
         bool ExecuteMeshletDrawFrame(
             const MeshPassResources& passResources,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
             MeshDrawPassKind passKind,
             RENDER3D::MESHLET::MeshletPipelineKind pipelineKind) {
-            if (!IsGpuDrivenWorkPreparedForPass(passKind)) {
+            if (!IsGpuDrivenWorkPreparedForPass(gpuPass)) {
                 return false;
             }
 
             const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
                 g.gpuDrivenLayer.BuildGeometryBackendContext(
                     SERVICES::gCtx.cmdList,
-                    ToGpuDrivenPassKind(passKind),
+                    gpuPass,
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader);
             ID3D12Resource* visibleRangeBuffer =
                 backendContext.visibility != nullptr
@@ -984,6 +970,7 @@ namespace HIKARI::MESHRENDERER {
 
         bool ExecuteGeometryBackend(
             RENDER3D::GPUDRIVEN::GeometryBackendKind backend,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
             const MeshPassResources& passResources,
             MeshDrawPassKind passKind,
             RENDER3D::MESHLET::MeshletPipelineKind meshletPipelineKind,
@@ -993,11 +980,13 @@ namespace HIKARI::MESHRENDERER {
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader:
                 return ExecuteMeshletDrawFrame(
                     passResources,
+                    gpuPass,
                     passKind,
                     meshletPipelineKind);
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS:
                 return ExecuteClusterDrawFrame(
                     passResources,
+                    gpuPass,
                     passKind,
                     clusterPipelineKind);
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
@@ -1015,8 +1004,9 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::CLUSTER::ClusterDrawPipelineKind clusterPipelineKind) {
 
             GeometryBackendExecutionResult result{};
+            SyncGpuDrivenBackendAvailability();
             const RENDER3D::GPUDRIVEN::GeometryBackendExecutionPlan plan =
-                RENDER3D::GPUDRIVEN::ResolveGeometryBackendExecutionPlan(pass);
+                g.gpuDrivenLayer.GetPassExecutionPlan(pass);
             result.runCpuDirectTail = plan.runCpuDirectTail;
 
             for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
@@ -1024,6 +1014,7 @@ namespace HIKARI::MESHRENDERER {
                     plan.gpuBackends[i];
                 if (!ExecuteGeometryBackend(
                     backend,
+                    pass,
                     passResources,
                     passKind,
                     meshletPipelineKind,

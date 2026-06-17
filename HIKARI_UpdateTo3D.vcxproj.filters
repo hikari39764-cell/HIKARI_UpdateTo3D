@@ -1267,9 +1267,6 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkReadiness.cpp">
-      <Filter>Source Files\Render3D\GpuDriven</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
@@ -2090,9 +2087,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkReadiness.h">
-      <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h">
       <Filter>Header Files\Render3D\Cluster</Filter>

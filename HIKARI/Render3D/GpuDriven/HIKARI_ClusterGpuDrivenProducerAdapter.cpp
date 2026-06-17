@@ -123,6 +123,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             cullingPass_->GetCounterBuffer();
         output.visibilitySeedCount =
             stats.submittedDrawSeedCount;
+        output.visibilityOverflowInstanceCount =
+            stats.overflowInstanceCount;
         output.visibilityReady =
             stats.initialized &&
             stats.visibleRangeBufferReady &&
@@ -160,13 +162,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             output.commands,
             GpuDrivenPassKind::Shadow,
             CLUSTER::ClusterGpuCullingPassKind::Shadow,
-            *cullingPass_);
-        // GeometryAux draws the opaque visibility set with a different PSO.
-        FillClusterPassOutput(
-            output.visibility,
-            output.commands,
-            GpuDrivenPassKind::GeometryAux,
-            CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque,
             *cullingPass_);
 
         output.commandBuildReady =

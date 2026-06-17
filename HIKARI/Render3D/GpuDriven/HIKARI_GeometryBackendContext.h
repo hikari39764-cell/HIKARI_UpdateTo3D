@@ -20,6 +20,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GeometryBackendContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
+        GpuDrivenPassKind requestedPass = GpuDrivenPassKind::ForwardOpaque;
         GpuDrivenPassKind pass = GpuDrivenPassKind::ForwardOpaque;
         GeometryBackendKind backend = GeometryBackendKind::CpuDirect;
         const GpuSceneFrame* scene = nullptr;

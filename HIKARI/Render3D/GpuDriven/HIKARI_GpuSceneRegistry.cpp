@@ -329,7 +329,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &forwardDepthAwareMaterialSources_,
             ClampToUint32(forwardOpaqueGpuSceneInstances_.size()),
             GpuDrivenBackendKind::TraditionalIndirect,
-            false);
+            true);
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
@@ -339,7 +339,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 forwardOpaqueGpuSceneInstances_.size() +
                 forwardDepthAwareGpuSceneInstances_.size()),
             GpuDrivenBackendKind::TraditionalIndirect,
-            false);
+            true);
 
         sceneSource_.layoutVersion =
             BuildSourceLayoutVersion(layoutVersion_, routingVersion_);

@@ -24,6 +24,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool visibilityReady = false;
         bool commandBuildReady = false;
         size_t visibilitySeedCount = 0;
+        size_t visibilityOverflowInstanceCount = 0;
     };
 
     struct GpuDrivenProducerWorkContext {

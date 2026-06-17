@@ -8,6 +8,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t sourceInstanceCount = 0;
         size_t residentInstanceCount = 0;
         size_t visibilitySeedCount = 0;
+        size_t visibilityOverflowInstanceCount = 0;
         bool sceneResident = false;
         bool visibilityReady = false;
         bool commandBuildReady = false;

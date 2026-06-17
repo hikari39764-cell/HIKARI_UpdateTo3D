@@ -6,6 +6,7 @@
 #include <d3d12.h>
 
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenProducer.h"
 
@@ -40,13 +41,23 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void PrepareSurfaceGpuSceneMaterialFrame();
         void ImportProducerOutput(
             const GpuDrivenProducerFrameOutput& output);
+        void SetBackendAvailability(
+            const GpuDrivenBackendAvailability& availability);
         void BuildCommandBuffers();
 
+        bool IsBackendConsumable(
+            GpuDrivenPassKind pass,
+            GeometryBackendKind backend) const;
+        bool IsPassGpuReady(GpuDrivenPassKind pass) const;
+        GeometryBackendExecutionPlan GetPassExecutionPlan(
+            GpuDrivenPassKind pass) const;
         GeometryBackendContext BuildGeometryBackendContext(
             ID3D12GraphicsCommandList* commandList,
             GpuDrivenPassKind pass,
             GeometryBackendKind backend) const;
 
+        const GpuDrivenPassExecutionState& GetPassExecutionState(
+            GpuDrivenPassKind pass) const;
         SurfaceGpuSceneFrameBuffer* GetSceneBuffer() const;
         SurfaceIndirectDrawBuffer* GetIndirectDrawBuffer() const;
         IGpuDrivenProducer* GetProducer() const;
@@ -57,6 +68,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         SurfaceIndirectDrawBuffer* indirectDrawBuffer_ = nullptr;
         IGpuDrivenProducer* producer_ = nullptr;
         GpuDrivenFrameContext frameContext_{};
+
+        void InitializePassExecutionStates(
+            const GpuDrivenSceneSource* source);
+        void RefreshPassExecutionStates();
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN
