@@ -44,6 +44,7 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     struct MeshletRenderExecutionContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
+        GPUDRIVEN::GpuDrivenPassKind pass = GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque;
         const GPUDRIVEN::GpuVisibilityResult* visibility = nullptr;
         const GPUDRIVEN::GpuCommandBuildResult* commands = nullptr;
         MeshletPipelineKind pipelineKind = MeshletPipelineKind::ForwardOpaque;

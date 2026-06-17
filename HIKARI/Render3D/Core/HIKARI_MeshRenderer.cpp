@@ -931,6 +931,7 @@ namespace HIKARI::MESHRENDERER {
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS);
             RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
             ctx.commandList = backendContext.commandList;
+            ctx.pass = backendContext.pass;
             ctx.visibility = backendContext.visibility;
             ctx.commands = backendContext.commands;
             ctx.pipelineKind = pipelineKind;
@@ -971,6 +972,7 @@ namespace HIKARI::MESHRENDERER {
 
             RENDER3D::MESHLET::MeshletRenderExecutionContext ctx{};
             ctx.commandList = backendContext.commandList;
+            ctx.pass = backendContext.pass;
             ctx.visibility = backendContext.visibility;
             ctx.commands = backendContext.commands;
             ctx.pipelineKind = pipelineKind;

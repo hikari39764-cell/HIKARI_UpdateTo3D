@@ -84,20 +84,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         bool HasSourceForBucket(
             const GPUDRIVEN::GpuVisibilityResult& visibility,
+            GPUDRIVEN::GpuDrivenPassKind pass,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return visibility.HasSourceForBucket(bucket);
+            return visibility.HasSourceForBucket(pass, bucket);
         }
 
         UINT64 DrawArgumentOffsetForBucket(
-            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            const GPUDRIVEN::GpuDrivenCommandPassLayout& layout,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             return layout.GetBucket(bucket).gpuDrawIndexedArgumentOffset;
         }
 
         UINT64 CounterOffsetForBucket(
-            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            const GPUDRIVEN::GpuDrivenCommandPassLayout& layout,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             return layout.GetBucket(bucket).counterOffset;
@@ -227,7 +228,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
         const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
-        const size_t requestedDrawCount = visibility.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuVisibilityPassResult& passVisibility =
+            visibility.GetPass(ctx.pass);
+        const size_t requestedDrawCount =
+            passVisibility.submittedDrawSeedCount;
         stats_.requestedDrawCount += requestedDrawCount;
         stats_.drawArgumentBufferReady = commands.gpuDrawIndexedArgs != nullptr;
         stats_.drawCommandSignatureReady = commands.gpuDrawIndexedSignature != nullptr;
@@ -256,7 +260,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
+        const GPUDRIVEN::GpuDrivenCommandPassLayout& layout =
+            commands.layout.GetPass(ctx.pass);
         const size_t bucketCapacity = layout.commandBucketCapacity;
         const UINT maxCommandCount = static_cast<UINT>((std::min)(
             bucketCapacity,
@@ -275,7 +280,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
             const GPUDRIVEN::GpuDrivenCommandBucket bucket =
                 static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
-            if (!HasSourceForBucket(visibility, bucket)) {
+            if (!HasSourceForBucket(visibility, ctx.pass, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
             }

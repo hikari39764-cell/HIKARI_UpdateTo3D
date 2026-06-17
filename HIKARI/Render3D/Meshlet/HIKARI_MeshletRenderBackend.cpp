@@ -46,20 +46,21 @@ namespace HIKARI::RENDER3D::MESHLET {
 
         bool HasSourceForBucket(
             const GPUDRIVEN::GpuVisibilityResult& visibility,
+            GPUDRIVEN::GpuDrivenPassKind pass,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
-            return visibility.HasSourceForBucket(bucket);
+            return visibility.HasSourceForBucket(pass, bucket);
         }
 
         UINT64 DispatchArgumentOffsetForBucket(
-            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            const GPUDRIVEN::GpuDrivenCommandPassLayout& layout,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             return layout.GetBucket(bucket).meshDispatchArgumentOffset;
         }
 
         UINT64 CounterOffsetForBucket(
-            const GPUDRIVEN::GpuDrivenCommandLayout& layout,
+            const GPUDRIVEN::GpuDrivenCommandPassLayout& layout,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             return layout.GetBucket(bucket).counterOffset;
@@ -316,7 +317,10 @@ namespace HIKARI::RENDER3D::MESHLET {
 
         const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
         const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
-        const size_t requestedDispatchCount = visibility.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuVisibilityPassResult& passVisibility =
+            visibility.GetPass(ctx.pass);
+        const size_t requestedDispatchCount =
+            passVisibility.submittedDrawSeedCount;
         stats_.requestedDispatchCount += requestedDispatchCount;
         stats_.dispatchArgumentBufferReady =
             commands.meshDispatchArgs != nullptr;
@@ -354,7 +358,8 @@ namespace HIKARI::RENDER3D::MESHLET {
             return false;
         }
 
-        const GPUDRIVEN::GpuDrivenCommandLayout& layout = commands.layout;
+        const GPUDRIVEN::GpuDrivenCommandPassLayout& layout =
+            commands.layout.GetPass(ctx.pass);
         const size_t bucketCapacity = layout.commandBucketCapacity;
         if (bucketCapacity == 0) {
             stats_.skippedDispatchCount += requestedDispatchCount;
@@ -371,7 +376,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
             const GPUDRIVEN::GpuDrivenCommandBucket bucket =
                 static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
-            if (!HasSourceForBucket(visibility, bucket)) {
+            if (!HasSourceForBucket(visibility, ctx.pass, bucket)) {
                 ++stats_.skippedBucketCount;
                 continue;
             }

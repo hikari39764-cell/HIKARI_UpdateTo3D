@@ -6,6 +6,7 @@
 #include <d3d12.h>
 
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -13,12 +14,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t sourceInstanceCount = 0;
     };
 
-    struct GpuVisibilityResult {
-        ID3D12Resource* visibleInstanceBuffer = nullptr;
-        ID3D12Resource* visibleClusterRangeBuffer = nullptr;
-        ID3D12Resource* visibleMeshletRangeBuffer = nullptr;
-        ID3D12Resource* counterBuffer = nullptr;
-
+    struct GpuVisibilityPassResult {
         std::array<GpuVisibilityBucketResult, kGpuDrivenCommandBucketCount> buckets{};
         size_t submittedDrawSeedCount = 0;
 
@@ -36,9 +32,44 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         bool HasSourceForBucket(GpuDrivenCommandBucket bucket) const {
             if (!HasKnownBucketSourceCounts()) {
-                return true;
+                return submittedDrawSeedCount != 0;
             }
             return GetSourceInstanceCount(bucket) != 0;
+        }
+    };
+
+    struct GpuVisibilityResult {
+        ID3D12Resource* visibleInstanceBuffer = nullptr;
+        ID3D12Resource* visibleClusterRangeBuffer = nullptr;
+        ID3D12Resource* visibleMeshletRangeBuffer = nullptr;
+        ID3D12Resource* counterBuffer = nullptr;
+
+        std::array<GpuVisibilityPassResult, kGpuDrivenPassCount> passes{};
+
+        const GpuVisibilityPassResult& GetPass(
+            GpuDrivenPassKind pass) const {
+
+            return passes[ToPassIndex(pass)];
+        }
+
+        GpuVisibilityPassResult& GetPass(
+            GpuDrivenPassKind pass) {
+
+            return passes[ToPassIndex(pass)];
+        }
+
+        size_t GetSourceInstanceCount(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const {
+
+            return GetPass(pass).GetSourceInstanceCount(bucket);
+        }
+
+        bool HasSourceForBucket(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const {
+
+            return GetPass(pass).HasSourceForBucket(bucket);
         }
     };
 

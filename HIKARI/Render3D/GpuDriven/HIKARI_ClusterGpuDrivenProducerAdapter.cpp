@@ -30,6 +30,46 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque;
             }
         }
+
+        void FillClusterPassOutput(
+            GpuVisibilityResult& visibility,
+            GpuCommandBuildResult& commands,
+            GpuDrivenPassKind pass,
+            const CLUSTER::ClusterGpuCullingPassStats& stats,
+            const CLUSTER::ClusterGpuCullingPass& cullingPass) {
+
+            GpuVisibilityPassResult& passVisibility =
+                visibility.GetPass(pass);
+            passVisibility.buckets[ToCommandBucketIndex(
+                GpuDrivenCommandBucket::BackFaceCulled)].sourceInstanceCount =
+                stats.sourceSingleSidedInstanceCount;
+            passVisibility.buckets[ToCommandBucketIndex(
+                GpuDrivenCommandBucket::DoubleSided)].sourceInstanceCount =
+                stats.sourceDoubleSidedInstanceCount;
+            passVisibility.submittedDrawSeedCount =
+                stats.submittedDrawSeedCount;
+
+            GpuDrivenCommandPassLayout& layout =
+                commands.layout.GetPass(pass);
+            layout.commandBucketCapacity =
+                cullingPass.GetDrawArgumentBucketCapacity();
+            constexpr CLUSTER::ClusterDrawCullModeBucket sourceBuckets[] = {
+                CLUSTER::ClusterDrawCullModeBucket::BackFace,
+                CLUSTER::ClusterDrawCullModeBucket::DoubleSided,
+            };
+            for (const CLUSTER::ClusterDrawCullModeBucket sourceBucket :
+                sourceBuckets) {
+
+                GpuDrivenCommandBucketLayout& bucketLayout =
+                    layout.GetBucket(ToGpuDrivenCommandBucket(sourceBucket));
+                bucketLayout.gpuDrawIndexedArgumentOffset =
+                    cullingPass.GetDrawArgumentBufferOffset(sourceBucket);
+                bucketLayout.meshDispatchArgumentOffset =
+                    cullingPass.GetMeshletDispatchArgumentBufferOffset(sourceBucket);
+                bucketLayout.counterOffset =
+                    cullingPass.GetDrawCommandCounterOffset(sourceBucket);
+            }
+        }
     }
 
     void ClusterGpuDrivenProducerAdapter::Attach(
@@ -67,14 +107,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             cullingPass_->GetVisibleRangeBuffer();
         output.visibility.counterBuffer =
             cullingPass_->GetCounterBuffer();
-        output.visibility.buckets[ToCommandBucketIndex(
-            GpuDrivenCommandBucket::BackFaceCulled)].sourceInstanceCount =
-            stats.sourceSingleSidedInstanceCount;
-        output.visibility.buckets[ToCommandBucketIndex(
-            GpuDrivenCommandBucket::DoubleSided)].sourceInstanceCount =
-            stats.sourceDoubleSidedInstanceCount;
-        output.visibility.submittedDrawSeedCount =
-            stats.submittedDrawSeedCount;
         output.visibilitySeedCount =
             stats.submittedDrawSeedCount;
         output.visibilityReady =
@@ -91,25 +123,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         output.commands.meshDispatchSignature =
             cullingPass_->GetMeshletDispatchCommandSignature();
 
-        GpuDrivenCommandLayout& layout = output.commands.layout;
-        layout.commandBucketCapacity =
-            cullingPass_->GetDrawArgumentBucketCapacity();
-        constexpr CLUSTER::ClusterDrawCullModeBucket sourceBuckets[] = {
-            CLUSTER::ClusterDrawCullModeBucket::BackFace,
-            CLUSTER::ClusterDrawCullModeBucket::DoubleSided,
-        };
-        for (const CLUSTER::ClusterDrawCullModeBucket sourceBucket :
-            sourceBuckets) {
-
-            GpuDrivenCommandBucketLayout& bucketLayout =
-                layout.GetBucket(ToGpuDrivenCommandBucket(sourceBucket));
-            bucketLayout.gpuDrawIndexedArgumentOffset =
-                cullingPass_->GetDrawArgumentBufferOffset(sourceBucket);
-            bucketLayout.meshDispatchArgumentOffset =
-                cullingPass_->GetMeshletDispatchArgumentBufferOffset(sourceBucket);
-            bucketLayout.counterOffset =
-                cullingPass_->GetDrawCommandCounterOffset(sourceBucket);
-        }
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
+            GpuDrivenPassKind::ForwardOpaque,
+            stats,
+            *cullingPass_);
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
+            GpuDrivenPassKind::GeometryAux,
+            stats,
+            *cullingPass_);
 
         output.commandBuildReady =
             output.commands.gpuDrawIndexedArgs != nullptr ||

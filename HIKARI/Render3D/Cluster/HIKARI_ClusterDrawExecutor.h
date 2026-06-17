@@ -38,6 +38,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     struct ClusterDrawExecutionContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
+        GPUDRIVEN::GpuDrivenPassKind pass = GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque;
         const GPUDRIVEN::GpuVisibilityResult* visibility = nullptr;
         const GPUDRIVEN::GpuCommandBuildResult* commands = nullptr;
         ClusterDrawPipelineKind pipelineKind = ClusterDrawPipelineKind::ForwardOpaque;

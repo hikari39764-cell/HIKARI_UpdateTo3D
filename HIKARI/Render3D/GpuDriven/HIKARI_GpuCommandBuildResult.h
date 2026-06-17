@@ -6,6 +6,7 @@
 #include <d3d12.h>
 
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -15,7 +16,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         UINT64 counterOffset = 0;
     };
 
-    struct GpuDrivenCommandLayout {
+    struct GpuDrivenCommandPassLayout {
         size_t commandBucketCapacity = 0;
         std::array<GpuDrivenCommandBucketLayout, kGpuDrivenCommandBucketCount> buckets{};
 
@@ -29,6 +30,22 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenCommandBucket bucket) {
 
             return buckets[ToCommandBucketIndex(bucket)];
+        }
+    };
+
+    struct GpuDrivenCommandLayout {
+        std::array<GpuDrivenCommandPassLayout, kGpuDrivenPassCount> passes{};
+
+        const GpuDrivenCommandPassLayout& GetPass(
+            GpuDrivenPassKind pass) const {
+
+            return passes[ToPassIndex(pass)];
+        }
+
+        GpuDrivenCommandPassLayout& GetPass(
+            GpuDrivenPassKind pass) {
+
+            return passes[ToPassIndex(pass)];
         }
     };
 
