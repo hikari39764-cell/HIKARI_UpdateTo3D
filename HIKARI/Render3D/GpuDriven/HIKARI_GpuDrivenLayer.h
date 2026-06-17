@@ -67,6 +67,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
         SurfaceIndirectDrawBuffer* indirectDrawBuffer_ = nullptr;
         IGpuDrivenProducer* producer_ = nullptr;
+        const GpuDrivenSceneSource* frameSource_ = nullptr;
         GpuDrivenFrameContext frameContext_{};
 
         void InitializePassExecutionStates(

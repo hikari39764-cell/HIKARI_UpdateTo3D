@@ -137,6 +137,16 @@ namespace HIKARI::MESHRENDERER {
         size_t& commandIndex,
         size_t& objectIndex);
 
+    SurfacePacketCommandDrawResult DrawSurfacePacketIndirectCommandRange(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+        size_t commandCount,
+        size_t& commandIndex);
+
     SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
         const MeshDrawContext& ctx,
         const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,

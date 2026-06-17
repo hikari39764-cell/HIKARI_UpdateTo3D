@@ -63,11 +63,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuDrivenLayer::ResetFrame() {
         frameContext_ = {};
         frameContext_.scene.instanceBuffer = sceneBuffer_;
+        frameSource_ = nullptr;
         InitializePassExecutionStates(nullptr);
     }
 
     bool GpuDrivenLayer::BeginFrame(const GpuDrivenSceneSource* source) {
         ResetFrame();
+        frameSource_ = source;
         frameContext_.stats.sourceInstanceCount =
             source != nullptr
                 ? source->CountGpuSceneInstances()
@@ -201,6 +203,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         context.scene = &frameContext_.scene;
         context.visibility = &frameContext_.visibility;
         context.commands = &frameContext_.commands;
+        if (frameSource_ != nullptr) {
+            context.traditionalIndirect =
+                &frameSource_->GetPass(pass).traditionalIndirect;
+        }
         return context;
     }
 
@@ -253,7 +259,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 source->GetPass(state.sourcePass);
             state.hasSource = passSource.HasGpuSceneRange();
             state.clusterEligible = passSource.clusterEligible;
-            state.sourceInstanceCount = passSource.gpuSceneInstanceCount;
+            state.sourceInstanceCount =
+                static_cast<size_t>(passSource.gpuSceneInstanceCount) +
+                static_cast<size_t>(
+                    passSource.traditionalIndirect.gpuSceneInstanceCount);
+            state.hasTraditionalIndirectCommands =
+                passSource.traditionalIndirect.HasCommands();
+            state.traditionalIndirectCommandCount =
+                passSource.traditionalIndirect.CommandCount();
+            state.traditionalIndirectInstanceCount =
+                passSource.traditionalIndirect.gpuSceneInstanceCount;
             if (!state.hasSource) {
                 state.sourceMode = GpuDrivenPassSourceMode::None;
             }
@@ -293,6 +308,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 useGeometryPipeline
                     ? frameContext_.backendAvailability.clusterVsGeometryAuxPipelineReady
                     : frameContext_.backendAvailability.clusterVsForwardPipelineReady;
+            const GeometryBackendPolicy policy =
+                ResolveGeometryBackendPolicy(state.pass);
+            const bool policyAllowsTraditionalIndirect =
+                policy.preferred == GeometryBackendKind::GpuDrivenTraditionalVS ||
+                (!policy.forcePreferredOnly &&
+                    policy.fallback == GeometryBackendKind::GpuDrivenTraditionalVS);
 
             state.meshShaderConsumable =
                 state.hasSource &&
@@ -311,7 +332,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.gpuDrawIndexedSignature != nullptr &&
                 clusterPipelineReady;
             state.traditionalIndirectConsumable =
-                state.hasSource &&
+                policyAllowsTraditionalIndirect &&
+                state.hasTraditionalIndirectCommands &&
+                state.traditionalIndirectInstanceCount != 0 &&
+                frameContext_.stats.sceneResident &&
                 frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
                 frameContext_.commands.surfaceDrawIndexedSignature != nullptr &&
                 frameContext_.backendAvailability.traditionalIndirectPipelineReady;

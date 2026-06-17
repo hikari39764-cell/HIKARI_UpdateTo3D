@@ -2164,4 +2164,42 @@ namespace HIKARI::MESHRENDERER {
         return result;
     }
 
+    SurfacePacketCommandDrawResult DrawSurfacePacketIndirectCommandRange(
+        const MeshDrawContext& ctx,
+        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
+        size_t packetCount,
+        const uint32_t* executablePacketIndices,
+        size_t executablePacketIndexCount,
+        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
+        size_t commandCount,
+        size_t& commandIndex) {
+
+        SurfacePacketCommandDrawResult result{};
+        if (commands == nullptr || commandIndex >= commandCount) {
+            return result;
+        }
+
+        const size_t currentCommandIndex = commandIndex;
+        const Mesh* activeMesh = nullptr;
+        size_t nextCommandIndex = currentCommandIndex;
+        if (TryExecuteSurfacePacketIndirectCommandRange(
+            ctx,
+            commands,
+            commandCount,
+            currentCommandIndex,
+            packets,
+            packetCount,
+            executablePacketIndices,
+            executablePacketIndexCount,
+            activeMesh,
+            nextCommandIndex,
+            result)) {
+            commandIndex = nextCommandIndex;
+            return result;
+        }
+
+        commandIndex = currentCommandIndex + 1;
+        return result;
+    }
+
 } // namespace HIKARI::MESHRENDERER

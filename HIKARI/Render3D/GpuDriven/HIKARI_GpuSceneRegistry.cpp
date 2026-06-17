@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <limits>
 
+#include "Vfx/Common/HIKARI_FxTypes.h"
+
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
@@ -37,6 +39,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenBackendKind backend,
             bool clusterEligible) {
 
+            pass.traditionalIndirect.Reset();
             pass.instances = instances;
             pass.materialSources = materialSources;
             pass.gpuSceneBaseIndex = gpuSceneBaseIndex;
@@ -47,6 +50,66 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             pass.preferredBackend = backend;
             pass.clusterEligible = clusterEligible;
             pass.dirtyRanges.clear();
+        }
+
+        void ResetTraditionalIndirectView(
+            GpuDrivenPassSource& pass,
+            const std::vector<RUNTIME::SurfaceDrawPacket>* packets,
+            const std::vector<uint32_t>* executablePacketIndices,
+            const std::vector<RUNTIME::SurfaceDrawCommand>* commands,
+            const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances,
+            const std::vector<RUNTIME::SurfaceGpuSceneMaterialSource>* materialSources,
+            uint32_t gpuSceneBaseIndex) {
+
+            pass.traditionalIndirect.packets = packets;
+            pass.traditionalIndirect.executablePacketIndices =
+                executablePacketIndices;
+            pass.traditionalIndirect.commands = commands;
+            pass.traditionalIndirect.instances = instances;
+            pass.traditionalIndirect.materialSources = materialSources;
+            pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
+            pass.traditionalIndirect.gpuSceneInstanceCount =
+                instances != nullptr
+                    ? ClampToUint32(instances->size())
+                    : 0u;
+        }
+
+        RUNTIME::SurfaceGpuSceneMaterialSource BuildTraditionalMaterialSource(
+            const RUNTIME::SurfaceDrawPacket& packet,
+            const RUNTIME::SurfaceGpuSceneInstance& instance) {
+
+            RUNTIME::SurfaceGpuSceneMaterialSource source{};
+            source.model = packet.model;
+            source.materialOverride = packet.materialOverride;
+            source.materialIndex = packet.materialIndex;
+            source.materialKey = packet.key.materialKey;
+            source.world = instance.world;
+            source.normalMatrix = instance.normalMatrix;
+            source.receiveShadow = packet.receiveShadow;
+            source.fxFlags = instance.fxFlags;
+            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                source.fxUser[i] = instance.fxUser[i];
+            }
+            return source;
+        }
+
+        void BuildTraditionalMaterialSources(
+            const std::vector<RUNTIME::SurfaceDrawPacket>& packets,
+            const std::vector<RUNTIME::SurfaceGpuSceneInstance>& instances,
+            std::vector<RUNTIME::SurfaceGpuSceneMaterialSource>& materialSources) {
+
+            materialSources.clear();
+            materialSources.reserve(instances.size());
+            for (const RUNTIME::SurfaceGpuSceneInstance& instance : instances) {
+                if (instance.sourcePacketIndex >= packets.size()) {
+                    materialSources.push_back({});
+                    continue;
+                }
+                materialSources.push_back(
+                    BuildTraditionalMaterialSource(
+                        packets[instance.sourcePacketIndex],
+                        instance));
+            }
         }
 
         uint64_t HashAppend(uint64_t seed, uint64_t value) {
@@ -93,6 +156,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardDepthAwareMaterialSources_.clear();
         forwardTransparentGpuSceneInstances_.clear();
         forwardTransparentMaterialSources_.clear();
+        forwardOpaqueTraditionalGpuSceneInstances_.clear();
+        forwardOpaqueTraditionalMaterialSources_.clear();
+        forwardDepthAwareTraditionalGpuSceneInstances_.clear();
+        forwardDepthAwareTraditionalMaterialSources_.clear();
+        forwardTransparentTraditionalGpuSceneInstances_.clear();
+        forwardTransparentTraditionalMaterialSources_.clear();
+        surfacePacketBuilder_.Clear();
+        surfacePacketPlanner_ = {};
         objectCoverage_.clear();
         sceneSource_.Reset();
         stats_ = {};
@@ -226,13 +297,94 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         routingVersion_ = input.sceneCache->GetSurfaceRoutingVersion();
         dataVersion_ = input.sceneCache->GetSurfaceDataVersion();
         sourceSurfaceCount_ = ClampToUint32(surfaces.size());
+        RebuildForwardTraditionalIndirectViews(input);
         RebuildForwardSceneSource();
+    }
+
+    void GpuSceneRegistry::RebuildForwardTraditionalIndirectViews(
+        const GpuSceneRegistrySyncInput& input) {
+
+        forwardOpaqueTraditionalGpuSceneInstances_.clear();
+        forwardOpaqueTraditionalMaterialSources_.clear();
+        forwardDepthAwareTraditionalGpuSceneInstances_.clear();
+        forwardDepthAwareTraditionalMaterialSources_.clear();
+        forwardTransparentTraditionalGpuSceneInstances_.clear();
+        forwardTransparentTraditionalMaterialSources_.clear();
+        surfacePacketBuilder_.Clear();
+        surfacePacketPlanner_ = {};
+        stats_.surfacePacketStats = {};
+        stats_.surfacePacketPlanStats = {};
+        stats_.forwardOpaqueTraditionalGpuSceneStats = {};
+        stats_.forwardDepthAwareTraditionalGpuSceneStats = {};
+        stats_.forwardTransparentTraditionalGpuSceneStats = {};
+
+        if (input.sceneCache == nullptr) {
+            return;
+        }
+
+        surfacePacketBuilder_.BuildFromSceneRenderCache(*input.sceneCache);
+        RUNTIME::SurfaceDrawPacketPlanOptions options{};
+        options.buildForwardPlan = true;
+        options.bypassLegacyForward = true;
+        options.enableCpuFrustumCulling = false;
+        surfacePacketPlanner_.Build(
+            surfacePacketBuilder_,
+            options,
+            stats_.surfacePacketPlanStats);
+        stats_.surfacePacketStats = surfacePacketBuilder_.GetStats();
+
+        const std::vector<RUNTIME::SurfaceDrawPacket>& packets =
+            surfacePacketBuilder_.GetPackets();
+
+        std::vector<RUNTIME::SurfaceDrawCommand>& opaqueCommands =
+            surfacePacketPlanner_.GetExecutableForwardOpaqueCommands();
+        stats_.forwardOpaqueTraditionalGpuSceneStats =
+            RUNTIME::SurfaceGpuSceneWriter::BuildCommandRanges(
+                packets,
+                surfacePacketPlanner_.GetExecutableForwardOpaquePacketIndices(),
+                opaqueCommands,
+                forwardOpaqueTraditionalGpuSceneInstances_);
+        BuildTraditionalMaterialSources(
+            packets,
+            forwardOpaqueTraditionalGpuSceneInstances_,
+            forwardOpaqueTraditionalMaterialSources_);
+
+        std::vector<RUNTIME::SurfaceDrawCommand>& depthAwareCommands =
+            surfacePacketPlanner_.GetExecutableForwardDepthAwareCommands();
+        stats_.forwardDepthAwareTraditionalGpuSceneStats =
+            RUNTIME::SurfaceGpuSceneWriter::BuildCommandRanges(
+                packets,
+                surfacePacketPlanner_.GetExecutableForwardDepthAwarePacketIndices(),
+                depthAwareCommands,
+                forwardDepthAwareTraditionalGpuSceneInstances_);
+        BuildTraditionalMaterialSources(
+            packets,
+            forwardDepthAwareTraditionalGpuSceneInstances_,
+            forwardDepthAwareTraditionalMaterialSources_);
+
+        std::vector<RUNTIME::SurfaceDrawCommand>& transparentCommands =
+            surfacePacketPlanner_.GetExecutableForwardTransparentCommands();
+        stats_.forwardTransparentTraditionalGpuSceneStats =
+            RUNTIME::SurfaceGpuSceneWriter::BuildCommandRanges(
+                packets,
+                surfacePacketPlanner_.GetExecutableForwardTransparentPacketIndices(),
+                transparentCommands,
+                forwardTransparentTraditionalGpuSceneInstances_);
+        BuildTraditionalMaterialSources(
+            packets,
+            forwardTransparentTraditionalGpuSceneInstances_,
+            forwardTransparentTraditionalMaterialSources_);
     }
 
     bool GpuSceneRegistry::TryPatchForwardDataFromSceneCache(
         const GpuSceneRegistrySyncInput& input) {
 
         if (input.sceneCache == nullptr) {
+            return false;
+        }
+        if (!forwardOpaqueTraditionalGpuSceneInstances_.empty() ||
+            !forwardDepthAwareTraditionalGpuSceneInstances_.empty() ||
+            !forwardTransparentTraditionalGpuSceneInstances_.empty()) {
             return false;
         }
         const std::vector<RUNTIME::SceneSurfaceInstance>& surfaces =
@@ -315,39 +467,69 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     void GpuSceneRegistry::RebuildForwardSceneSource() {
+        uint32_t cursor = 0;
+
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardOpaque),
             &forwardOpaqueGpuSceneInstances_,
             &forwardOpaqueMaterialSources_,
-            0u,
+            cursor,
             GpuDrivenBackendKind::MeshShader,
             true);
+        cursor += ClampToUint32(forwardOpaqueGpuSceneInstances_.size());
+
+        ResetTraditionalIndirectView(
+            sceneSource_.GetPass(GpuDrivenPassKind::ForwardOpaque),
+            &surfacePacketBuilder_.GetPackets(),
+            &surfacePacketPlanner_.GetExecutableForwardOpaquePacketIndices(),
+            &surfacePacketPlanner_.GetExecutableForwardOpaqueCommands(),
+            &forwardOpaqueTraditionalGpuSceneInstances_,
+            &forwardOpaqueTraditionalMaterialSources_,
+            cursor);
+        cursor += ClampToUint32(forwardOpaqueTraditionalGpuSceneInstances_.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardDepthAware),
             &forwardDepthAwareGpuSceneInstances_,
             &forwardDepthAwareMaterialSources_,
-            ClampToUint32(forwardOpaqueGpuSceneInstances_.size()),
+            cursor,
             GpuDrivenBackendKind::TraditionalIndirect,
             true);
+        cursor += ClampToUint32(forwardDepthAwareGpuSceneInstances_.size());
+
+        ResetTraditionalIndirectView(
+            sceneSource_.GetPass(GpuDrivenPassKind::ForwardDepthAware),
+            &surfacePacketBuilder_.GetPackets(),
+            &surfacePacketPlanner_.GetExecutableForwardDepthAwarePacketIndices(),
+            &surfacePacketPlanner_.GetExecutableForwardDepthAwareCommands(),
+            &forwardDepthAwareTraditionalGpuSceneInstances_,
+            &forwardDepthAwareTraditionalMaterialSources_,
+            cursor);
+        cursor += ClampToUint32(forwardDepthAwareTraditionalGpuSceneInstances_.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
             &forwardTransparentGpuSceneInstances_,
             &forwardTransparentMaterialSources_,
-            ClampToUint32(
-                forwardOpaqueGpuSceneInstances_.size() +
-                forwardDepthAwareGpuSceneInstances_.size()),
+            cursor,
             GpuDrivenBackendKind::TraditionalIndirect,
             true);
+        cursor += ClampToUint32(forwardTransparentGpuSceneInstances_.size());
+
+        ResetTraditionalIndirectView(
+            sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
+            &surfacePacketBuilder_.GetPackets(),
+            &surfacePacketPlanner_.GetExecutableForwardTransparentPacketIndices(),
+            &surfacePacketPlanner_.GetExecutableForwardTransparentCommands(),
+            &forwardTransparentTraditionalGpuSceneInstances_,
+            &forwardTransparentTraditionalMaterialSources_,
+            cursor);
+        cursor += ClampToUint32(forwardTransparentTraditionalGpuSceneInstances_.size());
 
         sceneSource_.layoutVersion =
             BuildSourceLayoutVersion(layoutVersion_, routingVersion_);
         sceneSource_.sourceVersion = dataVersion_;
-        sceneSource_.sourceInstanceCount =
-            forwardOpaqueGpuSceneInstances_.size() +
-            forwardDepthAwareGpuSceneInstances_.size() +
-            forwardTransparentGpuSceneInstances_.size();
+        sceneSource_.sourceInstanceCount = cursor;
     }
 
     void GpuSceneRegistry::ClearFrameDirtyRanges() {

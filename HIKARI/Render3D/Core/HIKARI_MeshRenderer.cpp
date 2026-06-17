@@ -66,15 +66,21 @@ namespace HIKARI::MESHRENDERER {
         uint32_t CountSceneSourceInstances(
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& source) {
 
-            if (source.gpuSceneInstanceCount != 0u) {
-                return source.gpuSceneInstanceCount;
-            }
-            return source.instances != nullptr
-                ? static_cast<uint32_t>(
-                    (std::min)(
-                        source.instances->size(),
-                        static_cast<size_t>(UINT32_MAX)))
-                : 0u;
+            const size_t primaryCount =
+                source.gpuSceneInstanceCount != 0u
+                    ? source.gpuSceneInstanceCount
+                    : (source.instances != nullptr ? source.instances->size() : 0u);
+            const size_t traditionalCount =
+                source.traditionalIndirect.gpuSceneInstanceCount != 0u
+                    ? source.traditionalIndirect.gpuSceneInstanceCount
+                    : (source.traditionalIndirect.instances != nullptr
+                        ? source.traditionalIndirect.instances->size()
+                        : 0u);
+            const size_t totalCount = primaryCount + traditionalCount;
+            return static_cast<uint32_t>(
+                (std::min)(
+                    totalCount,
+                    static_cast<size_t>(UINT32_MAX)));
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
@@ -334,17 +340,21 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceGpuSceneTransparentInstanceCount =
                 CountSceneSourceInstances(transparent);
 
+            const auto uploadSceneInstances =
+                [](const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* instances) {
+                if (instances != nullptr && !instances->empty()) {
+                    g.surfaceGpuSceneBuffer.Upload(*instances);
+                }
+            };
+
             const auto uploadFullScene = [&]() {
                 g.surfaceGpuSceneBuffer.ResetFrame();
-                if (opaque.HasGpuSceneInstances()) {
-                    g.surfaceGpuSceneBuffer.Upload(*opaque.instances);
-                }
-                if (depthAware.HasGpuSceneInstances()) {
-                    g.surfaceGpuSceneBuffer.Upload(*depthAware.instances);
-                }
-                if (transparent.HasGpuSceneInstances()) {
-                    g.surfaceGpuSceneBuffer.Upload(*transparent.instances);
-                }
+                uploadSceneInstances(opaque.instances);
+                uploadSceneInstances(opaque.traditionalIndirect.instances);
+                uploadSceneInstances(depthAware.instances);
+                uploadSceneInstances(depthAware.traditionalIndirect.instances);
+                uploadSceneInstances(transparent.instances);
+                uploadSceneInstances(transparent.traditionalIndirect.instances);
             };
 
             const auto patchDirtyPass =
@@ -440,35 +450,38 @@ namespace HIKARI::MESHRENDERER {
 
         void PrepareSurfaceGpuSceneMaterialFrame() {
             MeshDrawContext drawCtx = BuildDrawContext(false, MeshDrawPassKind::Forward, {});
+            const auto prepareMaterialSources =
+                [&](uint32_t baseIndex,
+                    const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>* sources) {
+                drawCtx.surfaceGpuSceneBaseOffset = baseIndex;
+                if (sources != nullptr && !sources->empty()) {
+                    PrepareSurfaceGpuSceneMaterialSources(
+                        drawCtx,
+                        sources->data(),
+                        sources->size());
+                }
+            };
+
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& opaque =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
-            drawCtx.surfaceGpuSceneBaseOffset = opaque.gpuSceneBaseIndex;
-            if (opaque.materialSources != nullptr && !opaque.materialSources->empty()) {
-                PrepareSurfaceGpuSceneMaterialSources(
-                    drawCtx,
-                    opaque.materialSources->data(),
-                    opaque.materialSources->size());
-            }
+            prepareMaterialSources(opaque.gpuSceneBaseIndex, opaque.materialSources);
+            prepareMaterialSources(
+                opaque.traditionalIndirect.gpuSceneBaseIndex,
+                opaque.traditionalIndirect.materialSources);
 
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
-            drawCtx.surfaceGpuSceneBaseOffset = depthAware.gpuSceneBaseIndex;
-            if (depthAware.materialSources != nullptr && !depthAware.materialSources->empty()) {
-                PrepareSurfaceGpuSceneMaterialSources(
-                    drawCtx,
-                    depthAware.materialSources->data(),
-                    depthAware.materialSources->size());
-            }
+            prepareMaterialSources(depthAware.gpuSceneBaseIndex, depthAware.materialSources);
+            prepareMaterialSources(
+                depthAware.traditionalIndirect.gpuSceneBaseIndex,
+                depthAware.traditionalIndirect.materialSources);
 
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            drawCtx.surfaceGpuSceneBaseOffset = transparent.gpuSceneBaseIndex;
-            if (transparent.materialSources != nullptr && !transparent.materialSources->empty()) {
-                PrepareSurfaceGpuSceneMaterialSources(
-                    drawCtx,
-                    transparent.materialSources->data(),
-                    transparent.materialSources->size());
-            }
+            prepareMaterialSources(transparent.gpuSceneBaseIndex, transparent.materialSources);
+            prepareMaterialSources(
+                transparent.traditionalIndirect.gpuSceneBaseIndex,
+                transparent.traditionalIndirect.materialSources);
             g.gpuDrivenLayer.PrepareSurfaceGpuSceneMaterialFrame();
         }
 
@@ -500,10 +513,53 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenFrame.CountClusterEligibleInstances();
         }
 
+        void UploadTraditionalIndirectView(
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view,
+            bool depthAwarePhase) {
+
+            if (!view.HasCommands() ||
+                view.packets == nullptr ||
+                view.executablePacketIndices == nullptr ||
+                view.commands == nullptr) {
+                return;
+            }
+
+            g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
+                *view.commands,
+                view.gpuSceneBaseIndex);
+
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(
+                depthAwarePhase,
+                MeshDrawPassKind::Forward,
+                {});
+            drawCtx.binding.cache = &bindingCache;
+            drawCtx.surfaceGpuSceneBaseOffset = view.gpuSceneBaseIndex;
+            PrepareSurfacePacketIndirectDrawBindings(
+                drawCtx,
+                view.packets->data(),
+                view.packets->size(),
+                view.executablePacketIndices->data(),
+                view.executablePacketIndices->size(),
+                view.commands->data(),
+                view.commands->size());
+        }
+
         void UploadSurfaceIndirectDrawFrame() {
             // GPU-driven 主線では draw args を GPU 側の work frame から生成する。
             // 旧 SurfaceDrawCommand の CPU upload は legacy handoff 側だけに閉じ込める。
             g.surfaceIndirectDrawBuffer.ResetFrame();
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
+            UploadTraditionalIndirectView(
+                depthAware.traditionalIndirect,
+                true);
+            UploadTraditionalIndirectView(
+                transparent.traditionalIndirect,
+                false);
+            g.surfaceIndirectDrawBuffer.FlushToGpu(SERVICES::gCtx.cmdList);
             UpdateSurfaceIndirectDrawStats();
             g.gpuDrivenLayer.BuildCommandBuffers();
         }
@@ -968,6 +1024,65 @@ namespace HIKARI::MESHRENDERER {
             return executed;
         }
 
+        bool ExecuteTraditionalIndirectDrawFrame(
+            const MeshPassResources& passResources,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
+            MeshDrawPassKind passKind) {
+
+            SyncGpuDrivenBackendAvailability();
+            if (!g.gpuDrivenLayer.IsBackendConsumable(
+                gpuPass,
+                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS)) {
+                return false;
+            }
+
+            const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
+                g.gpuDrivenLayer.BuildGeometryBackendContext(
+                    SERVICES::gCtx.cmdList,
+                    gpuPass,
+                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                backendContext.traditionalIndirect;
+            if (view == nullptr ||
+                !view->HasCommands() ||
+                view->packets == nullptr ||
+                view->executablePacketIndices == nullptr ||
+                view->commands == nullptr) {
+                return false;
+            }
+
+            const bool depthAwarePhase =
+                gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(
+                depthAwarePhase,
+                passKind,
+                passResources);
+            drawCtx.binding.cache = &bindingCache;
+            drawCtx.surfaceGpuSceneBaseOffset = view->gpuSceneBaseIndex;
+            BindSurfacePacketFrameResources(drawCtx);
+
+            bool submitted = false;
+            size_t commandIndex = 0;
+            while (commandIndex < view->commands->size()) {
+                const SurfacePacketCommandDrawResult result =
+                    DrawSurfacePacketIndirectCommandRange(
+                        drawCtx,
+                        view->packets->data(),
+                        view->packets->size(),
+                        view->executablePacketIndices->data(),
+                        view->executablePacketIndices->size(),
+                        view->commands->data(),
+                        view->commands->size(),
+                        commandIndex);
+                submitted = submitted || result.drawCallCount != 0;
+            }
+
+            UpdateSurfaceIndirectDrawStats();
+            UpdateGpuDrivenWorkReadyDebugStats();
+            return submitted;
+        }
+
         bool ExecuteGeometryBackend(
             RENDER3D::GPUDRIVEN::GeometryBackendKind backend,
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
@@ -990,6 +1105,10 @@ namespace HIKARI::MESHRENDERER {
                     passKind,
                     clusterPipelineKind);
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
+                return ExecuteTraditionalIndirectDrawFrame(
+                    passResources,
+                    gpuPass,
+                    passKind);
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect:
             default:
                 return false;

@@ -2,6 +2,36 @@
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
+    void GpuDrivenTraditionalIndirectView::Reset() {
+        packets = nullptr;
+        executablePacketIndices = nullptr;
+        commands = nullptr;
+        instances = nullptr;
+        materialSources = nullptr;
+        gpuSceneBaseIndex = 0;
+        gpuSceneInstanceCount = 0;
+    }
+
+    bool GpuDrivenTraditionalIndirectView::HasCommands() const {
+        return
+            packets != nullptr &&
+            executablePacketIndices != nullptr &&
+            commands != nullptr &&
+            !commands->empty();
+    }
+
+    bool GpuDrivenTraditionalIndirectView::HasGpuSceneRange() const {
+        return gpuSceneInstanceCount != 0u;
+    }
+
+    bool GpuDrivenTraditionalIndirectView::HasGpuSceneInstances() const {
+        return instances != nullptr && !instances->empty();
+    }
+
+    size_t GpuDrivenTraditionalIndirectView::CommandCount() const {
+        return commands != nullptr ? commands->size() : 0u;
+    }
+
     void GpuDrivenPassSource::Reset() {
         instances = nullptr;
         materialSources = nullptr;
@@ -9,15 +39,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         gpuSceneInstanceCount = 0;
         preferredBackend = GpuDrivenBackendKind::TraditionalIndirect;
         clusterEligible = false;
+        traditionalIndirect.Reset();
         dirtyRanges.clear();
     }
 
-    bool GpuDrivenPassSource::HasGpuSceneRange() const {
+    bool GpuDrivenPassSource::HasPrimaryGpuSceneRange() const {
         return gpuSceneInstanceCount != 0u;
     }
 
-    bool GpuDrivenPassSource::HasGpuSceneInstances() const {
+    bool GpuDrivenPassSource::HasPrimaryGpuSceneInstances() const {
         return instances != nullptr && !instances->empty();
+    }
+
+    bool GpuDrivenPassSource::HasGpuSceneRange() const {
+        return
+            HasPrimaryGpuSceneRange() ||
+            traditionalIndirect.HasGpuSceneRange();
+    }
+
+    bool GpuDrivenPassSource::HasGpuSceneInstances() const {
+        return
+            HasPrimaryGpuSceneInstances() ||
+            traditionalIndirect.HasGpuSceneInstances();
     }
 
     bool GpuDrivenPassSource::HasDirtyGpuSceneRanges() const {
@@ -87,6 +130,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         for (const GpuDrivenPassSource& pass : passes) {
             if (pass.HasGpuSceneRange()) {
                 count += pass.gpuSceneInstanceCount;
+                count += pass.traditionalIndirect.gpuSceneInstanceCount;
             }
         }
         return count;

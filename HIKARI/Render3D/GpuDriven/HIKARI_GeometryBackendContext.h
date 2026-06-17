@@ -11,6 +11,8 @@
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
+    struct GpuDrivenTraditionalIndirectView;
+
     enum class GeometryBackendKind : uint32_t {
         CpuDirect,
         GpuDrivenTraditionalVS,
@@ -26,6 +28,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuSceneFrame* scene = nullptr;
         const GpuVisibilityResult* visibility = nullptr;
         const GpuCommandBuildResult* commands = nullptr;
+        const GpuDrivenTraditionalIndirectView* traditionalIndirect = nullptr;
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

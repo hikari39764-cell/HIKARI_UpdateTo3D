@@ -49,6 +49,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return policy;
         case GpuDrivenPassKind::DepthAware:
         case GpuDrivenPassKind::Transparent:
+            policy.preferred = GeometryBackendKind::GpuDrivenTraditionalVS;
+            policy.fallback = GeometryBackendKind::CpuDirect;
+            policy.allowCpuDirectFallback = true;
+            return policy;
         case GpuDrivenPassKind::Debug:
         default:
             policy.preferred = GeometryBackendKind::CpuDirect;

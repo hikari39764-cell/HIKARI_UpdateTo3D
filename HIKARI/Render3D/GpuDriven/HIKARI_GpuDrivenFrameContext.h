@@ -33,6 +33,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         bool hasSource = false;
         bool clusterEligible = false;
+        bool hasTraditionalIndirectCommands = false;
         bool visibilityReady = false;
         bool commandBuildReady = false;
         bool hasDrawSeeds = false;
@@ -46,6 +47,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         size_t sourceInstanceCount = 0;
         size_t drawSeedCount = 0;
+        size_t traditionalIndirectCommandCount = 0;
+        size_t traditionalIndirectInstanceCount = 0;
     };
 
     struct GpuDrivenWorkOwnershipStats {
