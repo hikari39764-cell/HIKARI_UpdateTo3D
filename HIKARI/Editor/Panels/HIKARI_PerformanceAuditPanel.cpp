@@ -325,6 +325,45 @@ namespace HIKARI {
             }
         }
 
+        void DrawStrictGpuDrivenTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Strict GPU Driven");
+            if (BeginMetricTable("StrictGpuDrivenMetrics", 270.0f)) {
+                const bool cpuAuthoredClear =
+                    s.mesh.gpuDrivenCommandStreamCpuCommandCount == 0 &&
+                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount == 0 &&
+                    s.mesh.legacyFallbackInvocationCount == 0 &&
+                    s.mesh.surfaceIndirectCpuDirectCommandCount == 0;
+                MetricRow("Strict Mainline / CPU Planner Builds Suppressed", "%s / %u",
+                    s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
+                    s.gpuRegistry.cpuPlannerBuildSuppressedCount);
+                MetricRow("CPU Planner Records Suppressed", "%u",
+                    s.gpuRegistry.cpuPlannerRecordSuppressedCount);
+                MetricRow("Blocked Records Depth / Transparent / Shadow", "%u / %u / %u",
+                    s.gpuRegistry.blockedForwardDepthAwareRecordCount,
+                    s.gpuRegistry.blockedForwardTransparentRecordCount,
+                    s.gpuRegistry.blockedShadowRecordCount);
+                MetricRow("CommandStream GPU / CPU / Traditional", "%zu / %zu / %zu",
+                    s.mesh.gpuDrivenCommandStreamGpuCommandCount,
+                    s.mesh.gpuDrivenCommandStreamCpuCommandCount,
+                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
+                MetricRow("Legacy Fallback Calls / Items", "%zu / %zu",
+                    s.mesh.legacyFallbackInvocationCount,
+                    s.mesh.legacyFallbackItemCount);
+                MetricRow("SurfaceIndirect Uploaded / CPU Direct / Overflow", "%zu / %zu / %zu",
+                    s.mesh.surfaceIndirectUploadedCommandCount,
+                    s.mesh.surfaceIndirectCpuDirectCommandCount,
+                    s.mesh.surfaceIndirectOverflowCommandCount);
+                MetricRow("GPU Scene Instances Opaque / Depth / Transparent / Shadow", "%u / %u / %u / %zu",
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
+                    s.gpuRegistry.forwardDepthAwareGpuSceneStats.instanceCount,
+                    s.gpuRegistry.forwardTransparentGpuSceneStats.instanceCount,
+                    s.shadow.shadowGpuSceneUploadedInstanceCount);
+                MetricRowText("CPU Authored Command State",
+                    cpuAuthoredClear ? "Clear" : "Active");
+                ImGui::EndTable();
+            }
+        }
+
         void DrawSubmissionTable(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Submission");
             if (BeginMetricTable("SubmissionMetrics")) {
@@ -479,6 +518,7 @@ namespace HIKARI {
         const RuntimePerformanceSnapshot snapshot = BuildSnapshot();
         DrawFrameSummary(snapshot);
         DrawReadiness(snapshot);
+        DrawStrictGpuDrivenTable(snapshot);
         DrawGpuTimingTable(snapshot);
         DrawClusterRuntimeTable(snapshot);
         DrawSubmissionTable(snapshot);

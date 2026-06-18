@@ -12,14 +12,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GeometryBackendPolicy {
         GeometryBackendKind preferred = GeometryBackendKind::CpuDirect;
         GeometryBackendKind fallback = GeometryBackendKind::CpuDirect;
-        bool allowCpuDirectFallback = true;
+        bool allowCpuDirectFallback = false;
         bool forcePreferredOnly = false;
     };
 
     struct GeometryBackendExecutionPlan {
         std::array<GeometryBackendKind, kMaxGeometryBackendPlanBackends> gpuBackends{};
         size_t gpuBackendCount = 0;
-        bool runCpuDirectTail = true;
 
         bool AddGpuBackend(GeometryBackendKind backend);
     };

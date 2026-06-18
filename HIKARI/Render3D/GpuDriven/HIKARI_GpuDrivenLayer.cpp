@@ -40,18 +40,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return commands.layout.GetPass(pass).commandBucketCapacity != 0;
         }
 
-        bool HasPassMask(uint32_t mask, GpuDrivenPassKind pass) {
-            return (mask & MakeGpuDrivenPassMask(pass)) != 0u;
-        }
-
-        size_t CountViewInstances(
-            const GpuDrivenTraditionalIndirectView& view) {
-
-            return view.gpuSceneInstanceCount != 0u
-                ? view.gpuSceneInstanceCount
-                : (view.instances != nullptr ? view.instances->size() : 0u);
-        }
-
         size_t CountPrimaryInstances(const GpuDrivenPassSource& pass) {
             return pass.gpuSceneInstanceCount != 0u
                 ? pass.gpuSceneInstanceCount
@@ -59,14 +47,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         size_t CountPassInstances(const GpuDrivenPassSource& pass) {
-            return CountPrimaryInstances(pass) +
-                CountViewInstances(pass.traditionalIndirect);
+            return CountPrimaryInstances(pass);
         }
 
         uint32_t ResolvePassBaseIndex(const GpuDrivenPassSource& pass) {
             return pass.HasPrimaryGpuSceneRange()
                 ? pass.gpuSceneBaseIndex
-                : pass.traditionalIndirect.gpuSceneBaseIndex;
+                : 0u;
         }
 
         void UploadSceneInstances(
@@ -92,10 +79,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 buffer,
                 pass.instances,
                 CountPrimaryInstances(pass));
-            UploadSceneInstances(
-                buffer,
-                pass.traditionalIndirect.instances,
-                CountViewInstances(pass.traditionalIndirect));
         }
 
         bool PatchDirtyPass(
@@ -333,24 +316,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuDrivenLayer::ImportProducerOutput(
         const GpuDrivenProducerFrameOutput& output) {
 
-        ID3D12Resource* surfaceDrawIndexedArgs =
-            frameContext_.commands.surfaceDrawIndexedArgs;
-        ID3D12CommandSignature* surfaceDrawIndexedSignature =
-            frameContext_.commands.surfaceDrawIndexedSignature;
-
         frameContext_.visibility = output.visibility;
         frameContext_.commands = output.commands;
-        frameContext_.commands.surfaceDrawIndexedArgs =
-            surfaceDrawIndexedArgs;
-        frameContext_.commands.surfaceDrawIndexedSignature =
-            surfaceDrawIndexedSignature;
         frameContext_.stats.visibilityReady = output.visibilityReady;
         frameContext_.stats.visibilitySeedCount = output.visibilitySeedCount;
         frameContext_.stats.visibilityOverflowInstanceCount =
             output.visibilityOverflowInstanceCount;
         frameContext_.stats.commandBuildReady =
-            output.commandBuildReady ||
-            frameContext_.commands.surfaceDrawIndexedArgs != nullptr;
+            output.commandBuildReady;
         RefreshPassExecutionStates();
     }
 
@@ -365,40 +338,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenCommandFrameDesc& desc) {
 
         commandFrameStats_ = {};
-        commandFrameStats_.traditionalIndirectPassMask =
-            desc.traditionalIndirectPassMask;
 
         if (indirectDrawBuffer_ != nullptr &&
             desc.resetTraditionalIndirectBuffer) {
             indirectDrawBuffer_->ResetFrame();
-        }
-
-        if (indirectDrawBuffer_ != nullptr &&
-            frameSource_ != nullptr &&
-            desc.traditionalIndirectPassMask != 0u) {
-
-            for (size_t passIndex = 0u;
-                passIndex < kGpuDrivenPassCount;
-                ++passIndex) {
-
-                const GpuDrivenPassKind pass = PassFromIndex(passIndex);
-                if (!HasPassMask(desc.traditionalIndirectPassMask, pass)) {
-                    continue;
-                }
-
-                const GpuDrivenTraditionalIndirectView& view =
-                    frameSource_->GetPass(pass).traditionalIndirect;
-                if (!view.HasCommands() || view.commands == nullptr) {
-                    continue;
-                }
-
-                ++commandFrameStats_.traditionalIndirectPassCount;
-                commandFrameStats_.traditionalIndirectSourceCommandCount +=
-                    view.CommandCount();
-                indirectDrawBuffer_->UploadSurfaceCommands(
-                    *view.commands,
-                    view.gpuSceneBaseIndex);
-            }
         }
 
         if (indirectDrawBuffer_ != nullptr) {
@@ -413,35 +356,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return commandFrameStats_;
     }
 
-    bool GpuDrivenLayer::FlushTraditionalIndirectCommandFrame(
-        ID3D12GraphicsCommandList* commandList) {
-
-        const bool flushed =
-            indirectDrawBuffer_ != nullptr &&
-            indirectDrawBuffer_->FlushToGpu(commandList);
-        commandFrameStats_.traditionalIndirectFlushedToGpu = flushed;
-        if (indirectDrawBuffer_ != nullptr) {
-            commandFrameStats_.surfaceIndirectStats =
-                indirectDrawBuffer_->GetStats();
-        }
-        return flushed;
-    }
-
     void GpuDrivenLayer::BuildCommandBuffers() {
-        if (indirectDrawBuffer_ != nullptr) {
-            frameContext_.commands.surfaceDrawIndexedArgs =
-                indirectDrawBuffer_->GetArgumentBuffer();
-            frameContext_.commands.surfaceDrawIndexedSignature =
-                indirectDrawBuffer_->GetCommandSignature();
-        } else {
-            frameContext_.commands.surfaceDrawIndexedArgs = nullptr;
-            frameContext_.commands.surfaceDrawIndexedSignature = nullptr;
-        }
+        frameContext_.commands.surfaceDrawIndexedArgs = nullptr;
+        frameContext_.commands.surfaceDrawIndexedSignature = nullptr;
 
         frameContext_.stats.commandBuildReady =
             frameContext_.commands.gpuDrawIndexedArgs != nullptr ||
-            frameContext_.commands.meshDispatchArgs != nullptr ||
-            frameContext_.commands.surfaceDrawIndexedArgs != nullptr;
+            frameContext_.commands.meshDispatchArgs != nullptr;
         RefreshPassExecutionStates();
     }
 
@@ -474,9 +395,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GeometryBackendPolicy policy =
             ResolveGeometryBackendPolicy(pass);
         GeometryBackendExecutionPlan plan{};
-        plan.runCpuDirectTail =
-            policy.allowCpuDirectFallback &&
-            !policy.forcePreferredOnly;
 
         if (IsBackendConsumable(pass, policy.preferred)) {
             plan.AddGpuBackend(policy.preferred);
@@ -505,11 +423,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         context.commands = &frameContext_.commands;
         context.drawCommandRange =
             frameContext_.drawStream.FindRange(pass, backend);
-        if (frameSource_ != nullptr &&
-            state.sourceMode != GpuDrivenPassSourceMode::None) {
-            context.traditionalIndirect =
-                &frameSource_->GetPass(state.sourcePass).traditionalIndirect;
-        }
         return context;
     }
 
@@ -581,9 +494,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             state.hasSource = passSource.HasGpuSceneRange();
             state.clusterEligible = passSource.clusterEligible;
             state.sourceInstanceCount =
-                static_cast<size_t>(passSource.gpuSceneInstanceCount) +
-                static_cast<size_t>(
-                    passSource.traditionalIndirect.gpuSceneInstanceCount);
+                static_cast<size_t>(passSource.gpuSceneInstanceCount);
             state.hasTraditionalIndirectCommands =
                 passSource.traditionalIndirect.HasCommands();
             state.traditionalIndirectCommandCount =
@@ -629,13 +540,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 useGeometryPipeline
                     ? frameContext_.backendAvailability.clusterVsGeometryAuxPipelineReady
                     : frameContext_.backendAvailability.clusterVsForwardPipelineReady;
-            const GeometryBackendPolicy policy =
-                ResolveGeometryBackendPolicy(state.pass);
-            const bool policyAllowsTraditionalIndirect =
-                policy.preferred == GeometryBackendKind::GpuDrivenTraditionalVS ||
-                (!policy.forcePreferredOnly &&
-                    policy.fallback == GeometryBackendKind::GpuDrivenTraditionalVS);
-
             state.meshShaderConsumable =
                 state.hasSource &&
                 state.clusterEligible &&
@@ -653,13 +557,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.gpuDrawIndexedSignature != nullptr &&
                 clusterPipelineReady;
             state.traditionalIndirectConsumable =
-                policyAllowsTraditionalIndirect &&
-                state.hasTraditionalIndirectCommands &&
-                state.traditionalIndirectInstanceCount != 0 &&
-                frameContext_.stats.sceneResident &&
-                frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
-                frameContext_.commands.surfaceDrawIndexedSignature != nullptr &&
-                frameContext_.backendAvailability.traditionalIndirectPipelineReady;
+                false;
             state.gpuBackendReady =
                 state.meshShaderConsumable ||
                 state.clusterVsConsumable ||
@@ -720,30 +618,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.drawStream.SetRange(range);
             }
 
-            if (state.traditionalIndirectConsumable) {
-                const GpuDrivenTraditionalIndirectView& view =
-                    passSource.traditionalIndirect;
-                GpuDrivenDrawCommandRange range{};
-                range.pass = state.pass;
-                range.sourcePass = state.sourcePass;
-                range.backend = GeometryBackendKind::GpuDrivenTraditionalVS;
-                range.producer = GpuDrivenCommandProducerKind::CpuScenePlanner;
-                range.traditionalIndirect = &view;
-                range.argumentBuffer =
-                    frameContext_.commands.surfaceDrawIndexedArgs;
-                range.commandSignature =
-                    frameContext_.commands.surfaceDrawIndexedSignature;
-                range.gpuSceneBaseIndex = view.gpuSceneBaseIndex;
-                range.commandCount = view.CommandCount();
-                range.packetCount =
-                    view.executablePacketIndices != nullptr
-                        ? view.executablePacketIndices->size()
-                        : 0u;
-                range.instanceCount = view.gpuSceneInstanceCount;
-                range.consumable = true;
-                range.gpuAuthored = false;
-                frameContext_.drawStream.SetRange(range);
-            }
         }
     }
 

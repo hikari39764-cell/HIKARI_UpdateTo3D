@@ -22,6 +22,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t forwardOpaqueResidentRecordCount = 0;
         uint32_t forwardOpaqueClusterCandidateRecordCount = 0;
         uint32_t unsupportedForwardRecordCount = 0;
+        bool strictGpuDrivenMainline = false;
+        uint32_t cpuPlannerBuildSuppressedCount = 0;
+        uint32_t cpuPlannerRecordSuppressedCount = 0;
+        uint32_t blockedForwardDepthAwareRecordCount = 0;
+        uint32_t blockedForwardTransparentRecordCount = 0;
+        uint32_t blockedShadowRecordCount = 0;
 
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareGpuSceneStats{};
@@ -61,7 +67,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void RecordForwardExpectedSurface(const GpuSceneSurfaceRecord& record);
         void RecordForwardHandledSurface(const GpuSceneSurfaceRecord& record);
         void RebuildForwardFromSceneCache(const GpuSceneRegistrySyncInput& input);
-        void RebuildForwardTraditionalIndirectViews(
+        void SuppressForwardCpuPlannerViews(
             const GpuSceneRegistrySyncInput& input);
         bool TryPatchForwardDataFromSceneCache(const GpuSceneRegistrySyncInput& input);
         void RebuildForwardSceneSource();
@@ -76,15 +82,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardDepthAwareMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardTransparentGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardTransparentMaterialSources_{};
-        std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardOpaqueTraditionalGpuSceneInstances_{};
-        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardOpaqueTraditionalMaterialSources_{};
-        std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardDepthAwareTraditionalGpuSceneInstances_{};
-        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardDepthAwareTraditionalMaterialSources_{};
-        std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardTransparentTraditionalGpuSceneInstances_{};
-        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardTransparentTraditionalMaterialSources_{};
-        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> shadowTraditionalMaterialSources_{};
-        RUNTIME::SurfaceDrawPacketBuilder surfacePacketBuilder_{};
-        RUNTIME::SurfaceDrawPacketPlanner surfacePacketPlanner_{};
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
         GpuDrivenSceneSource sceneSource_{};
         GpuSceneRegistryStats stats_{};

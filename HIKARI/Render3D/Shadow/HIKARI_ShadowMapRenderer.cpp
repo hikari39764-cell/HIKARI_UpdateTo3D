@@ -30,7 +30,6 @@
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -223,21 +222,6 @@ namespace HIKARI::SHADOW {
             return RENDER3D::IsTextureResourceValid(resource) ? resource : g.fallbackTextureResource;
         }
 
-        uint64_t HashAppend(uint64_t seed, uint64_t value) {
-            constexpr uint64_t kMul = 1099511628211ull;
-            seed ^= value;
-            seed *= kMul;
-            return seed;
-        }
-
-        uint64_t HashBytes(uint64_t seed, const void* data, size_t size) {
-            const uint8_t* bytes = static_cast<const uint8_t*>(data);
-            for (size_t i = 0; i < size; ++i) {
-                seed = HashAppend(seed, static_cast<uint64_t>(bytes[i]));
-            }
-            return seed;
-        }
-
         uint32_t ResolveTextureDescriptorIndex(int textureHandle) {
             const UINT descriptorIndex =
                 RENDER3D::GetTextureResourceSrvDescriptorIndexFromBackendHandle(textureHandle);
@@ -301,77 +285,6 @@ namespace HIKARI::SHADOW {
                 0);
         }
 
-        int ResolveShadowPacketBaseColorTextureHandle(
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
-            const MaterialAsset* materialAsset) {
-
-            if (packet.materialOverride != nullptr &&
-                packet.materialOverride->HasBaseColorTexture()) {
-                return packet.materialOverride->GetBaseColorTextureHandle();
-            }
-
-            if (packet.model == nullptr) {
-                return g.fallbackTextureHandle;
-            }
-
-            const RENDER3D::TextureResourceHandle resource =
-                ResolvePrimitiveTextureResource(*packet.model, materialAsset);
-            const int handle = RENDER3D::GetTextureResourceBackendHandle(resource);
-            return handle >= 0 ? handle : g.fallbackTextureHandle;
-        }
-
-        MESHRENDERER::MaterialGpuData BuildShadowMaterialData(
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
-            const MaterialAsset* materialAsset) {
-
-            MESHRENDERER::MaterialGpuData data{};
-            data.baseColor = materialAsset != nullptr
-                ? materialAsset->baseColorFactor
-                : MATH::Vec4{ 1.0f, 1.0f, 1.0f, 1.0f };
-            data.pbrParams = {
-                materialAsset != nullptr ? materialAsset->metallicFactor : 0.0f,
-                materialAsset != nullptr ? materialAsset->roughnessFactor : 1.0f,
-                materialAsset != nullptr ? materialAsset->occlusionTexture.strength : 1.0f,
-                materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f
-            };
-            data.normalScale = materialAsset != nullptr ? materialAsset->normalTexture.scale : 1.0f;
-
-            if (packet.materialOverride != nullptr) {
-                data.baseColor = packet.materialOverride->GetBaseColor();
-                data.pbrParams.x = packet.materialOverride->GetMetallicFactor();
-                data.pbrParams.y = packet.materialOverride->GetRoughnessFactor();
-                data.pbrParams.z = packet.materialOverride->GetOcclusionStrength();
-                data.normalScale = packet.materialOverride->GetNormalScale();
-            }
-
-            if (materialAsset != nullptr && materialAsset->alphaMode == AlphaMode::Mask) {
-                data.materialFlags |= MATERIAL_FEATURES::AlphaMask;
-            }
-
-            const int baseColorHandle = ResolveShadowPacketBaseColorTextureHandle(packet, materialAsset);
-            data.hasBaseColorTexture =
-                (baseColorHandle >= 0 && baseColorHandle != g.fallbackTextureHandle) ? 1u : 0u;
-            data.baseColorTextureHandle = baseColorHandle;
-            data.normalTextureHandle = -1;
-            data.emissiveTextureHandle = -1;
-            data.metallicRoughnessTextureHandle = -1;
-            data.occlusionTextureHandle = -1;
-            data.baseColorTextureDescriptorIndex = ResolveTextureDescriptorIndex(baseColorHandle);
-            data.normalTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
-            data.emissiveTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
-            data.metallicRoughnessTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
-            data.occlusionTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
-            return data;
-        }
-
-        uint64_t BuildShadowMaterialDataKey(
-            uint64_t stableMaterialKey,
-            const MESHRENDERER::MaterialGpuData& data) {
-
-            uint64_t seed = HashAppend(1469598103934665603ull, stableMaterialKey);
-            return HashBytes(seed, &data, sizeof(data));
-        }
-
         uint32_t UploadShadowMaterialData(
             uint64_t key,
             const MESHRENDERER::MaterialGpuData& data) {
@@ -422,28 +335,6 @@ namespace HIKARI::SHADOW {
             (void)UploadShadowMaterialData(0u, defaultData);
         }
 
-        bool TryResolveCommandPacketRange(
-            const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            size_t executablePacketIndexCount,
-            size_t& outBegin,
-            size_t& outEnd) {
-
-            const size_t begin = command.firstExecutableIndex;
-            const size_t count = static_cast<size_t>(command.packetCount);
-            if (count == 0 || begin >= executablePacketIndexCount) {
-                return false;
-            }
-
-            const size_t end = begin + count;
-            if (end < begin || end > executablePacketIndexCount) {
-                return false;
-            }
-
-            outBegin = begin;
-            outEnd = end;
-            return true;
-        }
-
         const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* GetSourceShadowPass() {
             if (g.gpuDrivenSceneSource == nullptr) {
                 return nullptr;
@@ -451,17 +342,8 @@ namespace HIKARI::SHADOW {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
                 g.gpuDrivenSceneSource->GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            return pass.traditionalIndirect.HasCommands()
+            return pass.HasPrimaryGpuSceneInstances()
                 ? &pass
-                : nullptr;
-        }
-
-        const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* GetShadowTraditionalView() {
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
-                g.shadowSceneSource.GetPass(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            return pass.traditionalIndirect.HasCommands()
-                ? &pass.traditionalIndirect
                 : nullptr;
         }
 
@@ -470,7 +352,7 @@ namespace HIKARI::SHADOW {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* sourcePass =
                 GetSourceShadowPass();
             if (sourcePass == nullptr ||
-                !sourcePass->traditionalIndirect.HasGpuSceneInstances()) {
+                !sourcePass->HasPrimaryGpuSceneInstances()) {
                 return false;
             }
 
@@ -478,15 +360,11 @@ namespace HIKARI::SHADOW {
                 g.shadowSceneSource.GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
             shadowPass = *sourcePass;
-            shadowPass.instances = nullptr;
-            shadowPass.materialSources = nullptr;
             shadowPass.gpuSceneBaseIndex = 0;
-            shadowPass.gpuSceneInstanceCount = 0;
             shadowPass.preferredBackend =
-                RENDER3D::GPUDRIVEN::GpuDrivenBackendKind::TraditionalIndirect;
-            shadowPass.clusterEligible = false;
+                RENDER3D::GPUDRIVEN::GpuDrivenBackendKind::MeshShader;
             shadowPass.dirtyRanges.clear();
-            shadowPass.traditionalIndirect.gpuSceneBaseIndex = 0;
+            shadowPass.traditionalIndirect.Reset();
 
             g.shadowSceneSource.layoutVersion =
                 g.gpuDrivenSceneSource != nullptr
@@ -497,91 +375,13 @@ namespace HIKARI::SHADOW {
                     ? g.gpuDrivenSceneSource->sourceVersion
                     : 0u;
             g.shadowSceneSource.sourceInstanceCount =
-                shadowPass.traditionalIndirect.gpuSceneInstanceCount;
+                shadowPass.gpuSceneInstanceCount;
             return g.shadowSceneSource.sourceInstanceCount != 0;
         }
 
         void SyncShadowGpuDrivenBackendAvailability() {
             RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
-            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
-            availability.traditionalIndirectPipelineReady =
-                indirectStats.initialized &&
-                indirectStats.commandSignatureReady;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
-        }
-
-        bool PrepareShadowGpuSceneMaterialFrame() {
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                GetShadowTraditionalView();
-            if (view == nullptr ||
-                view->packets == nullptr ||
-                view->executablePacketIndices == nullptr ||
-                view->commands == nullptr ||
-                g.materialDataMapped == nullptr) {
-                return false;
-            }
-
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                *view->packets;
-            bool patchedAny = false;
-            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : *view->commands) {
-                if (command.packetCount == 0 ||
-                    command.firstGpuSceneInstanceIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
-                    continue;
-                }
-
-                size_t commandBegin = 0;
-                size_t commandEnd = 0;
-                if (!TryResolveCommandPacketRange(
-                    command,
-                    view->executablePacketIndices->size(),
-                    commandBegin,
-                    commandEnd)) {
-                    continue;
-                }
-
-                size_t localIndex = 0;
-                for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                    const uint32_t packetIndex = (*view->executablePacketIndices)[executableIndex];
-                    if (packetIndex >= packets.size()) {
-                        break;
-                    }
-
-                    const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
-                    if (packet.model == nullptr ||
-                        packet.meshIndex >= packet.model->meshes.size()) {
-                        break;
-                    }
-
-                    const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-                    if (packet.primitiveIndex >= meshAsset.primitives.size()) {
-                        break;
-                    }
-
-                    const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
-                    const MaterialAsset* materialAsset =
-                        GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
-                    const MESHRENDERER::MaterialGpuData materialData =
-                        BuildShadowMaterialData(packet, materialAsset);
-                    const uint32_t materialDataIndex = UploadShadowMaterialData(
-                        BuildShadowMaterialDataKey(packet.key.materialKey, materialData),
-                        materialData);
-                    const uint32_t resolvedMaterialDataIndex =
-                        materialDataIndex == MESHRENDERER::kInvalidMaterialDataIndex
-                            ? 0u
-                            : materialDataIndex;
-
-                    patchedAny =
-                        g.surfaceGpuSceneBuffer.PatchMaterialDataIndex(
-                            static_cast<size_t>(command.firstGpuSceneInstanceIndex) + localIndex,
-                            resolvedMaterialDataIndex) ||
-                        patchedAny;
-                    ++localIndex;
-                }
-            }
-
-            return patchedAny;
         }
 
         size_t UploadJointPalette(size_t objectIndex, const std::vector<MATH::Mat4>& palette) {
@@ -1193,9 +993,6 @@ namespace HIKARI::SHADOW {
 
         void UploadShadowIndirectDrawFrame() {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
-            commandFrameDesc.traditionalIndirectPassMask =
-                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             SyncShadowGpuDrivenBackendAvailability();
 
@@ -1212,17 +1009,6 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
         }
 
-        const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* GetShadowDrawCommandRange() {
-            return g.gpuDrivenLayer.GetDrawCommandStream().FindRange(
-                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow,
-                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
-        }
-
-        bool HasShadowGpuDrivenExecutionPlan() {
-            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
-                GetShadowDrawCommandRange();
-            return range != nullptr && range->HasTraditionalIndirectView();
-        }
     }
 
     void Reset() {
@@ -1257,7 +1043,6 @@ namespace HIKARI::SHADOW {
         }
         ResetShadowMaterialFrame();
         UploadShadowGpuSceneFrame();
-        PrepareShadowGpuSceneMaterialFrame();
         UploadShadowIndirectDrawFrame();
 
         const uint32_t resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
@@ -1461,83 +1246,6 @@ namespace HIKARI::SHADOW {
             ++g.debugStats.totalPrimitiveCasterDrawCount;
             ++objectIndex;
         };
-
-        if (HasShadowGpuDrivenExecutionPlan()) {
-            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
-                GetShadowDrawCommandRange();
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                range != nullptr ? range->traditionalIndirect : nullptr;
-            if (view == nullptr ||
-                view->packets == nullptr ||
-                view->executablePacketIndices == nullptr ||
-                view->commands == nullptr) {
-                view = nullptr;
-            }
-            if (view != nullptr) {
-                const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                    *view->packets;
-
-                PACKET::ShadowPacketExecutorContext packetCtx{};
-                packetCtx.cmd = cmd;
-                packetCtx.staticRootSig = g.rootSig.Get();
-                packetCtx.staticPso = g.staticPso.Get();
-                packetCtx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
-                packetCtx.fallbackBaseColorSrv =
-                    RENDER3D::GetTextureResourceSrvGpuHandle(g.fallbackTextureResource);
-                packetCtx.materialDataSrv = g.materialDataSrvGpu;
-                packetCtx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
-                packetCtx.texturePoolSrv = ResolveMaterialTexturePoolSrv();
-                packetCtx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
-                packetCtx.indirectDrawBuffer = &g.surfaceIndirectDrawBuffer;
-                packetCtx.resolveStaticMesh = &GetOrCreatePrimitiveMesh;
-
-                if (PACKET::PrepareShadowPacketIndirectDrawBindings(
-                    packetCtx,
-                    packets.data(),
-                    packets.size(),
-                    view->executablePacketIndices->data(),
-                    view->executablePacketIndices->size(),
-                    *view->commands)) {
-                    g.gpuDrivenLayer.FlushTraditionalIndirectCommandFrame(cmd);
-                    const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                        g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
-                    g.debugStats.shadowIndirectDrawBindingPatchCount =
-                        indirectStats.drawBindingPatchCount;
-                }
-
-                const PACKET::ShadowPacketDrawResult packetResult =
-                    PACKET::DrawShadowPacketCommands(
-                        packetCtx,
-                        packets.data(),
-                        packets.size(),
-                        view->executablePacketIndices->data(),
-                        view->executablePacketIndices->size(),
-                        *view->commands,
-                        objectIndex);
-
-                g.debugStats.shadowPacketCasterDrawCount += packetResult.submittedPacketCount;
-                g.debugStats.shadowPacketSkippedCount += packetResult.skippedPacketCount;
-                g.debugStats.shadowPacketCommandCount += packetResult.commandCount;
-                g.debugStats.shadowPacketSingleCommandCount += packetResult.singlePacketCommandCount;
-                g.debugStats.shadowPacketMaxCommandPacketCount =
-                    (std::max)(g.debugStats.shadowPacketMaxCommandPacketCount, packetResult.maxCommandPacketCount);
-                g.debugStats.shadowPacketDrawCallCount += packetResult.drawCallCount;
-                g.debugStats.shadowPacketInstancedDrawCount += packetResult.instancedDrawCount;
-                g.debugStats.shadowPacketInstancedCasterCount += packetResult.instancedPacketCount;
-                g.debugStats.shadowPacketMaxInstanceCount =
-                    (std::max)(g.debugStats.shadowPacketMaxInstanceCount, packetResult.maxInstanceCount);
-                g.debugStats.shadowIndirectExecutedCommandCount += packetResult.indirectDrawCount;
-                g.debugStats.shadowIndirectExecutedPacketCount += packetResult.indirectPacketCount;
-                g.debugStats.shadowIndirectBatchSubmitCount += packetResult.indirectBatchCount;
-                g.debugStats.shadowIndirectSavedSubmitCount += packetResult.indirectSavedSubmitCount;
-                g.debugStats.shadowIndirectMaxBatchCommandCount =
-                    (std::max)(g.debugStats.shadowIndirectMaxBatchCommandCount, packetResult.indirectMaxBatchCommandCount);
-                g.debugStats.shadowIndirectFallbackCommandCount += packetResult.indirectFallbackCommandCount;
-                g.debugStats.staticCasterDrawCount += packetResult.submittedPacketCount;
-                g.debugStats.totalPrimitiveCasterDrawCount += packetResult.submittedPacketCount;
-                g.debugStats.submittedCasterCount += packetResult.submittedPacketCount;
-            }
-        }
 
         for (const DrawItem& item : g.staticItems) {
             if (item.asset == nullptr) {

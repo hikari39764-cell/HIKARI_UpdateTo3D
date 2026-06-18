@@ -59,6 +59,12 @@ namespace HIKARI::MESHRENDERER {
             return g.gpuDrivenSceneSource.GetPass(passKind);
         }
 
+        bool HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
+
+            return GetSceneSourcePass(passKind).HasGpuSceneRange();
+        }
+
         RENDER3D::GPUDRIVEN::GpuDrivenPassSource& GetMutableSceneSourcePass(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
 
@@ -231,7 +237,7 @@ namespace HIKARI::MESHRENDERER {
                 GetStaticRootSignature(g.pipelines),
                 ROOT_PARAM::SurfaceGpuSceneControl,
                 4u)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. Direct draw path will be used.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. CPU-authored indirect draws stay disabled.");
             }
             if (!g.clusterGpuCullingPass.Initialize(
                 device,
@@ -243,7 +249,7 @@ namespace HIKARI::MESHRENDERER {
             if (!g.clusterDrawExecutor.Initialize(
                 device,
                 GetStaticRootSignature(g.pipelines))) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster draw executor initialization failed. Cluster geometry will keep using SurfacePacket fallback.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster draw executor initialization failed. Cluster VS backend will be unavailable.");
             }
             if (!g.meshletRenderBackend.Initialize(
                 device,
@@ -260,7 +266,7 @@ namespace HIKARI::MESHRENDERER {
                 GetStaticRootSignature(g.pipelines),
                 ROOT_PARAM::SurfaceGpuSceneControl,
                 4u)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] GPU-driven layer initialization failed. Legacy path remains active.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] GPU-driven layer initialization failed. GPU-driven draws will be unavailable.");
             }
             UpdateMeshletBackendDebugStats();
 
@@ -412,56 +418,9 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenFrame.CountClusterEligibleInstances();
         }
 
-        void PrepareTraditionalIndirectDrawBindings(
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view,
-            bool depthAwarePhase) {
-
-            if (!view.HasCommands() ||
-                view.packets == nullptr ||
-                view.executablePacketIndices == nullptr ||
-                view.commands == nullptr) {
-                return;
-            }
-
-            MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(
-                depthAwarePhase,
-                MeshDrawPassKind::Forward,
-                {});
-            drawCtx.binding.cache = &bindingCache;
-            drawCtx.surfaceGpuSceneBaseOffset = view.gpuSceneBaseIndex;
-            PrepareSurfacePacketIndirectDrawBindings(
-                drawCtx,
-                view.packets->data(),
-                view.packets->size(),
-                view.executablePacketIndices->data(),
-                view.executablePacketIndices->size(),
-                view.commands->data(),
-                view.commands->size());
-        }
-
-        void BuildTraditionalIndirectCommandFrame() {
-            // GPU-driven 主線では draw args を GPU 側の work frame から生成する。
-            // 旧 SurfaceDrawCommand の CPU upload は legacy handoff 側だけに閉じ込める。
+        void BuildStrictGpuDrivenCommandFrame() {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
-            commandFrameDesc.traditionalIndirectPassMask =
-                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware) |
-                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            PrepareTraditionalIndirectDrawBindings(
-                depthAware.traditionalIndirect,
-                true);
-            PrepareTraditionalIndirectDrawBindings(
-                transparent.traditionalIndirect,
-                false);
-            g.gpuDrivenLayer.FlushTraditionalIndirectCommandFrame(
-                SERVICES::gCtx.cmdList);
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
@@ -521,7 +480,7 @@ namespace HIKARI::MESHRENDERER {
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
             UpdateGpuDrivenWorkOwnershipDebugStats();
-            BuildTraditionalIndirectCommandFrame();
+            BuildStrictGpuDrivenCommandFrame();
         }
 
         void BuildGpuDrivenWorkFrame() {
@@ -867,7 +826,6 @@ namespace HIKARI::MESHRENDERER {
             bool gpuBackendExecuted = false;
             RENDER3D::GPUDRIVEN::GeometryBackendKind executedGpuBackend =
                 RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect;
-            bool runCpuDirectTail = true;
         };
 
         bool ExecuteClusterDrawFrame(
@@ -943,111 +901,6 @@ namespace HIKARI::MESHRENDERER {
             return executed;
         }
 
-        bool ExecuteTraditionalIndirectDrawFrame(
-            const MeshPassResources& passResources,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
-            MeshDrawPassKind passKind) {
-
-            SyncGpuDrivenBackendAvailability();
-            if (!g.gpuDrivenLayer.IsBackendConsumable(
-                gpuPass,
-                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS)) {
-                return false;
-            }
-
-            const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
-                g.gpuDrivenLayer.BuildGeometryBackendContext(
-                    SERVICES::gCtx.cmdList,
-                    gpuPass,
-                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
-            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
-                backendContext.drawCommandRange;
-            if (range == nullptr || !range->HasTraditionalIndirectView()) {
-                return false;
-            }
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                range->traditionalIndirect;
-            if (view == nullptr ||
-                !view->HasCommands() ||
-                view->packets == nullptr ||
-                view->executablePacketIndices == nullptr ||
-                view->commands == nullptr) {
-                return false;
-            }
-
-            const bool depthAwarePhase =
-                gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
-            MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(
-                depthAwarePhase,
-                passKind,
-                passResources);
-            drawCtx.binding.cache = &bindingCache;
-            drawCtx.surfaceGpuSceneBaseOffset = view->gpuSceneBaseIndex;
-            BindSurfacePacketFrameResources(drawCtx);
-
-            bool submitted = false;
-            size_t commandIndex = 0;
-            while (commandIndex < view->commands->size()) {
-                const SurfacePacketCommandDrawResult result =
-                    DrawSurfacePacketIndirectCommandRange(
-                        drawCtx,
-                        view->packets->data(),
-                        view->packets->size(),
-                        view->executablePacketIndices->data(),
-                        view->executablePacketIndices->size(),
-                        view->commands->data(),
-                        view->commands->size(),
-                        commandIndex);
-                submitted = submitted || result.drawCallCount != 0;
-            }
-
-            UpdateSurfaceIndirectDrawStats();
-            UpdateGpuDrivenWorkReadyDebugStats();
-            return submitted;
-        }
-
-        MeshLegacyFallbackReason ResolveLegacyFallbackReason(
-            RENDER3D::RenderPhase phase,
-            MeshDrawPassKind passKind) {
-
-            if (passKind == MeshDrawPassKind::GeometryAux) {
-                return MeshLegacyFallbackReason::GeometryAuxCpuDirectTail;
-            }
-            switch (phase) {
-            case RENDER3D::RenderPhase::DepthAware:
-                return MeshLegacyFallbackReason::DepthAwareCpuDirectTail;
-            case RENDER3D::RenderPhase::Transparent:
-                return MeshLegacyFallbackReason::TransparentCpuDirectTail;
-            case RENDER3D::RenderPhase::Opaque:
-            default:
-                return MeshLegacyFallbackReason::OpaqueCpuDirectTail;
-            }
-        }
-
-        void RecordLegacyFallback(
-            MeshLegacyFallbackReason reason,
-            size_t itemCount) {
-
-            ++g.debugStats.legacyFallbackInvocationCount;
-            g.debugStats.legacyFallbackItemCount += itemCount;
-            switch (reason) {
-            case MeshLegacyFallbackReason::DepthAwareCpuDirectTail:
-                g.debugStats.legacyFallbackDepthAwareItemCount += itemCount;
-                break;
-            case MeshLegacyFallbackReason::TransparentCpuDirectTail:
-                g.debugStats.legacyFallbackTransparentItemCount += itemCount;
-                break;
-            case MeshLegacyFallbackReason::GeometryAuxCpuDirectTail:
-                g.debugStats.legacyFallbackGeometryAuxItemCount += itemCount;
-                break;
-            case MeshLegacyFallbackReason::OpaqueCpuDirectTail:
-            default:
-                g.debugStats.legacyFallbackOpaqueItemCount += itemCount;
-                break;
-            }
-        }
-
         bool ExecuteGeometryBackend(
             RENDER3D::GPUDRIVEN::GeometryBackendKind backend,
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
@@ -1070,10 +923,7 @@ namespace HIKARI::MESHRENDERER {
                     passKind,
                     clusterPipelineKind);
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
-                return ExecuteTraditionalIndirectDrawFrame(
-                    passResources,
-                    gpuPass,
-                    passKind);
+                return false;
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect:
             default:
                 return false;
@@ -1091,8 +941,6 @@ namespace HIKARI::MESHRENDERER {
             SyncGpuDrivenBackendAvailability();
             const RENDER3D::GPUDRIVEN::GeometryBackendExecutionPlan plan =
                 g.gpuDrivenLayer.GetPassExecutionPlan(pass);
-            result.runCpuDirectTail = plan.runCpuDirectTail;
-
             for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
                 const RENDER3D::GPUDRIVEN::GeometryBackendKind backend =
                     plan.gpuBackends[i];
@@ -1202,80 +1050,13 @@ namespace HIKARI::MESHRENDERER {
             return g.gpuDrivenSceneSource.HasAnyGpuSceneRanges();
         }
 
-        bool RenderGpuDrivenFallbackCommands(
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind sourcePassKind,
-            MeshDrawPassKind passKind,
-            size_t& objectIndex,
-            const MeshPassResources& passResources) {
-
-            (void)sourcePassKind;
-            (void)passKind;
-            (void)objectIndex;
-            (void)passResources;
-            // GPU-driven 主線では旧 packet fallback executor を走らせない。
-            // 非対応 surface は RenderSubmissionSystem の handoff から従来 backend に渡す。
-            return true;
-        }
-
-        bool RenderMeshPhase(
-            const RENDER3D::CpuRenderQueue& queue,
-            RENDER3D::RenderPhase phase,
-            MeshDrawPassKind passKind,
-            size_t& objectIndex,
-            const MeshPassResources& passResources) {
-            const bool depthAwarePhase = phase == RENDER3D::RenderPhase::DepthAware;
-            const bool transparentPhase = phase == RENDER3D::RenderPhase::Transparent;
-            const char* eventName = passKind == MeshDrawPassKind::GeometryAux
-                ? "MeshRenderer.GeometryAux"
-                : (depthAwarePhase ? "MeshRenderer.DepthAware" :
-                    (transparentPhase ? "MeshRenderer.Transparent" : "MeshRenderer.Opaque"));
-            GFX::PIX::ScopedGpuEvent pixPhase(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, eventName);
-            MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
-            drawCtx.binding.cache = &bindingCache;
-
-            for (const DrawItem* item : queue.GetPhase(phase)) {
-                if (item == nullptr) {
-                    continue;
-                }
-                if (!DrawMeshItem(drawCtx, *item, objectIndex)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        bool RenderCpuDirectTail(
-            const RENDER3D::CpuRenderQueue& queue,
-            RENDER3D::RenderPhase phase,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind sourcePassKind,
-            MeshDrawPassKind passKind,
-            size_t& objectIndex,
-            const MeshPassResources& passResources) {
-
-            RecordLegacyFallback(
-                ResolveLegacyFallbackReason(phase, passKind),
-                queue.GetPhase(phase).size());
-            const bool packetOk = RenderGpuDrivenFallbackCommands(
-                sourcePassKind,
-                passKind,
-                objectIndex,
-                passResources);
-            return packetOk && RenderMeshPhase(
-                queue,
-                phase,
-                passKind,
-                objectIndex,
-                passResources);
-        }
-
         bool RenderGeometryAuxPassInternal(
             const RENDER3D::CpuRenderQueue& queue,
             RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
             D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
-            if (!queue.HasPhase(RENDER3D::RenderPhase::Opaque) &&
-                !HasGpuDrivenSceneSource()) {
+            (void)queue;
+            if (!HasGpuDrivenPassSource(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
                 return false;
             }
 
@@ -1291,7 +1072,6 @@ namespace HIKARI::MESHRENDERER {
 
             GFX::PIX::ScopedGpuEvent pixGeometry(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "ScreenSpaceGeometryAux");
             geometryAux.BeginNormalRoughnessPass(SERVICES::gCtx.cmdList, sceneDsv);
-            size_t geometryObjectIndex = 0;
             MeshPassResources passResources{};
             const GeometryBackendExecutionResult backendResult =
                 ExecuteGeometryBackendPlan(
@@ -1300,17 +1080,8 @@ namespace HIKARI::MESHRENDERER {
                     MeshDrawPassKind::GeometryAux,
                     RENDER3D::MESHLET::MeshletPipelineKind::GeometryAux,
                     RENDER3D::CLUSTER::ClusterDrawPipelineKind::GeometryAux);
-            const bool cpuTailOk = backendResult.runCpuDirectTail
-                ? RenderCpuDirectTail(
-                    queue,
-                    RENDER3D::RenderPhase::Opaque,
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
-                    MeshDrawPassKind::GeometryAux,
-                    geometryObjectIndex,
-                    passResources)
-                : backendResult.gpuBackendExecuted;
             geometryAux.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
-            return cpuTailOk;
+            return backendResult.gpuBackendExecuted;
         }
 
         void SubmitStaticDrawItem(
@@ -1555,6 +1326,11 @@ namespace HIKARI::MESHRENDERER {
     bool RenderForwardOpaquePass(
         const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
+        (void)queue;
+        if (!HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
+            return true;
+        }
         const GeometryBackendExecutionResult backendResult =
             ExecuteGeometryBackendPlan(
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
@@ -1562,23 +1338,17 @@ namespace HIKARI::MESHRENDERER {
                 MeshDrawPassKind::Forward,
                 RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
                 RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
-        if (!backendResult.runCpuDirectTail) {
-            return backendResult.gpuBackendExecuted;
-        }
-        // SurfacePacket は queue を経由せず、先に opaque plan を直接実行する。
-        return RenderCpuDirectTail(
-            queue,
-            RENDER3D::RenderPhase::Opaque,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
-            MeshDrawPassKind::Forward,
-            g.frameObjectIndex,
-            passResources);
+        return backendResult.gpuBackendExecuted;
     }
 
     bool RenderForwardTransparentPass(
         const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
-        // Transparent は独立 plan として、opaque/depth-aware の後に実行する。
+        (void)queue;
+        if (!HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent)) {
+            return true;
+        }
         const GeometryBackendExecutionResult backendResult =
             ExecuteGeometryBackendPlan(
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
@@ -1586,25 +1356,23 @@ namespace HIKARI::MESHRENDERER {
                 MeshDrawPassKind::Forward,
                 RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
                 RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
-        if (!backendResult.runCpuDirectTail) {
-            return backendResult.gpuBackendExecuted;
-        }
-        return RenderCpuDirectTail(
-            queue,
-            RENDER3D::RenderPhase::Transparent,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
-            MeshDrawPassKind::Forward,
-            g.frameObjectIndex,
-            passResources);
+        return backendResult.gpuBackendExecuted;
     }
 
     bool HasDepthAwarePassWork(const RENDER3D::CpuRenderQueue& queue) {
-        return queue.HasPhase(RENDER3D::RenderPhase::DepthAware);
+        (void)queue;
+        return HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
     }
 
     bool RenderDepthAwarePass(
         const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
+        (void)queue;
+        if (!HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware)) {
+            return true;
+        }
         const GeometryBackendExecutionResult backendResult =
             ExecuteGeometryBackendPlan(
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
@@ -1612,16 +1380,7 @@ namespace HIKARI::MESHRENDERER {
                 MeshDrawPassKind::Forward,
                 RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
                 RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
-        if (!backendResult.runCpuDirectTail) {
-            return backendResult.gpuBackendExecuted;
-        }
-        return RenderCpuDirectTail(
-            queue,
-            RENDER3D::RenderPhase::DepthAware,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
-            MeshDrawPassKind::Forward,
-            g.frameObjectIndex,
-            passResources);
+        return backendResult.gpuBackendExecuted;
     }
 
     void SetAmbientOcclusionRuntimeEnabled(bool enabled) {

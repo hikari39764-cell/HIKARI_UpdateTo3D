@@ -22,12 +22,6 @@
 #include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
-namespace HIKARI::RENDER3D::RUNTIME {
-    class SurfaceDrawPacketBuilder;
-    struct SurfaceDrawCommand;
-    struct SurfaceGpuSceneInstance;
-}
-
 namespace HIKARI::MESHRENDERER {
 
     struct MeshRendererState {

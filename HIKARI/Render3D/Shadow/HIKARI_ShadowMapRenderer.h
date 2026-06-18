@@ -11,12 +11,6 @@
 #include "Render3D/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
-namespace HIKARI::RENDER3D::RUNTIME {
-    class SurfaceDrawPacketBuilder;
-    struct SurfaceDrawCommand;
-    struct SurfaceGpuSceneInstance;
-}
-
 namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenSceneSource;
 }

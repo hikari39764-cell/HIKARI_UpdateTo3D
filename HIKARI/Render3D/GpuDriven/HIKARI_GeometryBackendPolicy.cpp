@@ -35,29 +35,29 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         case GpuDrivenPassKind::GeometryAux:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
             policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = true;
+            policy.allowCpuDirectFallback = false;
             return policy;
         case GpuDrivenPassKind::Shadow:
-            policy.preferred = GeometryBackendKind::GpuDrivenTraditionalVS;
-            policy.fallback = GeometryBackendKind::CpuDirect;
-            policy.allowCpuDirectFallback = true;
+            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
+            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.allowCpuDirectFallback = false;
             return policy;
         case GpuDrivenPassKind::ReflectionCapture:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
             policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = true;
+            policy.allowCpuDirectFallback = false;
             return policy;
         case GpuDrivenPassKind::DepthAware:
         case GpuDrivenPassKind::Transparent:
-            policy.preferred = GeometryBackendKind::GpuDrivenTraditionalVS;
-            policy.fallback = GeometryBackendKind::CpuDirect;
-            policy.allowCpuDirectFallback = true;
+            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
+            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.allowCpuDirectFallback = false;
             return policy;
         case GpuDrivenPassKind::Debug:
         default:
-            policy.preferred = GeometryBackendKind::CpuDirect;
-            policy.fallback = GeometryBackendKind::CpuDirect;
-            policy.allowCpuDirectFallback = true;
+            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
+            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.allowCpuDirectFallback = false;
             return policy;
         }
     }
@@ -66,10 +66,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GeometryBackendPolicy& policy) {
 
         GeometryBackendExecutionPlan plan{};
-        plan.runCpuDirectTail =
-            policy.allowCpuDirectFallback &&
-            !policy.forcePreferredOnly;
-
         plan.AddGpuBackend(policy.preferred);
         if (!policy.forcePreferredOnly) {
             plan.AddGpuBackend(policy.fallback);

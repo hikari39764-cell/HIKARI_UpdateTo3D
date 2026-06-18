@@ -14,11 +14,6 @@
 
 namespace HIKARI::RENDER3D {
     class CpuRenderQueue;
-    namespace RUNTIME {
-        class SurfaceDrawPacketBuilder;
-        struct SurfaceDrawCommand;
-        struct SurfaceGpuSceneInstance;
-    }
     namespace GPUDRIVEN {
         struct GpuDrivenSceneSource;
     }

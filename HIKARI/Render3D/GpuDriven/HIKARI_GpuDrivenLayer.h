@@ -43,17 +43,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     };
 
     struct GpuDrivenCommandFrameDesc {
-        uint32_t traditionalIndirectPassMask = 0;
         bool resetTraditionalIndirectBuffer = true;
         bool publishCommandBuffers = true;
     };
 
     struct GpuDrivenCommandFrameStats {
-        uint32_t traditionalIndirectPassMask = 0;
-        size_t traditionalIndirectPassCount = 0;
-        size_t traditionalIndirectSourceCommandCount = 0;
         bool commandFramePublished = false;
-        bool traditionalIndirectFlushedToGpu = false;
         SurfaceIndirectDrawBufferStats surfaceIndirectStats{};
     };
 
@@ -88,8 +83,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const GpuDrivenBackendAvailability& availability);
         const GpuDrivenCommandFrameStats& BuildCommandFrame(
             const GpuDrivenCommandFrameDesc& desc);
-        bool FlushTraditionalIndirectCommandFrame(
-            ID3D12GraphicsCommandList* commandList);
         void BuildCommandBuffers();
 
         bool IsBackendConsumable(
