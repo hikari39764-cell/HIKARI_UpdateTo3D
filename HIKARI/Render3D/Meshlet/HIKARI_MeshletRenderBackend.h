@@ -14,6 +14,9 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     enum class MeshletPipelineKind : uint32_t {
         ForwardOpaque,
+        ForwardDepthAware,
+        ForwardTransparent,
+        Shadow,
         GeometryAux,
     };
 
@@ -26,6 +29,9 @@ namespace HIKARI::RENDER3D::MESHLET {
         bool dispatchArgumentBufferReady = false;
         bool dispatchCommandSignatureReady = false;
         bool forwardPipelineReady = false;
+        bool depthAwarePipelineReady = false;
+        bool transparentPipelineReady = false;
+        bool shadowPipelineReady = false;
         bool geometryAuxPipelineReady = false;
         bool pipelineReady = false;
         uint32_t meshShaderTier = 0;
@@ -67,6 +73,9 @@ namespace HIKARI::RENDER3D::MESHLET {
 
     private:
         PipelineBucketArray forwardPipelineStates_{};
+        PipelineBucketArray depthAwarePipelineStates_{};
+        PipelineBucketArray transparentPipelineStates_{};
+        PipelineBucketArray shadowPipelineStates_{};
         PipelineBucketArray geometryAuxPipelineStates_{};
         MeshletRenderBackendStats stats_{};
     };

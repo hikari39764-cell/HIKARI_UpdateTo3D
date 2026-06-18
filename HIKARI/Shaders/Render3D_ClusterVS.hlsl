@@ -18,6 +18,7 @@ cbuffer CameraCB : register(b0)
 
 #include "Include/HIKARI_MeshObjectData.hlsli"
 #include "Include/HIKARI_ClusterGpuData.hlsli"
+#include "Include/HIKARI_GpuDrivenWaterDeform.hlsli"
 
 static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = 3985u;
 static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = 111u;
@@ -107,10 +108,18 @@ VSOutput main(VSInput input)
     HikariClusterVertex vertex =
         HikariLoadClusterVertex(geometry, header, packedIndex);
 
-    float4 worldPos = mul(instance.clusterWorld, float4(vertex.position.xyz, 1.0f));
+    float3 localPosition = vertex.position.xyz;
+    float3 localNormal = vertex.normal.xyz;
+    HikariApplyGpuDrivenWaterDeform(
+        instance,
+        gTimeParams.x,
+        localPosition,
+        localNormal);
+
+    float4 worldPos = mul(instance.clusterWorld, float4(localPosition, 1.0f));
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
-    output.normalWS = normalize(mul((float3x3)instance.clusterNormalMatrix, vertex.normal.xyz));
+    output.normalWS = normalize(mul((float3x3)instance.clusterNormalMatrix, localNormal));
     output.tangentWS = float4(
         normalize(mul((float3x3)instance.clusterNormalMatrix, vertex.tangent.xyz)),
         vertex.tangent.w);

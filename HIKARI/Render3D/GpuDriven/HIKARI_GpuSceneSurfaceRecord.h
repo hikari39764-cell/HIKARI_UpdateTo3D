@@ -46,6 +46,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool resourceKeyValid = false;
         bool objectDataCompatible = false;
         bool clusterMainlineEligible = false;
+        bool materialFx = false;
+        bool waterMaterialFx = false;
         bool depthAware = false;
         bool alphaMasked = false;
         bool transparent = false;
@@ -113,6 +115,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuSceneSurfaceRecord& record);
 
     bool IsGpuSceneForwardOpaqueResidentRecord(
+        const GpuSceneSurfaceRecord& record);
+
+    bool IsGpuSceneForwardDepthAwareResidentRecord(
+        const GpuSceneSurfaceRecord& record);
+
+    bool IsGpuSceneForwardTransparentResidentRecord(
+        const GpuSceneSurfaceRecord& record);
+
+    bool IsGpuSceneShadowResidentRecord(
         const GpuSceneSurfaceRecord& record);
 
     uint64_t BuildGpuSceneSurfaceFilterKey(

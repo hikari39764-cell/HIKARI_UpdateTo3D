@@ -384,6 +384,7 @@ namespace HIKARI::MESHRENDERER {
 
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            prepareMaterialSources(shadow.gpuSceneBaseIndex, shadow.materialSources);
             prepareMaterialSources(
                 shadow.traditionalIndirect.gpuSceneBaseIndex,
                 shadow.traditionalIndirect.materialSources);
@@ -718,11 +719,15 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenLayer.GetFrameContext().commands;
 
             availability.meshShaderForwardPipelineReady =
-                meshletStats.forwardPipelineReady;
+                meshletStats.forwardPipelineReady &&
+                meshletStats.depthAwarePipelineReady &&
+                meshletStats.transparentPipelineReady;
             availability.meshShaderGeometryAuxPipelineReady =
                 meshletStats.geometryAuxPipelineReady;
             availability.clusterVsForwardPipelineReady =
-                clusterStats.forwardPipelineReady;
+                clusterStats.forwardPipelineReady &&
+                clusterStats.depthAwarePipelineReady &&
+                clusterStats.transparentPipelineReady;
             availability.clusterVsGeometryAuxPipelineReady =
                 clusterStats.geometryAuxPipelineReady;
             availability.traditionalIndirectPipelineReady =
@@ -838,7 +843,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(false, passKind, passResources);
+            const bool depthAwarePhase =
+                gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
+            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
             BindSurfacePacketFrameResources(drawCtx);
 
@@ -882,7 +889,9 @@ namespace HIKARI::MESHRENDERER {
             }
 
             MeshBindingStateCache bindingCache{};
-            MeshDrawContext drawCtx = BuildDrawContext(false, passKind, passResources);
+            const bool depthAwarePhase =
+                gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
+            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
             BindSurfacePacketFrameResources(drawCtx);
             BindMeshletVisibleRanges(
@@ -1354,8 +1363,8 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
                 passResources,
                 MeshDrawPassKind::Forward,
-                RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
-                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
+                RENDER3D::MESHLET::MeshletPipelineKind::ForwardTransparent,
+                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardTransparent);
         return backendResult.gpuBackendExecuted;
     }
 
@@ -1378,8 +1387,8 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
                 passResources,
                 MeshDrawPassKind::Forward,
-                RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
-                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
+                RENDER3D::MESHLET::MeshletPipelineKind::ForwardDepthAware,
+                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardDepthAware);
         return backendResult.gpuBackendExecuted;
     }
 

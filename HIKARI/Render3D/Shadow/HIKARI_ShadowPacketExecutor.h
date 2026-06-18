@@ -36,7 +36,10 @@ namespace HIKARI::SHADOW::PACKET {
     constexpr UINT kShadowStaticRootParamSurfaceGpuSceneControl = 5;
     constexpr UINT kShadowStaticRootParamTexturePool = 6;
     constexpr UINT kShadowStaticRootParamMaterialIndex = 7;
-    constexpr UINT kShadowSkinnedRootParamJointPalette = 8;
+    constexpr UINT kShadowStaticRootParamObjectData = 8;
+    constexpr UINT kShadowStaticRootParamClusterGeometryPool = 9;
+    constexpr UINT kShadowStaticRootParamMeshletVisibleRanges = 10;
+    constexpr UINT kShadowSkinnedRootParamJointPalette = 11;
 
     using ResolveShadowPacketMeshFn = Mesh* (*)(const MeshPrimitive& primitive);
 

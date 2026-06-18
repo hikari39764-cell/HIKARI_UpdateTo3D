@@ -20,15 +20,21 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
+#include "Render3D/Cluster/HIKARI_ClusterDrawExecutor.h"
+#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/GpuDriven/HIKARI_ClusterGpuDrivenProducerAdapter.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
+#include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -110,7 +116,12 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
             RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+            RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
             RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
+            RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
+            RENDER3D::GPUDRIVEN::ClusterGpuDrivenProducerAdapter clusterGpuDrivenProducer{};
+            RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
+            RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
@@ -246,6 +257,69 @@ namespace HIKARI::SHADOW {
                 GFX::DESCRIPTOR::kUserSrvBegin);
         }
 
+        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
+            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
+            if (device == nullptr || heap == nullptr) {
+                return handle;
+            }
+
+            const UINT descriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            return GFX::DESCRIPTOR::GpuAt(
+                heap,
+                descriptorSize,
+                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
+        }
+
+        void BindShadowGpuDrivenFrameResources(
+            ID3D12GraphicsCommandList* cmd,
+            ID3D12Resource* meshletVisibleRangeBuffer) {
+
+            if (cmd == nullptr || g.rootSig == nullptr) {
+                return;
+            }
+
+            cmd->SetGraphicsRootSignature(g.rootSig.Get());
+            cmd->SetGraphicsRootConstantBufferView(
+                PACKET::kShadowStaticRootParamCamera,
+                g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0u);
+            if (g.materialDataSrvGpu.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(
+                    PACKET::kShadowStaticRootParamMaterialData,
+                    g.materialDataSrvGpu);
+            }
+            if (g.surfaceGpuSceneBuffer.GetSrv().ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(
+                    PACKET::kShadowStaticRootParamSurfaceGpuScene,
+                    g.surfaceGpuSceneBuffer.GetSrv());
+            }
+            const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv =
+                ResolveMaterialTexturePoolSrv();
+            if (texturePoolSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(
+                    PACKET::kShadowStaticRootParamTexturePool,
+                    texturePoolSrv);
+            }
+            const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv =
+                ResolveClusterGeometryPoolSrv();
+            if (clusterPoolSrv.ptr != 0) {
+                cmd->SetGraphicsRootDescriptorTable(
+                    PACKET::kShadowStaticRootParamClusterGeometryPool,
+                    clusterPoolSrv);
+            }
+            if (meshletVisibleRangeBuffer != nullptr) {
+                cmd->SetGraphicsRootShaderResourceView(
+                    PACKET::kShadowStaticRootParamMeshletVisibleRanges,
+                    meshletVisibleRangeBuffer->GetGPUVirtualAddress());
+            }
+            cmd->SetGraphicsRoot32BitConstant(
+                PACKET::kShadowStaticRootParamMaterialIndex,
+                0u,
+                0);
+        }
+
         void BindLegacyShadowSurfaceDataMode(ID3D12GraphicsCommandList* cmd) {
             if (cmd == nullptr) {
                 return;
@@ -311,6 +385,29 @@ namespace HIKARI::SHADOW {
             return index;
         }
 
+        uint64_t HashAppend(uint64_t seed, uint64_t value) {
+            constexpr uint64_t kMul = 1099511628211ull;
+            seed ^= value;
+            seed *= kMul;
+            return seed;
+        }
+
+        uint64_t HashBytes(uint64_t seed, const void* data, size_t size) {
+            const uint8_t* bytes = static_cast<const uint8_t*>(data);
+            for (size_t i = 0; i < size; ++i) {
+                seed = HashAppend(seed, static_cast<uint64_t>(bytes[i]));
+            }
+            return seed;
+        }
+
+        uint64_t BuildShadowMaterialDataKey(
+            uint64_t stableMaterialKey,
+            const MESHRENDERER::MaterialGpuData& data) {
+
+            uint64_t seed = HashAppend(1469598103934665603ull, stableMaterialKey);
+            return HashBytes(seed, &data, sizeof(data));
+        }
+
         void ResetShadowMaterialFrame() {
             g.materialDataFrameTable.Clear();
             if (g.materialDataMapped == nullptr) {
@@ -333,6 +430,116 @@ namespace HIKARI::SHADOW {
             defaultData.metallicRoughnessTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
             defaultData.occlusionTextureDescriptorIndex = MESHRENDERER::kInvalidTextureDescriptorIndex;
             (void)UploadShadowMaterialData(0u, defaultData);
+        }
+
+        MESHRENDERER::MaterialGpuData BuildShadowMaterialGpuData(
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source) {
+
+            const MaterialAsset* materialAsset =
+                source.model != nullptr
+                    ? GetPrimitiveMaterial(*source.model, source.materialIndex)
+                    : nullptr;
+            const RENDER3D::TextureResourceHandle baseColorTexture =
+                source.model != nullptr
+                    ? ResolvePrimitiveTextureResource(*source.model, materialAsset)
+                    : g.fallbackTextureResource;
+
+            MESHRENDERER::MaterialGpuData data{};
+            data.baseColor = materialAsset != nullptr
+                ? materialAsset->baseColorFactor
+                : MATH::Vec4{ 1.0f, 1.0f, 1.0f, 1.0f };
+            data.emissiveFactor = {
+                materialAsset != nullptr ? materialAsset->emissiveFactor.x : 0.0f,
+                materialAsset != nullptr ? materialAsset->emissiveFactor.y : 0.0f,
+                materialAsset != nullptr ? materialAsset->emissiveFactor.z : 0.0f,
+                materialAsset != nullptr ? materialAsset->emissiveStrength : 1.0f
+            };
+            data.pbrParams = {
+                materialAsset != nullptr ? materialAsset->metallicFactor : 0.0f,
+                materialAsset != nullptr ? materialAsset->roughnessFactor : 1.0f,
+                materialAsset != nullptr ? materialAsset->occlusionTexture.strength : 1.0f,
+                materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f
+            };
+            data.materialFlags =
+                materialAsset != nullptr ? materialAsset->featureBits : 0u;
+            if (materialAsset != nullptr && materialAsset->alphaMode == AlphaMode::Mask) {
+                data.materialFlags |= MATERIAL_FEATURES::AlphaMask;
+            }
+
+            int baseColorHandle =
+                RENDER3D::GetTextureResourceBackendHandle(baseColorTexture);
+            if (source.materialOverride != nullptr) {
+                data.baseColor = source.materialOverride->GetBaseColor();
+                data.materialFlags = source.materialOverride->GetFeatureBits();
+                if (source.materialOverride->HasBaseColorTexture()) {
+                    baseColorHandle =
+                        source.materialOverride->GetBaseColorTextureHandle();
+                }
+            }
+            if (baseColorHandle < 0) {
+                baseColorHandle = g.fallbackTextureHandle;
+            }
+
+            data.hasBaseColorTexture =
+                baseColorHandle >= 0 && baseColorHandle != g.fallbackTextureHandle ? 1u : 0u;
+            data.hasNormalTexture = 0u;
+            data.hasEmissiveTexture = 0u;
+            data.hasMetallicRoughnessTexture = 0u;
+            data.hasOcclusionTexture = 0u;
+            data.normalScale = 1.0f;
+            data.baseColorTextureHandle = baseColorHandle;
+            data.normalTextureHandle = -1;
+            data.emissiveTextureHandle = -1;
+            data.metallicRoughnessTextureHandle = -1;
+            data.occlusionTextureHandle = -1;
+            data.baseColorTextureDescriptorIndex =
+                ResolveTextureDescriptorIndex(baseColorHandle);
+            data.normalTextureDescriptorIndex =
+                MESHRENDERER::kInvalidTextureDescriptorIndex;
+            data.emissiveTextureDescriptorIndex =
+                MESHRENDERER::kInvalidTextureDescriptorIndex;
+            data.metallicRoughnessTextureDescriptorIndex =
+                MESHRENDERER::kInvalidTextureDescriptorIndex;
+            data.occlusionTextureDescriptorIndex =
+                MESHRENDERER::kInvalidTextureDescriptorIndex;
+            return data;
+        }
+
+        void PrepareShadowSurfaceGpuSceneMaterialSources(
+            uint32_t baseIndex,
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>* sources) {
+
+            if (sources == nullptr || sources->empty()) {
+                return;
+            }
+
+            for (size_t sourceIndex = 0; sourceIndex < sources->size(); ++sourceIndex) {
+                const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source =
+                    (*sources)[sourceIndex];
+                if (source.model == nullptr) {
+                    continue;
+                }
+
+                const MESHRENDERER::MaterialGpuData data =
+                    BuildShadowMaterialGpuData(source);
+                const uint32_t materialDataIndex = UploadShadowMaterialData(
+                    BuildShadowMaterialDataKey(source.materialKey, data),
+                    data);
+                g.surfaceGpuSceneBuffer.PatchMaterialDataIndex(
+                    static_cast<size_t>(baseIndex) + sourceIndex,
+                    materialDataIndex == MESHRENDERER::kInvalidMaterialDataIndex
+                        ? 0u
+                        : materialDataIndex);
+            }
+        }
+
+        void PrepareShadowSurfaceGpuSceneMaterialFrame() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
+                g.shadowSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            PrepareShadowSurfaceGpuSceneMaterialSources(
+                shadow.gpuSceneBaseIndex,
+                shadow.materialSources);
         }
 
         const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* GetSourceShadowPass() {
@@ -381,6 +588,14 @@ namespace HIKARI::SHADOW {
 
         void SyncShadowGpuDrivenBackendAvailability() {
             RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
+            const RENDER3D::MESHLET::MeshletRenderBackendStats& meshletStats =
+                g.meshletRenderBackend.GetStats();
+            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterStats =
+                g.clusterDrawExecutor.GetStats();
+            availability.meshShaderForwardPipelineReady =
+                meshletStats.shadowPipelineReady;
+            availability.clusterVsForwardPipelineReady =
+                clusterStats.shadowPipelineReady;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
 
@@ -611,6 +826,13 @@ namespace HIKARI::SHADOW {
             surfaceGpuSceneRange.RegisterSpace = 0;
             surfaceGpuSceneRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+            D3D12_DESCRIPTOR_RANGE objectDataRange{};
+            objectDataRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            objectDataRange.NumDescriptors = 1;
+            objectDataRange.BaseShaderRegister = 15;
+            objectDataRange.RegisterSpace = 0;
+            objectDataRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
             D3D12_DESCRIPTOR_RANGE texturePoolRange{};
             texturePoolRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             texturePoolRange.NumDescriptors = GFX::DESCRIPTOR::kUserSrvCount;
@@ -618,9 +840,18 @@ namespace HIKARI::SHADOW {
             texturePoolRange.RegisterSpace = 0;
             texturePoolRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[PACKET::kShadowStaticRootParamMaterialIndex + 1]{};
+            D3D12_DESCRIPTOR_RANGE clusterGeometryPoolRange{};
+            clusterGeometryPoolRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            clusterGeometryPoolRange.NumDescriptors =
+                GFX::DESCRIPTOR::kSystemSrvDynamicCount;
+            clusterGeometryPoolRange.BaseShaderRegister = 0;
+            clusterGeometryPoolRange.RegisterSpace = 1;
+            clusterGeometryPoolRange.OffsetInDescriptorsFromTableStart =
+                D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+            D3D12_ROOT_PARAMETER params[PACKET::kShadowStaticRootParamMeshletVisibleRanges + 1]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
             params[0].Descriptor.RegisterSpace = 0;
             params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -636,12 +867,12 @@ namespace HIKARI::SHADOW {
             params[3].DescriptorTable.NumDescriptorRanges = 1;
             params[3].DescriptorTable.pDescriptorRanges = &materialDataRange;
             params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-            params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[4].DescriptorTable.NumDescriptorRanges = 1;
             params[4].DescriptorTable.pDescriptorRanges = &surfaceGpuSceneRange;
 
             params[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-            params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[5].Constants.ShaderRegister = 8;
             params[5].Constants.RegisterSpace = 0;
             // ExecuteIndirect と direct path の両方で同じ SurfaceGpuSceneControl を使う。
@@ -658,6 +889,18 @@ namespace HIKARI::SHADOW {
             params[7].Constants.RegisterSpace = 0;
             // 共通 MaterialData include が b7 を宣言するため、shadow 側でも slot を明示する。
             params[7].Constants.Num32BitValues = 1;
+            params[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+            params[8].DescriptorTable.NumDescriptorRanges = 1;
+            params[8].DescriptorTable.pDescriptorRanges = &objectDataRange;
+            params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+            params[9].DescriptorTable.NumDescriptorRanges = 1;
+            params[9].DescriptorTable.pDescriptorRanges = &clusterGeometryPoolRange;
+            params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+            params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+            params[10].Descriptor.ShaderRegister = 18;
+            params[10].Descriptor.RegisterSpace = 0;
             D3D12_STATIC_SAMPLER_DESC sampler{};
             sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -769,10 +1012,28 @@ namespace HIKARI::SHADOW {
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow packet path will be used.");
             }
+            if (!g.clusterGpuCullingPass.Initialize(
+                device,
+                g.rootSig.Get(),
+                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster GPU culling initialization failed. GPU-driven shadow pass will be unavailable.");
+            }
+            if (!g.clusterDrawExecutor.Initialize(
+                device,
+                g.rootSig.Get())) {
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster draw executor initialization failed. Cluster shadow backend will be unavailable.");
+            }
+            if (!g.meshletRenderBackend.Initialize(
+                device,
+                g.rootSig.Get())) {
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow meshlet backend initialization failed. Cluster shadow backend remains available.");
+            }
+            g.clusterGpuDrivenProducer.Attach(&g.clusterGpuCullingPass);
             g.gpuDrivenLayer.Attach(
                 &g.surfaceGpuSceneBuffer,
                 &g.surfaceIndirectDrawBuffer,
-                nullptr);
+                &g.clusterGpuDrivenProducer);
             if (!g.gpuDrivenLayer.Initialize(
                 device,
                 g.rootSig.Get(),
@@ -991,10 +1252,60 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowGpuSceneBufferReady = gpuSceneStats.initialized;
         }
 
-        void UploadShadowIndirectDrawFrame() {
-            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
-            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
+        void ResetShadowGpuDrivenWorkFrame() {
+            g.gpuDrivenFrame.Reset();
+            g.clusterGpuDrivenProducer.BeginFrame(false);
+            g.gpuDrivenLayer.ImportProducerOutput(
+                g.clusterGpuDrivenProducer.BuildFrameOutput());
+            g.clusterDrawExecutor.ResetFrame();
+            g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
+            g.gpuDrivenLayer.BuildCommandFrame({});
+        }
+
+        void BuildShadowGpuDrivenWorkFrame(const Camera3D& camera) {
+            const RENDER3D::GPUDRIVEN::GpuDrivenFrameBuildInput input =
+                RENDER3D::GPUDRIVEN::BuildGpuDrivenFrameInput(
+                    g.shadowSceneSource);
+            g.gpuDrivenFrame =
+                RENDER3D::GPUDRIVEN::BuildGpuDrivenFrame(input);
+
+            if (!g.shadowSceneSource.HasAnyGpuSceneRanges() ||
+                !g.surfaceGpuSceneBuffer.GetStats().initialized ||
+                g.surfaceGpuSceneBuffer.GetStats().overflowInstanceCount != 0) {
+                ResetShadowGpuDrivenWorkFrame();
+                return;
+            }
+
+            ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
+            if (SERVICES::gCtx.cmdList != nullptr && srvHeap != nullptr) {
+                ID3D12DescriptorHeap* heaps[] = { srvHeap };
+                SERVICES::gCtx.cmdList->SetDescriptorHeaps(1, heaps);
+            }
+
+            g.clusterGpuDrivenProducer.BeginFrame(false);
+            RENDER3D::GPUDRIVEN::GpuDrivenWorkContext workContext{};
+            workContext.producer = &g.clusterGpuDrivenProducer;
+            workContext.commandList = SERVICES::gCtx.cmdList;
+            workContext.viewProj = g.lightViewProj;
+            workContext.cameraPosition = camera.GetPosition();
+            workContext.geometryPoolSrv = ResolveClusterGeometryPoolSrv();
+            workContext.surfaceGpuSceneGpuAddress =
+                g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
+            workContext.frame = &g.gpuDrivenFrame;
+            (void)RENDER3D::GPUDRIVEN::BuildGpuDrivenWork(workContext);
+
+            g.gpuDrivenLayer.ImportProducerOutput(
+                g.clusterGpuDrivenProducer.BuildFrameOutput());
+            g.gpuDrivenLayer.BuildCommandBuffers();
+            g.clusterDrawExecutor.ResetFrame();
+            g.meshletRenderBackend.ResetFrame();
+            SyncShadowGpuDrivenBackendAvailability();
+            g.gpuDrivenLayer.BuildCommandFrame({});
+        }
+
+        void UploadShadowIndirectDrawFrame() {
+            g.gpuDrivenLayer.BuildCommandFrame({});
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
@@ -1007,6 +1318,74 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowIndirectDrawBindingPatchCount = indirectStats.drawBindingPatchCount;
             g.debugStats.shadowIndirectArgumentBufferReady = indirectStats.initialized;
             g.debugStats.shadowIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
+        }
+
+        bool ExecuteShadowGpuDrivenBackend(
+            RENDER3D::GPUDRIVEN::GeometryBackendKind backend) {
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (cmd == nullptr) {
+                return false;
+            }
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassKind shadowPass =
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow;
+            const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
+                g.gpuDrivenLayer.BuildGeometryBackendContext(
+                    cmd,
+                    shadowPass,
+                    backend);
+            ID3D12Resource* visibleRangeBuffer =
+                backendContext.visibility != nullptr
+                    ? backendContext.visibility->visibleMeshletRangeBuffer
+                    : nullptr;
+            BindShadowGpuDrivenFrameResources(cmd, visibleRangeBuffer);
+
+            switch (backend) {
+            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader: {
+                if (visibleRangeBuffer == nullptr) {
+                    return false;
+                }
+                RENDER3D::MESHLET::MeshletRenderExecutionContext ctx{};
+                ctx.commandList = backendContext.commandList;
+                ctx.pass = backendContext.pass;
+                ctx.visibility = backendContext.visibility;
+                ctx.drawCommandRange = backendContext.drawCommandRange;
+                ctx.pipelineKind = RENDER3D::MESHLET::MeshletPipelineKind::Shadow;
+                return g.meshletRenderBackend.Execute(ctx);
+            }
+            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS: {
+                RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
+                ctx.commandList = backendContext.commandList;
+                ctx.pass = backendContext.pass;
+                ctx.visibility = backendContext.visibility;
+                ctx.drawCommandRange = backendContext.drawCommandRange;
+                ctx.pipelineKind = RENDER3D::CLUSTER::ClusterDrawPipelineKind::Shadow;
+                return g.clusterDrawExecutor.Execute(ctx);
+            }
+            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
+            case RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect:
+            default:
+                return false;
+            }
+        }
+
+        bool ExecuteShadowGpuDrivenPass() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassKind shadowPass =
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow;
+            SyncShadowGpuDrivenBackendAvailability();
+            if (!g.gpuDrivenLayer.IsPassGpuReady(shadowPass)) {
+                return false;
+            }
+
+            const RENDER3D::GPUDRIVEN::GeometryBackendExecutionPlan plan =
+                g.gpuDrivenLayer.GetPassExecutionPlan(shadowPass);
+            for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
+                if (ExecuteShadowGpuDrivenBackend(plan.gpuBackends[i])) {
+                    return true;
+                }
+            }
+            return false;
         }
 
     }
@@ -1042,8 +1421,6 @@ namespace HIKARI::SHADOW {
             return;
         }
         ResetShadowMaterialFrame();
-        UploadShadowGpuSceneFrame();
-        UploadShadowIndirectDrawFrame();
 
         const uint32_t resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
         if (g.shadowMap == nullptr || g.resolution != resolution) {
@@ -1056,6 +1433,10 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
         }
         g.lightViewProj = BuildLightViewProj(environment, camera);
+        UploadShadowGpuSceneFrame();
+        PrepareShadowSurfaceGpuSceneMaterialFrame();
+        BuildShadowGpuDrivenWorkFrame(camera);
+        UploadShadowIndirectDrawFrame();
         SubmitDebugFrustum(environment, camera);
         if (g.cameraMapped != nullptr) {
             g.cameraMapped->lightViewProj = g.lightViewProj;
@@ -1187,6 +1568,12 @@ namespace HIKARI::SHADOW {
         if (srvHeap != nullptr) {
             ID3D12DescriptorHeap* heaps[] = { srvHeap };
             cmd->SetDescriptorHeaps(1, heaps);
+        }
+
+        if (g.gpuDrivenSceneSource != nullptr) {
+            (void)ExecuteShadowGpuDrivenPass();
+            g.acceptingFrameSubmissions = false;
+            return;
         }
 
         constexpr UINT objectStride = AlignConstantBufferSize(sizeof(ShadowObjectCB));

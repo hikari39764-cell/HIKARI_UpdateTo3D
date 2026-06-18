@@ -299,12 +299,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     : shaderProfile;
             const bool clusterVertexCompatible =
                 shaderRoute.vertexShaderId.empty() ||
-                shaderRoute.vertexShaderId == "Render3D_StaticVS";
+                shaderRoute.vertexShaderId == "Render3D_StaticVS" ||
+                shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             const bool clusterPixelCompatible =
                 pixelShaderId.empty() ||
                 pixelShaderId == "PBR" ||
                 pixelShaderId == "StaticLit" ||
-                pixelShaderId == "Render3D_StaticPS";
+                pixelShaderId == "StaticFx" ||
+                pixelShaderId == "MaterialFx" ||
+                pixelShaderId == "Render3D_StaticPS" ||
+                pixelShaderId == "Render3D_StaticFxPS" ||
+                pixelShaderId == "Render3D_FxWaterPS";
 
             key.modelKey = modelKey;
             key.clusterGeometryKey =
@@ -369,15 +374,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             key.doubleSided = doubleSided;
             key.resourceKeyValid = key.resources.HasStableKeys();
             key.objectDataCompatible = shaderRoute.objectDataCompatible;
+            key.materialFx = !record.materialFxProfileId.empty();
+            key.waterMaterialFx =
+                pixelShaderId == "Render3D_FxWaterPS" ||
+                shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             key.depthAware = shaderRoute.depthAware;
             // Mesh shader backend はまず static opaque / alpha-mask の cluster geometry だけを所有する。
             key.clusterMainlineEligible =
                 key.geometryBackend == RUNTIME::SurfaceGeometryBackend::ClusterGeometry &&
                 clusterVertexCompatible &&
                 clusterPixelCompatible &&
-                record.materialFxProfileId.empty() &&
-                alphaMode != AlphaMode::Blend &&
-                !shaderRoute.depthAware &&
                 key.objectDataCompatible;
             return key;
         }
@@ -458,6 +464,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             if (!record.materialFxProfileId.empty()) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::MaterialFx);
+            }
+            if (record.key.waterMaterialFx) {
+                flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::WaterMaterialFx);
             }
             if (record.key.clusterMainlineEligible) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::ClusterMainline);
@@ -696,24 +705,62 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return result;
     }
 
+    namespace {
+        bool IsGpuSceneResidentRecordCommon(
+            const GpuSceneSurfaceRecord& record) {
+
+            return
+                record.valid &&
+                record.key.resourceKeyValid &&
+                record.key.objectDataCompatible &&
+                !record.hasSpecialRenderDebug &&
+                !record.skinned &&
+                record.key.clusterMainlineEligible &&
+                HasValidSubmitPrimitiveTarget(record);
+        }
+    }
+
     bool IsGpuSceneForwardOpaqueResidentRecord(
         const GpuSceneSurfaceRecord& record) {
 
         if (!record.forwardCandidate ||
-            !record.valid ||
-            !record.key.resourceKeyValid ||
-            !record.key.objectDataCompatible ||
-            record.hasRuntimeAnimation ||
-            record.hasSpecialRenderDebug ||
-            record.skinned ||
-            !HasValidSubmitPrimitiveTarget(record)) {
+            !IsGpuSceneResidentRecordCommon(record)) {
             return false;
         }
 
         return
             !record.key.depthAware &&
-            !record.key.transparent &&
-            record.key.clusterMainlineEligible;
+            !record.key.transparent;
+    }
+
+    bool IsGpuSceneForwardDepthAwareResidentRecord(
+        const GpuSceneSurfaceRecord& record) {
+
+        return
+            record.forwardCandidate &&
+            IsGpuSceneResidentRecordCommon(record) &&
+            record.key.depthAware &&
+            record.key.waterMaterialFx;
+    }
+
+    bool IsGpuSceneForwardTransparentResidentRecord(
+        const GpuSceneSurfaceRecord& record) {
+
+        return
+            record.forwardCandidate &&
+            IsGpuSceneResidentRecordCommon(record) &&
+            !record.key.depthAware &&
+            record.key.transparent;
+    }
+
+    bool IsGpuSceneShadowResidentRecord(
+        const GpuSceneSurfaceRecord& record) {
+
+        return
+            record.shadowCandidate &&
+            IsGpuSceneResidentRecordCommon(record) &&
+            !record.key.depthAware &&
+            !record.key.transparent;
     }
 
     uint64_t BuildGpuSceneSurfaceFilterKey(
