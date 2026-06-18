@@ -1570,9 +1570,19 @@ namespace HIKARI::SHADOW {
             cmd->SetDescriptorHeaps(1, heaps);
         }
 
+        auto finishShadowRender = [&]() {
+            if (g.shadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(g.shadowMap.Get(), g.shadowState, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                cmd->ResourceBarrier(1, &barrier);
+                g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            }
+            RestoreMainRenderTarget();
+            g.acceptingFrameSubmissions = false;
+        };
+
         if (g.gpuDrivenSceneSource != nullptr) {
             (void)ExecuteShadowGpuDrivenPass();
-            g.acceptingFrameSubmissions = false;
+            finishShadowRender();
             return;
         }
 
@@ -1713,13 +1723,7 @@ namespace HIKARI::SHADOW {
             }
         }
 
-        if (g.shadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(g.shadowMap.Get(), g.shadowState, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            cmd->ResourceBarrier(1, &barrier);
-            g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-        }
-        RestoreMainRenderTarget();
-        g.acceptingFrameSubmissions = false;
+        finishShadowRender();
     }
 
     bool IsDirectionalShadowEnabled() {
