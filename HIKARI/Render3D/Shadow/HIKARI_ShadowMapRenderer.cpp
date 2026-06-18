@@ -504,7 +504,7 @@ namespace HIKARI::SHADOW {
         void SyncShadowGpuDrivenBackendAvailability() {
             RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.surfaceIndirectDrawBuffer.GetStats();
+                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
             availability.traditionalIndirectPipelineReady =
                 indirectStats.initialized &&
                 indirectStats.commandSignatureReady;
@@ -1192,19 +1192,15 @@ namespace HIKARI::SHADOW {
         }
 
         void UploadShadowIndirectDrawFrame() {
-            g.surfaceIndirectDrawBuffer.ResetFrame();
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                GetShadowTraditionalView();
-            if (view != nullptr && view->commands != nullptr) {
-                g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                    *view->commands,
-                    view->gpuSceneBaseIndex);
-            }
-            g.gpuDrivenLayer.BuildCommandBuffers();
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.traditionalIndirectPassMask =
+                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             SyncShadowGpuDrivenBackendAvailability();
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.surfaceIndirectDrawBuffer.GetStats();
+                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
             g.debugStats.shadowIndirectCapacity = indirectStats.capacity;
             g.debugStats.shadowIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
             g.debugStats.shadowIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
@@ -1502,9 +1498,9 @@ namespace HIKARI::SHADOW {
                     view->executablePacketIndices->data(),
                     view->executablePacketIndices->size(),
                     *view->commands)) {
-                    g.surfaceIndirectDrawBuffer.FlushToGpu(cmd);
+                    g.gpuDrivenLayer.FlushTraditionalIndirectCommandFrame(cmd);
                     const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                        g.surfaceIndirectDrawBuffer.GetStats();
+                        g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
                     g.debugStats.shadowIndirectDrawBindingPatchCount =
                         indirectStats.drawBindingPatchCount;
                 }

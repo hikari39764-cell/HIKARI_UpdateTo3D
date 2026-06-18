@@ -386,7 +386,7 @@ namespace HIKARI::MESHRENDERER {
 
         void UpdateSurfaceIndirectDrawStats() {
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.surfaceIndirectDrawBuffer.GetStats();
+                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
             g.debugStats.surfaceIndirectCommandCapacity = indirectStats.capacity;
             g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
             g.debugStats.surfaceIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
@@ -412,7 +412,7 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenFrame.CountClusterEligibleInstances();
         }
 
-        void UploadTraditionalIndirectView(
+        void PrepareTraditionalIndirectDrawBindings(
             const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view,
             bool depthAwarePhase) {
 
@@ -422,10 +422,6 @@ namespace HIKARI::MESHRENDERER {
                 view.commands == nullptr) {
                 return;
             }
-
-            g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                *view.commands,
-                view.gpuSceneBaseIndex);
 
             MeshBindingStateCache bindingCache{};
             MeshDrawContext drawCtx = BuildDrawContext(
@@ -444,23 +440,29 @@ namespace HIKARI::MESHRENDERER {
                 view.commands->size());
         }
 
-        void UploadSurfaceIndirectDrawFrame() {
+        void BuildTraditionalIndirectCommandFrame() {
             // GPU-driven 主線では draw args を GPU 側の work frame から生成する。
             // 旧 SurfaceDrawCommand の CPU upload は legacy handoff 側だけに閉じ込める。
-            g.surfaceIndirectDrawBuffer.ResetFrame();
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.traditionalIndirectPassMask =
+                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware) |
+                RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            UploadTraditionalIndirectView(
+            PrepareTraditionalIndirectDrawBindings(
                 depthAware.traditionalIndirect,
                 true);
-            UploadTraditionalIndirectView(
+            PrepareTraditionalIndirectDrawBindings(
                 transparent.traditionalIndirect,
                 false);
-            g.surfaceIndirectDrawBuffer.FlushToGpu(SERVICES::gCtx.cmdList);
+            g.gpuDrivenLayer.FlushTraditionalIndirectCommandFrame(
+                SERVICES::gCtx.cmdList);
             UpdateSurfaceIndirectDrawStats();
-            g.gpuDrivenLayer.BuildCommandBuffers();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
 
@@ -486,9 +488,8 @@ namespace HIKARI::MESHRENDERER {
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
             UpdateGpuDrivenWorkOwnershipDebugStats();
-            g.surfaceIndirectDrawBuffer.ResetFrame();
+            g.gpuDrivenLayer.BuildCommandFrame({});
             UpdateSurfaceIndirectDrawStats();
-            g.gpuDrivenLayer.BuildCommandBuffers();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
 
@@ -506,9 +507,8 @@ namespace HIKARI::MESHRENDERER {
                 UpdateMeshletBackendDebugStats();
                 UpdateGpuDrivenWorkReadyDebugStats();
                 UpdateGpuDrivenWorkOwnershipDebugStats();
-                g.surfaceIndirectDrawBuffer.ResetFrame();
+                g.gpuDrivenLayer.BuildCommandFrame({});
                 UpdateSurfaceIndirectDrawStats();
-                g.gpuDrivenLayer.BuildCommandBuffers();
                 UpdateGpuDrivenCommandStreamDebugStats();
                 return;
             }
@@ -521,7 +521,7 @@ namespace HIKARI::MESHRENDERER {
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
             UpdateGpuDrivenWorkOwnershipDebugStats();
-            UploadSurfaceIndirectDrawFrame();
+            BuildTraditionalIndirectCommandFrame();
         }
 
         void BuildGpuDrivenWorkFrame() {

@@ -11,10 +11,10 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenProducer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
-    class SurfaceIndirectDrawBuffer;
     struct GpuDrivenSceneSource;
     class IGpuDrivenProducer;
 
@@ -40,6 +40,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenSceneUploadDesc {
         GpuDrivenSceneResidency* residency = nullptr;
         bool allowDirtyRangePatching = true;
+    };
+
+    struct GpuDrivenCommandFrameDesc {
+        uint32_t traditionalIndirectPassMask = 0;
+        bool resetTraditionalIndirectBuffer = true;
+        bool publishCommandBuffers = true;
+    };
+
+    struct GpuDrivenCommandFrameStats {
+        uint32_t traditionalIndirectPassMask = 0;
+        size_t traditionalIndirectPassCount = 0;
+        size_t traditionalIndirectSourceCommandCount = 0;
+        bool commandFramePublished = false;
+        bool traditionalIndirectFlushedToGpu = false;
+        SurfaceIndirectDrawBufferStats surfaceIndirectStats{};
     };
 
     class GpuDrivenLayer final {
@@ -71,6 +86,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const GpuDrivenProducerFrameOutput& output);
         void SetBackendAvailability(
             const GpuDrivenBackendAvailability& availability);
+        const GpuDrivenCommandFrameStats& BuildCommandFrame(
+            const GpuDrivenCommandFrameDesc& desc);
+        bool FlushTraditionalIndirectCommandFrame(
+            ID3D12GraphicsCommandList* commandList);
         void BuildCommandBuffers();
 
         bool IsBackendConsumable(
@@ -92,6 +111,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenFrameContext& GetFrameContext() const;
         const GpuDrivenDrawCommandStream& GetDrawCommandStream() const;
         const GpuDrivenSceneUploadStats& GetSceneUploadStats() const;
+        const GpuDrivenCommandFrameStats& GetCommandFrameStats() const;
 
     private:
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
@@ -100,6 +120,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenSceneSource* frameSource_ = nullptr;
         GpuDrivenFrameContext frameContext_{};
         GpuDrivenSceneUploadStats sceneUploadStats_{};
+        GpuDrivenCommandFrameStats commandFrameStats_{};
 
         void InitializePassExecutionStates(
             const GpuDrivenSceneSource* source);

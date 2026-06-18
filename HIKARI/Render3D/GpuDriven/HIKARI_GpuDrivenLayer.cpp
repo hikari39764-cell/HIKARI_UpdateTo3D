@@ -40,6 +40,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return commands.layout.GetPass(pass).commandBucketCapacity != 0;
         }
 
+        bool HasPassMask(uint32_t mask, GpuDrivenPassKind pass) {
+            return (mask & MakeGpuDrivenPassMask(pass)) != 0u;
+        }
+
         size_t CountViewInstances(
             const GpuDrivenTraditionalIndirectView& view) {
 
@@ -191,6 +195,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_.scene.instanceBuffer = sceneBuffer_;
         frameSource_ = nullptr;
         sceneUploadStats_ = {};
+        commandFrameStats_ = {};
         InitializePassExecutionStates(nullptr);
     }
 
@@ -356,6 +361,72 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         RefreshPassExecutionStates();
     }
 
+    const GpuDrivenCommandFrameStats& GpuDrivenLayer::BuildCommandFrame(
+        const GpuDrivenCommandFrameDesc& desc) {
+
+        commandFrameStats_ = {};
+        commandFrameStats_.traditionalIndirectPassMask =
+            desc.traditionalIndirectPassMask;
+
+        if (indirectDrawBuffer_ != nullptr &&
+            desc.resetTraditionalIndirectBuffer) {
+            indirectDrawBuffer_->ResetFrame();
+        }
+
+        if (indirectDrawBuffer_ != nullptr &&
+            frameSource_ != nullptr &&
+            desc.traditionalIndirectPassMask != 0u) {
+
+            for (size_t passIndex = 0u;
+                passIndex < kGpuDrivenPassCount;
+                ++passIndex) {
+
+                const GpuDrivenPassKind pass = PassFromIndex(passIndex);
+                if (!HasPassMask(desc.traditionalIndirectPassMask, pass)) {
+                    continue;
+                }
+
+                const GpuDrivenTraditionalIndirectView& view =
+                    frameSource_->GetPass(pass).traditionalIndirect;
+                if (!view.HasCommands() || view.commands == nullptr) {
+                    continue;
+                }
+
+                ++commandFrameStats_.traditionalIndirectPassCount;
+                commandFrameStats_.traditionalIndirectSourceCommandCount +=
+                    view.CommandCount();
+                indirectDrawBuffer_->UploadSurfaceCommands(
+                    *view.commands,
+                    view.gpuSceneBaseIndex);
+            }
+        }
+
+        if (indirectDrawBuffer_ != nullptr) {
+            commandFrameStats_.surfaceIndirectStats =
+                indirectDrawBuffer_->GetStats();
+        }
+
+        if (desc.publishCommandBuffers) {
+            BuildCommandBuffers();
+            commandFrameStats_.commandFramePublished = true;
+        }
+        return commandFrameStats_;
+    }
+
+    bool GpuDrivenLayer::FlushTraditionalIndirectCommandFrame(
+        ID3D12GraphicsCommandList* commandList) {
+
+        const bool flushed =
+            indirectDrawBuffer_ != nullptr &&
+            indirectDrawBuffer_->FlushToGpu(commandList);
+        commandFrameStats_.traditionalIndirectFlushedToGpu = flushed;
+        if (indirectDrawBuffer_ != nullptr) {
+            commandFrameStats_.surfaceIndirectStats =
+                indirectDrawBuffer_->GetStats();
+        }
+        return flushed;
+    }
+
     void GpuDrivenLayer::BuildCommandBuffers() {
         if (indirectDrawBuffer_ != nullptr) {
             frameContext_.commands.surfaceDrawIndexedArgs =
@@ -475,6 +546,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GpuDrivenLayer::GetSceneUploadStats() const {
 
         return sceneUploadStats_;
+    }
+
+    const GpuDrivenCommandFrameStats&
+        GpuDrivenLayer::GetCommandFrameStats() const {
+
+        return commandFrameStats_;
     }
 
     void GpuDrivenLayer::InitializePassExecutionStates(
