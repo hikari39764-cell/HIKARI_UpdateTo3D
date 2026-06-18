@@ -37,6 +37,12 @@ namespace HIKARI {
             const AssetRegistry* assetRegistry,
             const std::filesystem::path& projectRoot) {
 
+            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
+                return PROCEDURAL::GetOrCreateClusteredGeometryPath(
+                    model.GetProceduralSettings(),
+                    projectRoot);
+            }
+
             if (assetRegistry == nullptr ||
                 model.GetSourceKind() != ModelSourceKind::Asset ||
                 model.GetAssetId().empty()) {
@@ -79,6 +85,9 @@ namespace HIKARI {
             }
 
             std::string Resolve(const ModelComponent& model) {
+                if (model.GetSourceKind() == ModelSourceKind::Procedural) {
+                    return ResolveClusteredGeometryPath(model, assetRegistry_, projectRoot_);
+                }
                 if (model.GetSourceKind() != ModelSourceKind::Asset || model.GetAssetId().empty()) {
                     return {};
                 }

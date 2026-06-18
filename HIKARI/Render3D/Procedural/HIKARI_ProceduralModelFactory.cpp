@@ -1,11 +1,19 @@
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 
 #include <algorithm>
+#include <cstring>
+#include <filesystem>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <system_error>
 #include <unordered_map>
 #include <vector>
 
+#include "Assets/Geometry/HIKARI_ClusteredGeometryCooker.h"
+#include "Assets/Geometry/HIKARI_HcmeshFormat.h"
+#include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 
 namespace HIKARI::PROCEDURAL {
@@ -47,7 +55,35 @@ namespace HIKARI::PROCEDURAL {
         };
 
         std::unordered_map<ProceduralModelKey, std::unique_ptr<ModelAsset>, KeyHasher> gCache;
+        std::unordered_map<std::string, std::string> gClusterPathCache;
         ProceduralModelDebugStats gStats{};
+
+        constexpr uint64_t kFnv64OffsetBasis = 14695981039346656037ull;
+        constexpr uint64_t kFnv64Prime = 1099511628211ull;
+
+        void HashAppendBytes(uint64_t& hash, const void* data, size_t size) {
+            const auto* bytes = static_cast<const uint8_t*>(data);
+            for (size_t i = 0; i < size; ++i) {
+                hash ^= static_cast<uint64_t>(bytes[i]);
+                hash *= kFnv64Prime;
+            }
+        }
+
+        void HashAppendU32(uint64_t& hash, uint32_t value) {
+            HashAppendBytes(hash, &value, sizeof(value));
+        }
+
+        void HashAppendFloat(uint64_t& hash, float value) {
+            uint32_t bits = 0;
+            static_assert(sizeof(bits) == sizeof(value));
+            std::memcpy(&bits, &value, sizeof(bits));
+            HashAppendU32(hash, bits);
+        }
+
+        void HashAppendBool(uint64_t& hash, bool value) {
+            const uint32_t bits = value ? 1u : 0u;
+            HashAppendU32(hash, bits);
+        }
 
         ProceduralModelKey MakeKey(const ProceduralModelSettings& settings) {
             ProceduralModelKey key{};
@@ -67,6 +103,90 @@ namespace HIKARI::PROCEDURAL {
                 key.segmentsY = 1;
             }
             return key;
+        }
+
+        uint64_t HashProceduralModelKey(const ProceduralModelKey& key) {
+            uint64_t hash = kFnv64OffsetBasis;
+            HashAppendU32(hash, static_cast<uint32_t>(key.kind));
+            HashAppendFloat(hash, key.width);
+            HashAppendFloat(hash, key.height);
+            HashAppendFloat(hash, key.depth);
+            HashAppendU32(hash, key.segmentsX);
+            HashAppendU32(hash, key.segmentsY);
+            HashAppendU32(hash, key.segmentsZ);
+            HashAppendU32(hash, key.sphereSlices);
+            HashAppendU32(hash, key.sphereStacks);
+            HashAppendBool(hash, key.doubleSided);
+            HashAppendBool(hash, key.generateTangents);
+            return hash;
+        }
+
+        std::string MakeClusterGuidValue(const ProceduralModelKey& key) {
+            std::ostringstream oss;
+            oss << "procedural-" << std::hex << std::setw(16) << std::setfill('0')
+                << HashProceduralModelKey(key);
+            return oss.str();
+        }
+
+        std::filesystem::path ResolveClusterCachePath(
+            const ProceduralModelKey& key,
+            const std::filesystem::path& projectRoot) {
+
+            const std::filesystem::path libraryRoot = projectRoot.empty()
+                ? std::filesystem::path("Library")
+                : projectRoot / "Library";
+            const std::string fileName =
+                MakeClusterGuidValue(key) +
+                "-hcmesh" +
+                std::to_string(ASSETS::GEOMETRY::kHcmeshVersion) +
+                ".hcmesh";
+            return (libraryRoot / "Generated" / "ProceduralCluster" /
+                    fileName).lexically_normal();
+        }
+
+        ASSETS::GEOMETRY::ClusterCookSettings MakeProceduralClusterCookSettings() {
+            ASSETS::GEOMETRY::ClusterCookSettings settings{};
+            settings.maxSurfaceLodCount = 1u;
+            settings.buildSurfaceLods = false;
+            settings.partitionLargeStaticSurfaces = true;
+            settings.surfacePartitionPolicy = ASSETS::GEOMETRY::SurfacePartitionPolicy::SceneStatic;
+            return settings;
+        }
+
+        bool CookClusteredGeometry(
+            const ProceduralModelSettings& settings,
+            const ProceduralModelKey& key,
+            const std::filesystem::path& outputPath) {
+
+            const ModelAsset* model = GetOrCreateModel(settings);
+            if (model == nullptr) {
+                HIKARI_LOG_WARN("[ProceduralModelFactory] failed to build procedural model for clustered geometry.");
+                return false;
+            }
+
+            RENDER3D::CLUSTER::ClusteredGeometryAsset clusteredGeometry{};
+            RENDER3D::CLUSTER::ClusteredGeometryBuildReport report{};
+            AssetGuid sourceGuid{};
+            sourceGuid.value = MakeClusterGuidValue(key);
+
+            if (!ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
+                    *model,
+                    sourceGuid,
+                    MakeProceduralClusterCookSettings(),
+                    clusteredGeometry,
+                    report)) {
+                HIKARI_LOG_WARN("[ProceduralModelFactory] clustered geometry cook failed: " + sourceGuid.value);
+                return false;
+            }
+
+            std::string message;
+            if (!ASSETS::GEOMETRY::WriteHcmeshFile(outputPath, clusteredGeometry, message)) {
+                HIKARI_LOG_WARN("[ProceduralModelFactory] clustered geometry write failed: " + message);
+                return false;
+            }
+
+            HIKARI_LOG_INFO("[ProceduralModelFactory] cooked clustered geometry: " + outputPath.generic_string());
+            return true;
         }
 
         void ExpandBounds(Bounds& bounds, const MATH::Vec3& p, bool& initialized) {
@@ -206,8 +326,35 @@ namespace HIKARI::PROCEDURAL {
         return raw;
     }
 
+    std::string GetOrCreateClusteredGeometryPath(
+        const ProceduralModelSettings& settings,
+        const std::filesystem::path& projectRoot) {
+
+        const ProceduralModelKey key = MakeKey(settings);
+        const std::filesystem::path path = ResolveClusterCachePath(key, projectRoot);
+        const std::string normalizedPath = path.generic_string();
+        const auto cached = gClusterPathCache.find(normalizedPath);
+        if (cached != gClusterPathCache.end()) {
+            return cached->second;
+        }
+
+        std::error_code existsError{};
+        if (std::filesystem::exists(path, existsError) && !existsError) {
+            gClusterPathCache.emplace(normalizedPath, normalizedPath);
+            return normalizedPath;
+        }
+
+        if (!CookClusteredGeometry(settings, key, path)) {
+            return {};
+        }
+
+        gClusterPathCache.emplace(normalizedPath, normalizedPath);
+        return normalizedPath;
+    }
+
     void ClearCache() {
         gCache.clear();
+        gClusterPathCache.clear();
         gStats = {};
     }
 

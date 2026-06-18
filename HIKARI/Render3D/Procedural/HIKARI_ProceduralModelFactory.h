@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <string>
 
 #include "Scene/Components/HIKARI_ModelComponent.h"
 
@@ -20,6 +22,9 @@ namespace HIKARI::PROCEDURAL {
     };
 
     const ModelAsset* GetOrCreateModel(const ProceduralModelSettings& settings);
+    std::string GetOrCreateClusteredGeometryPath(
+        const ProceduralModelSettings& settings,
+        const std::filesystem::path& projectRoot);
     void ClearCache();
     const ProceduralModelDebugStats& GetDebugStats();
 
