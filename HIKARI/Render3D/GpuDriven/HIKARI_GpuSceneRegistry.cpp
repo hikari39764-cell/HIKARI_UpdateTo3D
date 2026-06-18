@@ -326,6 +326,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         RUNTIME::SurfaceDrawPacketPlanOptions options{};
         options.buildForwardPlan = true;
         options.bypassLegacyForward = true;
+        options.buildShadowPlan = true;
+        options.bypassLegacyShadow = true;
         options.enableCpuFrustumCulling = false;
         surfacePacketPlanner_.Build(
             surfacePacketBuilder_,
@@ -576,6 +578,30 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     const GpuDrivenSceneSource& GpuSceneRegistry::GetSceneSource() const {
         return sceneSource_;
+    }
+
+    const RUNTIME::SurfaceDrawPacketBuilder& GpuSceneRegistry::GetSurfaceDrawPacketBuilder() const {
+        return surfacePacketBuilder_;
+    }
+
+    const std::vector<uint32_t>& GpuSceneRegistry::GetExecutableShadowPacketIndices() const {
+        return surfacePacketPlanner_.GetExecutableShadowPacketIndices();
+    }
+
+    const std::vector<RUNTIME::SurfaceDrawCommand>& GpuSceneRegistry::GetExecutableShadowCommands() const {
+        return surfacePacketPlanner_.GetExecutableShadowCommands();
+    }
+
+    const std::vector<RUNTIME::SurfaceGpuSceneInstance>& GpuSceneRegistry::GetShadowGpuSceneInstances() const {
+        return surfacePacketPlanner_.GetShadowGpuSceneInstances();
+    }
+
+    bool GpuSceneRegistry::HasShadowPacketExecutionPlan() const {
+        return
+            !surfacePacketBuilder_.GetPackets().empty() &&
+            !surfacePacketPlanner_.GetExecutableShadowPacketIndices().empty() &&
+            !surfacePacketPlanner_.GetExecutableShadowCommands().empty() &&
+            !surfacePacketPlanner_.GetShadowGpuSceneInstances().empty();
     }
 
     const std::vector<GpuSceneSurfaceRecord>& GpuSceneRegistry::GetSurfaceRecords() const {

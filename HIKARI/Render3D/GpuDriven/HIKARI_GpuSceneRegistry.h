@@ -47,6 +47,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t primitiveIndex) const;
 
         const GpuDrivenSceneSource& GetSceneSource() const;
+        const RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder() const;
+        const std::vector<uint32_t>& GetExecutableShadowPacketIndices() const;
+        const std::vector<RUNTIME::SurfaceDrawCommand>& GetExecutableShadowCommands() const;
+        const std::vector<RUNTIME::SurfaceGpuSceneInstance>& GetShadowGpuSceneInstances() const;
+        bool HasShadowPacketExecutionPlan() const;
         const std::vector<GpuSceneSurfaceRecord>& GetSurfaceRecords() const;
         const GpuSceneRegistryStats& GetStats() const;
 
