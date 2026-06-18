@@ -1178,32 +1178,10 @@ namespace HIKARI::SHADOW {
                     ? &g.shadowSceneSource
                     : nullptr);
 
-            g.surfaceGpuSceneBuffer.ResetFrame();
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                GetShadowTraditionalView();
-            if (view != nullptr && view->instances != nullptr) {
-                g.surfaceGpuSceneBuffer.Upload(*view->instances);
-            }
-
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadStats& uploadStats =
+                g.gpuDrivenLayer.UploadSceneFrame({});
             const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
-                g.surfaceGpuSceneBuffer.GetStats();
-            const uint32_t uploadedInstanceCount =
-                static_cast<uint32_t>(
-                    (std::min)(
-                        gpuSceneStats.uploadedInstanceCount,
-                        static_cast<size_t>(UINT32_MAX)));
-            const bool sceneResident =
-                g.shadowSceneSource.sourceInstanceCount != 0 &&
-                gpuSceneStats.overflowInstanceCount == 0 &&
-                gpuSceneStats.uploadedInstanceCount ==
-                    g.shadowSceneSource.sourceInstanceCount;
-            g.gpuDrivenLayer.UploadSurfaceGpuSceneFrame(
-                uploadedInstanceCount,
-                0u,
-                0u,
-                0u,
-                view != nullptr ? view->gpuSceneBaseIndex : 0u,
-                sceneResident);
+                uploadStats.bufferStats;
             g.debugStats.shadowGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.shadowGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
             g.debugStats.shadowGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;

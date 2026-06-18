@@ -85,10 +85,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
         RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};
-        uint64_t gpuDrivenResidentSceneLayoutVersion = 0;
-        uint64_t gpuDrivenResidentSceneDataVersion = 0;
-        size_t gpuDrivenResidentSceneInstanceCount = 0;
-        bool gpuDrivenSceneResident = false;
+        RENDER3D::GPUDRIVEN::GpuDrivenSceneResidency gpuDrivenSceneResidency{};
 
         float elapsedTimeSec = 0.0f;
     };

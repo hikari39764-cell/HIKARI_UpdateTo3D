@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -9,13 +10,37 @@
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenProducer.h"
+#include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
-    class SurfaceGpuSceneFrameBuffer;
     class SurfaceIndirectDrawBuffer;
     struct GpuDrivenSceneSource;
     class IGpuDrivenProducer;
+
+    struct GpuDrivenSceneResidency {
+        bool resident = false;
+        uint64_t layoutVersion = 0;
+        uint64_t sourceVersion = 0;
+        size_t instanceCount = 0;
+
+        void Reset();
+    };
+
+    struct GpuDrivenSceneUploadStats {
+        size_t sourceInstanceCount = 0;
+        bool sceneResident = false;
+        bool reusedResidentFrame = false;
+        bool patchedDirtyRanges = false;
+        bool uploadedFullScene = false;
+        std::array<uint32_t, kGpuDrivenPassCount> passInstanceCounts{};
+        SurfaceGpuSceneFrameBufferStats bufferStats{};
+    };
+
+    struct GpuDrivenSceneUploadDesc {
+        GpuDrivenSceneResidency* residency = nullptr;
+        bool allowDirtyRangePatching = true;
+    };
 
     class GpuDrivenLayer final {
     public:
@@ -32,6 +57,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         void ResetFrame();
         bool BeginFrame(const GpuDrivenSceneSource* source);
+        const GpuDrivenSceneUploadStats& UploadSceneFrame(
+            const GpuDrivenSceneUploadDesc& desc);
         void UploadSurfaceGpuSceneFrame(
             uint32_t instanceCount,
             uint32_t opaqueBaseIndex,
@@ -64,6 +91,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         IGpuDrivenProducer* GetProducer() const;
         const GpuDrivenFrameContext& GetFrameContext() const;
         const GpuDrivenDrawCommandStream& GetDrawCommandStream() const;
+        const GpuDrivenSceneUploadStats& GetSceneUploadStats() const;
 
     private:
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
@@ -71,6 +99,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         IGpuDrivenProducer* producer_ = nullptr;
         const GpuDrivenSceneSource* frameSource_ = nullptr;
         GpuDrivenFrameContext frameContext_{};
+        GpuDrivenSceneUploadStats sceneUploadStats_{};
 
         void InitializePassExecutionStates(
             const GpuDrivenSceneSource* source);

@@ -9,6 +9,13 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
+        uint32_t ClampToUint32(size_t value) {
+            return static_cast<uint32_t>(
+                (std::min)(
+                    value,
+                    static_cast<size_t>(UINT32_MAX)));
+        }
+
         GpuDrivenPassKind PassFromIndex(size_t index) {
             return static_cast<GpuDrivenPassKind>(
                 (std::min)(index, kGpuDrivenPassCount - 1u));
@@ -32,6 +39,125 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             return commands.layout.GetPass(pass).commandBucketCapacity != 0;
         }
+
+        size_t CountViewInstances(
+            const GpuDrivenTraditionalIndirectView& view) {
+
+            return view.gpuSceneInstanceCount != 0u
+                ? view.gpuSceneInstanceCount
+                : (view.instances != nullptr ? view.instances->size() : 0u);
+        }
+
+        size_t CountPrimaryInstances(const GpuDrivenPassSource& pass) {
+            return pass.gpuSceneInstanceCount != 0u
+                ? pass.gpuSceneInstanceCount
+                : (pass.instances != nullptr ? pass.instances->size() : 0u);
+        }
+
+        size_t CountPassInstances(const GpuDrivenPassSource& pass) {
+            return CountPrimaryInstances(pass) +
+                CountViewInstances(pass.traditionalIndirect);
+        }
+
+        uint32_t ResolvePassBaseIndex(const GpuDrivenPassSource& pass) {
+            return pass.HasPrimaryGpuSceneRange()
+                ? pass.gpuSceneBaseIndex
+                : pass.traditionalIndirect.gpuSceneBaseIndex;
+        }
+
+        void UploadSceneInstances(
+            SurfaceGpuSceneFrameBuffer& buffer,
+            const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances,
+            size_t count) {
+
+            if (count == 0u) {
+                return;
+            }
+            if (instances != nullptr && !instances->empty()) {
+                buffer.Upload(instances->data(), instances->size());
+                return;
+            }
+            buffer.Upload(nullptr, count);
+        }
+
+        void UploadPassInstances(
+            SurfaceGpuSceneFrameBuffer& buffer,
+            const GpuDrivenPassSource& pass) {
+
+            UploadSceneInstances(
+                buffer,
+                pass.instances,
+                CountPrimaryInstances(pass));
+            UploadSceneInstances(
+                buffer,
+                pass.traditionalIndirect.instances,
+                CountViewInstances(pass.traditionalIndirect));
+        }
+
+        bool PatchDirtyPass(
+            SurfaceGpuSceneFrameBuffer& buffer,
+            const GpuDrivenPassSource& pass) {
+
+            if (!pass.HasDirtyGpuSceneRanges()) {
+                return true;
+            }
+            if (pass.instances == nullptr) {
+                return false;
+            }
+            for (const GpuSceneDirtyRange& range : pass.dirtyRanges) {
+                if (!range.IsValid()) {
+                    continue;
+                }
+                const size_t localBegin = range.firstInstance;
+                const size_t localCount = range.instanceCount;
+                if (localBegin >= pass.instances->size() ||
+                    localCount > pass.instances->size() - localBegin) {
+                    return false;
+                }
+                if (!buffer.UpdateRange(
+                    static_cast<size_t>(pass.gpuSceneBaseIndex) + localBegin,
+                    pass.instances->data() + localBegin,
+                    localCount)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool PatchDirtySceneRanges(
+            SurfaceGpuSceneFrameBuffer& buffer,
+            const GpuDrivenSceneSource& source) {
+
+            for (size_t passIndex = 0u;
+                passIndex < kGpuDrivenPassCount;
+                ++passIndex) {
+
+                if (!PatchDirtyPass(buffer, source.passes[passIndex])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void UploadFullScene(
+            SurfaceGpuSceneFrameBuffer& buffer,
+            const GpuDrivenSceneSource& source) {
+
+            buffer.ResetFrame();
+            for (size_t passIndex = 0u;
+                passIndex < kGpuDrivenPassCount;
+                ++passIndex) {
+
+                UploadPassInstances(buffer, source.passes[passIndex]);
+            }
+        }
+    }
+
+    void GpuDrivenSceneResidency::Reset() {
+        resident = false;
+        layoutVersion = 0;
+        sourceVersion = 0;
+        instanceCount = 0;
     }
 
     bool GpuDrivenLayer::Initialize(
@@ -64,6 +190,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_ = {};
         frameContext_.scene.instanceBuffer = sceneBuffer_;
         frameSource_ = nullptr;
+        sceneUploadStats_ = {};
         InitializePassExecutionStates(nullptr);
     }
 
@@ -77,6 +204,104 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         InitializePassExecutionStates(source);
         RefreshPassExecutionStates();
         return true;
+    }
+
+    const GpuDrivenSceneUploadStats& GpuDrivenLayer::UploadSceneFrame(
+        const GpuDrivenSceneUploadDesc& desc) {
+
+        sceneUploadStats_ = {};
+        frameContext_.scene.instanceBuffer = sceneBuffer_;
+
+        if (sceneBuffer_ == nullptr || frameSource_ == nullptr) {
+            if (sceneBuffer_ != nullptr) {
+                sceneBuffer_->ResetFrame();
+                sceneUploadStats_.bufferStats = sceneBuffer_->GetStats();
+            }
+            if (desc.residency != nullptr) {
+                desc.residency->Reset();
+            }
+            UploadSurfaceGpuSceneFrame(0u, 0u, 0u, 0u, 0u, false);
+            return sceneUploadStats_;
+        }
+
+        const GpuDrivenSceneSource& source = *frameSource_;
+        sceneUploadStats_.sourceInstanceCount =
+            source.sourceInstanceCount != 0u
+                ? source.sourceInstanceCount
+                : source.CountGpuSceneInstances();
+        for (size_t passIndex = 0u;
+            passIndex < kGpuDrivenPassCount;
+            ++passIndex) {
+
+            sceneUploadStats_.passInstanceCounts[passIndex] =
+                ClampToUint32(CountPassInstances(source.passes[passIndex]));
+        }
+
+        const uint64_t layoutVersion = source.layoutVersion;
+        const uint64_t sourceVersion = source.sourceVersion;
+        const size_t sourceInstanceCount =
+            sceneUploadStats_.sourceInstanceCount;
+        const bool residentLayoutMatches =
+            desc.residency != nullptr &&
+            desc.residency->resident &&
+            desc.residency->layoutVersion == layoutVersion &&
+            desc.residency->instanceCount == sourceInstanceCount;
+
+        if (sourceInstanceCount == 0u) {
+            sceneBuffer_->ResetFrame();
+            if (desc.residency != nullptr) {
+                desc.residency->Reset();
+            }
+        } else if (residentLayoutMatches) {
+            sceneUploadStats_.reusedResidentFrame = true;
+            sceneBuffer_->ReuseFrame(sourceInstanceCount);
+            if (desc.residency->sourceVersion != sourceVersion) {
+                const bool patched =
+                    desc.allowDirtyRangePatching &&
+                    source.HasAnyDirtyGpuSceneRanges() &&
+                    PatchDirtySceneRanges(*sceneBuffer_, source);
+                if (patched) {
+                    sceneUploadStats_.patchedDirtyRanges = true;
+                } else {
+                    UploadFullScene(*sceneBuffer_, source);
+                    sceneUploadStats_.uploadedFullScene = true;
+                }
+            }
+        } else {
+            UploadFullScene(*sceneBuffer_, source);
+            sceneUploadStats_.uploadedFullScene = true;
+        }
+
+        sceneUploadStats_.bufferStats = sceneBuffer_->GetStats();
+        sceneUploadStats_.sceneResident =
+            sourceInstanceCount != 0u &&
+            sceneUploadStats_.bufferStats.overflowInstanceCount == 0u &&
+            sceneUploadStats_.bufferStats.uploadedInstanceCount ==
+                sourceInstanceCount;
+        if (desc.residency != nullptr) {
+            if (sceneUploadStats_.sceneResident) {
+                desc.residency->resident = true;
+                desc.residency->layoutVersion = layoutVersion;
+                desc.residency->sourceVersion = sourceVersion;
+                desc.residency->instanceCount = sourceInstanceCount;
+            } else {
+                desc.residency->Reset();
+            }
+        }
+
+        frameContext_.stats.sourceInstanceCount = sourceInstanceCount;
+        UploadSurfaceGpuSceneFrame(
+            ClampToUint32(sourceInstanceCount),
+            ResolvePassBaseIndex(
+                source.GetPass(GpuDrivenPassKind::ForwardOpaque)),
+            ResolvePassBaseIndex(
+                source.GetPass(GpuDrivenPassKind::ForwardDepthAware)),
+            ResolvePassBaseIndex(
+                source.GetPass(GpuDrivenPassKind::ForwardTransparent)),
+            ResolvePassBaseIndex(
+                source.GetPass(GpuDrivenPassKind::Shadow)),
+            sceneUploadStats_.sceneResident);
+        return sceneUploadStats_;
     }
 
     void GpuDrivenLayer::UploadSurfaceGpuSceneFrame(
@@ -244,6 +469,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GpuDrivenLayer::GetDrawCommandStream() const {
 
         return frameContext_.drawStream;
+    }
+
+    const GpuDrivenSceneUploadStats&
+        GpuDrivenLayer::GetSceneUploadStats() const {
+
+        return sceneUploadStats_;
     }
 
     void GpuDrivenLayer::InitializePassExecutionStates(

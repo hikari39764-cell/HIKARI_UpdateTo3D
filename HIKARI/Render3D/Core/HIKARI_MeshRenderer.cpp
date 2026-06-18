@@ -65,26 +65,6 @@ namespace HIKARI::MESHRENDERER {
             return g.gpuDrivenSceneSource.GetPass(passKind);
         }
 
-        uint32_t CountSceneSourceInstances(
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& source) {
-
-            const size_t primaryCount =
-                source.gpuSceneInstanceCount != 0u
-                    ? source.gpuSceneInstanceCount
-                    : (source.instances != nullptr ? source.instances->size() : 0u);
-            const size_t traditionalCount =
-                source.traditionalIndirect.gpuSceneInstanceCount != 0u
-                    ? source.traditionalIndirect.gpuSceneInstanceCount
-                    : (source.traditionalIndirect.instances != nullptr
-                        ? source.traditionalIndirect.instances->size()
-                        : 0u);
-            const size_t totalCount = primaryCount + traditionalCount;
-            return static_cast<uint32_t>(
-                (std::min)(
-                    totalCount,
-                    static_cast<size_t>(UINT32_MAX)));
-        }
-
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
             D3D12_GPU_DESCRIPTOR_HANDLE handle{};
             ID3D12Device* device = SERVICES::gCtx.device;
@@ -325,120 +305,33 @@ namespace HIKARI::MESHRENDERER {
             MeshDrawPassKind passKind,
             const MeshPassResources& passResources);
 
-        void UploadSurfaceGpuSceneFrame() {
+        void UploadGpuDrivenSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(&g.gpuDrivenSceneSource);
 
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& opaque =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadDesc uploadDesc{};
+            uploadDesc.residency = &g.gpuDrivenSceneResidency;
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadStats& uploadStats =
+                g.gpuDrivenLayer.UploadSceneFrame(uploadDesc);
 
             g.debugStats.surfaceGpuSceneOpaqueInstanceCount =
-                CountSceneSourceInstances(opaque);
+                uploadStats.passInstanceCounts[
+                    RENDER3D::GPUDRIVEN::ToPassIndex(
+                        RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)];
             g.debugStats.surfaceGpuSceneDepthAwareInstanceCount =
-                CountSceneSourceInstances(depthAware);
+                uploadStats.passInstanceCounts[
+                    RENDER3D::GPUDRIVEN::ToPassIndex(
+                        RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware)];
             g.debugStats.surfaceGpuSceneTransparentInstanceCount =
-                CountSceneSourceInstances(transparent);
+                uploadStats.passInstanceCounts[
+                    RENDER3D::GPUDRIVEN::ToPassIndex(
+                        RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent)];
             g.debugStats.surfaceGpuSceneShadowInstanceCount =
-                CountSceneSourceInstances(shadow);
-
-            const auto uploadSceneInstances =
-                [](const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* instances) {
-                if (instances != nullptr && !instances->empty()) {
-                    g.surfaceGpuSceneBuffer.Upload(*instances);
-                }
-            };
-
-            const auto uploadFullScene = [&]() {
-                g.surfaceGpuSceneBuffer.ResetFrame();
-                uploadSceneInstances(opaque.instances);
-                uploadSceneInstances(opaque.traditionalIndirect.instances);
-                uploadSceneInstances(depthAware.instances);
-                uploadSceneInstances(depthAware.traditionalIndirect.instances);
-                uploadSceneInstances(transparent.instances);
-                uploadSceneInstances(transparent.traditionalIndirect.instances);
-                uploadSceneInstances(shadow.instances);
-                uploadSceneInstances(shadow.traditionalIndirect.instances);
-            };
-
-            const auto patchDirtyPass =
-                [&](const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass) -> bool {
-
-                if (!pass.HasDirtyGpuSceneRanges()) {
-                    return true;
-                }
-                if (pass.instances == nullptr) {
-                    return false;
-                }
-                for (const RENDER3D::GPUDRIVEN::GpuSceneDirtyRange& range : pass.dirtyRanges) {
-                    if (!range.IsValid()) {
-                        continue;
-                    }
-                    const size_t localBegin = range.firstInstance;
-                    const size_t localCount = range.instanceCount;
-                    if (localBegin >= pass.instances->size() ||
-                        localCount > pass.instances->size() - localBegin) {
-                        return false;
-                    }
-                    if (!g.surfaceGpuSceneBuffer.UpdateRange(
-                        static_cast<size_t>(pass.gpuSceneBaseIndex) + localBegin,
-                        pass.instances->data() + localBegin,
-                        localCount)) {
-                        return false;
-                    }
-                }
-                return true;
-            };
-
-            const uint64_t layoutVersion = g.gpuDrivenSceneSource.layoutVersion;
-            const uint64_t sourceVersion = g.gpuDrivenSceneSource.sourceVersion;
-            const size_t sourceInstanceCount =
-                g.gpuDrivenSceneSource.sourceInstanceCount != 0
-                    ? g.gpuDrivenSceneSource.sourceInstanceCount
-                    : g.gpuDrivenSceneSource.CountGpuSceneInstances();
-            const bool residentLayoutMatches =
-                g.gpuDrivenSceneResident &&
-                g.gpuDrivenResidentSceneLayoutVersion == layoutVersion &&
-                g.gpuDrivenResidentSceneInstanceCount == sourceInstanceCount;
-
-            if (sourceInstanceCount == 0) {
-                g.surfaceGpuSceneBuffer.ResetFrame();
-                g.gpuDrivenSceneResident = false;
-                g.gpuDrivenResidentSceneLayoutVersion = 0;
-                g.gpuDrivenResidentSceneDataVersion = 0;
-                g.gpuDrivenResidentSceneInstanceCount = 0;
-            } else if (residentLayoutMatches) {
-                g.surfaceGpuSceneBuffer.ReuseFrame(sourceInstanceCount);
-                if (g.gpuDrivenResidentSceneDataVersion != sourceVersion) {
-                    const bool patched =
-                        g.gpuDrivenSceneSource.HasAnyDirtyGpuSceneRanges() &&
-                        patchDirtyPass(opaque) &&
-                        patchDirtyPass(depthAware) &&
-                        patchDirtyPass(transparent) &&
-                        patchDirtyPass(shadow);
-                    if (!patched) {
-                        uploadFullScene();
-                    }
-                }
-            } else {
-                uploadFullScene();
-            }
+                uploadStats.passInstanceCounts[
+                    RENDER3D::GPUDRIVEN::ToPassIndex(
+                        RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow)];
 
             const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
-                g.surfaceGpuSceneBuffer.GetStats();
-            g.gpuDrivenSceneResident =
-                sourceInstanceCount != 0 &&
-                gpuSceneStats.overflowInstanceCount == 0 &&
-                gpuSceneStats.uploadedInstanceCount == sourceInstanceCount;
-            if (g.gpuDrivenSceneResident) {
-                g.gpuDrivenResidentSceneLayoutVersion = layoutVersion;
-                g.gpuDrivenResidentSceneDataVersion = sourceVersion;
-                g.gpuDrivenResidentSceneInstanceCount = sourceInstanceCount;
-            }
+                uploadStats.bufferStats;
             g.debugStats.surfaceGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.surfaceGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
             g.debugStats.surfaceGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
@@ -446,16 +339,6 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
             g.debugStats.surfaceGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.surfaceGpuSceneBufferReady = gpuSceneStats.initialized;
-            g.gpuDrivenLayer.UploadSurfaceGpuSceneFrame(
-                static_cast<uint32_t>(
-                    (std::min)(
-                        sourceInstanceCount,
-                        static_cast<size_t>(UINT32_MAX))),
-                opaque.gpuSceneBaseIndex,
-                depthAware.gpuSceneBaseIndex,
-                transparent.gpuSceneBaseIndex,
-                shadow.traditionalIndirect.gpuSceneBaseIndex,
-                g.gpuDrivenSceneResident);
         }
 
         void PrepareSurfaceGpuSceneMaterialFrame() {
@@ -591,7 +474,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void ResetGpuDrivenFrameState() {
-            UploadSurfaceGpuSceneFrame();
+            UploadGpuDrivenSceneFrame();
             g.gpuDrivenFrame.Reset();
             UpdateGpuDrivenWorklistDebugStats();
             g.clusterGpuDrivenProducer.BeginFrame(false);
@@ -610,8 +493,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void PrepareGpuDrivenFrameState() {
-            UploadSurfaceGpuSceneFrame();
-            if (!g.gpuDrivenSceneResident) {
+            UploadGpuDrivenSceneFrame();
+            if (!g.gpuDrivenSceneResidency.resident) {
                 g.gpuDrivenFrame.Reset();
                 UpdateGpuDrivenWorklistDebugStats();
                 g.clusterGpuDrivenProducer.BeginFrame(false);
