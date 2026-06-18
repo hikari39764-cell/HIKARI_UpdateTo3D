@@ -130,6 +130,10 @@ RWStructuredBuffer<ClusterCullMeshletDispatchArgument> gClusterCullMeshletDispat
 static const uint HIKARI_CLUSTER_DRAW_BUCKET_BACK_FACE = 0u;
 static const uint HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED = 1u;
 static const uint HIKARI_CLUSTER_DRAW_BUCKET_COUNT = 2u;
+static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_OPAQUE = 0u;
+static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE = 1u;
+static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_TRANSPARENT = 2u;
+static const uint HIKARI_CLUSTER_CULL_PASS_SHADOW = 3u;
 static const uint HIKARI_CLUSTER_CULL_PASS_COUNT = 4u;
 
 static const uint HIKARI_CLUSTER_CULL_COUNTER_INPUT_COUNT = 0u;
@@ -649,13 +653,37 @@ bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance
         HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SHADER_VISIBLE |
         HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY_SURFACE_RANGE;
 
+    const bool transparent =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT) != 0u;
+    const bool waterMaterialFx =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX) != 0u;
+
+    if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE)
+    {
+        if (!waterMaterialFx)
+        {
+            return false;
+        }
+    }
+    else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_TRANSPARENT)
+    {
+        if (!transparent || waterMaterialFx)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (transparent || waterMaterialFx)
+        {
+            return false;
+        }
+    }
+
     return
         instance.geometryBackend == HIKARI_SURFACE_GEOMETRY_BACKEND_CLUSTER_GEOMETRY &&
         (instance.resourceFlags & requiredResources) == requiredResources &&
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_CLUSTER_MAINLINE) != 0u &&
-        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT) == 0u &&
-        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_MATERIAL_FX) == 0u &&
-        instance.fxFlags == 0u &&
         instance.materialDataIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
         instance.clusterGeometrySrvDescriptorIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
         instance.clusterRangeIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&

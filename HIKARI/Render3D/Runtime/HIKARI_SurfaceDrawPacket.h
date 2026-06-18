@@ -43,6 +43,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool resourceKeyValid = false;
         bool objectDataCompatible = false;
         bool clusterMainlineEligible = false;
+        bool materialFx = false;
+        bool waterMaterialFx = false;
         bool depthAware = false;
         bool alphaMasked = false;
         bool transparent = false;

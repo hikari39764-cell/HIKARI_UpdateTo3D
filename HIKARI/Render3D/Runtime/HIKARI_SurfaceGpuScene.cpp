@@ -101,6 +101,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             if (!packet.materialFxProfileId.empty()) {
                 flags |= ToFlag(SurfaceGpuSceneInstanceFlags::MaterialFx);
             }
+            if (packet.key.waterMaterialFx) {
+                flags |= ToFlag(SurfaceGpuSceneInstanceFlags::WaterMaterialFx);
+            }
             if (packet.key.clusterMainlineEligible) {
                 flags |= ToFlag(SurfaceGpuSceneInstanceFlags::ClusterMainline);
             }

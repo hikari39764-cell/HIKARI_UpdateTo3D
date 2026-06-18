@@ -276,12 +276,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 !shaderRoute.pixelShaderId.empty() ? shaderRoute.pixelShaderId : shaderProfile;
             const bool clusterVertexCompatible =
                 shaderRoute.vertexShaderId.empty() ||
-                shaderRoute.vertexShaderId == "Render3D_StaticVS";
+                shaderRoute.vertexShaderId == "Render3D_StaticVS" ||
+                shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             const bool clusterPixelCompatible =
                 pixelShaderId.empty() ||
                 pixelShaderId == "PBR" ||
                 pixelShaderId == "StaticLit" ||
-                pixelShaderId == "Render3D_StaticPS";
+                pixelShaderId == "StaticFx" ||
+                pixelShaderId == "MaterialFx" ||
+                pixelShaderId == "Render3D_StaticPS" ||
+                pixelShaderId == "Render3D_StaticFxPS" ||
+                pixelShaderId == "Render3D_FxWaterPS";
 
             key.modelKey = modelKey;
             key.clusterGeometryKey =
@@ -341,16 +346,17 @@ namespace HIKARI::RENDER3D::RUNTIME {
             key.doubleSided = doubleSided;
             key.resourceKeyValid = key.resources.HasStableKeys();
             key.objectDataCompatible = shaderRoute.objectDataCompatible;
+            key.materialFx = !packet.materialFxProfileId.empty();
+            key.waterMaterialFx =
+                pixelShaderId == "Render3D_FxWaterPS" ||
+                shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             key.depthAware = shaderRoute.depthAware;
-            // Cluster draw は static opaque / alpha-mask を GPU scene 主線へ載せる。
-            // double-sided は cluster PSO の cull none で扱い、transparent / depth-aware は別 stream に残す。
+            // Cluster culling is the GPU-driven mainline; pass routing keeps
+            // opaque, depth-aware water, and transparent streams separate.
             key.clusterMainlineEligible =
                 key.geometryBackend == SurfaceGeometryBackend::ClusterGeometry &&
                 clusterVertexCompatible &&
                 clusterPixelCompatible &&
-                packet.materialFxProfileId.empty() &&
-                alphaMode != AlphaMode::Blend &&
-                !shaderRoute.depthAware &&
                 key.objectDataCompatible;
             return key;
         }
