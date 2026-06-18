@@ -23,18 +23,18 @@ struct PSInput
     nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
-void main(PSInput input)
+float main(PSInput input) : SV_Depth
 {
     if (input.materialDataIndex == HIKARI_INVALID_MESHLET_SHADOW_MATERIAL_INDEX)
     {
-        return;
+        return input.position.z;
     }
 
     HikariMeshMaterialData materialData =
         HikariGetMeshMaterialData(input.materialDataIndex);
     if ((materialData.materialFlags & MATERIAL_ALPHA_MASK) == 0u)
     {
-        return;
+        return input.position.z;
     }
 
     const float alpha =
@@ -47,4 +47,5 @@ void main(PSInput input)
     {
         discard;
     }
+    return input.position.z;
 }
