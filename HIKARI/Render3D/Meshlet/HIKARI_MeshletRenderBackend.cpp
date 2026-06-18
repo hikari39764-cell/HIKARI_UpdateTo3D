@@ -212,6 +212,15 @@ namespace HIKARI::RENDER3D::MESHLET {
                 rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
                 rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
             }
+            if (!hasRenderTarget) {
+                blend.AlphaToCoverageEnable = FALSE;
+                blend.IndependentBlendEnable = FALSE;
+                for (D3D12_RENDER_TARGET_BLEND_DESC& rt : blend.RenderTarget) {
+                    rt.BlendEnable = FALSE;
+                    rt.LogicOpEnable = FALSE;
+                    rt.RenderTargetWriteMask = 0;
+                }
+            }
 
             MeshletPipelineStateStream stream{};
             stream.RootSignature = rootSignature;

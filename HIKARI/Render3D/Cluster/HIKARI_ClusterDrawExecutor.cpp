@@ -59,6 +59,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
                 rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
             }
+            if (!hasRenderTarget) {
+                psoDesc.BlendState.AlphaToCoverageEnable = FALSE;
+                psoDesc.BlendState.IndependentBlendEnable = FALSE;
+                for (D3D12_RENDER_TARGET_BLEND_DESC& rt :
+                    psoDesc.BlendState.RenderTarget) {
+                    rt.BlendEnable = FALSE;
+                    rt.LogicOpEnable = FALSE;
+                    rt.RenderTargetWriteMask = 0;
+                }
+            }
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.CullMode = cullMode;
