@@ -24,6 +24,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
@@ -47,6 +48,7 @@ namespace HIKARI::MESHRENDERER {
         void UpdateMeshletBackendDebugStats();
         void SyncGpuDrivenBackendAvailability();
         void UpdateGpuDrivenWorkReadyDebugStats();
+        void UpdateGpuDrivenCommandStreamDebugStats();
         void BuildGpuDrivenFrameState();
         void UpdateGpuDrivenWorkOwnershipDebugStats();
         void BuildGpuDrivenWorkFrame();
@@ -562,6 +564,7 @@ namespace HIKARI::MESHRENDERER {
             g.surfaceIndirectDrawBuffer.FlushToGpu(SERVICES::gCtx.cmdList);
             UpdateSurfaceIndirectDrawStats();
             g.gpuDrivenLayer.BuildCommandBuffers();
+            UpdateGpuDrivenCommandStreamDebugStats();
         }
 
         void BuildGpuDrivenFrameState() {
@@ -589,6 +592,7 @@ namespace HIKARI::MESHRENDERER {
             g.surfaceIndirectDrawBuffer.ResetFrame();
             UpdateSurfaceIndirectDrawStats();
             g.gpuDrivenLayer.BuildCommandBuffers();
+            UpdateGpuDrivenCommandStreamDebugStats();
         }
 
         void PrepareGpuDrivenFrameState() {
@@ -608,6 +612,7 @@ namespace HIKARI::MESHRENDERER {
                 g.surfaceIndirectDrawBuffer.ResetFrame();
                 UpdateSurfaceIndirectDrawStats();
                 g.gpuDrivenLayer.BuildCommandBuffers();
+                UpdateGpuDrivenCommandStreamDebugStats();
                 return;
             }
             PrepareSurfaceGpuSceneMaterialFrame();
@@ -659,6 +664,7 @@ namespace HIKARI::MESHRENDERER {
             g.gpuDrivenLayer.ImportProducerOutput(
                 g.clusterGpuDrivenProducer.BuildFrameOutput());
             g.gpuDrivenLayer.BuildCommandBuffers();
+            UpdateGpuDrivenCommandStreamDebugStats();
             g.debugStats.clusterGpuCullReady =
                 clusterCullStats.initialized &&
                 clusterCullStats.psoReady &&
@@ -886,6 +892,22 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterMainlineOverflowBlocked =
                 forward.overflowBlocked ||
                 geometry.overflowBlocked;
+            UpdateGpuDrivenCommandStreamDebugStats();
+        }
+
+        void UpdateGpuDrivenCommandStreamDebugStats() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandStream& stream =
+                g.gpuDrivenLayer.GetDrawCommandStream();
+            g.debugStats.gpuDrivenCommandStreamPassCount =
+                stream.CountActivePasses();
+            g.debugStats.gpuDrivenCommandStreamRangeCount =
+                stream.CountActiveRanges();
+            g.debugStats.gpuDrivenCommandStreamCpuCommandCount =
+                stream.CountCpuAuthoredCommands();
+            g.debugStats.gpuDrivenCommandStreamGpuCommandCount =
+                stream.CountGpuAuthoredCommands();
+            g.debugStats.gpuDrivenCommandStreamTraditionalCommandCount =
+                stream.CountTraditionalIndirectCommands();
         }
 
         void ApplyGpuDrivenWorkOwnershipDebugStats(
@@ -1041,8 +1063,13 @@ namespace HIKARI::MESHRENDERER {
                     SERVICES::gCtx.cmdList,
                     gpuPass,
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
+            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
+                backendContext.drawCommandRange;
+            if (range == nullptr || !range->HasTraditionalIndirectView()) {
+                return false;
+            }
             const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                backendContext.traditionalIndirect;
+                range->traditionalIndirect;
             if (view == nullptr ||
                 !view->HasCommands() ||
                 view->packets == nullptr ||
@@ -1081,6 +1108,47 @@ namespace HIKARI::MESHRENDERER {
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenWorkReadyDebugStats();
             return submitted;
+        }
+
+        MeshLegacyFallbackReason ResolveLegacyFallbackReason(
+            RENDER3D::RenderPhase phase,
+            MeshDrawPassKind passKind) {
+
+            if (passKind == MeshDrawPassKind::GeometryAux) {
+                return MeshLegacyFallbackReason::GeometryAuxCpuDirectTail;
+            }
+            switch (phase) {
+            case RENDER3D::RenderPhase::DepthAware:
+                return MeshLegacyFallbackReason::DepthAwareCpuDirectTail;
+            case RENDER3D::RenderPhase::Transparent:
+                return MeshLegacyFallbackReason::TransparentCpuDirectTail;
+            case RENDER3D::RenderPhase::Opaque:
+            default:
+                return MeshLegacyFallbackReason::OpaqueCpuDirectTail;
+            }
+        }
+
+        void RecordLegacyFallback(
+            MeshLegacyFallbackReason reason,
+            size_t itemCount) {
+
+            ++g.debugStats.legacyFallbackInvocationCount;
+            g.debugStats.legacyFallbackItemCount += itemCount;
+            switch (reason) {
+            case MeshLegacyFallbackReason::DepthAwareCpuDirectTail:
+                g.debugStats.legacyFallbackDepthAwareItemCount += itemCount;
+                break;
+            case MeshLegacyFallbackReason::TransparentCpuDirectTail:
+                g.debugStats.legacyFallbackTransparentItemCount += itemCount;
+                break;
+            case MeshLegacyFallbackReason::GeometryAuxCpuDirectTail:
+                g.debugStats.legacyFallbackGeometryAuxItemCount += itemCount;
+                break;
+            case MeshLegacyFallbackReason::OpaqueCpuDirectTail:
+            default:
+                g.debugStats.legacyFallbackOpaqueItemCount += itemCount;
+                break;
+            }
         }
 
         bool ExecuteGeometryBackend(
@@ -1289,6 +1357,9 @@ namespace HIKARI::MESHRENDERER {
             size_t& objectIndex,
             const MeshPassResources& passResources) {
 
+            RecordLegacyFallback(
+                ResolveLegacyFallbackReason(phase, passKind),
+                queue.GetPhase(phase).size());
             const bool packetOk = RenderGpuDrivenFallbackCommands(
                 sourcePassKind,
                 passKind,

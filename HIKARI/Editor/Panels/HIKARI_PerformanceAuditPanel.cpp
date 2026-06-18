@@ -269,6 +269,18 @@ namespace HIKARI {
                     s.mesh.gpuDrivenWorklistClusterPassCount,
                     s.mesh.gpuDrivenWorklistSourceInstanceCount,
                     s.mesh.gpuDrivenWorklistClusterInstanceCount);
+                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / CPU Cmd", "%zu / %zu / %zu / %zu",
+                    s.mesh.gpuDrivenCommandStreamPassCount,
+                    s.mesh.gpuDrivenCommandStreamRangeCount,
+                    s.mesh.gpuDrivenCommandStreamGpuCommandCount,
+                    s.mesh.gpuDrivenCommandStreamCpuCommandCount);
+                MetricRow("Legacy Fallback Calls / Items / Opaque / Depth / Transparent / Geometry", "%zu / %zu / %zu / %zu / %zu / %zu",
+                    s.mesh.legacyFallbackInvocationCount,
+                    s.mesh.legacyFallbackItemCount,
+                    s.mesh.legacyFallbackOpaqueItemCount,
+                    s.mesh.legacyFallbackDepthAwareItemCount,
+                    s.mesh.legacyFallbackTransparentItemCount,
+                    s.mesh.legacyFallbackGeometryAuxItemCount);
                 MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuInputFrustumCulledCount,

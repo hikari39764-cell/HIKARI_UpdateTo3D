@@ -5,6 +5,7 @@
 
 #include "Render3D/GpuDriven/HIKARI_GpuCommandBuildResult.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenStats.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneFrame.h"
 #include "Render3D/GpuDriven/HIKARI_GpuVisibilityResult.h"
@@ -77,6 +78,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GpuSceneFrame scene{};
         GpuVisibilityResult visibility{};
         GpuCommandBuildResult commands{};
+        GpuDrivenDrawCommandStream drawStream{};
         GpuDrivenStats stats{};
         GpuDrivenBackendAvailability backendAvailability{};
         std::array<GpuDrivenPassExecutionState, kGpuDrivenPassCount> passExecution{};

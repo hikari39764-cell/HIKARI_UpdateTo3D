@@ -1249,6 +1249,9 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
@@ -1438,6 +1441,9 @@
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenCommandBucket.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrameContext.h">

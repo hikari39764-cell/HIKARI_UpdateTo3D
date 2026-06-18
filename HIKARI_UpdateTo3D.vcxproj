@@ -299,6 +299,7 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
@@ -651,6 +652,7 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuCommandBuildResult.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenCommandBucket.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPass.h" />

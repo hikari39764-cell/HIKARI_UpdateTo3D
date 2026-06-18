@@ -198,14 +198,19 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GeometryBackendContext context{};
         context.commandList = commandList;
         context.requestedPass = pass;
-        context.pass = GetPassExecutionState(pass).visibilityPass;
+        const GpuDrivenPassExecutionState& state =
+            GetPassExecutionState(pass);
+        context.pass = state.visibilityPass;
         context.backend = backend;
         context.scene = &frameContext_.scene;
         context.visibility = &frameContext_.visibility;
         context.commands = &frameContext_.commands;
-        if (frameSource_ != nullptr) {
+        context.drawCommandRange =
+            frameContext_.drawStream.FindRange(pass, backend);
+        if (frameSource_ != nullptr &&
+            state.sourceMode != GpuDrivenPassSourceMode::None) {
             context.traditionalIndirect =
-                &frameSource_->GetPass(pass).traditionalIndirect;
+                &frameSource_->GetPass(state.sourcePass).traditionalIndirect;
         }
         return context;
     }
@@ -231,6 +236,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     const GpuDrivenFrameContext& GpuDrivenLayer::GetFrameContext() const {
         return frameContext_;
+    }
+
+    const GpuDrivenDrawCommandStream&
+        GpuDrivenLayer::GetDrawCommandStream() const {
+
+        return frameContext_.drawStream;
     }
 
     void GpuDrivenLayer::InitializePassExecutionStates(
@@ -343,6 +354,86 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 state.meshShaderConsumable ||
                 state.clusterVsConsumable ||
                 state.traditionalIndirectConsumable;
+        }
+        RebuildDrawCommandStream();
+    }
+
+    void GpuDrivenLayer::RebuildDrawCommandStream() {
+        frameContext_.drawStream.Reset();
+        if (frameSource_ == nullptr) {
+            return;
+        }
+
+        for (const GpuDrivenPassExecutionState& state :
+            frameContext_.passExecution) {
+
+            if (state.sourceMode == GpuDrivenPassSourceMode::None) {
+                continue;
+            }
+
+            const GpuDrivenPassSource& passSource =
+                frameSource_->GetPass(state.sourcePass);
+            const GpuDrivenCommandPassLayout& commandLayout =
+                frameContext_.commands.layout.GetPass(state.visibilityPass);
+
+            if (state.meshShaderConsumable) {
+                GpuDrivenDrawCommandRange range{};
+                range.pass = state.pass;
+                range.sourcePass = state.sourcePass;
+                range.backend = GeometryBackendKind::GpuDrivenMeshShader;
+                range.producer = GpuDrivenCommandProducerKind::GpuCommandBuilder;
+                range.gpuCommandLayout = &commandLayout;
+                range.argumentBuffer = frameContext_.commands.meshDispatchArgs;
+                range.commandSignature =
+                    frameContext_.commands.meshDispatchSignature;
+                range.commandCount = state.drawSeedCount;
+                range.instanceCount = state.sourceInstanceCount;
+                range.consumable = true;
+                range.gpuAuthored = true;
+                frameContext_.drawStream.SetRange(range);
+            }
+
+            if (state.clusterVsConsumable) {
+                GpuDrivenDrawCommandRange range{};
+                range.pass = state.pass;
+                range.sourcePass = state.sourcePass;
+                range.backend = GeometryBackendKind::GpuDrivenClusterVS;
+                range.producer = GpuDrivenCommandProducerKind::GpuCommandBuilder;
+                range.gpuCommandLayout = &commandLayout;
+                range.argumentBuffer = frameContext_.commands.gpuDrawIndexedArgs;
+                range.commandSignature =
+                    frameContext_.commands.gpuDrawIndexedSignature;
+                range.commandCount = state.drawSeedCount;
+                range.instanceCount = state.sourceInstanceCount;
+                range.consumable = true;
+                range.gpuAuthored = true;
+                frameContext_.drawStream.SetRange(range);
+            }
+
+            if (state.traditionalIndirectConsumable) {
+                const GpuDrivenTraditionalIndirectView& view =
+                    passSource.traditionalIndirect;
+                GpuDrivenDrawCommandRange range{};
+                range.pass = state.pass;
+                range.sourcePass = state.sourcePass;
+                range.backend = GeometryBackendKind::GpuDrivenTraditionalVS;
+                range.producer = GpuDrivenCommandProducerKind::CpuScenePlanner;
+                range.traditionalIndirect = &view;
+                range.argumentBuffer =
+                    frameContext_.commands.surfaceDrawIndexedArgs;
+                range.commandSignature =
+                    frameContext_.commands.surfaceDrawIndexedSignature;
+                range.gpuSceneBaseIndex = view.gpuSceneBaseIndex;
+                range.commandCount = view.CommandCount();
+                range.packetCount =
+                    view.executablePacketIndices != nullptr
+                        ? view.executablePacketIndices->size()
+                        : 0u;
+                range.instanceCount = view.gpuSceneInstanceCount;
+                range.consumable = true;
+                range.gpuAuthored = false;
+                frameContext_.drawStream.SetRange(range);
+            }
         }
     }
 

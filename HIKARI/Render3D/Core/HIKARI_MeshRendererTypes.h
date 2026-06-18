@@ -233,6 +233,14 @@ namespace HIKARI::MESHRENDERER {
             item.resolvedMaterialFxProfile.renderPhase == MaterialFxRenderPhase::DepthAware;
     }
 
+    enum class MeshLegacyFallbackReason : uint32_t {
+        OpaqueCpuDirectTail,
+        DepthAwareCpuDirectTail,
+        TransparentCpuDirectTail,
+        GeometryAuxCpuDirectTail,
+        Count,
+    };
+
     struct MeshRendererDebugStats {
         size_t skinnedGpuDrawCount = 0;
         size_t skinnedFallbackCount = 0;
@@ -363,6 +371,17 @@ namespace HIKARI::MESHRENDERER {
         size_t gpuDrivenWorklistClusterPassCount = 0;
         size_t gpuDrivenWorklistSourceInstanceCount = 0;
         size_t gpuDrivenWorklistClusterInstanceCount = 0;
+        size_t gpuDrivenCommandStreamPassCount = 0;
+        size_t gpuDrivenCommandStreamRangeCount = 0;
+        size_t gpuDrivenCommandStreamCpuCommandCount = 0;
+        size_t gpuDrivenCommandStreamGpuCommandCount = 0;
+        size_t gpuDrivenCommandStreamTraditionalCommandCount = 0;
+        size_t legacyFallbackInvocationCount = 0;
+        size_t legacyFallbackItemCount = 0;
+        size_t legacyFallbackOpaqueItemCount = 0;
+        size_t legacyFallbackDepthAwareItemCount = 0;
+        size_t legacyFallbackTransparentItemCount = 0;
+        size_t legacyFallbackGeometryAuxItemCount = 0;
         size_t clusterGpuCullSourceInstanceCount = 0;
         size_t clusterGpuCullCandidateInstanceCount = 0;
         size_t clusterGpuCullSubmittedInstanceCount = 0;

@@ -62,6 +62,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         SurfaceIndirectDrawBuffer* GetIndirectDrawBuffer() const;
         IGpuDrivenProducer* GetProducer() const;
         const GpuDrivenFrameContext& GetFrameContext() const;
+        const GpuDrivenDrawCommandStream& GetDrawCommandStream() const;
 
     private:
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
@@ -73,6 +74,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void InitializePassExecutionStates(
             const GpuDrivenSceneSource* source);
         void RefreshPassExecutionStates();
+        void RebuildDrawCommandStream();
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN
