@@ -464,6 +464,39 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint 
     return lerp(1.0f - gShadowStrength, 1.0f, visibility);
 }
 
+bool HikariShouldApplyStaticFx(HikariMeshObjectData pixelObjectData, uint surfaceGpuSceneIndex)
+{
+#if HIKARI_SURFACE_GPU_SCENE_CONSUME
+#if defined(HIKARI_FORCE_SURFACE_GPU_SCENE_PIXEL) && HIKARI_FORCE_SURFACE_GPU_SCENE_PIXEL
+    HikariSurfaceGpuSceneInstance surfaceInstance =
+        HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex);
+    return (surfaceInstance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_MATERIAL_FX) != 0u;
+#else
+    if (gUseSurfaceGpuScene != 0u)
+    {
+        HikariSurfaceGpuSceneInstance surfaceInstance =
+            HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex);
+        return (surfaceInstance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_MATERIAL_FX) != 0u;
+    }
+#endif
+#endif
+
+    if (pixelObjectData.fxFlags != 0u)
+    {
+        return true;
+    }
+
+    [unroll]
+    for (uint i = 0; i < 8; ++i)
+    {
+        if (any(abs(pixelObjectData.fxUser[i]) > 0.000001f))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshObjectData pixelObjectData =
@@ -607,6 +640,11 @@ float4 main(PSInput input) : SV_TARGET
     {
         float2 screenUv = input.position.xy * gScreenParams.zw;
         return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
+    }
+
+    if (!HikariShouldApplyStaticFx(pixelObjectData, input.surfaceGpuSceneIndex))
+    {
+        return float4(lit, albedo.a);
     }
 
     float rimStrength = gFxUser0.x;

@@ -37,8 +37,33 @@ cbuffer MaterialIndexCB : register(b7)
 };
 
 // instance ごとの material index から MaterialData を読む。
+static const uint HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX = 0xffffffffu;
+
+HikariMeshMaterialData HikariBuildDefaultMeshMaterialData()
+{
+    HikariMeshMaterialData data = (HikariMeshMaterialData)0;
+    data.baseColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    data.pbrParams = float4(0.0f, 1.0f, 1.0f, 0.5f);
+    data.normalScale = 1.0f;
+    data.baseColorTextureHandle = -1;
+    data.normalTextureHandle = -1;
+    data.emissiveTextureHandle = -1;
+    data.metallicRoughnessTextureHandle = -1;
+    data.occlusionTextureHandle = -1;
+    data.baseColorTextureDescriptorIndex = HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX;
+    data.normalTextureDescriptorIndex = HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX;
+    data.emissiveTextureDescriptorIndex = HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX;
+    data.metallicRoughnessTextureDescriptorIndex = HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX;
+    data.occlusionTextureDescriptorIndex = HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX;
+    return data;
+}
+
 HikariMeshMaterialData HikariGetMeshMaterialData(uint materialDataIndex)
 {
+    if (materialDataIndex == HIKARI_INVALID_MESH_MATERIAL_DATA_INDEX)
+    {
+        return HikariBuildDefaultMeshMaterialData();
+    }
     return gMaterialDataBuffer[materialDataIndex];
 }
 
