@@ -22,6 +22,9 @@
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
@@ -104,12 +107,11 @@ namespace HIKARI::SHADOW {
             std::vector<DrawItem> pendingStaticItems;
             std::vector<DrawItem> pendingSkinnedItems;
             size_t pendingSkippedNoCastShadowCount = 0;
-            const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* shadowPacketBuilder = nullptr;
-            const std::vector<uint32_t>* shadowPacketExecutionIndices = nullptr;
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* shadowPacketExecutionCommands = nullptr;
-            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* shadowPacketGpuSceneInstances = nullptr;
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* gpuDrivenSceneSource = nullptr;
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
             RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+            RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
             std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
@@ -442,18 +444,88 @@ namespace HIKARI::SHADOW {
             return true;
         }
 
+        const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* GetSourceShadowPass() {
+            if (g.gpuDrivenSceneSource == nullptr) {
+                return nullptr;
+            }
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                g.gpuDrivenSceneSource->GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            return pass.traditionalIndirect.HasCommands()
+                ? &pass
+                : nullptr;
+        }
+
+        const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* GetShadowTraditionalView() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                g.shadowSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            return pass.traditionalIndirect.HasCommands()
+                ? &pass.traditionalIndirect
+                : nullptr;
+        }
+
+        bool BuildShadowGpuDrivenSceneSource() {
+            g.shadowSceneSource.Reset();
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* sourcePass =
+                GetSourceShadowPass();
+            if (sourcePass == nullptr ||
+                !sourcePass->traditionalIndirect.HasGpuSceneInstances()) {
+                return false;
+            }
+
+            RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadowPass =
+                g.shadowSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            shadowPass = *sourcePass;
+            shadowPass.instances = nullptr;
+            shadowPass.materialSources = nullptr;
+            shadowPass.gpuSceneBaseIndex = 0;
+            shadowPass.gpuSceneInstanceCount = 0;
+            shadowPass.preferredBackend =
+                RENDER3D::GPUDRIVEN::GpuDrivenBackendKind::TraditionalIndirect;
+            shadowPass.clusterEligible = false;
+            shadowPass.dirtyRanges.clear();
+            shadowPass.traditionalIndirect.gpuSceneBaseIndex = 0;
+
+            g.shadowSceneSource.layoutVersion =
+                g.gpuDrivenSceneSource != nullptr
+                    ? g.gpuDrivenSceneSource->layoutVersion
+                    : 0u;
+            g.shadowSceneSource.sourceVersion =
+                g.gpuDrivenSceneSource != nullptr
+                    ? g.gpuDrivenSceneSource->sourceVersion
+                    : 0u;
+            g.shadowSceneSource.sourceInstanceCount =
+                shadowPass.traditionalIndirect.gpuSceneInstanceCount;
+            return g.shadowSceneSource.sourceInstanceCount != 0;
+        }
+
+        void SyncShadowGpuDrivenBackendAvailability() {
+            RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
+            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
+                g.surfaceIndirectDrawBuffer.GetStats();
+            availability.traditionalIndirectPipelineReady =
+                indirectStats.initialized &&
+                indirectStats.commandSignatureReady;
+            g.gpuDrivenLayer.SetBackendAvailability(availability);
+        }
+
         bool PrepareShadowGpuSceneMaterialFrame() {
-            if (g.shadowPacketBuilder == nullptr ||
-                g.shadowPacketExecutionIndices == nullptr ||
-                g.shadowPacketExecutionCommands == nullptr ||
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                GetShadowTraditionalView();
+            if (view == nullptr ||
+                view->packets == nullptr ||
+                view->executablePacketIndices == nullptr ||
+                view->commands == nullptr ||
                 g.materialDataMapped == nullptr) {
                 return false;
             }
 
             const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                g.shadowPacketBuilder->GetPackets();
+                *view->packets;
             bool patchedAny = false;
-            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : *g.shadowPacketExecutionCommands) {
+            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : *view->commands) {
                 if (command.packetCount == 0 ||
                     command.firstGpuSceneInstanceIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
                     continue;
@@ -463,7 +535,7 @@ namespace HIKARI::SHADOW {
                 size_t commandEnd = 0;
                 if (!TryResolveCommandPacketRange(
                     command,
-                    g.shadowPacketExecutionIndices->size(),
+                    view->executablePacketIndices->size(),
                     commandBegin,
                     commandEnd)) {
                     continue;
@@ -471,7 +543,7 @@ namespace HIKARI::SHADOW {
 
                 size_t localIndex = 0;
                 for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                    const uint32_t packetIndex = (*g.shadowPacketExecutionIndices)[executableIndex];
+                    const uint32_t packetIndex = (*view->executablePacketIndices)[executableIndex];
                     if (packetIndex >= packets.size()) {
                         break;
                     }
@@ -897,6 +969,17 @@ namespace HIKARI::SHADOW {
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow packet path will be used.");
             }
+            g.gpuDrivenLayer.Attach(
+                &g.surfaceGpuSceneBuffer,
+                &g.surfaceIndirectDrawBuffer,
+                nullptr);
+            if (!g.gpuDrivenLayer.Initialize(
+                device,
+                g.rootSig.Get(),
+                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow GPU-driven layer initialization failed. Direct shadow fallback will be used.");
+            }
             return true;
         }
 
@@ -1089,13 +1172,38 @@ namespace HIKARI::SHADOW {
         }
 
         void UploadShadowGpuSceneFrame() {
+            BuildShadowGpuDrivenSceneSource();
+            g.gpuDrivenLayer.BeginFrame(
+                g.shadowSceneSource.HasAnyGpuSceneRanges()
+                    ? &g.shadowSceneSource
+                    : nullptr);
+
             g.surfaceGpuSceneBuffer.ResetFrame();
-            if (g.shadowPacketGpuSceneInstances != nullptr) {
-                g.surfaceGpuSceneBuffer.Upload(*g.shadowPacketGpuSceneInstances);
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                GetShadowTraditionalView();
+            if (view != nullptr && view->instances != nullptr) {
+                g.surfaceGpuSceneBuffer.Upload(*view->instances);
             }
 
             const RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBufferStats& gpuSceneStats =
                 g.surfaceGpuSceneBuffer.GetStats();
+            const uint32_t uploadedInstanceCount =
+                static_cast<uint32_t>(
+                    (std::min)(
+                        gpuSceneStats.uploadedInstanceCount,
+                        static_cast<size_t>(UINT32_MAX)));
+            const bool sceneResident =
+                g.shadowSceneSource.sourceInstanceCount != 0 &&
+                gpuSceneStats.overflowInstanceCount == 0 &&
+                gpuSceneStats.uploadedInstanceCount ==
+                    g.shadowSceneSource.sourceInstanceCount;
+            g.gpuDrivenLayer.UploadSurfaceGpuSceneFrame(
+                uploadedInstanceCount,
+                0u,
+                0u,
+                0u,
+                view != nullptr ? view->gpuSceneBaseIndex : 0u,
+                sceneResident);
             g.debugStats.shadowGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.shadowGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
             g.debugStats.shadowGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
@@ -1107,11 +1215,15 @@ namespace HIKARI::SHADOW {
 
         void UploadShadowIndirectDrawFrame() {
             g.surfaceIndirectDrawBuffer.ResetFrame();
-            if (g.shadowPacketExecutionCommands != nullptr) {
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                GetShadowTraditionalView();
+            if (view != nullptr && view->commands != nullptr) {
                 g.surfaceIndirectDrawBuffer.UploadSurfaceCommands(
-                    *g.shadowPacketExecutionCommands,
-                    0u);
+                    *view->commands,
+                    view->gpuSceneBaseIndex);
             }
+            g.gpuDrivenLayer.BuildCommandBuffers();
+            SyncShadowGpuDrivenBackendAvailability();
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.surfaceIndirectDrawBuffer.GetStats();
@@ -1126,19 +1238,23 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
         }
 
-        bool HasShadowPacketExecutionPlan() {
-            return
-                g.shadowPacketBuilder != nullptr &&
-                g.shadowPacketExecutionIndices != nullptr &&
-                g.shadowPacketExecutionCommands != nullptr &&
-                !g.shadowPacketExecutionCommands->empty();
+        const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* GetShadowDrawCommandRange() {
+            return g.gpuDrivenLayer.GetDrawCommandStream().FindRange(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow,
+                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
+        }
+
+        bool HasShadowGpuDrivenExecutionPlan() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
+                GetShadowDrawCommandRange();
+            return range != nullptr && range->HasTraditionalIndirectView();
         }
     }
 
     void Reset() {
         ClearFrameSubmissions();
         ClearPendingSubmissions();
-        SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr, nullptr);
+        SetGpuDrivenSceneSource(nullptr);
     }
 
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera) {
@@ -1270,16 +1386,13 @@ namespace HIKARI::SHADOW {
         QueueSkinnedItem(std::move(item));
     }
 
-    void SetSurfaceDrawPacketExecutionPlan(
-        const RENDER3D::RUNTIME::SurfaceDrawPacketBuilder* builder,
-        const std::vector<uint32_t>* executablePacketIndices,
-        const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>* executableCommands,
-        const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* gpuSceneInstances) {
+    void SetGpuDrivenSceneSource(
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source) {
 
-        g.shadowPacketBuilder = builder;
-        g.shadowPacketExecutionIndices = executablePacketIndices;
-        g.shadowPacketExecutionCommands = executableCommands;
-        g.shadowPacketGpuSceneInstances = gpuSceneInstances;
+        g.gpuDrivenSceneSource = source;
+        if (source == nullptr) {
+            g.shadowSceneSource.Reset();
+        }
     }
 
     void RenderDirectionalShadowMap() {
@@ -1375,69 +1488,81 @@ namespace HIKARI::SHADOW {
             ++objectIndex;
         };
 
-        if (HasShadowPacketExecutionPlan()) {
-            const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
-                g.shadowPacketBuilder->GetPackets();
-
-            PACKET::ShadowPacketExecutorContext packetCtx{};
-            packetCtx.cmd = cmd;
-            packetCtx.staticRootSig = g.rootSig.Get();
-            packetCtx.staticPso = g.staticPso.Get();
-            packetCtx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
-            packetCtx.fallbackBaseColorSrv =
-                RENDER3D::GetTextureResourceSrvGpuHandle(g.fallbackTextureResource);
-            packetCtx.materialDataSrv = g.materialDataSrvGpu;
-            packetCtx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
-            packetCtx.texturePoolSrv = ResolveMaterialTexturePoolSrv();
-            packetCtx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
-            packetCtx.indirectDrawBuffer = &g.surfaceIndirectDrawBuffer;
-            packetCtx.resolveStaticMesh = &GetOrCreatePrimitiveMesh;
-
-            if (PACKET::PrepareShadowPacketIndirectDrawBindings(
-                packetCtx,
-                packets.data(),
-                packets.size(),
-                g.shadowPacketExecutionIndices->data(),
-                g.shadowPacketExecutionIndices->size(),
-                *g.shadowPacketExecutionCommands)) {
-                g.surfaceIndirectDrawBuffer.FlushToGpu(cmd);
-                const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                    g.surfaceIndirectDrawBuffer.GetStats();
-                g.debugStats.shadowIndirectDrawBindingPatchCount =
-                    indirectStats.drawBindingPatchCount;
+        if (HasShadowGpuDrivenExecutionPlan()) {
+            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
+                GetShadowDrawCommandRange();
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                range != nullptr ? range->traditionalIndirect : nullptr;
+            if (view == nullptr ||
+                view->packets == nullptr ||
+                view->executablePacketIndices == nullptr ||
+                view->commands == nullptr) {
+                view = nullptr;
             }
+            if (view != nullptr) {
+                const std::vector<RENDER3D::RUNTIME::SurfaceDrawPacket>& packets =
+                    *view->packets;
 
-            const PACKET::ShadowPacketDrawResult packetResult =
-                PACKET::DrawShadowPacketCommands(
+                PACKET::ShadowPacketExecutorContext packetCtx{};
+                packetCtx.cmd = cmd;
+                packetCtx.staticRootSig = g.rootSig.Get();
+                packetCtx.staticPso = g.staticPso.Get();
+                packetCtx.cameraAddress = g.cameraCB ? g.cameraCB->GetGPUVirtualAddress() : 0;
+                packetCtx.fallbackBaseColorSrv =
+                    RENDER3D::GetTextureResourceSrvGpuHandle(g.fallbackTextureResource);
+                packetCtx.materialDataSrv = g.materialDataSrvGpu;
+                packetCtx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
+                packetCtx.texturePoolSrv = ResolveMaterialTexturePoolSrv();
+                packetCtx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
+                packetCtx.indirectDrawBuffer = &g.surfaceIndirectDrawBuffer;
+                packetCtx.resolveStaticMesh = &GetOrCreatePrimitiveMesh;
+
+                if (PACKET::PrepareShadowPacketIndirectDrawBindings(
                     packetCtx,
                     packets.data(),
                     packets.size(),
-                    g.shadowPacketExecutionIndices->data(),
-                    g.shadowPacketExecutionIndices->size(),
-                    *g.shadowPacketExecutionCommands,
-                    objectIndex);
+                    view->executablePacketIndices->data(),
+                    view->executablePacketIndices->size(),
+                    *view->commands)) {
+                    g.surfaceIndirectDrawBuffer.FlushToGpu(cmd);
+                    const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
+                        g.surfaceIndirectDrawBuffer.GetStats();
+                    g.debugStats.shadowIndirectDrawBindingPatchCount =
+                        indirectStats.drawBindingPatchCount;
+                }
 
-            g.debugStats.shadowPacketCasterDrawCount += packetResult.submittedPacketCount;
-            g.debugStats.shadowPacketSkippedCount += packetResult.skippedPacketCount;
-            g.debugStats.shadowPacketCommandCount += packetResult.commandCount;
-            g.debugStats.shadowPacketSingleCommandCount += packetResult.singlePacketCommandCount;
-            g.debugStats.shadowPacketMaxCommandPacketCount =
-                (std::max)(g.debugStats.shadowPacketMaxCommandPacketCount, packetResult.maxCommandPacketCount);
-            g.debugStats.shadowPacketDrawCallCount += packetResult.drawCallCount;
-            g.debugStats.shadowPacketInstancedDrawCount += packetResult.instancedDrawCount;
-            g.debugStats.shadowPacketInstancedCasterCount += packetResult.instancedPacketCount;
-            g.debugStats.shadowPacketMaxInstanceCount =
-                (std::max)(g.debugStats.shadowPacketMaxInstanceCount, packetResult.maxInstanceCount);
-            g.debugStats.shadowIndirectExecutedCommandCount += packetResult.indirectDrawCount;
-            g.debugStats.shadowIndirectExecutedPacketCount += packetResult.indirectPacketCount;
-            g.debugStats.shadowIndirectBatchSubmitCount += packetResult.indirectBatchCount;
-            g.debugStats.shadowIndirectSavedSubmitCount += packetResult.indirectSavedSubmitCount;
-            g.debugStats.shadowIndirectMaxBatchCommandCount =
-                (std::max)(g.debugStats.shadowIndirectMaxBatchCommandCount, packetResult.indirectMaxBatchCommandCount);
-            g.debugStats.shadowIndirectFallbackCommandCount += packetResult.indirectFallbackCommandCount;
-            g.debugStats.staticCasterDrawCount += packetResult.submittedPacketCount;
-            g.debugStats.totalPrimitiveCasterDrawCount += packetResult.submittedPacketCount;
-            g.debugStats.submittedCasterCount += packetResult.submittedPacketCount;
+                const PACKET::ShadowPacketDrawResult packetResult =
+                    PACKET::DrawShadowPacketCommands(
+                        packetCtx,
+                        packets.data(),
+                        packets.size(),
+                        view->executablePacketIndices->data(),
+                        view->executablePacketIndices->size(),
+                        *view->commands,
+                        objectIndex);
+
+                g.debugStats.shadowPacketCasterDrawCount += packetResult.submittedPacketCount;
+                g.debugStats.shadowPacketSkippedCount += packetResult.skippedPacketCount;
+                g.debugStats.shadowPacketCommandCount += packetResult.commandCount;
+                g.debugStats.shadowPacketSingleCommandCount += packetResult.singlePacketCommandCount;
+                g.debugStats.shadowPacketMaxCommandPacketCount =
+                    (std::max)(g.debugStats.shadowPacketMaxCommandPacketCount, packetResult.maxCommandPacketCount);
+                g.debugStats.shadowPacketDrawCallCount += packetResult.drawCallCount;
+                g.debugStats.shadowPacketInstancedDrawCount += packetResult.instancedDrawCount;
+                g.debugStats.shadowPacketInstancedCasterCount += packetResult.instancedPacketCount;
+                g.debugStats.shadowPacketMaxInstanceCount =
+                    (std::max)(g.debugStats.shadowPacketMaxInstanceCount, packetResult.maxInstanceCount);
+                g.debugStats.shadowIndirectExecutedCommandCount += packetResult.indirectDrawCount;
+                g.debugStats.shadowIndirectExecutedPacketCount += packetResult.indirectPacketCount;
+                g.debugStats.shadowIndirectBatchSubmitCount += packetResult.indirectBatchCount;
+                g.debugStats.shadowIndirectSavedSubmitCount += packetResult.indirectSavedSubmitCount;
+                g.debugStats.shadowIndirectMaxBatchCommandCount =
+                    (std::max)(g.debugStats.shadowIndirectMaxBatchCommandCount, packetResult.indirectMaxBatchCommandCount);
+                g.debugStats.shadowIndirectFallbackCommandCount += packetResult.indirectFallbackCommandCount;
+                g.debugStats.staticCasterDrawCount += packetResult.submittedPacketCount;
+                g.debugStats.totalPrimitiveCasterDrawCount += packetResult.submittedPacketCount;
+                g.debugStats.submittedCasterCount += packetResult.submittedPacketCount;
+            }
         }
 
         for (const DrawItem& item : g.staticItems) {

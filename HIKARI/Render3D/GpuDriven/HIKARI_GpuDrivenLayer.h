@@ -37,6 +37,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t opaqueBaseIndex,
             uint32_t depthAwareBaseIndex,
             uint32_t transparentBaseIndex,
+            uint32_t shadowBaseIndex,
             bool sceneResident);
         void PrepareSurfaceGpuSceneMaterialFrame();
         void ImportProducerOutput(

@@ -84,6 +84,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t opaqueBaseIndex,
         uint32_t depthAwareBaseIndex,
         uint32_t transparentBaseIndex,
+        uint32_t shadowBaseIndex,
         bool sceneResident) {
 
         frameContext_.scene.instanceBuffer = sceneBuffer_;
@@ -91,6 +92,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_.scene.opaqueBaseIndex = opaqueBaseIndex;
         frameContext_.scene.depthAwareBaseIndex = depthAwareBaseIndex;
         frameContext_.scene.transparentBaseIndex = transparentBaseIndex;
+        frameContext_.scene.shadowBaseIndex = shadowBaseIndex;
         frameContext_.stats.residentInstanceCount = instanceCount;
         frameContext_.stats.sceneResident = sceneResident;
     }

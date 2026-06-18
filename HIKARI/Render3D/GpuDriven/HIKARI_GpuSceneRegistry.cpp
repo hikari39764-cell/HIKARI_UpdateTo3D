@@ -162,6 +162,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardDepthAwareTraditionalMaterialSources_.clear();
         forwardTransparentTraditionalGpuSceneInstances_.clear();
         forwardTransparentTraditionalMaterialSources_.clear();
+        shadowTraditionalMaterialSources_.clear();
         surfacePacketBuilder_.Clear();
         surfacePacketPlanner_ = {};
         objectCoverage_.clear();
@@ -310,6 +311,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardDepthAwareTraditionalMaterialSources_.clear();
         forwardTransparentTraditionalGpuSceneInstances_.clear();
         forwardTransparentTraditionalMaterialSources_.clear();
+        shadowTraditionalMaterialSources_.clear();
         surfacePacketBuilder_.Clear();
         surfacePacketPlanner_ = {};
         stats_.surfacePacketStats = {};
@@ -376,6 +378,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             packets,
             forwardTransparentTraditionalGpuSceneInstances_,
             forwardTransparentTraditionalMaterialSources_);
+
+        BuildTraditionalMaterialSources(
+            packets,
+            surfacePacketPlanner_.GetShadowGpuSceneInstances(),
+            shadowTraditionalMaterialSources_);
     }
 
     bool GpuSceneRegistry::TryPatchForwardDataFromSceneCache(
@@ -528,6 +535,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             cursor);
         cursor += ClampToUint32(forwardTransparentTraditionalGpuSceneInstances_.size());
 
+        ResetPassSource(
+            sceneSource_.GetPass(GpuDrivenPassKind::Shadow),
+            nullptr,
+            nullptr,
+            cursor,
+            GpuDrivenBackendKind::TraditionalIndirect,
+            false);
+
+        ResetTraditionalIndirectView(
+            sceneSource_.GetPass(GpuDrivenPassKind::Shadow),
+            &surfacePacketBuilder_.GetPackets(),
+            &surfacePacketPlanner_.GetExecutableShadowPacketIndices(),
+            &surfacePacketPlanner_.GetExecutableShadowCommands(),
+            &surfacePacketPlanner_.GetShadowGpuSceneInstances(),
+            &shadowTraditionalMaterialSources_,
+            cursor);
+        cursor += ClampToUint32(
+            surfacePacketPlanner_.GetShadowGpuSceneInstances().size());
+
         sceneSource_.layoutVersion =
             BuildSourceLayoutVersion(layoutVersion_, routingVersion_);
         sceneSource_.sourceVersion = dataVersion_;
@@ -580,28 +606,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return sceneSource_;
     }
 
-    const RUNTIME::SurfaceDrawPacketBuilder& GpuSceneRegistry::GetSurfaceDrawPacketBuilder() const {
-        return surfacePacketBuilder_;
-    }
-
-    const std::vector<uint32_t>& GpuSceneRegistry::GetExecutableShadowPacketIndices() const {
-        return surfacePacketPlanner_.GetExecutableShadowPacketIndices();
-    }
-
-    const std::vector<RUNTIME::SurfaceDrawCommand>& GpuSceneRegistry::GetExecutableShadowCommands() const {
-        return surfacePacketPlanner_.GetExecutableShadowCommands();
-    }
-
-    const std::vector<RUNTIME::SurfaceGpuSceneInstance>& GpuSceneRegistry::GetShadowGpuSceneInstances() const {
-        return surfacePacketPlanner_.GetShadowGpuSceneInstances();
-    }
-
-    bool GpuSceneRegistry::HasShadowPacketExecutionPlan() const {
+    bool GpuSceneRegistry::HasShadowPassSource() const {
+        const GpuDrivenPassSource& shadow =
+            sceneSource_.GetPass(GpuDrivenPassKind::Shadow);
         return
-            !surfacePacketBuilder_.GetPackets().empty() &&
-            !surfacePacketPlanner_.GetExecutableShadowPacketIndices().empty() &&
-            !surfacePacketPlanner_.GetExecutableShadowCommands().empty() &&
-            !surfacePacketPlanner_.GetShadowGpuSceneInstances().empty();
+            shadow.traditionalIndirect.HasCommands() &&
+            shadow.traditionalIndirect.HasGpuSceneInstances();
     }
 
     const std::vector<GpuSceneSurfaceRecord>& GpuSceneRegistry::GetSurfaceRecords() const {

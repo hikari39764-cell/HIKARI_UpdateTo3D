@@ -12,6 +12,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t opaqueBaseIndex = 0;
         uint32_t depthAwareBaseIndex = 0;
         uint32_t transparentBaseIndex = 0;
+        uint32_t shadowBaseIndex = 0;
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

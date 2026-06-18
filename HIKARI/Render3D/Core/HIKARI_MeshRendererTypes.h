@@ -359,6 +359,7 @@ namespace HIKARI::MESHRENDERER {
         size_t surfaceGpuSceneOpaqueInstanceCount = 0;
         size_t surfaceGpuSceneDepthAwareInstanceCount = 0;
         size_t surfaceGpuSceneTransparentInstanceCount = 0;
+        size_t surfaceGpuSceneShadowInstanceCount = 0;
         size_t surfaceGpuSceneRequestedInstanceCount = 0;
         size_t surfaceGpuSceneUploadedInstanceCount = 0;
         size_t surfaceGpuSceneOverflowInstanceCount = 0;

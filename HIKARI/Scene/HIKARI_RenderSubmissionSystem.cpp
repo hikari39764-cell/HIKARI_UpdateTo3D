@@ -162,15 +162,12 @@ namespace HIKARI {
         }
         if (gpuDrivenMainRouteActive &&
             sGpuSceneRegistryValid_ &&
-            sGpuSceneRegistry_.HasShadowPacketExecutionPlan()) {
+            sGpuSceneRegistry_.HasShadowPassSource()) {
 
-            SHADOW::SetSurfaceDrawPacketExecutionPlan(
-                &sGpuSceneRegistry_.GetSurfaceDrawPacketBuilder(),
-                &sGpuSceneRegistry_.GetExecutableShadowPacketIndices(),
-                &sGpuSceneRegistry_.GetExecutableShadowCommands(),
-                &sGpuSceneRegistry_.GetShadowGpuSceneInstances());
+            SHADOW::SetGpuDrivenSceneSource(
+                &sGpuSceneRegistry_.GetSceneSource());
         } else {
-            SHADOW::SetSurfaceDrawPacketExecutionPlan(nullptr, nullptr, nullptr, nullptr);
+            SHADOW::SetGpuDrivenSceneSource(nullptr);
         }
 
         MESHWIREDEBUG::BeginFrame();

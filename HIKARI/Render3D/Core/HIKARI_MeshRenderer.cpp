@@ -334,6 +334,8 @@ namespace HIKARI::MESHRENDERER {
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
 
             g.debugStats.surfaceGpuSceneOpaqueInstanceCount =
                 CountSceneSourceInstances(opaque);
@@ -341,6 +343,8 @@ namespace HIKARI::MESHRENDERER {
                 CountSceneSourceInstances(depthAware);
             g.debugStats.surfaceGpuSceneTransparentInstanceCount =
                 CountSceneSourceInstances(transparent);
+            g.debugStats.surfaceGpuSceneShadowInstanceCount =
+                CountSceneSourceInstances(shadow);
 
             const auto uploadSceneInstances =
                 [](const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* instances) {
@@ -357,6 +361,8 @@ namespace HIKARI::MESHRENDERER {
                 uploadSceneInstances(depthAware.traditionalIndirect.instances);
                 uploadSceneInstances(transparent.instances);
                 uploadSceneInstances(transparent.traditionalIndirect.instances);
+                uploadSceneInstances(shadow.instances);
+                uploadSceneInstances(shadow.traditionalIndirect.instances);
             };
 
             const auto patchDirtyPass =
@@ -412,7 +418,8 @@ namespace HIKARI::MESHRENDERER {
                         g.gpuDrivenSceneSource.HasAnyDirtyGpuSceneRanges() &&
                         patchDirtyPass(opaque) &&
                         patchDirtyPass(depthAware) &&
-                        patchDirtyPass(transparent);
+                        patchDirtyPass(transparent) &&
+                        patchDirtyPass(shadow);
                     if (!patched) {
                         uploadFullScene();
                     }
@@ -447,6 +454,7 @@ namespace HIKARI::MESHRENDERER {
                 opaque.gpuSceneBaseIndex,
                 depthAware.gpuSceneBaseIndex,
                 transparent.gpuSceneBaseIndex,
+                shadow.traditionalIndirect.gpuSceneBaseIndex,
                 g.gpuDrivenSceneResident);
         }
 
@@ -484,6 +492,12 @@ namespace HIKARI::MESHRENDERER {
             prepareMaterialSources(
                 transparent.traditionalIndirect.gpuSceneBaseIndex,
                 transparent.traditionalIndirect.materialSources);
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            prepareMaterialSources(
+                shadow.traditionalIndirect.gpuSceneBaseIndex,
+                shadow.traditionalIndirect.materialSources);
             g.gpuDrivenLayer.PrepareSurfaceGpuSceneMaterialFrame();
         }
 

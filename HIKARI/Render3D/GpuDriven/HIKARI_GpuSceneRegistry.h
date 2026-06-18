@@ -47,11 +47,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t primitiveIndex) const;
 
         const GpuDrivenSceneSource& GetSceneSource() const;
-        const RUNTIME::SurfaceDrawPacketBuilder& GetSurfaceDrawPacketBuilder() const;
-        const std::vector<uint32_t>& GetExecutableShadowPacketIndices() const;
-        const std::vector<RUNTIME::SurfaceDrawCommand>& GetExecutableShadowCommands() const;
-        const std::vector<RUNTIME::SurfaceGpuSceneInstance>& GetShadowGpuSceneInstances() const;
-        bool HasShadowPacketExecutionPlan() const;
+        bool HasShadowPassSource() const;
         const std::vector<GpuSceneSurfaceRecord>& GetSurfaceRecords() const;
         const GpuSceneRegistryStats& GetStats() const;
 
@@ -86,6 +82,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardDepthAwareTraditionalMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardTransparentTraditionalGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardTransparentTraditionalMaterialSources_{};
+        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> shadowTraditionalMaterialSources_{};
         RUNTIME::SurfaceDrawPacketBuilder surfacePacketBuilder_{};
         RUNTIME::SurfaceDrawPacketPlanner surfacePacketPlanner_{};
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
