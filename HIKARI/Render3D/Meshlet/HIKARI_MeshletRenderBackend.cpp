@@ -11,6 +11,7 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 namespace HIKARI::RENDER3D::MESHLET {
 
     namespace {
@@ -311,21 +312,23 @@ namespace HIKARI::RENDER3D::MESHLET {
     }
 
     bool MeshletRenderBackend::Execute(const MeshletRenderExecutionContext& ctx) {
-        if (ctx.visibility == nullptr || ctx.commands == nullptr) {
+        if (ctx.visibility == nullptr || ctx.drawCommandRange == nullptr) {
             return false;
         }
 
         const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
-        const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
-        const GPUDRIVEN::GpuVisibilityPassResult& passVisibility =
-            visibility.GetPass(ctx.pass);
-        const size_t requestedDispatchCount =
-            passVisibility.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuDrivenDrawCommandRange& range =
+            *ctx.drawCommandRange;
+        if (!range.consumable ||
+            range.backend != GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader) {
+            return false;
+        }
+        const size_t requestedDispatchCount = range.commandCount;
         stats_.requestedDispatchCount += requestedDispatchCount;
         stats_.dispatchArgumentBufferReady =
-            commands.meshDispatchArgs != nullptr;
+            range.argumentBuffer != nullptr;
         stats_.dispatchCommandSignatureReady =
-            commands.meshDispatchSignature != nullptr;
+            range.commandSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.pipelineReady =
@@ -339,6 +342,7 @@ namespace HIKARI::RENDER3D::MESHLET {
             return false;
         }
         if (ctx.commandList == nullptr ||
+            !range.HasGpuCommandLayout() ||
             !stats_.dispatchArgumentBufferReady ||
             !stats_.dispatchCommandSignatureReady ||
             !requestedPipelineReady ||
@@ -347,10 +351,10 @@ namespace HIKARI::RENDER3D::MESHLET {
             return false;
         }
 
-        ID3D12Resource* argumentBuffer = commands.meshDispatchArgs;
+        ID3D12Resource* argumentBuffer = range.argumentBuffer;
         ID3D12Resource* countBuffer = visibility.counterBuffer;
         ID3D12CommandSignature* commandSignature =
-            commands.meshDispatchSignature;
+            range.commandSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -359,7 +363,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
 
         const GPUDRIVEN::GpuDrivenCommandPassLayout& layout =
-            commands.layout.GetPass(ctx.pass);
+            *range.gpuCommandLayout;
         const size_t bucketCapacity = layout.commandBucketCapacity;
         if (bucketCapacity == 0) {
             stats_.skippedDispatchCount += requestedDispatchCount;

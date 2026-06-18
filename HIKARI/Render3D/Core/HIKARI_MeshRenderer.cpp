@@ -996,7 +996,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.commandList = backendContext.commandList;
             ctx.pass = backendContext.pass;
             ctx.visibility = backendContext.visibility;
-            ctx.commands = backendContext.commands;
+            ctx.drawCommandRange = backendContext.drawCommandRange;
             ctx.pipelineKind = pipelineKind;
             const bool executed = g.clusterDrawExecutor.Execute(ctx);
             UpdateClusterDrawDebugStats();
@@ -1038,7 +1038,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.commandList = backendContext.commandList;
             ctx.pass = backendContext.pass;
             ctx.visibility = backendContext.visibility;
-            ctx.commands = backendContext.commands;
+            ctx.drawCommandRange = backendContext.drawCommandRange;
             ctx.pipelineKind = pipelineKind;
             const bool executed = g.meshletRenderBackend.Execute(ctx);
             UpdateMeshletBackendDebugStats();

@@ -11,6 +11,7 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
 
@@ -222,19 +223,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
     }
 
     bool ClusterDrawExecutor::Execute(const ClusterDrawExecutionContext& ctx) {
-        if (ctx.visibility == nullptr || ctx.commands == nullptr) {
+        if (ctx.visibility == nullptr || ctx.drawCommandRange == nullptr) {
             return false;
         }
 
         const GPUDRIVEN::GpuVisibilityResult& visibility = *ctx.visibility;
-        const GPUDRIVEN::GpuCommandBuildResult& commands = *ctx.commands;
-        const GPUDRIVEN::GpuVisibilityPassResult& passVisibility =
-            visibility.GetPass(ctx.pass);
-        const size_t requestedDrawCount =
-            passVisibility.submittedDrawSeedCount;
+        const GPUDRIVEN::GpuDrivenDrawCommandRange& range =
+            *ctx.drawCommandRange;
+        if (!range.consumable ||
+            range.backend != GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS) {
+            return false;
+        }
+        const size_t requestedDrawCount = range.commandCount;
         stats_.requestedDrawCount += requestedDrawCount;
-        stats_.drawArgumentBufferReady = commands.gpuDrawIndexedArgs != nullptr;
-        stats_.drawCommandSignatureReady = commands.gpuDrawIndexedSignature != nullptr;
+        stats_.drawArgumentBufferReady = range.argumentBuffer != nullptr;
+        stats_.drawCommandSignatureReady = range.commandSignature != nullptr;
         stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
         stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.drawPipelineReady =
@@ -244,15 +247,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
         if (ctx.commandList == nullptr ||
+            !range.HasGpuCommandLayout() ||
             !stats_.drawArgumentBufferReady ||
             !stats_.drawCommandSignatureReady) {
             stats_.skippedDrawCount += requestedDrawCount;
             return false;
         }
 
-        ID3D12Resource* argumentBuffer = commands.gpuDrawIndexedArgs;
+        ID3D12Resource* argumentBuffer = range.argumentBuffer;
         ID3D12Resource* countBuffer = visibility.counterBuffer;
-        ID3D12CommandSignature* commandSignature = commands.gpuDrawIndexedSignature;
+        ID3D12CommandSignature* commandSignature = range.commandSignature;
         if (argumentBuffer == nullptr ||
             countBuffer == nullptr ||
             commandSignature == nullptr) {
@@ -261,7 +265,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         const GPUDRIVEN::GpuDrivenCommandPassLayout& layout =
-            commands.layout.GetPass(ctx.pass);
+            *range.gpuCommandLayout;
         const size_t bucketCapacity = layout.commandBucketCapacity;
         const UINT maxCommandCount = static_cast<UINT>((std::min)(
             bucketCapacity,
