@@ -12,7 +12,7 @@ namespace HIKARI::MESHRENDERER {
 
     struct MeshRendererDebugStats;
 
-    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::MeshletVisibleRanges + 1u;
+    constexpr UINT kTrackedRootParamCount = ROOT_PARAM::Count;
 
     struct MeshBindingStateCache {
         ID3D12RootSignature* rootSignature = nullptr;

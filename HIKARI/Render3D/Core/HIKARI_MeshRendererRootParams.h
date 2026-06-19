@@ -44,15 +44,17 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT MaterialIndex = 18;
     // 材質テクスチャプール -> t20[]
     constexpr UINT TexturePool = 19;
-    // JointPalette -> b3, skinned only
-    constexpr UINT JointPalette = 20;
     // Surface GPU scene buffer -> t17
-    constexpr UINT SurfaceGpuScene = 21;
+    constexpr UINT SurfaceGpuScene = 20;
     // Surface GPU scene base index / mode -> b8
-    constexpr UINT SurfaceGpuSceneControl = 22;
+    constexpr UINT SurfaceGpuSceneControl = 21;
     // Cluster geometry resource pool -> t0[], space1
-    constexpr UINT ClusterGeometryPool = 23;
+    constexpr UINT ClusterGeometryPool = 22;
     // Meshlet visible range buffer -> t18
-    constexpr UINT MeshletVisibleRanges = 24;
+    constexpr UINT MeshletVisibleRanges = 23;
+    // JointPalette -> b3, skinned only. Keep this after indirect root constants.
+    constexpr UINT JointPalette = 24;
+
+    constexpr UINT Count = JointPalette + 1;
 
 } // namespace HIKARI::MESHRENDERER::ROOT_PARAM

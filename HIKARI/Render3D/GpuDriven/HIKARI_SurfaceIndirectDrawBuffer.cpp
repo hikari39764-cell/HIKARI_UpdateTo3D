@@ -6,6 +6,7 @@
 #include <d3dx12.h>
 
 #include "Gfx/HIKARI_ShaderCompiler.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 
@@ -516,6 +517,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         signatureDesc.NumArgumentDescs = static_cast<UINT>(std::size(argumentDescs));
         signatureDesc.pArgumentDescs = argumentDescs;
 
+        GFX::ClearD3D12InfoQueue(device);
         const HRESULT hr = device->CreateCommandSignature(
             &signatureDesc,
             skinnedRootSignature,
@@ -523,6 +525,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (!HIKARI_DX_CHECK(
             hr,
             "SurfaceIndirectDraw::CreateSkinnedCommandSignature")) {
+            GFX::DumpD3D12InfoQueue(
+                device,
+                "SurfaceIndirectDraw::CreateSkinnedCommandSignature");
             skinnedCommandSignature_.Reset();
             return false;
         }
