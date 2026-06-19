@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <sstream>
+#include <string>
 
 #include <d3dcompiler.h>
 #include <d3dx12.h>
@@ -16,6 +18,50 @@
 namespace HIKARI::RENDER3D::MESHLET {
 
     namespace {
+        uint32_t PipelineMaskForKind(MeshletPipelineKind kind) {
+            switch (kind) {
+            case MeshletPipelineKind::ForwardDepthAware:
+                return MeshletPipelineMask::ForwardDepthAware;
+            case MeshletPipelineKind::ForwardTransparent:
+                return MeshletPipelineMask::ForwardTransparent;
+            case MeshletPipelineKind::Shadow:
+                return MeshletPipelineMask::Shadow;
+            case MeshletPipelineKind::GeometryAux:
+                return MeshletPipelineMask::GeometryAux;
+            case MeshletPipelineKind::ForwardOpaque:
+            default:
+                return MeshletPipelineMask::ForwardOpaque;
+            }
+        }
+
+        bool IsPipelineRequested(uint32_t pipelineMask, MeshletPipelineKind kind) {
+            return (pipelineMask & PipelineMaskForKind(kind)) != 0u;
+        }
+
+        std::string NarrowDebugName(const wchar_t* name) {
+            if (name == nullptr) {
+                return {};
+            }
+            std::string result;
+            while (*name != L'\0') {
+                result.push_back(
+                    *name >= 0 && *name < 128
+                        ? static_cast<char>(*name)
+                        : '?');
+                ++name;
+            }
+            return result;
+        }
+
+        const char* CullModeToString(D3D12_CULL_MODE cullMode) {
+            switch (cullMode) {
+            case D3D12_CULL_MODE_NONE: return "NONE";
+            case D3D12_CULL_MODE_FRONT: return "FRONT";
+            case D3D12_CULL_MODE_BACK: return "BACK";
+            default: return "UNKNOWN";
+            }
+        }
+
         struct MeshletPipelineStateStream {
             CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE RootSignature;
             CD3DX12_PIPELINE_STATE_STREAM_AS AS;
@@ -37,6 +83,33 @@ namespace HIKARI::RENDER3D::MESHLET {
                 }
             }
             return true;
+        }
+
+        bool AreRequestedPipelinesReady(
+            uint32_t pipelineMask,
+            const MeshletRenderBackend::PipelineBucketArray& forward,
+            const MeshletRenderBackend::PipelineBucketArray& depthAware,
+            const MeshletRenderBackend::PipelineBucketArray& transparent,
+            const MeshletRenderBackend::PipelineBucketArray& shadow,
+            const MeshletRenderBackend::PipelineBucketArray& geometryAux) {
+
+            bool ready = true;
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::ForwardOpaque)) {
+                ready = ready && ArePipelinesReady(forward);
+            }
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::ForwardDepthAware)) {
+                ready = ready && ArePipelinesReady(depthAware);
+            }
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::ForwardTransparent)) {
+                ready = ready && ArePipelinesReady(transparent);
+            }
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::Shadow)) {
+                ready = ready && ArePipelinesReady(shadow);
+            }
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::GeometryAux)) {
+                ready = ready && ArePipelinesReady(geometryAux);
+            }
+            return ready;
         }
 
         D3D12_CULL_MODE CullModeForBucket(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
@@ -161,6 +234,34 @@ namespace HIKARI::RENDER3D::MESHLET {
             return stats.shaderModel65Supported && stats.meshShaderSupported;
         }
 
+        void LogMeshletPsoFailure(
+            HRESULT hr,
+            const wchar_t* debugName,
+            ID3DBlob* amplificationShader,
+            ID3DBlob* meshShader,
+            ID3DBlob* pixelShader,
+            DXGI_FORMAT renderTargetFormat,
+            D3D12_CULL_MODE cullMode,
+            bool alphaBlend,
+            bool depthWrite,
+            bool hasRenderTarget) {
+
+            std::ostringstream oss;
+            oss << "[MeshletBackend][ERROR] PSO create failed."
+                << " name=\"" << NarrowDebugName(debugName) << "\""
+                << " hr=" << GFX::FormatHRESULT(hr)
+                << " hasRT=" << (hasRenderTarget ? "true" : "false")
+                << " rtv=" << (hasRenderTarget ? GFX::FormatToString(renderTargetFormat) : "NONE")
+                << " dsv=" << GFX::FormatToString(DXGI_FORMAT_D32_FLOAT)
+                << " cull=" << CullModeToString(cullMode)
+                << " alphaBlend=" << (alphaBlend ? "true" : "false")
+                << " depthWrite=" << (depthWrite ? "true" : "false")
+                << " asBytes=" << (amplificationShader ? amplificationShader->GetBufferSize() : 0u)
+                << " msBytes=" << (meshShader ? meshShader->GetBufferSize() : 0u)
+                << " psBytes=" << (pixelShader ? pixelShader->GetBufferSize() : 0u);
+            DEBUGLOG::PushRenderError(oss.str());
+        }
+
         bool CreateMeshletPipelineState(
             ID3D12Device* device,
             ID3D12RootSignature* rootSignature,
@@ -250,7 +351,21 @@ namespace HIKARI::RENDER3D::MESHLET {
                 &desc,
                 IID_PPV_ARGS(outPipelineState));
             if (!HIKARI_DX_CHECK(hr, "MeshletRenderBackend::CreatePipelineState")) {
-                GFX::DumpD3D12InfoQueue(device, "MeshletRenderBackend::CreatePipelineState");
+                LogMeshletPsoFailure(
+                    hr,
+                    debugName,
+                    amplificationShader,
+                    meshShader,
+                    pixelShader,
+                    renderTargetFormat,
+                    cullMode,
+                    alphaBlend,
+                    depthWrite,
+                    hasRenderTarget);
+                const std::string reason =
+                    "MeshletRenderBackend::CreatePipelineState name=" +
+                    NarrowDebugName(debugName);
+                GFX::DumpD3D12InfoQueue(device, reason.c_str());
                 return false;
             }
             GFX::SetD3D12Name(*outPipelineState, debugName);
@@ -262,10 +377,22 @@ namespace HIKARI::RENDER3D::MESHLET {
         ID3D12Device* device,
         ID3D12RootSignature* rootSignature) {
 
+        return Initialize(device, rootSignature, MeshletPipelineMask::All);
+    }
+
+    bool MeshletRenderBackend::Initialize(
+        ID3D12Device* device,
+        ID3D12RootSignature* rootSignature,
+        uint32_t pipelineMask) {
+
         Reset();
+        pipelineMask_ = pipelineMask & MeshletPipelineMask::All;
         stats_.initialized = device != nullptr && rootSignature != nullptr;
         if (!stats_.initialized) {
             return false;
+        }
+        if (pipelineMask_ == 0u) {
+            return true;
         }
 
         if (!QueryMeshShaderCapabilities(device, stats_)) {
@@ -282,35 +409,50 @@ namespace HIKARI::RENDER3D::MESHLET {
         Microsoft::WRL::ComPtr<ID3DBlob> shadowPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
         if (!GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletAS.hlsl",
-                "main",
-                GFX::ShaderStage::Amplification,
-                amplificationShader.GetAddressOf()) ||
+            L"HIKARI/Shaders/Render3D_MeshletAS.hlsl",
+            "main",
+            GFX::ShaderStage::Amplification,
+            amplificationShader.GetAddressOf()) ||
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletMS.hlsl",
-                "main",
-                GFX::ShaderStage::Mesh,
-                meshShader.GetAddressOf()) ||
+            L"HIKARI/Shaders/Render3D_MeshletMS.hlsl",
+            "main",
+            GFX::ShaderStage::Mesh,
+            meshShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) &&
             !GFX::CompileShaderFileSm6(
                 L"HIKARI/Shaders/Render3D_GpuDrivenStaticFxPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
-                forwardPixelShader.GetAddressOf()) ||
+                forwardPixelShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) &&
             !GFX::CompileShaderFileSm6(
                 L"HIKARI/Shaders/Render3D_GpuDrivenFxWaterPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
-                depthAwarePixelShader.GetAddressOf()) ||
+                depthAwarePixelShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent) &&
             !GFX::CompileShaderFileSm6(
                 L"HIKARI/Shaders/Render3D_GpuDrivenStaticFxPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
-                transparentPixelShader.GetAddressOf()) ||
+                transparentPixelShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow) &&
             !GFX::CompileShaderFileSm6(
                 L"HIKARI/Shaders/Render3D_MeshletShadowPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
-                shadowPixelShader.GetAddressOf()) ||
+                shadowPixelShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
             !GFX::CompileShaderFileSm6(
                 L"HIKARI/Shaders/Render3D_GeometryAuxPS.hlsl",
                 "main",
@@ -324,8 +466,9 @@ namespace HIKARI::RENDER3D::MESHLET {
             const GPUDRIVEN::GpuDrivenCommandBucket bucket =
                 static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
 
-            ++stats_.pipelineCreateRequestCount;
-            if (CreateMeshletPipelineState(
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
                     device,
                     rootSignature,
                     amplificationShader.Get(),
@@ -338,11 +481,13 @@ namespace HIKARI::RENDER3D::MESHLET {
                     true,
                     ForwardDebugName(bucket),
                     forwardPipelineStates_[bucketIndex].GetAddressOf())) {
-                ++stats_.pipelineCreateReadyCount;
+                    ++stats_.pipelineCreateReadyCount;
+                }
             }
 
-            ++stats_.pipelineCreateRequestCount;
-            if (CreateMeshletPipelineState(
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
                     device,
                     rootSignature,
                     amplificationShader.Get(),
@@ -355,11 +500,13 @@ namespace HIKARI::RENDER3D::MESHLET {
                     true,
                     DepthAwareDebugName(bucket),
                     depthAwarePipelineStates_[bucketIndex].GetAddressOf())) {
-                ++stats_.pipelineCreateReadyCount;
+                    ++stats_.pipelineCreateReadyCount;
+                }
             }
 
-            ++stats_.pipelineCreateRequestCount;
-            if (CreateMeshletPipelineState(
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
                     device,
                     rootSignature,
                     amplificationShader.Get(),
@@ -372,11 +519,13 @@ namespace HIKARI::RENDER3D::MESHLET {
                     true,
                     TransparentDebugName(bucket),
                     transparentPipelineStates_[bucketIndex].GetAddressOf())) {
-                ++stats_.pipelineCreateReadyCount;
+                    ++stats_.pipelineCreateReadyCount;
+                }
             }
 
-            ++stats_.pipelineCreateRequestCount;
-            if (CreateMeshletPipelineState(
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
                     device,
                     rootSignature,
                     amplificationShader.Get(),
@@ -389,11 +538,13 @@ namespace HIKARI::RENDER3D::MESHLET {
                     false,
                     ShadowDebugName(bucket),
                     shadowPipelineStates_[bucketIndex].GetAddressOf())) {
-                ++stats_.pipelineCreateReadyCount;
+                    ++stats_.pipelineCreateReadyCount;
+                }
             }
 
-            ++stats_.pipelineCreateRequestCount;
-            if (CreateMeshletPipelineState(
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
                     device,
                     rootSignature,
                     amplificationShader.Get(),
@@ -406,7 +557,8 @@ namespace HIKARI::RENDER3D::MESHLET {
                     true,
                     GeometryDebugName(bucket),
                     geometryAuxPipelineStates_[bucketIndex].GetAddressOf())) {
-                ++stats_.pipelineCreateReadyCount;
+                    ++stats_.pipelineCreateReadyCount;
+                }
             }
         }
 
@@ -430,6 +582,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         for (auto& pipeline : geometryAuxPipelineStates_) {
             pipeline.Reset();
         }
+        pipelineMask_ = MeshletPipelineMask::All;
         stats_ = {};
     }
 
@@ -448,22 +601,33 @@ namespace HIKARI::RENDER3D::MESHLET {
         stats_.pipelineCreateReadyCount =
             persistent.pipelineCreateReadyCount;
 
-        const bool forwardReady = ArePipelinesReady(forwardPipelineStates_);
-        const bool depthAwareReady = ArePipelinesReady(depthAwarePipelineStates_);
-        const bool transparentReady = ArePipelinesReady(transparentPipelineStates_);
-        const bool shadowReady = ArePipelinesReady(shadowPipelineStates_);
-        const bool geometryReady = ArePipelinesReady(geometryAuxPipelineStates_);
+        const bool forwardReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) &&
+            ArePipelinesReady(forwardPipelineStates_);
+        const bool depthAwareReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) &&
+            ArePipelinesReady(depthAwarePipelineStates_);
+        const bool transparentReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent) &&
+            ArePipelinesReady(transparentPipelineStates_);
+        const bool shadowReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow) &&
+            ArePipelinesReady(shadowPipelineStates_);
+        const bool geometryReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
+            ArePipelinesReady(geometryAuxPipelineStates_);
         stats_.forwardPipelineReady = forwardReady;
         stats_.depthAwarePipelineReady = depthAwareReady;
         stats_.transparentPipelineReady = transparentReady;
         stats_.shadowPipelineReady = shadowReady;
         stats_.geometryAuxPipelineReady = geometryReady;
-        stats_.pipelineReady =
-            forwardReady &&
-            depthAwareReady &&
-            transparentReady &&
-            shadowReady &&
-            geometryReady;
+        stats_.pipelineReady = AreRequestedPipelinesReady(
+            pipelineMask_,
+            forwardPipelineStates_,
+            depthAwarePipelineStates_,
+            transparentPipelineStates_,
+            shadowPipelineStates_,
+            geometryAuxPipelineStates_);
     }
 
     bool MeshletRenderBackend::Execute(const MeshletRenderExecutionContext& ctx) {
@@ -484,17 +648,28 @@ namespace HIKARI::RENDER3D::MESHLET {
             range.argumentBuffer != nullptr;
         stats_.dispatchCommandSignatureReady =
             range.commandSignature != nullptr;
-        stats_.forwardPipelineReady = ArePipelinesReady(forwardPipelineStates_);
-        stats_.depthAwarePipelineReady = ArePipelinesReady(depthAwarePipelineStates_);
-        stats_.transparentPipelineReady = ArePipelinesReady(transparentPipelineStates_);
-        stats_.shadowPipelineReady = ArePipelinesReady(shadowPipelineStates_);
-        stats_.geometryAuxPipelineReady = ArePipelinesReady(geometryAuxPipelineStates_);
-        stats_.pipelineReady =
-            stats_.forwardPipelineReady &&
-            stats_.depthAwarePipelineReady &&
-            stats_.transparentPipelineReady &&
-            stats_.shadowPipelineReady &&
-            stats_.geometryAuxPipelineReady;
+        stats_.forwardPipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) &&
+            ArePipelinesReady(forwardPipelineStates_);
+        stats_.depthAwarePipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) &&
+            ArePipelinesReady(depthAwarePipelineStates_);
+        stats_.transparentPipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent) &&
+            ArePipelinesReady(transparentPipelineStates_);
+        stats_.shadowPipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow) &&
+            ArePipelinesReady(shadowPipelineStates_);
+        stats_.geometryAuxPipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
+            ArePipelinesReady(geometryAuxPipelineStates_);
+        stats_.pipelineReady = AreRequestedPipelinesReady(
+            pipelineMask_,
+            forwardPipelineStates_,
+            depthAwarePipelineStates_,
+            transparentPipelineStates_,
+            shadowPipelineStates_,
+            geometryAuxPipelineStates_);
         const bool requestedPipelineReady =
             ctx.pipelineKind == MeshletPipelineKind::GeometryAux
                 ? stats_.geometryAuxPipelineReady

@@ -248,12 +248,14 @@ namespace HIKARI::MESHRENDERER {
             }
             if (!g.clusterDrawExecutor.Initialize(
                 device,
-                GetStaticRootSignature(g.pipelines))) {
+                GetStaticRootSignature(g.pipelines),
+                RENDER3D::CLUSTER::ClusterDrawPipelineMask::MainRenderer)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster draw executor initialization failed. Cluster VS backend will be unavailable.");
             }
             if (!g.meshletRenderBackend.Initialize(
                 device,
-                GetStaticRootSignature(g.pipelines))) {
+                GetStaticRootSignature(g.pipelines),
+                RENDER3D::MESHLET::MeshletPipelineMask::MainRenderer)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Meshlet render backend is not ready. Cluster draw backend remains active.");
             }
             g.clusterGpuDrivenProducer.Attach(&g.clusterGpuCullingPass);

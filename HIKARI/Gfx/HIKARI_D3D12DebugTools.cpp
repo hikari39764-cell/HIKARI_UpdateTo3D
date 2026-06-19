@@ -44,7 +44,6 @@ namespace HIKARI::GFX {
     // device には ID3D12Device のポインタを指定する
     // _DEBUG が定義されている場合は、InfoQueue を取得して、エラーと警告でブレークするように設定する。_DEBUG が定義されていない場合は、何もしない
     void ConfigureD3D12InfoQueue(ID3D12Device* device) {
-#if defined(_DEBUG)
         if (!device) {
             return;
         }
@@ -62,13 +61,9 @@ namespace HIKARI::GFX {
         infoQueue->SetBreakOnSeverity(
             D3D12_MESSAGE_SEVERITY_WARNING,
             config.enableInfoQueueBreakOnWarning ? TRUE : FALSE);
-#else
-        (void)device;
-#endif
     }
 	// D3D12 の InfoQueue をダンプする
     void DumpD3D12InfoQueue(ID3D12Device* device, const char* reason) {
-#if defined(_DEBUG)
         if (!device) {
             return;
         }
@@ -103,14 +98,9 @@ namespace HIKARI::GFX {
                 DEBUGLOG::PushRenderError(oss.str());
             }
         }
-#else
-        (void)device;
-        (void)reason;
-#endif
     }
 	// D3D12 の InfoQueue をクリアする
     void ClearD3D12InfoQueue(ID3D12Device* device) {
-#if defined(_DEBUG)
         if (!device) {
             return;
         }
@@ -118,8 +108,5 @@ namespace HIKARI::GFX {
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
             infoQueue->ClearStoredMessages();
         }
-#else
-        (void)device;
-#endif
     }
 }

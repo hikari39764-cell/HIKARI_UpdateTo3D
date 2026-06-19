@@ -83,7 +83,6 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     debugConfig.enableDebugLayer = enableDebugLayer && debugConfig.enableDebugLayer;
     SetGfxDebugConfig(debugConfig);
 	// デバッグレイヤーと GPU ベースのバリデーションを有効にする
-#ifdef _DEBUG
     if (debugConfig.enableDebugLayer) {
         ComPtr<ID3D12Debug> debug;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
@@ -101,12 +100,8 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
             }
         }
     }
-#endif
 
-    UINT factoryFlags = 0;
-#ifdef _DEBUG
-    factoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
+    UINT factoryFlags = debugConfig.enableDebugLayer ? DXGI_CREATE_FACTORY_DEBUG : 0;
     HRESULT hr = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&factory_));
     if (FAILED(hr)) {
         // Graphics Tools / DXGI Debug が無い環境では失敗するため、通常 Factory にフォールバックする。

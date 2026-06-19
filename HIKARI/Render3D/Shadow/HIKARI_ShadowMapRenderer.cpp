@@ -1029,12 +1029,14 @@ namespace HIKARI::SHADOW {
             }
             if (!g.clusterDrawExecutor.Initialize(
                 device,
-                g.rootSig.Get())) {
+                g.rootSig.Get(),
+                RENDER3D::CLUSTER::ClusterDrawPipelineMask::ShadowRenderer)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster draw executor initialization failed. Cluster shadow backend will be unavailable.");
             }
             if (!g.meshletRenderBackend.Initialize(
                 device,
-                g.rootSig.Get())) {
+                g.rootSig.Get(),
+                RENDER3D::MESHLET::MeshletPipelineMask::ShadowRenderer)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow meshlet backend initialization failed. Cluster shadow backend remains available.");
             }
             g.clusterGpuDrivenProducer.Attach(&g.clusterGpuCullingPass);

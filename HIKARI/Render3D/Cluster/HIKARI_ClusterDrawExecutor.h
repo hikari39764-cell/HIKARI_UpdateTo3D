@@ -20,6 +20,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
         GeometryAux,
     };
 
+    namespace ClusterDrawPipelineMask {
+        constexpr uint32_t ForwardOpaque = 1u << 0;
+        constexpr uint32_t ForwardDepthAware = 1u << 1;
+        constexpr uint32_t ForwardTransparent = 1u << 2;
+        constexpr uint32_t Shadow = 1u << 3;
+        constexpr uint32_t GeometryAux = 1u << 4;
+        constexpr uint32_t MainRenderer =
+            ForwardOpaque |
+            ForwardDepthAware |
+            ForwardTransparent |
+            GeometryAux;
+        constexpr uint32_t ShadowRenderer = Shadow;
+        constexpr uint32_t All = MainRenderer | ShadowRenderer;
+    }
+
     struct ClusterDrawExecutorStats {
         bool drawArgumentBufferReady = false;
         bool drawCommandSignatureReady = false;
@@ -56,6 +71,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
             std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, GPUDRIVEN::kGpuDrivenCommandBucketCount>;
 
         bool Initialize(ID3D12Device* device, ID3D12RootSignature* rootSignature);
+        bool Initialize(
+            ID3D12Device* device,
+            ID3D12RootSignature* rootSignature,
+            uint32_t pipelineMask);
         void Reset();
         void ResetFrame();
         bool Execute(const ClusterDrawExecutionContext& ctx);
@@ -73,6 +92,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         PipelineBucketArray transparentPipelineStates_{};
         PipelineBucketArray shadowPipelineStates_{};
         PipelineBucketArray geometryAuxPipelineStates_{};
+        uint32_t pipelineMask_ = ClusterDrawPipelineMask::All;
         ClusterDrawExecutorStats stats_{};
     };
 
