@@ -94,7 +94,8 @@ namespace HIKARI::MESHRENDERER {
         const uint32_t* executableRecordIndices,
         size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount);
+        size_t commandCount,
+        const std::vector<std::vector<MATH::Mat4>>* jointPalettes = nullptr);
 
     bool PrepareSurfaceRecordGpuSceneMaterials(
         const MeshDrawContext& ctx,

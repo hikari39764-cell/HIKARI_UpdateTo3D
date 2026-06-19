@@ -48,6 +48,8 @@ cbuffer MaterialIndexCB : register(b7)
     uint3 gMaterialDataPadding;
 };
 
+#include "Include/HIKARI_SurfaceGpuScene.hlsli"
+
 struct VSInput
 {
     float3 position : POSITION;
@@ -58,6 +60,7 @@ struct VSInput
     float4 color0 : COLOR0;
     uint4 joints : JOINTS0;
     float4 weights : WEIGHTS0;
+    uint instanceId : SV_InstanceID;
 };
 
 struct VSOutput
@@ -104,19 +107,42 @@ VSOutput main(VSInput input)
         mul((float3x3)ResolveJointMatrix(input.joints.z), input.tangent.xyz) * input.weights.z +
         mul((float3x3)ResolveJointMatrix(input.joints.w), input.tangent.xyz) * input.weights.w;
 
-    float4 worldPos = mul(gWorld, float4(localPos.xyz, 1.0f));
+    float4x4 world = gWorld;
+    float4x4 normalMatrix = gNormalMatrix;
+    uint materialDataIndex = gMaterialDataIndex;
+    uint receiveShadow = gReceiveShadow;
+    uint surfaceGpuSceneIndex = 0u;
+    uint debugSurfaceId = 0u;
+    uint debugDrawBucket = 0u;
+    if (gUseSurfaceGpuScene != 0u)
+    {
+        surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
+        HikariSurfaceGpuSceneInstance instance =
+            HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex);
+        world = instance.world;
+        normalMatrix = instance.normalMatrix;
+        materialDataIndex = instance.materialDataIndex;
+        receiveShadow =
+            (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u
+                ? 1u
+                : 0u;
+        debugSurfaceId = instance.sourceSurfaceInstanceIndex;
+        debugDrawBucket = instance.geometryBackend;
+    }
+
+    float4 worldPos = mul(world, float4(localPos.xyz, 1.0f));
     output.position = mul(gViewProj, worldPos);
     output.worldPosWS = worldPos.xyz;
-    output.normalWS = normalize(mul((float3x3)gNormalMatrix, normalize(localNormal)));
-    output.tangentWS = float4(normalize(mul((float3x3)gNormalMatrix, normalize(localTangent))), input.tangent.w);
+    output.normalWS = normalize(mul((float3x3)normalMatrix, normalize(localNormal)));
+    output.tangentWS = float4(normalize(mul((float3x3)normalMatrix, normalize(localTangent))), input.tangent.w);
     output.uv = input.uv0;
-    output.materialDataIndex = gMaterialDataIndex;
-    output.receiveShadow = gReceiveShadow;
+    output.materialDataIndex = materialDataIndex;
+    output.receiveShadow = receiveShadow;
     output.objectDataIndex = 0u;
-    output.surfaceGpuSceneIndex = 0u;
+    output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
     output.debugClusterId = 0u;
-    output.debugSurfaceId = 0u;
+    output.debugSurfaceId = debugSurfaceId;
     output.debugLodIndex = 0u;
-    output.debugDrawBucket = 0u;
+    output.debugDrawBucket = debugDrawBucket;
     return output;
 }

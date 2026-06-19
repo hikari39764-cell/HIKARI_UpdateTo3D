@@ -753,6 +753,38 @@ namespace HIKARI::MESHRENDERER {
             return primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats);
         }
 
+        const MeshPrimitive* ResolveSurfaceRecordPrimitive(
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+
+            if (record.model == nullptr ||
+                record.meshIndex >= record.model->meshes.size()) {
+                return nullptr;
+            }
+
+            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+            if (record.primitiveIndex >= meshAsset.primitives.size()) {
+                return nullptr;
+            }
+
+            return &meshAsset.primitives[record.primitiveIndex];
+        }
+
+        Mesh* ResolveSurfaceRecordSkinnedMesh(
+            const MeshDrawContext& ctx,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+
+            const MeshPrimitive* primitive = ResolveSurfaceRecordPrimitive(record);
+            MeshPrimitiveCache* primitiveCache = ctx.services.primitiveCache;
+            if (primitive == nullptr || primitiveCache == nullptr) {
+                return nullptr;
+            }
+
+            return primitiveCache->GetOrCreateSkinned(
+                ctx.services.device,
+                *primitive,
+                ctx.services.stats);
+        }
+
         void FillRecordFxValues(
             ObjectCB& obj,
             const SurfaceRecordBatchState& state,
@@ -1968,7 +2000,8 @@ namespace HIKARI::MESHRENDERER {
         const uint32_t* executableRecordIndices,
         size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount) {
+        size_t commandCount,
+        const std::vector<std::vector<MATH::Mat4>>* jointPalettes) {
 
         if (ctx.surfaceIndirectDrawBuffer == nullptr ||
             records == nullptr ||
@@ -2004,17 +2037,57 @@ namespace HIKARI::MESHRENDERER {
                 continue;
             }
 
-            Mesh* mesh = ResolveSurfaceRecordStaticMesh(ctx, records[firstRecordIndex]);
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                records[firstRecordIndex];
+            const bool hasJointPalette =
+                jointPalettes != nullptr &&
+                command.firstRecordIndex != RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
+                command.firstRecordIndex < jointPalettes->size() &&
+                !(*jointPalettes)[command.firstRecordIndex].empty();
+            const bool skinnedCommand = record.skinned && hasJointPalette;
+
+            Mesh* mesh = skinnedCommand
+                ? ResolveSurfaceRecordSkinnedMesh(ctx, record)
+                : ResolveSurfaceRecordStaticMesh(ctx, record);
             if (mesh == nullptr || !mesh->IsValid()) {
                 continue;
             }
 
-            patchedAny =
-                ctx.surfaceIndirectDrawBuffer->PatchDrawBinding(
-                    command,
-                    mesh->GetVBView(),
-                    mesh->GetIBView()) ||
-                patchedAny;
+            if (skinnedCommand) {
+                const size_t paletteSlot =
+                    ctx.surfaceGpuSceneBaseOffset +
+                    static_cast<size_t>(command.firstGpuSceneInstanceIndex);
+                if (paletteSlot >= kMaxObjectCount || ctx.jointPaletteCB == nullptr) {
+                    continue;
+                }
+                const std::vector<MATH::Mat4>& palette =
+                    (*jointPalettes)[command.firstRecordIndex];
+                const size_t uploadedJointCount =
+                    UploadJointPalette(ctx.jointPaletteMapped, paletteSlot, palette);
+                if (ctx.services.stats != nullptr) {
+                    ctx.services.stats->uploadedJointCount += uploadedJointCount;
+                    ctx.services.stats->maxJointCount =
+                        std::max(ctx.services.stats->maxJointCount, palette.size());
+                    const MeshPrimitive* primitive =
+                        ResolveSurfaceRecordPrimitive(record);
+                    ctx.services.stats->lastSkinnedVertexCount =
+                        primitive != nullptr ? primitive->skinnedVertices.size() : 0u;
+                }
+                patchedAny =
+                    ctx.surfaceIndirectDrawBuffer->PatchSkinnedDrawBinding(
+                        command,
+                        mesh->GetVBView(),
+                        mesh->GetIBView(),
+                        JointPaletteAddress(ctx, paletteSlot)) ||
+                    patchedAny;
+            } else {
+                patchedAny =
+                    ctx.surfaceIndirectDrawBuffer->PatchDrawBinding(
+                        command,
+                        mesh->GetVBView(),
+                        mesh->GetIBView()) ||
+                    patchedAny;
+            }
         }
 
         return patchedAny;

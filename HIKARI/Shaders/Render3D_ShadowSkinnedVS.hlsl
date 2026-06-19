@@ -18,6 +18,9 @@ cbuffer JointPaletteCB : register(b3)
     float4x4 gJointMatrices[MAX_JOINTS];
 };
 
+#include "Include/HIKARI_MeshMaterialData.hlsli"
+#include "Include/HIKARI_SurfaceGpuScene.hlsli"
+
 static const uint HIKARI_INVALID_SHADOW_MATERIAL_INDEX = 0xffffffffu;
 
 struct VSInput
@@ -30,6 +33,7 @@ struct VSInput
     float4 color0 : COLOR0;
     uint4 joints : JOINTS0;
     float4 weights : WEIGHTS0;
+    uint instanceId : SV_InstanceID;
 };
 
 struct VSOutput
@@ -55,11 +59,27 @@ VSOutput main(VSInput input)
         mul(ResolveJointMatrix(input.joints.z), float4(input.position, 1.0f)) * input.weights.z +
         mul(ResolveJointMatrix(input.joints.w), float4(input.position, 1.0f)) * input.weights.w;
 
-    float4 worldPos = mul(gWorld, float4(localPos.xyz, 1.0f));
+    float4x4 world = gWorld;
+    uint materialFlags = gMaterialFlags;
+    float alphaCutoff = gAlphaCutoff;
+    uint materialDataIndex = HIKARI_INVALID_SHADOW_MATERIAL_INDEX;
+
+    if (gUseSurfaceGpuScene != 0u)
+    {
+        HikariSurfaceGpuSceneInstance instance =
+            HikariGetSurfaceGpuSceneInstance(input.instanceId);
+        world = instance.world;
+        materialDataIndex = instance.materialDataIndex;
+        HikariMeshMaterialData materialData = HikariGetMeshMaterialData(materialDataIndex);
+        materialFlags = materialData.materialFlags;
+        alphaCutoff = materialData.pbrParams.w;
+    }
+
+    float4 worldPos = mul(world, float4(localPos.xyz, 1.0f));
     output.position = mul(gLightViewProj, worldPos);
     output.uv = input.uv0;
-    output.materialFlags = gMaterialFlags;
-    output.alphaCutoff = gAlphaCutoff;
-    output.materialDataIndex = HIKARI_INVALID_SHADOW_MATERIAL_INDEX;
+    output.materialFlags = materialFlags;
+    output.alphaCutoff = alphaCutoff;
+    output.materialDataIndex = materialDataIndex;
     return output;
 }

@@ -398,6 +398,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             indirectDrawBuffer_ != nullptr
                 ? indirectDrawBuffer_->GetArgumentBuffer()
                 : nullptr;
+        frameContext_.commands.surfaceSkinnedDrawIndexedArgs =
+            indirectDrawBuffer_ != nullptr
+                ? indirectDrawBuffer_->GetSkinnedArgumentBuffer()
+                : nullptr;
         frameContext_.commands.surfaceDrawIndexedCounter =
             indirectDrawBuffer_ != nullptr
                 ? indirectDrawBuffer_->GetCounterBuffer()
@@ -406,11 +410,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             indirectDrawBuffer_ != nullptr
                 ? indirectDrawBuffer_->GetCommandSignature()
                 : nullptr;
+        frameContext_.commands.surfaceSkinnedDrawIndexedSignature =
+            indirectDrawBuffer_ != nullptr
+                ? indirectDrawBuffer_->GetSkinnedCommandSignature()
+                : nullptr;
 
         frameContext_.stats.commandBuildReady =
             frameContext_.commands.gpuDrawIndexedArgs != nullptr ||
             frameContext_.commands.meshDispatchArgs != nullptr ||
             (frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
+                frameContext_.commands.surfaceDrawIndexedCounter != nullptr) ||
+            (frameContext_.commands.surfaceSkinnedDrawIndexedArgs != nullptr &&
                 frameContext_.commands.surfaceDrawIndexedCounter != nullptr);
         RefreshPassExecutionStates();
     }
@@ -631,9 +641,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 state.hasTraditionalIndirectCommands &&
                 indirectDrawBuffer_ != nullptr &&
                 indirectDrawBuffer_->HasGpuCompactedCommands() &&
-                frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
+                (frameContext_.commands.surfaceDrawIndexedArgs != nullptr ||
+                    frameContext_.commands.surfaceSkinnedDrawIndexedArgs != nullptr) &&
                 frameContext_.commands.surfaceDrawIndexedCounter != nullptr &&
-                frameContext_.commands.surfaceDrawIndexedSignature != nullptr &&
+                (frameContext_.commands.surfaceDrawIndexedSignature != nullptr ||
+                    frameContext_.commands.surfaceSkinnedDrawIndexedSignature != nullptr) &&
                 frameContext_.backendAvailability.traditionalIndirectPipelineReady;
             state.gpuBackendReady =
                 state.meshShaderConsumable ||
@@ -719,19 +731,36 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.producer = GpuDrivenCommandProducerKind::FutureGpuCompute;
                 range.traditionalIndirect = &passSource.traditionalIndirect;
                 range.argumentBuffer = frameContext_.commands.surfaceDrawIndexedArgs;
+                range.skinnedArgumentBuffer =
+                    frameContext_.commands.surfaceSkinnedDrawIndexedArgs;
                 range.counterBuffer = frameContext_.commands.surfaceDrawIndexedCounter;
                 range.commandSignature =
                     frameContext_.commands.surfaceDrawIndexedSignature;
+                range.skinnedCommandSignature =
+                    frameContext_.commands.surfaceSkinnedDrawIndexedSignature;
+                range.argumentBufferOffset =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetArgumentBufferOffset(state.sourcePass)
+                        : 0u;
+                range.skinnedArgumentBufferOffset =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetSkinnedArgumentBufferOffset(state.sourcePass)
+                        : 0u;
                 range.counterBufferOffset =
                     indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetCommandCounterOffset()
+                        ? indirectDrawBuffer_->GetCommandCounterOffset(state.sourcePass)
+                        : 0u;
+                range.skinnedCounterBufferOffset =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetSkinnedCommandCounterOffset(state.sourcePass)
                         : 0u;
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
-                range.commandCount =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetUploadedSeedCount()
-                        : state.traditionalIndirectCommandCount;
+                range.commandCount = state.traditionalIndirectCommandCount;
+                range.skinnedCommandCount =
+                    passSource.traditionalIndirect.jointPalettes != nullptr
+                        ? state.traditionalIndirectCommandCount
+                        : 0u;
                 range.recordCount = range.commandCount;
                 range.instanceCount = state.traditionalIndirectInstanceCount;
                 range.consumable = true;

@@ -277,13 +277,16 @@ namespace HIKARI::SHADOW {
 
         void BindShadowGpuDrivenFrameResources(
             ID3D12GraphicsCommandList* cmd,
-            ID3D12Resource* meshletVisibleRangeBuffer) {
+            ID3D12Resource* meshletVisibleRangeBuffer,
+            bool skinnedRoot = false) {
 
-            if (cmd == nullptr || g.rootSig == nullptr) {
+            ID3D12RootSignature* rootSig =
+                skinnedRoot ? g.skinnedRootSig.Get() : g.rootSig.Get();
+            if (cmd == nullptr || rootSig == nullptr) {
                 return;
             }
 
-            cmd->SetGraphicsRootSignature(g.rootSig.Get());
+            cmd->SetGraphicsRootSignature(rootSig);
             cmd->SetGraphicsRootConstantBufferView(
                 RECORD::kShadowStaticRootParamCamera,
                 g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0u);
@@ -604,7 +607,9 @@ namespace HIKARI::SHADOW {
             availability.clusterVsForwardPipelineReady =
                 clusterStats.shadowPipelineReady;
             availability.traditionalIndirectPipelineReady =
+                g.rootSig != nullptr &&
                 g.skinnedRootSig != nullptr &&
+                g.staticPso != nullptr &&
                 g.skinnedPso != nullptr;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
@@ -627,6 +632,99 @@ namespace HIKARI::SHADOW {
                 static_cast<size_t>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
             std::memcpy(dst, &cb, sizeof(cb));
             return uploadCount;
+        }
+
+        bool PrepareShadowSurfaceIndirectSeedBindings(
+            RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer& buffer,
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source,
+            void*) {
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view =
+                source.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow)
+                    .traditionalIndirect;
+            if (view.records == nullptr ||
+                view.executableRecordIndices == nullptr ||
+                view.commands == nullptr ||
+                view.commands->empty()) {
+                return false;
+            }
+
+            bool patchedAny = false;
+            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : *view.commands) {
+                if (command.pass != RENDER3D::RUNTIME::SurfaceDrawCommandPass::Shadow ||
+                    command.recordCount == 0 ||
+                    command.firstExecutableIndex >= view.executableRecordIndices->size()) {
+                    continue;
+                }
+
+                const uint32_t firstRecordIndex =
+                    (*view.executableRecordIndices)[command.firstExecutableIndex];
+                if (firstRecordIndex >= view.records->size()) {
+                    continue;
+                }
+
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                    (*view.records)[firstRecordIndex];
+                if (record.model == nullptr ||
+                    record.meshIndex >= record.model->meshes.size()) {
+                    continue;
+                }
+
+                const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+                if (record.primitiveIndex >= meshAsset.primitives.size()) {
+                    continue;
+                }
+
+                const MeshPrimitive& primitive =
+                    meshAsset.primitives[record.primitiveIndex];
+                const bool hasJointPalette =
+                    view.jointPalettes != nullptr &&
+                    command.firstRecordIndex != RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
+                    command.firstRecordIndex < view.jointPalettes->size() &&
+                    !(*view.jointPalettes)[command.firstRecordIndex].empty();
+                const bool skinnedCommand = record.skinned && hasJointPalette;
+                Mesh* mesh = skinnedCommand
+                    ? GetOrCreateSkinnedPrimitiveMesh(primitive)
+                    : GetOrCreatePrimitiveMesh(primitive);
+                if (mesh == nullptr || !mesh->IsValid()) {
+                    continue;
+                }
+
+                if (skinnedCommand) {
+                    const size_t paletteSlot =
+                        static_cast<size_t>(view.gpuSceneBaseIndex) +
+                        static_cast<size_t>(command.firstGpuSceneInstanceIndex);
+                    if (paletteSlot >= kMaxCasterObjects ||
+                        g.jointPaletteCB == nullptr) {
+                        continue;
+                    }
+                    const std::vector<MATH::Mat4>& palette =
+                        (*view.jointPalettes)[command.firstRecordIndex];
+                    (void)UploadJointPalette(paletteSlot, palette);
+                    const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress =
+                        g.jointPaletteCB->GetGPUVirtualAddress() +
+                        static_cast<UINT64>(
+                            AlignConstantBufferSize(sizeof(JointPaletteCB))) *
+                            paletteSlot;
+                    patchedAny =
+                        buffer.PatchSkinnedDrawBinding(
+                            command,
+                            mesh->GetVBView(),
+                            mesh->GetIBView(),
+                            paletteAddress) ||
+                        patchedAny;
+                } else {
+                    patchedAny =
+                        buffer.PatchDrawBinding(
+                            command,
+                            mesh->GetVBView(),
+                            mesh->GetIBView()) ||
+                        patchedAny;
+                }
+            }
+
+            return patchedAny;
         }
 
         bool CreateBuffers(ID3D12Device* device) {
@@ -1021,6 +1119,12 @@ namespace HIKARI::SHADOW {
                 RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow record path will be used.");
+            } else if (!g.surfaceIndirectDrawBuffer.InitializeSkinnedCommandStream(
+                device,
+                g.skinnedRootSig.Get(),
+                RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RECORD::kShadowSkinnedRootParamJointPalette)) {
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow skinned indirect command signature initialization failed. Skinned GPU-driven shadow stream will be unavailable.");
             }
             if (!g.clusterGpuCullingPass.Initialize(
                 device,
@@ -1275,6 +1379,8 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.cullViewProj = &g.lightViewProj;
+            commandFrameDesc.prepareSurfaceIndirectSeedBindings =
+                &PrepareShadowSurfaceIndirectSeedBindings;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
@@ -1319,6 +1425,8 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.cullViewProj = &g.lightViewProj;
+            commandFrameDesc.prepareSurfaceIndirectSeedBindings =
+                &PrepareShadowSurfaceIndirectSeedBindings;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
@@ -1326,6 +1434,8 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.cullViewProj = &g.lightViewProj;
+            commandFrameDesc.prepareSurfaceIndirectSeedBindings =
+                &PrepareShadowSurfaceIndirectSeedBindings;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
@@ -1363,32 +1473,62 @@ namespace HIKARI::SHADOW {
                 if (range == nullptr ||
                     !range->gpuAuthored ||
                     !range->gpuCounterBacked ||
-                    range->argumentBuffer == nullptr ||
                     range->counterBuffer == nullptr ||
-                    range->commandSignature == nullptr ||
                     range->commandCount == 0) {
                     return false;
                 }
-
-                BindShadowGpuDrivenFrameResources(cmd, nullptr);
-                if (g.staticPso == nullptr) {
+                const bool hasStaticStream =
+                    range->argumentBuffer != nullptr &&
+                    range->commandSignature != nullptr;
+                const bool hasSkinnedStream =
+                    range->skinnedArgumentBuffer != nullptr &&
+                    range->skinnedCommandSignature != nullptr &&
+                    range->skinnedCommandCount != 0;
+                if (!hasStaticStream && !hasSkinnedStream) {
                     return false;
                 }
-                cmd->SetPipelineState(g.staticPso.Get());
-                cmd->ExecuteIndirect(
-                    range->commandSignature,
-                    static_cast<UINT>(
-                        (std::min)(
-                            range->commandCount,
-                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
-                    range->argumentBuffer,
-                    0,
-                    range->counterBuffer,
-                    range->counterBufferOffset);
+
+                bool executed = false;
+                if (hasStaticStream && g.staticPso != nullptr) {
+                    BindShadowGpuDrivenFrameResources(cmd, nullptr);
+                    cmd->SetPipelineState(g.staticPso.Get());
+                    cmd->ExecuteIndirect(
+                        range->commandSignature,
+                        static_cast<UINT>(
+                            (std::min)(
+                                range->commandCount,
+                                static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                        range->argumentBuffer,
+                        range->argumentBufferOffset,
+                        range->counterBuffer,
+                        range->counterBufferOffset);
+                    executed = true;
+                }
+
+                if (hasSkinnedStream && g.skinnedPso != nullptr) {
+                    BindShadowGpuDrivenFrameResources(cmd, nullptr, true);
+                    cmd->SetPipelineState(g.skinnedPso.Get());
+                    cmd->ExecuteIndirect(
+                        range->skinnedCommandSignature,
+                        static_cast<UINT>(
+                            (std::min)(
+                                range->commandCount,
+                                static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                        range->skinnedArgumentBuffer,
+                        range->skinnedArgumentBufferOffset,
+                        range->counterBuffer,
+                        range->skinnedCounterBufferOffset);
+                    executed = true;
+                }
+
                 g.debugStats.submittedCasterCount += range->commandCount;
-                g.debugStats.staticCasterDrawCount += range->commandCount;
+                g.debugStats.staticCasterDrawCount +=
+                    range->commandCount >= range->skinnedCommandCount
+                        ? range->commandCount - range->skinnedCommandCount
+                        : 0u;
+                g.debugStats.skinnedCasterDrawCount += range->skinnedCommandCount;
                 g.debugStats.totalPrimitiveCasterDrawCount += range->commandCount;
-                return true;
+                return executed;
             }
 
             ID3D12Resource* visibleRangeBuffer =

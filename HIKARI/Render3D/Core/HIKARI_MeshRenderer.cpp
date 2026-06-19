@@ -239,6 +239,12 @@ namespace HIKARI::MESHRENDERER {
                 ROOT_PARAM::SurfaceGpuSceneControl,
                 4u)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. CPU-authored indirect draws stay disabled.");
+            } else if (!g.surfaceIndirectDrawBuffer.InitializeSkinnedCommandStream(
+                device,
+                GetSkinnedRootSignature(g.pipelines),
+                ROOT_PARAM::SurfaceGpuSceneControl,
+                ROOT_PARAM::JointPalette)) {
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface skinned indirect command signature initialization failed. Skinned GPU-driven indirect stream will be unavailable.");
             }
             if (!g.clusterGpuCullingPass.Initialize(
                 device,
@@ -345,7 +351,8 @@ namespace HIKARI::MESHRENDERER {
                         view.executableRecordIndices->data(),
                         view.executableRecordIndices->size(),
                         view.commands->data(),
-                        view.commands->size()) ||
+                        view.commands->size(),
+                        view.jointPalettes) ||
                     patchedAny;
             };
 
@@ -785,7 +792,9 @@ namespace HIKARI::MESHRENDERER {
                 clusterStats.geometryAuxPipelineReady;
             availability.traditionalIndirectPipelineReady =
                 GetStaticRootSignature(g.pipelines) != nullptr &&
-                GetSkinnedRootSignature(g.pipelines) != nullptr;
+                GetSkinnedRootSignature(g.pipelines) != nullptr &&
+                g.pipelines.pso != nullptr &&
+                g.pipelines.skinnedPso != nullptr;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
 
@@ -988,10 +997,18 @@ namespace HIKARI::MESHRENDERER {
             if (range == nullptr ||
                 !range->gpuAuthored ||
                 !range->gpuCounterBacked ||
-                range->argumentBuffer == nullptr ||
                 range->counterBuffer == nullptr ||
-                range->commandSignature == nullptr ||
                 range->commandCount == 0) {
+                return false;
+            }
+            const bool hasStaticStream =
+                range->argumentBuffer != nullptr &&
+                range->commandSignature != nullptr;
+            const bool hasSkinnedStream =
+                range->skinnedArgumentBuffer != nullptr &&
+                range->skinnedCommandSignature != nullptr &&
+                range->skinnedCommandCount != 0;
+            if (!hasStaticStream && !hasSkinnedStream) {
                 return false;
             }
 
@@ -1010,25 +1027,70 @@ namespace HIKARI::MESHRENDERER {
                 passKind == MeshDrawPassKind::GeometryAux
                     ? g.pipelines.geometryPso.Get()
                     : g.pipelines.pso.Get();
-            if (pso == nullptr) {
-                return false;
-            }
-            BindPipelineState(drawCtx.binding, pso);
+            bool executed = false;
+            if (hasStaticStream && pso != nullptr) {
+                BindPipelineState(drawCtx.binding, pso);
 
-            SERVICES::gCtx.cmdList->ExecuteIndirect(
-                range->commandSignature,
-                static_cast<UINT>(
-                    (std::min)(
-                        range->commandCount,
-                        static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
-                range->argumentBuffer,
-                0,
-                range->counterBuffer,
-                range->counterBufferOffset);
+                SERVICES::gCtx.cmdList->ExecuteIndirect(
+                    range->commandSignature,
+                    static_cast<UINT>(
+                        (std::min)(
+                            range->commandCount,
+                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                    range->argumentBuffer,
+                    range->argumentBufferOffset,
+                    range->counterBuffer,
+                    range->counterBufferOffset);
+                executed = true;
+            }
+
+            ID3D12PipelineState* skinnedPso =
+                passKind == MeshDrawPassKind::GeometryAux
+                    ? g.pipelines.geometrySkinnedPso.Get()
+                    : g.pipelines.skinnedPso.Get();
+            if (hasSkinnedStream &&
+                skinnedPso != nullptr &&
+                drawCtx.skinnedRootSig != nullptr) {
+                BindFrameCommonResources(
+                    drawCtx.binding,
+                    drawCtx.skinnedRootSig,
+                    drawCtx.cameraAddress,
+                    drawCtx.lightAddress,
+                    drawCtx.shadowAddress,
+                    drawCtx.skyEnvironmentAddress);
+                BindObjectDataBuffer(drawCtx.binding, drawCtx.objectDataSrv);
+                BindMaterialDataBuffer(drawCtx.binding, drawCtx.materialDataSrv);
+                BindSurfaceGpuSceneBuffer(drawCtx.binding, drawCtx.surfaceGpuSceneSrv);
+                BindSurfaceGpuSceneControl(drawCtx.binding, 0u, false);
+                BindShadowMap(drawCtx.binding);
+                if (passKind == MeshDrawPassKind::Forward) {
+                    BindSkyCube(drawCtx.binding);
+                    BindSceneDepth(drawCtx.binding);
+                    BindSceneColor(drawCtx.binding);
+                    BindIblResources(drawCtx.binding);
+                    BindReflectionProbeResources(drawCtx.binding);
+                    BindSsao(drawCtx.binding);
+                    BindLightProbeResources(drawCtx.binding);
+                }
+                BindObjectDataIndex(drawCtx.binding, 0u);
+                BindMaterialDataIndex(drawCtx.binding, 0u);
+                BindPipelineState(drawCtx.binding, skinnedPso);
+                SERVICES::gCtx.cmdList->ExecuteIndirect(
+                    range->skinnedCommandSignature,
+                    static_cast<UINT>(
+                        (std::min)(
+                            range->commandCount,
+                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                    range->skinnedArgumentBuffer,
+                    range->skinnedArgumentBufferOffset,
+                    range->counterBuffer,
+                    range->skinnedCounterBufferOffset);
+                executed = true;
+            }
 
             g.debugStats.gpuDrivenSkinnedCommandCount += range->commandCount;
             g.debugStats.gpuDrivenSkinnedSourceRecordCount += range->recordCount;
-            return true;
+            return executed;
         }
 
         bool ExecuteGeometryBackend(

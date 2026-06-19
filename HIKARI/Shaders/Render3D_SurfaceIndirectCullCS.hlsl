@@ -17,13 +17,36 @@ struct SurfaceIndirectDrawArgument
     uint startInstanceLocation;
 };
 
+struct SurfaceSkinnedIndirectDrawArgument
+{
+    uint2 vertexBufferLocation;
+    uint vertexBufferSizeInBytes;
+    uint vertexBufferStrideInBytes;
+
+    uint2 indexBufferLocation;
+    uint indexBufferSizeInBytes;
+    uint indexBufferFormat;
+
+    uint4 rootConstants;
+
+    uint2 jointPalette;
+
+    uint indexCountPerInstance;
+    uint instanceCount;
+    uint startIndexLocation;
+    int baseVertexLocation;
+    uint startInstanceLocation;
+    uint reserved0;
+};
+
 struct SurfaceIndirectDrawSeed
 {
     SurfaceIndirectDrawArgument argument;
+    SurfaceSkinnedIndirectDrawArgument skinnedArgument;
     float4 boundsCenterRadius;
     uint absoluteGpuSceneInstanceIndex;
     uint flags;
-    uint reserved0;
+    uint passIndex;
     uint reserved1;
 };
 
@@ -38,12 +61,17 @@ cbuffer SurfaceIndirectCullingCB : register(b0)
 
 StructuredBuffer<SurfaceIndirectDrawSeed> gSurfaceIndirectSeeds : register(t0);
 RWStructuredBuffer<SurfaceIndirectDrawArgument> gSurfaceIndirectArguments : register(u0);
-RWByteAddressBuffer gSurfaceIndirectCounters : register(u1);
+RWStructuredBuffer<SurfaceSkinnedIndirectDrawArgument> gSurfaceSkinnedIndirectArguments : register(u1);
+RWByteAddressBuffer gSurfaceIndirectCounters : register(u2);
 
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT = 0u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_VISIBLE_COUNT = 4u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT = 8u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT = 12u;
+static const uint HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_DRAW_COUNT = 16u;
+static const uint HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_VISIBLE_COUNT = 20u;
+static const uint HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES = 32u;
+static const uint HIKARI_SURFACE_INDIRECT_FLAG_SKINNED = 1u << 1;
 
 float4 HikariSurfaceIndirectViewProjRow0()
 {
@@ -124,20 +152,46 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const SurfaceIndirectDrawSeed seed = gSurfaceIndirectSeeds[seedIndex];
+    const uint passCounterBase =
+        seed.passIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
+    const uint passOutputBase =
+        seed.passIndex * gSurfaceIndirectOutputCapacity;
+    const bool skinned = (seed.flags & HIKARI_SURFACE_INDIRECT_FLAG_SKINNED) != 0u;
+    const uint2 vertexLocation =
+        skinned
+            ? seed.skinnedArgument.vertexBufferLocation
+            : seed.argument.vertexBufferLocation;
+    const uint2 indexLocation =
+        skinned
+            ? seed.skinnedArgument.indexBufferLocation
+            : seed.argument.indexBufferLocation;
+    const uint indexCount =
+        skinned
+            ? seed.skinnedArgument.indexCountPerInstance
+            : seed.argument.indexCountPerInstance;
+    const uint instanceCount =
+        skinned
+            ? seed.skinnedArgument.instanceCount
+            : seed.argument.instanceCount;
     const bool hasVertexBuffer =
-        seed.argument.vertexBufferLocation.x != 0u ||
-        seed.argument.vertexBufferLocation.y != 0u;
+        vertexLocation.x != 0u ||
+        vertexLocation.y != 0u;
     const bool hasIndexBuffer =
-        seed.argument.indexBufferLocation.x != 0u ||
-        seed.argument.indexBufferLocation.y != 0u;
-    if (seed.argument.indexCountPerInstance == 0u ||
-        seed.argument.instanceCount == 0u ||
+        indexLocation.x != 0u ||
+        indexLocation.y != 0u;
+    const bool hasJointPalette =
+        !skinned ||
+        seed.skinnedArgument.jointPalette.x != 0u ||
+        seed.skinnedArgument.jointPalette.y != 0u;
+    if (indexCount == 0u ||
+        instanceCount == 0u ||
         !hasVertexBuffer ||
-        !hasIndexBuffer)
+        !hasIndexBuffer ||
+        !hasJointPalette)
     {
         uint ignored = 0u;
         gSurfaceIndirectCounters.InterlockedAdd(
-            HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
             1u,
             ignored);
         return;
@@ -150,29 +204,60 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         uint ignored = 0u;
         gSurfaceIndirectCounters.InterlockedAdd(
-            HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
             1u,
             ignored);
         return;
     }
 
-    uint visibleIndex = 0u;
-    gSurfaceIndirectCounters.InterlockedAdd(
-        HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT,
-        1u,
-        visibleIndex);
-
     uint ignoredVisible = 0u;
     gSurfaceIndirectCounters.InterlockedAdd(
-        HIKARI_SURFACE_INDIRECT_COUNTER_VISIBLE_COUNT,
+        passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_VISIBLE_COUNT,
         1u,
         ignoredVisible);
+
+    if (skinned)
+    {
+        uint visibleSkinnedIndex = 0u;
+        gSurfaceIndirectCounters.InterlockedAdd(
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_DRAW_COUNT,
+            1u,
+            visibleSkinnedIndex);
+        uint ignoredSkinnedVisible = 0u;
+        gSurfaceIndirectCounters.InterlockedAdd(
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_VISIBLE_COUNT,
+            1u,
+            ignoredSkinnedVisible);
+        if (visibleSkinnedIndex >= gSurfaceIndirectOutputCapacity)
+        {
+            uint ignoredOverflow = 0u;
+            gSurfaceIndirectCounters.InterlockedAdd(
+                passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
+                1u,
+                ignoredOverflow);
+            return;
+        }
+
+        SurfaceSkinnedIndirectDrawArgument argument = seed.skinnedArgument;
+        argument.rootConstants.x = seed.absoluteGpuSceneInstanceIndex;
+        argument.rootConstants.y = 1u;
+        argument.instanceCount = 1u;
+        argument.startInstanceLocation = 0u;
+        gSurfaceSkinnedIndirectArguments[passOutputBase + visibleSkinnedIndex] = argument;
+        return;
+    }
+
+    uint visibleIndex = 0u;
+    gSurfaceIndirectCounters.InterlockedAdd(
+        passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT,
+        1u,
+        visibleIndex);
 
     if (visibleIndex >= gSurfaceIndirectOutputCapacity)
     {
         uint ignoredOverflow = 0u;
         gSurfaceIndirectCounters.InterlockedAdd(
-            HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
             1u,
             ignoredOverflow);
         return;
@@ -183,5 +268,5 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     argument.rootConstants.y = 1u;
     argument.instanceCount = 1u;
     argument.startInstanceLocation = 0u;
-    gSurfaceIndirectArguments[visibleIndex] = argument;
+    gSurfaceIndirectArguments[passOutputBase + visibleIndex] = argument;
 }
