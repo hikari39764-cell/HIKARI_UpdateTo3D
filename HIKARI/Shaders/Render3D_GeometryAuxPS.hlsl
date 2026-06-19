@@ -13,6 +13,14 @@ struct PSInput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    nointerpolation uint receiveShadow : TEXCOORD3;
+    // Keep TEXCOORD slots aligned with ClusterVS/MeshletMS for PSO linkage.
+    nointerpolation uint objectDataIndex : TEXCOORD4;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 float4 main(PSInput input) : SV_TARGET

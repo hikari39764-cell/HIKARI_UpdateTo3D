@@ -8,7 +8,7 @@ namespace HIKARI::GFX {
         bool enableGpuFrameProfiler = true;
         bool enableGpuFrameProfilerWithDebugLayer = false;
         bool enableClusterGpuCullDebugCounters = false;
-        bool enableInfoQueueBreakOnError = true;
+        bool enableInfoQueueBreakOnError = false;
         bool enableInfoQueueBreakOnWarning = false;
         bool dumpInfoQueueOnFrameEnd = false;
         bool verboseRenderTargetLog = false;
