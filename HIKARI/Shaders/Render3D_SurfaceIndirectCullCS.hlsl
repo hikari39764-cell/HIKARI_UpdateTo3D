@@ -39,15 +39,37 @@ struct SurfaceSkinnedIndirectDrawArgument
     uint reserved0;
 };
 
+struct SurfaceIndirectDrawPayload
+{
+    uint2 vertexBufferLocation;
+    uint vertexBufferSizeInBytes;
+    uint vertexBufferStrideInBytes;
+
+    uint2 indexBufferLocation;
+    uint indexBufferSizeInBytes;
+    uint indexBufferFormat;
+
+    uint2 jointPalette;
+
+    uint indexCountPerInstance;
+    uint instanceCount;
+    uint startIndexLocation;
+    int baseVertexLocation;
+    uint startInstanceLocation;
+    uint flags;
+};
+
 struct SurfaceIndirectDrawSeed
 {
-    SurfaceIndirectDrawArgument argument;
-    SurfaceSkinnedIndirectDrawArgument skinnedArgument;
     float4 boundsCenterRadius;
     uint absoluteGpuSceneInstanceIndex;
     uint flags;
     uint passIndex;
     uint bucketIndex;
+    uint payloadIndex;
+    uint localGpuSceneInstanceIndex;
+    uint reserved0;
+    uint reserved1;
 };
 
 cbuffer SurfaceIndirectCullingCB : register(b0)
@@ -60,6 +82,7 @@ cbuffer SurfaceIndirectCullingCB : register(b0)
 };
 
 StructuredBuffer<SurfaceIndirectDrawSeed> gSurfaceIndirectSeeds : register(t0);
+StructuredBuffer<SurfaceIndirectDrawPayload> gSurfaceIndirectPayloads : register(t1);
 RWStructuredBuffer<SurfaceIndirectDrawArgument> gSurfaceIndirectArguments : register(u0);
 RWStructuredBuffer<SurfaceSkinnedIndirectDrawArgument> gSurfaceSkinnedIndirectArguments : register(u1);
 RWByteAddressBuffer gSurfaceIndirectCounters : register(u2);
@@ -161,23 +184,22 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         passBucketIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
     const uint passOutputBase =
         passBucketIndex * gSurfaceIndirectOutputCapacity;
+    if (seed.payloadIndex >= gSurfaceIndirectInputCount)
+    {
+        uint ignoredPayload = 0u;
+        gSurfaceIndirectCounters.InterlockedAdd(
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
+            1u,
+            ignoredPayload);
+        return;
+    }
+    const SurfaceIndirectDrawPayload payload =
+        gSurfaceIndirectPayloads[seed.payloadIndex];
     const bool skinned = (seed.flags & HIKARI_SURFACE_INDIRECT_FLAG_SKINNED) != 0u;
-    const uint2 vertexLocation =
-        skinned
-            ? seed.skinnedArgument.vertexBufferLocation
-            : seed.argument.vertexBufferLocation;
-    const uint2 indexLocation =
-        skinned
-            ? seed.skinnedArgument.indexBufferLocation
-            : seed.argument.indexBufferLocation;
-    const uint indexCount =
-        skinned
-            ? seed.skinnedArgument.indexCountPerInstance
-            : seed.argument.indexCountPerInstance;
-    const uint instanceCount =
-        skinned
-            ? seed.skinnedArgument.instanceCount
-            : seed.argument.instanceCount;
+    const uint2 vertexLocation = payload.vertexBufferLocation;
+    const uint2 indexLocation = payload.indexBufferLocation;
+    const uint indexCount = payload.indexCountPerInstance;
+    const uint instanceCount = payload.instanceCount;
     const bool hasVertexBuffer =
         vertexLocation.x != 0u ||
         vertexLocation.y != 0u;
@@ -186,8 +208,8 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         indexLocation.y != 0u;
     const bool hasJointPalette =
         !skinned ||
-        seed.skinnedArgument.jointPalette.x != 0u ||
-        seed.skinnedArgument.jointPalette.y != 0u;
+        payload.jointPalette.x != 0u ||
+        payload.jointPalette.y != 0u;
     if (indexCount == 0u ||
         instanceCount == 0u ||
         !hasVertexBuffer ||
@@ -243,11 +265,24 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
             return;
         }
 
-        SurfaceSkinnedIndirectDrawArgument argument = seed.skinnedArgument;
+        SurfaceSkinnedIndirectDrawArgument argument;
+        argument.vertexBufferLocation = payload.vertexBufferLocation;
+        argument.vertexBufferSizeInBytes = payload.vertexBufferSizeInBytes;
+        argument.vertexBufferStrideInBytes = payload.vertexBufferStrideInBytes;
+        argument.indexBufferLocation = payload.indexBufferLocation;
+        argument.indexBufferSizeInBytes = payload.indexBufferSizeInBytes;
+        argument.indexBufferFormat = payload.indexBufferFormat;
+        argument.jointPalette = payload.jointPalette;
         argument.rootConstants.x = seed.absoluteGpuSceneInstanceIndex;
         argument.rootConstants.y = 1u;
+        argument.rootConstants.z = 0u;
+        argument.rootConstants.w = 0u;
+        argument.indexCountPerInstance = payload.indexCountPerInstance;
         argument.instanceCount = 1u;
+        argument.startIndexLocation = payload.startIndexLocation;
+        argument.baseVertexLocation = payload.baseVertexLocation;
         argument.startInstanceLocation = 0u;
+        argument.reserved0 = 0u;
         gSurfaceSkinnedIndirectArguments[passOutputBase + visibleSkinnedIndex] = argument;
         return;
     }
@@ -268,10 +303,21 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    SurfaceIndirectDrawArgument argument = seed.argument;
+    SurfaceIndirectDrawArgument argument;
+    argument.vertexBufferLocation = payload.vertexBufferLocation;
+    argument.vertexBufferSizeInBytes = payload.vertexBufferSizeInBytes;
+    argument.vertexBufferStrideInBytes = payload.vertexBufferStrideInBytes;
+    argument.indexBufferLocation = payload.indexBufferLocation;
+    argument.indexBufferSizeInBytes = payload.indexBufferSizeInBytes;
+    argument.indexBufferFormat = payload.indexBufferFormat;
     argument.rootConstants.x = seed.absoluteGpuSceneInstanceIndex;
     argument.rootConstants.y = 1u;
+    argument.rootConstants.z = 0u;
+    argument.rootConstants.w = 0u;
+    argument.indexCountPerInstance = payload.indexCountPerInstance;
     argument.instanceCount = 1u;
+    argument.startIndexLocation = payload.startIndexLocation;
+    argument.baseVertexLocation = payload.baseVertexLocation;
     argument.startInstanceLocation = 0u;
     gSurfaceIndirectArguments[passOutputBase + visibleIndex] = argument;
 }
