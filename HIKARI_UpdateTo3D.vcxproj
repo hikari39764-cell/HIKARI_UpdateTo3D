@@ -899,6 +899,7 @@
     <None Include="HIKARI\Tools\Baking\README_LightingBake.md" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />

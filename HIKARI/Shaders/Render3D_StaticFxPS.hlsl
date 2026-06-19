@@ -140,6 +140,7 @@ SamplerState gShadowSampler : register(s1);
 
 #include "Include/HIKARI_PbrCommon.hlsli"
 #include "Include/HIKARI_SkyEnvironmentCommon.hlsli"
+#include "Include/HIKARI_DebugViewCommon.hlsli"
 
 struct PSInput
 {
@@ -645,6 +646,19 @@ float4 main(PSInput input) : SV_TARGET
     {
         float2 screenUv = input.position.xy * gScreenParams.zw;
         return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
+    }
+
+    float4 geometryDebugColor;
+    if (HikariTryResolveGeometryDebugView(
+        gDebugView,
+        input.debugClusterId,
+        input.debugSurfaceId,
+        input.debugLodIndex,
+        input.debugDrawBucket,
+        albedo.a,
+        geometryDebugColor))
+    {
+        return geometryDebugColor;
     }
 
     if (!HikariShouldApplyStaticFx(pixelObjectData, input.surfaceGpuSceneIndex))

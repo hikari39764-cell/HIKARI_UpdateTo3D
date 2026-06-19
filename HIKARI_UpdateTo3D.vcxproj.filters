@@ -2189,6 +2189,9 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>

@@ -41,6 +41,7 @@ cbuffer CameraCB : register(b0)
 };
 
 #include "Include/HIKARI_MeshObjectData.hlsli"
+#include "Include/HIKARI_DebugViewCommon.hlsli"
 
 cbuffer LightCB : register(b2)
 {
@@ -710,6 +711,19 @@ float4 main(PSInput input) : SV_TARGET
     {
         float2 screenUv = input.position.xy * gScreenParams.zw;
         return float4(gSceneColorTex.Sample(gSkySampler, saturate(screenUv)).rgb, 1.0f);
+    }
+
+    float4 geometryDebugColor;
+    if (HikariTryResolveGeometryDebugView(
+        gDebugView,
+        input.debugClusterId,
+        input.debugSurfaceId,
+        input.debugLodIndex,
+        input.debugDrawBucket,
+        1.0f,
+        geometryDebugColor))
+    {
+        return geometryDebugColor;
     }
 
     float refractionCoverage = 0.0f;
