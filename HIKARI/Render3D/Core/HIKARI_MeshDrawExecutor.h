@@ -16,13 +16,13 @@ namespace HIKARI {
 }
 
 namespace HIKARI::RENDER3D::RUNTIME {
-    struct SurfaceDrawPacket;
     struct SurfaceDrawCommand;
     struct SurfaceGpuSceneInstance;
     struct SurfaceGpuSceneMaterialSource;
 }
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
+    struct GpuSceneSurfaceRecord;
     class SurfaceGpuSceneFrameBuffer;
     class SurfaceIndirectDrawBuffer;
 }
@@ -85,30 +85,30 @@ namespace HIKARI::MESHRENDERER {
         const DrawItem& item,
         size_t& objectIndex);
 
-    void BindSurfacePacketFrameResources(const MeshDrawContext& ctx);
+    void BindSurfaceRecordFrameResources(const MeshDrawContext& ctx);
 
-    bool PrepareSurfacePacketIndirectDrawBindings(
+    bool PrepareSurfaceRecordIndirectDrawBindings(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount);
 
-    bool PrepareSurfacePacketGpuSceneMaterials(
+    bool PrepareSurfaceRecordGpuSceneMaterials(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount);
 
     bool PrepareSurfaceGpuSceneInstanceMaterials(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
         const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
         size_t instanceCount);
 
@@ -117,42 +117,42 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
         size_t sourceCount);
 
-    struct SurfacePacketCommandDrawResult {
-        size_t submittedPacketCount = 0;
-        size_t skippedPacketCount = 0;
+    struct SurfaceRecordCommandDrawResult {
+        size_t submittedRecordCount = 0;
+        size_t skippedRecordCount = 0;
         size_t drawCallCount = 0;
         size_t instancedDrawCount = 0;
-        size_t instancedPacketCount = 0;
+        size_t instancedRecordCount = 0;
         size_t maxInstanceCount = 0;
     };
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketCommandRange(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommandRange(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount,
         size_t& commandIndex,
         size_t& objectIndex);
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketIndirectCommandRange(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordIndirectCommandRange(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount,
         size_t& commandIndex);
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommand(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
         size_t& objectIndex);
 

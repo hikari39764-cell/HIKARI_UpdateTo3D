@@ -17,16 +17,16 @@ namespace HIKARI {
 }
 
 namespace HIKARI::RENDER3D::RUNTIME {
-    struct SurfaceDrawPacket;
     struct SurfaceDrawCommand;
 }
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
+    struct GpuSceneSurfaceRecord;
     class SurfaceIndirectDrawBuffer;
     class SurfaceGpuSceneFrameBuffer;
 }
 
-namespace HIKARI::SHADOW::PACKET {
+namespace HIKARI::SHADOW::RECORD {
 
     constexpr UINT kShadowStaticRootParamCamera = 0;
     constexpr UINT kShadowStaticRootParamObject = 1;
@@ -41,9 +41,9 @@ namespace HIKARI::SHADOW::PACKET {
     constexpr UINT kShadowStaticRootParamMeshletVisibleRanges = 10;
     constexpr UINT kShadowSkinnedRootParamJointPalette = 11;
 
-    using ResolveShadowPacketMeshFn = Mesh* (*)(const MeshPrimitive& primitive);
+    using ResolveShadowRecordMeshFn = Mesh* (*)(const MeshPrimitive& primitive);
 
-    struct ShadowPacketExecutorContext {
+    struct ShadowRecordExecutorContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         ID3D12RootSignature* staticRootSig = nullptr;
         ID3D12PipelineState* staticPso = nullptr;
@@ -54,44 +54,44 @@ namespace HIKARI::SHADOW::PACKET {
         D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv{};
         RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
         RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer* indirectDrawBuffer = nullptr;
-        ResolveShadowPacketMeshFn resolveStaticMesh = nullptr;
+        ResolveShadowRecordMeshFn resolveStaticMesh = nullptr;
     };
 
-    struct ShadowPacketDrawResult {
-        size_t submittedPacketCount = 0;
-        size_t skippedPacketCount = 0;
+    struct ShadowRecordDrawResult {
+        size_t submittedRecordCount = 0;
+        size_t skippedRecordCount = 0;
         size_t drawCallCount = 0;
         size_t instancedDrawCount = 0;
-        size_t instancedPacketCount = 0;
+        size_t instancedRecordCount = 0;
         size_t maxInstanceCount = 0;
         size_t commandCount = 0;
-        size_t singlePacketCommandCount = 0;
-        size_t maxCommandPacketCount = 0;
+        size_t singleRecordCommandCount = 0;
+        size_t maxCommandRecordCount = 0;
         size_t indirectDrawCount = 0;
-        size_t indirectPacketCount = 0;
+        size_t indirectRecordCount = 0;
         size_t indirectBatchCount = 0;
         size_t indirectSavedSubmitCount = 0;
         size_t indirectMaxBatchCommandCount = 0;
         size_t indirectFallbackCommandCount = 0;
     };
 
-    bool InitializeShadowPacketExecutor(ID3D12Device* device);
-    void ResetShadowPacketExecutor();
-    bool PrepareShadowPacketIndirectDrawBindings(
-        const ShadowPacketExecutorContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+    bool InitializeShadowRecordExecutor(ID3D12Device* device);
+    void ResetShadowRecordExecutor();
+    bool PrepareShadowRecordIndirectDrawBindings(
+        const ShadowRecordExecutorContext& ctx,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands);
 
-    ShadowPacketDrawResult DrawShadowPacketCommands(
-        const ShadowPacketExecutorContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+    ShadowRecordDrawResult DrawShadowRecordCommands(
+        const ShadowRecordExecutorContext& ctx,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands,
         size_t& objectIndex);
 
-} // namespace HIKARI::SHADOW::PACKET
+} // namespace HIKARI::SHADOW::RECORD

@@ -705,7 +705,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
                 range.commandCount = state.traditionalIndirectCommandCount;
-                range.packetCount = state.traditionalIndirectCommandCount;
+                range.recordCount = state.traditionalIndirectCommandCount;
                 range.instanceCount = state.traditionalIndirectInstanceCount;
                 range.consumable = true;
                 range.gpuAuthored = false;

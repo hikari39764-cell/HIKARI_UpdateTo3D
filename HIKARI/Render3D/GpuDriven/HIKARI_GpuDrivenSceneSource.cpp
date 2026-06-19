@@ -3,8 +3,8 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     void GpuDrivenTraditionalIndirectView::Reset() {
-        packets = nullptr;
-        executablePacketIndices = nullptr;
+        records = nullptr;
+        executableRecordIndices = nullptr;
         commands = nullptr;
         instances = nullptr;
         materialSources = nullptr;
@@ -15,8 +15,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     bool GpuDrivenTraditionalIndirectView::HasCommands() const {
         return
-            packets != nullptr &&
-            executablePacketIndices != nullptr &&
+            records != nullptr &&
+            executableRecordIndices != nullptr &&
             commands != nullptr &&
             !commands->empty();
     }

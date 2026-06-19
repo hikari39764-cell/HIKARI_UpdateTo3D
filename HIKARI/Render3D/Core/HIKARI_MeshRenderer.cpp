@@ -25,6 +25,7 @@
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
+#include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -271,7 +272,7 @@ namespace HIKARI::MESHRENDERER {
             }
             UpdateMeshletBackendDebugStats();
 
-            // MeshRenderer 共通 fallback は resource handle を正として保持する。
+            // MeshRenderer 共送Efallback は resource handle を正として保持する、E
             g.fallbackTextureResource = RENDER3D::LoadTextureResource(
                 "mesh_renderer/fallback_white",
                 "HIKARI/black1x1.png");
@@ -781,13 +782,13 @@ namespace HIKARI::MESHRENDERER {
             const RENDER3D::GPUDRIVEN::GpuDrivenWorkOwnershipStats& stats) {
 
             g.debugStats.clusterMainlineOwnedCommandCount = stats.ownedCommandCount;
-            g.debugStats.clusterMainlineOwnedPacketCount = stats.ownedPacketCount;
+            g.debugStats.clusterMainlineOwnedRecordCount = stats.ownedRecordCount;
             g.debugStats.clusterMainlineGeometryAuxCommandCount = stats.geometryAuxCommandCount;
-            g.debugStats.clusterMainlineGeometryAuxPacketCount = stats.geometryAuxPacketCount;
+            g.debugStats.clusterMainlineGeometryAuxRecordCount = stats.geometryAuxRecordCount;
             g.debugStats.clusterMainlineLegacyCommandCount = stats.legacyCommandCount;
-            g.debugStats.clusterMainlineLegacyPacketCount = stats.legacyPacketCount;
+            g.debugStats.clusterMainlineLegacyRecordCount = stats.legacyRecordCount;
             g.debugStats.clusterDrawBypassedLegacyCommandCount = stats.bypassedLegacyCommandCount;
-            g.debugStats.clusterDrawBypassedLegacyPacketCount = stats.bypassedLegacyPacketCount;
+            g.debugStats.clusterDrawBypassedLegacyRecordCount = stats.bypassedLegacyRecordCount;
 
             g.debugStats.clusterDrawEligibleCommandCount = stats.eligibleCommandCount;
             g.debugStats.clusterDrawRejectContextCommandCount = stats.rejectContextCommandCount;
@@ -811,17 +812,17 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenLayer.GetPassExecutionState(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux);
             if (forward.gpuBackendReady) {
-                // GPU 主導ルートでは CPU 側で per-surface 所有 mask を作らない。
-                // ここではレガシー抑止の概算だけを表示し、実際の可視性/LOD は GPU counter に任せる。
+                // GPU-driven record path note.
+                // ここではレガシー抑止の概算だけを表示し、実際の可視性/LOD は GPU counter に任せる、E
                 stats.ownedCommandCount = forward.sourceInstanceCount;
-                stats.ownedPacketCount = forward.sourceInstanceCount;
+                stats.ownedRecordCount = forward.sourceInstanceCount;
                 stats.eligibleCommandCount = stats.ownedCommandCount;
                 stats.bypassedLegacyCommandCount = stats.ownedCommandCount;
-                stats.bypassedLegacyPacketCount = stats.ownedPacketCount;
+                stats.bypassedLegacyRecordCount = stats.ownedRecordCount;
             }
             if (geometry.gpuBackendReady) {
                 stats.geometryAuxCommandCount = geometry.sourceInstanceCount;
-                stats.geometryAuxPacketCount = geometry.sourceInstanceCount;
+                stats.geometryAuxRecordCount = geometry.sourceInstanceCount;
             }
             ApplyGpuDrivenWorkOwnershipDebugStats(stats);
         }
@@ -853,7 +854,7 @@ namespace HIKARI::MESHRENDERER {
                 gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
             MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
-            BindSurfacePacketFrameResources(drawCtx);
+            BindSurfaceRecordFrameResources(drawCtx);
 
             const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
                 g.gpuDrivenLayer.BuildGeometryBackendContext(
@@ -899,7 +900,7 @@ namespace HIKARI::MESHRENDERER {
                 gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
             MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
-            BindSurfacePacketFrameResources(drawCtx);
+            BindSurfaceRecordFrameResources(drawCtx);
             BindMeshletVisibleRanges(
                 drawCtx.binding,
                 visibleRangeBuffer->GetGPUVirtualAddress());
@@ -933,8 +934,8 @@ namespace HIKARI::MESHRENDERER {
             const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
                 backendContext.traditionalIndirect;
             if (view == nullptr ||
-                view->packets == nullptr ||
-                view->executablePacketIndices == nullptr ||
+                view->records == nullptr ||
+                view->executableRecordIndices == nullptr ||
                 view->commands == nullptr ||
                 view->jointPalettes == nullptr ||
                 view->commands->empty()) {
@@ -948,42 +949,42 @@ namespace HIKARI::MESHRENDERER {
                 BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
             drawCtx.surfaceGpuSceneBaseOffset = view->gpuSceneBaseIndex;
-            BindSurfacePacketFrameResources(drawCtx);
+            BindSurfaceRecordFrameResources(drawCtx);
 
             size_t objectIndex = 0;
             size_t submitted = 0;
             size_t skipped = 0;
-            for (uint32_t packetIndex : *view->executablePacketIndices) {
-                if (packetIndex >= view->packets->size() ||
-                    packetIndex >= view->jointPalettes->size()) {
+            for (uint32_t recordIndex : *view->executableRecordIndices) {
+                if (recordIndex >= view->records->size() ||
+                    recordIndex >= view->jointPalettes->size()) {
                     ++skipped;
                     continue;
                 }
 
-                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet =
-                    (*view->packets)[packetIndex];
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                    (*view->records)[recordIndex];
                 const std::vector<MATH::Mat4>& jointPalette =
-                    (*view->jointPalettes)[packetIndex];
-                if (packet.model == nullptr || jointPalette.empty()) {
+                    (*view->jointPalettes)[recordIndex];
+                if (record.model == nullptr || jointPalette.empty()) {
                     ++skipped;
                     continue;
                 }
 
                 DrawItem item{};
-                item.asset = packet.model;
-                item.materialOverride = packet.materialOverride;
-                item.transform = packet.objectWorldTransform;
+                item.asset = record.model;
+                item.materialOverride = record.materialOverride;
+                item.transform = record.objectWorldTransform;
                 item.jointPalette = jointPalette;
-                item.materialFxProfileId = packet.materialFxProfileId;
-                item.postGroupMask = packet.postGroupMask;
+                item.materialFxProfileId = record.materialFxProfileId;
+                item.postGroupMask = record.postGroupMask;
                 for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-                    item.materialFxParamValues[i] = packet.materialFxParamValues[i];
+                    item.materialFxParamValues[i] = record.materialFxParamValues[i];
                 }
-                item.materialFxValuesInitialized = packet.materialFxValuesInitialized;
+                item.materialFxValuesInitialized = record.materialFxValuesInitialized;
                 item.usePrimitiveFilter = true;
-                item.meshIndexFilter = packet.meshIndex;
-                item.primitiveIndexFilter = packet.primitiveIndex;
-                item.receiveShadow = packet.receiveShadow;
+                item.meshIndexFilter = record.meshIndex;
+                item.primitiveIndexFilter = record.primitiveIndex;
+                item.receiveShadow = record.receiveShadow;
                 item.renderDebugMode = MeshRenderDebugMode::Normal;
                 ResolveDrawVariant(item);
 
@@ -995,10 +996,10 @@ namespace HIKARI::MESHRENDERER {
             }
 
             g.debugStats.gpuDrivenSkinnedCommandCount += view->commands->size();
-            g.debugStats.gpuDrivenSkinnedSourcePacketCount +=
-                view->executablePacketIndices->size();
-            g.debugStats.gpuDrivenSkinnedSubmittedPacketCount += submitted;
-            g.debugStats.gpuDrivenSkinnedSkippedPacketCount += skipped;
+            g.debugStats.gpuDrivenSkinnedSourceRecordCount +=
+                view->executableRecordIndices->size();
+            g.debugStats.gpuDrivenSkinnedSubmittedRecordCount += submitted;
+            g.debugStats.gpuDrivenSkinnedSkippedRecordCount += skipped;
             return submitted != 0;
         }
 
@@ -1373,7 +1374,7 @@ namespace HIKARI::MESHRENDERER {
         if (!EnsureInitialized()) {
             return false;
         }
-        // Capture 用の固定解像度を camera constants に反映する。
+        // Capture 用の固定解像度めEcamera constants に反映する、E
         if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
             return false;
         }

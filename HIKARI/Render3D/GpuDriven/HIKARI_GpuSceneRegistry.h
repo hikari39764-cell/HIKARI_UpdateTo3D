@@ -8,7 +8,6 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -45,8 +44,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t forwardOpaqueClusterCandidateRecordCount = 0;
         uint32_t unsupportedForwardRecordCount = 0;
         bool strictGpuDrivenMainline = false;
-        uint32_t cpuPlannerBuildSuppressedCount = 0;
-        uint32_t cpuPlannerRecordSuppressedCount = 0;
+        uint32_t legacyForwardViewSuppressedCount = 0;
+        uint32_t strictMainlineBlockedRecordCount = 0;
         uint32_t blockedForwardDepthAwareRecordCount = 0;
         uint32_t blockedForwardTransparentRecordCount = 0;
         uint32_t blockedShadowRecordCount = 0;
@@ -89,8 +88,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     public:
         struct TraditionalSkinnedStream {
-            std::vector<RUNTIME::SurfaceDrawPacket> packets{};
-            std::vector<uint32_t> executablePacketIndices{};
+            std::vector<GpuSceneSurfaceRecord> records{};
+            std::vector<uint32_t> executableRecordIndices{};
             std::vector<RUNTIME::SurfaceDrawCommand> commands{};
             std::vector<RUNTIME::SurfaceGpuSceneInstance> instances{};
             std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
@@ -110,7 +109,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void RecordForwardExpectedSurface(const GpuSceneSurfaceRecord& record);
         void RecordForwardHandledSurface(const GpuSceneSurfaceRecord& record);
         void RebuildForwardFromSceneCache(const GpuSceneRegistrySyncInput& input);
-        void SuppressForwardCpuPlannerViews(
+        void SuppressLegacyForwardViews(
             const GpuSceneRegistrySyncInput& input);
         bool TryPatchForwardDataFromSceneCache(const GpuSceneRegistrySyncInput& input);
         void RebuildForwardSceneSource();

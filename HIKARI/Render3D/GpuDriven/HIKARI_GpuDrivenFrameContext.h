@@ -59,13 +59,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenWorkOwnershipStats {
         size_t ownedCommandCount = 0;
-        size_t ownedPacketCount = 0;
+        size_t ownedRecordCount = 0;
         size_t geometryAuxCommandCount = 0;
-        size_t geometryAuxPacketCount = 0;
+        size_t geometryAuxRecordCount = 0;
         size_t legacyCommandCount = 0;
-        size_t legacyPacketCount = 0;
+        size_t legacyRecordCount = 0;
         size_t bypassedLegacyCommandCount = 0;
-        size_t bypassedLegacyPacketCount = 0;
+        size_t bypassedLegacyRecordCount = 0;
 
         size_t eligibleCommandCount = 0;
         size_t rejectContextCommandCount = 0;

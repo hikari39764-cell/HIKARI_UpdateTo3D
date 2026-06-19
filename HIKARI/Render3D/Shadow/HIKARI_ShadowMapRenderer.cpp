@@ -29,6 +29,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
+#include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
@@ -36,7 +37,7 @@
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
-#include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
+#include "Render3D/Shadow/HIKARI_ShadowRecordExecutor.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::SHADOW {
@@ -283,39 +284,39 @@ namespace HIKARI::SHADOW {
 
             cmd->SetGraphicsRootSignature(g.rootSig.Get());
             cmd->SetGraphicsRootConstantBufferView(
-                PACKET::kShadowStaticRootParamCamera,
+                RECORD::kShadowStaticRootParamCamera,
                 g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0u);
             if (g.materialDataSrvGpu.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamMaterialData,
+                    RECORD::kShadowStaticRootParamMaterialData,
                     g.materialDataSrvGpu);
             }
             if (g.surfaceGpuSceneBuffer.GetSrv().ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamSurfaceGpuScene,
+                    RECORD::kShadowStaticRootParamSurfaceGpuScene,
                     g.surfaceGpuSceneBuffer.GetSrv());
             }
             const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv =
                 ResolveMaterialTexturePoolSrv();
             if (texturePoolSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamTexturePool,
+                    RECORD::kShadowStaticRootParamTexturePool,
                     texturePoolSrv);
             }
             const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv =
                 ResolveClusterGeometryPoolSrv();
             if (clusterPoolSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamClusterGeometryPool,
+                    RECORD::kShadowStaticRootParamClusterGeometryPool,
                     clusterPoolSrv);
             }
             if (meshletVisibleRangeBuffer != nullptr) {
                 cmd->SetGraphicsRootShaderResourceView(
-                    PACKET::kShadowStaticRootParamMeshletVisibleRanges,
+                    RECORD::kShadowStaticRootParamMeshletVisibleRanges,
                     meshletVisibleRangeBuffer->GetGPUVirtualAddress());
             }
             cmd->SetGraphicsRoot32BitConstant(
-                PACKET::kShadowStaticRootParamMaterialIndex,
+                RECORD::kShadowStaticRootParamMaterialIndex,
                 0u,
                 0);
         }
@@ -327,18 +328,18 @@ namespace HIKARI::SHADOW {
 
             if (g.materialDataSrvGpu.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamMaterialData,
+                    RECORD::kShadowStaticRootParamMaterialData,
                     g.materialDataSrvGpu);
             }
             if (g.surfaceGpuSceneBuffer.GetSrv().ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamSurfaceGpuScene,
+                    RECORD::kShadowStaticRootParamSurfaceGpuScene,
                     g.surfaceGpuSceneBuffer.GetSrv());
             }
             const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv = ResolveMaterialTexturePoolSrv();
             if (texturePoolSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamTexturePool,
+                    RECORD::kShadowStaticRootParamTexturePool,
                     texturePoolSrv);
             }
 
@@ -349,12 +350,12 @@ namespace HIKARI::SHADOW {
                 0u,
             };
             cmd->SetGraphicsRoot32BitConstants(
-                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount,
                 constants,
                 0);
             cmd->SetGraphicsRoot32BitConstant(
-                PACKET::kShadowStaticRootParamMaterialIndex,
+                RECORD::kShadowStaticRootParamMaterialIndex,
                 0u,
                 0);
         }
@@ -857,7 +858,7 @@ namespace HIKARI::SHADOW {
             clusterGeometryPoolRange.OffsetInDescriptorsFromTableStart =
                 D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[PACKET::kShadowStaticRootParamMeshletVisibleRanges + 1]{};
+            D3D12_ROOT_PARAMETER params[RECORD::kShadowStaticRootParamMeshletVisibleRanges + 1]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -883,7 +884,7 @@ namespace HIKARI::SHADOW {
             params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[5].Constants.ShaderRegister = 8;
             params[5].Constants.RegisterSpace = 0;
-            // ExecuteIndirect と direct path の両方で同じ SurfaceGpuSceneControl を使う。
+            // GPU-driven record path note.
             params[5].Constants.Num32BitValues =
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount;
 
@@ -895,7 +896,7 @@ namespace HIKARI::SHADOW {
             params[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[7].Constants.ShaderRegister = 7;
             params[7].Constants.RegisterSpace = 0;
-            // 共通 MaterialData include が b7 を宣言するため、shadow 側でも slot を明示する。
+            // GPU-driven record path note.
             params[7].Constants.Num32BitValues = 1;
             params[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -938,16 +939,16 @@ namespace HIKARI::SHADOW {
             }
             GFX::SetD3D12Name(g.rootSig.Get(), L"Shadow Static RootSignature");
 
-            D3D12_ROOT_PARAMETER skinnedParams[PACKET::kShadowSkinnedRootParamJointPalette + 1]{};
+            D3D12_ROOT_PARAMETER skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette + 1]{};
             for (size_t i = 0; i < std::size(params); ++i) {
                 skinnedParams[i] = params[i];
             }
-            skinnedParams[PACKET::kShadowSkinnedRootParamJointPalette].ParameterType =
+            skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].ParameterType =
                 D3D12_ROOT_PARAMETER_TYPE_CBV;
-            skinnedParams[PACKET::kShadowSkinnedRootParamJointPalette].ShaderVisibility =
+            skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].ShaderVisibility =
                 D3D12_SHADER_VISIBILITY_VERTEX;
-            skinnedParams[PACKET::kShadowSkinnedRootParamJointPalette].Descriptor.ShaderRegister = 3;
-            skinnedParams[PACKET::kShadowSkinnedRootParamJointPalette].Descriptor.RegisterSpace = 0;
+            skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].Descriptor.ShaderRegister = 3;
+            skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].Descriptor.RegisterSpace = 0;
 
             D3D12_ROOT_SIGNATURE_DESC skinnedRsDesc = rsDesc;
             skinnedRsDesc.NumParameters = static_cast<UINT>(std::size(skinnedParams));
@@ -1016,14 +1017,14 @@ namespace HIKARI::SHADOW {
             if (!g.surfaceIndirectDrawBuffer.Initialize(
                 device,
                 g.rootSig.Get(),
-                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
-                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow packet path will be used.");
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow record path will be used.");
             }
             if (!g.clusterGpuCullingPass.Initialize(
                 device,
                 g.rootSig.Get(),
-                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster GPU culling initialization failed. GPU-driven shadow pass will be unavailable.");
             }
@@ -1047,7 +1048,7 @@ namespace HIKARI::SHADOW {
             if (!g.gpuDrivenLayer.Initialize(
                 device,
                 g.rootSig.Get(),
-                PACKET::kShadowStaticRootParamSurfaceGpuSceneControl,
+                RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
                 RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow GPU-driven layer initialization failed. Direct shadow fallback will be used.");
             }
@@ -1070,7 +1071,7 @@ namespace HIKARI::SHADOW {
             g.initialized =
                 RENDER3D::IsTextureResourceValid(g.fallbackTextureResource) &&
                 CreateBuffers(device) &&
-                PACKET::InitializeShadowPacketExecutor(device) &&
+                RECORD::InitializeShadowRecordExecutor(device) &&
                 CreatePipeline(device);
             return g.initialized;
         }
@@ -1350,8 +1351,8 @@ namespace HIKARI::SHADOW {
                 const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
                     backendContext.traditionalIndirect;
                 if (view == nullptr ||
-                    view->packets == nullptr ||
-                    view->executablePacketIndices == nullptr ||
+                    view->records == nullptr ||
+                    view->executableRecordIndices == nullptr ||
                     view->jointPalettes == nullptr ||
                     view->commands == nullptr ||
                     view->commands->empty()) {
@@ -1361,29 +1362,29 @@ namespace HIKARI::SHADOW {
                 constexpr UINT objectStride = AlignConstantBufferSize(sizeof(ShadowObjectCB));
                 size_t objectIndex = 0;
                 size_t submitted = 0;
-                for (uint32_t packetIndex : *view->executablePacketIndices) {
-                    if (packetIndex >= view->packets->size() ||
-                        packetIndex >= view->jointPalettes->size() ||
+                for (uint32_t recordIndex : *view->executableRecordIndices) {
+                    if (recordIndex >= view->records->size() ||
+                        recordIndex >= view->jointPalettes->size() ||
                         objectIndex >= kMaxCasterObjects) {
                         continue;
                     }
 
-                    const RENDER3D::RUNTIME::SurfaceDrawPacket& packet =
-                        (*view->packets)[packetIndex];
+                    const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                        (*view->records)[recordIndex];
                     const std::vector<MATH::Mat4>& jointPalette =
-                        (*view->jointPalettes)[packetIndex];
-                    if (packet.model == nullptr ||
-                        packet.meshIndex >= packet.model->meshes.size() ||
+                        (*view->jointPalettes)[recordIndex];
+                    if (record.model == nullptr ||
+                        record.meshIndex >= record.model->meshes.size() ||
                         jointPalette.empty()) {
                         continue;
                     }
 
-                    const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-                    if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+                    const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+                    if (record.primitiveIndex >= meshAsset.primitives.size()) {
                         continue;
                     }
                     const MeshPrimitive& primitive =
-                        meshAsset.primitives[packet.primitiveIndex];
+                        meshAsset.primitives[record.primitiveIndex];
                     Mesh* mesh = !primitive.skinnedVertices.empty()
                         ? GetOrCreateSkinnedPrimitiveMesh(primitive)
                         : GetOrCreatePrimitiveMesh(primitive);
@@ -1392,9 +1393,9 @@ namespace HIKARI::SHADOW {
                     }
 
                     const MaterialAsset* materialAsset =
-                        GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
+                        GetPrimitiveMaterial(*record.model, primitive.materialIndex);
                     ShadowObjectCB object{};
-                    object.world = packet.objectWorldTransform.GetWorldMatrix();
+                    object.world = record.objectWorldTransform.GetWorldMatrix();
                     object.alphaCutoff =
                         materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f;
                     if (materialAsset != nullptr &&
@@ -1420,18 +1421,18 @@ namespace HIKARI::SHADOW {
                             ? g.skinnedPso.Get()
                             : g.staticPso.Get());
                     cmd->SetGraphicsRootConstantBufferView(
-                        PACKET::kShadowStaticRootParamCamera,
+                        RECORD::kShadowStaticRootParamCamera,
                         g.cameraCB->GetGPUVirtualAddress());
                     cmd->SetGraphicsRootConstantBufferView(
-                        PACKET::kShadowStaticRootParamObject,
+                        RECORD::kShadowStaticRootParamObject,
                         objectAddress);
                     const RENDER3D::TextureResourceHandle textureResource =
-                        ResolvePrimitiveTextureResource(*packet.model, materialAsset);
+                        ResolvePrimitiveTextureResource(*record.model, materialAsset);
                     const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
                         RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
                     if (textureSrv.ptr != 0) {
                         cmd->SetGraphicsRootDescriptorTable(
-                            PACKET::kShadowStaticRootParamBaseColorTexture,
+                            RECORD::kShadowStaticRootParamBaseColorTexture,
                             textureSrv);
                     }
                     BindLegacyShadowSurfaceDataMode(cmd);
@@ -1443,7 +1444,7 @@ namespace HIKARI::SHADOW {
                                 AlignConstantBufferSize(sizeof(JointPaletteCB))) *
                             objectIndex;
                         cmd->SetGraphicsRootConstantBufferView(
-                            PACKET::kShadowSkinnedRootParamJointPalette,
+                            RECORD::kShadowSkinnedRootParamJointPalette,
                             paletteAddress);
                         ++g.debugStats.skinnedCasterDrawCount;
                     } else {
@@ -1736,10 +1737,10 @@ namespace HIKARI::SHADOW {
             cmd->SetGraphicsRootSignature(skinned ? g.skinnedRootSig.Get() : g.rootSig.Get());
             cmd->SetPipelineState(skinned ? g.skinnedPso.Get() : g.staticPso.Get());
             cmd->SetGraphicsRootConstantBufferView(
-                PACKET::kShadowStaticRootParamCamera,
+                RECORD::kShadowStaticRootParamCamera,
                 g.cameraCB->GetGPUVirtualAddress());
             cmd->SetGraphicsRootConstantBufferView(
-                PACKET::kShadowStaticRootParamObject,
+                RECORD::kShadowStaticRootParamObject,
                 objectAddress);
             const RENDER3D::TextureResourceHandle textureResource =
                 ResolvePrimitiveTextureResource(*item.asset, materialAsset);
@@ -1747,7 +1748,7 @@ namespace HIKARI::SHADOW {
                 RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
             if (textureSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
-                    PACKET::kShadowStaticRootParamBaseColorTexture,
+                    RECORD::kShadowStaticRootParamBaseColorTexture,
                     textureSrv);
             }
             BindLegacyShadowSurfaceDataMode(cmd);
@@ -1756,7 +1757,7 @@ namespace HIKARI::SHADOW {
                 const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = g.jointPaletteCB->GetGPUVirtualAddress() +
                     static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
                 cmd->SetGraphicsRootConstantBufferView(
-                    PACKET::kShadowSkinnedRootParamJointPalette,
+                    RECORD::kShadowSkinnedRootParamJointPalette,
                     paletteAddress);
                 ++g.debugStats.skinnedCasterDrawCount;
             } else {
@@ -1806,16 +1807,16 @@ namespace HIKARI::SHADOW {
                 cmd->SetGraphicsRootSignature(g.rootSig.Get());
                 cmd->SetPipelineState(g.staticPso.Get());
                 cmd->SetGraphicsRootConstantBufferView(
-                    PACKET::kShadowStaticRootParamCamera,
+                    RECORD::kShadowStaticRootParamCamera,
                     g.cameraCB->GetGPUVirtualAddress());
                 cmd->SetGraphicsRootConstantBufferView(
-                    PACKET::kShadowStaticRootParamObject,
+                    RECORD::kShadowStaticRootParamObject,
                     objectAddress);
                 const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
                     RENDER3D::GetTextureResourceSrvGpuHandle(g.fallbackTextureResource);
                 if (textureSrv.ptr != 0) {
                     cmd->SetGraphicsRootDescriptorTable(
-                        PACKET::kShadowStaticRootParamBaseColorTexture,
+                        RECORD::kShadowStaticRootParamBaseColorTexture,
                         textureSrv);
                 }
                 BindLegacyShadowSurfaceDataMode(cmd);

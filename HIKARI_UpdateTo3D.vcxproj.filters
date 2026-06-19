@@ -1164,7 +1164,7 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.cpp">
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp">
@@ -1316,12 +1316,6 @@
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp">
-      <Filter>Source Files\Render3D\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.cpp">
-      <Filter>Source Files\Render3D\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.cpp">
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.cpp">
@@ -1992,7 +1986,7 @@
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.h">
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h">
@@ -2145,13 +2139,7 @@
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPlan.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.h">
-      <Filter>Header Files\Render3D\Runtime</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.h">
-      <Filter>Header Files\Render3D\Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.h">
       <Filter>Header Files\Render3D\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.h">

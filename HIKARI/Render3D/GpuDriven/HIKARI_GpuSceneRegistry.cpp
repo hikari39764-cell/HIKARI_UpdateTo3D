@@ -20,7 +20,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             dst.commandCount += src.commandCount;
             dst.instanceCount += src.instanceCount;
             dst.skippedInvalidCommandCount += src.skippedInvalidCommandCount;
-            dst.skippedInvalidPacketCount += src.skippedInvalidPacketCount;
+            dst.skippedInvalidRecordCount += src.skippedInvalidRecordCount;
             dst.maxCommandInstanceCount =
                 (std::max)(dst.maxCommandInstanceCount, src.maxCommandInstanceCount);
             dst.resourceBackedInstanceCount += src.resourceBackedInstanceCount;
@@ -663,83 +663,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return &palette;
         }
 
-        RUNTIME::SurfaceDrawPacketKey BuildPacketKeyFromRecord(
-            const GpuSceneResourceKey& key) {
-
-            RUNTIME::SurfaceDrawPacketKey packetKey{};
-            packetKey.materialIndex = key.materialIndex;
-            packetKey.meshIndex = key.meshIndex;
-            packetKey.primitiveIndex = key.primitiveIndex;
-            packetKey.passMask = key.passMask;
-            packetKey.hasMaterialOverride = key.hasMaterialOverride;
-            packetKey.skinned = key.skinned;
-            packetKey.geometryBackend = key.geometryBackend;
-            packetKey.modelKey = key.modelKey;
-            packetKey.geometryKey = key.geometryKey;
-            packetKey.clusterGeometryKey = key.clusterGeometryKey;
-            packetKey.materialKey = key.materialKey;
-            packetKey.textureSetKey = key.textureSetKey;
-            packetKey.shaderKey = key.shaderKey;
-            packetKey.psoKey = key.psoKey;
-            packetKey.sortKey = key.sortKey;
-            packetKey.resources = key.resources;
-            packetKey.resourceKeyValid = key.resourceKeyValid;
-            packetKey.objectDataCompatible = key.objectDataCompatible;
-            packetKey.clusterMainlineEligible = key.clusterMainlineEligible;
-            packetKey.materialFx = key.materialFx;
-            packetKey.waterMaterialFx = key.waterMaterialFx;
-            packetKey.depthAware = key.depthAware;
-            packetKey.alphaMasked = key.alphaMasked;
-            packetKey.transparent = key.transparent;
-            packetKey.doubleSided = key.doubleSided;
-            return packetKey;
-        }
-
-        RUNTIME::SurfaceDrawPacket BuildPacketFromRecord(
-            const GpuSceneSurfaceRecord& record) {
-
-            RUNTIME::SurfaceDrawPacket packet{};
-            packet.objectId = record.objectId;
-            packet.objectVersion = record.objectVersion;
-            packet.sourceSurfaceInstanceIndex = record.sourceSurfaceInstanceIndex;
-            packet.sourceSurface = record.sourceSurface;
-            packet.model = record.model;
-            packet.renderModel = record.renderModel;
-            packet.surface = record.surface;
-            packet.surfaceIndex = record.surfaceIndex;
-            packet.nodeIndex = record.nodeIndex;
-            packet.meshIndex = record.meshIndex;
-            packet.primitiveIndex = record.primitiveIndex;
-            packet.materialIndex = record.materialIndex;
-            packet.objectWorldTransform = record.objectWorldTransform;
-            packet.drawWorldMatrix = record.drawWorldMatrix;
-            packet.hasDrawWorldMatrix = record.hasDrawWorldMatrix;
-            packet.worldBounds = record.worldBounds;
-            packet.valid = record.valid;
-            packet.visible = record.visible;
-            packet.isStatic = record.isStatic;
-            packet.hasRuntimeAnimation = record.hasRuntimeAnimation;
-            packet.animationClipName = record.animationClipName;
-            packet.animationTimeSec = record.animationTimeSec;
-            packet.animationLoop = record.animationLoop;
-            packet.hasSpecialRenderDebug = record.hasSpecialRenderDebug;
-            packet.skinned = record.skinned;
-            packet.castShadow = record.castShadow;
-            packet.receiveShadow = record.receiveShadow;
-            packet.forwardCandidate = record.forwardCandidate;
-            packet.shadowCandidate = record.shadowCandidate;
-            packet.clusteredGeometryPath = record.clusteredGeometryPath;
-            packet.materialOverride = record.materialOverride;
-            packet.materialFxProfileId = record.materialFxProfileId;
-            packet.postGroupMask = record.postGroupMask;
-            packet.materialFxValuesInitialized = record.materialFxValuesInitialized;
-            for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
-                packet.materialFxParamValues[i] = record.materialFxParamValues[i];
-            }
-            packet.key = BuildPacketKeyFromRecord(record.key);
-            return packet;
-        }
-
         RUNTIME::SurfaceDrawIndexedArgs BuildDrawIndexedArgs(
             const GpuSceneSurfaceRecord& record) {
 
@@ -791,14 +714,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return;
             }
 
-            const uint32_t packetIndex = ClampToUint32(stream.packets.size());
+            const uint32_t recordIndexInStream = ClampToUint32(stream.records.size());
             const uint32_t executableIndex =
-                ClampToUint32(stream.executablePacketIndices.size());
+                ClampToUint32(stream.executableRecordIndices.size());
             const uint32_t gpuSceneInstanceIndex =
                 ClampToUint32(stream.instances.size());
 
-            stream.packets.push_back(BuildPacketFromRecord(record));
-            stream.executablePacketIndices.push_back(packetIndex);
+            stream.records.push_back(record);
+            stream.executableRecordIndices.push_back(recordIndexInStream);
             stream.jointPalettes.push_back(*palette);
 
             std::vector<uint32_t> singleRecordIndex{ recordIndex };
@@ -810,7 +733,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 singleInstance,
                 singleMaterial);
             if (!singleInstance.empty()) {
-                singleInstance.front().sourcePacketIndex = packetIndex;
+                singleInstance.front().sourceRecordIndex = recordIndexInStream;
                 stream.instances.push_back(singleInstance.front());
             }
             if (!singleMaterial.empty()) {
@@ -821,24 +744,24 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             command.pass = pass;
             command.backend = RUNTIME::SurfaceDrawCommandBackend::GpuDriven;
             command.firstExecutableIndex = executableIndex;
-            command.packetCount = 1u;
-            command.firstPacketIndex = packetIndex;
+            command.recordCount = 1u;
+            command.firstRecordIndex = recordIndexInStream;
             command.firstGpuSceneInstanceIndex = gpuSceneInstanceIndex;
             command.gpuSceneInstanceCount = 1u;
             command.batchKey = RUNTIME::BuildSurfaceDrawBatchKey(
                 pass,
-                stream.packets.back().key);
-            command.resources = stream.packets.back().key.resources;
-            command.psoKey = stream.packets.back().key.psoKey;
-            command.geometryKey = stream.packets.back().key.geometryKey;
-            command.geometryBackend = stream.packets.back().key.geometryBackend;
-            command.materialKey = stream.packets.back().key.materialKey;
-            command.textureSetKey = stream.packets.back().key.textureSetKey;
-            command.modelKey = stream.packets.back().key.modelKey;
-            command.singlePacket = true;
-            command.transparent = stream.packets.back().key.transparent;
-            command.alphaMasked = stream.packets.back().key.alphaMasked;
-            command.doubleSided = stream.packets.back().key.doubleSided;
+                stream.records.back().key);
+            command.resources = stream.records.back().key.resources;
+            command.psoKey = stream.records.back().key.psoKey;
+            command.geometryKey = stream.records.back().key.geometryKey;
+            command.geometryBackend = stream.records.back().key.geometryBackend;
+            command.materialKey = stream.records.back().key.materialKey;
+            command.textureSetKey = stream.records.back().key.textureSetKey;
+            command.modelKey = stream.records.back().key.modelKey;
+            command.singleRecord = true;
+            command.transparent = stream.records.back().key.transparent;
+            command.alphaMasked = stream.records.back().key.alphaMasked;
+            command.doubleSided = stream.records.back().key.doubleSided;
             command.clusterMainlineEligible = false;
             command.drawArgs = BuildDrawIndexedArgs(record);
             command.drawArgsValid = IsValidDrawArgs(command.drawArgs);
@@ -854,9 +777,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (!stream.HasCommands()) {
                 return;
             }
-            pass.traditionalIndirect.packets = &stream.packets;
-            pass.traditionalIndirect.executablePacketIndices =
-                &stream.executablePacketIndices;
+            pass.traditionalIndirect.records = &stream.records;
+            pass.traditionalIndirect.executableRecordIndices =
+                &stream.executableRecordIndices;
             pass.traditionalIndirect.commands = &stream.commands;
             pass.traditionalIndirect.instances = &stream.instances;
             pass.traditionalIndirect.materialSources = &stream.materialSources;
@@ -896,8 +819,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     void GpuSceneRegistry::TraditionalSkinnedStream::Clear() {
-        packets.clear();
-        executablePacketIndices.clear();
+        records.clear();
+        executableRecordIndices.clear();
         commands.clear();
         instances.clear();
         materialSources.clear();
@@ -906,10 +829,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     bool GpuSceneRegistry::TraditionalSkinnedStream::HasCommands() const {
         return
-            !packets.empty() &&
+            !records.empty() &&
             !commands.empty() &&
-            !executablePacketIndices.empty() &&
-            packets.size() == jointPalettes.size();
+            !executableRecordIndices.empty() &&
+            records.size() == jointPalettes.size();
     }
 
     void GpuSceneRegistry::Clear() {
@@ -1086,7 +1009,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 forwardTransparentSkinnedRecordIndices_.size());
         stats_.shadowSkinnedTraditionalRecordCount =
             ClampToUint32(shadowSkinnedRecordIndices_.size());
-        stats_.cpuPlannerRecordSuppressedCount =
+        stats_.strictMainlineBlockedRecordCount =
             stats_.blockedForwardDepthAwareRecordCount +
             stats_.blockedForwardTransparentRecordCount +
             stats_.blockedShadowRecordCount;
@@ -1219,15 +1142,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         routingVersion_ = input.sceneCache->GetSurfaceRoutingVersion();
         dataVersion_ = input.sceneCache->GetSurfaceDataVersion();
         sourceSurfaceCount_ = ClampToUint32(surfaces.size());
-        SuppressForwardCpuPlannerViews(input);
+        SuppressLegacyForwardViews(input);
         RebuildForwardSceneSource();
     }
 
-    void GpuSceneRegistry::SuppressForwardCpuPlannerViews(
+    void GpuSceneRegistry::SuppressLegacyForwardViews(
         const GpuSceneRegistrySyncInput& input) {
 
         stats_.strictGpuDrivenMainline = true;
-        stats_.cpuPlannerBuildSuppressedCount =
+        stats_.legacyForwardViewSuppressedCount =
             input.sceneCache != nullptr ? 1u : 0u;
         stats_.forwardOpaqueTraditionalGpuSceneStats = {};
         stats_.forwardDepthAwareTraditionalGpuSceneStats = {};

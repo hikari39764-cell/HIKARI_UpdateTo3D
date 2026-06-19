@@ -12,36 +12,6 @@ namespace HIKARI {
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
-    struct SurfaceDrawPacket;
-
-    enum class SurfaceDrawRouteRejectReason : uint8_t {
-        None = 0,
-        NoForward,
-        NoShadow,
-        InvalidPacket,
-        InvalidResourceKey,
-        LegacyShader,
-        DepthAware,
-        RuntimeAnimation,
-        SpecialDebug,
-        Skinned,
-        Transparent,
-        AlphaMasked,
-        InvalidPrimitive,
-    };
-
-    enum class SurfaceDrawRouteBucket : uint8_t {
-        MainRoute = 0,
-        NoPass,
-        AlphaMask,
-        Transparent,
-        DepthAware,
-        RuntimeSpecial,
-        Skinned,
-        LegacyShader,
-        Invalid,
-    };
-
     struct SurfaceDrawShaderRoute {
         std::string shaderProfileId = "PBR";
         std::string vertexShaderId{};
@@ -61,10 +31,5 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const Material* materialOverride,
         const MaterialAsset* materialAsset,
         std::string_view materialFxProfileId);
-
-    SurfaceDrawRouteRejectReason ClassifyForwardSurfaceDrawRoute(const SurfaceDrawPacket& packet);
-    SurfaceDrawRouteRejectReason ClassifyShadowSurfaceDrawRoute(const SurfaceDrawPacket& packet);
-    SurfaceDrawRouteBucket GetSurfaceDrawRouteBucket(SurfaceDrawRouteRejectReason reason);
-    bool IsSurfaceDrawRouteAccepted(SurfaceDrawRouteRejectReason reason);
 
 } // namespace HIKARI::RENDER3D::RUNTIME

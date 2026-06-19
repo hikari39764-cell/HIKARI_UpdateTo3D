@@ -322,12 +322,10 @@
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderModelCache.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_RenderSurfaceResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.cpp" />
     <ClCompile Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.cpp" />
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.cpp" />
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.cpp" />
@@ -668,7 +666,7 @@
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
-    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowPacketExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
@@ -756,9 +754,7 @@
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_RenderSurfaceResolver.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SceneRenderCache.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPlan.h" />
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawCommandBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceGpuScene.h" />
-    <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawPacket.h" />
     <ClInclude Include="HIKARI\Render3D\Runtime\HIKARI_SurfaceDrawRoute.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h" />

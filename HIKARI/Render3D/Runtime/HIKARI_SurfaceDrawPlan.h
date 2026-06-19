@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 
@@ -23,7 +23,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         ClusterGeometry,
     };
 
-    // 将来の resource pool / GPU culling が参照する surface 単位の資源 ID。
     struct SurfaceResourceIds {
         MeshResourceHandle mesh{};
         MaterialResourceHandle material{};
@@ -52,7 +51,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
     };
 
-    // draw command をまとめる最小単位。GPU-driven 化しても indirect command の境界に使う。
     struct SurfaceDrawBatchKey {
         SurfaceDrawCommandPass pass = SurfaceDrawCommandPass::Forward;
         SurfaceGeometryBackend geometryBackend = SurfaceGeometryBackend::TriangleMesh;
@@ -61,6 +59,21 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool transparent = false;
         bool clusterMainlineEligible = false;
     };
+
+    template <typename SurfaceResourceKey>
+    inline SurfaceDrawBatchKey BuildSurfaceDrawBatchKey(
+        SurfaceDrawCommandPass pass,
+        const SurfaceResourceKey& key) {
+
+        SurfaceDrawBatchKey batchKey{};
+        batchKey.pass = pass;
+        batchKey.geometryBackend = key.geometryBackend;
+        batchKey.psoKey = key.psoKey;
+        batchKey.geometryKey = key.geometryKey;
+        batchKey.transparent = key.transparent;
+        batchKey.clusterMainlineEligible = key.clusterMainlineEligible;
+        return batchKey;
+    }
 
     inline bool IsValidSurfaceDrawBatchKey(const SurfaceDrawBatchKey& key) {
         return key.psoKey != 0 && key.geometryKey != 0;
@@ -79,7 +92,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
             lhs.clusterMainlineEligible == rhs.clusterMainlineEligible;
     }
 
-    // D3D12_DRAW_INDEXED_ARGUMENTS と同じ意味を持つ、backend 非依存の draw args。
     struct SurfaceDrawIndexedArgs {
         uint32_t indexCountPerInstance = 0;
         uint32_t instanceCount = 0;
@@ -88,16 +100,14 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t startInstanceLocation = 0;
     };
 
-    // CPU 実行と将来の GPU-driven 実行を同じ draw plan 上で表現する。
     struct SurfaceDrawCommand {
         SurfaceDrawCommandPass pass = SurfaceDrawCommandPass::Forward;
         SurfaceDrawCommandBackend backend = SurfaceDrawCommandBackend::CpuDirect;
 
         uint32_t firstExecutableIndex = 0;
-        uint32_t packetCount = 0;
-        uint32_t firstPacketIndex = kInvalidRenderSurfaceIndex;
+        uint32_t recordCount = 0;
+        uint32_t firstRecordIndex = kInvalidRenderSurfaceIndex;
 
-        // GPU scene / cluster range は専用 allocator が確定した段階で埋める。
         uint32_t firstGpuSceneInstanceIndex = kInvalidRenderSurfaceIndex;
         uint32_t gpuSceneInstanceCount = 0;
         uint32_t firstClusterRangeIndex = kInvalidRenderSurfaceIndex;
@@ -113,7 +123,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint64_t textureSetKey = 0;
         uint64_t modelKey = 0;
 
-        bool singlePacket = false;
+        bool singleRecord = false;
         bool transparent = false;
         bool alphaMasked = false;
         bool doubleSided = false;

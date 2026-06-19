@@ -18,7 +18,7 @@
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
+#include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
 
 #ifdef max
@@ -31,7 +31,7 @@
 namespace HIKARI::MESHRENDERER {
 
     namespace {
-        // GPU Scene は SurfacePacket の通常経路として消費する。
+        // GPU Scene は SurfaceRecord の通常経路として消費する、E
         constexpr bool kEnableSurfaceGpuSceneConsumption = true;
 
         const MaterialAsset* GetPrimitiveMaterial(const ModelAsset& asset, uint32_t materialIndex) {
@@ -480,7 +480,7 @@ namespace HIKARI::MESHRENDERER {
             obj.materialFlags = material.GetFeatureBits();
         }
 
-        struct SurfacePacketBatchState {
+        struct SurfaceRecordBatchState {
             const ModelAsset* model = nullptr;
             const MaterialAsset* materialAsset = nullptr;
             const Material* runtimeMaterial = nullptr;
@@ -492,14 +492,14 @@ namespace HIKARI::MESHRENDERER {
             bool objectDataCompatible = false;
         };
 
-        struct SurfacePacketPreparedObject {
+        struct SurfaceRecordPreparedObject {
             ObjectCB object{};
             uint32_t materialDataIndex = kInvalidMaterialDataIndex;
         };
 
         bool CanUseSurfaceGpuSceneCommand(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
+            const SurfaceRecordBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
             if (!kEnableSurfaceGpuSceneConsumption) {
                 return false;
@@ -510,7 +510,7 @@ namespace HIKARI::MESHRENDERER {
             if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
                 ctx.surfaceGpuSceneSrv.ptr == 0 ||
                 command.firstGpuSceneInstanceIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
-                command.gpuSceneInstanceCount < command.packetCount ||
+                command.gpuSceneInstanceCount < command.recordCount ||
                 !VariantCanUseSurfaceGpuScene(ctx.passKind, state.variant)) {
                 return false;
             }
@@ -529,35 +529,35 @@ namespace HIKARI::MESHRENDERER {
                 commandEnd <= gpuSceneStats.uploadedInstanceCount;
         }
 
-        Transform3D BuildPacketDrawTransform(const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
-            Transform3D transform = packet.objectWorldTransform;
+        Transform3D BuildRecordDrawTransform(const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+            Transform3D transform = record.objectWorldTransform;
             transform.useExplicitMatrix = true;
-            transform.explicitMatrix = packet.drawWorldMatrix;
+            transform.explicitMatrix = record.drawWorldMatrix;
             return transform;
         }
 
-        DrawItem BuildBatchVariantAdapter(const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+        DrawItem BuildBatchVariantAdapter(const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
             DrawItem item{};
-            item.asset = packet.model;
-            item.materialOverride = packet.materialOverride;
-            item.materialFxProfileId = packet.materialFxProfileId;
-            item.postGroupMask = packet.postGroupMask;
-            // Batch の既定値だけを解決し、個別 override は packet 側で反映する。
+            item.asset = record.model;
+            item.materialOverride = record.materialOverride;
+            item.materialFxProfileId = record.materialFxProfileId;
+            item.postGroupMask = record.postGroupMask;
+            // Batch の既定値だけを解決し、個別 override は record 側で反映する、E
             item.materialFxValuesInitialized = false;
             ResolveDrawVariant(item);
             return item;
         }
 
 
-        ResolvedMaterialTextures ResolvePacketTextures(
+        ResolvedMaterialTextures ResolveRecordTextures(
             const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
             const MaterialAsset* materialAsset) {
 
             ResolvedMaterialTextures textures{};
-            if (packet.materialOverride != nullptr) {
+            if (record.materialOverride != nullptr) {
                 const MaterialTextureHandles handles =
-                    ResolveRuntimeMaterialTextureHandles(packet.materialOverride, ctx.binding, ctx.materialFill);
+                    ResolveRuntimeMaterialTextureHandles(record.materialOverride, ctx.binding, ctx.materialFill);
                 textures.baseColor = handles.baseColor;
                 textures.normal = handles.normal;
                 textures.emissive = handles.emissive;
@@ -566,8 +566,8 @@ namespace HIKARI::MESHRENDERER {
                 return textures;
             }
 
-            if (ctx.services.materialResolver != nullptr && packet.model != nullptr) {
-                return ctx.services.materialResolver->Resolve(*packet.model, materialAsset, ctx.services.stats);
+            if (ctx.services.materialResolver != nullptr && record.model != nullptr) {
+                return ctx.services.materialResolver->Resolve(*record.model, materialAsset, ctx.services.stats);
             }
 
             textures.baseColor = ctx.binding.fallbackTextureHandle;
@@ -617,7 +617,7 @@ namespace HIKARI::MESHRENDERER {
             };
         }
 
-        void BindSurfacePacketFrameResourcesInternal(const MeshDrawContext& ctx) {
+        void BindSurfaceRecordFrameResourcesInternal(const MeshDrawContext& ctx) {
 
             BindFrameCommonResources(
                 ctx.binding,
@@ -642,38 +642,38 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool ResolveSurfacePacketBatchState(
+        bool ResolveSurfaceRecordBatchState(
             const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            SurfacePacketBatchState& outState) {
+            SurfaceRecordBatchState& outState) {
 
             if (ctx.services.device == nullptr ||
                 ctx.services.pipelines == nullptr ||
-                firstPacket.model == nullptr ||
-                firstPacket.meshIndex >= firstPacket.model->meshes.size()) {
+                firstRecord.model == nullptr ||
+                firstRecord.meshIndex >= firstRecord.model->meshes.size()) {
                 return false;
             }
             if (!RENDER3D::RUNTIME::IsValidSurfaceDrawBatchKey(command.batchKey) ||
                 !RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(
-                    RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(command.pass, firstPacket.key),
+                    RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(command.pass, firstRecord.key),
                     command.batchKey)) {
                 return false;
             }
 
-            const MeshAsset& meshAsset = firstPacket.model->meshes[firstPacket.meshIndex];
-            if (firstPacket.primitiveIndex >= meshAsset.primitives.size()) {
+            const MeshAsset& meshAsset = firstRecord.model->meshes[firstRecord.meshIndex];
+            if (firstRecord.primitiveIndex >= meshAsset.primitives.size()) {
                 return false;
             }
 
-            const MeshPrimitive& primitive = meshAsset.primitives[firstPacket.primitiveIndex];
+            const MeshPrimitive& primitive = meshAsset.primitives[firstRecord.primitiveIndex];
             outState = {};
-            outState.model = firstPacket.model;
-            outState.runtimeMaterial = firstPacket.materialOverride;
-            outState.materialAsset = GetPrimitiveMaterial(*firstPacket.model, primitive.materialIndex);
+            outState.model = firstRecord.model;
+            outState.runtimeMaterial = firstRecord.materialOverride;
+            outState.materialAsset = GetPrimitiveMaterial(*firstRecord.model, primitive.materialIndex);
             outState.batchKey = command.batchKey;
 
-            DrawItem variantItem = BuildBatchVariantAdapter(firstPacket);
+            DrawItem variantItem = BuildBatchVariantAdapter(firstRecord);
             outState.defaultFxValues = variantItem.fxValues;
             outState.fxFlags = variantItem.fxFlags;
             outState.variant = ResolvePrimitiveVariant(
@@ -688,15 +688,15 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool PrepareSurfacePacketBatch(
+        bool PrepareSurfaceRecordBatch(
             const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            SurfacePacketBatchState& outState) {
+            SurfaceRecordBatchState& outState) {
 
             if (ctx.cmd == nullptr ||
                 ctx.services.stats == nullptr ||
-                !ResolveSurfacePacketBatchState(ctx, firstPacket, command, outState)) {
+                !ResolveSurfaceRecordBatchState(ctx, firstRecord, command, outState)) {
                 return false;
             }
 
@@ -721,26 +721,26 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool IsBatchCompatiblePacket(
-            const SurfacePacketBatchState& state,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+        bool IsBatchCompatibleRecord(
+            const SurfaceRecordBatchState& state,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
 
             return RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(
-                RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(state.batchKey.pass, packet.key),
+                RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(state.batchKey.pass, record.key),
                 state.batchKey);
         }
 
-        Mesh* ResolveSurfacePacketStaticMesh(
+        Mesh* ResolveSurfaceRecordStaticMesh(
             const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
 
-            if (packet.model == nullptr ||
-                packet.meshIndex >= packet.model->meshes.size()) {
+            if (record.model == nullptr ||
+                record.meshIndex >= record.model->meshes.size()) {
                 return nullptr;
             }
 
-            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+            if (record.primitiveIndex >= meshAsset.primitives.size()) {
                 return nullptr;
             }
 
@@ -749,59 +749,59 @@ namespace HIKARI::MESHRENDERER {
                 return nullptr;
             }
 
-            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
+            const MeshPrimitive& primitive = meshAsset.primitives[record.primitiveIndex];
             return primitiveCache->GetOrCreateStatic(ctx.services.device, primitive, ctx.services.stats);
         }
 
-        void FillPacketFxValues(
+        void FillRecordFxValues(
             ObjectCB& obj,
-            const SurfacePacketBatchState& state,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+            const SurfaceRecordBatchState& state,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
 
             obj.fxFlags = state.fxFlags;
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 obj.fxUser[i] = state.defaultFxValues[i];
             }
 
-            if (!packet.materialFxValuesInitialized) {
+            if (!record.materialFxValuesInitialized) {
                 return;
             }
 
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
-                const DirectX::XMFLOAT4& value = packet.materialFxParamValues[i];
+                const DirectX::XMFLOAT4& value = record.materialFxParamValues[i];
                 obj.fxUser[i] = { value.x, value.y, value.z, value.w };
             }
         }
 
-        void FillPacketFxValues(
+        void FillRecordFxValues(
             ObjectCB& obj,
             const DrawItem& variantItem,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
 
             obj.fxFlags = variantItem.fxFlags;
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
                 obj.fxUser[i] = variantItem.fxValues[i];
             }
 
-            if (!packet.materialFxValuesInitialized) {
+            if (!record.materialFxValuesInitialized) {
                 return;
             }
 
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
-                const DirectX::XMFLOAT4& value = packet.materialFxParamValues[i];
+                const DirectX::XMFLOAT4& value = record.materialFxParamValues[i];
                 obj.fxUser[i] = { value.x, value.y, value.z, value.w };
             }
         }
 
-        void FillSurfacePacketObject(
+        void FillSurfaceRecordObject(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
+            const SurfaceRecordBatchState& state,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
             ObjectCB& obj) {
 
-            const Transform3D drawTransform = BuildPacketDrawTransform(packet);
+            const Transform3D drawTransform = BuildRecordDrawTransform(record);
             obj = {};
-            obj.world = packet.drawWorldMatrix;
+            obj.world = record.drawWorldMatrix;
             obj.normalMatrix = BuildNormalMatrix(drawTransform);
             FillMaterialValues(
                 obj,
@@ -816,33 +816,33 @@ namespace HIKARI::MESHRENDERER {
             }
             obj.hasBaseColorTexture =
                 (state.textures.baseColor >= 0 && state.textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
-            obj.receiveShadow = packet.receiveShadow ? 1u : 0u;
-            FillPacketFxValues(obj, state, packet);
+            obj.receiveShadow = record.receiveShadow ? 1u : 0u;
+            FillRecordFxValues(obj, state, record);
         }
 
-        bool PrepareSurfacePacketObjectData(
+        bool PrepareSurfaceRecordObjectData(
             const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
-            SurfacePacketPreparedObject& outPrepared) {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
+            SurfaceRecordPreparedObject& outPrepared) {
 
-            if (packet.model == nullptr ||
-                packet.meshIndex >= packet.model->meshes.size()) {
+            if (record.model == nullptr ||
+                record.meshIndex >= record.model->meshes.size()) {
                 return false;
             }
 
-            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+            if (record.primitiveIndex >= meshAsset.primitives.size()) {
                 return false;
             }
 
-            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
-            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
-            const ResolvedMaterialTextures textures = ResolvePacketTextures(ctx, packet, materialAsset);
-            const DrawItem variantItem = BuildBatchVariantAdapter(packet);
+            const MeshPrimitive& primitive = meshAsset.primitives[record.primitiveIndex];
+            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*record.model, primitive.materialIndex);
+            const ResolvedMaterialTextures textures = ResolveRecordTextures(ctx, record, materialAsset);
+            const DrawItem variantItem = BuildBatchVariantAdapter(record);
 
             ObjectCB obj{};
-            const Transform3D drawTransform = BuildPacketDrawTransform(packet);
-            obj.world = packet.drawWorldMatrix;
+            const Transform3D drawTransform = BuildRecordDrawTransform(record);
+            obj.world = record.drawWorldMatrix;
             obj.normalMatrix = BuildNormalMatrix(drawTransform);
             FillMaterialValues(
                 obj,
@@ -852,20 +852,20 @@ namespace HIKARI::MESHRENDERER {
                 textures.metallicRoughness,
                 textures.occlusion,
                 ctx.materialFill);
-            if (packet.materialOverride != nullptr) {
-                FillRuntimeMaterialValues(obj, *packet.materialOverride);
+            if (record.materialOverride != nullptr) {
+                FillRuntimeMaterialValues(obj, *record.materialOverride);
             }
             obj.hasBaseColorTexture =
                 (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
-            obj.receiveShadow = packet.receiveShadow ? 1u : 0u;
-            FillPacketFxValues(obj, variantItem, packet);
+            obj.receiveShadow = record.receiveShadow ? 1u : 0u;
+            FillRecordFxValues(obj, variantItem, record);
 
             const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
             const MaterialGpuData materialData = BuildMaterialGpuData(obj, textureHandles);
             RecordMaterialTexturePoolStats(ctx, materialData);
             const uint32_t materialDataIndex = UploadMaterialData(
                 ctx,
-                BuildMaterialDataKey(packet.key.materialKey, materialData),
+                BuildMaterialDataKey(record.key.materialKey, materialData),
                 materialData);
 
             outPrepared.object = obj;
@@ -877,7 +877,7 @@ namespace HIKARI::MESHRENDERER {
         bool PrepareGpuSceneMaterialSourceData(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source,
-            SurfacePacketPreparedObject& outPrepared) {
+            SurfaceRecordPreparedObject& outPrepared) {
 
             if (source.model == nullptr) {
                 return false;
@@ -924,16 +924,16 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool IsInstanceBatchCompatiblePacket(
+        bool IsInstanceBatchCompatibleRecord(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet) {
+            const SurfaceRecordBatchState& state,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
 
             (void)ctx;
-            if (!IsBatchCompatiblePacket(state, packet) ||
-                packet.meshIndex != firstPacket.meshIndex ||
-                packet.primitiveIndex != firstPacket.primitiveIndex) {
+            if (!IsBatchCompatibleRecord(state, record) ||
+                record.meshIndex != firstRecord.meshIndex ||
+                record.primitiveIndex != firstRecord.primitiveIndex) {
                 return false;
             }
 
@@ -941,7 +941,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
 
-        bool BindSurfacePacketMesh(
+        bool BindSurfaceRecordMesh(
             const MeshDrawContext& ctx,
             const Mesh* mesh,
             const Mesh*& activeMesh) {
@@ -959,28 +959,28 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool DrawPreparedSurfacePacket(
+        bool DrawPreparedSurfaceRecord(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
+            const SurfaceRecordBatchState& state,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
             const Mesh*& activeMesh,
             size_t& objectIndex) {
 
             if (objectIndex >= kMaxObjectCount ||
-                !packet.hasDrawWorldMatrix ||
-                packet.model == nullptr ||
-                packet.meshIndex >= packet.model->meshes.size() ||
-                !IsBatchCompatiblePacket(state, packet)) {
+                !record.hasDrawWorldMatrix ||
+                record.model == nullptr ||
+                record.meshIndex >= record.model->meshes.size() ||
+                !IsBatchCompatibleRecord(state, record)) {
                 return false;
             }
 
-            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, packet);
+            Mesh* mesh = ResolveSurfaceRecordStaticMesh(ctx, record);
             if (mesh == nullptr || !mesh->IsValid()) {
                 return false;
             }
 
-            SurfacePacketPreparedObject prepared{};
-            if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+            SurfaceRecordPreparedObject prepared{};
+            if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
                 return false;
             }
             const bool bindLegacyObjectCB = !state.objectDataCompatible;
@@ -997,7 +997,7 @@ namespace HIKARI::MESHRENDERER {
                 prepared.materialDataIndex,
                 bindLegacyObjectCB);
 
-            if (!BindSurfacePacketMesh(ctx, mesh, activeMesh)) {
+            if (!BindSurfaceRecordMesh(ctx, mesh, activeMesh)) {
                 return false;
             }
 
@@ -1006,32 +1006,32 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
-        bool DrawSurfacePacketInstanceBatch(
+        bool DrawSurfaceRecordInstanceBatch(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
+            const SurfaceRecordBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             size_t batchEnd,
             size_t& executableIndex,
             const Mesh*& activeMesh,
             size_t& objectIndex,
-            SurfacePacketCommandDrawResult& result) {
+            SurfaceRecordCommandDrawResult& result) {
 
-            const uint32_t firstPacketIndex = executablePacketIndices[executableIndex];
-            if (firstPacketIndex >= packetCount) {
-                ++result.skippedPacketCount;
+            const uint32_t firstRecordIndex = executableRecordIndices[executableIndex];
+            if (firstRecordIndex >= recordCount) {
+                ++result.skippedRecordCount;
                 return false;
             }
 
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
-            if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, firstPacket)) {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord = records[firstRecordIndex];
+            if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, firstRecord)) {
                 return false;
             }
 
-            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, firstPacket);
+            Mesh* mesh = ResolveSurfaceRecordStaticMesh(ctx, firstRecord);
             if (mesh == nullptr || !mesh->IsValid()) {
                 return false;
             }
@@ -1049,20 +1049,20 @@ namespace HIKARI::MESHRENDERER {
             uint32_t batchMaterialDataIndex = 0u;
             size_t batchCount = 0;
             size_t cursor = executableIndex;
-            for (; cursor < batchEnd && cursor < executablePacketIndexCount; ++cursor) {
-                const uint32_t packetIndex = executablePacketIndices[cursor];
-                if (packetIndex >= packetCount) {
+            for (; cursor < batchEnd && cursor < executableRecordIndexCount; ++cursor) {
+                const uint32_t recordIndex = executableRecordIndices[cursor];
+                if (recordIndex >= recordCount) {
                     break;
                 }
 
-                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
-                if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, packet) ||
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, record) ||
                     (!useSurfaceGpuScene && objectIndex + batchCount >= kMaxObjectCount)) {
                     break;
                 }
 
-                SurfacePacketPreparedObject prepared{};
-                if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+                SurfaceRecordPreparedObject prepared{};
+                if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
                     break;
                 }
                 if (batchCount == 0) {
@@ -1089,22 +1089,22 @@ namespace HIKARI::MESHRENDERER {
                 BindSurfaceGpuSceneControl(ctx.binding, static_cast<uint32_t>(batchGpuSceneStart), true);
                 BindObjectDataIndex(ctx.binding, 0u);
                 if (ctx.services.stats != nullptr) {
-                    ++ctx.services.stats->surfacePacketExecutorGpuSceneDrawCount;
-                    ctx.services.stats->surfacePacketExecutorGpuScenePacketCount += batchCount;
+                    ++ctx.services.stats->surfaceRecordExecutorGpuSceneDrawCount;
+                    ctx.services.stats->surfaceRecordExecutorGpuSceneRecordCount += batchCount;
                 }
             } else {
                 BindSurfaceGpuSceneControl(ctx.binding, 0u, false);
                 BindObjectDataIndex(ctx.binding, static_cast<uint32_t>(batchObjectStart));
                 if (ctx.services.stats != nullptr) {
-                    ++ctx.services.stats->surfacePacketExecutorGpuSceneFallbackCount;
+                    ++ctx.services.stats->surfaceRecordExecutorGpuSceneFallbackCount;
                 }
             }
             BindMaterialDataIndex(ctx.binding, batchMaterialDataIndex);
-            if (!BindSurfacePacketMesh(ctx, mesh, activeMesh)) {
+            if (!BindSurfaceRecordMesh(ctx, mesh, activeMesh)) {
                 return false;
             }
 
-            // command 側の args を優先し、未整備のケースだけ mesh 実体から補う。
+            // GPU-driven record path note.
             const uint32_t indexCount = command.drawArgsValid
                 ? command.drawArgs.indexCountPerInstance
                 : mesh->GetIndexCount();
@@ -1117,12 +1117,12 @@ namespace HIKARI::MESHRENDERER {
             if (!useSurfaceGpuScene) {
                 objectIndex += batchCount;
             }
-            result.submittedPacketCount += batchCount;
+            result.submittedRecordCount += batchCount;
             ++result.drawCallCount;
             result.maxInstanceCount = (std::max)(result.maxInstanceCount, batchCount);
             if (batchCount > 1) {
                 ++result.instancedDrawCount;
-                result.instancedPacketCount += batchCount;
+                result.instancedRecordCount += batchCount;
             }
             executableIndex = cursor - 1;
             return true;
@@ -1142,26 +1142,26 @@ namespace HIKARI::MESHRENDERER {
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawBatchKey& batchKey,
             size_t commandCount,
-            size_t packetCount) {
+            size_t recordCount) {
 
             if (ctx.services.stats == nullptr || commandCount == 0) {
                 return;
             }
 
             MeshRendererDebugStats& stats = *ctx.services.stats;
-            stats.surfacePacketExecutorGpuSceneDrawCount += commandCount;
-            stats.surfacePacketExecutorGpuScenePacketCount += packetCount;
+            stats.surfaceRecordExecutorGpuSceneDrawCount += commandCount;
+            stats.surfaceRecordExecutorGpuSceneRecordCount += recordCount;
             stats.surfaceIndirectExecutedDrawCount += commandCount;
-            stats.surfaceIndirectExecutedPacketCount += packetCount;
+            stats.surfaceIndirectExecutedRecordCount += recordCount;
             if (batchKey.pass == RENDER3D::RUNTIME::SurfaceDrawCommandPass::DepthAware) {
                 stats.surfaceIndirectDepthAwareCommandCount += commandCount;
-                stats.surfaceIndirectDepthAwarePacketCount += packetCount;
+                stats.surfaceIndirectDepthAwareRecordCount += recordCount;
             } else if (batchKey.transparent) {
                 stats.surfaceIndirectTransparentCommandCount += commandCount;
-                stats.surfaceIndirectTransparentPacketCount += packetCount;
+                stats.surfaceIndirectTransparentRecordCount += recordCount;
             } else {
                 stats.surfaceIndirectOpaqueCommandCount += commandCount;
-                stats.surfaceIndirectOpaquePacketCount += packetCount;
+                stats.surfaceIndirectOpaqueRecordCount += recordCount;
             }
             ++stats.surfaceIndirectBatchSubmitCount;
             stats.surfaceIndirectBatchedCommandCount += commandCount;
@@ -1185,7 +1185,7 @@ namespace HIKARI::MESHRENDERER {
                 supportedPass &&
                 supportedCommandPass &&
                 command.backend == RENDER3D::RUNTIME::SurfaceDrawCommandBackend::GpuDriven &&
-                command.packetCount > 0 &&
+                command.recordCount > 0 &&
                 RENDER3D::RUNTIME::IsValidSurfaceDrawBatchKey(command.batchKey);
         }
 
@@ -1199,7 +1199,7 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
             if (ctx.passKind == MeshDrawPassKind::GeometryAux) {
-                // GeometryAux は固定 PSO で描くため、Forward 用 PSO key の差で分割しない。
+                // GPU-driven record path note.
                 return !lhs.transparent;
             }
             return
@@ -1207,20 +1207,20 @@ namespace HIKARI::MESHRENDERER {
                 lhs.psoKey == rhs.psoKey;
         }
 
-        bool TryResolveSurfaceCommandPacketRange(
+        bool TryResolveSurfaceCommandRecordRange(
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            size_t executablePacketIndexCount,
+            size_t executableRecordIndexCount,
             size_t& outBegin,
             size_t& outEnd) {
 
             const size_t begin = command.firstExecutableIndex;
-            const size_t count = static_cast<size_t>(command.packetCount);
-            if (count == 0 || begin >= executablePacketIndexCount) {
+            const size_t count = static_cast<size_t>(command.recordCount);
+            if (count == 0 || begin >= executableRecordIndexCount) {
                 return false;
             }
 
             const size_t end = begin + count;
-            if (end < begin || end > executablePacketIndexCount) {
+            if (end < begin || end > executableRecordIndexCount) {
                 return false;
             }
 
@@ -1230,20 +1230,20 @@ namespace HIKARI::MESHRENDERER {
         }
 
         struct SurfaceIndirectPreparedCommand {
-            SurfacePacketBatchState state{};
+            SurfaceRecordBatchState state{};
             const Mesh* mesh = nullptr;
             UINT64 argumentOffset = 0;
-            size_t packetCount = 0;
+            size_t recordCount = 0;
         };
 
         bool TryPrepareSurfaceIndirectCommand(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawBatchKey& rangeKey,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             SurfaceIndirectPreparedCommand& outPrepared) {
 
             outPrepared = {};
@@ -1255,9 +1255,9 @@ namespace HIKARI::MESHRENDERER {
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveSurfaceCommandPacketRange(
+            if (!TryResolveSurfaceCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 return false;
@@ -1270,70 +1270,70 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount) {
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount) {
                 return false;
             }
 
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
-            if (!PrepareSurfacePacketBatch(ctx, firstPacket, command, outPrepared.state) ||
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord = records[firstRecordIndex];
+            if (!PrepareSurfaceRecordBatch(ctx, firstRecord, command, outPrepared.state) ||
                 !CanUseSurfaceGpuSceneCommand(ctx, outPrepared.state, command) ||
-                !IsInstanceBatchCompatiblePacket(ctx, outPrepared.state, firstPacket, firstPacket)) {
+                !IsInstanceBatchCompatibleRecord(ctx, outPrepared.state, firstRecord, firstRecord)) {
                 return false;
             }
 
-            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, firstPacket);
+            Mesh* mesh = ResolveSurfaceRecordStaticMesh(ctx, firstRecord);
             if (mesh == nullptr || !mesh->IsValid()) {
                 return false;
             }
 
             outPrepared.mesh = mesh;
-            size_t preparedPacketCount = 0;
+            size_t preparedRecordCount = 0;
             const size_t gpuSceneStart =
                 ctx.surfaceGpuSceneBaseOffset +
                 static_cast<size_t>(command.firstGpuSceneInstanceIndex);
             for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                const uint32_t packetIndex = executablePacketIndices[executableIndex];
-                if (packetIndex >= packetCount) {
+                const uint32_t recordIndex = executableRecordIndices[executableIndex];
+                if (recordIndex >= recordCount) {
                     return false;
                 }
 
-                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
-                if (!IsInstanceBatchCompatiblePacket(ctx, outPrepared.state, firstPacket, packet)) {
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!IsInstanceBatchCompatibleRecord(ctx, outPrepared.state, firstRecord, record)) {
                     return false;
                 }
                 if (!HasPreparedSurfaceGpuSceneMaterial(
                     ctx,
-                    gpuSceneStart + preparedPacketCount)) {
+                    gpuSceneStart + preparedRecordCount)) {
                     return false;
                 }
-                ++preparedPacketCount;
+                ++preparedRecordCount;
             }
 
-            outPrepared.packetCount = preparedPacketCount;
+            outPrepared.recordCount = preparedRecordCount;
             return
-                outPrepared.packetCount > 0 &&
-                outPrepared.packetCount == static_cast<size_t>(command.drawArgs.instanceCount);
+                outPrepared.recordCount > 0 &&
+                outPrepared.recordCount == static_cast<size_t>(command.drawArgs.instanceCount);
         }
 
-        bool TryExecuteSurfacePacketIndirectCommandRange(
+        bool TryExecuteSurfaceRecordIndirectCommandRange(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
             size_t commandCount,
             size_t commandIndex,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             const Mesh*& activeMesh,
             size_t& outNextCommandIndex,
-            SurfacePacketCommandDrawResult& result) {
+            SurfaceRecordCommandDrawResult& result) {
 
             if (ctx.cmd == nullptr ||
                 ctx.surfaceIndirectDrawBuffer == nullptr ||
                 commands == nullptr ||
-                packets == nullptr ||
-                executablePacketIndices == nullptr ||
+                records == nullptr ||
+                executableRecordIndices == nullptr ||
                 commandIndex >= commandCount ||
                 !CanStartSurfaceIndirectCommandRange(ctx, commands[commandIndex])) {
                 return false;
@@ -1352,10 +1352,10 @@ namespace HIKARI::MESHRENDERER {
                 static_cast<UINT64>(sizeof(RENDER3D::GPUDRIVEN::SurfaceIndirectDrawArgument));
             UINT64 firstArgumentOffset = 0;
             size_t preparedCommandCount = 0;
-            size_t preparedPacketCount = 0;
+            size_t preparedRecordCount = 0;
             size_t maxInstanceCount = 0;
             size_t instancedDrawCount = 0;
-            size_t instancedPacketCount = 0;
+            size_t instancedRecordCount = 0;
 
             const size_t maxIndirectCommandCount =
                 static_cast<size_t>((std::numeric_limits<UINT>::max)());
@@ -1374,10 +1374,10 @@ namespace HIKARI::MESHRENDERER {
                     ctx,
                     rangeKey,
                     command,
-                    packets,
-                    packetCount,
-                    executablePacketIndices,
-                    executablePacketIndexCount,
+                    records,
+                    recordCount,
+                    executableRecordIndices,
+                    executableRecordIndexCount,
                     prepared)) {
                     break;
                 }
@@ -1393,11 +1393,11 @@ namespace HIKARI::MESHRENDERER {
                 }
 
                 ++preparedCommandCount;
-                preparedPacketCount += prepared.packetCount;
-                maxInstanceCount = (std::max)(maxInstanceCount, prepared.packetCount);
-                if (prepared.packetCount > 1) {
+                preparedRecordCount += prepared.recordCount;
+                maxInstanceCount = (std::max)(maxInstanceCount, prepared.recordCount);
+                if (prepared.recordCount > 1) {
                     ++instancedDrawCount;
-                    instancedPacketCount += prepared.packetCount;
+                    instancedRecordCount += prepared.recordCount;
                 }
             }
 
@@ -1418,27 +1418,27 @@ namespace HIKARI::MESHRENDERER {
                 nullptr,
                 0);
 
-            result.submittedPacketCount += preparedPacketCount;
+            result.submittedRecordCount += preparedRecordCount;
             result.drawCallCount += preparedCommandCount;
             result.maxInstanceCount = (std::max)(result.maxInstanceCount, maxInstanceCount);
             result.instancedDrawCount += instancedDrawCount;
-            result.instancedPacketCount += instancedPacketCount;
-            RecordSurfaceIndirectSubmit(ctx, rangeKey, preparedCommandCount, preparedPacketCount);
+            result.instancedRecordCount += instancedRecordCount;
+            RecordSurfaceIndirectSubmit(ctx, rangeKey, preparedCommandCount, preparedRecordCount);
 
             outNextCommandIndex = commandIndex + preparedCommandCount;
             return true;
         }
 
-        bool TryExecuteSurfacePacketIndirectCommand(
+        bool TryExecuteSurfaceRecordIndirectCommand(
             const MeshDrawContext& ctx,
-            const SurfacePacketBatchState& state,
+            const SurfaceRecordBatchState& state,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             const Mesh*& activeMesh,
-            SurfacePacketCommandDrawResult& result) {
+            SurfaceRecordCommandDrawResult& result) {
 
             if (!CanStartSurfaceIndirectCommandRange(ctx, command)) {
                 return false;
@@ -1451,10 +1451,10 @@ namespace HIKARI::MESHRENDERER {
 
             if (ctx.cmd == nullptr ||
                 ctx.surfaceIndirectDrawBuffer == nullptr ||
-                packets == nullptr ||
-                executablePacketIndices == nullptr ||
-                command.packetCount == 0 ||
-                command.firstExecutableIndex >= executablePacketIndexCount ||
+                records == nullptr ||
+                executableRecordIndices == nullptr ||
+                command.recordCount == 0 ||
+                command.firstExecutableIndex >= executableRecordIndexCount ||
                 !CanUseSurfaceGpuSceneCommand(ctx, state, command)) {
                 return fail();
             }
@@ -1472,18 +1472,18 @@ namespace HIKARI::MESHRENDERER {
 
             const size_t commandBegin = command.firstExecutableIndex;
             const size_t commandEnd = std::min(
-                executablePacketIndexCount,
-                commandBegin + static_cast<size_t>(command.packetCount));
-            if (commandEnd != commandBegin + static_cast<size_t>(command.packetCount)) {
+                executableRecordIndexCount,
+                commandBegin + static_cast<size_t>(command.recordCount));
+            if (commandEnd != commandBegin + static_cast<size_t>(command.recordCount)) {
                 return fail();
             }
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount) {
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount) {
                 return fail();
             }
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
-            if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, firstPacket)) {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord = records[firstRecordIndex];
+            if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, firstRecord)) {
                 return fail();
             }
 
@@ -1492,13 +1492,13 @@ namespace HIKARI::MESHRENDERER {
                 ctx.surfaceGpuSceneBaseOffset +
                 static_cast<size_t>(command.firstGpuSceneInstanceIndex);
             for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                const uint32_t packetIndex = executablePacketIndices[executableIndex];
-                if (packetIndex >= packetCount) {
+                const uint32_t recordIndex = executableRecordIndices[executableIndex];
+                if (recordIndex >= recordCount) {
                     return fail();
                 }
 
-                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
-                if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, packet)) {
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, record)) {
                     return fail();
                 }
                 if (!HasPreparedSurfaceGpuSceneMaterial(ctx, gpuSceneStart + preparedCount)) {
@@ -1525,12 +1525,12 @@ namespace HIKARI::MESHRENDERER {
                 nullptr,
                 0);
 
-            result.submittedPacketCount += preparedCount;
+            result.submittedRecordCount += preparedCount;
             ++result.drawCallCount;
             result.maxInstanceCount = (std::max)(result.maxInstanceCount, preparedCount);
             if (preparedCount > 1) {
                 ++result.instancedDrawCount;
-                result.instancedPacketCount += preparedCount;
+                result.instancedRecordCount += preparedCount;
             }
             RecordSurfaceIndirectSubmit(ctx, command.batchKey, 1u, preparedCount);
             return true;
@@ -1619,7 +1619,7 @@ namespace HIKARI::MESHRENDERER {
                         textures.occlusion,
                         ctx.materialFill);
                     if (runtimeMaterial != nullptr) {
-                        // Material Asset override はモデル内 MaterialAsset より優先する。
+                        // GPU-driven record path note.
                         FillRuntimeMaterialValues(obj, *runtimeMaterial);
                     }
                     obj.hasBaseColorTexture = (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
@@ -1753,7 +1753,7 @@ namespace HIKARI::MESHRENDERER {
                 materialDataIndex,
                 bindLegacyObjectCB);
 
-            // 材質テクスチャは MaterialData の descriptor index から参照する。
+            // GPU-driven record path note.
             BindShadowMap(ctx.binding);
             BindSkyCube(ctx.binding);
             BindSceneDepth(ctx.binding);
@@ -1804,23 +1804,23 @@ namespace HIKARI::MESHRENDERER {
         return DrawLegacyMeshItem(ctx, item, objectIndex);
     }
 
-    void BindSurfacePacketFrameResources(const MeshDrawContext& ctx) {
-        // SurfacePacket は frame 共通リソースを plan 単位で束縛する。
-        BindSurfacePacketFrameResourcesInternal(ctx);
+    void BindSurfaceRecordFrameResources(const MeshDrawContext& ctx) {
+        // SurfaceRecord は frame 共通リソースめEplan 単位で束縛する、E
+        BindSurfaceRecordFrameResourcesInternal(ctx);
     }
 
-    bool PrepareSurfacePacketGpuSceneMaterials(
+    bool PrepareSurfaceRecordGpuSceneMaterials(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount) {
 
         if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            packets == nullptr ||
-            executablePacketIndices == nullptr ||
+            records == nullptr ||
+            executableRecordIndices == nullptr ||
             commands == nullptr) {
             return false;
         }
@@ -1828,53 +1828,53 @@ namespace HIKARI::MESHRENDERER {
         bool patchedAny = false;
         for (size_t commandIndex = 0; commandIndex < commandCount; ++commandIndex) {
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[commandIndex];
-            if (command.packetCount == 0 ||
+            if (command.recordCount == 0 ||
                 command.firstGpuSceneInstanceIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
                 continue;
             }
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveSurfaceCommandPacketRange(
+            if (!TryResolveSurfaceCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 continue;
             }
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount) {
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount) {
                 continue;
             }
 
-            SurfacePacketBatchState state{};
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& firstPacket = packets[firstPacketIndex];
-            // GPU Scene の material patch は frame 準備段階なので、command list の root 状態を触らない。
-            if (!ResolveSurfacePacketBatchState(ctx, firstPacket, command, state) ||
+            SurfaceRecordBatchState state{};
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord = records[firstRecordIndex];
+            // GPU-driven record path note.
+            if (!ResolveSurfaceRecordBatchState(ctx, firstRecord, command, state) ||
                 !CanUseSurfaceGpuSceneCommand(ctx, state, command) ||
-                !IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, firstPacket)) {
+                !IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, firstRecord)) {
                 continue;
             }
 
             size_t localIndex = 0;
             for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                const uint32_t packetIndex = executablePacketIndices[executableIndex];
-                if (packetIndex >= packetCount) {
+                const uint32_t recordIndex = executableRecordIndices[executableIndex];
+                if (recordIndex >= recordCount) {
                     break;
                 }
 
-                const RENDER3D::RUNTIME::SurfaceDrawPacket& packet = packets[packetIndex];
-                if (!IsInstanceBatchCompatiblePacket(ctx, state, firstPacket, packet)) {
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, record)) {
                     break;
                 }
 
-                SurfacePacketPreparedObject prepared{};
-                if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+                SurfaceRecordPreparedObject prepared{};
+                if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
                     break;
                 }
 
-                // Execute時ではなく frame 準備段階で material index を SurfaceGpuScene に確定する。
+                // Execute時ではなぁEframe 準備段階で material index めESurfaceGpuScene に確定する、E
                 patchedAny =
                     PatchSurfaceGpuSceneMaterialData(
                         ctx,
@@ -1892,13 +1892,13 @@ namespace HIKARI::MESHRENDERER {
 
     bool PrepareSurfaceGpuSceneInstanceMaterials(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
         const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
         size_t instanceCount) {
 
         if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            packets == nullptr ||
+            records == nullptr ||
             instances == nullptr) {
             return false;
         }
@@ -1907,20 +1907,20 @@ namespace HIKARI::MESHRENDERER {
         for (size_t instanceIndex = 0; instanceIndex < instanceCount; ++instanceIndex) {
             const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance =
                 instances[instanceIndex];
-            if (instance.sourcePacketIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
-                instance.sourcePacketIndex >= packetCount) {
+            if (instance.sourceRecordIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
+                instance.sourceRecordIndex >= recordCount) {
                 continue;
             }
 
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet =
-                packets[instance.sourcePacketIndex];
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                records[instance.sourceRecordIndex];
 
-            SurfacePacketPreparedObject prepared{};
-            if (!PrepareSurfacePacketObjectData(ctx, packet, prepared)) {
+            SurfaceRecordPreparedObject prepared{};
+            if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
                 continue;
             }
 
-            // GPUScene 主線は command range ではなく instance 順に material data を確定する。
+            // GPU-driven record path note.
             patchedAny =
                 PatchSurfaceGpuSceneMaterialData(
                     ctx,
@@ -1944,12 +1944,12 @@ namespace HIKARI::MESHRENDERER {
 
         bool patchedAny = false;
         for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
-            SurfacePacketPreparedObject prepared{};
+            SurfaceRecordPreparedObject prepared{};
             if (!PrepareGpuSceneMaterialSourceData(ctx, sources[sourceIndex], prepared)) {
                 continue;
             }
 
-            // GPU scene 主線は packet ではなく material source の並びで material data を確定する。
+            // GPU-driven record path note.
             patchedAny =
                 PatchSurfaceGpuSceneMaterialData(
                     ctx,
@@ -1961,18 +1961,18 @@ namespace HIKARI::MESHRENDERER {
         return patchedAny;
     }
 
-    bool PrepareSurfacePacketIndirectDrawBindings(
+    bool PrepareSurfaceRecordIndirectDrawBindings(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount) {
 
         if (ctx.surfaceIndirectDrawBuffer == nullptr ||
-            packets == nullptr ||
-            executablePacketIndices == nullptr ||
+            records == nullptr ||
+            executableRecordIndices == nullptr ||
             commands == nullptr) {
             return false;
         }
@@ -1990,21 +1990,21 @@ namespace HIKARI::MESHRENDERER {
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveSurfaceCommandPacketRange(
+            if (!TryResolveSurfaceCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 continue;
             }
             (void)commandEnd;
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount) {
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount) {
                 continue;
             }
 
-            Mesh* mesh = ResolveSurfacePacketStaticMesh(ctx, packets[firstPacketIndex]);
+            Mesh* mesh = ResolveSurfaceRecordStaticMesh(ctx, records[firstRecordIndex]);
             if (mesh == nullptr || !mesh->IsValid()) {
                 continue;
             }
@@ -2020,18 +2020,18 @@ namespace HIKARI::MESHRENDERER {
         return patchedAny;
     }
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketCommand(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommand(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
         size_t& objectIndex) {
 
-        SurfacePacketCommandDrawResult result{};
-        if (packets == nullptr ||
-            executablePacketIndices == nullptr ||
+        SurfaceRecordCommandDrawResult result{};
+        if (records == nullptr ||
+            executableRecordIndices == nullptr ||
             ctx.objectDataMapped == nullptr ||
             ctx.objectDataBuffer == nullptr ||
             ctx.objectDataSrv.ptr == 0 ||
@@ -2039,28 +2039,28 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialDataBuffer == nullptr ||
             ctx.materialDataSrv.ptr == 0 ||
             ctx.materialDataTable == nullptr ||
-            command.packetCount == 0 ||
-            command.firstExecutableIndex >= executablePacketIndexCount) {
+            command.recordCount == 0 ||
+            command.firstExecutableIndex >= executableRecordIndexCount) {
             return result;
         }
 
         const size_t commandBegin = command.firstExecutableIndex;
         const size_t commandEnd = std::min(
-            executablePacketIndexCount,
-            commandBegin + static_cast<size_t>(command.packetCount));
+            executableRecordIndexCount,
+            commandBegin + static_cast<size_t>(command.recordCount));
 
-        SurfacePacketBatchState state{};
+        SurfaceRecordBatchState state{};
         size_t firstDrawableIndex = commandBegin;
         for (; firstDrawableIndex < commandEnd; ++firstDrawableIndex) {
-            const uint32_t packetIndex = executablePacketIndices[firstDrawableIndex];
-            if (packetIndex >= packetCount) {
-                ++result.skippedPacketCount;
+            const uint32_t recordIndex = executableRecordIndices[firstDrawableIndex];
+            if (recordIndex >= recordCount) {
+                ++result.skippedRecordCount;
                 continue;
             }
-            if (PrepareSurfacePacketBatch(ctx, packets[packetIndex], command, state)) {
+            if (PrepareSurfaceRecordBatch(ctx, records[recordIndex], command, state)) {
                 break;
             }
-            ++result.skippedPacketCount;
+            ++result.skippedRecordCount;
         }
 
         if (firstDrawableIndex >= commandEnd) {
@@ -2069,34 +2069,34 @@ namespace HIKARI::MESHRENDERER {
 
         const Mesh* activeMesh = nullptr;
         if (firstDrawableIndex == commandBegin &&
-            TryExecuteSurfacePacketIndirectCommand(
+            TryExecuteSurfaceRecordIndirectCommand(
                 ctx,
                 state,
                 command,
-                packets,
-                packetCount,
-                executablePacketIndices,
-                executablePacketIndexCount,
+                records,
+                recordCount,
+                executableRecordIndices,
+                executableRecordIndexCount,
                 activeMesh,
                 result)) {
             return result;
         }
 
         for (size_t executableIndex = firstDrawableIndex; executableIndex < commandEnd; ++executableIndex) {
-            const uint32_t packetIndex = executablePacketIndices[executableIndex];
-            if (packetIndex >= packetCount) {
-                ++result.skippedPacketCount;
+            const uint32_t recordIndex = executableRecordIndices[executableIndex];
+            if (recordIndex >= recordCount) {
+                ++result.skippedRecordCount;
                 continue;
             }
 
-            if (DrawSurfacePacketInstanceBatch(
+            if (DrawSurfaceRecordInstanceBatch(
                 ctx,
                 state,
                 command,
-                packets,
-                packetCount,
-                executablePacketIndices,
-                executablePacketIndexCount,
+                records,
+                recordCount,
+                executableRecordIndices,
+                executableRecordIndexCount,
                 commandEnd,
                 executableIndex,
                 activeMesh,
@@ -2105,30 +2105,30 @@ namespace HIKARI::MESHRENDERER {
                 continue;
             }
 
-            if (DrawPreparedSurfacePacket(ctx, state, packets[packetIndex], activeMesh, objectIndex)) {
-                ++result.submittedPacketCount;
+            if (DrawPreparedSurfaceRecord(ctx, state, records[recordIndex], activeMesh, objectIndex)) {
+                ++result.submittedRecordCount;
                 ++result.drawCallCount;
                 result.maxInstanceCount = (std::max)(result.maxInstanceCount, size_t{ 1 });
             } else {
-                ++result.skippedPacketCount;
+                ++result.skippedRecordCount;
             }
         }
 
         return result;
     }
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketCommandRange(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommandRange(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount,
         size_t& commandIndex,
         size_t& objectIndex) {
 
-        SurfacePacketCommandDrawResult result{};
+        SurfaceRecordCommandDrawResult result{};
         if (commands == nullptr || commandIndex >= commandCount) {
             return result;
         }
@@ -2136,15 +2136,15 @@ namespace HIKARI::MESHRENDERER {
         const size_t currentCommandIndex = commandIndex;
         const Mesh* activeMesh = nullptr;
         size_t nextCommandIndex = currentCommandIndex;
-        if (TryExecuteSurfacePacketIndirectCommandRange(
+        if (TryExecuteSurfaceRecordIndirectCommandRange(
             ctx,
             commands,
             commandCount,
             currentCommandIndex,
-            packets,
-            packetCount,
-            executablePacketIndices,
-            executablePacketIndexCount,
+            records,
+            recordCount,
+            executableRecordIndices,
+            executableRecordIndexCount,
             activeMesh,
             nextCommandIndex,
             result)) {
@@ -2152,29 +2152,29 @@ namespace HIKARI::MESHRENDERER {
             return result;
         }
 
-        result = DrawSurfacePacketCommand(
+        result = DrawSurfaceRecordCommand(
             ctx,
-            packets,
-            packetCount,
-            executablePacketIndices,
-            executablePacketIndexCount,
+            records,
+            recordCount,
+            executableRecordIndices,
+            executableRecordIndexCount,
             commands[currentCommandIndex],
             objectIndex);
         commandIndex = currentCommandIndex + 1;
         return result;
     }
 
-    SurfacePacketCommandDrawResult DrawSurfacePacketIndirectCommandRange(
+    SurfaceRecordCommandDrawResult DrawSurfaceRecordIndirectCommandRange(
         const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
         size_t commandCount,
         size_t& commandIndex) {
 
-        SurfacePacketCommandDrawResult result{};
+        SurfaceRecordCommandDrawResult result{};
         if (commands == nullptr || commandIndex >= commandCount) {
             return result;
         }
@@ -2182,15 +2182,15 @@ namespace HIKARI::MESHRENDERER {
         const size_t currentCommandIndex = commandIndex;
         const Mesh* activeMesh = nullptr;
         size_t nextCommandIndex = currentCommandIndex;
-        if (TryExecuteSurfacePacketIndirectCommandRange(
+        if (TryExecuteSurfaceRecordIndirectCommandRange(
             ctx,
             commands,
             commandCount,
             currentCommandIndex,
-            packets,
-            packetCount,
-            executablePacketIndices,
-            executablePacketIndexCount,
+            records,
+            recordCount,
+            executableRecordIndices,
+            executableRecordIndexCount,
             activeMesh,
             nextCommandIndex,
             result)) {

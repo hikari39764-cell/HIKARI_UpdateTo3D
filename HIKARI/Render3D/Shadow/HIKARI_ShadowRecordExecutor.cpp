@@ -1,4 +1,4 @@
-#include "Render3D/Shadow/HIKARI_ShadowPacketExecutor.h"
+#include "Render3D/Shadow/HIKARI_ShadowRecordExecutor.h"
 
 #include <algorithm>
 #include <limits>
@@ -7,53 +7,53 @@
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/HIKARI_ModelAsset.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
+#include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 
-namespace HIKARI::SHADOW::PACKET {
+namespace HIKARI::SHADOW::RECORD {
 
     namespace {
-        struct PreparedShadowPacket {
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packet = nullptr;
+        struct PreparedShadowRecord {
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* record = nullptr;
             const Mesh* mesh = nullptr;
             RENDER3D::RUNTIME::SurfaceDrawBatchKey batchKey{};
         };
 
         bool IsPreparedBatchCompatible(
-            const PreparedShadowPacket& first,
-            const PreparedShadowPacket& candidate) {
+            const PreparedShadowRecord& first,
+            const PreparedShadowRecord& candidate) {
 
             return RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(first.batchKey, candidate.batchKey);
         }
 
-        bool PrepareShadowPacket(
-            const ShadowPacketExecutorContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket& packet,
-            PreparedShadowPacket& out) {
+        bool PrepareShadowRecord(
+            const ShadowRecordExecutorContext& ctx,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
+            PreparedShadowRecord& out) {
 
             if (ctx.resolveStaticMesh == nullptr ||
-                packet.model == nullptr ||
-                !packet.hasDrawWorldMatrix ||
-                packet.meshIndex >= packet.model->meshes.size()) {
+                record.model == nullptr ||
+                !record.hasDrawWorldMatrix ||
+                record.meshIndex >= record.model->meshes.size()) {
                 return false;
             }
 
-            const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
-            if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+            if (record.primitiveIndex >= meshAsset.primitives.size()) {
                 return false;
             }
 
-            const MeshPrimitive& primitive = meshAsset.primitives[packet.primitiveIndex];
+            const MeshPrimitive& primitive = meshAsset.primitives[record.primitiveIndex];
             Mesh* mesh = ctx.resolveStaticMesh(primitive);
             if (mesh == nullptr || !mesh->IsValid()) {
                 return false;
             }
 
             out = {};
-            out.packet = &packet;
+            out.record = &record;
             out.mesh = mesh;
             out.batchKey = RENDER3D::RUNTIME::BuildSurfaceDrawBatchKey(
                 RENDER3D::RUNTIME::SurfaceDrawCommandPass::Shadow,
-                packet.key);
+                record.key);
             return true;
         }
 
@@ -65,7 +65,7 @@ namespace HIKARI::SHADOW::PACKET {
         }
 
         bool HasPreparedGpuSceneMaterial(
-            const ShadowPacketExecutorContext& ctx,
+            const ShadowRecordExecutorContext& ctx,
             size_t gpuSceneInstanceIndex) {
 
             return
@@ -73,7 +73,7 @@ namespace HIKARI::SHADOW::PACKET {
                 ctx.surfaceGpuSceneFrameBuffer->HasMaterialDataIndex(gpuSceneInstanceIndex);
         }
 
-        bool HasPacketFrameResources(const ShadowPacketExecutorContext& ctx) {
+        bool HasRecordFrameResources(const ShadowRecordExecutorContext& ctx) {
             return
                 ctx.fallbackBaseColorSrv.ptr != 0 &&
                 ctx.materialDataSrv.ptr != 0 &&
@@ -81,8 +81,8 @@ namespace HIKARI::SHADOW::PACKET {
                 ctx.texturePoolSrv.ptr != 0;
         }
 
-        void BindPacketFrameResources(
-            const ShadowPacketExecutorContext& ctx,
+        void BindRecordFrameResources(
+            const ShadowRecordExecutorContext& ctx,
             uint32_t surfaceGpuSceneBaseIndex,
             bool useSurfaceGpuScene) {
 
@@ -122,7 +122,7 @@ namespace HIKARI::SHADOW::PACKET {
         }
 
         bool CanStartShadowIndirectCommandRange(
-            const ShadowPacketExecutorContext& ctx,
+            const ShadowRecordExecutorContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
 
             return
@@ -130,36 +130,36 @@ namespace HIKARI::SHADOW::PACKET {
                 command.pass == RENDER3D::RUNTIME::SurfaceDrawCommandPass::Shadow &&
                 command.backend == RENDER3D::RUNTIME::SurfaceDrawCommandBackend::GpuDriven &&
                 command.drawArgsValid &&
-                command.packetCount > 0 &&
+                command.recordCount > 0 &&
                 command.firstGpuSceneInstanceIndex != RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
-                command.gpuSceneInstanceCount == command.packetCount &&
+                command.gpuSceneInstanceCount == command.recordCount &&
                 command.drawArgs.instanceCount == command.gpuSceneInstanceCount;
         }
 
         bool CanUseShadowIndirectCommand(
-            const ShadowPacketExecutorContext& ctx,
+            const ShadowRecordExecutorContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
 
             return
                 CanStartShadowIndirectCommandRange(ctx, command) &&
                 ctx.surfaceGpuSceneFrameBuffer != nullptr &&
-                HasPacketFrameResources(ctx);
+                HasRecordFrameResources(ctx);
         }
 
-        bool TryResolveShadowCommandPacketRange(
+        bool TryResolveShadowCommandRecordRange(
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            size_t executablePacketIndexCount,
+            size_t executableRecordIndexCount,
             size_t& outBegin,
             size_t& outEnd) {
 
             const size_t begin = command.firstExecutableIndex;
-            const size_t count = static_cast<size_t>(command.packetCount);
-            if (count == 0 || begin >= executablePacketIndexCount) {
+            const size_t count = static_cast<size_t>(command.recordCount);
+            if (count == 0 || begin >= executableRecordIndexCount) {
                 return false;
             }
 
             const size_t end = begin + count;
-            if (end < begin || end > executablePacketIndexCount) {
+            if (end < begin || end > executableRecordIndexCount) {
                 return false;
             }
 
@@ -169,21 +169,21 @@ namespace HIKARI::SHADOW::PACKET {
         }
 
         void RecordShadowCommandStats(
-            ShadowPacketDrawResult& result,
+            ShadowRecordDrawResult& result,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
 
             ++result.commandCount;
-            if (command.singlePacket) {
-                ++result.singlePacketCommandCount;
+            if (command.singleRecord) {
+                ++result.singleRecordCommandCount;
             }
-            result.maxCommandPacketCount =
-                (std::max)(result.maxCommandPacketCount, static_cast<size_t>(command.packetCount));
+            result.maxCommandRecordCount =
+                (std::max)(result.maxCommandRecordCount, static_cast<size_t>(command.recordCount));
         }
 
         struct PreparedShadowIndirectCommand {
-            PreparedShadowPacket first{};
+            PreparedShadowRecord first{};
             UINT64 argumentOffset = 0;
-            size_t packetCount = 0;
+            size_t recordCount = 0;
         };
 
         bool IsSameShadowIndirectRootBatch(
@@ -197,18 +197,18 @@ namespace HIKARI::SHADOW::PACKET {
         }
 
         bool TryPrepareShadowIndirectCommand(
-            const ShadowPacketExecutorContext& ctx,
+            const ShadowRecordExecutorContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             PreparedShadowIndirectCommand& outPrepared) {
 
             outPrepared = {};
             if (!CanUseShadowIndirectCommand(ctx, command) ||
-                packets == nullptr ||
-                executablePacketIndices == nullptr ||
+                records == nullptr ||
+                executableRecordIndices == nullptr ||
                 ctx.indirectDrawBuffer == nullptr ||
                 !ctx.indirectDrawBuffer->TryGetArgumentBufferOffset(command, outPrepared.argumentOffset) ||
                 !ctx.indirectDrawBuffer->HasDrawBinding(command)) {
@@ -217,30 +217,30 @@ namespace HIKARI::SHADOW::PACKET {
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveShadowCommandPacketRange(
+            if (!TryResolveShadowCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 return false;
             }
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount ||
-                !PrepareShadowPacket(ctx, packets[firstPacketIndex], outPrepared.first) ||
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount ||
+                !PrepareShadowRecord(ctx, records[firstRecordIndex], outPrepared.first) ||
                 !RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(outPrepared.first.batchKey, command.batchKey)) {
                 return false;
             }
 
             size_t localIndex = 0;
             for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                const uint32_t packetIndex = executablePacketIndices[executableIndex];
-                if (packetIndex >= packetCount) {
+                const uint32_t recordIndex = executableRecordIndices[executableIndex];
+                if (recordIndex >= recordCount) {
                     return false;
                 }
 
-                PreparedShadowPacket candidate{};
-                if (!PrepareShadowPacket(ctx, packets[packetIndex], candidate) ||
+                PreparedShadowRecord candidate{};
+                if (!PrepareShadowRecord(ctx, records[recordIndex], candidate) ||
                     !IsPreparedBatchCompatible(outPrepared.first, candidate) ||
                     !HasPreparedGpuSceneMaterial(
                         ctx,
@@ -250,24 +250,24 @@ namespace HIKARI::SHADOW::PACKET {
                 ++localIndex;
             }
 
-            outPrepared.packetCount = localIndex;
+            outPrepared.recordCount = localIndex;
             return
                 localIndex > 0 &&
                 localIndex == static_cast<size_t>(command.drawArgs.instanceCount);
         }
 
         bool TryExecuteShadowIndirectCommandRange(
-            const ShadowPacketExecutorContext& ctx,
+            const ShadowRecordExecutorContext& ctx,
             const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
             size_t commandCount,
             size_t commandIndex,
-            const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-            size_t packetCount,
-            const uint32_t* executablePacketIndices,
-            size_t executablePacketIndexCount,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+            size_t recordCount,
+            const uint32_t* executableRecordIndices,
+            size_t executableRecordIndexCount,
             size_t& objectIndex,
             size_t& outNextCommandIndex,
-            ShadowPacketDrawResult& result) {
+            ShadowRecordDrawResult& result) {
 
             if (ctx.cmd == nullptr ||
                 ctx.staticRootSig == nullptr ||
@@ -294,10 +294,10 @@ namespace HIKARI::SHADOW::PACKET {
             PreparedShadowIndirectCommand firstPrepared{};
             UINT64 firstArgumentOffset = 0;
             size_t preparedCommandCount = 0;
-            size_t preparedPacketCount = 0;
+            size_t preparedRecordCount = 0;
             size_t maxInstanceCount = 0;
             size_t instancedDrawCount = 0;
-            size_t instancedPacketCount = 0;
+            size_t instancedRecordCount = 0;
 
             for (size_t scanIndex = commandIndex;
                 scanIndex < commandCount && preparedCommandCount < maxIndirectCommandCount;
@@ -312,10 +312,10 @@ namespace HIKARI::SHADOW::PACKET {
                 if (!TryPrepareShadowIndirectCommand(
                     ctx,
                     command,
-                    packets,
-                    packetCount,
-                    executablePacketIndices,
-                    executablePacketIndexCount,
+                    records,
+                    recordCount,
+                    executableRecordIndices,
+                    executableRecordIndexCount,
                     prepared)) {
                     break;
                 }
@@ -334,11 +334,11 @@ namespace HIKARI::SHADOW::PACKET {
 
                 RecordShadowCommandStats(result, command);
                 ++preparedCommandCount;
-                preparedPacketCount += prepared.packetCount;
-                maxInstanceCount = (std::max)(maxInstanceCount, prepared.packetCount);
-                if (prepared.packetCount > 1) {
+                preparedRecordCount += prepared.recordCount;
+                maxInstanceCount = (std::max)(maxInstanceCount, prepared.recordCount);
+                if (prepared.recordCount > 1) {
                     ++instancedDrawCount;
-                    instancedPacketCount += prepared.packetCount;
+                    instancedRecordCount += prepared.recordCount;
                 }
             }
 
@@ -346,7 +346,7 @@ namespace HIKARI::SHADOW::PACKET {
                 return false;
             }
 
-            BindPacketFrameResources(ctx, 0u, true);
+            BindRecordFrameResources(ctx, 0u, true);
             ctx.cmd->ExecuteIndirect(
                 commandSignature,
                 static_cast<UINT>(preparedCommandCount),
@@ -355,14 +355,14 @@ namespace HIKARI::SHADOW::PACKET {
                 nullptr,
                 0);
 
-            objectIndex += preparedPacketCount;
-            result.submittedPacketCount += preparedPacketCount;
+            objectIndex += preparedRecordCount;
+            result.submittedRecordCount += preparedRecordCount;
             result.drawCallCount += preparedCommandCount;
             result.maxInstanceCount = (std::max)(result.maxInstanceCount, maxInstanceCount);
             result.instancedDrawCount += instancedDrawCount;
-            result.instancedPacketCount += instancedPacketCount;
+            result.instancedRecordCount += instancedRecordCount;
             result.indirectDrawCount += preparedCommandCount;
-            result.indirectPacketCount += preparedPacketCount;
+            result.indirectRecordCount += preparedRecordCount;
             ++result.indirectBatchCount;
             result.indirectSavedSubmitCount += preparedCommandCount - 1;
             result.indirectMaxBatchCommandCount =
@@ -373,24 +373,24 @@ namespace HIKARI::SHADOW::PACKET {
         }
     }
 
-    bool InitializeShadowPacketExecutor(ID3D12Device* device) {
+    bool InitializeShadowRecordExecutor(ID3D12Device* device) {
         return device != nullptr;
     }
 
-    void ResetShadowPacketExecutor() {
+    void ResetShadowRecordExecutor() {
     }
 
-    bool PrepareShadowPacketIndirectDrawBindings(
-        const ShadowPacketExecutorContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+    bool PrepareShadowRecordIndirectDrawBindings(
+        const ShadowRecordExecutorContext& ctx,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands) {
 
         if (ctx.indirectDrawBuffer == nullptr ||
-            packets == nullptr ||
-            executablePacketIndices == nullptr ||
+            records == nullptr ||
+            executableRecordIndices == nullptr ||
             commands.empty()) {
             return false;
         }
@@ -403,22 +403,22 @@ namespace HIKARI::SHADOW::PACKET {
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveShadowCommandPacketRange(
+            if (!TryResolveShadowCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 continue;
             }
             (void)commandEnd;
 
-            const uint32_t firstPacketIndex = executablePacketIndices[commandBegin];
-            if (firstPacketIndex >= packetCount) {
+            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
+            if (firstRecordIndex >= recordCount) {
                 continue;
             }
 
-            PreparedShadowPacket prepared{};
-            if (!PrepareShadowPacket(ctx, packets[firstPacketIndex], prepared) ||
+            PreparedShadowRecord prepared{};
+            if (!PrepareShadowRecord(ctx, records[firstRecordIndex], prepared) ||
                 prepared.mesh == nullptr ||
                 !prepared.mesh->IsValid()) {
                 continue;
@@ -435,25 +435,25 @@ namespace HIKARI::SHADOW::PACKET {
         return patchedAny;
     }
 
-    ShadowPacketDrawResult DrawShadowPacketCommands(
-        const ShadowPacketExecutorContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceDrawPacket* packets,
-        size_t packetCount,
-        const uint32_t* executablePacketIndices,
-        size_t executablePacketIndexCount,
+    ShadowRecordDrawResult DrawShadowRecordCommands(
+        const ShadowRecordExecutorContext& ctx,
+        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
+        size_t recordCount,
+        const uint32_t* executableRecordIndices,
+        size_t executableRecordIndexCount,
         const std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand>& commands,
         size_t& objectIndex) {
 
-        ShadowPacketDrawResult result{};
+        ShadowRecordDrawResult result{};
         if (ctx.cmd == nullptr ||
             ctx.staticRootSig == nullptr ||
             ctx.staticPso == nullptr ||
             ctx.cameraAddress == 0 ||
             ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            !HasPacketFrameResources(ctx) ||
-            packets == nullptr ||
-            executablePacketIndices == nullptr ||
-            executablePacketIndexCount == 0 ||
+            !HasRecordFrameResources(ctx) ||
+            records == nullptr ||
+            executableRecordIndices == nullptr ||
+            executableRecordIndexCount == 0 ||
             commands.empty()) {
             return result;
         }
@@ -461,7 +461,7 @@ namespace HIKARI::SHADOW::PACKET {
         size_t commandIndex = 0;
         while (commandIndex < commands.size()) {
             const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[commandIndex];
-            if (command.packetCount == 0 || command.firstExecutableIndex >= executablePacketIndexCount) {
+            if (command.recordCount == 0 || command.firstExecutableIndex >= executableRecordIndexCount) {
                 ++commandIndex;
                 continue;
             }
@@ -472,10 +472,10 @@ namespace HIKARI::SHADOW::PACKET {
                 commands.data(),
                 commands.size(),
                 commandIndex,
-                packets,
-                packetCount,
-                executablePacketIndices,
-                executablePacketIndexCount,
+                records,
+                recordCount,
+                executableRecordIndices,
+                executableRecordIndexCount,
                 objectIndex,
                 nextCommandIndex,
                 result)) {
@@ -490,9 +490,9 @@ namespace HIKARI::SHADOW::PACKET {
 
             size_t commandBegin = 0;
             size_t commandEnd = 0;
-            if (!TryResolveShadowCommandPacketRange(
+            if (!TryResolveShadowCommandRecordRange(
                 command,
-                executablePacketIndexCount,
+                executableRecordIndexCount,
                 commandBegin,
                 commandEnd)) {
                 commandIndex = nextCommandIndex;
@@ -501,17 +501,17 @@ namespace HIKARI::SHADOW::PACKET {
 
             size_t executableIndex = commandBegin;
             while (executableIndex < commandEnd) {
-                const uint32_t firstPacketIndex = executablePacketIndices[executableIndex];
-                if (firstPacketIndex >= packetCount) {
-                    ++result.skippedPacketCount;
+                const uint32_t firstRecordIndex = executableRecordIndices[executableIndex];
+                if (firstRecordIndex >= recordCount) {
+                    ++result.skippedRecordCount;
                     ++executableIndex;
                     continue;
                 }
 
-                PreparedShadowPacket first{};
-                if (!PrepareShadowPacket(ctx, packets[firstPacketIndex], first) ||
+                PreparedShadowRecord first{};
+                if (!PrepareShadowRecord(ctx, records[firstRecordIndex], first) ||
                     !RENDER3D::RUNTIME::IsSameSurfaceDrawBatchKey(first.batchKey, command.batchKey)) {
-                    ++result.skippedPacketCount;
+                    ++result.skippedRecordCount;
                     ++executableIndex;
                     continue;
                 }
@@ -522,13 +522,13 @@ namespace HIKARI::SHADOW::PACKET {
                 size_t instanceCount = 0;
                 size_t cursor = executableIndex;
                 for (; cursor < commandEnd; ++cursor) {
-                    const uint32_t packetIndex = executablePacketIndices[cursor];
-                    if (packetIndex >= packetCount) {
+                    const uint32_t recordIndex = executableRecordIndices[cursor];
+                    if (recordIndex >= recordCount) {
                         break;
                     }
 
-                    PreparedShadowPacket candidate{};
-                    if (!PrepareShadowPacket(ctx, packets[packetIndex], candidate) ||
+                    PreparedShadowRecord candidate{};
+                    if (!PrepareShadowRecord(ctx, records[recordIndex], candidate) ||
                         !IsPreparedBatchCompatible(first, candidate) ||
                         !HasPreparedGpuSceneMaterial(ctx, gpuSceneBase + instanceCount)) {
                         break;
@@ -538,12 +538,12 @@ namespace HIKARI::SHADOW::PACKET {
                 }
 
                 if (instanceCount == 0) {
-                    ++result.skippedPacketCount;
+                    ++result.skippedRecordCount;
                     ++executableIndex;
                     continue;
                 }
 
-                BindPacketFrameResources(ctx, static_cast<uint32_t>(gpuSceneBase), true);
+                BindRecordFrameResources(ctx, static_cast<uint32_t>(gpuSceneBase), true);
                 BindMesh(ctx.cmd, *first.mesh);
                 const uint32_t indexCount = command.drawArgsValid
                     ? command.drawArgs.indexCountPerInstance
@@ -556,12 +556,12 @@ namespace HIKARI::SHADOW::PACKET {
                     command.drawArgs.startInstanceLocation);
 
                 objectIndex += instanceCount;
-                result.submittedPacketCount += instanceCount;
+                result.submittedRecordCount += instanceCount;
                 ++result.drawCallCount;
                 result.maxInstanceCount = (std::max)(result.maxInstanceCount, instanceCount);
                 if (instanceCount > 1) {
                     ++result.instancedDrawCount;
-                    result.instancedPacketCount += instanceCount;
+                    result.instancedRecordCount += instanceCount;
                 }
                 executableIndex = cursor;
             }
@@ -572,4 +572,4 @@ namespace HIKARI::SHADOW::PACKET {
         return result;
     }
 
-} // namespace HIKARI::SHADOW::PACKET
+} // namespace HIKARI::SHADOW::RECORD

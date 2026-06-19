@@ -1,7 +1,7 @@
 #ifndef HIKARI_SURFACE_GPU_SCENE_INCLUDED
 #define HIKARI_SURFACE_GPU_SCENE_INCLUDED
 
-// C++ 側の SurfaceGpuSceneInstance と同じ layout に保つ。
+// C++ 側の SurfaceGpuSceneInstance と同じ layout に保つ、E
 struct HikariSurfaceGpuSceneInstance
 {
     float4x4 world;
@@ -10,7 +10,7 @@ struct HikariSurfaceGpuSceneInstance
     float4x4 clusterNormalMatrix;
     float4 boundsCenterRadius;
 
-    uint sourcePacketIndex;
+    uint sourceRecordIndex;
     uint sourceSurfaceInstanceIndex;
     uint objectIdLow;
     uint objectIdHigh;

@@ -7,7 +7,6 @@
 
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
@@ -21,9 +20,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
     };
 
+    struct GpuSceneSurfaceRecord;
+
     struct GpuDrivenTraditionalIndirectView {
-        const std::vector<RUNTIME::SurfaceDrawPacket>* packets = nullptr;
-        const std::vector<uint32_t>* executablePacketIndices = nullptr;
+        const std::vector<GpuSceneSurfaceRecord>* records = nullptr;
+        const std::vector<uint32_t>* executableRecordIndices = nullptr;
         const std::vector<RUNTIME::SurfaceDrawCommand>* commands = nullptr;
         const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances = nullptr;
         const std::vector<RUNTIME::SurfaceGpuSceneMaterialSource>* materialSources = nullptr;

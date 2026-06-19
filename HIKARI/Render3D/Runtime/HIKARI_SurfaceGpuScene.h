@@ -1,7 +1,6 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
-#include <vector>
 
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceContract.h"
@@ -13,8 +12,6 @@ namespace HIKARI {
 }
 
 namespace HIKARI::RENDER3D::RUNTIME {
-
-    struct SurfaceDrawPacket;
 
     enum class SurfaceGpuSceneInstanceFlags : uint32_t {
         None = 0,
@@ -40,7 +37,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         ClusterGeometryLodRanges = 1u << 5,
     };
 
-    // GPU scene buffer にそのまま並べる packet 由来の instance。
     struct SurfaceGpuSceneInstance {
         MATH::Mat4 world{};
         MATH::Mat4 normalMatrix{};
@@ -48,7 +44,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         MATH::Mat4 clusterNormalMatrix{};
         MATH::Vec4 boundsCenterRadius{};
 
-        uint32_t sourcePacketIndex = kInvalidRenderSurfaceIndex;
+        uint32_t sourceRecordIndex = kInvalidRenderSurfaceIndex;
         uint32_t sourceSurfaceInstanceIndex = kInvalidRenderSurfaceIndex;
         uint32_t objectIdLow = 0;
         uint32_t objectIdHigh = 0;
@@ -88,8 +84,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     static_assert(sizeof(SurfaceGpuSceneInstance) == 512u);
 
-    // GPU scene が material patch に必要な最小情報。
-    // 旧 SurfaceDrawPacket を frame 実行経路に持ち込まないため、instance と並行して保持する。
     struct SurfaceGpuSceneMaterialSource {
         const ModelAsset* model = nullptr;
         const Material* materialOverride = nullptr;
@@ -109,7 +103,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t commandCount = 0;
         uint32_t instanceCount = 0;
         uint32_t skippedInvalidCommandCount = 0;
-        uint32_t skippedInvalidPacketCount = 0;
+        uint32_t skippedInvalidRecordCount = 0;
         uint32_t maxCommandInstanceCount = 0;
         uint32_t resourceBackedInstanceCount = 0;
         uint32_t missingResourceHandleInstanceCount = 0;
@@ -117,34 +111,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t clusterShaderVisibleInstanceCount = 0;
         uint32_t clusterSurfaceRangeInstanceCount = 0;
         uint32_t clusterMissingSurfaceRangeInstanceCount = 0;
-    };
-
-    class SurfaceGpuSceneWriter final {
-    public:
-        static SurfaceGpuSceneBuildStats BuildPacketList(
-            const std::vector<SurfaceDrawPacket>& packets,
-            const std::vector<uint32_t>& packetIndices,
-            std::vector<SurfaceGpuSceneInstance>& outInstances);
-        static SurfaceGpuSceneBuildStats AppendPacketList(
-            const std::vector<SurfaceDrawPacket>& packets,
-            const std::vector<uint32_t>& packetIndices,
-            std::vector<SurfaceGpuSceneInstance>& outInstances);
-        static SurfaceGpuSceneBuildStats BuildCommandRanges(
-            const std::vector<SurfaceDrawPacket>& packets,
-            const std::vector<uint32_t>& executablePacketIndices,
-            std::vector<SurfaceDrawCommand>& commands,
-            std::vector<SurfaceGpuSceneInstance>& outInstances);
-        static SurfaceGpuSceneBuildStats AppendCommandRanges(
-            const std::vector<SurfaceDrawPacket>& packets,
-            const std::vector<uint32_t>& executablePacketIndices,
-            std::vector<SurfaceDrawCommand>& commands,
-            std::vector<SurfaceGpuSceneInstance>& outInstances);
-
-    private:
-        static SurfaceGpuSceneInstance BuildInstance(
-            const SurfaceDrawPacket& packet,
-            uint32_t sourcePacketIndex,
-            uint32_t sourceCommandLocalIndex);
     };
 
 } // namespace HIKARI::RENDER3D::RUNTIME

@@ -337,11 +337,11 @@ namespace HIKARI {
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount == 0 &&
                     s.mesh.legacyFallbackInvocationCount == 0 &&
                     s.mesh.surfaceIndirectCpuDirectCommandCount == 0;
-                MetricRow("Strict Mainline / CPU Planner Builds Suppressed", "%s / %u",
+                MetricRow("Strict Mainline / Legacy Views Suppressed", "%s / %u",
                     s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
-                    s.gpuRegistry.cpuPlannerBuildSuppressedCount);
-                MetricRow("CPU Planner Records Suppressed", "%u",
-                    s.gpuRegistry.cpuPlannerRecordSuppressedCount);
+                    s.gpuRegistry.legacyForwardViewSuppressedCount);
+                MetricRow("Strict Mainline Blocked Records", "%u",
+                    s.gpuRegistry.strictMainlineBlockedRecordCount);
                 MetricRow("Blocked Records Depth / Transparent / Shadow", "%u / %u / %u",
                     s.gpuRegistry.blockedForwardDepthAwareRecordCount,
                     s.gpuRegistry.blockedForwardTransparentRecordCount,

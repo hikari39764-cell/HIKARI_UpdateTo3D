@@ -42,7 +42,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t visibleCommandCount = 0;
         size_t visibleCommandOverflowCount = 0;
         size_t commandBucketCapacity = 0;
-        size_t packetCount = 0;
+        size_t recordCount = 0;
         size_t instanceCount = 0;
         bool consumable = false;
         bool gpuAuthored = false;

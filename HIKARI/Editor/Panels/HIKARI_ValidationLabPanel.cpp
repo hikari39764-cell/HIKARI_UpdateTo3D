@@ -117,7 +117,7 @@ namespace HIKARI {
             ImGui::Text("Status / Mainline: %s / %s",
                 mainlineStatus,
                 renderSubmissionStats.gpuDrivenMainRouteActive ? "on" : "off");
-            ImGui::Text("CPU Planner Scan / Submit / Cull / Hidden: %d / %d / %d / %d",
+            ImGui::Text("Scene Scan / Submit / Cull / Hidden: %d / %d / %d / %d",
                 renderSubmissionStats.scannedModelCount,
                 renderSubmissionStats.submittedModelCount,
                 renderSubmissionStats.culledModelCount,
@@ -228,10 +228,10 @@ namespace HIKARI {
                 shadowStats.shadowGpuSceneUploadedInstanceCount,
                 shadowStats.shadowGpuSceneOverflowInstanceCount);
             ImGui::Text("Shadow DrawCommands / Instanced / Drawn / Skipped / IndirectFallback: %zu / %zu / %zu / %zu / %zu",
-                shadowStats.shadowPacketDrawCallCount,
-                shadowStats.shadowPacketInstancedDrawCount,
-                shadowStats.shadowPacketCasterDrawCount,
-                shadowStats.shadowPacketSkippedCount,
+                shadowStats.shadowRecordDrawCallCount,
+                shadowStats.shadowRecordInstancedDrawCount,
+                shadowStats.shadowRecordCasterDrawCount,
+                shadowStats.shadowRecordSkippedCount,
                 shadowStats.shadowIndirectFallbackCommandCount);
         }
 

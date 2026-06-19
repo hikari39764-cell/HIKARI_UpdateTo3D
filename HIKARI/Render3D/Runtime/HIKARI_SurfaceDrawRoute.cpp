@@ -1,48 +1,9 @@
 #include "Render3D/Runtime/HIKARI_SurfaceDrawRoute.h"
 
 #include "Render3D/Core/HIKARI_Material.h"
-#include "Render3D/Runtime/HIKARI_SurfaceDrawPacket.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
-
-    namespace {
-        bool HasValidSubmitPrimitiveTarget(const SurfaceDrawPacket& packet) {
-            return
-                packet.model != nullptr &&
-                packet.meshIndex != kInvalidRenderSurfaceIndex &&
-                packet.primitiveIndex != kInvalidRenderSurfaceIndex &&
-                packet.meshIndex < packet.model->meshes.size() &&
-                packet.primitiveIndex < packet.model->meshes[packet.meshIndex].primitives.size();
-        }
-
-        SurfaceDrawRouteRejectReason ClassifyCommonSurfaceDrawRoute(
-            const SurfaceDrawPacket& packet,
-            bool requireObjectDataShader) {
-            if (!packet.valid) {
-                return SurfaceDrawRouteRejectReason::InvalidPacket;
-            }
-            if (!packet.key.resourceKeyValid) {
-                return SurfaceDrawRouteRejectReason::InvalidResourceKey;
-            }
-            if (requireObjectDataShader && !packet.key.objectDataCompatible) {
-                return SurfaceDrawRouteRejectReason::LegacyShader;
-            }
-            if (packet.hasRuntimeAnimation) {
-                return SurfaceDrawRouteRejectReason::RuntimeAnimation;
-            }
-            if (packet.hasSpecialRenderDebug) {
-                return SurfaceDrawRouteRejectReason::SpecialDebug;
-            }
-            if (packet.skinned) {
-                return SurfaceDrawRouteRejectReason::Skinned;
-            }
-            if (!HasValidSubmitPrimitiveTarget(packet)) {
-                return SurfaceDrawRouteRejectReason::InvalidPrimitive;
-            }
-            return SurfaceDrawRouteRejectReason::None;
-        }
-    }
 
     bool IsSurfaceObjectDataVertexShader(std::string_view vertexShaderId) {
         return
@@ -110,69 +71,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
             IsSurfaceObjectDataVertexShader(route.vertexShaderId) &&
             IsSurfaceObjectDataPixelShader(route.shaderProfileId, route.pixelShaderId);
         return route;
-    }
-
-    SurfaceDrawRouteRejectReason ClassifyForwardSurfaceDrawRoute(const SurfaceDrawPacket& packet) {
-        if (!packet.forwardCandidate) {
-            return SurfaceDrawRouteRejectReason::NoForward;
-        }
-        const SurfaceDrawRouteRejectReason commonReason =
-            ClassifyCommonSurfaceDrawRoute(packet, !packet.key.depthAware);
-        if (commonReason != SurfaceDrawRouteRejectReason::None) {
-            return commonReason;
-        }
-        if (packet.key.depthAware) {
-            return SurfaceDrawRouteRejectReason::DepthAware;
-        }
-        return SurfaceDrawRouteRejectReason::None;
-    }
-
-    SurfaceDrawRouteRejectReason ClassifyShadowSurfaceDrawRoute(const SurfaceDrawPacket& packet) {
-        if (!packet.shadowCandidate) {
-            return SurfaceDrawRouteRejectReason::NoShadow;
-        }
-        const SurfaceDrawRouteRejectReason commonReason = ClassifyCommonSurfaceDrawRoute(packet, false);
-        if (commonReason != SurfaceDrawRouteRejectReason::None) {
-            return commonReason;
-        }
-        if (packet.key.transparent) {
-            return SurfaceDrawRouteRejectReason::Transparent;
-        }
-        return SurfaceDrawRouteRejectReason::None;
-    }
-
-    SurfaceDrawRouteBucket GetSurfaceDrawRouteBucket(SurfaceDrawRouteRejectReason reason) {
-        switch (reason) {
-        case SurfaceDrawRouteRejectReason::None:
-            return SurfaceDrawRouteBucket::MainRoute;
-        case SurfaceDrawRouteRejectReason::NoForward:
-        case SurfaceDrawRouteRejectReason::NoShadow:
-            return SurfaceDrawRouteBucket::NoPass;
-        case SurfaceDrawRouteRejectReason::AlphaMasked:
-            return SurfaceDrawRouteBucket::AlphaMask;
-        case SurfaceDrawRouteRejectReason::Transparent:
-            return SurfaceDrawRouteBucket::Transparent;
-        case SurfaceDrawRouteRejectReason::DepthAware:
-            return SurfaceDrawRouteBucket::DepthAware;
-        case SurfaceDrawRouteRejectReason::RuntimeAnimation:
-        case SurfaceDrawRouteRejectReason::SpecialDebug:
-            return SurfaceDrawRouteBucket::RuntimeSpecial;
-        case SurfaceDrawRouteRejectReason::Skinned:
-            return SurfaceDrawRouteBucket::Skinned;
-        case SurfaceDrawRouteRejectReason::LegacyShader:
-            return SurfaceDrawRouteBucket::LegacyShader;
-        case SurfaceDrawRouteRejectReason::InvalidPacket:
-        case SurfaceDrawRouteRejectReason::InvalidResourceKey:
-        case SurfaceDrawRouteRejectReason::InvalidPrimitive:
-        default:
-            return SurfaceDrawRouteBucket::Invalid;
-        }
-    }
-
-    bool IsSurfaceDrawRouteAccepted(SurfaceDrawRouteRejectReason reason) {
-        return
-            reason == SurfaceDrawRouteRejectReason::None ||
-            reason == SurfaceDrawRouteRejectReason::DepthAware;
     }
 
 } // namespace HIKARI::RENDER3D::RUNTIME

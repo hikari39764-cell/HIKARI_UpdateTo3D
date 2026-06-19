@@ -379,7 +379,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 pixelShaderId == "Render3D_FxWaterPS" ||
                 shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             key.depthAware = shaderRoute.depthAware;
-            // Mesh shader backend はまず static opaque / alpha-mask の cluster geometry だけを所有する。
+            // Mesh shader backend はまぁEstatic opaque / alpha-mask の cluster geometry だけを所有する、E
             key.clusterMainlineEligible =
                 key.geometryBackend == RUNTIME::SurfaceGeometryBackend::ClusterGeometry &&
                 clusterVertexCompatible &&
@@ -577,11 +577,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             RUNTIME::SurfaceGpuSceneInstance instance{};
             instance.world = record.drawWorldMatrix;
             instance.normalMatrix = BuildNormalMatrixFromWorld(record.drawWorldMatrix);
-            // HCMESH は node global を bake 済みなので、cluster draw では object world だけを渡す。
+            // HCMESH は node global めEbake 済みなので、cluster draw では object world だけを渡す、E
             instance.clusterWorld = record.objectWorldTransform.GetWorldMatrix();
             instance.clusterNormalMatrix = BuildNormalMatrixFromWorld(instance.clusterWorld);
             instance.boundsCenterRadius = BuildBoundsCenterRadius(record.worldBounds);
-            instance.sourcePacketIndex = sourceRecordIndex;
+            instance.sourceRecordIndex = sourceRecordIndex;
             instance.sourceSurfaceInstanceIndex = record.sourceSurfaceInstanceIndex;
             instance.objectIdLow = static_cast<uint32_t>(record.objectId.value & 0xffffffffull);
             instance.objectIdHigh = static_cast<uint32_t>((record.objectId.value >> 32) & 0xffffffffull);
@@ -820,7 +820,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         for (const uint32_t recordIndex : recordIndices) {
             if (recordIndex >= records.size()) {
-                ++stats.skippedInvalidPacketCount;
+                ++stats.skippedInvalidRecordCount;
                 continue;
             }
 
