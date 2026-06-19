@@ -429,7 +429,7 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::TexturePool].DescriptorTable.pDescriptorRanges = &materialTexturePoolRange;
 
         params[ROOT_PARAM::JointPalette].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-        params[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+        params[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::JointPalette].Descriptor.ShaderRegister = 3;
         params[ROOT_PARAM::JointPalette].Descriptor.RegisterSpace = 0;
 
@@ -503,7 +503,7 @@ namespace HIKARI::MESHRENDERER {
             skinnedParams[i] = params[i];
         }
         skinnedParams[ROOT_PARAM::JointPalette].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-        skinnedParams[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+        skinnedParams[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         skinnedParams[ROOT_PARAM::JointPalette].Descriptor.ShaderRegister = 3;
         skinnedParams[ROOT_PARAM::JointPalette].Descriptor.RegisterSpace = 0;
 

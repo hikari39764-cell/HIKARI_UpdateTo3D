@@ -1045,7 +1045,7 @@ namespace HIKARI::SHADOW {
             skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].ParameterType =
                 D3D12_ROOT_PARAMETER_TYPE_CBV;
             skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].ShaderVisibility =
-                D3D12_SHADER_VISIBILITY_VERTEX;
+                D3D12_SHADER_VISIBILITY_ALL;
             skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].Descriptor.ShaderRegister = 3;
             skinnedParams[RECORD::kShadowSkinnedRootParamJointPalette].Descriptor.RegisterSpace = 0;
 
