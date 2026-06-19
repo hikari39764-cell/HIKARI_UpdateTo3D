@@ -40,18 +40,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return static_cast<UINT>((size + 255u) & ~255u);
         }
 
-        D3D12_DRAW_INDEXED_ARGUMENTS ToD3D12DrawArgs(
-            const RUNTIME::SurfaceDrawIndexedArgs& args) {
-
-            D3D12_DRAW_INDEXED_ARGUMENTS draw{};
-            draw.IndexCountPerInstance = args.indexCountPerInstance;
-            draw.InstanceCount = args.instanceCount;
-            draw.StartIndexLocation = args.startIndexLocation;
-            draw.BaseVertexLocation = args.baseVertexLocation;
-            draw.StartInstanceLocation = args.startInstanceLocation;
-            return draw;
-        }
-
         SurfaceIndirectDrawPayload ToDrawPayload(
             const RUNTIME::SurfaceDrawIndexedArgs& args) {
 
@@ -66,11 +54,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         bool IsIndirectDrawable(const RUNTIME::SurfaceDrawCommand& command) {
             return
-                command.backend == RUNTIME::SurfaceDrawCommandBackend::GpuDriven &&
                 command.drawArgsValid &&
                 command.drawArgs.indexCountPerInstance > 0 &&
                 command.drawArgs.instanceCount > 0 &&
-                command.firstGpuSceneInstanceIndex != RUNTIME::kInvalidRenderSurfaceIndex;
+                command.firstGpuSceneInstanceIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
+                command.HasTriangleMeshGpuView();
         }
 
         GpuDrivenPassKind ResolveCommandPass(
@@ -245,7 +233,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         argumentBuffer_.Reset();
         skinnedArgumentBuffer_.Reset();
-        uploadBuffer_.Reset();
         seedBuffer_.Reset();
         seedUploadBuffer_.Reset();
         payloadBuffer_.Reset();
@@ -257,14 +244,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         compactPipelineState_.Reset();
         commandSignature_.Reset();
         skinnedCommandSignature_.Reset();
-        mapped_ = nullptr;
-        skinnedMapped_ = nullptr;
         seedMapped_ = nullptr;
         payloadMapped_ = nullptr;
         counterResetMapped_ = nullptr;
         constantsMapped_ = nullptr;
         capacity_ = 0;
-        cursor_ = 0;
         seedCursor_ = 0;
         payloadCursor_ = 0;
         rootConstantCount_ = rootConstantCount;
@@ -273,10 +257,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         seedBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         payloadBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        argumentIndexByCommand_.clear();
-        payloadIndexByCommand_.clear();
         payloadIndexByGpuSceneInstance_.clear();
-        drawBindingByCommand_.clear();
         stats_ = {};
 
         const UINT64 bufferBytes =
@@ -321,26 +302,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             skinnedArgumentBuffer_.Get(),
             L"Surface Skinned Indirect Draw Argument Buffer");
 
-        auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferBytes);
-        auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        if (FAILED(device->CreateCommittedResource(
-            &uploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &uploadDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(uploadBuffer_.GetAddressOf())))) {
-            argumentBuffer_.Reset();
-            return false;
-        }
-        if (FAILED(uploadBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mapped_)))) {
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(uploadBuffer_.Get(), L"Surface Indirect Draw Upload Buffer");
-
         const UINT64 seedBytes =
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawSeed)) *
             static_cast<UINT64>(capacity);
@@ -352,8 +313,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(seedBuffer_.GetAddressOf())))) {
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -368,8 +327,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             nullptr,
             IID_PPV_ARGS(seedUploadBuffer_.GetAddressOf())))) {
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -377,8 +334,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -398,8 +353,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -416,8 +369,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -428,8 +379,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -451,8 +400,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -474,8 +421,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -489,8 +434,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -515,8 +458,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -532,8 +473,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -555,8 +494,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seedMapped_ = nullptr;
             seedUploadBuffer_.Reset();
             seedBuffer_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -580,8 +517,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             rootSignature,
             IID_PPV_ARGS(commandSignature_.GetAddressOf())))) {
             commandSignature_.Reset();
-            mapped_ = nullptr;
-            uploadBuffer_.Reset();
             argumentBuffer_.Reset();
             return false;
         }
@@ -647,23 +582,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     void SurfaceIndirectDrawBuffer::ResetFrame() {
-        cursor_ = 0;
         seedCursor_ = 0;
         payloadCursor_ = 0;
-        argumentIndexByCommand_.clear();
-        payloadIndexByCommand_.clear();
         payloadIndexByGpuSceneInstance_.clear();
-        drawBindingByCommand_.clear();
 
         const size_t capacity = capacity_;
         const bool initialized =
-            mapped_ != nullptr &&
             seedMapped_ != nullptr &&
             counterResetMapped_ != nullptr &&
             constantsMapped_ != nullptr &&
             argumentBuffer_ != nullptr &&
             skinnedArgumentBuffer_ != nullptr &&
-            uploadBuffer_ != nullptr &&
             seedBuffer_ != nullptr &&
             seedUploadBuffer_ != nullptr &&
             payloadBuffer_ != nullptr &&
@@ -701,104 +630,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             static_cast<UINT>(sizeof(SurfaceSkinnedIndirectDrawArgument));
     }
 
-    void SurfaceIndirectDrawBuffer::UploadSurfaceCommands(
-        const std::vector<RUNTIME::SurfaceDrawCommand>& commands,
-        uint32_t rootBaseOffset,
-        SurfaceIndirectCommandFilter filter,
-        const void* filterUserData) {
-
-        stats_.requestedCommandCount += commands.size();
-        ++stats_.uploadCallCount;
-        if (commands.empty()) {
-            return;
-        }
-        if (mapped_ == nullptr ||
-            payloadMapped_ == nullptr ||
-            capacity_ == 0) {
-            stats_.overflowCommandCount += commands.size();
-            return;
-        }
-
-        for (const RUNTIME::SurfaceDrawCommand& command : commands) {
-            if (filter != nullptr && !filter(command, filterUserData)) {
-                ++stats_.filteredCommandCount;
-                continue;
-            }
-            if (command.backend != RUNTIME::SurfaceDrawCommandBackend::GpuDriven) {
-                ++stats_.cpuDirectCommandCount;
-                continue;
-            }
-            if (!IsIndirectDrawable(command)) {
-                ++stats_.missingDrawArgsCommandCount;
-                continue;
-            }
-            if (cursor_ >= capacity_) {
-                ++stats_.overflowCommandCount;
-                continue;
-            }
-
-            const uint32_t absoluteGpuSceneIndex =
-                rootBaseOffset + command.firstGpuSceneInstanceIndex;
-            const size_t argumentIndex = cursor_;
-            ++cursor_;
-            auto* payloads =
-                reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-            size_t payloadIndex = 0;
-            const auto payloadFound =
-                payloadIndexByGpuSceneInstance_.find(absoluteGpuSceneIndex);
-            if (payloadFound != payloadIndexByGpuSceneInstance_.end()) {
-                payloadIndex = payloadFound->second;
-                ++stats_.reusedPayloadCount;
-            } else {
-                if (payloadCursor_ >= capacity_) {
-                    --cursor_;
-                    ++stats_.overflowCommandCount;
-                    continue;
-                }
-                payloadIndex = payloadCursor_++;
-                payloadIndexByGpuSceneInstance_[absoluteGpuSceneIndex] = payloadIndex;
-                SurfaceIndirectDrawPayload& payload = payloads[payloadIndex];
-                payload = ToDrawPayload(command.drawArgs);
-                payload.flags =
-                    command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
-                ++stats_.uploadedPayloadCount;
-            }
-            SurfaceIndirectDrawArgument& dst = mapped_[argumentIndex];
-            dst = {};
-            // command signature と構造体の draw offset を固定するため、root constants は常に 4 DWORD にする。
-            // root constants[0] は pass ごとのインスタンス基点として扱う。
-            // Forward は SurfaceGpuScene、Shadow は ShadowObjectData の base index として読む。
-            dst.rootConstants[0] = absoluteGpuSceneIndex;
-            dst.rootConstants[1] = 1u;
-            dst.rootConstants[2] = 0u;
-            dst.rootConstants[3] = 0u;
-            dst.draw = ToD3D12DrawArgs(command.drawArgs);
-            if (seedMapped_ != nullptr && seedCursor_ < capacity_) {
-                auto* seeds =
-                    reinterpret_cast<SurfaceIndirectDrawSeed*>(seedMapped_);
-                SurfaceIndirectDrawSeed& seed = seeds[seedCursor_++];
-                seed = {};
-                seed.absoluteGpuSceneInstanceIndex = absoluteGpuSceneIndex;
-                seed.boundsCenterRadius = { 0.0f, 0.0f, 0.0f, -1.0f };
-                seed.passIndex =
-                    static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
-                seed.bucketIndex = ResolveCommandBucketIndex(command);
-                seed.payloadIndex = static_cast<uint32_t>(payloadIndex);
-                seed.localGpuSceneInstanceIndex = command.firstGpuSceneInstanceIndex;
-                ++stats_.uploadedSeedCount;
-                ++stats_.uploadedStaticSeedCount;
-            }
-            argumentIndexByCommand_[&command] = argumentIndex;
-            payloadIndexByCommand_[&command] = payloadIndex;
-            drawBindingByCommand_[&command] = false;
-            ++stats_.uploadedCommandCount;
-        }
-    }
-
     void SurfaceIndirectDrawBuffer::UploadSurfaceCommandSeeds(
-        const GpuDrivenTraditionalIndirectView& view,
-        SurfaceIndirectCommandFilter filter,
-        const void* filterUserData) {
+        const GpuDrivenTraditionalIndirectView& view) {
 
         if (view.commands == nullptr || view.commands->empty()) {
             return;
@@ -807,7 +640,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.requestedCommandCount += view.commands->size();
         ++stats_.uploadCallCount;
         if (seedMapped_ == nullptr ||
-            mapped_ == nullptr ||
             payloadMapped_ == nullptr ||
             capacity_ == 0) {
             stats_.overflowCommandCount += view.commands->size();
@@ -815,19 +647,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         for (const RUNTIME::SurfaceDrawCommand& command : *view.commands) {
-            if (filter != nullptr && !filter(command, filterUserData)) {
-                ++stats_.filteredCommandCount;
-                continue;
-            }
-            if (command.backend != RUNTIME::SurfaceDrawCommandBackend::GpuDriven) {
-                ++stats_.cpuDirectCommandCount;
-                continue;
-            }
             if (!IsIndirectDrawable(command)) {
                 ++stats_.missingDrawArgsCommandCount;
                 continue;
             }
-            if (cursor_ >= capacity_ || seedCursor_ >= capacity_) {
+            if (seedCursor_ >= capacity_) {
                 ++stats_.overflowCommandCount;
                 continue;
             }
@@ -839,6 +663,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 command.firstRecordIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
                 command.firstRecordIndex < view.jointPalettes->size() &&
                 !(*view.jointPalettes)[command.firstRecordIndex].empty();
+            if (skinnedCommand && command.jointPaletteGpuAddress == 0) {
+                ++stats_.missingJointPaletteCommandCount;
+                continue;
+            }
             MATH::Vec4 boundsCenterRadius{ 0.0f, 0.0f, 0.0f, -1.0f };
             if (view.instances != nullptr &&
                 command.firstGpuSceneInstanceIndex < view.instances->size()) {
@@ -846,8 +674,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     (*view.instances)[command.firstGpuSceneInstanceIndex].boundsCenterRadius;
             }
 
-            const size_t argumentIndex = cursor_;
-            ++cursor_;
             auto* payloads =
                 reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
             size_t payloadIndex = 0;
@@ -858,7 +684,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 ++stats_.reusedPayloadCount;
             } else {
                 if (payloadCursor_ >= capacity_) {
-                    --cursor_;
                     ++stats_.overflowCommandCount;
                     continue;
                 }
@@ -866,6 +691,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 payloadIndexByGpuSceneInstance_[absoluteGpuSceneIndex] = payloadIndex;
                 SurfaceIndirectDrawPayload& payload = payloads[payloadIndex];
                 payload = ToDrawPayload(command.drawArgs);
+                payload.vertexBuffer = command.triangleMeshView.vertexBuffer;
+                payload.indexBuffer = command.triangleMeshView.indexBuffer;
+                payload.jointPalette = command.jointPaletteGpuAddress;
                 payload.flags =
                     command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
                 if (skinnedCommand) {
@@ -873,13 +701,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 }
                 ++stats_.uploadedPayloadCount;
             }
-            SurfaceIndirectDrawArgument& argument = mapped_[argumentIndex];
-            argument = {};
-            argument.rootConstants[0] = absoluteGpuSceneIndex;
-            argument.rootConstants[1] = 1u;
-            argument.rootConstants[2] = 0u;
-            argument.rootConstants[3] = 0u;
-            argument.draw = ToD3D12DrawArgs(command.drawArgs);
+            SurfaceIndirectDrawPayload& payload = payloads[payloadIndex];
+            payload.vertexBuffer = command.triangleMeshView.vertexBuffer;
+            payload.indexBuffer = command.triangleMeshView.indexBuffer;
+            payload.jointPalette = command.jointPaletteGpuAddress;
+            if (skinnedCommand) {
+                payload.flags |= kSurfaceIndirectSeedFlagSkinned;
+            }
 
             auto* seeds = reinterpret_cast<SurfaceIndirectDrawSeed*>(seedMapped_);
             SurfaceIndirectDrawSeed& seed = seeds[seedCursor_++];
@@ -899,44 +727,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 ++stats_.uploadedStaticSeedCount;
             }
 
-            argumentIndexByCommand_[&command] = argumentIndex;
-            payloadIndexByCommand_[&command] = payloadIndex;
-            drawBindingByCommand_[&command] = false;
             ++stats_.uploadedCommandCount;
             ++stats_.uploadedSeedCount;
         }
-    }
-
-    bool SurfaceIndirectDrawBuffer::FlushToGpu(ID3D12GraphicsCommandList* commandList) {
-        if (commandList == nullptr ||
-            argumentBuffer_ == nullptr ||
-            uploadBuffer_ == nullptr ||
-            stats_.uploadedCommandCount == 0) {
-            return false;
-        }
-
-        const UINT64 copyBytes =
-            static_cast<UINT64>(stats_.uploadedCommandCount) *
-            static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument));
-        auto toCopy = CD3DX12_RESOURCE_BARRIER::Transition(
-            argumentBuffer_.Get(),
-            argumentBufferState_,
-            D3D12_RESOURCE_STATE_COPY_DEST);
-        commandList->ResourceBarrier(1, &toCopy);
-        argumentBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        commandList->CopyBufferRegion(
-            argumentBuffer_.Get(),
-            0,
-            uploadBuffer_.Get(),
-            0,
-            copyBytes);
-        auto toIndirect = CD3DX12_RESOURCE_BARRIER::Transition(
-            argumentBuffer_.Get(),
-            argumentBufferState_,
-            D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-        commandList->ResourceBarrier(1, &toIndirect);
-        argumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-        return true;
     }
 
     bool SurfaceIndirectDrawBuffer::BuildGpuCompactedCommands(
@@ -1274,103 +1067,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             stats_.uploadedSeedCount != 0 &&
             counterBuffer_ != nullptr &&
             (hasStaticStream || hasSkinnedStream);
-    }
-
-    bool SurfaceIndirectDrawBuffer::TryGetArgumentBufferOffset(
-        const RUNTIME::SurfaceDrawCommand& command,
-        UINT64& outOffsetBytes) const {
-
-        const auto found = argumentIndexByCommand_.find(&command);
-        if (found == argumentIndexByCommand_.end()) {
-            return false;
-        }
-
-        outOffsetBytes =
-            GetArgumentBufferOffset(
-                ResolveCommandPass(command),
-                ResolveCommandBucket(command)) +
-            static_cast<UINT64>(found->second) *
-            static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument));
-        return true;
-    }
-
-    bool SurfaceIndirectDrawBuffer::PatchDrawBinding(
-        const RUNTIME::SurfaceDrawCommand& command,
-        const D3D12_VERTEX_BUFFER_VIEW& vertexBuffer,
-        const D3D12_INDEX_BUFFER_VIEW& indexBuffer) {
-
-        if (mapped_ == nullptr || payloadMapped_ == nullptr) {
-            return false;
-        }
-
-        const auto found = argumentIndexByCommand_.find(&command);
-        if (found == argumentIndexByCommand_.end() || found->second >= capacity_) {
-            return false;
-        }
-        const auto payloadFound = payloadIndexByCommand_.find(&command);
-        if (payloadFound == payloadIndexByCommand_.end() ||
-            payloadFound->second >= capacity_) {
-            return false;
-        }
-
-        SurfaceIndirectDrawArgument& argument = mapped_[found->second];
-        argument.vertexBuffer = vertexBuffer;
-        argument.indexBuffer = indexBuffer;
-        auto* payloads =
-            reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-        payloads[payloadFound->second].vertexBuffer = vertexBuffer;
-        payloads[payloadFound->second].indexBuffer = indexBuffer;
-        drawBindingByCommand_[&command] = true;
-        ++stats_.drawBindingPatchCount;
-        return true;
-    }
-
-    bool SurfaceIndirectDrawBuffer::PatchSkinnedDrawBinding(
-        const RUNTIME::SurfaceDrawCommand& command,
-        const D3D12_VERTEX_BUFFER_VIEW& vertexBuffer,
-        const D3D12_INDEX_BUFFER_VIEW& indexBuffer,
-        D3D12_GPU_VIRTUAL_ADDRESS jointPalette) {
-
-        if (seedMapped_ == nullptr ||
-            payloadMapped_ == nullptr ||
-            jointPalette == 0) {
-            ++stats_.missingJointPaletteCommandCount;
-            return false;
-        }
-
-        const auto found = argumentIndexByCommand_.find(&command);
-        if (found == argumentIndexByCommand_.end() ||
-            found->second >= seedCursor_ ||
-            found->second >= capacity_) {
-            return false;
-        }
-        const auto payloadFound = payloadIndexByCommand_.find(&command);
-        if (payloadFound == payloadIndexByCommand_.end() ||
-            payloadFound->second >= capacity_) {
-            return false;
-        }
-
-        auto* seeds = reinterpret_cast<SurfaceIndirectDrawSeed*>(seedMapped_);
-        SurfaceIndirectDrawSeed& seed = seeds[found->second];
-        seed.flags |= kSurfaceIndirectSeedFlagSkinned;
-        auto* payloads =
-            reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-        SurfaceIndirectDrawPayload& payload = payloads[payloadFound->second];
-        payload.vertexBuffer = vertexBuffer;
-        payload.indexBuffer = indexBuffer;
-        payload.jointPalette = jointPalette;
-        payload.flags |= kSurfaceIndirectSeedFlagSkinned;
-        drawBindingByCommand_[&command] = true;
-        ++stats_.skinnedDrawBindingPatchCount;
-        ++stats_.drawBindingPatchCount;
-        return true;
-    }
-
-    bool SurfaceIndirectDrawBuffer::HasDrawBinding(
-        const RUNTIME::SurfaceDrawCommand& command) const {
-
-        const auto found = drawBindingByCommand_.find(&command);
-        return found != drawBindingByCommand_.end() && found->second;
     }
 
     const SurfaceIndirectDrawBufferStats& SurfaceIndirectDrawBuffer::GetStats() const {

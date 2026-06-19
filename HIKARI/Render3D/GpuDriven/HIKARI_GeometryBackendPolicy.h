@@ -10,9 +10,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     constexpr size_t kMaxGeometryBackendPlanBackends = 3;
 
     struct GeometryBackendPolicy {
-        GeometryBackendKind preferred = GeometryBackendKind::CpuDirect;
-        GeometryBackendKind fallback = GeometryBackendKind::CpuDirect;
-        bool allowCpuDirectFallback = false;
+        GeometryBackendKind preferred = GeometryBackendKind::GpuDrivenMeshShader;
+        GeometryBackendKind secondary = GeometryBackendKind::GpuDrivenClusterVS;
         bool forcePreferredOnly = false;
     };
 

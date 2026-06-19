@@ -742,7 +742,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             RUNTIME::SurfaceDrawCommand command{};
             command.pass = pass;
-            command.backend = RUNTIME::SurfaceDrawCommandBackend::GpuDriven;
             command.firstExecutableIndex = executableIndex;
             command.recordCount = 1u;
             command.firstRecordIndex = recordIndexInStream;

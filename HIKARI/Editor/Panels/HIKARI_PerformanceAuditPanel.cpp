@@ -269,22 +269,15 @@ namespace HIKARI {
                     s.mesh.gpuDrivenWorklistClusterPassCount,
                     s.mesh.gpuDrivenWorklistSourceInstanceCount,
                     s.mesh.gpuDrivenWorklistClusterInstanceCount);
-                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / CPU Cmd", "%zu / %zu / %zu / %zu",
+                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / TraditionalVS", "%zu / %zu / %zu / %zu",
                     s.mesh.gpuDrivenCommandStreamPassCount,
                     s.mesh.gpuDrivenCommandStreamRangeCount,
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
-                    s.mesh.gpuDrivenCommandStreamCpuCommandCount);
+                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
                 MetricRow("GPU Visibility Counter Ranges / Known Visible / Known Overflow", "%zu / %zu / %zu",
                     s.mesh.gpuDrivenCommandStreamGpuCounterBackedRangeCount,
                     s.mesh.gpuDrivenCommandStreamKnownVisibleCommandCount,
                     s.mesh.gpuDrivenCommandStreamKnownVisibleCommandOverflowCount);
-                MetricRow("Legacy Fallback Calls / Items / Opaque / Depth / Transparent / Geometry", "%zu / %zu / %zu / %zu / %zu / %zu",
-                    s.mesh.legacyFallbackInvocationCount,
-                    s.mesh.legacyFallbackItemCount,
-                    s.mesh.legacyFallbackOpaqueItemCount,
-                    s.mesh.legacyFallbackDepthAwareItemCount,
-                    s.mesh.legacyFallbackTransparentItemCount,
-                    s.mesh.legacyFallbackGeometryAuxItemCount);
                 MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuInputFrustumCulledCount,
@@ -332,11 +325,6 @@ namespace HIKARI {
         void DrawStrictGpuDrivenTable(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Strict GPU Driven");
             if (BeginMetricTable("StrictGpuDrivenMetrics", 270.0f)) {
-                const bool cpuAuthoredClear =
-                    s.mesh.gpuDrivenCommandStreamCpuCommandCount == 0 &&
-                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount == 0 &&
-                    s.mesh.legacyFallbackInvocationCount == 0 &&
-                    s.mesh.surfaceIndirectCpuDirectCommandCount == 0;
                 MetricRow("Strict Mainline / Legacy Views Suppressed", "%s / %u",
                     s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
                     s.gpuRegistry.legacyForwardViewSuppressedCount);
@@ -346,24 +334,18 @@ namespace HIKARI {
                     s.gpuRegistry.blockedForwardDepthAwareRecordCount,
                     s.gpuRegistry.blockedForwardTransparentRecordCount,
                     s.gpuRegistry.blockedShadowRecordCount);
-                MetricRow("CommandStream GPU / CPU / Traditional", "%zu / %zu / %zu",
+                MetricRow("CommandStream GPU Authored / TraditionalVS", "%zu / %zu",
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
-                    s.mesh.gpuDrivenCommandStreamCpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
-                MetricRow("Legacy Fallback Calls / Items", "%zu / %zu",
-                    s.mesh.legacyFallbackInvocationCount,
-                    s.mesh.legacyFallbackItemCount);
-                MetricRow("SurfaceIndirect Uploaded / CPU Direct / Overflow", "%zu / %zu / %zu",
+                MetricRow("SurfaceIndirect Seeds / Overflow / Executed", "%zu / %zu / %zu",
                     s.mesh.surfaceIndirectUploadedCommandCount,
-                    s.mesh.surfaceIndirectCpuDirectCommandCount,
-                    s.mesh.surfaceIndirectOverflowCommandCount);
+                    s.mesh.surfaceIndirectOverflowCommandCount,
+                    s.mesh.surfaceIndirectExecutedDrawCount);
                 MetricRow("GPU Scene Instances Opaque / Depth / Transparent / Shadow", "%u / %u / %u / %zu",
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
                     s.gpuRegistry.forwardDepthAwareGpuSceneStats.instanceCount,
                     s.gpuRegistry.forwardTransparentGpuSceneStats.instanceCount,
                     s.shadow.shadowGpuSceneUploadedInstanceCount);
-                MetricRowText("CPU Authored Command State",
-                    cpuAuthoredClear ? "Clear" : "Active");
                 ImGui::EndTable();
             }
         }
@@ -414,10 +396,10 @@ namespace HIKARI {
                     s.mesh.surfaceIndirectOpaqueCommandCount,
                     s.mesh.surfaceIndirectDepthAwareCommandCount,
                     s.mesh.surfaceIndirectTransparentCommandCount);
-                MetricRow("Surface Indirect Uploaded / Filtered / Overflow", "%zu / %zu / %zu",
+                MetricRow("Surface Indirect Seeds / Overflow / MissingArgs", "%zu / %zu / %zu",
                     s.mesh.surfaceIndirectUploadedCommandCount,
-                    s.mesh.surfaceIndirectFilteredCommandCount,
-                    s.mesh.surfaceIndirectOverflowCommandCount);
+                    s.mesh.surfaceIndirectOverflowCommandCount,
+                    s.mesh.surfaceIndirectMissingDrawArgsCommandCount);
                 MetricRow("Surface Indirect Batches / Commands / Saved / Max", "%zu / %zu / %zu / %zu",
                     s.mesh.surfaceIndirectBatchSubmitCount,
                     s.mesh.surfaceIndirectBatchedCommandCount,

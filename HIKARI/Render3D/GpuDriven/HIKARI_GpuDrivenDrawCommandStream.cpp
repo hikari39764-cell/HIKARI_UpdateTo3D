@@ -27,7 +27,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     bool GpuDrivenDrawCommandRange::IsActive() const {
         return consumable &&
-            backend != GeometryBackendKind::CpuDirect &&
             producer != GpuDrivenCommandProducerKind::None &&
             commandCount != 0;
     }
@@ -145,18 +144,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t count = 0;
         for (const GpuDrivenPassDrawCommandStream& pass : passes) {
             count += pass.CountActiveRanges();
-        }
-        return count;
-    }
-
-    size_t GpuDrivenDrawCommandStream::CountCpuAuthoredCommands() const {
-        size_t count = 0;
-        for (const GpuDrivenPassDrawCommandStream& pass : passes) {
-            for (const GpuDrivenDrawCommandRange& range : pass.ranges) {
-                if (range.IsActive() && !range.gpuAuthored) {
-                    count += range.commandCount;
-                }
-            }
         }
         return count;
     }

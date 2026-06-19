@@ -46,9 +46,6 @@ namespace HIKARI::MESHRENDERER {
         GeometryAux,
     };
 
-    using MeshDrawCommandFilter =
-        bool (*)(const RENDER3D::RUNTIME::SurfaceDrawCommand& command, const void* userData);
-
     struct MeshDrawContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         ID3D12RootSignature* staticRootSig = nullptr;
@@ -76,26 +73,9 @@ namespace HIKARI::MESHRENDERER {
         MeshBindingContext binding{};
         MeshMaterialFillContext materialFill{};
         MeshDrawServices services{};
-        MeshDrawCommandFilter surfaceIndirectCommandFilter = nullptr;
-        const void* surfaceIndirectCommandFilterUserData = nullptr;
     };
 
-    bool DrawMeshItem(
-        const MeshDrawContext& ctx,
-        const DrawItem& item,
-        size_t& objectIndex);
-
     void BindSurfaceRecordFrameResources(const MeshDrawContext& ctx);
-
-    bool PrepareSurfaceRecordIndirectDrawBindings(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount,
-        const std::vector<std::vector<MATH::Mat4>>* jointPalettes = nullptr);
 
     bool PrepareSurfaceRecordGpuSceneMaterials(
         const MeshDrawContext& ctx,
@@ -117,44 +97,5 @@ namespace HIKARI::MESHRENDERER {
         const MeshDrawContext& ctx,
         const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
         size_t sourceCount);
-
-    struct SurfaceRecordCommandDrawResult {
-        size_t submittedRecordCount = 0;
-        size_t skippedRecordCount = 0;
-        size_t drawCallCount = 0;
-        size_t instancedDrawCount = 0;
-        size_t instancedRecordCount = 0;
-        size_t maxInstanceCount = 0;
-    };
-
-    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommandRange(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount,
-        size_t& commandIndex,
-        size_t& objectIndex);
-
-    SurfaceRecordCommandDrawResult DrawSurfaceRecordIndirectCommandRange(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount,
-        size_t& commandIndex);
-
-    SurfaceRecordCommandDrawResult DrawSurfaceRecordCommand(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-        size_t& objectIndex);
 
 } // namespace HIKARI::MESHRENDERER

@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include <d3d12.h>
+
 #include "Render3D/Runtime/HIKARI_RenderSurfaceContract.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
@@ -11,11 +13,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
         Forward,
         DepthAware,
         Shadow,
-    };
-
-    enum class SurfaceDrawCommandBackend : uint8_t {
-        CpuDirect,
-        GpuDriven,
     };
 
     enum class SurfaceGeometryBackend : uint8_t {
@@ -48,6 +45,20 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
         constexpr bool HasPoolHandles() const {
             return mesh.IsValid() && material.IsValid();
+        }
+    };
+
+    struct SurfaceTriangleMeshGpuView {
+        D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
+        D3D12_INDEX_BUFFER_VIEW indexBuffer{};
+
+        bool IsValid() const {
+            return
+                vertexBuffer.BufferLocation != 0 &&
+                vertexBuffer.SizeInBytes != 0 &&
+                vertexBuffer.StrideInBytes != 0 &&
+                indexBuffer.BufferLocation != 0 &&
+                indexBuffer.SizeInBytes != 0;
         }
     };
 
@@ -102,7 +113,6 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
     struct SurfaceDrawCommand {
         SurfaceDrawCommandPass pass = SurfaceDrawCommandPass::Forward;
-        SurfaceDrawCommandBackend backend = SurfaceDrawCommandBackend::CpuDirect;
 
         uint32_t firstExecutableIndex = 0;
         uint32_t recordCount = 0;
@@ -122,6 +132,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint64_t materialKey = 0;
         uint64_t textureSetKey = 0;
         uint64_t modelKey = 0;
+        SurfaceTriangleMeshGpuView triangleMeshView{};
+        D3D12_GPU_VIRTUAL_ADDRESS jointPaletteGpuAddress = 0;
 
         bool singleRecord = false;
         bool transparent = false;
@@ -129,6 +141,10 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool doubleSided = false;
         bool clusterMainlineEligible = false;
         bool drawArgsValid = false;
+
+        bool HasTriangleMeshGpuView() const {
+            return triangleMeshView.IsValid();
+        }
     };
 
 } // namespace HIKARI::RENDER3D::RUNTIME

@@ -49,11 +49,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool resetTraditionalIndirectBuffer = true;
         bool publishCommandBuffers = true;
         bool enableSurfaceFrustumCull = true;
-        bool (*prepareSurfaceIndirectSeedBindings)(
-            SurfaceIndirectDrawBuffer& buffer,
-            const GpuDrivenSceneSource& source,
-            void* userData) = nullptr;
-        void* prepareSurfaceIndirectSeedBindingsUserData = nullptr;
     };
 
     struct GpuDrivenCommandFrameStats {

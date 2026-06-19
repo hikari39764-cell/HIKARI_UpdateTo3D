@@ -19,9 +19,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     constexpr size_t kDefaultSurfaceIndirectDrawCommandCapacity = 4096u;
     constexpr UINT kSurfaceIndirectRootConstantCount = 4u;
-    using SurfaceIndirectCommandFilter =
-        bool (*)(const RUNTIME::SurfaceDrawCommand& command, const void* userData);
-
     struct SurfaceIndirectDrawArgument {
         D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
         D3D12_INDEX_BUFFER_VIEW indexBuffer{};
@@ -51,11 +48,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t uploadedStaticSeedCount = 0;
         size_t uploadedSkinnedSeedCount = 0;
         size_t overflowCommandCount = 0;
-        size_t filteredCommandCount = 0;
-        size_t cpuDirectCommandCount = 0;
         size_t missingDrawArgsCommandCount = 0;
-        size_t drawBindingPatchCount = 0;
-        size_t skinnedDrawBindingPatchCount = 0;
         size_t missingJointPaletteCommandCount = 0;
         size_t uploadCallCount = 0;
         size_t uploadedSeedCount = 0;
@@ -92,16 +85,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             UINT jointPaletteParameterIndex);
 
         void ResetFrame();
-        void UploadSurfaceCommands(
-            const std::vector<RUNTIME::SurfaceDrawCommand>& commands,
-            uint32_t rootBaseOffset,
-            SurfaceIndirectCommandFilter filter = nullptr,
-            const void* filterUserData = nullptr);
         void UploadSurfaceCommandSeeds(
-            const GpuDrivenTraditionalIndirectView& view,
-            SurfaceIndirectCommandFilter filter = nullptr,
-            const void* filterUserData = nullptr);
-        bool FlushToGpu(ID3D12GraphicsCommandList* commandList);
+            const GpuDrivenTraditionalIndirectView& view);
         bool BuildGpuCompactedCommands(
             ID3D12GraphicsCommandList* commandList,
             const MATH::Mat4& viewProj,
@@ -137,25 +122,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t GetUploadedSeedCount() const;
         size_t GetUploadedSkinnedSeedCount() const;
         bool HasGpuCompactedCommands() const;
-        bool TryGetArgumentBufferOffset(
-            const RUNTIME::SurfaceDrawCommand& command,
-            UINT64& outOffsetBytes) const;
-        bool PatchDrawBinding(
-            const RUNTIME::SurfaceDrawCommand& command,
-            const D3D12_VERTEX_BUFFER_VIEW& vertexBuffer,
-            const D3D12_INDEX_BUFFER_VIEW& indexBuffer);
-        bool PatchSkinnedDrawBinding(
-            const RUNTIME::SurfaceDrawCommand& command,
-            const D3D12_VERTEX_BUFFER_VIEW& vertexBuffer,
-            const D3D12_INDEX_BUFFER_VIEW& indexBuffer,
-            D3D12_GPU_VIRTUAL_ADDRESS jointPalette);
-        bool HasDrawBinding(const RUNTIME::SurfaceDrawCommand& command) const;
         const SurfaceIndirectDrawBufferStats& GetStats() const;
 
     private:
         Microsoft::WRL::ComPtr<ID3D12Resource> argumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> skinnedArgumentBuffer_;
-        Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> seedBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> seedUploadBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> payloadBuffer_;
@@ -167,14 +138,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         Microsoft::WRL::ComPtr<ID3D12PipelineState> compactPipelineState_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> skinnedCommandSignature_;
-        SurfaceIndirectDrawArgument* mapped_ = nullptr;
-        SurfaceSkinnedIndirectDrawArgument* skinnedMapped_ = nullptr;
         std::byte* seedMapped_ = nullptr;
         std::byte* payloadMapped_ = nullptr;
         std::byte* counterResetMapped_ = nullptr;
         std::byte* constantsMapped_ = nullptr;
         size_t capacity_ = 0;
-        size_t cursor_ = 0;
         size_t seedCursor_ = 0;
         size_t payloadCursor_ = 0;
         UINT rootConstantCount_ = 0;
@@ -188,10 +156,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATE_COPY_DEST;
         D3D12_RESOURCE_STATES counterBufferState_ =
             D3D12_RESOURCE_STATE_COPY_DEST;
-        std::unordered_map<const RUNTIME::SurfaceDrawCommand*, size_t> argumentIndexByCommand_{};
-        std::unordered_map<const RUNTIME::SurfaceDrawCommand*, size_t> payloadIndexByCommand_{};
         std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
-        std::unordered_map<const RUNTIME::SurfaceDrawCommand*, bool> drawBindingByCommand_{};
         SurfaceIndirectDrawBufferStats stats_{};
     };
 

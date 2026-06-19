@@ -1,6 +1,7 @@
 #include "HIKARI_MeshRenderer.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -45,6 +46,77 @@ namespace HIKARI::MESHRENDERER {
     namespace {
         MeshRendererState g;
 
+        struct OwnedTraditionalIndirectStream {
+            std::vector<RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord> records{};
+            std::vector<uint32_t> executableRecordIndices{};
+            std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand> commands{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> instances{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
+            std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+            uint32_t gpuSceneBaseIndex = 0;
+            uint32_t gpuSceneInstanceCount = 0;
+
+            void Clear() {
+                records.clear();
+                executableRecordIndices.clear();
+                commands.clear();
+                instances.clear();
+                materialSources.clear();
+                jointPalettes.clear();
+                gpuSceneBaseIndex = 0;
+                gpuSceneInstanceCount = 0;
+            }
+
+            bool CopyFrom(
+                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view) {
+
+                Clear();
+                if (!view.HasCommands()) {
+                    return false;
+                }
+                records = *view.records;
+                executableRecordIndices = *view.executableRecordIndices;
+                commands = *view.commands;
+                if (view.instances != nullptr) {
+                    instances = *view.instances;
+                }
+                if (view.materialSources != nullptr) {
+                    materialSources = *view.materialSources;
+                }
+                if (view.jointPalettes != nullptr) {
+                    jointPalettes = *view.jointPalettes;
+                }
+                gpuSceneBaseIndex = view.gpuSceneBaseIndex;
+                gpuSceneInstanceCount = view.gpuSceneInstanceCount;
+                return true;
+            }
+
+            void AttachTo(RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass) const {
+                pass.traditionalIndirect.Reset();
+                if (commands.empty() || records.empty() || executableRecordIndices.empty()) {
+                    return;
+                }
+                pass.traditionalIndirect.records = &records;
+                pass.traditionalIndirect.executableRecordIndices =
+                    &executableRecordIndices;
+                pass.traditionalIndirect.commands = &commands;
+                pass.traditionalIndirect.instances =
+                    instances.empty() ? nullptr : &instances;
+                pass.traditionalIndirect.materialSources =
+                    materialSources.empty() ? nullptr : &materialSources;
+                pass.traditionalIndirect.jointPalettes =
+                    jointPalettes.empty() ? nullptr : &jointPalettes;
+                pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
+                pass.traditionalIndirect.gpuSceneInstanceCount =
+                    gpuSceneInstanceCount;
+            }
+        };
+
+        std::array<
+            OwnedTraditionalIndirectStream,
+            RENDER3D::GPUDRIVEN::kGpuDrivenPassCount>
+            gOwnedTraditionalIndirectStreams{};
+
         void UpdateClusterDrawDebugStats();
         void UpdateMeshletBackendDebugStats();
         void SyncGpuDrivenBackendAvailability();
@@ -70,6 +142,168 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
 
             return g.gpuDrivenSceneSource.GetPass(passKind);
+        }
+
+        const MeshPrimitive* ResolveTraditionalRecordPrimitive(
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+
+            if (record.model == nullptr ||
+                record.meshIndex >= record.model->meshes.size()) {
+                return nullptr;
+            }
+
+            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
+            if (record.primitiveIndex >= meshAsset.primitives.size()) {
+                return nullptr;
+            }
+
+            return &meshAsset.primitives[record.primitiveIndex];
+        }
+
+        Mesh* GetOrCreateTraditionalRecordMesh(
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
+            bool skinned) {
+
+            const MeshPrimitive* primitive = ResolveTraditionalRecordPrimitive(record);
+            if (primitive == nullptr) {
+                return nullptr;
+            }
+
+            return skinned
+                ? g.primitiveCache.GetOrCreateSkinned(
+                    SERVICES::gCtx.device,
+                    *primitive,
+                    &g.debugStats)
+                : g.primitiveCache.GetOrCreateStatic(
+                    SERVICES::gCtx.device,
+                    *primitive,
+                    &g.debugStats);
+        }
+
+        bool FillTraditionalCommandMeshView(
+            RENDER3D::RUNTIME::SurfaceDrawCommand& command,
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
+            bool skinned) {
+
+            command.triangleMeshView = {};
+            Mesh* mesh = GetOrCreateTraditionalRecordMesh(record, skinned);
+            if (mesh == nullptr || !mesh->IsValid()) {
+                return false;
+            }
+
+            command.triangleMeshView.vertexBuffer = mesh->GetVBView();
+            command.triangleMeshView.indexBuffer = mesh->GetIBView();
+            return command.HasTriangleMeshGpuView();
+        }
+
+        D3D12_GPU_VIRTUAL_ADDRESS ResolveTraditionalJointPaletteAddress(
+            size_t objectIndex) {
+
+            if (g.jointPaletteCB == nullptr || objectIndex >= kMaxObjectCount) {
+                return 0;
+            }
+
+            constexpr UINT kJointPaletteStride =
+                AlignConstantBufferSize(sizeof(JointPaletteCB));
+            return g.jointPaletteCB->GetGPUVirtualAddress() +
+                static_cast<UINT64>(kJointPaletteStride) * objectIndex;
+        }
+
+        void HydrateOwnedTraditionalIndirectStream(
+            OwnedTraditionalIndirectStream& stream) {
+
+            if (stream.commands.empty() ||
+                stream.records.empty() ||
+                stream.executableRecordIndices.empty()) {
+                return;
+            }
+
+            for (RENDER3D::RUNTIME::SurfaceDrawCommand& command :
+                stream.commands) {
+
+                command.triangleMeshView = {};
+                command.jointPaletteGpuAddress = 0;
+                if (command.recordCount == 0 ||
+                    command.firstExecutableIndex >=
+                        stream.executableRecordIndices.size()) {
+                    continue;
+                }
+
+                const uint32_t recordIndex =
+                    stream.executableRecordIndices[command.firstExecutableIndex];
+                if (recordIndex >= stream.records.size()) {
+                    continue;
+                }
+
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                    stream.records[recordIndex];
+                const bool hasJointPalette =
+                    command.firstRecordIndex !=
+                        RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
+                    command.firstRecordIndex < stream.jointPalettes.size() &&
+                    !stream.jointPalettes[command.firstRecordIndex].empty();
+                const bool skinnedCommand = record.skinned && hasJointPalette;
+                if (!FillTraditionalCommandMeshView(
+                    command,
+                    record,
+                    skinnedCommand)) {
+                    continue;
+                }
+
+                if (!skinnedCommand) {
+                    continue;
+                }
+
+                const size_t paletteSlot =
+                    static_cast<size_t>(stream.gpuSceneBaseIndex) +
+                    static_cast<size_t>(command.firstGpuSceneInstanceIndex);
+                if (paletteSlot >= kMaxObjectCount ||
+                    g.jointPaletteMapped == nullptr ||
+                    g.jointPaletteCB == nullptr) {
+                    command.jointPaletteGpuAddress = 0;
+                    continue;
+                }
+
+                (void)UploadJointPalette(
+                    g.jointPaletteMapped,
+                    paletteSlot,
+                    stream.jointPalettes[command.firstRecordIndex]);
+                command.jointPaletteGpuAddress =
+                    ResolveTraditionalJointPaletteAddress(paletteSlot);
+            }
+        }
+
+        void CopyOwnedTraditionalIndirectStreamsFromSceneSource() {
+            for (size_t passIndex = 0;
+                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
+                ++passIndex) {
+
+                OwnedTraditionalIndirectStream& owned =
+                    gOwnedTraditionalIndirectStreams[passIndex];
+                RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                    g.gpuDrivenSceneSource.passes[passIndex];
+                (void)owned.CopyFrom(pass.traditionalIndirect);
+                owned.AttachTo(pass);
+            }
+        }
+
+        void ClearOwnedTraditionalIndirectStreams() {
+            for (OwnedTraditionalIndirectStream& stream :
+                gOwnedTraditionalIndirectStreams) {
+                stream.Clear();
+            }
+        }
+
+        void HydrateGpuDrivenTraditionalIndirectStreams() {
+            for (size_t passIndex = 0;
+                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
+                ++passIndex) {
+
+                OwnedTraditionalIndirectStream& owned =
+                    gOwnedTraditionalIndirectStreams[passIndex];
+                HydrateOwnedTraditionalIndirectStream(owned);
+                owned.AttachTo(g.gpuDrivenSceneSource.passes[passIndex]);
+            }
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
@@ -160,7 +394,7 @@ namespace HIKARI::MESHRENDERER {
                 device,
                 surfaceGpuSceneSrvCpu,
                 surfaceGpuSceneSrvGpu)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. ObjectData fallback will be used.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. GPU-driven mesh pass will be unavailable.");
             }
 
             D3D12_SHADER_RESOURCE_VIEW_DESC objectDataSrv{};
@@ -238,7 +472,7 @@ namespace HIKARI::MESHRENDERER {
                 GetStaticRootSignature(g.pipelines),
                 ROOT_PARAM::SurfaceGpuSceneControl,
                 4u)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. CPU-authored indirect draws stay disabled.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. GPU-compacted surface stream will be unavailable.");
             } else if (!g.surfaceIndirectDrawBuffer.InitializeSkinnedCommandStream(
                 device,
                 GetSkinnedRootSignature(g.pipelines),
@@ -319,49 +553,6 @@ namespace HIKARI::MESHRENDERER {
             bool depthAwarePhase,
             MeshDrawPassKind passKind,
             const MeshPassResources& passResources);
-
-        bool PrepareSurfaceIndirectSeedBindings(
-            RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer& buffer,
-            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source,
-            void* userData) {
-
-            auto* drawCtx = static_cast<MeshDrawContext*>(userData);
-            if (drawCtx == nullptr) {
-                return false;
-            }
-            drawCtx->surfaceIndirectDrawBuffer = &buffer;
-
-            bool patchedAny = false;
-            const auto preparePass =
-                [&](RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
-                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view =
-                    source.GetPass(passKind).traditionalIndirect;
-                if (view.records == nullptr ||
-                    view.executableRecordIndices == nullptr ||
-                    view.commands == nullptr ||
-                    view.commands->empty()) {
-                    return;
-                }
-                drawCtx->surfaceGpuSceneBaseOffset = view.gpuSceneBaseIndex;
-                patchedAny =
-                    PrepareSurfaceRecordIndirectDrawBindings(
-                        *drawCtx,
-                        view.records->data(),
-                        view.records->size(),
-                        view.executableRecordIndices->data(),
-                        view.executableRecordIndices->size(),
-                        view.commands->data(),
-                        view.commands->size(),
-                        view.jointPalettes) ||
-                    patchedAny;
-            };
-
-            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
-            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
-            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            return patchedAny;
-        }
 
         void UploadGpuDrivenSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(&g.gpuDrivenSceneSource);
@@ -450,10 +641,7 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
             g.debugStats.surfaceIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
             g.debugStats.surfaceIndirectOverflowCommandCount = indirectStats.overflowCommandCount;
-            g.debugStats.surfaceIndirectFilteredCommandCount = indirectStats.filteredCommandCount;
-            g.debugStats.surfaceIndirectCpuDirectCommandCount = indirectStats.cpuDirectCommandCount;
             g.debugStats.surfaceIndirectMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
-            g.debugStats.surfaceIndirectDrawBindingPatchCount = indirectStats.drawBindingPatchCount;
             g.debugStats.surfaceIndirectUploadCallCount = indirectStats.uploadCallCount;
             g.debugStats.surfaceIndirectCommandStride = indirectStats.commandStride;
             g.debugStats.surfaceIndirectArgumentBufferReady = indirectStats.initialized;
@@ -474,15 +662,9 @@ namespace HIKARI::MESHRENDERER {
         void BuildStrictGpuDrivenCommandFrame() {
             const MATH::Mat4 viewProj =
                 g.cameraMapped != nullptr ? g.cameraMapped->viewProj : MATH::Mat4::Identity();
-            MeshDrawContext seedCtx =
-                BuildDrawContext(false, MeshDrawPassKind::Forward, {});
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.cullViewProj = &viewProj;
-            commandFrameDesc.prepareSurfaceIndirectSeedBindings =
-                &PrepareSurfaceIndirectSeedBindings;
-            commandFrameDesc.prepareSurfaceIndirectSeedBindingsUserData =
-                &seedCtx;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenCommandStreamDebugStats();
@@ -825,8 +1007,6 @@ namespace HIKARI::MESHRENDERER {
                 stream.CountActivePasses();
             g.debugStats.gpuDrivenCommandStreamRangeCount =
                 stream.CountActiveRanges();
-            g.debugStats.gpuDrivenCommandStreamCpuCommandCount =
-                stream.CountCpuAuthoredCommands();
             g.debugStats.gpuDrivenCommandStreamGpuCommandCount =
                 stream.CountGpuAuthoredCommands();
             g.debugStats.gpuDrivenCommandStreamTraditionalCommandCount =
@@ -846,10 +1026,6 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterMainlineOwnedRecordCount = stats.ownedRecordCount;
             g.debugStats.clusterMainlineGeometryAuxCommandCount = stats.geometryAuxCommandCount;
             g.debugStats.clusterMainlineGeometryAuxRecordCount = stats.geometryAuxRecordCount;
-            g.debugStats.clusterMainlineLegacyCommandCount = stats.legacyCommandCount;
-            g.debugStats.clusterMainlineLegacyRecordCount = stats.legacyRecordCount;
-            g.debugStats.clusterDrawBypassedLegacyCommandCount = stats.bypassedLegacyCommandCount;
-            g.debugStats.clusterDrawBypassedLegacyRecordCount = stats.bypassedLegacyRecordCount;
 
             g.debugStats.clusterDrawEligibleCommandCount = stats.eligibleCommandCount;
             g.debugStats.clusterDrawRejectContextCommandCount = stats.rejectContextCommandCount;
@@ -873,13 +1049,9 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenLayer.GetPassExecutionState(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux);
             if (forward.gpuBackendReady) {
-                // GPU-driven record path note.
-                // ここではレガシー抑止の概算だけを表示し、実際の可視性/LOD は GPU counter に任せる、E
                 stats.ownedCommandCount = forward.sourceInstanceCount;
                 stats.ownedRecordCount = forward.sourceInstanceCount;
                 stats.eligibleCommandCount = stats.ownedCommandCount;
-                stats.bypassedLegacyCommandCount = stats.ownedCommandCount;
-                stats.bypassedLegacyRecordCount = stats.ownedRecordCount;
             }
             if (geometry.gpuBackendReady) {
                 stats.geometryAuxCommandCount = geometry.sourceInstanceCount;
@@ -898,7 +1070,7 @@ namespace HIKARI::MESHRENDERER {
         struct GeometryBackendExecutionResult {
             bool gpuBackendExecuted = false;
             RENDER3D::GPUDRIVEN::GeometryBackendKind executedGpuBackend =
-                RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect;
+                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS;
         };
 
         bool ExecuteClusterDrawFrame(
@@ -1133,7 +1305,6 @@ namespace HIKARI::MESHRENDERER {
                     passResources,
                     gpuPass,
                     passKind);
-            case RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect:
             default:
                 return false;
             }
@@ -1419,10 +1590,12 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source) {
 
         g.gpuDrivenSceneSource.Reset();
+        ClearOwnedTraditionalIndirectStreams();
         if (source == nullptr) {
             return;
         }
         g.gpuDrivenSceneSource = *source;
+        CopyOwnedTraditionalIndirectStreamsFromSceneSource();
     }
 
     bool HasSubmittedItems() {
@@ -1454,6 +1627,7 @@ namespace HIKARI::MESHRENDERER {
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         if (HasGpuDrivenSceneSource()) {
+            HydrateGpuDrivenTraditionalIndirectStreams();
             PrepareGpuDrivenFrameState();
         } else {
             ResetGpuDrivenFrameState();
@@ -1497,6 +1671,7 @@ namespace HIKARI::MESHRENDERER {
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         if (HasGpuDrivenSceneSource()) {
+            HydrateGpuDrivenTraditionalIndirectStreams();
             PrepareGpuDrivenFrameState();
         } else {
             ResetGpuDrivenFrameState();

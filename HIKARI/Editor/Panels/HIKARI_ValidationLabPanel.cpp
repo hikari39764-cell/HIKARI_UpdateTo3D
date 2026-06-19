@@ -170,18 +170,11 @@ namespace HIKARI {
                 meshStats.gpuDrivenWorklistClusterPassCount,
                 meshStats.gpuDrivenWorklistSourceInstanceCount,
                 meshStats.gpuDrivenWorklistClusterInstanceCount);
-            ImGui::Text("Command Stream Passes / Ranges / GPU Cmd / CPU Cmd / Traditional: %zu / %zu / %zu / %zu / %zu",
+            ImGui::Text("Command Stream Passes / Ranges / GPU Cmd / TraditionalVS: %zu / %zu / %zu / %zu",
                 meshStats.gpuDrivenCommandStreamPassCount,
                 meshStats.gpuDrivenCommandStreamRangeCount,
                 meshStats.gpuDrivenCommandStreamGpuCommandCount,
-                meshStats.gpuDrivenCommandStreamCpuCommandCount,
                 meshStats.gpuDrivenCommandStreamTraditionalCommandCount);
-            ImGui::Text("Legacy Fallback Calls / Items Opaque / DepthAware / Transparent / GeometryAux: %zu / %zu / %zu / %zu / %zu",
-                meshStats.legacyFallbackInvocationCount,
-                meshStats.legacyFallbackOpaqueItemCount,
-                meshStats.legacyFallbackDepthAwareItemCount,
-                meshStats.legacyFallbackTransparentItemCount,
-                meshStats.legacyFallbackGeometryAuxItemCount);
             ImGui::Text("Cluster Cull Ready / Source / Candidate / Submitted / Overflow: %s / %zu / %zu / %zu / %zu",
                 clusterReady ? "Ready" : "Missing",
                 meshStats.clusterGpuCullSourceInstanceCount,
@@ -217,7 +210,7 @@ namespace HIKARI {
                 meshStats.meshletBackendGeometryAuxSubmittedDispatchCount,
                 meshStats.meshletBackendBackFaceSubmitCallCount,
                 meshStats.meshletBackendDoubleSidedSubmitCallCount);
-            ImGui::Text("Fallback ExecuteIndirect Opaque / DepthAware / Transparent: %zu / %zu / %zu",
+            ImGui::Text("Surface ExecuteIndirect Opaque / DepthAware / Transparent: %zu / %zu / %zu",
                 meshStats.surfaceIndirectOpaqueCommandCount,
                 meshStats.surfaceIndirectDepthAwareCommandCount,
                 meshStats.surfaceIndirectTransparentCommandCount);
@@ -227,12 +220,11 @@ namespace HIKARI {
                 shadowStats.shadowGpuSceneSrvValid && shadowStats.shadowGpuSceneBufferReady ? "Ready" : "Missing",
                 shadowStats.shadowGpuSceneUploadedInstanceCount,
                 shadowStats.shadowGpuSceneOverflowInstanceCount);
-            ImGui::Text("Shadow DrawCommands / Instanced / Drawn / Skipped / IndirectFallback: %zu / %zu / %zu / %zu / %zu",
+            ImGui::Text("Shadow DrawCommands / Instanced / Drawn / Skipped: %zu / %zu / %zu / %zu",
                 shadowStats.shadowRecordDrawCallCount,
                 shadowStats.shadowRecordInstancedDrawCount,
                 shadowStats.shadowRecordCasterDrawCount,
-                shadowStats.shadowRecordSkippedCount,
-                shadowStats.shadowIndirectFallbackCommandCount);
+                shadowStats.shadowRecordSkippedCount);
         }
 
         void DrawClusterValidationSection(EditorContext& context) {

@@ -369,12 +369,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 UploadTraditionalIndirectCommands(
                     *indirectDrawBuffer_,
                     *frameSource_);
-                if (desc.prepareSurfaceIndirectSeedBindings != nullptr) {
-                    (void)desc.prepareSurfaceIndirectSeedBindings(
-                        *indirectDrawBuffer_,
-                        *frameSource_,
-                        desc.prepareSurfaceIndirectSeedBindingsUserData);
-                }
                 if (desc.cullViewProj != nullptr) {
                     (void)indirectDrawBuffer_->BuildGpuCompactedCommands(
                         desc.commandList,
@@ -438,7 +432,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return state.clusterVsConsumable;
         case GeometryBackendKind::GpuDrivenTraditionalVS:
             return state.traditionalIndirectConsumable;
-        case GeometryBackendKind::CpuDirect:
         default:
             return false;
         }
@@ -458,8 +451,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (IsBackendConsumable(pass, policy.preferred)) {
             plan.AddGpuBackend(policy.preferred);
         } else if (!policy.forcePreferredOnly &&
-            IsBackendConsumable(pass, policy.fallback)) {
-            plan.AddGpuBackend(policy.fallback);
+            IsBackendConsumable(pass, policy.secondary)) {
+            plan.AddGpuBackend(policy.secondary);
         }
         if (IsBackendConsumable(
             pass,
@@ -548,9 +541,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 state.sourcePass == state.pass
                     ? GpuDrivenPassSourceMode::Own
                     : GpuDrivenPassSourceMode::Derived;
-            state.cpuFallbackAllowed =
-                ResolveGeometryBackendPolicy(state.pass).allowCpuDirectFallback;
-
             if (source == nullptr) {
                 state.sourceMode = GpuDrivenPassSourceMode::None;
                 continue;
@@ -728,7 +718,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.pass = state.pass;
                 range.sourcePass = state.sourcePass;
                 range.backend = GeometryBackendKind::GpuDrivenTraditionalVS;
-                range.producer = GpuDrivenCommandProducerKind::FutureGpuCompute;
+                range.producer = GpuDrivenCommandProducerKind::GpuCompactedIndirect;
                 range.traditionalIndirect = &passSource.traditionalIndirect;
                 range.argumentBuffer = frameContext_.commands.surfaceDrawIndexedArgs;
                 range.skinnedArgumentBuffer =

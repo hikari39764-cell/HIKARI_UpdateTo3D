@@ -4,8 +4,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
 
-        bool IsGpuBackend(GeometryBackendKind backend) {
-            return backend != GeometryBackendKind::CpuDirect;
+        bool IsKnownGpuBackend(GeometryBackendKind backend) {
+            switch (backend) {
+            case GeometryBackendKind::GpuDrivenTraditionalVS:
+            case GeometryBackendKind::GpuDrivenClusterVS:
+            case GeometryBackendKind::GpuDrivenMeshShader:
+                return true;
+            default:
+                return false;
+            }
         }
 
     } // namespace
@@ -13,7 +20,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     bool GeometryBackendExecutionPlan::AddGpuBackend(
         GeometryBackendKind backend) {
 
-        if (!IsGpuBackend(backend)) {
+        if (!IsKnownGpuBackend(backend)) {
             return false;
         }
         for (size_t i = 0; i < gpuBackendCount; ++i) {
@@ -34,30 +41,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         case GpuDrivenPassKind::ForwardOpaque:
         case GpuDrivenPassKind::GeometryAux:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = false;
+            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;
         case GpuDrivenPassKind::Shadow:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = false;
+            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;
         case GpuDrivenPassKind::ReflectionCapture:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = false;
+            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;
         case GpuDrivenPassKind::DepthAware:
         case GpuDrivenPassKind::Transparent:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = false;
+            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;
         case GpuDrivenPassKind::Debug:
         default:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.fallback = GeometryBackendKind::GpuDrivenClusterVS;
-            policy.allowCpuDirectFallback = false;
+            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;
         }
     }
@@ -68,7 +70,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GeometryBackendExecutionPlan plan{};
         plan.AddGpuBackend(policy.preferred);
         if (!policy.forcePreferredOnly) {
-            plan.AddGpuBackend(policy.fallback);
+            plan.AddGpuBackend(policy.secondary);
         }
         return plan;
     }

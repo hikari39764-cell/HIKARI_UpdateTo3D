@@ -34,15 +34,12 @@ namespace HIKARI::SHADOW {
         size_t shadowIndirectRequestedCommandCount = 0;
         size_t shadowIndirectUploadedCommandCount = 0;
         size_t shadowIndirectOverflowCommandCount = 0;
-        size_t shadowIndirectCpuDirectCommandCount = 0;
         size_t shadowIndirectMissingDrawArgsCommandCount = 0;
-        size_t shadowIndirectDrawBindingPatchCount = 0;
         size_t shadowIndirectExecutedCommandCount = 0;
         size_t shadowIndirectExecutedRecordCount = 0;
         size_t shadowIndirectBatchSubmitCount = 0;
         size_t shadowIndirectSavedSubmitCount = 0;
         size_t shadowIndirectMaxBatchCommandCount = 0;
-        size_t shadowIndirectFallbackCommandCount = 0;
         bool shadowIndirectArgumentBufferReady = false;
         bool shadowIndirectCommandSignatureReady = false;
         size_t shadowGpuSceneCapacity = 0;

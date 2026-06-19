@@ -18,18 +18,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         None,
         GpuCommandBuilder,
         GpuSceneRegistry,
-        CpuScenePlanner,
-        FutureGpuCompute,
+        GpuCompactedIndirect,
     };
 
-    constexpr size_t kGpuDrivenDrawCommandBackendSlotCount = 4u;
+    constexpr size_t kGpuDrivenDrawCommandBackendSlotCount = 3u;
 
     size_t ToDrawCommandBackendSlot(GeometryBackendKind backend);
 
     struct GpuDrivenDrawCommandRange {
         GpuDrivenPassKind pass = GpuDrivenPassKind::ForwardOpaque;
         GpuDrivenPassKind sourcePass = GpuDrivenPassKind::ForwardOpaque;
-        GeometryBackendKind backend = GeometryBackendKind::CpuDirect;
+        GeometryBackendKind backend = GeometryBackendKind::GpuDrivenTraditionalVS;
         GpuDrivenCommandProducerKind producer = GpuDrivenCommandProducerKind::None;
 
         const GpuDrivenCommandPassLayout* gpuCommandLayout = nullptr;
@@ -89,7 +88,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GeometryBackendKind backend) const;
         size_t CountActivePasses() const;
         size_t CountActiveRanges() const;
-        size_t CountCpuAuthoredCommands() const;
         size_t CountGpuAuthoredCommands() const;
         size_t CountTraditionalIndirectCommands() const;
         size_t CountGpuCounterBackedRanges() const;
