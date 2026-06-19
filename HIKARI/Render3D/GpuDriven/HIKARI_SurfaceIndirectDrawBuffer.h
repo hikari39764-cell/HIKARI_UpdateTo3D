@@ -47,6 +47,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t requestedCommandCount = 0;
         size_t uploadedCommandCount = 0;
         size_t uploadedPayloadCount = 0;
+        size_t reusedPayloadCount = 0;
         size_t uploadedStaticSeedCount = 0;
         size_t uploadedSkinnedSeedCount = 0;
         size_t overflowCommandCount = 0;
@@ -175,6 +176,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t capacity_ = 0;
         size_t cursor_ = 0;
         size_t seedCursor_ = 0;
+        size_t payloadCursor_ = 0;
         UINT rootConstantCount_ = 0;
         D3D12_RESOURCE_STATES argumentBufferState_ =
             D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
@@ -187,6 +189,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         D3D12_RESOURCE_STATES counterBufferState_ =
             D3D12_RESOURCE_STATE_COPY_DEST;
         std::unordered_map<const RUNTIME::SurfaceDrawCommand*, size_t> argumentIndexByCommand_{};
+        std::unordered_map<const RUNTIME::SurfaceDrawCommand*, size_t> payloadIndexByCommand_{};
+        std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
         std::unordered_map<const RUNTIME::SurfaceDrawCommand*, bool> drawBindingByCommand_{};
         SurfaceIndirectDrawBufferStats stats_{};
     };

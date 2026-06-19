@@ -121,7 +121,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t inputCount = 0;
             uint32_t outputCapacity = 0;
             uint32_t enableFrustumCull = 1;
-            uint32_t reserved0 = 0;
+            uint32_t payloadCount = 0;
         };
 
         bool CreateComputeRootSignature(
@@ -266,6 +266,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         capacity_ = 0;
         cursor_ = 0;
         seedCursor_ = 0;
+        payloadCursor_ = 0;
         rootConstantCount_ = rootConstantCount;
         argumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
         skinnedArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
@@ -273,6 +274,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         payloadBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         argumentIndexByCommand_.clear();
+        payloadIndexByCommand_.clear();
+        payloadIndexByGpuSceneInstance_.clear();
         drawBindingByCommand_.clear();
         stats_ = {};
 
@@ -646,7 +649,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void SurfaceIndirectDrawBuffer::ResetFrame() {
         cursor_ = 0;
         seedCursor_ = 0;
+        payloadCursor_ = 0;
         argumentIndexByCommand_.clear();
+        payloadIndexByCommand_.clear();
+        payloadIndexByGpuSceneInstance_.clear();
         drawBindingByCommand_.clear();
 
         const size_t capacity = capacity_;
@@ -731,17 +737,38 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 continue;
             }
 
+            const uint32_t absoluteGpuSceneIndex =
+                rootBaseOffset + command.firstGpuSceneInstanceIndex;
             const size_t argumentIndex = cursor_;
+            ++cursor_;
             auto* payloads =
                 reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-            SurfaceIndirectDrawPayload& payload = payloads[cursor_++];
-            payload = ToDrawPayload(command.drawArgs);
+            size_t payloadIndex = 0;
+            const auto payloadFound =
+                payloadIndexByGpuSceneInstance_.find(absoluteGpuSceneIndex);
+            if (payloadFound != payloadIndexByGpuSceneInstance_.end()) {
+                payloadIndex = payloadFound->second;
+                ++stats_.reusedPayloadCount;
+            } else {
+                if (payloadCursor_ >= capacity_) {
+                    --cursor_;
+                    ++stats_.overflowCommandCount;
+                    continue;
+                }
+                payloadIndex = payloadCursor_++;
+                payloadIndexByGpuSceneInstance_[absoluteGpuSceneIndex] = payloadIndex;
+                SurfaceIndirectDrawPayload& payload = payloads[payloadIndex];
+                payload = ToDrawPayload(command.drawArgs);
+                payload.flags =
+                    command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
+                ++stats_.uploadedPayloadCount;
+            }
             SurfaceIndirectDrawArgument& dst = mapped_[argumentIndex];
             dst = {};
             // command signature と構造体の draw offset を固定するため、root constants は常に 4 DWORD にする。
             // root constants[0] は pass ごとのインスタンス基点として扱う。
             // Forward は SurfaceGpuScene、Shadow は ShadowObjectData の base index として読む。
-            dst.rootConstants[0] = rootBaseOffset + command.firstGpuSceneInstanceIndex;
+            dst.rootConstants[0] = absoluteGpuSceneIndex;
             dst.rootConstants[1] = 1u;
             dst.rootConstants[2] = 0u;
             dst.rootConstants[3] = 0u;
@@ -751,21 +778,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     reinterpret_cast<SurfaceIndirectDrawSeed*>(seedMapped_);
                 SurfaceIndirectDrawSeed& seed = seeds[seedCursor_++];
                 seed = {};
-                seed.absoluteGpuSceneInstanceIndex =
-                    rootBaseOffset + command.firstGpuSceneInstanceIndex;
+                seed.absoluteGpuSceneInstanceIndex = absoluteGpuSceneIndex;
                 seed.boundsCenterRadius = { 0.0f, 0.0f, 0.0f, -1.0f };
                 seed.passIndex =
                     static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
                 seed.bucketIndex = ResolveCommandBucketIndex(command);
-                seed.payloadIndex = static_cast<uint32_t>(argumentIndex);
+                seed.payloadIndex = static_cast<uint32_t>(payloadIndex);
                 seed.localGpuSceneInstanceIndex = command.firstGpuSceneInstanceIndex;
                 ++stats_.uploadedSeedCount;
                 ++stats_.uploadedStaticSeedCount;
             }
             argumentIndexByCommand_[&command] = argumentIndex;
+            payloadIndexByCommand_[&command] = payloadIndex;
             drawBindingByCommand_[&command] = false;
             ++stats_.uploadedCommandCount;
-            ++stats_.uploadedPayloadCount;
         }
     }
 
@@ -821,10 +847,32 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             const size_t argumentIndex = cursor_;
+            ++cursor_;
             auto* payloads =
                 reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-            SurfaceIndirectDrawPayload& payload = payloads[cursor_++];
-            payload = ToDrawPayload(command.drawArgs);
+            size_t payloadIndex = 0;
+            const auto payloadFound =
+                payloadIndexByGpuSceneInstance_.find(absoluteGpuSceneIndex);
+            if (payloadFound != payloadIndexByGpuSceneInstance_.end()) {
+                payloadIndex = payloadFound->second;
+                ++stats_.reusedPayloadCount;
+            } else {
+                if (payloadCursor_ >= capacity_) {
+                    --cursor_;
+                    ++stats_.overflowCommandCount;
+                    continue;
+                }
+                payloadIndex = payloadCursor_++;
+                payloadIndexByGpuSceneInstance_[absoluteGpuSceneIndex] = payloadIndex;
+                SurfaceIndirectDrawPayload& payload = payloads[payloadIndex];
+                payload = ToDrawPayload(command.drawArgs);
+                payload.flags =
+                    command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
+                if (skinnedCommand) {
+                    payload.flags |= kSurfaceIndirectSeedFlagSkinned;
+                }
+                ++stats_.uploadedPayloadCount;
+            }
             SurfaceIndirectDrawArgument& argument = mapped_[argumentIndex];
             argument = {};
             argument.rootConstants[0] = absoluteGpuSceneIndex;
@@ -841,7 +889,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seed.passIndex =
                 static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
             seed.bucketIndex = ResolveCommandBucketIndex(command);
-            seed.payloadIndex = static_cast<uint32_t>(argumentIndex);
+            seed.payloadIndex = static_cast<uint32_t>(payloadIndex);
             seed.localGpuSceneInstanceIndex = command.firstGpuSceneInstanceIndex;
             seed.flags = command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
             if (skinnedCommand) {
@@ -852,9 +900,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             argumentIndexByCommand_[&command] = argumentIndex;
+            payloadIndexByCommand_[&command] = payloadIndex;
             drawBindingByCommand_[&command] = false;
             ++stats_.uploadedCommandCount;
-            ++stats_.uploadedPayloadCount;
             ++stats_.uploadedSeedCount;
         }
     }
@@ -923,6 +971,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         constants.outputCapacity = static_cast<uint32_t>(
             (std::min)(capacity_, static_cast<size_t>(UINT32_MAX)));
         constants.enableFrustumCull = enableFrustumCull ? 1u : 0u;
+        constants.payloadCount = static_cast<uint32_t>(
+            (std::min)(payloadCursor_, static_cast<size_t>(UINT32_MAX)));
         *reinterpret_cast<SurfaceIndirectCullingConstants*>(constantsMapped_) =
             constants;
 
@@ -958,7 +1008,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             0,
             seedBytes);
         const UINT64 payloadBytes =
-            static_cast<UINT64>(cursor_) *
+            static_cast<UINT64>(payloadCursor_) *
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawPayload));
         commandList->CopyBufferRegion(
             payloadBuffer_.Get(),
@@ -1257,14 +1307,19 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (found == argumentIndexByCommand_.end() || found->second >= capacity_) {
             return false;
         }
+        const auto payloadFound = payloadIndexByCommand_.find(&command);
+        if (payloadFound == payloadIndexByCommand_.end() ||
+            payloadFound->second >= capacity_) {
+            return false;
+        }
 
         SurfaceIndirectDrawArgument& argument = mapped_[found->second];
         argument.vertexBuffer = vertexBuffer;
         argument.indexBuffer = indexBuffer;
         auto* payloads =
             reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-        payloads[found->second].vertexBuffer = vertexBuffer;
-        payloads[found->second].indexBuffer = indexBuffer;
+        payloads[payloadFound->second].vertexBuffer = vertexBuffer;
+        payloads[payloadFound->second].indexBuffer = indexBuffer;
         drawBindingByCommand_[&command] = true;
         ++stats_.drawBindingPatchCount;
         return true;
@@ -1289,13 +1344,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             found->second >= capacity_) {
             return false;
         }
+        const auto payloadFound = payloadIndexByCommand_.find(&command);
+        if (payloadFound == payloadIndexByCommand_.end() ||
+            payloadFound->second >= capacity_) {
+            return false;
+        }
 
         auto* seeds = reinterpret_cast<SurfaceIndirectDrawSeed*>(seedMapped_);
         SurfaceIndirectDrawSeed& seed = seeds[found->second];
         seed.flags |= kSurfaceIndirectSeedFlagSkinned;
         auto* payloads =
             reinterpret_cast<SurfaceIndirectDrawPayload*>(payloadMapped_);
-        SurfaceIndirectDrawPayload& payload = payloads[found->second];
+        SurfaceIndirectDrawPayload& payload = payloads[payloadFound->second];
         payload.vertexBuffer = vertexBuffer;
         payload.indexBuffer = indexBuffer;
         payload.jointPalette = jointPalette;

@@ -78,7 +78,7 @@ cbuffer SurfaceIndirectCullingCB : register(b0)
     uint gSurfaceIndirectInputCount;
     uint gSurfaceIndirectOutputCapacity;
     uint gSurfaceIndirectEnableFrustumCull;
-    uint gSurfaceIndirectReserved0;
+    uint gSurfaceIndirectPayloadCount;
 };
 
 StructuredBuffer<SurfaceIndirectDrawSeed> gSurfaceIndirectSeeds : register(t0);
@@ -184,7 +184,7 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         passBucketIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
     const uint passOutputBase =
         passBucketIndex * gSurfaceIndirectOutputCapacity;
-    if (seed.payloadIndex >= gSurfaceIndirectInputCount)
+    if (seed.payloadIndex >= gSurfaceIndirectPayloadCount)
     {
         uint ignoredPayload = 0u;
         gSurfaceIndirectCounters.InterlockedAdd(
