@@ -7,6 +7,7 @@
 #include <d3dx12.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -88,10 +89,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
+            GFX::ClearD3D12InfoQueue(device);
             const HRESULT hr = device->CreateGraphicsPipelineState(
                 &psoDesc,
                 IID_PPV_ARGS(outPipelineState));
             if (!HIKARI_DX_CHECK(hr, "ClusterDraw::CreateGraphicsPipelineState")) {
+                GFX::DumpD3D12InfoQueue(device, "ClusterDraw::CreateGraphicsPipelineState");
                 return false;
             }
             GFX::SetD3D12Name(*outPipelineState, debugName);

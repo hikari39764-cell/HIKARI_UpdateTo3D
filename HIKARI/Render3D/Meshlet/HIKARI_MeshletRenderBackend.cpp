@@ -7,6 +7,7 @@
 #include <d3dx12.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -24,7 +25,6 @@ namespace HIKARI::RENDER3D::MESHLET {
             CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL DepthStencilState;
             CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
             CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER RasterizerState;
-            CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
             CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
             CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_DESC SampleDesc;
             CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_MASK SampleMask;
@@ -231,7 +231,6 @@ namespace HIKARI::RENDER3D::MESHLET {
             stream.DepthStencilState = depthStencil;
             stream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             stream.RasterizerState = rasterizer;
-            stream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             stream.RTVFormats = renderTargets;
             stream.SampleDesc = DXGI_SAMPLE_DESC{ 1, 0 };
             stream.SampleMask = (std::numeric_limits<UINT>::max)();
@@ -246,10 +245,12 @@ namespace HIKARI::RENDER3D::MESHLET {
                 return false;
             }
 
+            GFX::ClearD3D12InfoQueue(device);
             hr = device2->CreatePipelineState(
                 &desc,
                 IID_PPV_ARGS(outPipelineState));
             if (!HIKARI_DX_CHECK(hr, "MeshletRenderBackend::CreatePipelineState")) {
+                GFX::DumpD3D12InfoQueue(device, "MeshletRenderBackend::CreatePipelineState");
                 return false;
             }
             GFX::SetD3D12Name(*outPipelineState, debugName);
