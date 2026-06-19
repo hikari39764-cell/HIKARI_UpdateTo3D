@@ -9,6 +9,7 @@
 #include <wrl/client.h>
 
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPlan.h"
 
@@ -58,6 +59,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t uploadedSeedCount = 0;
         size_t gpuBuildDispatchCount = 0;
         size_t gpuCompactedCommandCapacity = 0;
+        size_t commandBucketCount = 0;
         bool initialized = false;
         bool commandSignatureReady = false;
         bool skinnedCommandSignatureReady = false;
@@ -109,10 +111,26 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         ID3D12CommandSignature* GetSkinnedCommandSignature() const;
         UINT64 GetCommandCounterOffset() const;
         UINT64 GetCommandCounterOffset(GpuDrivenPassKind pass) const;
+        UINT64 GetCommandCounterOffset(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const;
         UINT64 GetSkinnedCommandCounterOffset() const;
         UINT64 GetSkinnedCommandCounterOffset(GpuDrivenPassKind pass) const;
+        UINT64 GetSkinnedCommandCounterOffset(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const;
         UINT64 GetArgumentBufferOffset(GpuDrivenPassKind pass) const;
+        UINT64 GetArgumentBufferOffset(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const;
         UINT64 GetSkinnedArgumentBufferOffset(GpuDrivenPassKind pass) const;
+        UINT64 GetSkinnedArgumentBufferOffset(
+            GpuDrivenPassKind pass,
+            GpuDrivenCommandBucket bucket) const;
+        UINT64 GetArgumentBucketStride() const;
+        UINT64 GetSkinnedArgumentBucketStride() const;
+        UINT64 GetCounterBucketStride() const;
+        size_t GetCommandBucketCount() const;
         size_t GetUploadedSeedCount() const;
         size_t GetUploadedSkinnedSeedCount() const;
         bool HasGpuCompactedCommands() const;

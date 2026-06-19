@@ -1027,20 +1027,31 @@ namespace HIKARI::MESHRENDERER {
                 passKind == MeshDrawPassKind::GeometryAux
                     ? g.pipelines.geometryPso.Get()
                     : g.pipelines.pso.Get();
+            const size_t commandBucketCount =
+                range->commandBucketCount != 0
+                    ? range->commandBucketCount
+                    : 1u;
+            const UINT maxCommandCount = static_cast<UINT>(
+                (std::min)(
+                    range->commandCount,
+                    static_cast<size_t>((std::numeric_limits<UINT>::max)())));
             bool executed = false;
             if (hasStaticStream && pso != nullptr) {
                 BindPipelineState(drawCtx.binding, pso);
 
-                SERVICES::gCtx.cmdList->ExecuteIndirect(
-                    range->commandSignature,
-                    static_cast<UINT>(
-                        (std::min)(
-                            range->commandCount,
-                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
-                    range->argumentBuffer,
-                    range->argumentBufferOffset,
-                    range->counterBuffer,
-                    range->counterBufferOffset);
+                for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
+                    SERVICES::gCtx.cmdList->ExecuteIndirect(
+                        range->commandSignature,
+                        maxCommandCount,
+                        range->argumentBuffer,
+                        range->argumentBufferOffset +
+                            static_cast<UINT64>(bucketIndex) *
+                            range->argumentBucketStride,
+                        range->counterBuffer,
+                        range->counterBufferOffset +
+                            static_cast<UINT64>(bucketIndex) *
+                            range->counterBucketStride);
+                }
                 executed = true;
             }
 
@@ -1075,16 +1086,19 @@ namespace HIKARI::MESHRENDERER {
                 BindObjectDataIndex(drawCtx.binding, 0u);
                 BindMaterialDataIndex(drawCtx.binding, 0u);
                 BindPipelineState(drawCtx.binding, skinnedPso);
-                SERVICES::gCtx.cmdList->ExecuteIndirect(
-                    range->skinnedCommandSignature,
-                    static_cast<UINT>(
-                        (std::min)(
-                            range->commandCount,
-                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
-                    range->skinnedArgumentBuffer,
-                    range->skinnedArgumentBufferOffset,
-                    range->counterBuffer,
-                    range->skinnedCounterBufferOffset);
+                for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
+                    SERVICES::gCtx.cmdList->ExecuteIndirect(
+                        range->skinnedCommandSignature,
+                        maxCommandCount,
+                        range->skinnedArgumentBuffer,
+                        range->skinnedArgumentBufferOffset +
+                            static_cast<UINT64>(bucketIndex) *
+                            range->skinnedArgumentBucketStride,
+                        range->counterBuffer,
+                        range->skinnedCounterBufferOffset +
+                            static_cast<UINT64>(bucketIndex) *
+                            range->counterBucketStride);
+                }
                 executed = true;
             }
 

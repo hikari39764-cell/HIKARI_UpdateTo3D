@@ -15,7 +15,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         constexpr uint32_t kSurfaceIndirectThreadGroupSize = 64u;
         constexpr UINT kSurfaceIndirectCounterStrideBytes = 32u;
         constexpr UINT kSurfaceIndirectCounterBufferBytes =
-            kSurfaceIndirectCounterStrideBytes * static_cast<UINT>(kGpuDrivenPassCount);
+            kSurfaceIndirectCounterStrideBytes *
+            static_cast<UINT>(kGpuDrivenPassCount) *
+            static_cast<UINT>(kGpuDrivenCommandBucketCount);
         constexpr uint32_t kSurfaceIndirectSeedFlagDoubleSided = 1u << 0;
         constexpr uint32_t kSurfaceIndirectSeedFlagSkinned = 1u << 1;
 
@@ -58,6 +60,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : GpuDrivenPassKind::ForwardOpaque;
         }
 
+        GpuDrivenCommandBucket ResolveCommandBucket(
+            const RUNTIME::SurfaceDrawCommand& command) {
+
+            return command.doubleSided
+                ? GpuDrivenCommandBucket::DoubleSided
+                : GpuDrivenCommandBucket::BackFaceCulled;
+        }
+
+        uint32_t ResolveCommandBucketIndex(
+            const RUNTIME::SurfaceDrawCommand& command) {
+
+            return static_cast<uint32_t>(
+                ToCommandBucketIndex(ResolveCommandBucket(command)));
+        }
+
         struct SurfaceIndirectDrawSeed {
             SurfaceIndirectDrawArgument argument{};
             SurfaceSkinnedIndirectDrawArgument skinnedArgument{};
@@ -65,7 +82,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t absoluteGpuSceneInstanceIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t flags = 0;
             uint32_t passIndex = 0;
-            uint32_t reserved1 = 0;
+            uint32_t bucketIndex = 0;
         };
 
         static_assert(sizeof(SurfaceIndirectDrawSeed) == 184u);
@@ -225,7 +242,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const UINT64 bufferBytes =
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument)) *
             static_cast<UINT64>(capacity) *
-            static_cast<UINT64>(kGpuDrivenPassCount);
+            static_cast<UINT64>(kGpuDrivenPassCount) *
+            static_cast<UINT64>(kGpuDrivenCommandBucketCount);
         auto argumentHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         auto argumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             bufferBytes,
@@ -244,7 +262,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const UINT64 skinnedBufferBytes =
             static_cast<UINT64>(sizeof(SurfaceSkinnedIndirectDrawArgument)) *
             static_cast<UINT64>(capacity) *
-            static_cast<UINT64>(kGpuDrivenPassCount);
+            static_cast<UINT64>(kGpuDrivenPassCount) *
+            static_cast<UINT64>(kGpuDrivenCommandBucketCount);
         auto skinnedArgumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             skinnedBufferBytes,
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -553,6 +572,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             computeRootSignature_ != nullptr &&
             compactPipelineState_ != nullptr;
         stats_.gpuCompactedCommandCapacity = capacity;
+        stats_.commandBucketCount = kGpuDrivenCommandBucketCount;
         stats_.argumentBufferAddress = address;
         stats_.skinnedArgumentBufferAddress = skinnedAddress;
         stats_.commandStride = static_cast<UINT>(sizeof(SurfaceIndirectDrawArgument));
@@ -620,6 +640,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 seed.boundsCenterRadius = { 0.0f, 0.0f, 0.0f, -1.0f };
                 seed.passIndex =
                     static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
+                seed.bucketIndex = ResolveCommandBucketIndex(command);
                 ++stats_.uploadedSeedCount;
                 ++stats_.uploadedStaticSeedCount;
             }
@@ -699,6 +720,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             seed.absoluteGpuSceneInstanceIndex = absoluteGpuSceneIndex;
             seed.passIndex =
                 static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
+            seed.bucketIndex = ResolveCommandBucketIndex(command);
             seed.flags = command.doubleSided ? kSurfaceIndirectSeedFlagDoubleSided : 0u;
             if (skinnedCommand) {
                 seed.flags |= kSurfaceIndirectSeedFlagSkinned;
@@ -934,7 +956,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     UINT64 SurfaceIndirectDrawBuffer::GetCommandCounterOffset(GpuDrivenPassKind pass) const {
-        return static_cast<UINT64>(ToPassIndex(pass)) *
+        return GetCommandCounterOffset(
+            pass,
+            GpuDrivenCommandBucket::BackFaceCulled);
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetCommandCounterOffset(
+        GpuDrivenPassKind pass,
+        GpuDrivenCommandBucket bucket) const {
+
+        const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
+        const UINT64 bucketIndex =
+            static_cast<UINT64>(ToCommandBucketIndex(bucket));
+        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
+            bucketIndex) *
             static_cast<UINT64>(kSurfaceIndirectCounterStrideBytes);
     }
 
@@ -943,13 +978,35 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     UINT64 SurfaceIndirectDrawBuffer::GetSkinnedCommandCounterOffset(GpuDrivenPassKind pass) const {
-        return GetCommandCounterOffset(pass) + 16u;
+        return GetSkinnedCommandCounterOffset(
+            pass,
+            GpuDrivenCommandBucket::BackFaceCulled);
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetSkinnedCommandCounterOffset(
+        GpuDrivenPassKind pass,
+        GpuDrivenCommandBucket bucket) const {
+
+        return GetCommandCounterOffset(pass, bucket) + 16u;
     }
 
     UINT64 SurfaceIndirectDrawBuffer::GetArgumentBufferOffset(
         GpuDrivenPassKind pass) const {
 
-        return static_cast<UINT64>(ToPassIndex(pass)) *
+        return GetArgumentBufferOffset(
+            pass,
+            GpuDrivenCommandBucket::BackFaceCulled);
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetArgumentBufferOffset(
+        GpuDrivenPassKind pass,
+        GpuDrivenCommandBucket bucket) const {
+
+        const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
+        const UINT64 bucketIndex =
+            static_cast<UINT64>(ToCommandBucketIndex(bucket));
+        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
+            bucketIndex) *
             static_cast<UINT64>(capacity_) *
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument));
     }
@@ -957,9 +1014,40 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     UINT64 SurfaceIndirectDrawBuffer::GetSkinnedArgumentBufferOffset(
         GpuDrivenPassKind pass) const {
 
-        return static_cast<UINT64>(ToPassIndex(pass)) *
+        return GetSkinnedArgumentBufferOffset(
+            pass,
+            GpuDrivenCommandBucket::BackFaceCulled);
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetSkinnedArgumentBufferOffset(
+        GpuDrivenPassKind pass,
+        GpuDrivenCommandBucket bucket) const {
+
+        const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
+        const UINT64 bucketIndex =
+            static_cast<UINT64>(ToCommandBucketIndex(bucket));
+        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
+            bucketIndex) *
             static_cast<UINT64>(capacity_) *
             static_cast<UINT64>(sizeof(SurfaceSkinnedIndirectDrawArgument));
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetArgumentBucketStride() const {
+        return static_cast<UINT64>(capacity_) *
+            static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument));
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetSkinnedArgumentBucketStride() const {
+        return static_cast<UINT64>(capacity_) *
+            static_cast<UINT64>(sizeof(SurfaceSkinnedIndirectDrawArgument));
+    }
+
+    UINT64 SurfaceIndirectDrawBuffer::GetCounterBucketStride() const {
+        return kSurfaceIndirectCounterStrideBytes;
+    }
+
+    size_t SurfaceIndirectDrawBuffer::GetCommandBucketCount() const {
+        return kGpuDrivenCommandBucketCount;
     }
 
     size_t SurfaceIndirectDrawBuffer::GetUploadedSeedCount() const {
@@ -996,7 +1084,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         outOffsetBytes =
-            GetArgumentBufferOffset(ResolveCommandPass(command)) +
+            GetArgumentBufferOffset(
+                ResolveCommandPass(command),
+                ResolveCommandBucket(command)) +
             static_cast<UINT64>(found->second) *
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawArgument));
         return true;

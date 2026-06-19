@@ -43,6 +43,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         UINT64 skinnedArgumentBufferOffset = 0;
         UINT64 counterBufferOffset = 0;
         UINT64 skinnedCounterBufferOffset = 0;
+        UINT64 argumentBucketStride = 0;
+        UINT64 skinnedArgumentBucketStride = 0;
+        UINT64 counterBucketStride = 0;
 
         uint32_t gpuSceneBaseIndex = 0;
         size_t commandCount = 0;
@@ -50,6 +53,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t visibleCommandCount = 0;
         size_t visibleCommandOverflowCount = 0;
         size_t commandBucketCapacity = 0;
+        size_t commandBucketCount = 0;
         size_t recordCount = 0;
         size_t instanceCount = 0;
         bool consumable = false;

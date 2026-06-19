@@ -754,6 +754,22 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     indirectDrawBuffer_ != nullptr
                         ? indirectDrawBuffer_->GetSkinnedCommandCounterOffset(state.sourcePass)
                         : 0u;
+                range.argumentBucketStride =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetArgumentBucketStride()
+                        : 0u;
+                range.skinnedArgumentBucketStride =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetSkinnedArgumentBucketStride()
+                        : 0u;
+                range.counterBucketStride =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetCounterBucketStride()
+                        : 0u;
+                range.commandBucketCount =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetCommandBucketCount()
+                        : 0u;
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
                 range.commandCount = state.traditionalIndirectCommandCount;

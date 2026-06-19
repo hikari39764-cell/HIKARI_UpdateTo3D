@@ -47,7 +47,7 @@ struct SurfaceIndirectDrawSeed
     uint absoluteGpuSceneInstanceIndex;
     uint flags;
     uint passIndex;
-    uint reserved1;
+    uint bucketIndex;
 };
 
 cbuffer SurfaceIndirectCullingCB : register(b0)
@@ -71,6 +71,7 @@ static const uint HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT = 12u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_DRAW_COUNT = 16u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_VISIBLE_COUNT = 20u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES = 32u;
+static const uint HIKARI_SURFACE_INDIRECT_BUCKET_COUNT = 2u;
 static const uint HIKARI_SURFACE_INDIRECT_FLAG_SKINNED = 1u << 1;
 
 float4 HikariSurfaceIndirectViewProjRow0()
@@ -152,10 +153,14 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const SurfaceIndirectDrawSeed seed = gSurfaceIndirectSeeds[seedIndex];
+    const uint bucketIndex =
+        min(seed.bucketIndex, HIKARI_SURFACE_INDIRECT_BUCKET_COUNT - 1u);
+    const uint passBucketIndex =
+        seed.passIndex * HIKARI_SURFACE_INDIRECT_BUCKET_COUNT + bucketIndex;
     const uint passCounterBase =
-        seed.passIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
+        passBucketIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
     const uint passOutputBase =
-        seed.passIndex * gSurfaceIndirectOutputCapacity;
+        passBucketIndex * gSurfaceIndirectOutputCapacity;
     const bool skinned = (seed.flags & HIKARI_SURFACE_INDIRECT_FLAG_SKINNED) != 0u;
     const uint2 vertexLocation =
         skinned
