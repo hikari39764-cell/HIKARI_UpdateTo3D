@@ -2198,6 +2198,9 @@
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>

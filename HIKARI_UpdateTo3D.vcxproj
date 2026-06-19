@@ -902,6 +902,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl" />

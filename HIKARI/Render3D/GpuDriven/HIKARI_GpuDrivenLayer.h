@@ -6,6 +6,7 @@
 
 #include <d3d12.h>
 
+#include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
@@ -44,8 +45,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenCommandFrameDesc {
         ID3D12GraphicsCommandList* commandList = nullptr;
+        const MATH::Mat4* cullViewProj = nullptr;
         bool resetTraditionalIndirectBuffer = true;
         bool publishCommandBuffers = true;
+        bool enableSurfaceFrustumCull = true;
+        bool (*prepareSurfaceIndirectSeedBindings)(
+            SurfaceIndirectDrawBuffer& buffer,
+            const GpuDrivenSceneSource& source,
+            void* userData) = nullptr;
+        void* prepareSurfaceIndirectSeedBindingsUserData = nullptr;
     };
 
     struct GpuDrivenCommandFrameStats {

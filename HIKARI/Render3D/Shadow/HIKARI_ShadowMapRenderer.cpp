@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -1271,7 +1272,10 @@ namespace HIKARI::SHADOW {
             g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
-            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+            commandFrameDesc.cullViewProj = &g.lightViewProj;
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
         void BuildShadowGpuDrivenWorkFrame(const Camera3D& camera) {
@@ -1312,11 +1316,17 @@ namespace HIKARI::SHADOW {
             g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
-            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+            commandFrameDesc.cullViewProj = &g.lightViewProj;
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
         void UploadShadowIndirectDrawFrame() {
-            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+            commandFrameDesc.cullViewProj = &g.lightViewProj;
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
@@ -1348,120 +1358,37 @@ namespace HIKARI::SHADOW {
                     backend);
 
             if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS) {
-                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                    backendContext.traditionalIndirect;
-                if (view == nullptr ||
-                    view->records == nullptr ||
-                    view->executableRecordIndices == nullptr ||
-                    view->jointPalettes == nullptr ||
-                    view->commands == nullptr ||
-                    view->commands->empty()) {
+                const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
+                    backendContext.drawCommandRange;
+                if (range == nullptr ||
+                    !range->gpuAuthored ||
+                    !range->gpuCounterBacked ||
+                    range->argumentBuffer == nullptr ||
+                    range->counterBuffer == nullptr ||
+                    range->commandSignature == nullptr ||
+                    range->commandCount == 0) {
                     return false;
                 }
 
-                constexpr UINT objectStride = AlignConstantBufferSize(sizeof(ShadowObjectCB));
-                size_t objectIndex = 0;
-                size_t submitted = 0;
-                for (uint32_t recordIndex : *view->executableRecordIndices) {
-                    if (recordIndex >= view->records->size() ||
-                        recordIndex >= view->jointPalettes->size() ||
-                        objectIndex >= kMaxCasterObjects) {
-                        continue;
-                    }
-
-                    const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
-                        (*view->records)[recordIndex];
-                    const std::vector<MATH::Mat4>& jointPalette =
-                        (*view->jointPalettes)[recordIndex];
-                    if (record.model == nullptr ||
-                        record.meshIndex >= record.model->meshes.size() ||
-                        jointPalette.empty()) {
-                        continue;
-                    }
-
-                    const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
-                    if (record.primitiveIndex >= meshAsset.primitives.size()) {
-                        continue;
-                    }
-                    const MeshPrimitive& primitive =
-                        meshAsset.primitives[record.primitiveIndex];
-                    Mesh* mesh = !primitive.skinnedVertices.empty()
-                        ? GetOrCreateSkinnedPrimitiveMesh(primitive)
-                        : GetOrCreatePrimitiveMesh(primitive);
-                    if (mesh == nullptr || !mesh->IsValid()) {
-                        continue;
-                    }
-
-                    const MaterialAsset* materialAsset =
-                        GetPrimitiveMaterial(*record.model, primitive.materialIndex);
-                    ShadowObjectCB object{};
-                    object.world = record.objectWorldTransform.GetWorldMatrix();
-                    object.alphaCutoff =
-                        materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f;
-                    if (materialAsset != nullptr &&
-                        materialAsset->alphaMode == AlphaMode::Mask) {
-                        object.materialFlags |= MATERIAL_FEATURES::AlphaMask;
-                        ++g.debugStats.alphaMaskCasterDrawCount;
-                    }
-
-                    uint8_t* dst =
-                        reinterpret_cast<uint8_t*>(g.objectMapped) +
-                        static_cast<size_t>(objectStride) * objectIndex;
-                    std::memcpy(dst, &object, sizeof(object));
-                    const D3D12_GPU_VIRTUAL_ADDRESS objectAddress =
-                        g.objectCB->GetGPUVirtualAddress() +
-                        static_cast<UINT64>(objectStride) * objectIndex;
-
-                    cmd->SetGraphicsRootSignature(
-                        !primitive.skinnedVertices.empty()
-                            ? g.skinnedRootSig.Get()
-                            : g.rootSig.Get());
-                    cmd->SetPipelineState(
-                        !primitive.skinnedVertices.empty()
-                            ? g.skinnedPso.Get()
-                            : g.staticPso.Get());
-                    cmd->SetGraphicsRootConstantBufferView(
-                        RECORD::kShadowStaticRootParamCamera,
-                        g.cameraCB->GetGPUVirtualAddress());
-                    cmd->SetGraphicsRootConstantBufferView(
-                        RECORD::kShadowStaticRootParamObject,
-                        objectAddress);
-                    const RENDER3D::TextureResourceHandle textureResource =
-                        ResolvePrimitiveTextureResource(*record.model, materialAsset);
-                    const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
-                        RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
-                    if (textureSrv.ptr != 0) {
-                        cmd->SetGraphicsRootDescriptorTable(
-                            RECORD::kShadowStaticRootParamBaseColorTexture,
-                            textureSrv);
-                    }
-                    BindLegacyShadowSurfaceDataMode(cmd);
-                    if (!primitive.skinnedVertices.empty()) {
-                        UploadJointPalette(objectIndex, jointPalette);
-                        const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress =
-                            g.jointPaletteCB->GetGPUVirtualAddress() +
-                            static_cast<UINT64>(
-                                AlignConstantBufferSize(sizeof(JointPaletteCB))) *
-                            objectIndex;
-                        cmd->SetGraphicsRootConstantBufferView(
-                            RECORD::kShadowSkinnedRootParamJointPalette,
-                            paletteAddress);
-                        ++g.debugStats.skinnedCasterDrawCount;
-                    } else {
-                        ++g.debugStats.staticCasterDrawCount;
-                    }
-
-                    D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
-                    D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
-                    cmd->IASetVertexBuffers(0, 1, &vb);
-                    cmd->IASetIndexBuffer(&ib);
-                    cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
-                    ++g.debugStats.totalPrimitiveCasterDrawCount;
-                    ++objectIndex;
-                    ++submitted;
+                BindShadowGpuDrivenFrameResources(cmd, nullptr);
+                if (g.staticPso == nullptr) {
+                    return false;
                 }
-                g.debugStats.submittedCasterCount += submitted;
-                return submitted != 0;
+                cmd->SetPipelineState(g.staticPso.Get());
+                cmd->ExecuteIndirect(
+                    range->commandSignature,
+                    static_cast<UINT>(
+                        (std::min)(
+                            range->commandCount,
+                            static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                    range->argumentBuffer,
+                    0,
+                    range->counterBuffer,
+                    range->counterBufferOffset);
+                g.debugStats.submittedCasterCount += range->commandCount;
+                g.debugStats.staticCasterDrawCount += range->commandCount;
+                g.debugStats.totalPrimitiveCasterDrawCount += range->commandCount;
+                return true;
             }
 
             ID3D12Resource* visibleRangeBuffer =

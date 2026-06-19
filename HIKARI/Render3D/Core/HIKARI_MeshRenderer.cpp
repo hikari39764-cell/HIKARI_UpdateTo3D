@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -313,6 +314,48 @@ namespace HIKARI::MESHRENDERER {
             MeshDrawPassKind passKind,
             const MeshPassResources& passResources);
 
+        bool PrepareSurfaceIndirectSeedBindings(
+            RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer& buffer,
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source,
+            void* userData) {
+
+            auto* drawCtx = static_cast<MeshDrawContext*>(userData);
+            if (drawCtx == nullptr) {
+                return false;
+            }
+            drawCtx->surfaceIndirectDrawBuffer = &buffer;
+
+            bool patchedAny = false;
+            const auto preparePass =
+                [&](RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
+                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view =
+                    source.GetPass(passKind).traditionalIndirect;
+                if (view.records == nullptr ||
+                    view.executableRecordIndices == nullptr ||
+                    view.commands == nullptr ||
+                    view.commands->empty()) {
+                    return;
+                }
+                drawCtx->surfaceGpuSceneBaseOffset = view.gpuSceneBaseIndex;
+                patchedAny =
+                    PrepareSurfaceRecordIndirectDrawBindings(
+                        *drawCtx,
+                        view.records->data(),
+                        view.records->size(),
+                        view.executableRecordIndices->data(),
+                        view.executableRecordIndices->size(),
+                        view.commands->data(),
+                        view.commands->size()) ||
+                    patchedAny;
+            };
+
+            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
+            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
+            preparePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            return patchedAny;
+        }
+
         void UploadGpuDrivenSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(&g.gpuDrivenSceneSource);
 
@@ -422,8 +465,17 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void BuildStrictGpuDrivenCommandFrame() {
+            const MATH::Mat4 viewProj =
+                g.cameraMapped != nullptr ? g.cameraMapped->viewProj : MATH::Mat4::Identity();
+            MeshDrawContext seedCtx =
+                BuildDrawContext(false, MeshDrawPassKind::Forward, {});
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+            commandFrameDesc.cullViewProj = &viewProj;
+            commandFrameDesc.prepareSurfaceIndirectSeedBindings =
+                &PrepareSurfaceIndirectSeedBindings;
+            commandFrameDesc.prepareSurfaceIndirectSeedBindingsUserData =
+                &seedCtx;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenCommandStreamDebugStats();
@@ -931,14 +983,15 @@ namespace HIKARI::MESHRENDERER {
                     SERVICES::gCtx.cmdList,
                     gpuPass,
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
-            const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
-                backendContext.traditionalIndirect;
-            if (view == nullptr ||
-                view->records == nullptr ||
-                view->executableRecordIndices == nullptr ||
-                view->commands == nullptr ||
-                view->jointPalettes == nullptr ||
-                view->commands->empty()) {
+            const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
+                backendContext.drawCommandRange;
+            if (range == nullptr ||
+                !range->gpuAuthored ||
+                !range->gpuCounterBacked ||
+                range->argumentBuffer == nullptr ||
+                range->counterBuffer == nullptr ||
+                range->commandSignature == nullptr ||
+                range->commandCount == 0) {
                 return false;
             }
 
@@ -948,59 +1001,34 @@ namespace HIKARI::MESHRENDERER {
             MeshDrawContext drawCtx =
                 BuildDrawContext(depthAwarePhase, passKind, passResources);
             drawCtx.binding.cache = &bindingCache;
-            drawCtx.surfaceGpuSceneBaseOffset = view->gpuSceneBaseIndex;
+            drawCtx.surfaceGpuSceneBaseOffset = range->gpuSceneBaseIndex;
             BindSurfaceRecordFrameResources(drawCtx);
-
-            size_t objectIndex = 0;
-            size_t submitted = 0;
-            size_t skipped = 0;
-            for (uint32_t recordIndex : *view->executableRecordIndices) {
-                if (recordIndex >= view->records->size() ||
-                    recordIndex >= view->jointPalettes->size()) {
-                    ++skipped;
-                    continue;
-                }
-
-                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
-                    (*view->records)[recordIndex];
-                const std::vector<MATH::Mat4>& jointPalette =
-                    (*view->jointPalettes)[recordIndex];
-                if (record.model == nullptr || jointPalette.empty()) {
-                    ++skipped;
-                    continue;
-                }
-
-                DrawItem item{};
-                item.asset = record.model;
-                item.materialOverride = record.materialOverride;
-                item.transform = record.objectWorldTransform;
-                item.jointPalette = jointPalette;
-                item.materialFxProfileId = record.materialFxProfileId;
-                item.postGroupMask = record.postGroupMask;
-                for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-                    item.materialFxParamValues[i] = record.materialFxParamValues[i];
-                }
-                item.materialFxValuesInitialized = record.materialFxValuesInitialized;
-                item.usePrimitiveFilter = true;
-                item.meshIndexFilter = record.meshIndex;
-                item.primitiveIndexFilter = record.primitiveIndex;
-                item.receiveShadow = record.receiveShadow;
-                item.renderDebugMode = MeshRenderDebugMode::Normal;
-                ResolveDrawVariant(item);
-
-                if (DrawMeshItem(drawCtx, item, objectIndex)) {
-                    ++submitted;
-                } else {
-                    ++skipped;
-                }
+            BindSurfaceGpuSceneBuffer(drawCtx.binding, drawCtx.surfaceGpuSceneSrv);
+            BindObjectDataIndex(drawCtx.binding, 0u);
+            BindMaterialDataIndex(drawCtx.binding, 0u);
+            ID3D12PipelineState* pso =
+                passKind == MeshDrawPassKind::GeometryAux
+                    ? g.pipelines.geometryPso.Get()
+                    : g.pipelines.pso.Get();
+            if (pso == nullptr) {
+                return false;
             }
+            BindPipelineState(drawCtx.binding, pso);
 
-            g.debugStats.gpuDrivenSkinnedCommandCount += view->commands->size();
-            g.debugStats.gpuDrivenSkinnedSourceRecordCount +=
-                view->executableRecordIndices->size();
-            g.debugStats.gpuDrivenSkinnedSubmittedRecordCount += submitted;
-            g.debugStats.gpuDrivenSkinnedSkippedRecordCount += skipped;
-            return submitted != 0;
+            SERVICES::gCtx.cmdList->ExecuteIndirect(
+                range->commandSignature,
+                static_cast<UINT>(
+                    (std::min)(
+                        range->commandCount,
+                        static_cast<size_t>((std::numeric_limits<UINT>::max)()))),
+                range->argumentBuffer,
+                0,
+                range->counterBuffer,
+                range->counterBufferOffset);
+
+            g.debugStats.gpuDrivenSkinnedCommandCount += range->commandCount;
+            g.debugStats.gpuDrivenSkinnedSourceRecordCount += range->recordCount;
+            return true;
         }
 
         bool ExecuteGeometryBackend(

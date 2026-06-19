@@ -51,6 +51,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuCommandBuildResult {
         ID3D12Resource* surfaceDrawIndexedArgs = nullptr;
+        ID3D12Resource* surfaceDrawIndexedCounter = nullptr;
         ID3D12Resource* gpuDrawIndexedArgs = nullptr;
         ID3D12Resource* meshDispatchArgs = nullptr;
 

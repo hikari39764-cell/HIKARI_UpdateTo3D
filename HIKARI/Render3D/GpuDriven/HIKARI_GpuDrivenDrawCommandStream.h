@@ -35,7 +35,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenCommandPassLayout* gpuCommandLayout = nullptr;
         const GpuDrivenTraditionalIndirectView* traditionalIndirect = nullptr;
         ID3D12Resource* argumentBuffer = nullptr;
+        ID3D12Resource* counterBuffer = nullptr;
         ID3D12CommandSignature* commandSignature = nullptr;
+        UINT64 counterBufferOffset = 0;
 
         uint32_t gpuSceneBaseIndex = 0;
         size_t commandCount = 0;

@@ -155,9 +155,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 if (view.commands == nullptr || view.commands->empty()) {
                     continue;
                 }
-                buffer.UploadSurfaceCommands(
-                    *view.commands,
-                    view.gpuSceneBaseIndex);
+                buffer.UploadSurfaceCommandSeeds(view);
             }
         }
     }
@@ -371,7 +369,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 UploadTraditionalIndirectCommands(
                     *indirectDrawBuffer_,
                     *frameSource_);
-                (void)indirectDrawBuffer_->FlushToGpu(desc.commandList);
+                if (desc.prepareSurfaceIndirectSeedBindings != nullptr) {
+                    (void)desc.prepareSurfaceIndirectSeedBindings(
+                        *indirectDrawBuffer_,
+                        *frameSource_,
+                        desc.prepareSurfaceIndirectSeedBindingsUserData);
+                }
+                if (desc.cullViewProj != nullptr) {
+                    (void)indirectDrawBuffer_->BuildGpuCompactedCommands(
+                        desc.commandList,
+                        *desc.cullViewProj,
+                        desc.enableSurfaceFrustumCull);
+                }
             }
             commandFrameStats_.surfaceIndirectStats =
                 indirectDrawBuffer_->GetStats();
@@ -389,6 +398,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             indirectDrawBuffer_ != nullptr
                 ? indirectDrawBuffer_->GetArgumentBuffer()
                 : nullptr;
+        frameContext_.commands.surfaceDrawIndexedCounter =
+            indirectDrawBuffer_ != nullptr
+                ? indirectDrawBuffer_->GetCounterBuffer()
+                : nullptr;
         frameContext_.commands.surfaceDrawIndexedSignature =
             indirectDrawBuffer_ != nullptr
                 ? indirectDrawBuffer_->GetCommandSignature()
@@ -397,7 +410,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_.stats.commandBuildReady =
             frameContext_.commands.gpuDrawIndexedArgs != nullptr ||
             frameContext_.commands.meshDispatchArgs != nullptr ||
-            frameContext_.commands.surfaceDrawIndexedArgs != nullptr;
+            (frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
+                frameContext_.commands.surfaceDrawIndexedCounter != nullptr);
         RefreshPassExecutionStates();
     }
 
@@ -615,6 +629,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             state.traditionalIndirectConsumable =
                 state.hasSource &&
                 state.hasTraditionalIndirectCommands &&
+                indirectDrawBuffer_ != nullptr &&
+                indirectDrawBuffer_->HasGpuCompactedCommands() &&
+                frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
+                frameContext_.commands.surfaceDrawIndexedCounter != nullptr &&
+                frameContext_.commands.surfaceDrawIndexedSignature != nullptr &&
                 frameContext_.backendAvailability.traditionalIndirectPipelineReady;
             state.gpuBackendReady =
                 state.meshShaderConsumable ||
@@ -697,18 +716,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.pass = state.pass;
                 range.sourcePass = state.sourcePass;
                 range.backend = GeometryBackendKind::GpuDrivenTraditionalVS;
-                range.producer = GpuDrivenCommandProducerKind::GpuSceneRegistry;
+                range.producer = GpuDrivenCommandProducerKind::FutureGpuCompute;
                 range.traditionalIndirect = &passSource.traditionalIndirect;
                 range.argumentBuffer = frameContext_.commands.surfaceDrawIndexedArgs;
+                range.counterBuffer = frameContext_.commands.surfaceDrawIndexedCounter;
                 range.commandSignature =
                     frameContext_.commands.surfaceDrawIndexedSignature;
+                range.counterBufferOffset =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetCommandCounterOffset()
+                        : 0u;
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
-                range.commandCount = state.traditionalIndirectCommandCount;
-                range.recordCount = state.traditionalIndirectCommandCount;
+                range.commandCount =
+                    indirectDrawBuffer_ != nullptr
+                        ? indirectDrawBuffer_->GetUploadedSeedCount()
+                        : state.traditionalIndirectCommandCount;
+                range.recordCount = range.commandCount;
                 range.instanceCount = state.traditionalIndirectInstanceCount;
                 range.consumable = true;
-                range.gpuAuthored = false;
+                range.gpuAuthored = true;
+                range.gpuCounterBacked = true;
+                range.visibleCommandCountKnown = false;
                 frameContext_.drawStream.SetRange(range);
             }
         }
