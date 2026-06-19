@@ -20,9 +20,17 @@ namespace HIKARI {
     }
 
     void AnimationSystem::Update(World& world, const FrameContext& frame) {
-        world.ForEachObjectWith<ModelComponent, AnimatorComponent>([&frame](GameObject&, ModelComponent& model, AnimatorComponent& animator) {
+        world.ForEachObjectWith<ModelComponent, AnimatorComponent>([&frame](GameObject& object, ModelComponent& model, AnimatorComponent& animator) {
+            const float previousTimeSec = animator.GetTime();
+            const bool previousPlaying = animator.IsPlaying();
+            const bool previousFinished = animator.IsFinished();
             const float clipDurationSec = ResolveClipDuration(model.GetModelAsset(), animator.GetClip());
             animator.Advance(frame.gameDt, clipDurationSec);
+            if (animator.GetTime() != previousTimeSec ||
+                animator.IsPlaying() != previousPlaying ||
+                animator.IsFinished() != previousFinished) {
+                object.MarkRenderStateDirty();
+            }
         });
     }
 

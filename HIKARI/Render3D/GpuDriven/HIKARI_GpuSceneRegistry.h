@@ -28,10 +28,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t blockedForwardDepthAwareRecordCount = 0;
         uint32_t blockedForwardTransparentRecordCount = 0;
         uint32_t blockedShadowRecordCount = 0;
+        uint32_t forwardSkinnedTraditionalRecordCount = 0;
+        uint32_t shadowSkinnedTraditionalRecordCount = 0;
 
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardTransparentGpuSceneStats{};
+        RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueSkinnedTraditionalGpuSceneStats{};
+        RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareSkinnedTraditionalGpuSceneStats{};
+        RUNTIME::SurfaceGpuSceneBuildStats forwardTransparentSkinnedTraditionalGpuSceneStats{};
+        RUNTIME::SurfaceGpuSceneBuildStats shadowSkinnedTraditionalGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueTraditionalGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareTraditionalGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardTransparentTraditionalGpuSceneStats{};
@@ -57,6 +63,19 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const std::vector<GpuSceneSurfaceRecord>& GetSurfaceRecords() const;
         const GpuSceneRegistryStats& GetStats() const;
 
+    public:
+        struct TraditionalSkinnedStream {
+            std::vector<RUNTIME::SurfaceDrawPacket> packets{};
+            std::vector<uint32_t> executablePacketIndices{};
+            std::vector<RUNTIME::SurfaceDrawCommand> commands{};
+            std::vector<RUNTIME::SurfaceGpuSceneInstance> instances{};
+            std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
+            std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+
+            void Clear();
+            bool HasCommands() const;
+        };
+
     private:
         struct ObjectCoverage {
             uint32_t expectedForwardRecordCount = 0;
@@ -78,6 +97,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<uint32_t> forwardDepthAwareResidentRecordIndices_{};
         std::vector<uint32_t> forwardTransparentResidentRecordIndices_{};
         std::vector<uint32_t> shadowResidentRecordIndices_{};
+        std::vector<uint32_t> forwardOpaqueSkinnedRecordIndices_{};
+        std::vector<uint32_t> forwardDepthAwareSkinnedRecordIndices_{};
+        std::vector<uint32_t> forwardTransparentSkinnedRecordIndices_{};
+        std::vector<uint32_t> shadowSkinnedRecordIndices_{};
         std::vector<uint32_t> forwardOpaqueGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardDepthAwareGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardTransparentGpuSceneIndexByRecord_{};
@@ -90,6 +113,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardTransparentMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> shadowGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> shadowMaterialSources_{};
+        TraditionalSkinnedStream forwardOpaqueSkinnedStream_{};
+        TraditionalSkinnedStream forwardDepthAwareSkinnedStream_{};
+        TraditionalSkinnedStream forwardTransparentSkinnedStream_{};
+        TraditionalSkinnedStream shadowSkinnedStream_{};
         std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
         GpuDrivenSceneSource sceneSource_{};
         GpuSceneRegistryStats stats_{};

@@ -811,6 +811,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         packet.visible = surfaceInstance.visible;
         packet.isStatic = surfaceInstance.isStatic;
         packet.hasRuntimeAnimation = surfaceInstance.hasRuntimeAnimation;
+        packet.animationClipName = surfaceInstance.animationClipName;
+        packet.animationTimeSec = surfaceInstance.animationTimeSec;
+        packet.animationLoop = surfaceInstance.animationLoop;
         packet.hasSpecialRenderDebug = surfaceInstance.hasSpecialRenderDebug;
         packet.skinned = surfaceInstance.skinned;
         packet.castShadow = surfaceInstance.castShadow;

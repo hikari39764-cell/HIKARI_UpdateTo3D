@@ -244,6 +244,10 @@ namespace HIKARI::MESHRENDERER {
     struct MeshRendererDebugStats {
         size_t skinnedGpuDrawCount = 0;
         size_t skinnedFallbackCount = 0;
+        size_t gpuDrivenSkinnedCommandCount = 0;
+        size_t gpuDrivenSkinnedSourcePacketCount = 0;
+        size_t gpuDrivenSkinnedSubmittedPacketCount = 0;
+        size_t gpuDrivenSkinnedSkippedPacketCount = 0;
         size_t uploadedJointCount = 0;
         size_t maxJointCount = 0;
         size_t lastSkinnedVertexCount = 0;

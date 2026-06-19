@@ -540,6 +540,9 @@ namespace HIKARI::SHADOW {
             PrepareShadowSurfaceGpuSceneMaterialSources(
                 shadow.gpuSceneBaseIndex,
                 shadow.materialSources);
+            PrepareShadowSurfaceGpuSceneMaterialSources(
+                shadow.traditionalIndirect.gpuSceneBaseIndex,
+                shadow.traditionalIndirect.materialSources);
         }
 
         const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* GetSourceShadowPass() {
@@ -549,7 +552,7 @@ namespace HIKARI::SHADOW {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
                 g.gpuDrivenSceneSource->GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            return pass.HasPrimaryGpuSceneInstances()
+            return pass.HasGpuSceneInstances()
                 ? &pass
                 : nullptr;
         }
@@ -559,7 +562,7 @@ namespace HIKARI::SHADOW {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* sourcePass =
                 GetSourceShadowPass();
             if (sourcePass == nullptr ||
-                !sourcePass->HasPrimaryGpuSceneInstances()) {
+                !sourcePass->HasGpuSceneInstances()) {
                 return false;
             }
 
@@ -571,7 +574,8 @@ namespace HIKARI::SHADOW {
             shadowPass.preferredBackend =
                 RENDER3D::GPUDRIVEN::GpuDrivenBackendKind::MeshShader;
             shadowPass.dirtyRanges.clear();
-            shadowPass.traditionalIndirect.Reset();
+            shadowPass.traditionalIndirect.gpuSceneBaseIndex =
+                shadowPass.gpuSceneInstanceCount;
 
             g.shadowSceneSource.layoutVersion =
                 g.gpuDrivenSceneSource != nullptr
@@ -582,7 +586,8 @@ namespace HIKARI::SHADOW {
                     ? g.gpuDrivenSceneSource->sourceVersion
                     : 0u;
             g.shadowSceneSource.sourceInstanceCount =
-                shadowPass.gpuSceneInstanceCount;
+                shadowPass.gpuSceneInstanceCount +
+                shadowPass.traditionalIndirect.gpuSceneInstanceCount;
             return g.shadowSceneSource.sourceInstanceCount != 0;
         }
 
@@ -596,6 +601,9 @@ namespace HIKARI::SHADOW {
                 meshletStats.shadowPipelineReady;
             availability.clusterVsForwardPipelineReady =
                 clusterStats.shadowPipelineReady;
+            availability.traditionalIndirectPipelineReady =
+                g.skinnedRootSig != nullptr &&
+                g.skinnedPso != nullptr;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
 
@@ -1260,7 +1268,7 @@ namespace HIKARI::SHADOW {
             g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
-            g.gpuDrivenLayer.BuildCommandFrame({});
+            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
         }
 
         void BuildShadowGpuDrivenWorkFrame(const Camera3D& camera) {
@@ -1301,11 +1309,11 @@ namespace HIKARI::SHADOW {
             g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
-            g.gpuDrivenLayer.BuildCommandFrame({});
+            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
         }
 
         void UploadShadowIndirectDrawFrame() {
-            g.gpuDrivenLayer.BuildCommandFrame({});
+            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
 
             const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
                 g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
@@ -1335,6 +1343,124 @@ namespace HIKARI::SHADOW {
                     cmd,
                     shadowPass,
                     backend);
+
+            if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS) {
+                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView* view =
+                    backendContext.traditionalIndirect;
+                if (view == nullptr ||
+                    view->packets == nullptr ||
+                    view->executablePacketIndices == nullptr ||
+                    view->jointPalettes == nullptr ||
+                    view->commands == nullptr ||
+                    view->commands->empty()) {
+                    return false;
+                }
+
+                constexpr UINT objectStride = AlignConstantBufferSize(sizeof(ShadowObjectCB));
+                size_t objectIndex = 0;
+                size_t submitted = 0;
+                for (uint32_t packetIndex : *view->executablePacketIndices) {
+                    if (packetIndex >= view->packets->size() ||
+                        packetIndex >= view->jointPalettes->size() ||
+                        objectIndex >= kMaxCasterObjects) {
+                        continue;
+                    }
+
+                    const RENDER3D::RUNTIME::SurfaceDrawPacket& packet =
+                        (*view->packets)[packetIndex];
+                    const std::vector<MATH::Mat4>& jointPalette =
+                        (*view->jointPalettes)[packetIndex];
+                    if (packet.model == nullptr ||
+                        packet.meshIndex >= packet.model->meshes.size() ||
+                        jointPalette.empty()) {
+                        continue;
+                    }
+
+                    const MeshAsset& meshAsset = packet.model->meshes[packet.meshIndex];
+                    if (packet.primitiveIndex >= meshAsset.primitives.size()) {
+                        continue;
+                    }
+                    const MeshPrimitive& primitive =
+                        meshAsset.primitives[packet.primitiveIndex];
+                    Mesh* mesh = !primitive.skinnedVertices.empty()
+                        ? GetOrCreateSkinnedPrimitiveMesh(primitive)
+                        : GetOrCreatePrimitiveMesh(primitive);
+                    if (mesh == nullptr || !mesh->IsValid()) {
+                        continue;
+                    }
+
+                    const MaterialAsset* materialAsset =
+                        GetPrimitiveMaterial(*packet.model, primitive.materialIndex);
+                    ShadowObjectCB object{};
+                    object.world = packet.objectWorldTransform.GetWorldMatrix();
+                    object.alphaCutoff =
+                        materialAsset != nullptr ? materialAsset->alphaCutoff : 0.5f;
+                    if (materialAsset != nullptr &&
+                        materialAsset->alphaMode == AlphaMode::Mask) {
+                        object.materialFlags |= MATERIAL_FEATURES::AlphaMask;
+                        ++g.debugStats.alphaMaskCasterDrawCount;
+                    }
+
+                    uint8_t* dst =
+                        reinterpret_cast<uint8_t*>(g.objectMapped) +
+                        static_cast<size_t>(objectStride) * objectIndex;
+                    std::memcpy(dst, &object, sizeof(object));
+                    const D3D12_GPU_VIRTUAL_ADDRESS objectAddress =
+                        g.objectCB->GetGPUVirtualAddress() +
+                        static_cast<UINT64>(objectStride) * objectIndex;
+
+                    cmd->SetGraphicsRootSignature(
+                        !primitive.skinnedVertices.empty()
+                            ? g.skinnedRootSig.Get()
+                            : g.rootSig.Get());
+                    cmd->SetPipelineState(
+                        !primitive.skinnedVertices.empty()
+                            ? g.skinnedPso.Get()
+                            : g.staticPso.Get());
+                    cmd->SetGraphicsRootConstantBufferView(
+                        PACKET::kShadowStaticRootParamCamera,
+                        g.cameraCB->GetGPUVirtualAddress());
+                    cmd->SetGraphicsRootConstantBufferView(
+                        PACKET::kShadowStaticRootParamObject,
+                        objectAddress);
+                    const RENDER3D::TextureResourceHandle textureResource =
+                        ResolvePrimitiveTextureResource(*packet.model, materialAsset);
+                    const D3D12_GPU_DESCRIPTOR_HANDLE textureSrv =
+                        RENDER3D::GetTextureResourceSrvGpuHandle(textureResource);
+                    if (textureSrv.ptr != 0) {
+                        cmd->SetGraphicsRootDescriptorTable(
+                            PACKET::kShadowStaticRootParamBaseColorTexture,
+                            textureSrv);
+                    }
+                    BindLegacyShadowSurfaceDataMode(cmd);
+                    if (!primitive.skinnedVertices.empty()) {
+                        UploadJointPalette(objectIndex, jointPalette);
+                        const D3D12_GPU_VIRTUAL_ADDRESS paletteAddress =
+                            g.jointPaletteCB->GetGPUVirtualAddress() +
+                            static_cast<UINT64>(
+                                AlignConstantBufferSize(sizeof(JointPaletteCB))) *
+                            objectIndex;
+                        cmd->SetGraphicsRootConstantBufferView(
+                            PACKET::kShadowSkinnedRootParamJointPalette,
+                            paletteAddress);
+                        ++g.debugStats.skinnedCasterDrawCount;
+                    } else {
+                        ++g.debugStats.staticCasterDrawCount;
+                    }
+
+                    D3D12_VERTEX_BUFFER_VIEW vb = mesh->GetVBView();
+                    D3D12_INDEX_BUFFER_VIEW ib = mesh->GetIBView();
+                    cmd->IASetVertexBuffers(0, 1, &vb);
+                    cmd->IASetIndexBuffer(&ib);
+                    cmd->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+                    ++g.debugStats.totalPrimitiveCasterDrawCount;
+                    ++objectIndex;
+                    ++submitted;
+                }
+                g.debugStats.submittedCasterCount += submitted;
+                return submitted != 0;
+            }
+
             ID3D12Resource* visibleRangeBuffer =
                 backendContext.visibility != nullptr
                     ? backendContext.visibility->visibleMeshletRangeBuffer
@@ -1363,7 +1489,6 @@ namespace HIKARI::SHADOW {
                 ctx.pipelineKind = RENDER3D::CLUSTER::ClusterDrawPipelineKind::Shadow;
                 return g.clusterDrawExecutor.Execute(ctx);
             }
-            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::CpuDirect:
             default:
                 return false;
@@ -1380,12 +1505,13 @@ namespace HIKARI::SHADOW {
 
             const RENDER3D::GPUDRIVEN::GeometryBackendExecutionPlan plan =
                 g.gpuDrivenLayer.GetPassExecutionPlan(shadowPass);
+            bool executed = false;
             for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
                 if (ExecuteShadowGpuDrivenBackend(plan.gpuBackends[i])) {
-                    return true;
+                    executed = true;
                 }
             }
-            return false;
+            return executed;
         }
 
     }

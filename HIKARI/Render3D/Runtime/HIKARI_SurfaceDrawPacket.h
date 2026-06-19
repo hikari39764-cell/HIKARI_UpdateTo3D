@@ -90,6 +90,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool visible = true;
         bool isStatic = false;
         bool hasRuntimeAnimation = false;
+        std::string animationClipName{};
+        float animationTimeSec = 0.0f;
+        bool animationLoop = true;
         bool hasSpecialRenderDebug = false;
         bool skinned = false;
         bool castShadow = true;

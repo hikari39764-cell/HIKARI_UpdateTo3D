@@ -134,7 +134,12 @@ namespace HIKARI {
             desc.clusteredGeometryPath = clusteredGeometryPaths.Resolve(model);
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
-            desc.hasRuntimeAnimation = object.GetComponent<AnimatorComponent>() != nullptr;
+            if (const AnimatorComponent* animator = object.GetComponent<AnimatorComponent>()) {
+                desc.hasRuntimeAnimation = true;
+                desc.animationClipName = animator->GetClip();
+                desc.animationTimeSec = animator->GetTime();
+                desc.animationLoop = animator->GetLoop();
+            }
             desc.hasSpecialRenderDebug =
                 model.GetRenderDebugMode() != ModelRenderDebugMode::Normal ||
                 model.IsSkeletonDebugVisible();

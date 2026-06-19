@@ -43,6 +43,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     };
 
     struct GpuDrivenCommandFrameDesc {
+        ID3D12GraphicsCommandList* commandList = nullptr;
         bool resetTraditionalIndirectBuffer = true;
         bool publishCommandBuffers = true;
     };

@@ -45,6 +45,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool castShadow = true;
         bool receiveShadow = true;
         bool hasRuntimeAnimation = false;
+        std::string animationClipName{};
+        float animationTimeSec = 0.0f;
+        bool animationLoop = true;
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
         std::string clusteredGeometryPath{};
@@ -99,6 +102,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool castShadow = true;
         bool receiveShadow = true;
         bool hasRuntimeAnimation = false;
+        std::string animationClipName{};
+        float animationTimeSec = 0.0f;
+        bool animationLoop = true;
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
         bool skinned = false;

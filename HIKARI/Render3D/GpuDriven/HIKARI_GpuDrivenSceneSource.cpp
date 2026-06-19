@@ -8,6 +8,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         commands = nullptr;
         instances = nullptr;
         materialSources = nullptr;
+        jointPalettes = nullptr;
         gpuSceneBaseIndex = 0;
         gpuSceneInstanceCount = 0;
     }

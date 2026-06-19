@@ -17,6 +17,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     enum class GpuDrivenCommandProducerKind : uint32_t {
         None,
         GpuCommandBuilder,
+        GpuSceneRegistry,
         CpuScenePlanner,
         FutureGpuCompute,
     };

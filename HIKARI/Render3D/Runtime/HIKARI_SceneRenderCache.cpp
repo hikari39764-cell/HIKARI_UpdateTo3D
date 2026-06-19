@@ -87,6 +87,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 oldDesc.materialFxValuesInitialized != newDesc.materialFxValuesInitialized ||
                 !EqualMaterialFxValues(oldDesc.materialFxParamValues, newDesc.materialFxParamValues);
 
+            const bool animationDataChanged =
+                oldDesc.animationClipName != newDesc.animationClipName ||
+                oldDesc.animationTimeSec != newDesc.animationTimeSec ||
+                oldDesc.animationLoop != newDesc.animationLoop;
+
             flags.routing =
                 flags.material ||
                 oldDesc.visible != newDesc.visible ||
@@ -100,7 +105,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             flags.any =
                 flags.model ||
                 flags.transform ||
-                flags.routing;
+                flags.routing ||
+                animationDataChanged;
 
             return flags;
         }
@@ -153,6 +159,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             instance.castShadow = object.desc.castShadow && surface.castShadowDefault;
             instance.receiveShadow = object.desc.receiveShadow && surface.receiveShadowDefault;
             instance.hasRuntimeAnimation = object.desc.hasRuntimeAnimation;
+            instance.animationClipName = object.desc.animationClipName;
+            instance.animationTimeSec = object.desc.animationTimeSec;
+            instance.animationLoop = object.desc.animationLoop;
             instance.hasSpecialRenderDebug = object.desc.hasSpecialRenderDebug;
             instance.allowStaticCachedForward = object.desc.allowStaticCachedForward;
             instance.skinned = surface.IsSkinned();
