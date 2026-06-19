@@ -186,4 +186,40 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return count;
     }
 
+    size_t GpuDrivenDrawCommandStream::CountGpuCounterBackedRanges() const {
+        size_t count = 0;
+        for (const GpuDrivenPassDrawCommandStream& pass : passes) {
+            for (const GpuDrivenDrawCommandRange& range : pass.ranges) {
+                if (range.IsActive() && range.gpuCounterBacked) {
+                    ++count;
+                }
+            }
+        }
+        return count;
+    }
+
+    size_t GpuDrivenDrawCommandStream::CountKnownGpuVisibleCommands() const {
+        size_t count = 0;
+        for (const GpuDrivenPassDrawCommandStream& pass : passes) {
+            for (const GpuDrivenDrawCommandRange& range : pass.ranges) {
+                if (range.IsActive() && range.visibleCommandCountKnown) {
+                    count += range.visibleCommandCount;
+                }
+            }
+        }
+        return count;
+    }
+
+    size_t GpuDrivenDrawCommandStream::CountKnownGpuVisibleCommandOverflows() const {
+        size_t count = 0;
+        for (const GpuDrivenPassDrawCommandStream& pass : passes) {
+            for (const GpuDrivenDrawCommandRange& range : pass.ranges) {
+                if (range.IsActive() && range.visibleCommandCountKnown) {
+                    count += range.visibleCommandOverflowCount;
+                }
+            }
+        }
+        return count;
+    }
+
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

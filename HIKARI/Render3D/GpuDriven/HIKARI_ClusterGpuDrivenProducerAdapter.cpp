@@ -70,6 +70,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
                 GpuDrivenCommandBucketLayout& bucketLayout =
                     layout.GetBucket(ToGpuDrivenCommandBucket(sourceBucket));
+                GpuVisibilityBucketResult& bucketVisibility =
+                    passVisibility.buckets[ToCommandBucketIndex(
+                        ToGpuDrivenCommandBucket(sourceBucket))];
                 bucketLayout.gpuDrawIndexedArgumentOffset =
                     cullingPass.GetDrawArgumentBufferOffset(
                         clusterPass,
@@ -82,6 +85,27 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     cullingPass.GetDrawCommandCounterOffset(
                         clusterPass,
                         sourceBucket);
+                bucketVisibility.commandCapacity =
+                    cullingPass.GetDrawArgumentBucketCapacity();
+                bucketVisibility.commandCounterOffset =
+                    bucketLayout.counterOffset;
+                bucketVisibility.gpuCounterBacked =
+                    bucketVisibility.commandCapacity != 0;
+                bucketVisibility.visibleCommandCountKnown =
+                    stats.gpuCounterReadbackValid;
+                if (stats.gpuCounterReadbackValid) {
+                    if (sourceBucket == CLUSTER::ClusterDrawCullModeBucket::DoubleSided) {
+                        bucketVisibility.visibleCommandCount =
+                            stats.gpuDoubleSidedDrawCommandCount;
+                        bucketVisibility.visibleCommandOverflowCount =
+                            stats.gpuDoubleSidedDrawCommandOverflowCount;
+                    } else {
+                        bucketVisibility.visibleCommandCount =
+                            stats.gpuBackFaceDrawCommandCount;
+                        bucketVisibility.visibleCommandOverflowCount =
+                            stats.gpuBackFaceDrawCommandOverflowCount;
+                    }
+                }
             }
         }
     }

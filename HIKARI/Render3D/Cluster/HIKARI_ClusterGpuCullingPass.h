@@ -53,6 +53,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             size_t sourceSingleSidedInstanceCount = 0;
             size_t sourceDoubleSidedInstanceCount = 0;
             size_t submittedDrawSeedCount = 0;
+            size_t gpuBackFaceDrawCommandCount = 0;
+            size_t gpuDoubleSidedDrawCommandCount = 0;
+            size_t gpuDrawCommandCount = 0;
+            size_t gpuBackFaceDrawCommandOverflowCount = 0;
+            size_t gpuDoubleSidedDrawCommandOverflowCount = 0;
+            size_t gpuDrawCommandOverflowCount = 0;
+            bool gpuCounterReadbackValid = false;
         };
 
         bool initialized = false;

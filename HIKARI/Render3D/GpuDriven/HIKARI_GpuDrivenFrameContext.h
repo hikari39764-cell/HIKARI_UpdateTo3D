@@ -48,8 +48,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         size_t sourceInstanceCount = 0;
         size_t drawSeedCount = 0;
+        size_t visibleCommandCount = 0;
+        size_t visibleCommandOverflowCount = 0;
+        size_t gpuCommandBucketCapacity = 0;
         size_t traditionalIndirectCommandCount = 0;
         size_t traditionalIndirectInstanceCount = 0;
+        bool gpuCommandCounterBacked = false;
+        bool visibleCommandCountKnown = false;
     };
 
     struct GpuDrivenWorkOwnershipStats {

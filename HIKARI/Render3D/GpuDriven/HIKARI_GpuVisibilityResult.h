@@ -12,6 +12,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuVisibilityBucketResult {
         size_t sourceInstanceCount = 0;
+        size_t visibleCommandCount = 0;
+        size_t visibleCommandOverflowCount = 0;
+        size_t commandCapacity = 0;
+        UINT64 commandCounterOffset = 0;
+        bool gpuCounterBacked = false;
+        bool visibleCommandCountKnown = false;
+
+        bool HasGpuCounter() const {
+            return gpuCounterBacked && commandCapacity != 0;
+        }
+
+        bool HasKnownVisibleCommands() const {
+            return visibleCommandCountKnown && visibleCommandCount != 0;
+        }
     };
 
     struct GpuVisibilityPassResult {
@@ -35,6 +49,44 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return submittedDrawSeedCount != 0;
             }
             return GetSourceInstanceCount(bucket) != 0;
+        }
+
+        bool HasGpuCommandCounters() const {
+            for (const GpuVisibilityBucketResult& bucket : buckets) {
+                if (bucket.HasGpuCounter()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool HasKnownVisibleCommandCounts() const {
+            for (const GpuVisibilityBucketResult& bucket : buckets) {
+                if (bucket.visibleCommandCountKnown) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        size_t CountKnownVisibleCommands() const {
+            size_t count = 0;
+            for (const GpuVisibilityBucketResult& bucket : buckets) {
+                if (bucket.visibleCommandCountKnown) {
+                    count += bucket.visibleCommandCount;
+                }
+            }
+            return count;
+        }
+
+        size_t CountKnownVisibleCommandOverflows() const {
+            size_t count = 0;
+            for (const GpuVisibilityBucketResult& bucket : buckets) {
+                if (bucket.visibleCommandCountKnown) {
+                    count += bucket.visibleCommandOverflowCount;
+                }
+            }
+            return count;
         }
     };
 

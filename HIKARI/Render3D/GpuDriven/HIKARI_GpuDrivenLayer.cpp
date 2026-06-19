@@ -559,15 +559,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const GpuDrivenPassKind commandPass = state.visibilityPass;
             const bool hasBucketCapacity =
                 HasCommandBucketCapacity(frameContext_.commands, commandPass);
+            const GpuDrivenCommandPassLayout& commandLayout =
+                frameContext_.commands.layout.GetPass(commandPass);
 
             state.drawSeedCount = visibility.submittedDrawSeedCount;
             state.hasDrawSeeds = state.drawSeedCount != 0;
+            state.visibleCommandCount =
+                visibility.CountKnownVisibleCommands();
+            state.visibleCommandOverflowCount =
+                visibility.CountKnownVisibleCommandOverflows();
+            state.visibleCommandCountKnown =
+                visibility.HasKnownVisibleCommandCounts();
+            state.gpuCommandCounterBacked =
+                visibility.HasGpuCommandCounters();
+            state.gpuCommandBucketCapacity =
+                commandLayout.commandBucketCapacity;
             state.overflowBlocked =
                 frameContext_.stats.visibilityOverflowInstanceCount != 0;
             state.visibilityReady =
                 frameContext_.stats.visibilityReady &&
                 state.hasDrawSeeds &&
                 frameContext_.visibility.counterBuffer != nullptr &&
+                state.gpuCommandCounterBacked &&
                 !state.overflowBlocked;
             state.commandBuildReady =
                 frameContext_.stats.commandBuildReady &&
@@ -640,9 +653,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.commandSignature =
                     frameContext_.commands.meshDispatchSignature;
                 range.commandCount = state.drawSeedCount;
+                range.visibleCommandCount = state.visibleCommandCount;
+                range.visibleCommandOverflowCount =
+                    state.visibleCommandOverflowCount;
+                range.commandBucketCapacity =
+                    state.gpuCommandBucketCapacity;
                 range.instanceCount = state.sourceInstanceCount;
                 range.consumable = true;
                 range.gpuAuthored = true;
+                range.gpuCounterBacked = state.gpuCommandCounterBacked;
+                range.visibleCommandCountKnown =
+                    state.visibleCommandCountKnown;
                 frameContext_.drawStream.SetRange(range);
             }
 
@@ -657,9 +678,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.commandSignature =
                     frameContext_.commands.gpuDrawIndexedSignature;
                 range.commandCount = state.drawSeedCount;
+                range.visibleCommandCount = state.visibleCommandCount;
+                range.visibleCommandOverflowCount =
+                    state.visibleCommandOverflowCount;
+                range.commandBucketCapacity =
+                    state.gpuCommandBucketCapacity;
                 range.instanceCount = state.sourceInstanceCount;
                 range.consumable = true;
                 range.gpuAuthored = true;
+                range.gpuCounterBacked = state.gpuCommandCounterBacked;
+                range.visibleCommandCountKnown =
+                    state.visibleCommandCountKnown;
                 frameContext_.drawStream.SetRange(range);
             }
 

@@ -756,6 +756,31 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 globalCounters.lod2SelectedCount;
             stats_.gpuLod3PlusSelectedCount =
                 globalCounters.lod3PlusSelectedCount;
+
+            for (size_t passIndex = 0;
+                passIndex < kClusterGpuCullingPassKindCount;
+                ++passIndex) {
+
+                const GpuPassCounters& passCounters =
+                    latestGpuCounters_.passes[passIndex];
+                ClusterGpuCullingPassStats::PassOutputStats& passStats =
+                    stats_.passOutputs[passIndex];
+                passStats.gpuBackFaceDrawCommandCount =
+                    passCounters.backFaceDrawCommandCount;
+                passStats.gpuDoubleSidedDrawCommandCount =
+                    passCounters.doubleSidedDrawCommandCount;
+                passStats.gpuDrawCommandCount =
+                    passStats.gpuBackFaceDrawCommandCount +
+                    passStats.gpuDoubleSidedDrawCommandCount;
+                passStats.gpuBackFaceDrawCommandOverflowCount =
+                    passCounters.backFaceDrawCommandOverflowCount;
+                passStats.gpuDoubleSidedDrawCommandOverflowCount =
+                    passCounters.doubleSidedDrawCommandOverflowCount;
+                passStats.gpuDrawCommandOverflowCount =
+                    passStats.gpuBackFaceDrawCommandOverflowCount +
+                    passStats.gpuDoubleSidedDrawCommandOverflowCount;
+                passStats.gpuCounterReadbackValid = true;
+            }
         }
     }
 
@@ -848,6 +873,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t rangeCount) {
 
         const bool counterReadbackEnabled =
+            GFX::GetGfxDebugConfig().enableClusterGpuCullCounterReadback;
+        const bool debugCountersEnabled =
             GFX::GetGfxDebugConfig().enableClusterGpuCullDebugCounters;
         BeginFrame(counterReadbackEnabled);
 
@@ -884,7 +911,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         baseConstants.clusterSrvPoolBegin = GFX::DESCRIPTOR::kSystemSrvDynamicBegin;
         baseConstants.clusterSrvPoolCount = GFX::DESCRIPTOR::kSystemSrvDynamicCount;
         baseConstants.enableConeCull = 1u;
-        baseConstants.enableDebugCounters = counterReadbackEnabled ? 1u : 0u;
+        baseConstants.enableDebugCounters = debugCountersEnabled ? 1u : 0u;
         baseConstants.pageTaskCapacity = static_cast<uint32_t>(pageTaskCapacity_);
         // GPU 側の draw args 圧縮は小さな index gap だけを吸収し、過剰な overdraw を上限で止める。
         baseConstants.mergeGapIndexLimit = kClusterCullMergeGapIndexLimit;

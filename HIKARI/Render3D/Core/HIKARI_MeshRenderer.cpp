@@ -770,6 +770,12 @@ namespace HIKARI::MESHRENDERER {
                 stream.CountGpuAuthoredCommands();
             g.debugStats.gpuDrivenCommandStreamTraditionalCommandCount =
                 stream.CountTraditionalIndirectCommands();
+            g.debugStats.gpuDrivenCommandStreamGpuCounterBackedRangeCount =
+                stream.CountGpuCounterBackedRanges();
+            g.debugStats.gpuDrivenCommandStreamKnownVisibleCommandCount =
+                stream.CountKnownGpuVisibleCommands();
+            g.debugStats.gpuDrivenCommandStreamKnownVisibleCommandOverflowCount =
+                stream.CountKnownGpuVisibleCommandOverflows();
         }
 
         void ApplyGpuDrivenWorkOwnershipDebugStats(

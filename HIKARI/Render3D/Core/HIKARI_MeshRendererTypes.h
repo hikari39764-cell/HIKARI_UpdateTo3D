@@ -381,6 +381,9 @@ namespace HIKARI::MESHRENDERER {
         size_t gpuDrivenCommandStreamCpuCommandCount = 0;
         size_t gpuDrivenCommandStreamGpuCommandCount = 0;
         size_t gpuDrivenCommandStreamTraditionalCommandCount = 0;
+        size_t gpuDrivenCommandStreamGpuCounterBackedRangeCount = 0;
+        size_t gpuDrivenCommandStreamKnownVisibleCommandCount = 0;
+        size_t gpuDrivenCommandStreamKnownVisibleCommandOverflowCount = 0;
         size_t legacyFallbackInvocationCount = 0;
         size_t legacyFallbackItemCount = 0;
         size_t legacyFallbackOpaqueItemCount = 0;

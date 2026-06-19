@@ -39,10 +39,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         uint32_t gpuSceneBaseIndex = 0;
         size_t commandCount = 0;
+        size_t visibleCommandCount = 0;
+        size_t visibleCommandOverflowCount = 0;
+        size_t commandBucketCapacity = 0;
         size_t packetCount = 0;
         size_t instanceCount = 0;
         bool consumable = false;
         bool gpuAuthored = false;
+        bool gpuCounterBacked = false;
+        bool visibleCommandCountKnown = false;
 
         void Reset();
         bool IsActive() const;
@@ -75,6 +80,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t CountCpuAuthoredCommands() const;
         size_t CountGpuAuthoredCommands() const;
         size_t CountTraditionalIndirectCommands() const;
+        size_t CountGpuCounterBackedRanges() const;
+        size_t CountKnownGpuVisibleCommands() const;
+        size_t CountKnownGpuVisibleCommandOverflows() const;
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

@@ -274,6 +274,10 @@ namespace HIKARI {
                     s.mesh.gpuDrivenCommandStreamRangeCount,
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamCpuCommandCount);
+                MetricRow("GPU Visibility Counter Ranges / Known Visible / Known Overflow", "%zu / %zu / %zu",
+                    s.mesh.gpuDrivenCommandStreamGpuCounterBackedRangeCount,
+                    s.mesh.gpuDrivenCommandStreamKnownVisibleCommandCount,
+                    s.mesh.gpuDrivenCommandStreamKnownVisibleCommandOverflowCount);
                 MetricRow("Legacy Fallback Calls / Items / Opaque / Depth / Transparent / Geometry", "%zu / %zu / %zu / %zu / %zu / %zu",
                     s.mesh.legacyFallbackInvocationCount,
                     s.mesh.legacyFallbackItemCount,
