@@ -79,7 +79,6 @@ namespace HIKARI::RENDER3D::PIPELINE {
             return false;
         }
 
-        const RENDER3D::CpuRenderQueue& queue = MESHRENDERER::BuildCpuRenderQueue();
         const MESHRENDERER::CameraCB* cameraCb = MESHRENDERER::GetCameraConstants();
 
         RENDER3D::SCREENSPACE::ScreenSpaceFrameResult screenResult{};
@@ -88,8 +87,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState(),
                 screenSpaceContext,
                 *cameraCb,
-                environment,
-                queue);
+                environment);
         }
         else {
             RENDER3D::SCREENSPACE::EnsureScreenSpaceFallbacks(RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState());
@@ -108,7 +106,6 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 SERVICES::gCtx.cmdList,
                 GFX::GPU_PROFILE::Pass::ForwardOpaque);
             opaqueOk = MESHRENDERER::RenderForwardOpaquePass(
-                queue,
                 opaqueResources);
         }
         bool depthAwareOk = true;
@@ -118,14 +115,13 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 POST::PostSystem::RebindCurrentRenderTarget();
             }
         }
-        if (opaqueOk && MESHRENDERER::HasDepthAwarePassWork(queue)) {
+        if (opaqueOk && MESHRENDERER::HasDepthAwarePassWork()) {
             GFX::PIX::ScopedGpuEvent pixDepthAware(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "DepthAware");
             GFX::GPU_PROFILE::ScopedGpuTimer gpuDepthAware(
                 SERVICES::gCtx.cmdList,
                 GFX::GPU_PROFILE::Pass::DepthAware);
             if (POST::PostSystem::BeginCurrentRenderTargetDepthRead()) {
                 depthAwareOk = MESHRENDERER::RenderDepthAwarePass(
-                    queue,
                     postOpaqueResources);
                 POST::PostSystem::EndCurrentRenderTargetDepthRead();
             } else {
@@ -140,7 +136,6 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 SERVICES::gCtx.cmdList,
                 GFX::GPU_PROFILE::Pass::ForwardTransparent);
             transparentOk = MESHRENDERER::RenderForwardTransparentPass(
-                queue,
                 postOpaqueResources);
         }
 
@@ -168,12 +163,11 @@ namespace HIKARI::RENDER3D::PIPELINE {
             return false;
         }
 
-        const RENDER3D::CpuRenderQueue& queue = MESHRENDERER::BuildCpuRenderQueue();
         MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(false);
 
         // Capture は後処理と depth-aware phase を含めない。
         const MESHRENDERER::MeshPassResources captureResources{};
-        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(queue, captureResources);
+        const bool opaqueOk = MESHRENDERER::RenderForwardOpaquePass(captureResources);
         MESHRENDERER::EndFrame();
         return opaqueOk;
     }

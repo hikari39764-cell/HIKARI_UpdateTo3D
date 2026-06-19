@@ -77,24 +77,6 @@ namespace HIKARI {
             ImGui::PopID();
         }
 
-        bool DrawRenderSubmissionRouteModeCombo(RenderSubmissionRouteMode& mode) {
-            bool changed = false;
-            if (ImGui::BeginCombo("Submission Route", ToString(mode))) {
-                const RenderSubmissionRouteMode modes[] = {
-                    RenderSubmissionRouteMode::GpuDrivenMainline,
-                    RenderSubmissionRouteMode::ForceLegacy,
-                };
-                for (RenderSubmissionRouteMode candidate : modes) {
-                    if (ImGui::Selectable(ToString(candidate), mode == candidate)) {
-                        mode = candidate;
-                        changed = true;
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            return changed;
-        }
-
         void DrawGpuDrivenSubmissionValidationSection() {
             const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneStats =
                 RenderSubmissionSystem::GetSceneRenderCacheStats();
@@ -127,21 +109,15 @@ namespace HIKARI {
                 registryStats.forwardOpaqueResidentRecordCount > 0 ||
                 meshStats.clusterGpuCullSubmittedInstanceCount > 0 ||
                 meshStats.meshletBackendSubmittedDispatchCount > 0;
-            const char* mainlineStatus = !renderSubmissionStats.gpuDrivenMainRouteActive
-                ? "Legacy"
-                : (!hasMainlineWork ? "Idle" :
-                    (gpuSceneReady && clusterReady && meshletReady ? "Ready" : "Watch"));
+            const char* mainlineStatus = !hasMainlineWork ? "Idle" :
+                (gpuSceneReady && clusterReady && meshletReady ? "Ready" : "Watch");
 
             ImGui::SeparatorText("Route");
-            RenderSubmissionRouteMode routeMode = RenderSubmissionSystem::GetRouteMode();
-            if (DrawRenderSubmissionRouteModeCombo(routeMode)) {
-                RenderSubmissionSystem::SetRouteMode(routeMode);
-            }
-            ImGui::Text("Status / Mainline / ForceLegacy: %s / %s / %s",
+            ImGui::Text("Route: %s", ToString(RenderSubmissionSystem::GetRouteMode()));
+            ImGui::Text("Status / Mainline: %s / %s",
                 mainlineStatus,
-                renderSubmissionStats.gpuDrivenMainRouteActive ? "on" : "off",
-                renderSubmissionStats.forceLegacyActive ? "on" : "off");
-            ImGui::Text("Legacy CPU Scan / Submit / Cull / Hidden: %d / %d / %d / %d",
+                renderSubmissionStats.gpuDrivenMainRouteActive ? "on" : "off");
+            ImGui::Text("CPU Planner Scan / Submit / Cull / Hidden: %d / %d / %d / %d",
                 renderSubmissionStats.scannedModelCount,
                 renderSubmissionStats.submittedModelCount,
                 renderSubmissionStats.culledModelCount,

@@ -56,8 +56,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         ScreenSpaceRuntimeState& state,
         const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
         const MESHRENDERER::CameraCB& cameraCb,
-        const SceneEnvironment& environment,
-        const RENDER3D::CpuRenderQueue& queue) {
+        const SceneEnvironment& environment) {
 
         ScreenSpaceFrameResult result{};
         const bool fallbackReady = EnsureScreenSpaceFallbacks(state);
@@ -96,7 +95,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             GFX::GPU_PROFILE::Pass::GeometryAux);
         const CpuClock::time_point geometryStart = CpuClock::now();
         result.geometryAuxWritten = MESHRENDERER::RenderGeometryAuxPass(
-            queue,
             state.geometryAux,
             context.sceneDsv);
         context.renderTargetAccess.Rebind();

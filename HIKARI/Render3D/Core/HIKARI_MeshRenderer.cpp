@@ -27,7 +27,6 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
-#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -1155,10 +1154,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         bool RenderGeometryAuxPassInternal(
-            const RENDER3D::CpuRenderQueue& queue,
             RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
             D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
-            (void)queue;
             if (!HasGpuDrivenPassSource(
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
                 return false;
@@ -1228,7 +1225,6 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.drawItems.clear();
-        g.cpuRenderQueue.Clear();
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         g.gpuDrivenSceneSource.Reset();
@@ -1410,27 +1406,18 @@ namespace HIKARI::MESHRENDERER {
         return true;
     }
 
-    const RENDER3D::CpuRenderQueue& BuildCpuRenderQueue() {
-        g.cpuRenderQueue.Clear();
-        g.cpuRenderQueue.Build(g.drawItems);
-        return g.cpuRenderQueue;
-    }
-
     const CameraCB* GetCameraConstants() {
         return g.cameraMapped;
     }
 
     bool RenderGeometryAuxPass(
-            const RENDER3D::CpuRenderQueue& queue,
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
-        return RenderGeometryAuxPassInternal(queue, geometryAux, sceneDsv);
+        return RenderGeometryAuxPassInternal(geometryAux, sceneDsv);
     }
 
     bool RenderForwardOpaquePass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
-        (void)queue;
         if (!HasGpuDrivenPassSource(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
             return true;
@@ -1446,9 +1433,7 @@ namespace HIKARI::MESHRENDERER {
     }
 
     bool RenderForwardTransparentPass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
-        (void)queue;
         if (!HasGpuDrivenPassSource(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent)) {
             return true;
@@ -1463,16 +1448,13 @@ namespace HIKARI::MESHRENDERER {
         return backendResult.gpuBackendExecuted;
     }
 
-    bool HasDepthAwarePassWork(const RENDER3D::CpuRenderQueue& queue) {
-        (void)queue;
+    bool HasDepthAwarePassWork() {
         return HasGpuDrivenPassSource(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
     }
 
     bool RenderDepthAwarePass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources) {
-        (void)queue;
         if (!HasGpuDrivenPassSource(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware)) {
             return true;
@@ -1495,7 +1477,6 @@ namespace HIKARI::MESHRENDERER {
 
     void EndFrame() {
         g.drawItems.clear();
-        g.cpuRenderQueue.Clear();
         g.frameObjectIndex = 0;
         g.gpuDrivenSceneSource.Reset();
     }

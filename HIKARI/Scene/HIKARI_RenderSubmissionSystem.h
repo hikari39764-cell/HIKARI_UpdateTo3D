@@ -13,11 +13,9 @@
 namespace HIKARI {
 
     class AssetRegistry;
-    class Camera3D;
 
     enum class RenderSubmissionRouteMode : uint8_t {
         GpuDrivenMainline,
-        ForceLegacy,
     };
 
     const char* ToString(RenderSubmissionRouteMode mode);
@@ -37,8 +35,6 @@ namespace HIKARI {
         int runtimeSpecialShadowModelCount = 0;
         RenderSubmissionRouteMode routeMode = RenderSubmissionRouteMode::GpuDrivenMainline;
         bool gpuDrivenMainRouteActive = false;
-        bool forceLegacyActive = false;
-        bool frustumCullingEnabled = false;
     };
 
     class RenderSubmissionSystem final : public ISystem {
@@ -47,11 +43,9 @@ namespace HIKARI {
 
         void PreRender(World& world, const FrameContext& frame) override;
 
-        static void SetActiveRenderCamera(const Camera3D* camera);
         static void SetAssetContext(
             const AssetRegistry* assetRegistry,
             std::filesystem::path projectRoot);
-        static void SetRouteMode(RenderSubmissionRouteMode mode);
         static RenderSubmissionRouteMode GetRouteMode();
         static const RenderSubmissionDebugStats& GetDebugStats();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();
@@ -60,11 +54,9 @@ namespace HIKARI {
 
     private:
         static RenderSubmissionDebugStats sDebugStats_;
-        static const Camera3D* sActiveRenderCamera_;
         static RENDER3D::RUNTIME::SceneRenderCache sSceneRenderCache_;
         static RENDER3D::GPUDRIVEN::GpuSceneRegistry sGpuSceneRegistry_;
         static SceneRenderCacheSync sSceneRenderCacheSync_;
-        static RenderSubmissionRouteMode sRouteMode_;
         static bool sGpuSceneRegistryValid_;
         static bool sGpuDrivenSceneSyncInitialized_;
         static const AssetRegistry* sAssetRegistry_;

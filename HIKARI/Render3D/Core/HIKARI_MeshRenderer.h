@@ -13,7 +13,6 @@
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
 namespace HIKARI::RENDER3D {
-    class CpuRenderQueue;
     namespace GPUDRIVEN {
         struct GpuDrivenSceneSource;
     }
@@ -42,21 +41,16 @@ namespace HIKARI::MESHRENDERER {
         uint32_t screenWidth,
         uint32_t screenHeight,
         RenderDebugView debugView = RenderDebugView::None);
-    const RENDER3D::CpuRenderQueue& BuildCpuRenderQueue();
     const CameraCB* GetCameraConstants();
     bool RenderGeometryAuxPass(
-        const RENDER3D::CpuRenderQueue& queue,
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
     bool RenderForwardOpaquePass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
     bool RenderForwardTransparentPass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
-    bool HasDepthAwarePassWork(const RENDER3D::CpuRenderQueue& queue);
+    bool HasDepthAwarePassWork();
     bool RenderDepthAwarePass(
-        const RENDER3D::CpuRenderQueue& queue,
         const MeshPassResources& passResources);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();

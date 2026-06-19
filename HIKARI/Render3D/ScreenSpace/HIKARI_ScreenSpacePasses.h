@@ -4,7 +4,6 @@
 
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
-#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
@@ -41,7 +40,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         ScreenSpaceRuntimeState& state,
         const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
         const MESHRENDERER::CameraCB& cameraCb,
-        const SceneEnvironment& environment,
-        const RENDER3D::CpuRenderQueue& queue);
+        const SceneEnvironment& environment);
 
 } // namespace HIKARI::RENDER3D::SCREENSPACE

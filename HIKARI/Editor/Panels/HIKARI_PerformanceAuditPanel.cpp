@@ -372,9 +372,8 @@ namespace HIKARI {
             ImGui::SeparatorText("Submission");
             if (BeginMetricTable("SubmissionMetrics")) {
                 MetricRowText("Route Mode", ToString(s.submission.routeMode));
-                MetricRow("Mainline / ForceLegacy", "%s / %s",
-                    s.submission.gpuDrivenMainRouteActive ? "on" : "off",
-                    s.submission.forceLegacyActive ? "on" : "off");
+                MetricRowText("Mainline",
+                    s.submission.gpuDrivenMainRouteActive ? "on" : "off");
                 MetricRow("Scene Scanned / Submitted / Culled / Hidden", "%d / %d / %d / %d",
                     s.submission.scannedModelCount,
                     s.submission.submittedModelCount,

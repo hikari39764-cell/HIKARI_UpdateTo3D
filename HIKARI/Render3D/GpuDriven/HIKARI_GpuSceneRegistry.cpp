@@ -1229,8 +1229,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.strictGpuDrivenMainline = true;
         stats_.cpuPlannerBuildSuppressedCount =
             input.sceneCache != nullptr ? 1u : 0u;
-        stats_.surfacePacketStats = {};
-        stats_.surfacePacketPlanStats = {};
         stats_.forwardOpaqueTraditionalGpuSceneStats = {};
         stats_.forwardDepthAwareTraditionalGpuSceneStats = {};
         stats_.forwardTransparentTraditionalGpuSceneStats = {};

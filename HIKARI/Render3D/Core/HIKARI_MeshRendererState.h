@@ -19,7 +19,6 @@
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
-#include "Render3D/Pipeline/HIKARI_CpuRenderQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::MESHRENDERER {
@@ -62,7 +61,6 @@ namespace HIKARI::MESHRENDERER {
 
         MeshPrimitiveCache primitiveCache;
         MeshMaterialResolver materialResolver;
-        RENDER3D::CpuRenderQueue cpuRenderQueue;
         size_t frameObjectIndex = 0;
         MaterialDataFrameTable materialDataFrameTable{};
         D3D12_CPU_DESCRIPTOR_HANDLE objectDataSrvCpu{};

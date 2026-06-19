@@ -67,8 +67,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GpuSceneStaticBatchStats forwardDepthAwareBatchStats{};
         GpuSceneStaticBatchStats forwardTransparentBatchStats{};
         GpuSceneStaticBatchStats shadowBatchStats{};
-        RUNTIME::SurfaceDrawPacketBuilder::Stats surfacePacketStats{};
-        RUNTIME::SurfaceDrawPacketPlanStats surfacePacketPlanStats{};
     };
 
     class GpuSceneRegistry final {
