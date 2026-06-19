@@ -85,6 +85,246 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             ranges.push_back({ firstInstance, instanceCount });
         }
 
+        enum class StaticBatchRunKeyKind {
+            Pso,
+            Material,
+            TextureSet,
+            Geometry,
+            MeshResource,
+            MaterialResource,
+            ClusterResource,
+        };
+
+        uint64_t PackResourceHandle(uint32_t index, uint32_t generation) {
+            return
+                (static_cast<uint64_t>(generation) << 32) |
+                static_cast<uint64_t>(index);
+        }
+
+        uint64_t SelectStaticBatchRunKey(
+            const GpuSceneSurfaceRecord& record,
+            StaticBatchRunKeyKind kind) {
+
+            const RUNTIME::SurfaceResourceIds& resources = record.key.resources;
+            switch (kind) {
+            case StaticBatchRunKeyKind::Pso:
+                return record.key.psoKey;
+            case StaticBatchRunKeyKind::Material:
+                return record.key.materialKey;
+            case StaticBatchRunKeyKind::TextureSet:
+                return record.key.textureSetKey;
+            case StaticBatchRunKeyKind::Geometry:
+                return record.key.geometryKey;
+            case StaticBatchRunKeyKind::MeshResource:
+                return PackResourceHandle(
+                    resources.mesh.index,
+                    resources.mesh.generation);
+            case StaticBatchRunKeyKind::MaterialResource:
+                return PackResourceHandle(
+                    resources.material.index,
+                    resources.material.generation);
+            case StaticBatchRunKeyKind::ClusterResource:
+                return PackResourceHandle(
+                    resources.clusterGeometry.index,
+                    resources.clusterGeometry.generation);
+            default:
+                return 0;
+            }
+        }
+
+        uint32_t CountStaticBatchRuns(
+            const std::vector<GpuSceneSurfaceRecord>& records,
+            const std::vector<uint32_t>& recordIndices,
+            StaticBatchRunKeyKind kind) {
+
+            bool hasPrevious = false;
+            uint64_t previous = 0;
+            uint32_t runs = 0;
+            for (uint32_t recordIndex : recordIndices) {
+                if (recordIndex >= records.size()) {
+                    continue;
+                }
+                const GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!record.valid || !record.key.resourceKeyValid) {
+                    continue;
+                }
+
+                const uint64_t current = SelectStaticBatchRunKey(record, kind);
+                if (!hasPrevious || current != previous) {
+                    ++runs;
+                    previous = current;
+                    hasPrevious = true;
+                }
+            }
+            return runs;
+        }
+
+        bool ComesBeforeForStaticGpuSceneBatching(
+            const GpuSceneSurfaceRecord& lhs,
+            const GpuSceneSurfaceRecord& rhs) {
+
+            if (lhs.key.psoKey != rhs.key.psoKey) {
+                return lhs.key.psoKey < rhs.key.psoKey;
+            }
+            if (lhs.key.materialKey != rhs.key.materialKey) {
+                return lhs.key.materialKey < rhs.key.materialKey;
+            }
+            if (lhs.key.textureSetKey != rhs.key.textureSetKey) {
+                return lhs.key.textureSetKey < rhs.key.textureSetKey;
+            }
+            if (lhs.key.geometryBackend != rhs.key.geometryBackend) {
+                return lhs.key.geometryBackend < rhs.key.geometryBackend;
+            }
+            if (lhs.key.geometryKey != rhs.key.geometryKey) {
+                return lhs.key.geometryKey < rhs.key.geometryKey;
+            }
+            const RUNTIME::SurfaceResourceIds& lhsResources = lhs.key.resources;
+            const RUNTIME::SurfaceResourceIds& rhsResources = rhs.key.resources;
+            const uint64_t lhsMesh =
+                PackResourceHandle(lhsResources.mesh.index, lhsResources.mesh.generation);
+            const uint64_t rhsMesh =
+                PackResourceHandle(rhsResources.mesh.index, rhsResources.mesh.generation);
+            if (lhsMesh != rhsMesh) {
+                return lhsMesh < rhsMesh;
+            }
+            const uint64_t lhsMaterial =
+                PackResourceHandle(
+                    lhsResources.material.index,
+                    lhsResources.material.generation);
+            const uint64_t rhsMaterial =
+                PackResourceHandle(
+                    rhsResources.material.index,
+                    rhsResources.material.generation);
+            if (lhsMaterial != rhsMaterial) {
+                return lhsMaterial < rhsMaterial;
+            }
+            const uint64_t lhsCluster =
+                PackResourceHandle(
+                    lhsResources.clusterGeometry.index,
+                    lhsResources.clusterGeometry.generation);
+            const uint64_t rhsCluster =
+                PackResourceHandle(
+                    rhsResources.clusterGeometry.index,
+                    rhsResources.clusterGeometry.generation);
+            if (lhsCluster != rhsCluster) {
+                return lhsCluster < rhsCluster;
+            }
+            if (lhs.key.sortKey != rhs.key.sortKey) {
+                return lhs.key.sortKey < rhs.key.sortKey;
+            }
+            return lhs.sourceSurfaceInstanceIndex < rhs.sourceSurfaceInstanceIndex;
+        }
+
+        bool HasSameStaticGpuSceneBatchIdentity(
+            const GpuSceneSurfaceRecord& lhs,
+            const GpuSceneSurfaceRecord& rhs) {
+
+            const RUNTIME::SurfaceResourceIds& lhsResources = lhs.key.resources;
+            const RUNTIME::SurfaceResourceIds& rhsResources = rhs.key.resources;
+            return
+                lhs.key.sortKey == rhs.key.sortKey &&
+                lhs.key.psoKey == rhs.key.psoKey &&
+                lhs.key.materialKey == rhs.key.materialKey &&
+                lhs.key.textureSetKey == rhs.key.textureSetKey &&
+                lhs.key.geometryBackend == rhs.key.geometryBackend &&
+                lhs.key.geometryKey == rhs.key.geometryKey &&
+                lhsResources.mesh == rhsResources.mesh &&
+                lhsResources.material == rhsResources.material &&
+                lhsResources.clusterGeometry == rhsResources.clusterGeometry;
+        }
+
+        GpuSceneStaticBatchStats SortStaticResidentRecordsForBatching(
+            const std::vector<GpuSceneSurfaceRecord>& records,
+            std::vector<uint32_t>& recordIndices,
+            bool allowReorder) {
+
+            GpuSceneStaticBatchStats stats{};
+            stats.recordCount = ClampToUint32(recordIndices.size());
+            for (uint32_t recordIndex : recordIndices) {
+                if (recordIndex >= records.size()) {
+                    continue;
+                }
+                if (records[recordIndex].key.resources.HasPoolHandles()) {
+                    ++stats.resourceBackedRecordCount;
+                } else {
+                    ++stats.missingResourceHandleRecordCount;
+                }
+            }
+
+            stats.rawPsoRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Pso);
+            stats.rawMaterialRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Material);
+            stats.rawTextureSetRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::TextureSet);
+            stats.rawGeometryRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Geometry);
+            stats.rawMeshResourceRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::MeshResource);
+            stats.rawMaterialResourceRunCount =
+                CountStaticBatchRuns(
+                    records,
+                    recordIndices,
+                    StaticBatchRunKeyKind::MaterialResource);
+            stats.rawClusterResourceRunCount =
+                CountStaticBatchRuns(
+                    records,
+                    recordIndices,
+                    StaticBatchRunKeyKind::ClusterResource);
+
+            const std::vector<uint32_t> originalOrder = recordIndices;
+            if (allowReorder) {
+                std::stable_sort(
+                    recordIndices.begin(),
+                    recordIndices.end(),
+                    [&](uint32_t lhsIndex, uint32_t rhsIndex) {
+                        if (lhsIndex >= records.size() || rhsIndex >= records.size()) {
+                            return lhsIndex < rhsIndex;
+                        }
+                        const GpuSceneSurfaceRecord& lhs = records[lhsIndex];
+                        const GpuSceneSurfaceRecord& rhs = records[rhsIndex];
+                        if (ComesBeforeForStaticGpuSceneBatching(lhs, rhs)) {
+                            return true;
+                        }
+                        if (ComesBeforeForStaticGpuSceneBatching(rhs, lhs)) {
+                            return false;
+                        }
+                        return lhsIndex < rhsIndex;
+                    });
+                stats.sortApplied = true;
+            }
+
+            const size_t compareCount =
+                (std::min)(originalOrder.size(), recordIndices.size());
+            for (size_t i = 0; i < compareCount; ++i) {
+                if (originalOrder[i] != recordIndices[i]) {
+                    ++stats.reorderedRecordCount;
+                }
+            }
+
+            stats.sortedPsoRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Pso);
+            stats.sortedMaterialRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Material);
+            stats.sortedTextureSetRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::TextureSet);
+            stats.sortedGeometryRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::Geometry);
+            stats.sortedMeshResourceRunCount =
+                CountStaticBatchRuns(records, recordIndices, StaticBatchRunKeyKind::MeshResource);
+            stats.sortedMaterialResourceRunCount =
+                CountStaticBatchRuns(
+                    records,
+                    recordIndices,
+                    StaticBatchRunKeyKind::MaterialResource);
+            stats.sortedClusterResourceRunCount =
+                CountStaticBatchRuns(
+                    records,
+                    recordIndices,
+                    StaticBatchRunKeyKind::ClusterResource);
+            return stats;
+        }
+
         template<typename TValue>
         TValue LerpValue(const TValue& a, const TValue& b, float t);
 
@@ -851,6 +1091,27 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             stats_.blockedForwardTransparentRecordCount +
             stats_.blockedShadowRecordCount;
 
+        stats_.forwardOpaqueBatchStats =
+            SortStaticResidentRecordsForBatching(
+                surfaceRecords_,
+                forwardOpaqueResidentRecordIndices_,
+                true);
+        stats_.forwardDepthAwareBatchStats =
+            SortStaticResidentRecordsForBatching(
+                surfaceRecords_,
+                forwardDepthAwareResidentRecordIndices_,
+                true);
+        stats_.forwardTransparentBatchStats =
+            SortStaticResidentRecordsForBatching(
+                surfaceRecords_,
+                forwardTransparentResidentRecordIndices_,
+                false);
+        stats_.shadowBatchStats =
+            SortStaticResidentRecordsForBatching(
+                surfaceRecords_,
+                shadowResidentRecordIndices_,
+                true);
+
         const auto buildPass =
             [&](const std::vector<uint32_t>& recordIndices,
                 std::vector<uint32_t>& indexByRecord,
@@ -1030,10 +1291,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return false;
             }
             if (oldOpaque != newOpaque ||
-                oldRecord.key.sortKey != newRecord.key.sortKey ||
-                oldRecord.key.psoKey != newRecord.key.psoKey ||
-                oldRecord.key.geometryKey != newRecord.key.geometryKey ||
-                oldRecord.key.materialKey != newRecord.key.materialKey) {
+                !HasSameStaticGpuSceneBatchIdentity(oldRecord, newRecord)) {
                 return false;
             }
 

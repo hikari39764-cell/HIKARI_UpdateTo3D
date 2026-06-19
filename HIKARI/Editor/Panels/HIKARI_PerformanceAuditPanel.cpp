@@ -391,6 +391,22 @@ namespace HIKARI {
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.resourceBackedInstanceCount,
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount,
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.clusterSurfaceRangeInstanceCount);
+                MetricRow("Static Batch Reordered Opaque / Depth / Shadow", "%u / %u / %u",
+                    s.gpuRegistry.forwardOpaqueBatchStats.reorderedRecordCount,
+                    s.gpuRegistry.forwardDepthAwareBatchStats.reorderedRecordCount,
+                    s.gpuRegistry.shadowBatchStats.reorderedRecordCount);
+                MetricRow("Opaque Batch PSO / Material Runs", "%u -> %u / %u -> %u",
+                    s.gpuRegistry.forwardOpaqueBatchStats.rawPsoRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.sortedPsoRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.rawMaterialRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMaterialRunCount);
+                MetricRow("Opaque Resource Runs Mesh / Material / Cluster", "%u -> %u / %u -> %u / %u -> %u",
+                    s.gpuRegistry.forwardOpaqueBatchStats.rawMeshResourceRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMeshResourceRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.rawMaterialResourceRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMaterialResourceRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.rawClusterResourceRunCount,
+                    s.gpuRegistry.forwardOpaqueBatchStats.sortedClusterResourceRunCount);
                 MetricRow("Surface ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
                     s.mesh.surfaceIndirectOpaqueCommandCount,
                     s.mesh.surfaceIndirectDepthAwareCommandCount,

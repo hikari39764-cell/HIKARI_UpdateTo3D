@@ -16,6 +16,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const RUNTIME::SceneRenderCache* sceneCache = nullptr;
     };
 
+    struct GpuSceneStaticBatchStats {
+        uint32_t recordCount = 0;
+        uint32_t resourceBackedRecordCount = 0;
+        uint32_t missingResourceHandleRecordCount = 0;
+        uint32_t reorderedRecordCount = 0;
+        uint32_t rawPsoRunCount = 0;
+        uint32_t sortedPsoRunCount = 0;
+        uint32_t rawMaterialRunCount = 0;
+        uint32_t sortedMaterialRunCount = 0;
+        uint32_t rawTextureSetRunCount = 0;
+        uint32_t sortedTextureSetRunCount = 0;
+        uint32_t rawGeometryRunCount = 0;
+        uint32_t sortedGeometryRunCount = 0;
+        uint32_t rawMeshResourceRunCount = 0;
+        uint32_t sortedMeshResourceRunCount = 0;
+        uint32_t rawMaterialResourceRunCount = 0;
+        uint32_t sortedMaterialResourceRunCount = 0;
+        uint32_t rawClusterResourceRunCount = 0;
+        uint32_t sortedClusterResourceRunCount = 0;
+        bool sortApplied = false;
+    };
+
     struct GpuSceneRegistryStats {
         uint32_t sourceRecordCount = 0;
         uint32_t forwardRoutedRecordCount = 0;
@@ -41,6 +63,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueTraditionalGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareTraditionalGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardTransparentTraditionalGpuSceneStats{};
+        GpuSceneStaticBatchStats forwardOpaqueBatchStats{};
+        GpuSceneStaticBatchStats forwardDepthAwareBatchStats{};
+        GpuSceneStaticBatchStats forwardTransparentBatchStats{};
+        GpuSceneStaticBatchStats shadowBatchStats{};
         RUNTIME::SurfaceDrawPacketBuilder::Stats surfacePacketStats{};
         RUNTIME::SurfaceDrawPacketPlanStats surfacePacketPlanStats{};
     };
