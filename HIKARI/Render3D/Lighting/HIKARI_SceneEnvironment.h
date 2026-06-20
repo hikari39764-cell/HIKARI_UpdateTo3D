@@ -111,7 +111,7 @@ namespace HIKARI {
 
     struct AmbientOcclusionSettings {
         bool enabled = false;
-        SsaoMode mode = SsaoMode::Reference;
+        SsaoMode mode = SsaoMode::Balanced;
         float radius = 0.6f;
         float bias = 0.025f;
         float strength = 1.0f;
@@ -119,7 +119,7 @@ namespace HIKARI {
         float diffuseStrength = 1.0f;
         float specularStrength = 0.5f;
         uint32_t sampleCount = 16;
-        uint32_t blurIterations = 2;
+        uint32_t blurIterations = 1;
         bool editorViewportSuppressed = false;
     };
 

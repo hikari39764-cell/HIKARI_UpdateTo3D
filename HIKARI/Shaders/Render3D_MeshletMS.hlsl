@@ -26,6 +26,7 @@ ByteAddressBuffer gClusterGeometryPool[HIKARI_CLUSTER_SRV_POOL_COUNT] : register
 struct HikariMeshletPayload
 {
     uint visibleRangeIndex;
+    uint clusterCount;
 };
 
 struct HikariMeshletVertexOut
@@ -124,7 +125,8 @@ void main(
 {
     HikariMeshletVisibleRange visible = gMeshletVisibleRanges[payload.visibleRangeIndex];
     bool valid =
-        groupId.x < visible.clusterCount &&
+        payload.clusterCount != 0u &&
+        groupId.x < min(visible.clusterCount, payload.clusterCount) &&
         visible.clusterGeometrySrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
     uint clusterGeometryPoolIndex =
         valid

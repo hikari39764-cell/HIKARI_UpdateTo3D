@@ -49,6 +49,10 @@ namespace HIKARI::SHADOW {
         size_t shadowGpuSceneUploadCallCount = 0;
         bool shadowGpuSceneSrvValid = false;
         bool shadowGpuSceneBufferReady = false;
+        bool shadowCacheValid = false;
+        bool shadowCacheHit = false;
+        size_t shadowCacheHitCount = 0;
+        size_t shadowCacheMissCount = 0;
         size_t staticCasterDrawCount = 0;
         size_t skinnedCasterDrawCount = 0;
         size_t alphaMaskCasterDrawCount = 0;

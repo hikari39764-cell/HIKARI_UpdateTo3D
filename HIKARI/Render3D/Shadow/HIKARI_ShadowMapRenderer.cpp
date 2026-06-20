@@ -71,6 +71,7 @@ namespace HIKARI::SHADOW {
         struct State {
             bool initialized = false;
             bool frameEnabled = false;
+            bool frameHasShadowWork = false;
             uint32_t resolution = 0;
             D3D12_RESOURCE_STATES shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             MATH::Mat4 lightViewProj = MATH::Mat4::Identity();
@@ -114,9 +115,92 @@ namespace HIKARI::SHADOW {
             std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
             ShadowMapDebugStats debugStats;
             size_t shadowMapRecreateCount = 0;
+            bool shadowCacheValid = false;
+            bool shadowCacheHitThisFrame = false;
+            uint64_t shadowCacheLayoutVersion = 0;
+            uint64_t shadowCacheSourceVersion = 0;
+            size_t shadowCacheSourceInstanceCount = 0;
+            uint32_t shadowCacheResolution = 0;
+            MATH::Mat4 shadowCacheLightViewProj = MATH::Mat4::Identity();
+            size_t shadowCacheHitCount = 0;
+            size_t shadowCacheMissCount = 0;
         };
 
         State g;
+
+        bool AlmostEqualMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
+            constexpr float kEpsilon = 0.0001f;
+            for (int col = 0; col < 4; ++col) {
+                for (int row = 0; row < 4; ++row) {
+                    if (std::fabs(lhs.m[col][row] - rhs.m[col][row]) > kEpsilon) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        void PublishShadowCacheStats() {
+            g.debugStats.shadowCacheValid = g.shadowCacheValid;
+            g.debugStats.shadowCacheHit = g.shadowCacheHitThisFrame;
+            g.debugStats.shadowCacheHitCount = g.shadowCacheHitCount;
+            g.debugStats.shadowCacheMissCount = g.shadowCacheMissCount;
+        }
+
+        void InvalidateShadowCache() {
+            g.shadowCacheValid = false;
+            g.shadowCacheHitThisFrame = false;
+            PublishShadowCacheStats();
+        }
+
+        bool HasTraditionalShadowWork() {
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadowPass =
+                g.shadowSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            return
+                shadowPass.traditionalIndirect.HasCommands() ||
+                shadowPass.traditionalIndirect.HasGpuSceneInstances();
+        }
+
+        bool CanReuseShadowCache(uint32_t resolution) {
+            return
+                g.shadowCacheValid &&
+                g.shadowMap != nullptr &&
+                RENDER3D::IsTextureResourceValid(g.shadowSrvResource) &&
+                g.shadowState == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE &&
+                !HasTraditionalShadowWork() &&
+                (g.gpuDrivenSceneSource == nullptr ||
+                    !g.gpuDrivenSceneSource->HasAnyDirtyGpuSceneRanges()) &&
+                g.shadowCacheResolution == resolution &&
+                g.shadowCacheLayoutVersion == g.shadowSceneSource.layoutVersion &&
+                g.shadowCacheSourceVersion == g.shadowSceneSource.sourceVersion &&
+                g.shadowCacheSourceInstanceCount == g.shadowSceneSource.sourceInstanceCount &&
+                AlmostEqualMat4(g.shadowCacheLightViewProj, g.lightViewProj);
+        }
+
+        void MarkShadowCacheHit() {
+            g.shadowCacheHitThisFrame = true;
+            ++g.shadowCacheHitCount;
+            PublishShadowCacheStats();
+        }
+
+        void MarkShadowCacheMiss() {
+            g.shadowCacheHitThisFrame = false;
+            g.shadowCacheValid = false;
+            ++g.shadowCacheMissCount;
+            PublishShadowCacheStats();
+        }
+
+        void MarkShadowCacheValidAfterRender() {
+            g.shadowCacheValid = true;
+            g.shadowCacheHitThisFrame = false;
+            g.shadowCacheLayoutVersion = g.shadowSceneSource.layoutVersion;
+            g.shadowCacheSourceVersion = g.shadowSceneSource.sourceVersion;
+            g.shadowCacheSourceInstanceCount = g.shadowSceneSource.sourceInstanceCount;
+            g.shadowCacheResolution = g.resolution;
+            g.shadowCacheLightViewProj = g.lightViewProj;
+            PublishShadowCacheStats();
+        }
 
         struct OwnedShadowTraditionalIndirectStream {
             std::vector<RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord> records{};
@@ -868,6 +952,7 @@ namespace HIKARI::SHADOW {
             if (device == nullptr || resolution == 0) {
                 return false;
             }
+            InvalidateShadowCache();
 
             RENDER3D::ReleaseTextureResource(g.shadowSrvResource);
             g.shadowSrvResource = {};
@@ -1336,6 +1421,9 @@ namespace HIKARI::SHADOW {
 
         void ClearFrameSubmissions() {
             g.debugStats = {};
+            g.frameHasShadowWork = false;
+            g.shadowCacheHitThisFrame = false;
+            PublishShadowCacheStats();
         }
 
         void CountSkippedNoCastShadow() {
@@ -1344,10 +1432,10 @@ namespace HIKARI::SHADOW {
             }
         }
 
-        void UploadShadowGpuSceneFrame() {
-            BuildShadowGpuDrivenSceneSource();
+        bool UploadShadowGpuSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(
-                g.shadowSceneSource.HasAnyGpuSceneRanges()
+                g.frameHasShadowWork &&
+                    g.shadowSceneSource.HasAnyGpuSceneRanges()
                     ? &g.shadowSceneSource
                     : nullptr);
 
@@ -1362,6 +1450,7 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
             g.debugStats.shadowGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.shadowGpuSceneBufferReady = gpuSceneStats.initialized;
+            return g.frameHasShadowWork;
         }
 
         void ResetShadowGpuDrivenWorkFrame() {
@@ -1589,6 +1678,7 @@ namespace HIKARI::SHADOW {
 
     void Reset() {
         ClearFrameSubmissions();
+        InvalidateShadowCache();
         SetGpuDrivenSceneSource(nullptr);
     }
 
@@ -1607,26 +1697,49 @@ namespace HIKARI::SHADOW {
         g.debugStats.normalBias = environment.directionalShadow.normalBias;
         g.debugStats.strength = environment.directionalShadow.strength;
         if (!g.frameEnabled) {
+            InvalidateShadowCache();
+            return;
+        }
+        g.frameHasShadowWork = BuildShadowGpuDrivenSceneSource();
+        if (!g.frameHasShadowWork) {
+            InvalidateShadowCache();
             return;
         }
         if (!EnsureInitialized()) {
             g.frameEnabled = false;
             g.debugStats.enabled = false;
+            g.frameHasShadowWork = false;
+            InvalidateShadowCache();
             return;
         }
-        ResetShadowMaterialFrame();
 
         const uint32_t resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
         if (g.shadowMap == nullptr || g.resolution != resolution) {
             if (!CreateShadowMap(resolution)) {
                 g.frameEnabled = false;
                 g.debugStats.enabled = false;
+                g.frameHasShadowWork = false;
+                InvalidateShadowCache();
                 return;
             }
             g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
         }
         g.lightViewProj = BuildLightViewProj(environment, camera);
-        UploadShadowGpuSceneFrame();
+        if (CanReuseShadowCache(resolution)) {
+            MarkShadowCacheHit();
+            SubmitDebugFrustum(environment, camera);
+            if (g.cameraMapped != nullptr) {
+                g.cameraMapped->lightViewProj = g.lightViewProj;
+            }
+            return;
+        }
+
+        MarkShadowCacheMiss();
+        ResetShadowMaterialFrame();
+        if (!UploadShadowGpuSceneFrame()) {
+            InvalidateShadowCache();
+            return;
+        }
         PrepareShadowSurfaceGpuSceneMaterialFrame();
         BuildShadowGpuDrivenWorkFrame(camera);
         UploadShadowIndirectDrawFrame();
@@ -1694,15 +1807,27 @@ namespace HIKARI::SHADOW {
         if (source == nullptr) {
             g.shadowSceneSource.Reset();
             gShadowTraditionalIndirectStream.Clear();
+            InvalidateShadowCache();
         }
     }
 
     void RenderDirectionalShadowMap() {
-        if (!g.frameEnabled || g.shadowMap == nullptr) {
+        if (!g.frameEnabled || !g.frameHasShadowWork || g.shadowMap == nullptr) {
             return;
         }
         auto* cmd = SERVICES::gCtx.cmdList;
         if (cmd == nullptr) {
+            return;
+        }
+        if (g.shadowCacheHitThisFrame) {
+            if (g.shadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    g.shadowMap.Get(),
+                    g.shadowState,
+                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                cmd->ResourceBarrier(1, &barrier);
+                g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            }
             return;
         }
         GFX::GPU_PROFILE::ScopedGpuTimer gpuShadow(cmd, GFX::GPU_PROFILE::Pass::ShadowMap);
@@ -1739,12 +1864,18 @@ namespace HIKARI::SHADOW {
             RestoreMainRenderTarget();
         };
 
-        (void)ExecuteShadowGpuDrivenPass();
+        const bool executed = ExecuteShadowGpuDrivenPass();
         finishShadowRender();
+        if (executed) {
+            MarkShadowCacheValidAfterRender();
+        } else {
+            InvalidateShadowCache();
+        }
     }
 
     bool IsDirectionalShadowEnabled() {
         return g.frameEnabled &&
+            g.frameHasShadowWork &&
             g.shadowMap != nullptr &&
             RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
     }
