@@ -1,0 +1,23 @@
+{
+  "artifacts": [],
+  "dependencies": [],
+  "displayName": "NapkinHolder_Normal",
+  "guid": "cff4c5aa04bde3b4d9739c356f1da5d2",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC5",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 3,
+  "metaVersion": 1,
+  "sourcePath": "Assets/BigScene/NapkinHolder_Normal.png",
+  "type": "Texture"
+}

@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/cf7695196e940ef2d915a232b4277aa8/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/cf7695196e940ef2d915a232b4277aa8/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
+  "dependencies": [],
+  "displayName": "MASTER_Black_Metal_Normal",
+  "guid": "cf7695196e940ef2d915a232b4277aa8",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 3,
+  "metaVersion": 1,
+  "sourcePath": "Assets/BigScene/MASTER_Black_Metal_Normal.png",
+  "type": "Texture"
+}

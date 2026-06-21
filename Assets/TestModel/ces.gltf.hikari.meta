@@ -1,5 +1,11 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/f5d8bf9181685be5d59ddab90531464d/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
   "dependencies": [],
   "displayName": "ces",
   "guid": "f5d8bf9181685be5d59ddab90531464d",
@@ -9,7 +15,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 1,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/ces.gltf",
   "type": "Model"

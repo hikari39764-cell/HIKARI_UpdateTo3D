@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/ce679e875a4546e76a8db712564d8817/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/ce679e875a4546e76a8db712564d8817/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
+  "dependencies": [],
+  "displayName": "Shopsign_Pharmacy_Emissive_BaseColor",
+  "guid": "ce679e875a4546e76a8db712564d8817",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "BaseColor"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 3,
+  "metaVersion": 1,
+  "sourcePath": "Assets/BigScene/Shopsign_Pharmacy_Emissive_BaseColor.png",
+  "type": "Texture"
+}

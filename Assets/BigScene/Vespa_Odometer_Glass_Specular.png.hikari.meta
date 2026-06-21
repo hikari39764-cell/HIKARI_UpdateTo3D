@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/9ff71224a1c29ea4fc9e779b54baa33a/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/9ff71224a1c29ea4fc9e779b54baa33a/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
+  "dependencies": [],
+  "displayName": "Vespa_Odometer_Glass_Specular",
+  "guid": "9ff71224a1c29ea4fc9e779b54baa33a",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Auto"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 3,
+  "metaVersion": 1,
+  "sourcePath": "Assets/BigScene/Vespa_Odometer_Glass_Specular.png",
+  "type": "Texture"
+}

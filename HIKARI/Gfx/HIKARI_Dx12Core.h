@@ -18,9 +18,9 @@ public:
     bool Initialize(HWND hwnd, int w, int h, bool enableDebugLayer);
     void Shutdown();
 
-    void BeginFrame(float clearR, float clearG, float clearB, float clearA);
-    void EndFrame();
-    void Resize(int w, int h);
+    bool BeginFrame(float clearR, float clearG, float clearB, float clearA);
+    bool EndFrame();
+    bool Resize(int w, int h);
 
     uint32_t FrameIndex() const { return frameIndex_; }
     ID3D12Device* Device() { return device_.Get(); }
@@ -36,14 +36,16 @@ public:
     ID3D12Resource* CurrentBackBuffer();
     size_t GetPendingDeferredReleaseCount() const;
     bool IsFenceComplete(uint64_t fenceValue) const;
+    bool IsDeviceLost() const { return deviceLost_; }
 
     Context BuildContext() const;
 
 private:
-    void WaitGPU();
-    void MoveToNextFrame();
-    void CreateSwapChainResources();
-    void CreateDepthBuffer();
+    bool WaitGPU();
+    bool MoveToNextFrame();
+    bool CreateSwapChainResources();
+    bool CreateDepthBuffer();
+    bool CheckDeviceRemoved(const char* reason, HRESULT hr);
 
 private:
     HWND hwnd_{};
@@ -76,6 +78,8 @@ private:
     uint64_t fenceValue_{};
     HANDLE fenceEvent_{};
     uint32_t frameIndex_{};
+    bool deviceLost_ = false;
+    bool frameOpen_ = false;
 };
 
 } // namespace HIKARI::GFX

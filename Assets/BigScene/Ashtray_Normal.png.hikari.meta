@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/5552f3d3c7be9447f6056bf20e994168/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/5552f3d3c7be9447f6056bf20e994168/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
+  "dependencies": [],
+  "displayName": "Ashtray_Normal",
+  "guid": "5552f3d3c7be9447f6056bf20e994168",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 3,
+  "metaVersion": 1,
+  "sourcePath": "Assets/BigScene/Ashtray_Normal.png",
+  "type": "Texture"
+}

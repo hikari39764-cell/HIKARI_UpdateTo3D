@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/dfb07b716813281a04480b5925fdf2e2/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/dfb07b716813281a04480b5925fdf2e2/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Tentacle",
   "guid": "dfb07b716813281a04480b5925fdf2e2",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Texture/Tentacle.png",
   "type": "Texture"

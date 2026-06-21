@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/dfa3ce2572c8025d014d0145814f729e/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/dfa3ce2572c8025d014d0145814f729e/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "ExperimentalBlur",
   "guid": "dfa3ce2572c8025d014d0145814f729e",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Texture/ExperimentalBlur.png",
   "type": "Texture"

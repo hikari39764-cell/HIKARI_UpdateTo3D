@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HCMESH",
+      "path": "Library/Imported/0ef9bdd20ce6c1338dfd8cdd15535593/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/0ef9bdd20ce6c1338dfd8cdd15535593/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
   "dependencies": [],
   "displayName": "human_male",
   "guid": "0ef9bdd20ce6c1338dfd8cdd15535593",
@@ -9,7 +20,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 1,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/human_male.gltf",
   "type": "Model"

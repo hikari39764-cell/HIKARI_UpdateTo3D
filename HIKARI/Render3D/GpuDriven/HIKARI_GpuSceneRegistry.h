@@ -51,8 +51,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t blockedShadowRecordCount = 0;
         uint32_t forwardSkinnedTraditionalRecordCount = 0;
         uint32_t shadowSkinnedTraditionalRecordCount = 0;
+        uint32_t depthPrepassOccluderRecordCount = 0;
+        uint32_t depthPrepassRejectedSmallRecordCount = 0;
+        uint32_t depthPrepassRejectedUnsafeMaterialRecordCount = 0;
+        uint32_t depthPrepassBudgetClippedRecordCount = 0;
 
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueGpuSceneStats{};
+        RUNTIME::SurfaceGpuSceneBuildStats depthPrepassGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardDepthAwareGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardTransparentGpuSceneStats{};
         RUNTIME::SurfaceGpuSceneBuildStats forwardOpaqueSkinnedTraditionalGpuSceneStats{};
@@ -117,6 +122,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         std::vector<GpuSceneSurfaceRecord> surfaceRecords_{};
         std::vector<uint32_t> forwardOpaqueResidentRecordIndices_{};
+        std::vector<uint32_t> depthPrepassOccluderRecordIndices_{};
         std::vector<uint32_t> forwardDepthAwareResidentRecordIndices_{};
         std::vector<uint32_t> forwardTransparentResidentRecordIndices_{};
         std::vector<uint32_t> shadowResidentRecordIndices_{};
@@ -125,11 +131,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<uint32_t> forwardTransparentSkinnedRecordIndices_{};
         std::vector<uint32_t> shadowSkinnedRecordIndices_{};
         std::vector<uint32_t> forwardOpaqueGpuSceneIndexByRecord_{};
+        std::vector<uint32_t> depthPrepassGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardDepthAwareGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardTransparentGpuSceneIndexByRecord_{};
         std::vector<uint32_t> shadowGpuSceneIndexByRecord_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardOpaqueGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardOpaqueMaterialSources_{};
+        std::vector<RUNTIME::SurfaceGpuSceneInstance> depthPrepassGpuSceneInstances_{};
+        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> depthPrepassMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardDepthAwareGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardDepthAwareMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardTransparentGpuSceneInstances_{};

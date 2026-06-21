@@ -24,6 +24,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         dispatchContext.surfaceGpuSceneGpuAddress =
             context.surfaceGpuSceneGpuAddress;
         dispatchContext.frame = context.frame;
+        dispatchContext.passMask = context.passMask;
+        dispatchContext.collectCounterReadback = context.collectCounterReadback;
+        dispatchContext.depthOcclusion = context.depthOcclusion;
 
         const GpuDrivenProducerWorkResult dispatchResult =
             context.producer->DispatchWork(dispatchContext);

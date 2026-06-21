@@ -147,15 +147,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t payloadCursor_ = 0;
         UINT rootConstantCount_ = 0;
         D3D12_RESOURCE_STATES argumentBufferState_ =
-            D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+            D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES skinnedArgumentBufferState_ =
-            D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+            D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES seedBufferState_ =
-            D3D12_RESOURCE_STATE_COPY_DEST;
+            D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES payloadBufferState_ =
-            D3D12_RESOURCE_STATE_COPY_DEST;
+            D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES counterBufferState_ =
-            D3D12_RESOURCE_STATE_COPY_DEST;
+            D3D12_RESOURCE_STATE_COMMON;
         std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
         SurfaceIndirectDrawBufferStats stats_{};
     };

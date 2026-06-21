@@ -76,6 +76,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void UploadSurfaceGpuSceneFrame(
             uint32_t instanceCount,
             uint32_t opaqueBaseIndex,
+            uint32_t depthPrepassBaseIndex,
             uint32_t depthAwareBaseIndex,
             uint32_t transparentBaseIndex,
             uint32_t shadowBaseIndex,

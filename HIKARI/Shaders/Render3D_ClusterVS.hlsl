@@ -19,9 +19,10 @@ cbuffer CameraCB : register(b0)
 #include "Include/HIKARI_MeshObjectData.hlsli"
 #include "Include/HIKARI_ClusterGpuData.hlsli"
 #include "Include/HIKARI_GpuDrivenWaterDeform.hlsli"
+#include "Include/HIKARI_RenderDescriptorLayout.hlsli"
 
-static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = 3985u;
-static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = 111u;
+static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_BEGIN;
+static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_COUNT;
 ByteAddressBuffer gClusterGeometryPool[HIKARI_CLUSTER_SRV_POOL_COUNT] : register(t0, space1);
 
 struct VSInput

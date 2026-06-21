@@ -18,6 +18,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         ForwardTransparent,
         Shadow,
         GeometryAux,
+        DepthPrepass,
     };
 
     namespace MeshletPipelineMask {
@@ -26,11 +27,13 @@ namespace HIKARI::RENDER3D::MESHLET {
         constexpr uint32_t ForwardTransparent = 1u << 2;
         constexpr uint32_t Shadow = 1u << 3;
         constexpr uint32_t GeometryAux = 1u << 4;
+        constexpr uint32_t DepthPrepass = 1u << 5;
         constexpr uint32_t MainRenderer =
             ForwardOpaque |
             ForwardDepthAware |
             ForwardTransparent |
-            GeometryAux;
+            GeometryAux |
+            DepthPrepass;
         constexpr uint32_t ShadowRenderer = Shadow;
         constexpr uint32_t All = MainRenderer | ShadowRenderer;
     }
@@ -48,6 +51,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         bool transparentPipelineReady = false;
         bool shadowPipelineReady = false;
         bool geometryAuxPipelineReady = false;
+        bool depthPrepassPipelineReady = false;
         bool pipelineReady = false;
         uint32_t meshShaderTier = 0;
         size_t pipelineCreateRequestCount = 0;
@@ -59,6 +63,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         size_t skippedBucketCount = 0;
         size_t forwardSubmittedDispatchCount = 0;
         size_t geometryAuxSubmittedDispatchCount = 0;
+        size_t depthPrepassSubmittedDispatchCount = 0;
         size_t backFaceSubmitCallCount = 0;
         size_t doubleSidedSubmitCallCount = 0;
     };
@@ -96,6 +101,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         PipelineBucketArray transparentPipelineStates_{};
         PipelineBucketArray shadowPipelineStates_{};
         PipelineBucketArray geometryAuxPipelineStates_{};
+        PipelineBucketArray depthPrepassPipelineStates_{};
         uint32_t pipelineMask_ = MeshletPipelineMask::All;
         MeshletRenderBackendStats stats_{};
     };

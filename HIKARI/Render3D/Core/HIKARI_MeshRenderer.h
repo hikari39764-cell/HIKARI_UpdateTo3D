@@ -15,6 +15,7 @@
 namespace HIKARI::RENDER3D {
     namespace GPUDRIVEN {
         struct GpuDrivenSceneSource;
+        struct GpuDepthVisibilityStats;
     }
     namespace SCREENSPACE {
         class ScreenSpaceGeometryAux;
@@ -45,11 +46,16 @@ namespace HIKARI::MESHRENDERER {
     bool RenderGeometryAuxPass(
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
+    bool RenderDepthPrepass(D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
+    bool FinalizeGpuDrivenVisibilityWithoutDepth();
+    bool FinalizeGpuDrivenVisibilityFromDepth(
+        const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& depthVisibilityStats);
     bool RenderForwardOpaquePass(
         const MeshPassResources& passResources);
     bool RenderForwardTransparentPass(
         const MeshPassResources& passResources);
     bool HasDepthAwarePassWork();
+    bool HasForwardTransparentPassWork();
     bool RenderDepthAwarePass(
         const MeshPassResources& passResources);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);

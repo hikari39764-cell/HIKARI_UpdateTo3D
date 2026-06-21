@@ -94,6 +94,7 @@ struct ClusterCullPageTask
 cbuffer ClusterCullFrameCB : register(b0)
 {
     float4x4 gClusterCullViewProj;
+    float4x4 gClusterCullHzbViewProj;
     float4 gClusterCullCameraPosition;
     uint gClusterCullInputCount;
     uint gClusterCullVisibleRangeCapacity;
@@ -115,6 +116,14 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullEnableLodErrorSelection;
     uint gClusterCullReserved0;
     uint gClusterCullReserved1;
+    uint gClusterCullEnableHzbOcclusion;
+    uint gClusterCullHzbWidth;
+    uint gClusterCullHzbHeight;
+    uint gClusterCullHzbMipCount;
+    float gClusterCullHzbDepthBias;
+    float gClusterCullHzbMaxScreenRadiusPixels;
+    uint gClusterCullReserved2;
+    uint gClusterCullReserved3;
 };
 
 RWStructuredBuffer<ClusterCullVisibleRange> gClusterCullVisibleRanges : register(u0);
@@ -134,7 +143,8 @@ static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_OPAQUE = 0u;
 static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE = 1u;
 static const uint HIKARI_CLUSTER_CULL_PASS_FORWARD_TRANSPARENT = 2u;
 static const uint HIKARI_CLUSTER_CULL_PASS_SHADOW = 3u;
-static const uint HIKARI_CLUSTER_CULL_PASS_COUNT = 4u;
+static const uint HIKARI_CLUSTER_CULL_PASS_DEPTH_PREPASS = 4u;
+static const uint HIKARI_CLUSTER_CULL_PASS_COUNT = 5u;
 
 static const uint HIKARI_CLUSTER_CULL_COUNTER_INPUT_COUNT = 0u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_VISIBLE_RANGE_COUNT = 4u;
@@ -160,7 +170,23 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD0_SELECTED_COUNT = 80u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD1_SELECTED_COUNT = 84u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD2_SELECTED_COUNT = 88u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_LOD3_PLUS_SELECTED_COUNT = 92u;
-static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE = 96u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_TESTED_COUNT = 96u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT = 100u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_TESTED_COUNT = 104u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_CULLED_COUNT = 108u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_PASS_REJECTED_COUNT = 112u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_AABB_REJECTED_COUNT = 116u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_REJECTED_COUNT = 120u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_QUERY_ACCEPTED_COUNT = 124u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_TRY_COUNT = 128u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_ALLOWED_COUNT = 132u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_INVALID_REJECTED_COUNT = 136u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_NEAR_PLANE_REJECTED_COUNT = 140u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_OFFSCREEN_REJECTED_COUNT = 144u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_LARGE_RECT_COUNT = 148u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_AABB_ACCEPTED_COUNT = 152u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_ACCEPTED_COUNT = 156u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE = 160u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE = 16u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_COUNT = 0u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_COUNT = 4u;
@@ -172,43 +198,69 @@ static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 2048u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 8192u;
 // クラスタ間の穴埋めは描画量を増やしやすいため、既定では無効にする。
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 0u;
+static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_OK = 0u;
+static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID = 1u;
+static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE = 2u;
+static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_OFFSCREEN = 3u;
+static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_FLAG_LARGE_RECT = 1u;
 
 ByteAddressBuffer gClusterGeometryPool[111] : register(t0, space1);
+Texture2D<float> gClusterCullHzb : register(t18);
+
+float4 HikariClusterCullMatrixRow0(float4x4 matrix)
+{
+    return float4(
+        matrix._11,
+        matrix._12,
+        matrix._13,
+        matrix._14);
+}
+
+float4 HikariClusterCullMatrixRow1(float4x4 matrix)
+{
+    return float4(
+        matrix._21,
+        matrix._22,
+        matrix._23,
+        matrix._24);
+}
+
+float4 HikariClusterCullMatrixRow2(float4x4 matrix)
+{
+    return float4(
+        matrix._31,
+        matrix._32,
+        matrix._33,
+        matrix._34);
+}
+
+float4 HikariClusterCullMatrixRow3(float4x4 matrix)
+{
+    return float4(
+        matrix._41,
+        matrix._42,
+        matrix._43,
+        matrix._44);
+}
 
 float4 HikariClusterCullViewProjRow0()
 {
-    return float4(
-        gClusterCullViewProj._11,
-        gClusterCullViewProj._12,
-        gClusterCullViewProj._13,
-        gClusterCullViewProj._14);
+    return HikariClusterCullMatrixRow0(gClusterCullViewProj);
 }
 
 float4 HikariClusterCullViewProjRow1()
 {
-    return float4(
-        gClusterCullViewProj._21,
-        gClusterCullViewProj._22,
-        gClusterCullViewProj._23,
-        gClusterCullViewProj._24);
+    return HikariClusterCullMatrixRow1(gClusterCullViewProj);
 }
 
 float4 HikariClusterCullViewProjRow2()
 {
-    return float4(
-        gClusterCullViewProj._31,
-        gClusterCullViewProj._32,
-        gClusterCullViewProj._33,
-        gClusterCullViewProj._34);
+    return HikariClusterCullMatrixRow2(gClusterCullViewProj);
 }
 
 float4 HikariClusterCullViewProjRow3()
 {
-    return float4(
-        gClusterCullViewProj._41,
-        gClusterCullViewProj._42,
-        gClusterCullViewProj._43,
-        gClusterCullViewProj._44);
+    return HikariClusterCullMatrixRow3(gClusterCullViewProj);
 }
 
 bool HikariClusterCullPlaneVisible(float4 plane, float3 center, float radius)
@@ -250,15 +302,28 @@ bool HikariClusterCullSphereVisible(float4 boundsCenterRadius)
         HikariClusterCullPlaneVisible(row3 - row2, center, radius);
 }
 
-float HikariClusterCullProjectedWorldLength(float3 worldCenter, float worldLength)
+float HikariClusterCullProjectedWorldLengthWithMatrix(
+    float4x4 viewProj,
+    float3 worldCenter,
+    float worldLength)
 {
     float4 clipCenter =
-        mul(gClusterCullViewProj, float4(worldCenter, 1.0f));
+        mul(viewProj, float4(worldCenter, 1.0f));
     float projectionScale =
-        max(length(HikariClusterCullViewProjRow0().xyz), length(HikariClusterCullViewProjRow1().xyz));
+        max(
+            length(HikariClusterCullMatrixRow0(viewProj).xyz),
+            length(HikariClusterCullMatrixRow1(viewProj).xyz));
     return max(worldLength, 0.0f) *
         projectionScale /
         max(abs(clipCenter.w), 0.0001f);
+}
+
+float HikariClusterCullProjectedWorldLength(float3 worldCenter, float worldLength)
+{
+    return HikariClusterCullProjectedWorldLengthWithMatrix(
+        gClusterCullViewProj,
+        worldCenter,
+        worldLength);
 }
 
 float HikariClusterCullProjectedScreenRadius(float4 boundsCenterRadius)
@@ -266,6 +331,365 @@ float HikariClusterCullProjectedScreenRadius(float4 boundsCenterRadius)
     return HikariClusterCullProjectedWorldLength(
         boundsCenterRadius.xyz,
         boundsCenterRadius.w);
+}
+
+void HikariClusterCullAddDebugCounter(uint byteOffset, uint value)
+{
+    if (gClusterCullEnableDebugCounters != 0u)
+    {
+        gClusterCullCounters.InterlockedAdd(byteOffset, value);
+    }
+}
+
+bool HikariClusterCullHzbOcclusionAllowed(uint passKind)
+{
+    return
+        gClusterCullEnableHzbOcclusion != 0u &&
+        passKind != HIKARI_CLUSTER_CULL_PASS_SHADOW &&
+        passKind != HIKARI_CLUSTER_CULL_PASS_DEPTH_PREPASS &&
+        gClusterCullHzbWidth > 0u &&
+        gClusterCullHzbHeight > 0u;
+}
+
+struct HikariClusterCullHzbQuery
+{
+    float2 minUv;
+    float2 maxUv;
+    float nearestDepth;
+    float maxExtentPixels;
+    uint flags;
+};
+
+uint HikariClusterCullMipDim(uint baseDim, uint mipLevel)
+{
+    return max(1u, baseDim >> min(mipLevel, 31u));
+}
+
+uint HikariClusterCullSelectHzbMip(float maxExtentPixels)
+{
+    if (gClusterCullHzbMipCount <= 1u)
+    {
+        return 0u;
+    }
+
+    // Pick a mip where the projected bounds cover a few texels. Sampling a
+    // projected rectangle is more stable than guessing from a sphere radius.
+    float desiredMip = floor(log2(max(maxExtentPixels * 0.5f, 1.0f)));
+    return min((uint)max(desiredMip, 0.0f), gClusterCullHzbMipCount - 1u);
+}
+
+float HikariClusterCullLoadHzbDepth(int2 pixel, uint mipLevel)
+{
+    int2 maxPixel = int2(
+        max((int)HikariClusterCullMipDim(gClusterCullHzbWidth, mipLevel) - 1, 0),
+        max((int)HikariClusterCullMipDim(gClusterCullHzbHeight, mipLevel) - 1, 0));
+    uint2 clampedPixel = (uint2)clamp(pixel, int2(0, 0), maxPixel);
+    return gClusterCullHzb.Load(int3(clampedPixel, mipLevel));
+}
+
+float HikariClusterCullLoadHzbMaxDepthInRect(
+    float2 minUv,
+    float2 maxUv,
+    uint mipLevel)
+{
+    uint mipWidth = HikariClusterCullMipDim(gClusterCullHzbWidth, mipLevel);
+    uint mipHeight = HikariClusterCullMipDim(gClusterCullHzbHeight, mipLevel);
+    float2 mipSize = float2((float)mipWidth, (float)mipHeight);
+    int2 minPixel = int2(floor(saturate(minUv) * mipSize));
+    int2 maxPixel = int2(ceil(saturate(maxUv) * mipSize - 1.0f));
+    maxPixel = max(maxPixel, minPixel);
+
+    float maxHzbDepth = 0.0f;
+    [unroll]
+    for (uint y = 0u; y < 3u; ++y)
+    {
+        [unroll]
+        for (uint x = 0u; x < 3u; ++x)
+        {
+            float2 t = float2((float)x, (float)y) * 0.5f;
+            int2 pixel = int2(round(lerp((float2)minPixel, (float2)maxPixel, t)));
+            maxHzbDepth = max(maxHzbDepth, HikariClusterCullLoadHzbDepth(pixel, mipLevel));
+        }
+    }
+    return maxHzbDepth;
+}
+
+float3 HikariClusterCullBoundsCorner(float4 boundsMin, float4 boundsMax, uint cornerIndex)
+{
+    return float3(
+        (cornerIndex & 1u) != 0u ? boundsMax.x : boundsMin.x,
+        (cornerIndex & 2u) != 0u ? boundsMax.y : boundsMin.y,
+        (cornerIndex & 4u) != 0u ? boundsMax.z : boundsMin.z);
+}
+
+uint HikariClusterCullBuildHzbQuery(
+    float4x4 world,
+    float4 boundsMin,
+    float4 boundsMax,
+    out HikariClusterCullHzbQuery query)
+{
+    query.minUv = float2(1.0f, 1.0f);
+    query.maxUv = float2(0.0f, 0.0f);
+    query.nearestDepth = 1.0f;
+    query.maxExtentPixels = 0.0f;
+    query.flags = 0u;
+
+    uint projectedCornerCount = 0u;
+    [unroll]
+    for (uint cornerIndex = 0u; cornerIndex < 8u; ++cornerIndex)
+    {
+        float3 localCorner =
+            HikariClusterCullBoundsCorner(boundsMin, boundsMax, cornerIndex);
+        float3 worldCorner = mul(world, float4(localCorner, 1.0f)).xyz;
+        float4 clip = mul(gClusterCullHzbViewProj, float4(worldCorner, 1.0f));
+        if (clip.w <= 0.0001f)
+        {
+            return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+        }
+
+        float3 ndc = clip.xyz / clip.w;
+        if (ndc.z <= 0.0f)
+        {
+            return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+        }
+
+        float2 uv = float2(ndc.x * 0.5f + 0.5f, 0.5f - ndc.y * 0.5f);
+        query.minUv = min(query.minUv, uv);
+        query.maxUv = max(query.maxUv, uv);
+        query.nearestDepth = min(query.nearestDepth, min(ndc.z, 1.0f));
+        ++projectedCornerCount;
+    }
+    if (projectedCornerCount == 0u)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+
+    if (query.maxUv.x <= 0.0f ||
+        query.minUv.x >= 1.0f ||
+        query.maxUv.y <= 0.0f ||
+        query.minUv.y >= 1.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_OFFSCREEN;
+    }
+
+    query.minUv = saturate(query.minUv);
+    query.maxUv = saturate(query.maxUv);
+    float2 extentPixels =
+        max((query.maxUv - query.minUv) *
+            float2((float)gClusterCullHzbWidth, (float)gClusterCullHzbHeight),
+            float2(1.0f, 1.0f));
+    query.maxExtentPixels = max(extentPixels.x, extentPixels.y);
+    if (query.maxExtentPixels <= 0.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+    if (query.maxExtentPixels > max(gClusterCullHzbMaxScreenRadiusPixels, 1.0f))
+    {
+        query.flags |= HIKARI_CLUSTER_CULL_HZB_QUERY_FLAG_LARGE_RECT;
+    }
+
+    return query.nearestDepth > 0.0f && query.nearestDepth < 1.0f
+        ? HIKARI_CLUSTER_CULL_HZB_QUERY_OK
+        : HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+}
+
+uint HikariClusterCullBuildHzbSphereQuery(
+    float4x4 world,
+    float4 boundsMin,
+    float4 boundsMax,
+    out HikariClusterCullHzbQuery query)
+{
+    query.minUv = float2(1.0f, 1.0f);
+    query.maxUv = float2(0.0f, 0.0f);
+    query.nearestDepth = 1.0f;
+    query.maxExtentPixels = 0.0f;
+    query.flags = 0u;
+
+    float3 localCenter = (boundsMin.xyz + boundsMax.xyz) * 0.5f;
+    float3 localExtents = max(boundsMax.xyz - localCenter, float3(0.0f, 0.0f, 0.0f));
+    float localRadius = length(localExtents);
+    if (localRadius <= 0.000001f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+
+    float3 worldCenter = mul(world, float4(localCenter, 1.0f)).xyz;
+    float3 axisX = float3(world._11, world._21, world._31);
+    float3 axisY = float3(world._12, world._22, world._32);
+    float3 axisZ = float3(world._13, world._23, world._33);
+    float worldScale = max(length(axisX), max(length(axisY), length(axisZ)));
+    float worldRadius = max(localRadius * worldScale, 0.0f);
+    if (worldRadius <= 0.000001f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+
+    float4 clipCenter = mul(gClusterCullHzbViewProj, float4(worldCenter, 1.0f));
+    float4 row2 = HikariClusterCullMatrixRow2(gClusterCullHzbViewProj);
+    float4 row3 = HikariClusterCullMatrixRow3(gClusterCullHzbViewProj);
+    float wRadius = length(row3.xyz) * worldRadius;
+    if (clipCenter.w <= wRadius + 0.0001f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+    }
+
+    float3 ndcCenter = clipCenter.xyz / clipCenter.w;
+    if (ndcCenter.z <= 0.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+    }
+    if (ndcCenter.z >= 1.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_OFFSCREEN;
+    }
+
+    float screenRadiusNdc =
+        HikariClusterCullProjectedWorldLengthWithMatrix(
+            gClusterCullHzbViewProj,
+            worldCenter,
+            worldRadius);
+    if (screenRadiusNdc <= 0.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+
+    float2 centerUv = float2(
+        ndcCenter.x * 0.5f + 0.5f,
+        0.5f - ndcCenter.y * 0.5f);
+    float2 radiusUv = float2(screenRadiusNdc * 0.5f, screenRadiusNdc * 0.5f);
+    query.minUv = centerUv - radiusUv;
+    query.maxUv = centerUv + radiusUv;
+    if (query.maxUv.x <= 0.0f ||
+        query.minUv.x >= 1.0f ||
+        query.maxUv.y <= 0.0f ||
+        query.minUv.y >= 1.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_OFFSCREEN;
+    }
+
+    query.minUv = saturate(query.minUv);
+    query.maxUv = saturate(query.maxUv);
+    float2 extentPixels =
+        max((query.maxUv - query.minUv) *
+            float2((float)gClusterCullHzbWidth, (float)gClusterCullHzbHeight),
+            float2(1.0f, 1.0f));
+    query.maxExtentPixels = max(extentPixels.x, extentPixels.y);
+    if (query.maxExtentPixels <= 0.0f)
+    {
+        return HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID;
+    }
+    if (query.maxExtentPixels > max(gClusterCullHzbMaxScreenRadiusPixels, 1.0f))
+    {
+        query.flags |= HIKARI_CLUSTER_CULL_HZB_QUERY_FLAG_LARGE_RECT;
+    }
+
+    float zRadius = length(row2.xyz) * worldRadius;
+    float nearestClipZ = clipCenter.z - zRadius;
+    float nearestClipW = max(clipCenter.w + wRadius, 0.0001f);
+    query.nearestDepth = nearestClipZ / nearestClipW;
+    return query.nearestDepth > 0.0f && query.nearestDepth < 1.0f
+        ? HIKARI_CLUSTER_CULL_HZB_QUERY_OK
+        : HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE;
+}
+
+void HikariClusterCullRecordHzbQueryReject(uint rejectReason)
+{
+    if (rejectReason == HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_NEAR_PLANE_REJECTED_COUNT,
+            1);
+    }
+    else if (rejectReason == HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_OFFSCREEN)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_OFFSCREEN_REJECTED_COUNT,
+            1);
+    }
+}
+
+bool HikariClusterCullTryHzbOccluded(
+    uint passKind,
+    float4x4 world,
+    float4 boundsMin,
+    float4 boundsMax,
+    out bool tested)
+{
+    tested = false;
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_TRY_COUNT,
+        1);
+
+    if (gClusterCullEnableHzbOcclusion == 0u ||
+        gClusterCullHzbWidth == 0u ||
+        gClusterCullHzbHeight == 0u ||
+        gClusterCullHzbMipCount == 0u)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_INVALID_REJECTED_COUNT,
+            1);
+        return false;
+    }
+
+    if (passKind == HIKARI_CLUSTER_CULL_PASS_SHADOW ||
+        passKind == HIKARI_CLUSTER_CULL_PASS_DEPTH_PREPASS)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_PASS_REJECTED_COUNT,
+            1);
+        return false;
+    }
+
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_ALLOWED_COUNT,
+        1);
+
+    HikariClusterCullHzbQuery query;
+    uint queryRejectReason =
+        HikariClusterCullBuildHzbQuery(world, boundsMin, boundsMax, query);
+    if (queryRejectReason != HIKARI_CLUSTER_CULL_HZB_QUERY_OK)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_AABB_REJECTED_COUNT,
+            1);
+        HikariClusterCullRecordHzbQueryReject(queryRejectReason);
+
+        queryRejectReason =
+            HikariClusterCullBuildHzbSphereQuery(world, boundsMin, boundsMax, query);
+        if (queryRejectReason != HIKARI_CLUSTER_CULL_HZB_QUERY_OK)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_REJECTED_COUNT,
+                1);
+            HikariClusterCullRecordHzbQueryReject(queryRejectReason);
+            return false;
+        }
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_ACCEPTED_COUNT,
+            1);
+    }
+    else
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_AABB_ACCEPTED_COUNT,
+            1);
+    }
+
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_QUERY_ACCEPTED_COUNT,
+        1);
+    if ((query.flags & HIKARI_CLUSTER_CULL_HZB_QUERY_FLAG_LARGE_RECT) != 0u)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_LARGE_RECT_COUNT,
+            1);
+    }
+    tested = true;
+    uint mipLevel = HikariClusterCullSelectHzbMip(query.maxExtentPixels);
+    float maxHzbDepth =
+        HikariClusterCullLoadHzbMaxDepthInRect(query.minUv, query.maxUv, mipLevel);
+
+    return query.nearestDepth > maxHzbDepth + max(gClusterCullHzbDepthBias, 0.0f);
 }
 
 float HikariClusterCullProjectedLodError(
@@ -925,6 +1349,37 @@ void HikariClusterCullProcessPage(
         return;
     }
 
+    bool pageOcclusionTested = false;
+    bool pageOccluded = HikariClusterCullTryHzbOccluded(
+            input.passKind,
+            input.clusterWorld,
+            page.boundsMin,
+            page.boundsMax,
+            pageOcclusionTested);
+    if (pageOcclusionTested)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_TESTED_COUNT,
+            1);
+    }
+    if (pageOccluded)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT,
+            1);
+        HikariClusterCullFlushVisibleRun(
+            input,
+            hasRun,
+            runFirstCluster,
+            runClusterCount,
+            runVisibleClusterCount,
+            runFirstIndex,
+            runIndexCount,
+            runMergedGapCount,
+            runMergedGapIndexCount);
+        return;
+    }
+
     for (uint clusterIndex = pageRangeStart; clusterIndex < pageRangeEnd; ++clusterIndex)
     {
         HikariMeshCluster cluster = HikariLoadMeshCluster(geometry, header, clusterIndex);
@@ -966,6 +1421,27 @@ void HikariClusterCullProcessPage(
                     HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_FRUSTUM_CULLED_COUNT,
                     1);
             }
+            continue;
+        }
+
+        bool clusterOcclusionTested = false;
+        bool clusterOccluded = HikariClusterCullTryHzbOccluded(
+                input.passKind,
+                input.clusterWorld,
+                cluster.boundsMin,
+                cluster.boundsMax,
+                clusterOcclusionTested);
+        if (clusterOcclusionTested)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_TESTED_COUNT,
+                1);
+        }
+        if (clusterOccluded)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_CULLED_COUNT,
+                1);
             continue;
         }
 

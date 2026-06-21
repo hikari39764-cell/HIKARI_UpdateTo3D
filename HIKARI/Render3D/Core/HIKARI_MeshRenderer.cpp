@@ -32,6 +32,7 @@
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
+#include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
 #ifdef max
@@ -124,7 +125,10 @@ namespace HIKARI::MESHRENDERER {
         void UpdateGpuDrivenCommandStreamDebugStats();
         void BuildGpuDrivenFrameState();
         void UpdateGpuDrivenWorkOwnershipDebugStats();
-        void BuildGpuDrivenWorkFrame();
+        void BuildGpuDrivenWorkFrame(
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats* depthVisibilityStats = nullptr,
+            uint32_t passMask = 0xffffffffu,
+            bool collectCounterReadback = true);
 
         const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& GetSceneSourcePass(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind) {
@@ -566,6 +570,10 @@ namespace HIKARI::MESHRENDERER {
                 uploadStats.passInstanceCounts[
                     RENDER3D::GPUDRIVEN::ToPassIndex(
                         RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)];
+            g.debugStats.surfaceGpuSceneDepthPrepassInstanceCount =
+                uploadStats.passInstanceCounts[
+                    RENDER3D::GPUDRIVEN::ToPassIndex(
+                        RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass)];
             g.debugStats.surfaceGpuSceneDepthAwareInstanceCount =
                 uploadStats.passInstanceCounts[
                     RENDER3D::GPUDRIVEN::ToPassIndex(
@@ -610,6 +618,10 @@ namespace HIKARI::MESHRENDERER {
             prepareMaterialSources(
                 opaque.traditionalIndirect.gpuSceneBaseIndex,
                 opaque.traditionalIndirect.materialSources);
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthPrepass =
+                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass);
+            prepareMaterialSources(depthPrepass.gpuSceneBaseIndex, depthPrepass.materialSources);
 
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
                 GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
@@ -657,6 +669,22 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenFrame.CountSourceInstances();
             g.debugStats.gpuDrivenWorklistClusterInstanceCount =
                 g.gpuDrivenFrame.CountClusterEligibleInstances();
+        }
+
+        uint32_t MakePreDepthGpuDrivenPassMask() {
+            using RENDER3D::GPUDRIVEN::GpuDrivenPassKind;
+            using RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask;
+            return MakeGpuDrivenPassMask(GpuDrivenPassKind::Shadow);
+        }
+
+        uint32_t MakeMainCameraGpuDrivenPassMask() {
+            using RENDER3D::GPUDRIVEN::GpuDrivenPassKind;
+            using RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask;
+            return
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardOpaque) |
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardDepthAware) |
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardTransparent) |
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::GeometryAux);
         }
 
         void BuildStrictGpuDrivenCommandFrame() {
@@ -718,7 +746,10 @@ namespace HIKARI::MESHRENDERER {
             }
             PrepareSurfaceGpuSceneMaterialFrame();
             BuildGpuDrivenFrameState();
-            BuildGpuDrivenWorkFrame();
+            BuildGpuDrivenWorkFrame(
+                nullptr,
+                MakePreDepthGpuDrivenPassMask(),
+                false);
             g.clusterDrawExecutor.ResetFrame();
             UpdateClusterDrawDebugStats();
             g.meshletRenderBackend.ResetFrame();
@@ -728,7 +759,10 @@ namespace HIKARI::MESHRENDERER {
             BuildStrictGpuDrivenCommandFrame();
         }
 
-        void BuildGpuDrivenWorkFrame() {
+        void BuildGpuDrivenWorkFrame(
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats* depthVisibilityStats,
+            uint32_t passMask,
+            bool collectCounterReadback) {
             const MATH::Mat4 viewProj =
                 g.cameraMapped != nullptr ? g.cameraMapped->viewProj : MATH::Mat4::Identity();
             const MATH::Vec3 cameraPosition =
@@ -753,6 +787,24 @@ namespace HIKARI::MESHRENDERER {
             workContext.surfaceGpuSceneGpuAddress =
                 g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
             workContext.frame = &g.gpuDrivenFrame;
+            workContext.passMask = passMask;
+            workContext.collectCounterReadback = collectCounterReadback;
+            if (depthVisibilityStats != nullptr &&
+                depthVisibilityStats->hzbBuilt &&
+                depthVisibilityStats->hzbFinestSrv.ptr != 0 &&
+                depthVisibilityStats->hzbWidth != 0 &&
+                depthVisibilityStats->hzbHeight != 0 &&
+                depthVisibilityStats->hzbViewProjValid) {
+
+                workContext.depthOcclusion.enabled = true;
+                workContext.depthOcclusion.hzbSrv = depthVisibilityStats->hzbFinestSrv;
+                workContext.depthOcclusion.hzbWidth = depthVisibilityStats->hzbWidth;
+                workContext.depthOcclusion.hzbHeight = depthVisibilityStats->hzbHeight;
+                workContext.depthOcclusion.hzbMipCount =
+                    std::max(1u, depthVisibilityStats->hzbMipCount);
+                workContext.depthOcclusion.hzbViewProj = depthVisibilityStats->hzbViewProj;
+                workContext.depthOcclusion.hzbViewProjValid = true;
+            }
             (void)RENDER3D::GPUDRIVEN::BuildGpuDrivenWork(workContext);
 
             const RENDER3D::CLUSTER::ClusterGpuCullingPassStats* clusterCullStatsPtr =
@@ -809,16 +861,56 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuVisibleClusterCount;
             g.debugStats.clusterGpuCullGpuOverflowCount =
                 clusterCullStats.gpuOverflowCount;
+            g.debugStats.clusterGpuCullHzbOcclusionEnabled =
+                clusterCullStats.hzbOcclusionEnabled;
+            g.debugStats.clusterGpuCullHzbOcclusionWidth =
+                clusterCullStats.hzbOcclusionWidth;
+            g.debugStats.clusterGpuCullHzbOcclusionHeight =
+                clusterCullStats.hzbOcclusionHeight;
+            g.debugStats.clusterGpuCullHzbOcclusionMipCount =
+                clusterCullStats.hzbOcclusionMipCount;
             g.debugStats.clusterGpuCullGpuInputFrustumCulledCount =
                 clusterCullStats.gpuInputFrustumCulledCount;
             g.debugStats.clusterGpuCullGpuPageTestedCount =
                 clusterCullStats.gpuPageTestedCount;
             g.debugStats.clusterGpuCullGpuPageFrustumCulledCount =
                 clusterCullStats.gpuPageFrustumCulledCount;
+            g.debugStats.clusterGpuCullGpuPageOcclusionTestedCount =
+                clusterCullStats.gpuPageOcclusionTestedCount;
+            g.debugStats.clusterGpuCullGpuPageOcclusionCulledCount =
+                clusterCullStats.gpuPageOcclusionCulledCount;
             g.debugStats.clusterGpuCullGpuClusterTestedCount =
                 clusterCullStats.gpuClusterTestedCount;
             g.debugStats.clusterGpuCullGpuClusterFrustumCulledCount =
                 clusterCullStats.gpuClusterFrustumCulledCount;
+            g.debugStats.clusterGpuCullGpuClusterOcclusionTestedCount =
+                clusterCullStats.gpuClusterOcclusionTestedCount;
+            g.debugStats.clusterGpuCullGpuClusterOcclusionCulledCount =
+                clusterCullStats.gpuClusterOcclusionCulledCount;
+            g.debugStats.clusterGpuCullGpuHzbPassRejectedCount =
+                clusterCullStats.gpuHzbPassRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbAabbRejectedCount =
+                clusterCullStats.gpuHzbAabbRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbSphereRejectedCount =
+                clusterCullStats.gpuHzbSphereRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbQueryAcceptedCount =
+                clusterCullStats.gpuHzbQueryAcceptedCount;
+            g.debugStats.clusterGpuCullGpuHzbTryCount =
+                clusterCullStats.gpuHzbTryCount;
+            g.debugStats.clusterGpuCullGpuHzbAllowedCount =
+                clusterCullStats.gpuHzbAllowedCount;
+            g.debugStats.clusterGpuCullGpuHzbInvalidRejectedCount =
+                clusterCullStats.gpuHzbInvalidRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbNearPlaneRejectedCount =
+                clusterCullStats.gpuHzbNearPlaneRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbOffscreenRejectedCount =
+                clusterCullStats.gpuHzbOffscreenRejectedCount;
+            g.debugStats.clusterGpuCullGpuHzbLargeRectCount =
+                clusterCullStats.gpuHzbLargeRectCount;
+            g.debugStats.clusterGpuCullGpuHzbAabbAcceptedCount =
+                clusterCullStats.gpuHzbAabbAcceptedCount;
+            g.debugStats.clusterGpuCullGpuHzbSphereAcceptedCount =
+                clusterCullStats.gpuHzbSphereAcceptedCount;
             g.debugStats.clusterGpuCullGpuClusterConeCulledCount =
                 clusterCullStats.gpuClusterConeCulledCount;
             g.debugStats.clusterGpuCullGpuClusterConeTestedCount =
@@ -943,6 +1035,8 @@ namespace HIKARI::MESHRENDERER {
                 meshletStats.forwardSubmittedDispatchCount;
             g.debugStats.meshletBackendGeometryAuxSubmittedDispatchCount =
                 meshletStats.geometryAuxSubmittedDispatchCount;
+            g.debugStats.meshletBackendDepthPrepassSubmittedDispatchCount =
+                meshletStats.depthPrepassSubmittedDispatchCount;
             g.debugStats.meshletBackendBackFaceSubmitCallCount =
                 meshletStats.backFaceSubmitCallCount;
             g.debugStats.meshletBackendDoubleSidedSubmitCallCount =
@@ -1339,6 +1433,35 @@ namespace HIKARI::MESHRENDERER {
             return result;
         }
 
+        GeometryBackendExecutionResult ExecuteDepthVisibilityBackendPlan(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind pass,
+            const MeshPassResources& passResources) {
+
+            GeometryBackendExecutionResult result{};
+            SyncGpuDrivenBackendAvailability();
+            const RENDER3D::GPUDRIVEN::GeometryBackendExecutionPlan plan =
+                g.gpuDrivenLayer.GetPassExecutionPlan(pass);
+            for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
+                const RENDER3D::GPUDRIVEN::GeometryBackendKind backend =
+                    plan.gpuBackends[i];
+                if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS) {
+                    continue;
+                }
+                if (!ExecuteGeometryBackend(
+                    backend,
+                    pass,
+                    passResources,
+                    MeshDrawPassKind::DepthPrepass,
+                    RENDER3D::MESHLET::MeshletPipelineKind::DepthPrepass,
+                    RENDER3D::CLUSTER::ClusterDrawPipelineKind::DepthPrepass)) {
+                    continue;
+                }
+                result.gpuBackendExecuted = true;
+                result.executedGpuBackend = backend;
+            }
+            return result;
+        }
+
         bool PrepareMeshFrame(
             const Camera3D& camera,
             const SceneEnvironment& environment,
@@ -1458,6 +1581,43 @@ namespace HIKARI::MESHRENDERER {
                     RENDER3D::MESHLET::MeshletPipelineKind::GeometryAux,
                     RENDER3D::CLUSTER::ClusterDrawPipelineKind::GeometryAux);
             geometryAux.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
+            return backendResult.gpuBackendExecuted;
+        }
+
+        bool RenderDepthPrepassInternal(D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
+            if (!HasGpuDrivenPassSource(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass)) {
+                return false;
+            }
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (cmd == nullptr || sceneDsv.ptr == 0) {
+                return false;
+            }
+
+            const uint32_t width = static_cast<uint32_t>(
+                std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.x : 1.0f));
+            const uint32_t height = static_cast<uint32_t>(
+                std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.y : 1.0f));
+            D3D12_VIEWPORT viewport{};
+            viewport.Width = static_cast<float>(width);
+            viewport.Height = static_cast<float>(height);
+            viewport.MaxDepth = 1.0f;
+            D3D12_RECT scissor{ 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+
+            GFX::PIX::ScopedGpuEvent pixDepth(
+                cmd,
+                GFX::PIX::kColorRender,
+                "GpuDepthVisibility.DepthPrepass");
+            cmd->OMSetRenderTargets(0, nullptr, FALSE, &sceneDsv);
+            cmd->RSSetViewports(1, &viewport);
+            cmd->RSSetScissorRects(1, &scissor);
+
+            const MeshPassResources passResources{};
+            const GeometryBackendExecutionResult backendResult =
+                ExecuteDepthVisibilityBackendPlan(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass,
+                    passResources);
             return backendResult.gpuBackendExecuted;
         }
 
@@ -1696,6 +1856,55 @@ namespace HIKARI::MESHRENDERER {
         return RenderGeometryAuxPassInternal(geometryAux, sceneDsv);
     }
 
+    bool RenderDepthPrepass(D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
+        return RenderDepthPrepassInternal(sceneDsv);
+    }
+
+    bool FinalizeGpuDrivenVisibilityWithoutDepth() {
+        if (!HasGpuDrivenSceneSource()) {
+            return false;
+        }
+
+        GFX::PIX::ScopedGpuEvent pixFinalize(
+            SERVICES::gCtx.cmdList,
+            GFX::PIX::kColorUpload,
+            "GpuDepthVisibility.FinalizeVisibility.NoHZB");
+        BuildGpuDrivenWorkFrame(
+            nullptr,
+            MakeMainCameraGpuDrivenPassMask(),
+            true);
+        UpdateGpuDrivenWorkReadyDebugStats();
+        UpdateGpuDrivenWorkOwnershipDebugStats();
+        BuildStrictGpuDrivenCommandFrame();
+        return true;
+    }
+
+    bool FinalizeGpuDrivenVisibilityFromDepth(
+        const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& depthVisibilityStats) {
+
+        if (!HasGpuDrivenSceneSource() ||
+            !depthVisibilityStats.hzbBuilt ||
+            depthVisibilityStats.hzbFinestSrv.ptr == 0 ||
+            depthVisibilityStats.hzbWidth == 0 ||
+            depthVisibilityStats.hzbHeight == 0 ||
+            !depthVisibilityStats.hzbViewProjValid) {
+            return false;
+        }
+
+        GFX::PIX::ScopedGpuEvent pixFinalize(
+            SERVICES::gCtx.cmdList,
+            GFX::PIX::kColorUpload,
+            "GpuDepthVisibility.FinalizeVisibility");
+        BuildGpuDrivenWorkFrame(
+            &depthVisibilityStats,
+            MakeMainCameraGpuDrivenPassMask(),
+            true);
+        UpdateGpuDrivenWorkReadyDebugStats();
+        UpdateGpuDrivenWorkOwnershipDebugStats();
+        BuildStrictGpuDrivenCommandFrame();
+        return true;
+    }
+
     bool RenderForwardOpaquePass(
         const MeshPassResources& passResources) {
         if (!HasGpuDrivenPassSource(
@@ -1731,6 +1940,11 @@ namespace HIKARI::MESHRENDERER {
     bool HasDepthAwarePassWork() {
         return HasGpuDrivenPassSource(
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
+    }
+
+    bool HasForwardTransparentPassWork() {
+        return HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
     }
 
     bool RenderDepthAwarePass(

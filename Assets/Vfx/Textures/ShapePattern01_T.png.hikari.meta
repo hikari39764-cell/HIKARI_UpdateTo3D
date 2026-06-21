@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/797e2763208fdf7eff656d446a58be02/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/797e2763208fdf7eff656d446a58be02/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "ShapePattern01_T",
   "guid": "797e2763208fdf7eff656d446a58be02",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Textures/ShapePattern01_T.png",
   "type": "Texture"

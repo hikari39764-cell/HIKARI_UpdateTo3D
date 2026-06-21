@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/da9dfd6de7a48a9d7112a26d920f02d5/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/da9dfd6de7a48a9d7112a26d920f02d5/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "NoiseAnimation",
   "guid": "da9dfd6de7a48a9d7112a26d920f02d5",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Texture/NoiseAnimation.png",
   "type": "Texture"

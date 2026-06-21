@@ -10,6 +10,7 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Core.h"
 
 namespace HIKARI {
@@ -853,6 +854,10 @@ namespace HIKARI {
             sceneRT_.TransitionColor(D3D12_RESOURCE_STATE_COPY_SOURCE);
             sceneColorSnapshotRT_.TransitionColor(D3D12_RESOURCE_STATE_COPY_DEST);
 
+            GFX::PIX::ScopedGpuEvent pixCopy(
+                cmd,
+                GFX::PIX::kColorPost,
+                "Post.SceneColorSnapshot.Copy");
             cmd->CopyResource(dst, src);
 
             sceneColorSnapshotRT_.TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -902,6 +907,29 @@ namespace HIKARI {
 
             rtStack_.top().rt->Rebind();
             return true;
+        }
+
+        bool PostSystem::HasCurrentRenderTarget()
+        {
+            return initialized_ &&
+                sceneCaptureActive_ &&
+                !rtStack_.empty() &&
+                rtStack_.top().rt != nullptr &&
+                rtStack_.top().rt->IsInitialized() &&
+                rtStack_.top().rt->GetResource() != nullptr;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::GetCurrentRenderTargetDepthSrv()
+        {
+            if (!HasCurrentRenderTarget()) {
+                return {};
+            }
+
+            RenderTarget2D* rt = rtStack_.top().rt;
+            if (rt == nullptr || !rt->HasDepth()) {
+                return {};
+            }
+            return rt->GetDepthSrvGpu();
         }
 
         D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::GetCurrentRenderTargetDsv()

@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/64559d30c96ec9e1e60ba1c8ca09dbeb/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/64559d30c96ec9e1e60ba1c8ca09dbeb/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Particle04_bokashi_hard",
   "guid": "64559d30c96ec9e1e60ba1c8ca09dbeb",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Vfx/Texture/Particle04_bokashi_hard.png",
   "type": "Texture"

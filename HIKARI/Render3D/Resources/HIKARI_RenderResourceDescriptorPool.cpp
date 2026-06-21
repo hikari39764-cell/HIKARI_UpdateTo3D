@@ -36,6 +36,28 @@ namespace HIKARI::RENDER3D {
                 D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         }
 
+        RenderResourceView AllocateDescriptor(RenderResourceDescriptorPoolState& state) {
+            RenderResourceView view{};
+            if (!state.initialized || !HasValidContext(state.context)) {
+                ++state.failedAllocationCount;
+                return view;
+            }
+
+            const GFX::DescriptorSlot slot = state.allocator.Allocate();
+            if (!slot.IsValid()) {
+                ++state.failedAllocationCount;
+                return view;
+            }
+
+            view.descriptorIndex = slot.index;
+            view.cpu =
+                GFX::DESCRIPTOR::CpuAt(state.context.srvHeap, state.descriptorSize, slot.index);
+            view.gpu =
+                GFX::DESCRIPTOR::GpuAt(state.context.srvHeap, state.descriptorSize, slot.index);
+            ++state.allocationCount;
+            return view;
+        }
+
     } // namespace
 
     void UpdateRenderResourceDescriptorPoolContext(const GFX::Context& ctx) {
@@ -74,9 +96,8 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
-        const GFX::DescriptorSlot slot = state.allocator.Allocate();
-        if (!slot.IsValid()) {
-            ++state.failedAllocationCount;
+        RenderResourceView view = AllocateDescriptor(state);
+        if (!view.IsValid()) {
             return {};
         }
 
@@ -89,18 +110,61 @@ namespace HIKARI::RENDER3D {
         srvDesc.Buffer.StructureByteStride = structureByteStride;
         srvDesc.Buffer.Flags = flags;
 
-        const D3D12_CPU_DESCRIPTOR_HANDLE cpu =
-            GFX::DESCRIPTOR::CpuAt(state.context.srvHeap, state.descriptorSize, slot.index);
-        const D3D12_GPU_DESCRIPTOR_HANDLE gpu =
-            GFX::DESCRIPTOR::GpuAt(state.context.srvHeap, state.descriptorSize, slot.index);
+        state.context.device->CreateShaderResourceView(resource, &srvDesc, view.cpu);
+        return view;
+    }
 
-        state.context.device->CreateShaderResourceView(resource, &srvDesc, cpu);
+    RenderResourceView AllocateTexture2DSrvDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mostDetailedMip,
+        UINT mipLevels) {
 
-        RenderResourceView view{};
-        view.descriptorIndex = slot.index;
-        view.cpu = cpu;
-        view.gpu = gpu;
-        ++state.allocationCount;
+        RenderResourceDescriptorPoolState& state = State();
+        if (resource == nullptr || mipLevels == 0) {
+            ++state.failedAllocationCount;
+            return {};
+        }
+
+        RenderResourceView view = AllocateDescriptor(state);
+        if (!view.IsValid()) {
+            return {};
+        }
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
+        srvDesc.Texture2D.MipLevels = mipLevels;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        state.context.device->CreateShaderResourceView(resource, &srvDesc, view.cpu);
+        return view;
+    }
+
+    RenderResourceView AllocateTexture2DUavDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mipSlice) {
+
+        RenderResourceDescriptorPoolState& state = State();
+        if (resource == nullptr) {
+            ++state.failedAllocationCount;
+            return {};
+        }
+
+        RenderResourceView view = AllocateDescriptor(state);
+        if (!view.IsValid()) {
+            return {};
+        }
+
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+        uavDesc.Format = format;
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        uavDesc.Texture2D.MipSlice = mipSlice;
+        uavDesc.Texture2D.PlaneSlice = 0;
+        state.context.device->CreateUnorderedAccessView(resource, nullptr, &uavDesc, view.cpu);
         return view;
     }
 

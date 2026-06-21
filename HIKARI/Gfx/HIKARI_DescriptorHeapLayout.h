@@ -5,8 +5,8 @@
 
 namespace HIKARI::GFX::DESCRIPTOR {
 
-    constexpr UINT kSrvHeapCapacity = 4096;
-    constexpr UINT kSystemSrvReservedCount = 128;
+    constexpr UINT kSrvHeapCapacity = 4097;
+    constexpr UINT kSystemSrvReservedCount = 129;
 
     constexpr UINT kUserSrvBegin = 0;
     constexpr UINT kSystemSrvBegin = kSrvHeapCapacity - kSystemSrvReservedCount;
@@ -31,9 +31,10 @@ namespace HIKARI::GFX::DESCRIPTOR {
         MeshSurfaceGpuScene = kSystemSrvBegin + 14,
         ShadowSurfaceGpuScene = kSystemSrvBegin + 15,
         ShadowMaterialData = kSystemSrvBegin + 16,
+        PostSceneDepth = kSystemSrvBegin + 17,
     };
 
-    constexpr UINT kSystemSrvUsedCount = 17;
+    constexpr UINT kSystemSrvUsedCount = 18;
     constexpr UINT kSystemSrvDynamicBegin = kSystemSrvBegin + kSystemSrvUsedCount;
     constexpr UINT kSystemSrvDynamicCount = kSystemSrvReservedCount - kSystemSrvUsedCount;
 
@@ -72,6 +73,9 @@ namespace HIKARI::GFX::DESCRIPTOR {
     }
 
     static_assert(kSystemSrvReservedCount >= kSystemSrvUsedCount);
+    static_assert(kUserSrvCount == 3968);
+    static_assert(kSystemSrvDynamicBegin == 3986);
+    static_assert(kSystemSrvDynamicCount == 111);
     static_assert(kSystemSrvBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin + kSystemSrvDynamicCount <= kSrvHeapCapacity);
@@ -92,5 +96,6 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::MeshSurfaceGpuScene) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuScene) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::ShadowMaterialData) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::PostSceneDepth) < kSrvHeapCapacity);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

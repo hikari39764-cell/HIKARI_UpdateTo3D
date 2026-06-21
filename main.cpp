@@ -29,7 +29,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 
 	while (HIKARI::SERVICES::PumpMessages()) {
-		HIKARI::SERVICES::BeginFrame(servicesCfg);
+		if (!HIKARI::SERVICES::BeginFrame(servicesCfg)) {
+			break;
+		}
 		const HIKARI::FrameContext& frame = HIKARI::TIME::GetFrameContext();
 
 		if (!op.IsAnimationFinished("op"))
@@ -47,7 +49,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			HIKARI::SERVICES::SetEditorUIEnabled(!HIKARI::SERVICES::IsEditorUIEnabled());
 		}
 
-		HIKARI::SERVICES::EndFrame();
+		if (!HIKARI::SERVICES::EndFrame()) {
+			break;
+		}
 
 		if (HIKARI::HINPUT::IsPressed("CloseProgram")) {
 			break;

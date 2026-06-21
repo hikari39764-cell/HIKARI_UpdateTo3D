@@ -29,6 +29,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 return ClusterDrawPipelineMask::Shadow;
             case ClusterDrawPipelineKind::GeometryAux:
                 return ClusterDrawPipelineMask::GeometryAux;
+            case ClusterDrawPipelineKind::DepthPrepass:
+                return ClusterDrawPipelineMask::DepthPrepass;
             case ClusterDrawPipelineKind::ForwardOpaque:
             default:
                 return ClusterDrawPipelineMask::ForwardOpaque;
@@ -199,7 +201,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             const ClusterDrawExecutor::PipelineBucketArray& depthAware,
             const ClusterDrawExecutor::PipelineBucketArray& transparent,
             const ClusterDrawExecutor::PipelineBucketArray& shadow,
-            const ClusterDrawExecutor::PipelineBucketArray& geometryAux) {
+            const ClusterDrawExecutor::PipelineBucketArray& geometryAux,
+            const ClusterDrawExecutor::PipelineBucketArray& depthPrepass) {
 
             bool ready = true;
             if (IsPipelineRequested(pipelineMask, ClusterDrawPipelineKind::ForwardOpaque)) {
@@ -216,6 +219,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             }
             if (IsPipelineRequested(pipelineMask, ClusterDrawPipelineKind::GeometryAux)) {
                 ready = ready && ArePipelinesReady(geometryAux);
+            }
+            if (IsPipelineRequested(pipelineMask, ClusterDrawPipelineKind::DepthPrepass)) {
+                ready = ready && ArePipelinesReady(depthPrepass);
             }
             return ready;
         }
@@ -278,11 +284,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 : L"Cluster Draw GeometryAux BackFace PSO";
         }
 
+        const wchar_t* DepthPrepassDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
+                ? L"Cluster Draw DepthPrepass DoubleSided PSO"
+                : L"Cluster Draw DepthPrepass BackFace PSO";
+        }
+
         const char* PipelineEventName(
             ClusterDrawPipelineKind kind,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             switch (kind) {
+            case ClusterDrawPipelineKind::DepthPrepass:
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
+                    ? "ClusterDraw.DepthPrepass.DoubleSided"
+                    : "ClusterDraw.DepthPrepass.BackFace";
             case ClusterDrawPipelineKind::GeometryAux:
                 return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "ClusterDraw.GeometryAux.DoubleSided"
@@ -382,6 +398,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
+        Microsoft::WRL::ComPtr<ID3DBlob> depthPrepassPixelShader;
+        if (IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::DepthPrepass) &&
+            !GFX::CompileShaderFileSm6(
+            L"HIKARI/Shaders/Render3D_MeshletShadowPS.hlsl",
+            "main",
+            GFX::ShaderStage::Pixel,
+            depthPrepassPixelShader.GetAddressOf())) {
+            return false;
+        }
+
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
         if (IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::GeometryAux) &&
             !GFX::CompileShaderFileSm6(
@@ -455,6 +481,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 shadowPipelineStates_[bucketIndex].Reset();
                 return false;
             }
+            if (IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::DepthPrepass) &&
+                !CreateClusterPipelineState(
+                device,
+                rootSignature,
+                vertexShader.Get(),
+                depthPrepassPixelShader.Get(),
+                CullModeForBucket(bucket),
+                false,
+                true,
+                false,
+                DepthPrepassDebugName(bucket),
+                depthPrepassPipelineStates_[bucketIndex].GetAddressOf())) {
+                depthPrepassPipelineStates_[bucketIndex].Reset();
+                return false;
+            }
             if (IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::GeometryAux) &&
                 !CreateClusterPipelineState(
                 device,
@@ -491,6 +532,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         for (auto& pipeline : geometryAuxPipelineStates_) {
             pipeline.Reset();
         }
+        for (auto& pipeline : depthPrepassPipelineStates_) {
+            pipeline.Reset();
+        }
         pipelineMask_ = ClusterDrawPipelineMask::All;
         stats_ = {};
     }
@@ -512,13 +556,17 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.geometryAuxPipelineReady =
             IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::GeometryAux) &&
             ArePipelinesReady(geometryAuxPipelineStates_);
+        stats_.depthPrepassPipelineReady =
+            IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::DepthPrepass) &&
+            ArePipelinesReady(depthPrepassPipelineStates_);
         stats_.drawPipelineReady = AreRequestedPipelinesReady(
             pipelineMask_,
             forwardPipelineStates_,
             depthAwarePipelineStates_,
             transparentPipelineStates_,
             shadowPipelineStates_,
-            geometryAuxPipelineStates_);
+            geometryAuxPipelineStates_,
+            depthPrepassPipelineStates_);
     }
 
     bool ClusterDrawExecutor::Execute(const ClusterDrawExecutionContext& ctx) {
@@ -552,13 +600,17 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.geometryAuxPipelineReady =
             IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::GeometryAux) &&
             ArePipelinesReady(geometryAuxPipelineStates_);
+        stats_.depthPrepassPipelineReady =
+            IsPipelineRequested(pipelineMask_, ClusterDrawPipelineKind::DepthPrepass) &&
+            ArePipelinesReady(depthPrepassPipelineStates_);
         stats_.drawPipelineReady = AreRequestedPipelinesReady(
             pipelineMask_,
             forwardPipelineStates_,
             depthAwarePipelineStates_,
             transparentPipelineStates_,
             shadowPipelineStates_,
-            geometryAuxPipelineStates_);
+            geometryAuxPipelineStates_,
+            depthPrepassPipelineStates_);
 
         if (requestedDrawCount == 0) {
             return false;
@@ -648,6 +700,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.submittedDrawCount += requestedDrawCount;
         if (ctx.pipelineKind == ClusterDrawPipelineKind::GeometryAux) {
             stats_.geometryAuxSubmittedDrawCount += requestedDrawCount;
+        } else if (ctx.pipelineKind == ClusterDrawPipelineKind::DepthPrepass) {
+            stats_.depthPrepassSubmittedDrawCount += requestedDrawCount;
         } else {
             stats_.forwardSubmittedDrawCount += requestedDrawCount;
         }
@@ -677,6 +731,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return nullptr;
         }
         switch (kind) {
+        case ClusterDrawPipelineKind::DepthPrepass:
+            return depthPrepassPipelineStates_[bucketIndex].Get();
         case ClusterDrawPipelineKind::GeometryAux:
             return geometryAuxPipelineStates_[bucketIndex].Get();
         case ClusterDrawPipelineKind::ForwardDepthAware:

@@ -28,6 +28,8 @@ namespace HIKARI::RENDER3D::MESHLET {
                 return MeshletPipelineMask::Shadow;
             case MeshletPipelineKind::GeometryAux:
                 return MeshletPipelineMask::GeometryAux;
+            case MeshletPipelineKind::DepthPrepass:
+                return MeshletPipelineMask::DepthPrepass;
             case MeshletPipelineKind::ForwardOpaque:
             default:
                 return MeshletPipelineMask::ForwardOpaque;
@@ -91,7 +93,8 @@ namespace HIKARI::RENDER3D::MESHLET {
             const MeshletRenderBackend::PipelineBucketArray& depthAware,
             const MeshletRenderBackend::PipelineBucketArray& transparent,
             const MeshletRenderBackend::PipelineBucketArray& shadow,
-            const MeshletRenderBackend::PipelineBucketArray& geometryAux) {
+            const MeshletRenderBackend::PipelineBucketArray& geometryAux,
+            const MeshletRenderBackend::PipelineBucketArray& depthPrepass) {
 
             bool ready = true;
             if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::ForwardOpaque)) {
@@ -108,6 +111,9 @@ namespace HIKARI::RENDER3D::MESHLET {
             }
             if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::GeometryAux)) {
                 ready = ready && ArePipelinesReady(geometryAux);
+            }
+            if (IsPipelineRequested(pipelineMask, MeshletPipelineKind::DepthPrepass)) {
+                ready = ready && ArePipelinesReady(depthPrepass);
             }
             return ready;
         }
@@ -170,11 +176,21 @@ namespace HIKARI::RENDER3D::MESHLET {
                 : L"Meshlet GeometryAux BackFace PSO";
         }
 
+        const wchar_t* DepthPrepassDebugName(GPUDRIVEN::GpuDrivenCommandBucket bucket) {
+            return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
+                ? L"Meshlet DepthPrepass DoubleSided PSO"
+                : L"Meshlet DepthPrepass BackFace PSO";
+        }
+
         const char* PipelineEventName(
             MeshletPipelineKind kind,
             GPUDRIVEN::GpuDrivenCommandBucket bucket) {
 
             switch (kind) {
+            case MeshletPipelineKind::DepthPrepass:
+                return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
+                    ? "MeshletDraw.DepthPrepass.DoubleSided"
+                    : "MeshletDraw.DepthPrepass.BackFace";
             case MeshletPipelineKind::GeometryAux:
                 return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "MeshletDraw.GeometryAux.DoubleSided"
@@ -408,6 +424,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         Microsoft::WRL::ComPtr<ID3DBlob> transparentPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> shadowPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
+        Microsoft::WRL::ComPtr<ID3DBlob> depthPrepassPixelShader;
         if (!GFX::CompileShaderFileSm6(
             L"HIKARI/Shaders/Render3D_MeshletAS.hlsl",
             "main",
@@ -458,6 +475,14 @@ namespace HIKARI::RENDER3D::MESHLET {
                 "main",
                 GFX::ShaderStage::Pixel,
                 geometryPixelShader.GetAddressOf())) {
+            return false;
+        }
+        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass) &&
+            !GFX::CompileShaderFileSm6(
+                L"HIKARI/Shaders/Render3D_MeshletShadowPS.hlsl",
+                "main",
+                GFX::ShaderStage::Pixel,
+                depthPrepassPixelShader.GetAddressOf())) {
             return false;
         }
         stats_.shaderCompileReady = true;
@@ -560,6 +585,25 @@ namespace HIKARI::RENDER3D::MESHLET {
                     ++stats_.pipelineCreateReadyCount;
                 }
             }
+
+            if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass)) {
+                ++stats_.pipelineCreateRequestCount;
+                if (CreateMeshletPipelineState(
+                    device,
+                    rootSignature,
+                    amplificationShader.Get(),
+                    meshShader.Get(),
+                    depthPrepassPixelShader.Get(),
+                    DXGI_FORMAT_UNKNOWN,
+                    CullModeForBucket(bucket),
+                    false,
+                    true,
+                    false,
+                    DepthPrepassDebugName(bucket),
+                    depthPrepassPipelineStates_[bucketIndex].GetAddressOf())) {
+                    ++stats_.pipelineCreateReadyCount;
+                }
+            }
         }
 
         ResetFrame();
@@ -580,6 +624,9 @@ namespace HIKARI::RENDER3D::MESHLET {
             pipeline.Reset();
         }
         for (auto& pipeline : geometryAuxPipelineStates_) {
+            pipeline.Reset();
+        }
+        for (auto& pipeline : depthPrepassPipelineStates_) {
             pipeline.Reset();
         }
         pipelineMask_ = MeshletPipelineMask::All;
@@ -616,18 +663,23 @@ namespace HIKARI::RENDER3D::MESHLET {
         const bool geometryReady =
             IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
             ArePipelinesReady(geometryAuxPipelineStates_);
+        const bool depthPrepassReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass) &&
+            ArePipelinesReady(depthPrepassPipelineStates_);
         stats_.forwardPipelineReady = forwardReady;
         stats_.depthAwarePipelineReady = depthAwareReady;
         stats_.transparentPipelineReady = transparentReady;
         stats_.shadowPipelineReady = shadowReady;
         stats_.geometryAuxPipelineReady = geometryReady;
+        stats_.depthPrepassPipelineReady = depthPrepassReady;
         stats_.pipelineReady = AreRequestedPipelinesReady(
             pipelineMask_,
             forwardPipelineStates_,
             depthAwarePipelineStates_,
             transparentPipelineStates_,
             shadowPipelineStates_,
-            geometryAuxPipelineStates_);
+            geometryAuxPipelineStates_,
+            depthPrepassPipelineStates_);
     }
 
     bool MeshletRenderBackend::Execute(const MeshletRenderExecutionContext& ctx) {
@@ -663,23 +715,29 @@ namespace HIKARI::RENDER3D::MESHLET {
         stats_.geometryAuxPipelineReady =
             IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
             ArePipelinesReady(geometryAuxPipelineStates_);
+        stats_.depthPrepassPipelineReady =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass) &&
+            ArePipelinesReady(depthPrepassPipelineStates_);
         stats_.pipelineReady = AreRequestedPipelinesReady(
             pipelineMask_,
             forwardPipelineStates_,
             depthAwarePipelineStates_,
             transparentPipelineStates_,
             shadowPipelineStates_,
-            geometryAuxPipelineStates_);
+            geometryAuxPipelineStates_,
+            depthPrepassPipelineStates_);
         const bool requestedPipelineReady =
             ctx.pipelineKind == MeshletPipelineKind::GeometryAux
                 ? stats_.geometryAuxPipelineReady
-                : ctx.pipelineKind == MeshletPipelineKind::ForwardDepthAware
-                    ? stats_.depthAwarePipelineReady
-                    : ctx.pipelineKind == MeshletPipelineKind::ForwardTransparent
-                        ? stats_.transparentPipelineReady
-                        : ctx.pipelineKind == MeshletPipelineKind::Shadow
-                            ? stats_.shadowPipelineReady
-                            : stats_.forwardPipelineReady;
+                : ctx.pipelineKind == MeshletPipelineKind::DepthPrepass
+                    ? stats_.depthPrepassPipelineReady
+                    : ctx.pipelineKind == MeshletPipelineKind::ForwardDepthAware
+                        ? stats_.depthAwarePipelineReady
+                        : ctx.pipelineKind == MeshletPipelineKind::ForwardTransparent
+                            ? stats_.transparentPipelineReady
+                            : ctx.pipelineKind == MeshletPipelineKind::Shadow
+                                ? stats_.shadowPipelineReady
+                                : stats_.forwardPipelineReady;
 
         if (requestedDispatchCount == 0) {
             return false;
@@ -765,6 +823,8 @@ namespace HIKARI::RENDER3D::MESHLET {
         stats_.submittedDispatchCount += requestedDispatchCount;
         if (ctx.pipelineKind == MeshletPipelineKind::GeometryAux) {
             stats_.geometryAuxSubmittedDispatchCount += requestedDispatchCount;
+        } else if (ctx.pipelineKind == MeshletPipelineKind::DepthPrepass) {
+            stats_.depthPrepassSubmittedDispatchCount += requestedDispatchCount;
         } else {
             stats_.forwardSubmittedDispatchCount += requestedDispatchCount;
         }
@@ -784,6 +844,8 @@ namespace HIKARI::RENDER3D::MESHLET {
             return nullptr;
         }
         switch (kind) {
+        case MeshletPipelineKind::DepthPrepass:
+            return depthPrepassPipelineStates_[index].Get();
         case MeshletPipelineKind::GeometryAux:
             return geometryAuxPipelineStates_[index].Get();
         case MeshletPipelineKind::ForwardDepthAware:

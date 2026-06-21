@@ -1,6 +1,11 @@
 {
   "artifacts": [
     {
+      "format": "HCMESH",
+      "path": "Library/Imported/2bef97f97cc48c9c5efb516e433e50be/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
       "format": "HMODEL",
       "path": "Library/Imported/2bef97f97cc48c9c5efb516e433e50be/model.hmodel",
       "role": "MainModel"
@@ -21,7 +26,7 @@
     "sourceFormat": ".obj"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 2,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/player.obj",
   "type": "Model"

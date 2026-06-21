@@ -30,6 +30,17 @@ namespace HIKARI::RENDER3D {
         UINT structureByteStride,
         D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE);
 
+    RenderResourceView AllocateTexture2DSrvDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mostDetailedMip = 0,
+        UINT mipLevels = 1);
+
+    RenderResourceView AllocateTexture2DUavDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mipSlice = 0);
+
     bool ReleaseRenderResourceDescriptor(RenderResourceView view);
 
     RenderResourceDescriptorPoolStats GetRenderResourceDescriptorPoolStats();

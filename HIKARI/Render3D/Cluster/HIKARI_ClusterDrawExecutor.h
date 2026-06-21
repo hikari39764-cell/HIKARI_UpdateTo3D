@@ -18,6 +18,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         ForwardTransparent,
         Shadow,
         GeometryAux,
+        DepthPrepass,
     };
 
     namespace ClusterDrawPipelineMask {
@@ -26,11 +27,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t ForwardTransparent = 1u << 2;
         constexpr uint32_t Shadow = 1u << 3;
         constexpr uint32_t GeometryAux = 1u << 4;
+        constexpr uint32_t DepthPrepass = 1u << 5;
         constexpr uint32_t MainRenderer =
             ForwardOpaque |
             ForwardDepthAware |
             ForwardTransparent |
-            GeometryAux;
+            GeometryAux |
+            DepthPrepass;
         constexpr uint32_t ShadowRenderer = Shadow;
         constexpr uint32_t All = MainRenderer | ShadowRenderer;
     }
@@ -44,6 +47,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool transparentPipelineReady = false;
         bool shadowPipelineReady = false;
         bool geometryAuxPipelineReady = false;
+        bool depthPrepassPipelineReady = false;
         size_t requestedDrawCount = 0;
         size_t submittedDrawCount = 0;
         size_t skippedDrawCount = 0;
@@ -51,6 +55,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t submitCallCount = 0;
         size_t forwardSubmittedDrawCount = 0;
         size_t geometryAuxSubmittedDrawCount = 0;
+        size_t depthPrepassSubmittedDrawCount = 0;
         size_t forwardSubmitCallCount = 0;
         size_t geometryAuxSubmitCallCount = 0;
         size_t backFaceSubmitCallCount = 0;
@@ -92,6 +97,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         PipelineBucketArray transparentPipelineStates_{};
         PipelineBucketArray shadowPipelineStates_{};
         PipelineBucketArray geometryAuxPipelineStates_{};
+        PipelineBucketArray depthPrepassPipelineStates_{};
         uint32_t pipelineMask_ = ClusterDrawPipelineMask::All;
         ClusterDrawExecutorStats stats_{};
     };

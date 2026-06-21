@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/4a0ddec562606b0e422d2268e706a5cd/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/4a0ddec562606b0e422d2268e706a5cd/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "op",
   "guid": "4a0ddec562606b0e422d2268e706a5cd",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 1,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Spine/op.png",
   "type": "Texture"

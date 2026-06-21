@@ -27,6 +27,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t visibilityOverflowInstanceCount = 0;
     };
 
+    struct GpuDrivenDepthOcclusionContext {
+        bool enabled = false;
+        D3D12_GPU_DESCRIPTOR_HANDLE hzbSrv{};
+        uint32_t hzbWidth = 0;
+        uint32_t hzbHeight = 0;
+        uint32_t hzbMipCount = 0;
+        MATH::Mat4 hzbViewProj{};
+        bool hzbViewProjValid = false;
+    };
+
     struct GpuDrivenProducerWorkContext {
         ID3D12GraphicsCommandList* commandList = nullptr;
         MATH::Mat4 viewProj{};
@@ -34,6 +44,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         D3D12_GPU_DESCRIPTOR_HANDLE geometryPoolSrv{};
         D3D12_GPU_VIRTUAL_ADDRESS surfaceGpuSceneGpuAddress = 0;
         const GpuDrivenFrame* frame = nullptr;
+        uint32_t passMask = 0xffffffffu;
+        bool collectCounterReadback = true;
+        GpuDrivenDepthOcclusionContext depthOcclusion{};
     };
 
     struct GpuDrivenProducerWorkResult {

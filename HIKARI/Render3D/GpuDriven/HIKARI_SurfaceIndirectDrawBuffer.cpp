@@ -252,11 +252,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         seedCursor_ = 0;
         payloadCursor_ = 0;
         rootConstantCount_ = rootConstantCount;
-        argumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-        skinnedArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-        seedBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        payloadBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+        argumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        skinnedArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        seedBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        payloadBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         payloadIndexByGpuSceneInstance_.clear();
         stats_ = {};
 
@@ -273,7 +273,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &argumentHeap,
             D3D12_HEAP_FLAG_NONE,
             &argumentDesc,
-            D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(argumentBuffer_.GetAddressOf())))) {
             return false;
@@ -292,7 +292,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &argumentHeap,
             D3D12_HEAP_FLAG_NONE,
             &skinnedArgumentDesc,
-            D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(skinnedArgumentBuffer_.GetAddressOf())))) {
             argumentBuffer_.Reset();
@@ -310,7 +310,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &argumentHeap,
             D3D12_HEAP_FLAG_NONE,
             &seedDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(seedBuffer_.GetAddressOf())))) {
             argumentBuffer_.Reset();
@@ -347,7 +347,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &argumentHeap,
             D3D12_HEAP_FLAG_NONE,
             &payloadDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(payloadBuffer_.GetAddressOf())))) {
             seedMapped_ = nullptr;
@@ -391,7 +391,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             &argumentHeap,
             D3D12_HEAP_FLAG_NONE,
             &counterDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(counterBuffer_.GetAddressOf())))) {
             payloadMapped_ = nullptr;

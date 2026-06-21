@@ -67,6 +67,8 @@ namespace HIKARI {
 
             // --- 场景捕获 ---
             static void BeginSceneCapture();
+            static bool HasCurrentRenderTarget();
+            static D3D12_GPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDepthSrv();
             static bool RebindCurrentRenderTarget();
             static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDsv();
             static bool BeginCurrentRenderTargetDepthRead();

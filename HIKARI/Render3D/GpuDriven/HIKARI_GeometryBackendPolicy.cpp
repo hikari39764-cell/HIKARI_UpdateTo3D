@@ -40,6 +40,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         switch (pass) {
         case GpuDrivenPassKind::ForwardOpaque:
         case GpuDrivenPassKind::GeometryAux:
+        case GpuDrivenPassKind::DepthPrepass:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
             policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
             return policy;

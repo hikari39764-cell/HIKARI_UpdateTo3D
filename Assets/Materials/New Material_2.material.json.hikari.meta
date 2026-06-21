@@ -1,5 +1,11 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HMAT",
+      "path": "Library/Imported/84f9e485e9644512f4e935dd655687bd/material.hmat",
+      "role": "Material"
+    }
+  ],
   "dependencies": [],
   "displayName": "New Material_2",
   "guid": "84f9e485e9644512f4e935dd655687bd",

@@ -29,6 +29,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             case GpuDrivenPassKind::Shadow:
                 outPassKind = CLUSTER::ClusterGpuCullingPassKind::Shadow;
                 return true;
+            case GpuDrivenPassKind::DepthPrepass:
+                outPassKind = CLUSTER::ClusterGpuCullingPassKind::DepthPrepass;
+                return true;
             case GpuDrivenPassKind::ForwardOpaque:
                 outPassKind = CLUSTER::ClusterGpuCullingPassKind::ForwardOpaque;
                 return true;
@@ -187,6 +190,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenPassKind::Shadow,
             CLUSTER::ClusterGpuCullingPassKind::Shadow,
             *cullingPass_);
+        FillClusterPassOutput(
+            output.visibility,
+            output.commands,
+            GpuDrivenPassKind::DepthPrepass,
+            CLUSTER::ClusterGpuCullingPassKind::DepthPrepass,
+            *cullingPass_);
 
         output.commandBuildReady =
             output.commands.gpuDrawIndexedArgs != nullptr ||
@@ -198,13 +207,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenProducerWorkContext& context) {
 
         GpuDrivenProducerWorkResult result{};
-        if (context.frame != nullptr) {
-            result.sourcePassCount =
-                context.frame->CountClusterEligiblePasses();
-            result.sourceInstanceCount =
-                context.frame->CountClusterEligibleInstances();
-        }
-
         if (cullingPass_ == nullptr) {
             return result;
         }
@@ -220,6 +222,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
                 CLUSTER::ClusterGpuCullingPassKind clusterPass{};
                 const GpuSceneRange& range = pass.gpuSceneRange;
+                if ((context.passMask & MakeGpuDrivenPassMask(range.passKind)) == 0u) {
+                    continue;
+                }
+                if (context.depthOcclusion.enabled &&
+                    range.passKind == GpuDrivenPassKind::DepthPrepass) {
+                    continue;
+                }
                 if (!TryToClusterCullPassKind(range.passKind, clusterPass)) {
                     continue;
                 }
@@ -232,8 +241,19 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     0u
                 };
                 ++rangeCount;
+                ++result.sourcePassCount;
+                result.sourceInstanceCount += range.instanceCount;
             }
         }
+
+        CLUSTER::ClusterGpuDepthOcclusionDesc depthOcclusion{};
+        depthOcclusion.enabled = context.depthOcclusion.enabled;
+        depthOcclusion.hzbSrv = context.depthOcclusion.hzbSrv;
+        depthOcclusion.hzbWidth = context.depthOcclusion.hzbWidth;
+        depthOcclusion.hzbHeight = context.depthOcclusion.hzbHeight;
+        depthOcclusion.hzbMipCount = context.depthOcclusion.hzbMipCount;
+        depthOcclusion.hzbViewProj = context.depthOcclusion.hzbViewProj;
+        depthOcclusion.hzbViewProjValid = context.depthOcclusion.hzbViewProjValid;
 
         result.submitted = cullingPass_->Dispatch(
             context.commandList,
@@ -242,7 +262,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             context.geometryPoolSrv,
             context.surfaceGpuSceneGpuAddress,
             rangeCount != 0 ? ranges.data() : nullptr,
-            rangeCount);
+            rangeCount,
+            depthOcclusion,
+            context.collectCounterReadback);
         return result;
     }
 

@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HCMESH",
+      "path": "Library/Imported/0f84361bcbd2b2d330d32d9f7616f84f/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/0f84361bcbd2b2d330d32d9f7616f84f/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
   "dependencies": [],
   "displayName": "Wizard",
   "guid": "0f84361bcbd2b2d330d32d9f7616f84f",
@@ -9,7 +20,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 1,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/Wizard.gltf",
   "type": "Model"

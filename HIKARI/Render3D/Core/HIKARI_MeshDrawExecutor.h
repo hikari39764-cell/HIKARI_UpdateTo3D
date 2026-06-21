@@ -44,6 +44,7 @@ namespace HIKARI::MESHRENDERER {
     enum class MeshDrawPassKind {
         Forward,
         GeometryAux,
+        DepthPrepass,
     };
 
     struct MeshDrawContext {

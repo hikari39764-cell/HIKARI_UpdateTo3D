@@ -7,6 +7,7 @@
 #include <d3dx12.h>
 #include <cassert>
 #include <cstdio>
+#include <sstream>
 #include <string>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
@@ -72,6 +73,39 @@ void LogHr(const char* stage, HRESULT hr) {
 
 }
 // Dx12Core の初期化。失敗した場合は false を返す。
+bool Dx12Core::CheckDeviceRemoved(const char* reason, HRESULT hr) {
+    if (deviceLost_) {
+        return true;
+    }
+
+    HRESULT removedReason = S_OK;
+    if (device_ != nullptr) {
+        removedReason = device_->GetDeviceRemovedReason();
+    }
+
+    const bool removed =
+        hr == DXGI_ERROR_DEVICE_REMOVED ||
+        hr == DXGI_ERROR_DEVICE_RESET ||
+        FAILED(removedReason);
+    if (!removed) {
+        return false;
+    }
+
+    deviceLost_ = true;
+    frameOpen_ = false;
+
+    std::ostringstream oss;
+    oss << "[Dx12Core][FATAL] Device removed. reason="
+        << (reason != nullptr ? reason : "")
+        << " hr=" << FormatHRESULT(hr)
+        << " removedReason=" << FormatHRESULT(removedReason)
+        << " text=\"" << HResultToString(removedReason) << "\"";
+    DEBUGLOG::PushRenderError(oss.str());
+    HIKARI_LOG_ERROR(oss.str());
+    DumpD3D12InfoQueue(device_.Get(), reason != nullptr ? reason : "DeviceRemoved");
+    return true;
+}
+
 bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     HIKARI_LOG_D3D12("Dx12Core initialization started.");
 
@@ -203,11 +237,18 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     }
     SetD3D12Name(srvHeap_.Get(), L"HIKARI Global SRV Heap");
     srvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    HIKARI_LOG_D3D12("SRV heap created. descriptors=4096.");
+    HIKARI_LOG_D3D12(("SRV heap created. descriptors=" +
+        std::to_string(DESCRIPTOR::kSrvHeapCapacity) + ".").c_str());
 
-    CreateSwapChainResources();
+    if (!CreateSwapChainResources()) {
+        HIKARI_LOG_ERROR("SwapChain resource creation failed.");
+        return false;
+    }
     HIKARI_LOG_D3D12("SwapChain resources created.");
-    CreateDepthBuffer();
+    if (!CreateDepthBuffer()) {
+        HIKARI_LOG_ERROR("Depth buffer creation failed.");
+        return false;
+    }
     HIKARI_LOG_D3D12("Depth buffer created.");
 
     for (uint32_t i = 0; i < kFrameCount; ++i) {
@@ -244,11 +285,20 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     return true;
 }
 // スワップチェインのバックバッファを取得し、RTV を作成する
-void Dx12Core::CreateSwapChainResources() {
+bool Dx12Core::CreateSwapChainResources() {
+    if (deviceLost_ || swapChain_ == nullptr || device_ == nullptr || rtvHeap_ == nullptr) {
+        return false;
+    }
+
     auto rtv = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+    bool ok = true;
     for (uint32_t i = 0; i < kFrameCount; ++i) {
+        backBuffers_[i].Reset();
         const HRESULT hr = swapChain_->GetBuffer(i, IID_PPV_ARGS(&backBuffers_[i]));
         if (!HIKARI_DX_CHECK(hr, "Dx12Core::CreateSwapChainResources GetBuffer")) {
+            CheckDeviceRemoved("Dx12Core::CreateSwapChainResources", hr);
+            ok = false;
+            rtv.ptr += rtvDescriptorSize_;
             continue;
         }
         const std::wstring name = L"HIKARI SwapChain BackBuffer[" + std::to_wstring(i) + L"]";
@@ -257,9 +307,16 @@ void Dx12Core::CreateSwapChainResources() {
         resourceStates_.Track(backBuffers_[i].Get(), D3D12_RESOURCE_STATE_PRESENT);
         rtv.ptr += rtvDescriptorSize_;
     }
+    return ok;
 }
 // 深度バッファを作成し、DSV と SRV を作成する
-void Dx12Core::CreateDepthBuffer() {
+bool Dx12Core::CreateDepthBuffer() {
+    sceneDepthSrvCpu_ = {};
+    sceneDepthSrvGpu_ = {};
+    if (deviceLost_ || device_ == nullptr || dsvHeap_ == nullptr || srvHeap_ == nullptr) {
+        return false;
+    }
+
     D3D12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
         DXGI_FORMAT_R32_TYPELESS, static_cast<UINT64>(width_), static_cast<UINT>(height_), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
     D3D12_CLEAR_VALUE clear{};
@@ -270,7 +327,9 @@ void Dx12Core::CreateDepthBuffer() {
     const HRESULT hr = device_->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &depthDesc,
         D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear, IID_PPV_ARGS(&depthBuffer_));
     if (!HIKARI_DX_CHECK(hr, "Dx12Core::CreateDepthBuffer")) {
-        return;
+        CheckDeviceRemoved("Dx12Core::CreateDepthBuffer", hr);
+        depthBuffer_.Reset();
+        return false;
     }
     SetD3D12Name(depthBuffer_.Get(), L"HIKARI Main Depth Buffer");
     resourceStates_.Track(depthBuffer_.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -307,6 +366,7 @@ void Dx12Core::CreateDepthBuffer() {
     srv.Texture2D.ResourceMinLODClamp = 0.0f;
 
     device_->CreateShaderResourceView(depthBuffer_.Get(), &srv, sceneDepthSrvCpu_);
+    return true;
 }
 // Dx12Core の終了処理。GPU の完了を待ち、リソースを解放する。
 void Dx12Core::Shutdown() {
@@ -317,9 +377,28 @@ void Dx12Core::Shutdown() {
     fenceEvent_ = nullptr;
 }
 // フレームの開始処理
-void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA) {
-    allocators_[frameIndex_]->Reset();
-    cmdList_->Reset(allocators_[frameIndex_].Get(), nullptr);
+bool Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA) {
+    frameOpen_ = false;
+    if (deviceLost_ ||
+        cmdList_ == nullptr ||
+        frameIndex_ >= kFrameCount ||
+        allocators_[frameIndex_] == nullptr ||
+        CurrentBackBuffer() == nullptr) {
+        return false;
+    }
+
+    HRESULT hr = allocators_[frameIndex_]->Reset();
+    if (FAILED(hr)) {
+        HIKARI_DX_CHECK(hr, "Dx12Core::BeginFrame ResetAllocator");
+        CheckDeviceRemoved("Dx12Core::BeginFrame ResetAllocator", hr);
+        return false;
+    }
+    hr = cmdList_->Reset(allocators_[frameIndex_].Get(), nullptr);
+    if (FAILED(hr)) {
+        HIKARI_DX_CHECK(hr, "Dx12Core::BeginFrame ResetCommandList");
+        CheckDeviceRemoved("Dx12Core::BeginFrame ResetCommandList", hr);
+        return false;
+    }
     const GfxDebugConfig& debugConfig = GetGfxDebugConfig();
     const bool allowGpuProfiler =
         debugConfig.enableGpuFrameProfiler &&
@@ -339,8 +418,14 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
         D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     auto rtv = CurrentRTV();
-    auto dsv = DSV();
-    cmdList_->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+    if (rtv.ptr == 0) {
+        return false;
+    }
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+    if (depthBuffer_ != nullptr) {
+        dsv = DSV();
+    }
+    cmdList_->OMSetRenderTargets(1, &rtv, FALSE, depthBuffer_ != nullptr ? &dsv : nullptr);
 
     const auto letterbox = ComputeLetterboxRect(width_, height_);
 
@@ -357,7 +442,9 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
         cmdList_->ClearRenderTargetView(rtv, color, 0, nullptr);
     }
 
-    cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    if (depthBuffer_ != nullptr) {
+        cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    }
 
     D3D12_VIEWPORT vp{ letterbox.x, letterbox.y, letterbox.width, letterbox.height, 0, 1 };
     D3D12_RECT sc{
@@ -368,9 +455,16 @@ void Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
     };
     cmdList_->RSSetViewports(1, &vp);
     cmdList_->RSSetScissorRects(1, &sc);
+    frameOpen_ = true;
+    return true;
 }
 // フレームの終了処理
-void Dx12Core::EndFrame() {
+bool Dx12Core::EndFrame() {
+    if (!frameOpen_ || deviceLost_ || cmdList_ == nullptr || CurrentBackBuffer() == nullptr) {
+        frameOpen_ = false;
+        return false;
+    }
+
     GPU_PROFILE::EndFrame(cmdList_.Get());
     resourceStates_.Transition(
         cmdList_.Get(),
@@ -378,46 +472,92 @@ void Dx12Core::EndFrame() {
         D3D12_RESOURCE_STATE_PRESENT);
     PIX::EndGpuEvent(cmdList_.Get());
 
-    cmdList_->Close();
+    HRESULT hr = cmdList_->Close();
+    if (FAILED(hr)) {
+        frameOpen_ = false;
+        HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame CloseCommandList");
+        CheckDeviceRemoved("Dx12Core::EndFrame CloseCommandList", hr);
+        return false;
+    }
     ID3D12CommandList* lists[] = { cmdList_.Get() };
     queue_->ExecuteCommandLists(1, lists);
-    swapChain_->Present(1, 0);
+    hr = swapChain_->Present(1, 0);
+    if (FAILED(hr)) {
+        frameOpen_ = false;
+        HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame Present");
+        CheckDeviceRemoved("Dx12Core::EndFrame Present", hr);
+        return false;
+    }
 
     if (GetGfxDebugConfig().dumpInfoQueueOnFrameEnd) {
         DumpD3D12InfoQueue(device_.Get(), "EndFrame");
         ClearD3D12InfoQueue(device_.Get());
     }
 
-    MoveToNextFrame();
+    frameOpen_ = false;
+    return MoveToNextFrame();
 }
 // GPU の完了を待ち、GPU が使用しているリソースの解放を行う
-void Dx12Core::WaitGPU() {
+bool Dx12Core::WaitGPU() {
+    if (deviceLost_ || queue_ == nullptr || fence_ == nullptr) {
+        return false;
+    }
+
     const uint64_t signal = fenceValue_;
-    queue_->Signal(fence_.Get(), signal);
+    const HRESULT signalHr = queue_->Signal(fence_.Get(), signal);
+    if (FAILED(signalHr)) {
+        HIKARI_DX_CHECK(signalHr, "Dx12Core::WaitGPU Signal");
+        CheckDeviceRemoved("Dx12Core::WaitGPU Signal", signalHr);
+        return false;
+    }
     fenceValue_++;
     if (fence_->GetCompletedValue() < signal) {
-        fence_->SetEventOnCompletion(signal, fenceEvent_);
+        const HRESULT eventHr = fence_->SetEventOnCompletion(signal, fenceEvent_);
+        if (FAILED(eventHr)) {
+            HIKARI_DX_CHECK(eventHr, "Dx12Core::WaitGPU SetEventOnCompletion");
+            CheckDeviceRemoved("Dx12Core::WaitGPU SetEventOnCompletion", eventHr);
+            return false;
+        }
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
+    return true;
 }
 // フレームを進める。現在のフレームの完了を待ち、次のフレームのバックバッファを取得する。
-void Dx12Core::MoveToNextFrame() {
+bool Dx12Core::MoveToNextFrame() {
+    if (deviceLost_ || queue_ == nullptr || fence_ == nullptr || swapChain_ == nullptr) {
+        return false;
+    }
+
     const uint64_t signal = fenceValue_;
-    queue_->Signal(fence_.Get(), signal);
+    const HRESULT signalHr = queue_->Signal(fence_.Get(), signal);
+    if (FAILED(signalHr)) {
+        HIKARI_DX_CHECK(signalHr, "Dx12Core::MoveToNextFrame Signal");
+        CheckDeviceRemoved("Dx12Core::MoveToNextFrame Signal", signalHr);
+        return false;
+    }
     fenceValue_++;
 
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
     if (fence_->GetCompletedValue() < signal) {
-        fence_->SetEventOnCompletion(signal, fenceEvent_);
+        const HRESULT eventHr = fence_->SetEventOnCompletion(signal, fenceEvent_);
+        if (FAILED(eventHr)) {
+            HIKARI_DX_CHECK(eventHr, "Dx12Core::MoveToNextFrame SetEventOnCompletion");
+            CheckDeviceRemoved("Dx12Core::MoveToNextFrame SetEventOnCompletion", eventHr);
+            return false;
+        }
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
+    return true;
 }
 // ウィンドウサイズの変更に伴うリソースの再作成。GPU の完了を待ち、古いリソースを解放してから、新しいスワップチェインのバッファと深度バッファを作成する。
-void Dx12Core::Resize(int w, int h) {
-    if (w <= 0 || h <= 0) return;
-    WaitGPU();
+bool Dx12Core::Resize(int w, int h) {
+    if (w <= 0 || h <= 0) return true;
+    if (deviceLost_ || swapChain_ == nullptr) return false;
+    if (!WaitGPU()) {
+        return false;
+    }
 
     width_ = w;
     height_ = h;
@@ -426,24 +566,46 @@ void Dx12Core::Resize(int w, int h) {
 
     for (auto& bb : backBuffers_) bb.Reset();
     depthBuffer_.Reset();
+    sceneDepthSrvCpu_ = {};
+    sceneDepthSrvGpu_ = {};
 
-    swapChain_->ResizeBuffers(kFrameCount, static_cast<UINT>(w), static_cast<UINT>(h), DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    const HRESULT resizeHr = swapChain_->ResizeBuffers(
+        kFrameCount,
+        static_cast<UINT>(w),
+        static_cast<UINT>(h),
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        0);
+    if (!HIKARI_DX_CHECK(resizeHr, "Dx12Core::Resize ResizeBuffers")) {
+        CheckDeviceRemoved("Dx12Core::Resize ResizeBuffers", resizeHr);
+        return false;
+    }
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
-    CreateSwapChainResources();
-    CreateDepthBuffer();
+    if (!CreateSwapChainResources()) {
+        return false;
+    }
+    return CreateDepthBuffer();
 }
 // 現在のフレームの RTV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::CurrentRTV() const {
+    if (rtvHeap_ == nullptr || frameIndex_ >= kFrameCount) {
+        return {};
+    }
     auto handle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += rtvDescriptorSize_ * frameIndex_;
     return handle;
 }
 // DSV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::DSV() const {
+    if (depthBuffer_ == nullptr || dsvHeap_ == nullptr) {
+        return {};
+    }
     return dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 }
 // 読み取り専用 DSV ハンドルを取得する
 D3D12_CPU_DESCRIPTOR_HANDLE Dx12Core::ReadOnlyDSV() const {
+    if (depthBuffer_ == nullptr || dsvHeap_ == nullptr) {
+        return {};
+    }
     auto handle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += dsvDescriptorSize_;
     return handle;
@@ -458,6 +620,9 @@ ID3D12Resource* Dx12Core::SceneDepthResource() const {
 }
 // 現在のフレームのバックバッファリソースを取得する
 ID3D12Resource* Dx12Core::CurrentBackBuffer() {
+    if (frameIndex_ >= kFrameCount) {
+        return nullptr;
+    }
     return backBuffers_[frameIndex_].Get();
 }
 // GPU による遅延解放の保留数を取得する
@@ -471,6 +636,9 @@ bool Dx12Core::IsFenceComplete(uint64_t fenceValue) const {
 // 現在のコンテキストを構築して返す。Context には、コマンドリストやリソースのハンドルなど、描画に必要な情報が含まれる。
 Context Dx12Core::BuildContext() const {
     Context ctx{};
+    if (deviceLost_) {
+        return ctx;
+    }
     ctx.device = device_.Get();
     ctx.cmdList = cmdList_.Get();
     ctx.queue = queue_.Get();

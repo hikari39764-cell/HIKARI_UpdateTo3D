@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/Rock063_1K-JPG_Color.jpg",
   "type": "Texture"

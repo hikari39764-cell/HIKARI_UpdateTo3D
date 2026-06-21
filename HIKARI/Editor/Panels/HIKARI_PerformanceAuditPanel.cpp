@@ -287,9 +287,40 @@ namespace HIKARI {
                 MetricRow("Page Tested / Page Frustum Culled", "%zu / %zu",
                     s.mesh.clusterGpuCullGpuPageTestedCount,
                     s.mesh.clusterGpuCullGpuPageFrustumCulledCount);
-                MetricRow("Cluster Tested / Frustum Culled / Cone Culled", "%zu / %zu / %zu",
+                MetricRow("HZB Occlusion Enabled / Size / Mips", "%s / %zu x %zu / %zu",
+                    s.mesh.clusterGpuCullHzbOcclusionEnabled ? "yes" : "no",
+                    s.mesh.clusterGpuCullHzbOcclusionWidth,
+                    s.mesh.clusterGpuCullHzbOcclusionHeight,
+                    s.mesh.clusterGpuCullHzbOcclusionMipCount);
+                MetricRow("HZB Page Tested / Culled | Cluster Tested / Culled", "%zu / %zu | %zu / %zu",
+                    s.mesh.clusterGpuCullGpuPageOcclusionTestedCount,
+                    s.mesh.clusterGpuCullGpuPageOcclusionCulledCount,
+                    s.mesh.clusterGpuCullGpuClusterOcclusionTestedCount,
+                    s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
+                MetricRow("HZB Try / Allowed / Accepted / Culled", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbTryCount,
+                    s.mesh.clusterGpuCullGpuHzbAllowedCount,
+                    s.mesh.clusterGpuCullGpuHzbQueryAcceptedCount,
+                    s.mesh.clusterGpuCullGpuPageOcclusionCulledCount +
+                        s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
+                MetricRow("HZB Reject Invalid / Pass / Near / Offscreen", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbInvalidRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbPassRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbNearPlaneRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbOffscreenRejectedCount);
+                MetricRow("HZB Accepted AABB / Sphere / LargeRect", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbAabbAcceptedCount,
+                    s.mesh.clusterGpuCullGpuHzbSphereAcceptedCount,
+                    s.mesh.clusterGpuCullGpuHzbLargeRectCount);
+                MetricRow("HZB Reject Pass / AABB / Sphere / Accepted", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbPassRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbAabbRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbSphereRejectedCount,
+                    s.mesh.clusterGpuCullGpuHzbQueryAcceptedCount);
+                MetricRow("Cluster Tested / Frustum Culled / Occlusion Culled / Cone Culled", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuClusterTestedCount,
                     s.mesh.clusterGpuCullGpuClusterFrustumCulledCount,
+                    s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount,
                     s.mesh.clusterGpuCullGpuClusterConeCulledCount);
                 MetricRow("DrawArgs BackFace / DoubleSided / DoubleSided Share", "%zu / %zu / %.1f%%",
                     s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
@@ -314,8 +345,9 @@ namespace HIKARI {
                     s.mesh.meshletBackendBackFaceSubmitCallCount,
                     s.mesh.meshletBackendDoubleSidedSubmitCallCount,
                     s.mesh.meshletBackendSkippedBucketCount);
-                MetricRow("Meshlet Ranges Forward / Geometry / Requested", "%zu / %zu / %zu",
+                MetricRow("Meshlet Ranges Forward / DepthPre / Geometry / Requested", "%zu / %zu / %zu / %zu",
                     s.mesh.meshletBackendForwardSubmittedDispatchCount,
+                    s.mesh.meshletBackendDepthPrepassSubmittedDispatchCount,
                     s.mesh.meshletBackendGeometryAuxSubmittedDispatchCount,
                     s.mesh.meshletBackendRequestedDispatchCount);
                 ImGui::EndTable();
@@ -341,11 +373,20 @@ namespace HIKARI {
                     s.mesh.surfaceIndirectUploadedCommandCount,
                     s.mesh.surfaceIndirectOverflowCommandCount,
                     s.mesh.surfaceIndirectExecutedDrawCount);
-                MetricRow("GPU Scene Instances Opaque / Depth / Transparent / Shadow", "%u / %u / %u / %zu",
+                MetricRow("GPU Scene Instances Opaque / DepthPre / DepthAware / Transparent / Shadow", "%u / %u / %u / %u / %zu",
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
+                    s.gpuRegistry.depthPrepassGpuSceneStats.instanceCount,
                     s.gpuRegistry.forwardDepthAwareGpuSceneStats.instanceCount,
                     s.gpuRegistry.forwardTransparentGpuSceneStats.instanceCount,
                     s.shadow.shadowGpuSceneUploadedInstanceCount);
+                MetricRow("DepthPrepass Occluders / Opaque / Uploaded", "%u / %u / %zu",
+                    s.gpuRegistry.depthPrepassOccluderRecordCount,
+                    s.gpuRegistry.forwardOpaqueResidentRecordCount,
+                    s.mesh.surfaceGpuSceneDepthPrepassInstanceCount);
+                MetricRow("DepthPrepass Reject Small / UnsafeMaterial / BudgetClip", "%u / %u / %u",
+                    s.gpuRegistry.depthPrepassRejectedSmallRecordCount,
+                    s.gpuRegistry.depthPrepassRejectedUnsafeMaterialRecordCount,
+                    s.gpuRegistry.depthPrepassBudgetClippedRecordCount);
                 ImGui::EndTable();
             }
         }

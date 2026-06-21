@@ -8,6 +8,7 @@
 #include <wrl/client.h>
 
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/Resources/HIKARI_RenderResourcePool.h"
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
@@ -32,7 +33,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         ForwardDepthAware = 1,
         ForwardTransparent = 2,
         Shadow = 3,
-        Count = 4,
+        DepthPrepass = 4,
+        Count = 5,
     };
 
     constexpr size_t kClusterGpuCullingPassKindCount =
@@ -45,6 +47,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
         // 0 / 0 は GPU 側で bucket 分類する主線を表す。
         uint32_t singleSidedInstanceCount = 0;
         uint32_t doubleSidedInstanceCount = 0;
+    };
+
+    struct ClusterGpuDepthOcclusionDesc {
+        bool enabled = false;
+        D3D12_GPU_DESCRIPTOR_HANDLE hzbSrv{};
+        uint32_t hzbWidth = 0;
+        uint32_t hzbHeight = 0;
+        uint32_t hzbMipCount = 0;
+        MATH::Mat4 hzbViewProj{};
+        bool hzbViewProjValid = false;
     };
 
     struct ClusterGpuCullingPassStats {
@@ -94,11 +106,31 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t gpuVisibleRangeCount = 0;
         uint32_t gpuVisibleClusterCount = 0;
         uint32_t gpuOverflowCount = 0;
+        bool hzbOcclusionEnabled = false;
+        uint32_t hzbOcclusionWidth = 0;
+        uint32_t hzbOcclusionHeight = 0;
+        uint32_t hzbOcclusionMipCount = 0;
         uint32_t gpuInputFrustumCulledCount = 0;
         uint32_t gpuPageTestedCount = 0;
         uint32_t gpuPageFrustumCulledCount = 0;
+        uint32_t gpuPageOcclusionTestedCount = 0;
+        uint32_t gpuPageOcclusionCulledCount = 0;
         uint32_t gpuClusterTestedCount = 0;
         uint32_t gpuClusterFrustumCulledCount = 0;
+        uint32_t gpuClusterOcclusionTestedCount = 0;
+        uint32_t gpuClusterOcclusionCulledCount = 0;
+        uint32_t gpuHzbPassRejectedCount = 0;
+        uint32_t gpuHzbAabbRejectedCount = 0;
+        uint32_t gpuHzbSphereRejectedCount = 0;
+        uint32_t gpuHzbQueryAcceptedCount = 0;
+        uint32_t gpuHzbTryCount = 0;
+        uint32_t gpuHzbAllowedCount = 0;
+        uint32_t gpuHzbInvalidRejectedCount = 0;
+        uint32_t gpuHzbNearPlaneRejectedCount = 0;
+        uint32_t gpuHzbOffscreenRejectedCount = 0;
+        uint32_t gpuHzbLargeRectCount = 0;
+        uint32_t gpuHzbAabbAcceptedCount = 0;
+        uint32_t gpuHzbSphereAcceptedCount = 0;
         uint32_t gpuClusterConeCulledCount = 0;
         uint32_t gpuClusterConeTestedCount = 0;
         uint32_t gpuDoubleSidedClusterCount = 0;
@@ -139,7 +171,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             D3D12_GPU_DESCRIPTOR_HANDLE clusterGeometryPoolSrv,
             D3D12_GPU_VIRTUAL_ADDRESS surfaceGpuSceneGpuAddress,
             const ClusterGpuCullingSourceRange* ranges,
-            size_t rangeCount);
+            size_t rangeCount,
+            const ClusterGpuDepthOcclusionDesc& depthOcclusion,
+            bool collectCounterReadback = true);
 
         const ClusterGpuCullingPassStats& GetStats() const;
         const ClusterGpuCullingPassStats::PassOutputStats& GetPassStats(
@@ -254,9 +288,25 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t lod1SelectedCount = 0;
             uint32_t lod2SelectedCount = 0;
             uint32_t lod3PlusSelectedCount = 0;
+            uint32_t pageOcclusionTestedCount = 0;
+            uint32_t pageOcclusionCulledCount = 0;
+            uint32_t clusterOcclusionTestedCount = 0;
+            uint32_t clusterOcclusionCulledCount = 0;
+            uint32_t hzbPassRejectedCount = 0;
+            uint32_t hzbAabbRejectedCount = 0;
+            uint32_t hzbSphereRejectedCount = 0;
+            uint32_t hzbQueryAcceptedCount = 0;
+            uint32_t hzbTryCount = 0;
+            uint32_t hzbAllowedCount = 0;
+            uint32_t hzbInvalidRejectedCount = 0;
+            uint32_t hzbNearPlaneRejectedCount = 0;
+            uint32_t hzbOffscreenRejectedCount = 0;
+            uint32_t hzbLargeRectCount = 0;
+            uint32_t hzbAabbAcceptedCount = 0;
+            uint32_t hzbSphereAcceptedCount = 0;
         };
 
-        static_assert(sizeof(GpuCounters) == 96u);
+        static_assert(sizeof(GpuCounters) == 160u);
 
         struct GpuPassCounters {
             uint32_t backFaceDrawCommandCount = 0;
@@ -272,8 +322,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             std::array<GpuPassCounters, kClusterGpuCullingPassKindCount> passes{};
         };
 
-        static_assert(offsetof(GpuCounterBuffer, passes) == 96u);
-        static_assert(sizeof(GpuCounterBuffer) == 160u);
+        static_assert(offsetof(GpuCounterBuffer, passes) == 160u);
+        static_assert(sizeof(GpuCounterBuffer) == 240u);
 
         struct CounterReadbackSlot {
             Microsoft::WRL::ComPtr<ID3D12Resource> buffer{};
@@ -282,6 +332,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         struct GpuConstants {
             MATH::Mat4 viewProj{};
+            MATH::Mat4 hzbViewProj{};
             MATH::Vec4 cameraPosition{};
             uint32_t inputCount = 0;
             uint32_t visibleRangeCapacity = 0;
@@ -303,9 +354,17 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t enableLodErrorSelection = 0;
             uint32_t reserved0 = 0;
             uint32_t reserved1 = 0;
+            uint32_t enableHzbOcclusion = 0;
+            uint32_t hzbWidth = 0;
+            uint32_t hzbHeight = 0;
+            uint32_t hzbMipCount = 0;
+            float hzbDepthBias = 0.002f;
+            float hzbMaxScreenRadiusPixels = 4096.0f;
+            uint32_t reserved2 = 0;
+            uint32_t reserved3 = 0;
         };
 
-        static_assert(sizeof(GpuConstants) == 160u);
+        static_assert(sizeof(GpuConstants) == 256u);
 
         bool EnsurePipeline(ID3D12Device* device);
         bool EnsureDispatchCommandSignature(ID3D12Device* device);
@@ -324,6 +383,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             size_t pageTaskCapacity,
             size_t visibleRangeCapacity,
             size_t drawArgumentCapacity);
+        bool EnsureFallbackHzb(ID3D12Device* device);
         void ResetFrameStats();
         void BuildRangeStats(const ClusterGpuCullingSourceRange* ranges, size_t rangeCount);
         void CollectCounterReadback(CounterReadbackSlot& slot);
@@ -345,6 +405,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         Microsoft::WRL::ComPtr<ID3D12Resource> meshletDispatchArgumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> dispatchArgumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> counterBuffer_;
+        Microsoft::WRL::ComPtr<ID3D12Resource> fallbackHzb_;
+        RenderResourceView fallbackHzbSrv_{};
         std::array<CounterReadbackSlot, 3> counterReadbackSlots_{};
 
         uint8_t* constantsMapped_ = nullptr;
@@ -355,12 +417,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t drawArgumentCapacity_ = 0;
         size_t counterReadbackWriteIndex_ = 0;
         bool latestGpuCountersValid_ = false;
-        D3D12_RESOURCE_STATES pageTaskBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        D3D12_RESOURCE_STATES visibleRangeBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        D3D12_RESOURCE_STATES drawArgumentBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        D3D12_RESOURCE_STATES meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        D3D12_RESOURCE_STATES dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        D3D12_RESOURCE_STATES counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+        D3D12_RESOURCE_STATES pageTaskBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES visibleRangeBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES drawArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         ClusterGpuCullingPassStats stats_{};
     };
 

@@ -82,6 +82,7 @@ namespace HIKARI {
         inline std::vector<std::string> gRuntimeExportedSceneGuids{};
         inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
         inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
+        inline bool gGpuFrameReady = false;
 
         inline RuntimeHostMode GetRuntimeHostMode() { return gRuntimeHostMode; }
         inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
@@ -225,7 +226,11 @@ namespace HIKARI {
             const int logicalScreenH = cfg.windowHeight;
 
             gWindow.SetResizeCallback([logicalScreenW, logicalScreenH](int w, int h) {
-                gCore.Resize(w, h);
+                if (!gCore.Resize(w, h)) {
+                    gGpuFrameReady = false;
+                    HIKARI_LOG_ERROR("D3D12 resize failed; GPU frame recording disabled.");
+                    return;
+                }
                 gCtx = gCore.BuildContext();
                 DXTEX::DxTextureManager::UpdateContext(gCtx);
                 RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
@@ -366,8 +371,9 @@ namespace HIKARI {
             return gWindow.PumpMessages();
         }
 
-        inline void BeginFrame(const BootstrapConfig& cfg = {}) {
+        inline bool BeginFrame(const BootstrapConfig& cfg = {}) {
             (void)cfg;
+            gGpuFrameReady = false;
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.BeginFrame");
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
             gCtx = gCore.BuildContext();
@@ -378,7 +384,11 @@ namespace HIKARI {
             POST::PostSystem::UpdateContext(gCtx);
             HIKARI::VFX::UpdateContext(gCtx);
 
-            gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f);
+            if (!gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f)) {
+                HIKARI_LOG_ERROR("D3D12 BeginFrame failed; skipping frame.");
+                return false;
+            }
+            gGpuFrameReady = true;
 
             HIKARI::RENDERER::BeginFrame();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
@@ -424,9 +434,13 @@ namespace HIKARI {
 #endif
             }
             HIKARI::CAMERA::Update(frame.gameDt);
+            return true;
         }
 
-        inline void EndFrame() {
+        inline bool EndFrame() {
+            if (!gGpuFrameReady) {
+                return false;
+            }
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.EndFrame");
             HIKARI::VFX::EndFrame();
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
@@ -476,8 +490,14 @@ namespace HIKARI {
 #endif
             }
 
-            gCore.EndFrame();
+            if (!gCore.EndFrame()) {
+                gGpuFrameReady = false;
+                HIKARI_LOG_ERROR("D3D12 EndFrame failed; stopping GPU frame loop.");
+                return false;
+            }
+            gGpuFrameReady = false;
             GFX::PIX::Update();
+            return true;
         }
     } // namespace SERVICES
 } // namespace HIKARI

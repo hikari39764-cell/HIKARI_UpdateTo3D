@@ -27,7 +27,7 @@
     "usage": "MetallicRoughness"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Models/texture_metallic.png-texture_roughness.png",
   "type": "Texture"

@@ -15,6 +15,7 @@ cbuffer SsaoPassCB : register(b0)
 #define gAoPower gAoParams0.w
 #define gAoSampleCount gAoParams1.x
 #define gFrameIndex gAoParams1.y
+#define gDepthOnlyNormals gAoParams1.w
 
 static const float kTwoPi = 6.28318530718f;
 static const float kGoldenAngle = 2.39996322973f;
@@ -57,6 +58,24 @@ float2 ProjectWorld(float3 world)
     float4 clip = mul(gViewProj, float4(world, 1.0f));
     float3 ndc = clip.xyz / max(abs(clip.w), 1e-5f);
     return float2(ndc.x * 0.5f + 0.5f, -ndc.y * 0.5f + 0.5f);
+}
+
+float3 ReconstructNormalFromDepth(float2 uv, float centerDepth)
+{
+    float2 texel = gScreenParams.zw;
+    float2 uvRight = saturate(uv + float2(texel.x, 0.0f));
+    float2 uvDown = saturate(uv + float2(0.0f, texel.y));
+    float depthRight = gSceneDepthTex.SampleLevel(gPointClamp, uvRight, 0).r;
+    float depthDown = gSceneDepthTex.SampleLevel(gPointClamp, uvDown, 0).r;
+    depthRight = depthRight >= 0.99999f ? centerDepth : depthRight;
+    depthDown = depthDown >= 0.99999f ? centerDepth : depthDown;
+
+    float3 p = ReconstructWorld(uv, centerDepth);
+    float3 px = ReconstructWorld(uvRight, depthRight);
+    float3 py = ReconstructWorld(uvDown, depthDown);
+    float3 n = normalize(cross(py - p, px - p));
+    float3 viewDir = normalize(gCameraPos.xyz - p);
+    return dot(n, viewDir) < 0.0f ? -n : n;
 }
 
 float Hash12(float2 p)
@@ -180,6 +199,63 @@ float PSMainOptimizedHigh(VSOut input) : SV_TARGET
 
     float4 normalRoughness = gNormalRoughnessTex.SampleLevel(gPointClamp, input.uv, 0);
     float3 n = DecodeNormal(normalRoughness);
+    float3 worldPos = ReconstructWorld(input.uv, depth);
+    float randomAngle = Hash12(input.uv * gScreenParams.xy + gFrameIndex * 7.13f) * kTwoPi;
+    float sampleCount = clamp(gAoSampleCount, 1.0f, 32.0f);
+    float screenRadius = ScreenRadiusFromWorldRadius(input.uv, worldPos, n);
+
+    float occlusion = 0.0f;
+    float weightSum = 0.0f;
+
+    [loop]
+    for (uint i = 0; i < 32; ++i)
+    {
+        if (i >= (uint)sampleCount)
+        {
+            break;
+        }
+
+        float2 offset = VogelDisk(i, sampleCount, randomAngle);
+        float2 sampleUv = input.uv + offset * screenRadius;
+        if (any(sampleUv < 0.0f) || any(sampleUv > 1.0f))
+        {
+            continue;
+        }
+
+        float sampleDepth = gSceneDepthTex.SampleLevel(gPointClamp, sampleUv, 0).r;
+        if (sampleDepth >= 0.99999f)
+        {
+            continue;
+        }
+
+        float3 hitWorld = ReconstructWorld(sampleUv, sampleDepth);
+        float3 delta = hitWorld - worldPos;
+        float distanceToHit = length(delta);
+        float3 dir = delta / max(distanceToHit, 1e-4f);
+        float facing = saturate(dot(n, dir));
+        float range = saturate(1.0f - distanceToHit / max(gAoRadius, 1e-4f));
+        range = range * range * (3.0f - 2.0f * range);
+
+        float radialWeight = 1.0f - saturate(length(offset));
+        float hit = (distanceToHit > gAoBias && distanceToHit < gAoRadius && facing > 0.03f) ? 1.0f : 0.0f;
+        float weight = max(radialWeight, 0.15f);
+        occlusion += hit * range * facing * weight;
+        weightSum += weight;
+    }
+
+    float ao = 1.0f - saturate((occlusion / max(weightSum, 1e-4f)) * gAoStrength);
+    return pow(saturate(ao), gAoPower);
+}
+
+float PSMainDepthOnly(VSOut input) : SV_TARGET
+{
+    float depth = gSceneDepthTex.SampleLevel(gPointClamp, input.uv, 0).r;
+    if (depth >= 0.99999f)
+    {
+        return 1.0f;
+    }
+
+    float3 n = ReconstructNormalFromDepth(input.uv, depth);
     float3 worldPos = ReconstructWorld(input.uv, depth);
     float randomAngle = Hash12(input.uv * gScreenParams.xy + gFrameIndex * 7.13f) * kTwoPi;
     float sampleCount = clamp(gAoSampleCount, 1.0f, 32.0f);

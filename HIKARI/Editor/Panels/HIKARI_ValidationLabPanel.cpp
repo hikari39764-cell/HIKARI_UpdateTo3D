@@ -187,6 +187,17 @@ namespace HIKARI {
                 meshStats.clusterGpuCullGpuDrawCommandCount,
                 meshStats.clusterGpuCullGpuDrawCommandOverflowCount +
                     meshStats.clusterGpuCullGpuOverflowCount);
+            ImGui::Text("Cluster HZB Occlusion / Size / Page Culled / Cluster Culled: %s / %zux%zu / %zu / %zu",
+                meshStats.clusterGpuCullHzbOcclusionEnabled ? "on" : "off",
+                meshStats.clusterGpuCullHzbOcclusionWidth,
+                meshStats.clusterGpuCullHzbOcclusionHeight,
+                meshStats.clusterGpuCullGpuPageOcclusionCulledCount,
+                meshStats.clusterGpuCullGpuClusterOcclusionCulledCount);
+            ImGui::Text("Cluster HZB Reject Pass / AABB / Sphere / Accepted: %zu / %zu / %zu / %zu",
+                meshStats.clusterGpuCullGpuHzbPassRejectedCount,
+                meshStats.clusterGpuCullGpuHzbAabbRejectedCount,
+                meshStats.clusterGpuCullGpuHzbSphereRejectedCount,
+                meshStats.clusterGpuCullGpuHzbQueryAcceptedCount);
             ImGui::Text("GPU LOD Selected L0 / L1 / L2 / L3+: %zu / %zu / %zu / %zu",
                 meshStats.clusterGpuCullGpuLod0SelectedCount,
                 meshStats.clusterGpuCullGpuLod1SelectedCount,

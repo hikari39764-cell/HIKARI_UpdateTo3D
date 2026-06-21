@@ -1,5 +1,16 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/2013c82b796a934811d4e52cbcc12c51/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/2013c82b796a934811d4e52cbcc12c51/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "op_8",
   "guid": "2013c82b796a934811d4e52cbcc12c51",
@@ -16,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 1,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Spine/op_8.png",
   "type": "Texture"

@@ -300,6 +300,7 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
@@ -649,6 +650,7 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuCommandBuildResult.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenCommandBucket.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPass.h" />
@@ -895,6 +897,7 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_RenderDescriptorLayout.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_SurfaceGpuScene.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
@@ -902,6 +905,7 @@
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl" />
+    <None Include="HIKARI\Shaders\GpuDepthVisibility_BuildHzbCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl" />

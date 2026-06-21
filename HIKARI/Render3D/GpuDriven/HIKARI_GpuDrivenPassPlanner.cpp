@@ -24,6 +24,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             { GpuDrivenPassKind::Shadow, false, true, false, false, false, false, false, false },
             { GpuDrivenPassKind::GeometryAux, true, false, true, true, false, false, false, false },
             { GpuDrivenPassKind::ReflectionCapture, true, false, true, true, false, false, false, false },
+            { GpuDrivenPassKind::DepthPrepass, true, false, true, true, false, false, false, false },
             { GpuDrivenPassKind::Debug, false, false, false, false, false, false, false, false },
         } };
     }

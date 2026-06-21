@@ -1252,6 +1252,9 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
@@ -1432,6 +1435,9 @@
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrameContext.h">
@@ -2177,6 +2183,9 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_RenderDescriptorLayout.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_SkyEnvironmentCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
@@ -2196,6 +2205,9 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\GpuDepthVisibility_BuildHzbCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl">

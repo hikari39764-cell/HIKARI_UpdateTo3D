@@ -13,9 +13,10 @@ cbuffer CameraCB : register(b0)
 #include "Include/HIKARI_SurfaceGpuScene.hlsli"
 #include "Include/HIKARI_ClusterGpuData.hlsli"
 #include "Include/HIKARI_GpuDrivenWaterDeform.hlsli"
+#include "Include/HIKARI_RenderDescriptorLayout.hlsli"
 
-static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = 3985u;
-static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = 111u;
+static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_BEGIN;
+static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_COUNT;
 static const uint HIKARI_MESHLET_MAX_PRIMITIVES =
     HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_PRIMITIVES;
 static const uint HIKARI_MESHLET_MAX_VERTICES =

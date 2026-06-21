@@ -228,7 +228,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (desc.residency != nullptr) {
                 desc.residency->Reset();
             }
-            UploadSurfaceGpuSceneFrame(0u, 0u, 0u, 0u, 0u, false);
+            UploadSurfaceGpuSceneFrame(0u, 0u, 0u, 0u, 0u, 0u, false);
             return sceneUploadStats_;
         }
 
@@ -303,6 +303,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             ResolvePassBaseIndex(
                 source.GetPass(GpuDrivenPassKind::ForwardOpaque)),
             ResolvePassBaseIndex(
+                source.GetPass(GpuDrivenPassKind::DepthPrepass)),
+            ResolvePassBaseIndex(
                 source.GetPass(GpuDrivenPassKind::ForwardDepthAware)),
             ResolvePassBaseIndex(
                 source.GetPass(GpuDrivenPassKind::ForwardTransparent)),
@@ -315,6 +317,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuDrivenLayer::UploadSurfaceGpuSceneFrame(
         uint32_t instanceCount,
         uint32_t opaqueBaseIndex,
+        uint32_t depthPrepassBaseIndex,
         uint32_t depthAwareBaseIndex,
         uint32_t transparentBaseIndex,
         uint32_t shadowBaseIndex,
@@ -323,6 +326,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_.scene.instanceBuffer = sceneBuffer_;
         frameContext_.scene.instanceCount = instanceCount;
         frameContext_.scene.opaqueBaseIndex = opaqueBaseIndex;
+        frameContext_.scene.depthPrepassBaseIndex = depthPrepassBaseIndex;
         frameContext_.scene.depthAwareBaseIndex = depthAwareBaseIndex;
         frameContext_.scene.transparentBaseIndex = transparentBaseIndex;
         frameContext_.scene.shadowBaseIndex = shadowBaseIndex;
@@ -679,6 +683,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     state.visibleCommandOverflowCount;
                 range.commandBucketCapacity =
                     state.gpuCommandBucketCapacity;
+                range.gpuSceneBaseIndex = passSource.gpuSceneBaseIndex;
                 range.instanceCount = state.sourceInstanceCount;
                 range.consumable = true;
                 range.gpuAuthored = true;
@@ -704,6 +709,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     state.visibleCommandOverflowCount;
                 range.commandBucketCapacity =
                     state.gpuCommandBucketCapacity;
+                range.gpuSceneBaseIndex = passSource.gpuSceneBaseIndex;
                 range.instanceCount = state.sourceInstanceCount;
                 range.consumable = true;
                 range.gpuAuthored = true;

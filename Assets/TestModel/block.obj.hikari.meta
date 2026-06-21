@@ -1,6 +1,23 @@
 {
-  "artifacts": [],
-  "dependencies": [],
+  "artifacts": [
+    {
+      "format": "HCMESH",
+      "path": "Library/Imported/427c02ef6d744f0f51f353297512aa9f/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/427c02ef6d744f0f51f353297512aa9f/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
+  "dependencies": [
+    {
+      "guid": "9a6b9ed5f5828bd5cf8497147c8d3434",
+      "path": "Assets/TestModel/block.png",
+      "role": "Texture"
+    }
+  ],
   "displayName": "block",
   "guid": "427c02ef6d744f0f51f353297512aa9f",
   "importSettings": {
@@ -9,7 +26,7 @@
     "sourceFormat": ".obj"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 1,
+  "importerVersion": 12,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/block.obj",
   "type": "Model"

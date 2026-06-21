@@ -12,11 +12,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         Shadow = 3,
         GeometryAux = 4,
         ReflectionCapture = 5,
-        Debug = 6,
+        DepthPrepass = 6,
+        Debug = 7,
 
         ForwardDepthAware = DepthAware,
         ForwardTransparent = Transparent,
-        Count = 7,
+        Count = 8,
     };
 
     constexpr size_t kGpuDrivenPassCount =

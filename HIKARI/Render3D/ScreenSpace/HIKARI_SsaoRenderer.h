@@ -49,6 +49,13 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
             const MESHRENDERER::CameraCB& camera,
             const AmbientOcclusionSettings& settings);
+        bool RenderDepthOnly(
+            ID3D12GraphicsCommandList* cmd,
+            uint32_t width,
+            uint32_t height,
+            D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
+            const MESHRENDERER::CameraCB& camera,
+            const AmbientOcclusionSettings& settings);
 
         void Release();
         void RecordSkipped(
@@ -81,14 +88,20 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
             D3D12_GPU_DESCRIPTOR_HANDLE normalRoughnessSrv,
             const MESHRENDERER::CameraCB& camera,
-            const AmbientOcclusionSettings& settings);
+            const AmbientOcclusionSettings& settings,
+            bool depthOnlyNormals);
 
         Microsoft::WRL::ComPtr<ID3D12RootSignature> generateRootSig_{};
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> depthOnlyGenerateRootSig_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> generatePso_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> optimizedGeneratePso_{};
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> depthOnlyGeneratePso_{};
         Microsoft::WRL::ComPtr<ID3D12RootSignature> blurRootSig_{};
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> depthOnlyBlurRootSig_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> blurPso_{};
         Microsoft::WRL::ComPtr<ID3D12PipelineState> upsamplePso_{};
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> depthOnlyBlurPso_{};
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> depthOnlyUpsamplePso_{};
         Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_{};
         uint8_t* constantMapped_ = nullptr;
 

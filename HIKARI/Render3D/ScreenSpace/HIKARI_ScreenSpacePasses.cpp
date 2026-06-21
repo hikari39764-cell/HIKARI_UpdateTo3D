@@ -27,9 +27,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     void ReleaseScreenSpaceRuntimeState() {
         gScreenSpaceState.geometryAux.Release();
         gScreenSpaceState.ssaoRenderer.Release();
+        gScreenSpaceState.depthVisibility.Release();
         RENDER3D::ReleaseTextureResource(gScreenSpaceState.fallbackAoTextureResource);
         gScreenSpaceState.fallbackAoTextureResource = {};
         gScreenSpaceState.fallbackAoTextureHandle = -1;
+        gScreenSpaceState.depthVisibilityValid = false;
+        gScreenSpaceState.depthVisibilityViewProjValid = false;
         gScreenSpaceState.geometryValid = false;
         gScreenSpaceState.ssaoValid = false;
     }
@@ -65,9 +68,20 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             result.aoSrv = RENDER3D::GetTextureResourceSrvGpuHandle(state.fallbackAoTextureResource);
         }
         result.fallbackAoTextureHandle = state.fallbackAoTextureHandle;
+        const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats historyDepthStats =
+            state.depthVisibility.GetStats();
+        const bool historyHzbReady =
+            historyDepthStats.hzbBuilt &&
+            historyDepthStats.hzbFinestSrv.ptr != 0 &&
+            historyDepthStats.hzbWidth != 0 &&
+            historyDepthStats.hzbHeight != 0 &&
+            historyDepthStats.hzbViewProjValid;
+        state.depthVisibility.ResetFrame();
         BeginSsaoDebugFrame(context.width, context.height, environment.ambientOcclusion);
 
         if (context.cmd == nullptr) {
+            state.depthVisibilityValid = false;
+            state.depthVisibilityViewProjValid = false;
             state.ssaoValid = false;
             return result;
         }
@@ -76,6 +90,26 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         GFX::PIX::ScopedGpuEvent pixScreenSpace(context.cmd, GFX::PIX::kColorPost, "ScreenSpace.PreLighting");
 
         const SsaoMode ssaoMode = ResolveEffectiveSsaoMode(environment.ambientOcclusion);
+
+        const CpuClock::time_point depthVisibilityStart = CpuClock::now();
+        if (historyHzbReady) {
+            GFX::PIX::ScopedGpuEvent pixHistory(
+                context.cmd,
+                GFX::PIX::kColorUpload,
+                "GpuDepthVisibility.UseHistoryHZB");
+            state.depthVisibilityValid = true;
+            state.depthVisibilityViewProjValid = true;
+            state.depthVisibilityViewProj = historyDepthStats.hzbViewProj;
+            (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
+                historyDepthStats);
+        } else {
+            state.depthVisibilityValid = false;
+            state.depthVisibilityViewProjValid = false;
+            (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
+        }
+
+        const float depthVisibilityMs =
+            ElapsedMs(depthVisibilityStart, CpuClock::now());
 
         // Off 時は GeometryAux も作らない。
         if (ssaoMode == SsaoMode::Off ||
@@ -86,6 +120,27 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 environment.ambientOcclusion);
             state.geometryValid = false;
             state.ssaoValid = false;
+            return result;
+        }
+
+        if (ssaoMode == SsaoMode::Balanced) {
+            RecordSsaoGeometryAuxDebug(
+                false,
+                depthVisibilityMs,
+                DXGI_FORMAT_UNKNOWN);
+            state.geometryValid = false;
+
+            if (state.ssaoValid &&
+                state.ssaoRenderer.IsValid() &&
+                state.ssaoRenderer.GetAoSrv().ptr != 0) {
+                result.ssaoRendered = true;
+                result.aoSrv = state.ssaoRenderer.GetAoSrv();
+                GFX::PIX::SetGpuMarker(context.cmd, GFX::PIX::kColorPost, "SSAO.Composite");
+                RecordSsaoCompositeDebug(0.0f);
+            } else {
+                state.ssaoValid = false;
+                result.ssaoRendered = false;
+            }
             return result;
         }
 
@@ -132,6 +187,84 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             RecordSsaoCompositeDebug(0.0f);
         }
         return result;
+    }
+
+    bool ExecuteScreenSpacePostOpaquePasses(
+        ScreenSpaceRuntimeState& state,
+        const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
+        const MESHRENDERER::CameraCB& cameraCb,
+        const SceneEnvironment& environment,
+        ScreenSpaceFrameResult& result) {
+
+        if (context.cmd == nullptr) {
+            return false;
+        }
+
+        const bool depthAvailable =
+            context.depthReadable &&
+            context.sceneDepthSrv.ptr != 0;
+        if (!depthAvailable) {
+            state.depthVisibilityValid = false;
+            state.depthVisibilityViewProjValid = false;
+            return context.renderTargetAccess.Rebind();
+        }
+
+        const SsaoMode ssaoMode =
+            ResolveEffectiveSsaoMode(environment.ambientOcclusion);
+        const bool refreshBalancedSsao =
+            ssaoMode == SsaoMode::Balanced &&
+            !environment.ambientOcclusion.editorViewportSuppressed;
+
+        if (!context.renderTargetAccess.BeginDepthRead()) {
+            state.depthVisibilityValid = false;
+            state.depthVisibilityViewProjValid = false;
+            return false;
+        }
+
+        {
+            GFX::PIX::ScopedGpuEvent pixPostOpaque(
+                context.cmd,
+                GFX::PIX::kColorPost,
+                "ScreenSpace.PostOpaqueTemporal");
+
+            result.hzbBuilt = state.depthVisibility.BuildHzbFromDepthSrv(
+                context.cmd,
+                context.width,
+                context.height,
+                context.sceneDepthSrv,
+                cameraCb.viewProj);
+            if (result.hzbBuilt) {
+                state.depthVisibilityValid = true;
+                state.depthVisibilityViewProjValid = true;
+                state.depthVisibilityViewProj = cameraCb.viewProj;
+            } else {
+                state.depthVisibilityValid = false;
+                state.depthVisibilityViewProjValid = false;
+            }
+
+            if (refreshBalancedSsao) {
+                const bool ssaoOk = state.ssaoRenderer.RenderDepthOnly(
+                    context.cmd,
+                    context.width,
+                    context.height,
+                    context.sceneDepthSrv,
+                    cameraCb,
+                    environment.ambientOcclusion);
+                state.ssaoValid = ssaoOk;
+                if (ssaoOk && state.ssaoRenderer.GetAoSrv().ptr != 0) {
+                    result.ssaoRendered = true;
+                    result.aoSrv = state.ssaoRenderer.GetAoSrv();
+                    GFX::PIX::SetGpuMarker(
+                        context.cmd,
+                        GFX::PIX::kColorPost,
+                        "SSAO.Composite");
+                    RecordSsaoCompositeDebug(0.0f);
+                }
+            }
+        }
+
+        context.renderTargetAccess.EndDepthRead();
+        return context.renderTargetAccess.Rebind();
     }
 
 } // namespace HIKARI::RENDER3D::SCREENSPACE

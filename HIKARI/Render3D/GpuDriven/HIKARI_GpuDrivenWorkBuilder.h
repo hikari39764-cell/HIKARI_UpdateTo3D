@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include <d3d12.h>
 
@@ -17,6 +18,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         D3D12_GPU_DESCRIPTOR_HANDLE geometryPoolSrv{};
         D3D12_GPU_VIRTUAL_ADDRESS surfaceGpuSceneGpuAddress = 0;
         const GpuDrivenFrame* frame = nullptr;
+        uint32_t passMask = 0xffffffffu;
+        bool collectCounterReadback = true;
+        GpuDrivenDepthOcclusionContext depthOcclusion{};
     };
 
     struct GpuDrivenWorkResult {

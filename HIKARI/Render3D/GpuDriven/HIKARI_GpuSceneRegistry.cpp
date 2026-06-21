@@ -66,6 +66,133 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return value;
         }
 
+        float ComputeWorldBoundsRadius(const Bounds& bounds) {
+            const float ex = (bounds.max.x - bounds.min.x) * 0.5f;
+            const float ey = (bounds.max.y - bounds.min.y) * 0.5f;
+            const float ez = (bounds.max.z - bounds.min.z) * 0.5f;
+            return std::sqrt(ex * ex + ey * ey + ez * ez);
+        }
+
+        constexpr float kDepthVisibilityMinOccluderRadius = 0.75f;
+        constexpr size_t kDepthVisibilityMaxOccluderRecords = 256;
+
+        struct DepthPrepassOccluderCandidate {
+            uint32_t recordIndex = RUNTIME::kInvalidRenderSurfaceIndex;
+            float radius = 0.0f;
+        };
+
+        bool HasDepthVisibilitySafeMaterial(const GpuSceneSurfaceRecord& record) {
+            return
+                !record.key.alphaMasked &&
+                !record.key.transparent &&
+                !record.key.depthAware &&
+                !record.key.materialFx &&
+                !record.key.waterMaterialFx;
+        }
+
+        bool IsDepthVisibilityOccluderRecord(
+            const GpuSceneSurfaceRecord& record,
+            bool strictSize) {
+
+            if (!IsGpuSceneForwardOpaqueResidentRecord(record) ||
+                !HasDepthVisibilitySafeMaterial(record)) {
+                return false;
+            }
+            if (record.key.doubleSided) {
+                return false;
+            }
+            if (!strictSize) {
+                return true;
+            }
+            return ComputeWorldBoundsRadius(record.worldBounds) >=
+                kDepthVisibilityMinOccluderRadius;
+        }
+
+        void BuildDepthPrepassOccluderRecords(
+            const std::vector<GpuSceneSurfaceRecord>& records,
+            const std::vector<uint32_t>& opaqueRecords,
+            std::vector<uint32_t>& outOccluders,
+            GpuSceneRegistryStats& stats) {
+
+            outOccluders.clear();
+            stats.depthPrepassOccluderRecordCount = 0;
+            stats.depthPrepassRejectedSmallRecordCount = 0;
+            stats.depthPrepassRejectedUnsafeMaterialRecordCount = 0;
+            stats.depthPrepassBudgetClippedRecordCount = 0;
+
+            std::vector<DepthPrepassOccluderCandidate> candidates;
+            candidates.reserve((std::min)(
+                opaqueRecords.size(),
+                kDepthVisibilityMaxOccluderRecords * 2u));
+            float largestFallbackRadius = -1.0f;
+            uint32_t largestFallbackRecord =
+                RUNTIME::kInvalidRenderSurfaceIndex;
+
+            for (const uint32_t recordIndex : opaqueRecords) {
+                if (recordIndex >= records.size()) {
+                    continue;
+                }
+
+                const GpuSceneSurfaceRecord& record = records[recordIndex];
+                if (!IsGpuSceneForwardOpaqueResidentRecord(record)) {
+                    continue;
+                }
+                if (!HasDepthVisibilitySafeMaterial(record) ||
+                    record.key.doubleSided) {
+                    ++stats.depthPrepassRejectedUnsafeMaterialRecordCount;
+                    continue;
+                }
+
+                const float radius = ComputeWorldBoundsRadius(record.worldBounds);
+                if (radius < kDepthVisibilityMinOccluderRadius) {
+                    ++stats.depthPrepassRejectedSmallRecordCount;
+                    if (radius > largestFallbackRadius) {
+                        largestFallbackRadius = radius;
+                        largestFallbackRecord = recordIndex;
+                    }
+                    continue;
+                }
+
+                candidates.push_back({ recordIndex, radius });
+            }
+
+            if (candidates.size() > kDepthVisibilityMaxOccluderRecords) {
+                std::sort(
+                    candidates.begin(),
+                    candidates.end(),
+                    [](const DepthPrepassOccluderCandidate& a,
+                       const DepthPrepassOccluderCandidate& b) {
+                        if (a.radius != b.radius) {
+                            return a.radius > b.radius;
+                        }
+                        return a.recordIndex < b.recordIndex;
+                    });
+                stats.depthPrepassBudgetClippedRecordCount =
+                    ClampToUint32(
+                        candidates.size() - kDepthVisibilityMaxOccluderRecords);
+                candidates.resize(kDepthVisibilityMaxOccluderRecords);
+                std::sort(
+                    candidates.begin(),
+                    candidates.end(),
+                    [](const DepthPrepassOccluderCandidate& a,
+                       const DepthPrepassOccluderCandidate& b) {
+                        return a.recordIndex < b.recordIndex;
+                    });
+            }
+
+            outOccluders.reserve(candidates.size());
+            for (const DepthPrepassOccluderCandidate& candidate : candidates) {
+                outOccluders.push_back(candidate.recordIndex);
+            }
+
+            if (outOccluders.empty() &&
+                largestFallbackRecord != RUNTIME::kInvalidRenderSurfaceIndex) {
+                outOccluders.push_back(largestFallbackRecord);
+            }
+            stats.depthPrepassOccluderRecordCount =
+                ClampToUint32(outOccluders.size());
+        }
+
         void AppendDirtyRange(
             std::vector<GpuSceneDirtyRange>& ranges,
             uint32_t firstInstance,
@@ -837,6 +964,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuSceneRegistry::Clear() {
         surfaceRecords_.clear();
         forwardOpaqueResidentRecordIndices_.clear();
+        depthPrepassOccluderRecordIndices_.clear();
         forwardDepthAwareResidentRecordIndices_.clear();
         forwardTransparentResidentRecordIndices_.clear();
         shadowResidentRecordIndices_.clear();
@@ -845,11 +973,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardTransparentSkinnedRecordIndices_.clear();
         shadowSkinnedRecordIndices_.clear();
         forwardOpaqueGpuSceneIndexByRecord_.clear();
+        depthPrepassGpuSceneIndexByRecord_.clear();
         forwardDepthAwareGpuSceneIndexByRecord_.clear();
         forwardTransparentGpuSceneIndexByRecord_.clear();
         shadowGpuSceneIndexByRecord_.clear();
         forwardOpaqueGpuSceneInstances_.clear();
         forwardOpaqueMaterialSources_.clear();
+        depthPrepassGpuSceneInstances_.clear();
+        depthPrepassMaterialSources_.clear();
         forwardDepthAwareGpuSceneInstances_.clear();
         forwardDepthAwareMaterialSources_.clear();
         forwardTransparentGpuSceneInstances_.clear();
@@ -1018,6 +1149,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 surfaceRecords_,
                 forwardOpaqueResidentRecordIndices_,
                 true);
+        BuildDepthPrepassOccluderRecords(
+            surfaceRecords_,
+            forwardOpaqueResidentRecordIndices_,
+            depthPrepassOccluderRecordIndices_,
+            stats_);
         stats_.forwardDepthAwareBatchStats =
             SortStaticResidentRecordsForBatching(
                 surfaceRecords_,
@@ -1066,6 +1202,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 forwardOpaqueGpuSceneIndexByRecord_,
                 forwardOpaqueGpuSceneInstances_,
                 forwardOpaqueMaterialSources_);
+        stats_.depthPrepassGpuSceneStats =
+            buildPass(
+                depthPrepassOccluderRecordIndices_,
+                depthPrepassGpuSceneIndexByRecord_,
+                depthPrepassGpuSceneInstances_,
+                depthPrepassMaterialSources_);
         stats_.forwardDepthAwareGpuSceneStats =
             buildPass(
                 forwardDepthAwareResidentRecordIndices_,
@@ -1199,6 +1341,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             const bool oldOpaque = IsGpuSceneForwardOpaqueResidentRecord(oldRecord);
             const bool newOpaque = IsGpuSceneForwardOpaqueResidentRecord(newRecord);
+            const bool oldDepthOccluder =
+                IsDepthVisibilityOccluderRecord(oldRecord, true);
+            const bool newDepthOccluder =
+                IsDepthVisibilityOccluderRecord(newRecord, true);
             const bool oldNonOpaqueGpuPass =
                 IsGpuSceneForwardDepthAwareResidentRecord(oldRecord) ||
                 IsGpuSceneForwardTransparentResidentRecord(oldRecord) ||
@@ -1211,6 +1357,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return false;
             }
             if (oldOpaque != newOpaque ||
+                oldDepthOccluder != newDepthOccluder ||
                 !HasSameStaticGpuSceneBatchIdentity(oldRecord, newRecord)) {
                 return false;
             }
@@ -1250,6 +1397,26 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 forwardOpaqueSource.dirtyRanges,
                 gpuSceneInstanceIndex,
                 1u);
+            if (newDepthOccluder) {
+                if (surfaceIndex >= depthPrepassGpuSceneIndexByRecord_.size()) {
+                    return false;
+                }
+                const uint32_t depthGpuSceneInstanceIndex =
+                    depthPrepassGpuSceneIndexByRecord_[surfaceIndex];
+                if (depthGpuSceneInstanceIndex == RUNTIME::kInvalidRenderSurfaceIndex ||
+                    depthGpuSceneInstanceIndex >= depthPrepassGpuSceneInstances_.size() ||
+                    depthGpuSceneInstanceIndex >= depthPrepassMaterialSources_.size()) {
+                    return false;
+                }
+                depthPrepassGpuSceneInstances_[depthGpuSceneInstanceIndex] =
+                    singleInstance[0];
+                depthPrepassMaterialSources_[depthGpuSceneInstanceIndex] =
+                    singleMaterial[0];
+                AppendDirtyRange(
+                    sceneSource_.GetPass(GpuDrivenPassKind::DepthPrepass).dirtyRanges,
+                    depthGpuSceneInstanceIndex,
+                    1u);
+            }
         }
 
         return true;
@@ -1271,6 +1438,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             forwardOpaqueSkinnedStream_,
             cursor);
         cursor += ClampToUint32(forwardOpaqueSkinnedStream_.instances.size());
+
+        ResetPassSource(
+            sceneSource_.GetPass(GpuDrivenPassKind::DepthPrepass),
+            &depthPrepassGpuSceneInstances_,
+            &depthPrepassMaterialSources_,
+            cursor,
+            GpuDrivenBackendKind::MeshShader,
+            true);
+        cursor += ClampToUint32(depthPrepassGpuSceneInstances_.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardDepthAware),

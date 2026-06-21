@@ -3,6 +3,7 @@
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
 
 using Microsoft::WRL::ComPtr;
@@ -29,6 +30,7 @@ namespace HIKARI {
         optimizedClearColor_ = optimizedClearColor;
 
         if (!CreateResources()) {
+            Finalize();
             return false;
         }
 
@@ -55,15 +57,18 @@ namespace HIKARI {
 
     void RenderTarget2D::Finalize()
     {
-        if (!initialized_) {
-            return;
-        }
-
         colorTex_.Reset();
         depthTex_.Reset();
         rtvHeap_.Reset();
         srvHeap_.Reset();
         dsvHeap_.Reset();
+        rtvHandle_ = {};
+        srvCpuHandle_ = {};
+        srvGpuHandle_ = {};
+        dsvHandle_ = {};
+        readOnlyDsvHandle_ = {};
+        depthSrvGpuHandle_ = {};
+        dsvDescriptorSize_ = 0;
 
         initialized_ = false;
         hasDepth_ = false;
@@ -240,14 +245,22 @@ bool RenderTarget2D::CreateResources()
         device->CreateDepthStencilView(depthTex_.Get(), &readOnlyDsvView, readOnlyDsvHandle_);
 
         // Capture 専用 RT はメイン SceneDepth SRV を上書きしない。
-        if (publishDepthSrv_ && context_.sceneDepthSrvCpu.ptr != 0 && context_.sceneDepthSrv.ptr != 0) {
+        if (publishDepthSrv_ && context_.srvHeap != nullptr) {
+            const UINT srvDescriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            const UINT postSceneDepthIndex =
+                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::PostSceneDepth);
+            D3D12_CPU_DESCRIPTOR_HANDLE depthSrvCpu =
+                GFX::DESCRIPTOR::CpuAt(context_.srvHeap, srvDescriptorSize, postSceneDepthIndex);
+            D3D12_GPU_DESCRIPTOR_HANDLE depthSrvGpu =
+                GFX::DESCRIPTOR::GpuAt(context_.srvHeap, srvDescriptorSize, postSceneDepthIndex);
             D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvView{};
             depthSrvView.Format = DXGI_FORMAT_R32_FLOAT;
             depthSrvView.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             depthSrvView.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             depthSrvView.Texture2D.MipLevels = 1;
-            device->CreateShaderResourceView(depthTex_.Get(), &depthSrvView, context_.sceneDepthSrvCpu);
-            depthSrvGpuHandle_ = context_.sceneDepthSrv;
+            device->CreateShaderResourceView(depthTex_.Get(), &depthSrvView, depthSrvCpu);
+            depthSrvGpuHandle_ = depthSrvGpu;
         }
     }
     SetDebugName(debugName_);
@@ -356,7 +369,10 @@ bool RenderTarget2D::CreateResources()
 
         TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        TransitionDepth(
+            D3D12_RESOURCE_STATE_DEPTH_READ |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         cmd->OMSetRenderTargets(1, &rtvHandle_, FALSE, &readOnlyDsvHandle_);
         cmd->RSSetViewports(1, &viewport_);
         cmd->RSSetScissorRects(1, &scissorRect_);
