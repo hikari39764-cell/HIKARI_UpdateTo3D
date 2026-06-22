@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7e14603257d2d6abfa2622c2945bc51e/texture.htex",
+      "path": "Library/Imported/ad49a3531f01ffd744f9fe6ea64cc9d1/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7e14603257d2d6abfa2622c2945bc51e/texture.dds",
+      "path": "Library/Imported/ad49a3531f01ffd744f9fe6ea64cc9d1/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Smooth_BLENDSHADER_BaseColor",
-  "guid": "7e14603257d2d6abfa2622c2945bc51e",
+  "guid": "ad49a3531f01ffd744f9fe6ea64cc9d1",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Smooth_BLENDSHADER_BaseColor.png",
   "type": "Texture"

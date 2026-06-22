@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/621307de07dd3386623aad199ec84483/texture.htex",
+      "path": "Library/Imported/25513a3c95323602a03793c81d41493e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/621307de07dd3386623aad199ec84483/texture.dds",
+      "path": "Library/Imported/25513a3c95323602a03793c81d41493e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Cobblestone_Small_BLENDSHADER_Normal",
-  "guid": "621307de07dd3386623aad199ec84483",
+  "guid": "25513a3c95323602a03793c81d41493e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Cobblestone_Small_BLENDSHADER_Normal.png",
   "type": "Texture"

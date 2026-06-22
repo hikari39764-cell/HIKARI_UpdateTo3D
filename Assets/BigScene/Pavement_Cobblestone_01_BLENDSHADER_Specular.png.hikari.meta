@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/720fa221e22fea7ac38d16dd3e84aea7/texture.htex",
+      "path": "Library/Imported/030fe4a3b7774a988da632a02f252970/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/720fa221e22fea7ac38d16dd3e84aea7/texture.dds",
+      "path": "Library/Imported/030fe4a3b7774a988da632a02f252970/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Cobblestone_01_BLENDSHADER_Specular",
-  "guid": "720fa221e22fea7ac38d16dd3e84aea7",
+  "guid": "030fe4a3b7774a988da632a02f252970",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Cobblestone_01_BLENDSHADER_Specular.png",
   "type": "Texture"

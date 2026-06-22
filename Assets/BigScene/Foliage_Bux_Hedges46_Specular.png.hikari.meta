@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c4cbe9d81c2cad86eece15cb8a7b3c33/texture.htex",
+      "path": "Library/Imported/76b4b030f435e78fa38bd473f8c38c72/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c4cbe9d81c2cad86eece15cb8a7b3c33/texture.dds",
+      "path": "Library/Imported/76b4b030f435e78fa38bd473f8c38c72/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Bux_Hedges46_Specular",
-  "guid": "c4cbe9d81c2cad86eece15cb8a7b3c33",
+  "guid": "76b4b030f435e78fa38bd473f8c38c72",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Bux_Hedges46_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d6131e870fa4ab81b2adc8470f2e722b/texture.htex",
+      "path": "Library/Imported/1d3f69c3f38c7ce7500f8ad3361da6f1/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d6131e870fa4ab81b2adc8470f2e722b/texture.dds",
+      "path": "Library/Imported/1d3f69c3f38c7ce7500f8ad3361da6f1/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Banner_Metal_BaseColor",
-  "guid": "d6131e870fa4ab81b2adc8470f2e722b",
+  "guid": "1d3f69c3f38c7ce7500f8ad3361da6f1",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Banner_Metal_BaseColor.png",
   "type": "Texture"

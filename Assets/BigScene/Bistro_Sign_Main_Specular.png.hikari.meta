@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/8e2716b9a9f79af9d2fb3660388b3c83/texture.htex",
+      "path": "Library/Imported/cb63bbf0f0cd0dcc82f83334cc0a12fc/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/8e2716b9a9f79af9d2fb3660388b3c83/texture.dds",
+      "path": "Library/Imported/cb63bbf0f0cd0dcc82f83334cc0a12fc/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Bistro_Sign_Main_Specular",
-  "guid": "8e2716b9a9f79af9d2fb3660388b3c83",
+  "guid": "cb63bbf0f0cd0dcc82f83334cc0a12fc",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Bistro_Sign_Main_Specular.png",
   "type": "Texture"

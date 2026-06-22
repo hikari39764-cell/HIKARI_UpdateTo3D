@@ -126,6 +126,12 @@ namespace HIKARI {
                 return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".dds";
             }
 
+            bool IsTgaPath(const std::string& path)
+            {
+                const std::string lower = ToLowerCopy(path);
+                return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".tga";
+            }
+
             TextureColorSpace ToRuntimeColorSpace(TextureAssetColorSpace colorSpace)
             {
                 switch (colorSpace) {
@@ -547,6 +553,9 @@ namespace HIKARI {
             if (IsDdsPath(path)) {
                 return CreateDdsTextureFromFile(path, colorSpace);
             }
+            if (IsTgaPath(path)) {
+                return CreateTgaTextureFromFile(path, colorSpace);
+            }
 
             auto* device = context_.device;
             auto* queue = context_.queue;
@@ -609,16 +618,20 @@ namespace HIKARI {
             textures_[handle] = texResource;
             dimensions_[handle] = TextureDimension::Texture2D;
 
-            const DXGI_FORMAT resourceFormat = texResource->GetDesc().Format;
+            const D3D12_RESOURCE_DESC texDesc = texResource->GetDesc();
+            const DXGI_FORMAT resourceFormat = texDesc.Format;
             const DXGI_FORMAT srvFormat = ResolveSrvFormat(resourceFormat, colorSpace);
-            mipCounts_[handle] = std::max<UINT>(1u, static_cast<UINT>(texResource->GetDesc().MipLevels));
+            mipCounts_[handle] = std::max<UINT>(1u, static_cast<UINT>(texDesc.MipLevels));
             formats_[handle] = srvFormat;
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             srvDesc.Format = srvFormat;
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srvDesc.Texture2D.MipLevels = 1;
+            srvDesc.Texture2D.MostDetailedMip = 0;
+            srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
+            srvDesc.Texture2D.PlaneSlice = 0;
+            srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
             device->CreateShaderResourceView(
                 texResource.Get(), &srvDesc, srvCpu_[handle]);
@@ -731,6 +744,109 @@ namespace HIKARI {
             const int handle = RegisterFromResourceAs(texResource.Get(), srvFormat);
             if (handle >= 0) {
                 LogTextureLoad("DDS 2D", path, colorSpace, srvFormat, handle);
+            }
+            return handle;
+        }
+
+        int DxTextureManager::CreateTgaTextureFromFile(const std::string& path, TextureColorSpace colorSpace)
+        {
+            auto* device = context_.device;
+            auto* queue = context_.queue;
+            if (!device || !queue || !uploadAllocator_ || !uploadCmdList_ || !uploadFence_ || !uploadFenceEvent_) {
+                HIKARI_LOG_ERROR("[DxTextureManager][TGA][ERROR] invalid D3D12 context: " + path);
+                return -1;
+            }
+
+            wchar_t wpath[260]{};
+            mbstowcs_s(nullptr, wpath, path.c_str(), _TRUNCATE);
+
+            DirectX::TexMetadata metadata{};
+            DirectX::ScratchImage image{};
+            HRESULT hr = DirectX::LoadFromTGAFile(wpath, DirectX::TGA_FLAGS_NONE, &metadata, image);
+            if (FAILED(hr)) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][TGA][ERROR] LoadFromTGAFile failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> texResource;
+            hr = DirectX::CreateTexture(device, metadata, texResource.GetAddressOf());
+            if (FAILED(hr) || !texResource) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][TGA][ERROR] CreateTexture failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+            DirectX::PrepareUpload(device, image.GetImages(), image.GetImageCount(), metadata, subresources);
+            if (subresources.empty()) {
+                HIKARI_LOG_ERROR("[DxTextureManager][TGA][ERROR] PrepareUpload returned no subresources: " + path);
+                return -1;
+            }
+
+            const UINT64 uploadSize = GetRequiredIntermediateSize(
+                texResource.Get(),
+                0,
+                static_cast<UINT>(subresources.size()));
+            auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+            hr = device->CreateCommittedResource(
+                &uploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(uploadResource.GetAddressOf()));
+            if (FAILED(hr) || !uploadResource) {
+                std::ostringstream oss;
+                oss << "[DxTextureManager][TGA][ERROR] Create upload resource failed. path=" << path
+                    << " hr=0x" << std::hex << static_cast<unsigned long>(hr);
+                HIKARI_LOG_ERROR(oss.str());
+                return -1;
+            }
+
+            hr = uploadAllocator_->Reset();
+            assert(SUCCEEDED(hr));
+            hr = uploadCmdList_->Reset(uploadAllocator_.Get(), nullptr);
+            assert(SUCCEEDED(hr));
+
+            UpdateSubresources(
+                uploadCmdList_.Get(),
+                texResource.Get(),
+                uploadResource.Get(),
+                0,
+                0,
+                static_cast<UINT>(subresources.size()),
+                subresources.data());
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                texResource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            uploadCmdList_->ResourceBarrier(1, &barrier);
+
+            hr = uploadCmdList_->Close();
+            assert(SUCCEEDED(hr));
+            ID3D12CommandList* lists[] = { uploadCmdList_.Get() };
+            queue->ExecuteCommandLists(1, lists);
+
+            const uint64_t signalValue = uploadFenceValue_++;
+            hr = queue->Signal(uploadFence_.Get(), signalValue);
+            assert(SUCCEEDED(hr));
+            if (uploadFence_->GetCompletedValue() < signalValue) {
+                hr = uploadFence_->SetEventOnCompletion(signalValue, uploadFenceEvent_);
+                assert(SUCCEEDED(hr));
+                WaitForSingleObject(uploadFenceEvent_, INFINITE);
+            }
+
+            const DXGI_FORMAT srvFormat = ResolveSrvFormat(texResource->GetDesc().Format, colorSpace);
+            const int handle = RegisterFromResourceAs(texResource.Get(), srvFormat);
+            if (handle >= 0) {
+                LogTextureLoad("TGA 2D", path, colorSpace, srvFormat, handle);
             }
             return handle;
         }

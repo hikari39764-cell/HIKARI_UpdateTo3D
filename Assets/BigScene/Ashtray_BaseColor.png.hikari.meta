@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c65284a63a9d3ef6370db6f046cccd04/texture.htex",
+      "path": "Library/Imported/2ad05147127dd449c0b361926e4d1a13/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c65284a63a9d3ef6370db6f046cccd04/texture.dds",
+      "path": "Library/Imported/2ad05147127dd449c0b361926e4d1a13/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Ashtray_BaseColor",
-  "guid": "c65284a63a9d3ef6370db6f046cccd04",
+  "guid": "2ad05147127dd449c0b361926e4d1a13",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Ashtray_BaseColor.png",
   "type": "Texture"

@@ -1,12 +1,23 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/c3bf6cd8da6db58e8cc916030ad09a9d/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/c3bf6cd8da6db58e8cc916030ad09a9d/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Foliage_Linde_Tree_Large_Green_Leaves_Normal",
-  "guid": "e33b64cf70c0b5e903cbeef107f0550c",
+  "guid": "c3bf6cd8da6db58e8cc916030ad09a9d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -16,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_Normal.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5ac753b08ea19866b451cef1da4639a0/texture.htex",
+      "path": "Library/Imported/b52298f1afb97f625c45b0a61a9bd353/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5ac753b08ea19866b451cef1da4639a0/texture.dds",
+      "path": "Library/Imported/b52298f1afb97f625c45b0a61a9bd353/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Room_Interior_Specular",
-  "guid": "5ac753b08ea19866b451cef1da4639a0",
+  "guid": "b52298f1afb97f625c45b0a61a9bd353",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Room_Interior_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/279c9aacae8e1f303f5694ea0898d302/texture.htex",
+      "path": "Library/Imported/aee2cf0b7460452688d626d4bc6f9dac/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/279c9aacae8e1f303f5694ea0898d302/texture.dds",
+      "path": "Library/Imported/aee2cf0b7460452688d626d4bc6f9dac/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Doors_BaseColor",
-  "guid": "279c9aacae8e1f303f5694ea0898d302",
+  "guid": "aee2cf0b7460452688d626d4bc6f9dac",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Doors_BaseColor.png",
   "type": "Texture"

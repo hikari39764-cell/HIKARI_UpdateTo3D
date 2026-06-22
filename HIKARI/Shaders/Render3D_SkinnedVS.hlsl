@@ -70,6 +70,7 @@ struct VSOutput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
@@ -136,6 +137,7 @@ VSOutput main(VSInput input)
     output.normalWS = normalize(mul((float3x3)normalMatrix, normalize(localNormal)));
     output.tangentWS = float4(normalize(mul((float3x3)normalMatrix, normalize(localTangent))), input.tangent.w);
     output.uv = input.uv0;
+    output.uv1 = input.uv1;
     output.materialDataIndex = materialDataIndex;
     output.receiveShadow = receiveShadow;
     output.objectDataIndex = 0u;

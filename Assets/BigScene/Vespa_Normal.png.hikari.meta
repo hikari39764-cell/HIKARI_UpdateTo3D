@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a3279f0d8c0bae7f65e2e0793600f790/texture.htex",
+      "path": "Library/Imported/076fa15bfd208d545e2cf9a8e3504f69/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a3279f0d8c0bae7f65e2e0793600f790/texture.dds",
+      "path": "Library/Imported/076fa15bfd208d545e2cf9a8e3504f69/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_Normal",
-  "guid": "a3279f0d8c0bae7f65e2e0793600f790",
+  "guid": "076fa15bfd208d545e2cf9a8e3504f69",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_Normal.png",
   "type": "Texture"

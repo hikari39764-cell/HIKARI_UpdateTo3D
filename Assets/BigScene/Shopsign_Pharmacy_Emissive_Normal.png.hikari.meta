@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5f175a77ea8e28dd4e9ec52cc33710df/texture.htex",
+      "path": "Library/Imported/3adf5be3b302e5a543168fe8cf5dd055/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5f175a77ea8e28dd4e9ec52cc33710df/texture.dds",
+      "path": "Library/Imported/3adf5be3b302e5a543168fe8cf5dd055/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Pharmacy_Emissive_Normal",
-  "guid": "5f175a77ea8e28dd4e9ec52cc33710df",
+  "guid": "3adf5be3b302e5a543168fe8cf5dd055",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Pharmacy_Emissive_Normal.png",
   "type": "Texture"

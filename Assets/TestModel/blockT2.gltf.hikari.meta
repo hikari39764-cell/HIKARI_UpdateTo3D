@@ -31,7 +31,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 12,
+  "importerVersion": 15,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/blockT2.gltf",
   "type": "Model"

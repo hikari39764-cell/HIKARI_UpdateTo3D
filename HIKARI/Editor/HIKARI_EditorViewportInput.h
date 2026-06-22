@@ -9,6 +9,7 @@ namespace HIKARI::EDITOR {
     bool HasGameViewportInputRect();
     bool IsGameViewportMouseHovered();
     bool IsGameViewportMouseInputActive();
+    bool IsGameViewportWheelInputActive();
     bool IsGameViewportKeyboardInputActive();
 
 } // namespace HIKARI::EDITOR

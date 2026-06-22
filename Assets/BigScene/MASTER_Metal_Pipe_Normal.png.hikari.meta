@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/902c8019497a4f69ee6f192042b3aee1/texture.htex",
+      "path": "Library/Imported/86e6fedccab389e340869905950212d2/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/902c8019497a4f69ee6f192042b3aee1/texture.dds",
+      "path": "Library/Imported/86e6fedccab389e340869905950212d2/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Metal_Pipe_Normal",
-  "guid": "902c8019497a4f69ee6f192042b3aee1",
+  "guid": "86e6fedccab389e340869905950212d2",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Metal_Pipe_Normal.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/3deea87c30427440aac3dfb64d82cf10/texture.htex",
+      "path": "Library/Imported/ab6f1a7ec64f53067e1c8e654ae315f9/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/3deea87c30427440aac3dfb64d82cf10/texture.dds",
+      "path": "Library/Imported/ab6f1a7ec64f53067e1c8e654ae315f9/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_Table_Terrace_BaseColor",
-  "guid": "3deea87c30427440aac3dfb64d82cf10",
+  "guid": "ab6f1a7ec64f53067e1c8e654ae315f9",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_Table_Terrace_BaseColor.png",
   "type": "Texture"

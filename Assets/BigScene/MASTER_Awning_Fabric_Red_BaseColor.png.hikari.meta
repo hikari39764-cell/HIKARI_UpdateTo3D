@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1e9f38ff4e351f899ba21be1f7806f46/texture.htex",
+      "path": "Library/Imported/2bb2809069e301b6b9c2648957cc64e9/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1e9f38ff4e351f899ba21be1f7806f46/texture.dds",
+      "path": "Library/Imported/2bb2809069e301b6b9c2648957cc64e9/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Awning_Fabric_Red_BaseColor",
-  "guid": "1e9f38ff4e351f899ba21be1f7806f46",
+  "guid": "2bb2809069e301b6b9c2648957cc64e9",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Awning_Fabric_Red_BaseColor.png",
   "type": "Texture"

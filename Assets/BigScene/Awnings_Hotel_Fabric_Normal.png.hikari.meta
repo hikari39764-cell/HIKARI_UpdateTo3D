@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/9ec5120cc6032368231cd736add0a5ba/texture.htex",
+      "path": "Library/Imported/cbe358ae551886929326d9af20d7fe5c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/9ec5120cc6032368231cd736add0a5ba/texture.dds",
+      "path": "Library/Imported/cbe358ae551886929326d9af20d7fe5c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Awnings_Hotel_Fabric_Normal",
-  "guid": "9ec5120cc6032368231cd736add0a5ba",
+  "guid": "cbe358ae551886929326d9af20d7fe5c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Awnings_Hotel_Fabric_Normal.png",
   "type": "Texture"

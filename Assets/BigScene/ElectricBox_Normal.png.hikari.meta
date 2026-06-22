@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d7d676e613eb9defe465b321b72838e4/texture.htex",
+      "path": "Library/Imported/80998277f7714d4a56bbfecf851ea801/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d7d676e613eb9defe465b321b72838e4/texture.dds",
+      "path": "Library/Imported/80998277f7714d4a56bbfecf851ea801/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "ElectricBox_Normal",
-  "guid": "d7d676e613eb9defe465b321b72838e4",
+  "guid": "80998277f7714d4a56bbfecf851ea801",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/ElectricBox_Normal.png",
   "type": "Texture"

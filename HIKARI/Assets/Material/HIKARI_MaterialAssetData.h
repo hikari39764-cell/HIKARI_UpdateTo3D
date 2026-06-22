@@ -12,10 +12,14 @@ namespace HIKARI {
     struct MaterialTextureSlotData {
         bool useTexture = false;
         AssetGuid textureAssetGuid{};
+        int texCoord = 0;
+        MATH::Vec2 uvScale{ 1.0f, 1.0f };
+        MATH::Vec2 uvOffset{ 0.0f, 0.0f };
+        float uvRotation = 0.0f;
     };
 
     struct PbrMaterialAssetData {
-        uint32_t version = 1;
+        uint32_t version = 3;
         std::string materialName = "New Material";
 
         MaterialTextureSlotData baseColorTexture{};
@@ -23,10 +27,14 @@ namespace HIKARI {
         MaterialTextureSlotData metallicRoughnessTexture{};
         MaterialTextureSlotData occlusionTexture{};
         MaterialTextureSlotData emissiveTexture{};
+        MaterialTextureSlotData specularTexture{};
+        MaterialTextureSlotData specularColorTexture{};
 
         MATH::Vec4 baseColorFactor{ 1.0f, 1.0f, 1.0f, 1.0f };
         float metallicFactor = 0.0f;
         float roughnessFactor = 1.0f;
+        float specularFactor = 1.0f;
+        MATH::Vec3 specularColorFactor{ 1.0f, 1.0f, 1.0f };
         float normalScale = 1.0f;
         float occlusionStrength = 1.0f;
         MATH::Vec3 emissiveFactor{ 0.0f, 0.0f, 0.0f };

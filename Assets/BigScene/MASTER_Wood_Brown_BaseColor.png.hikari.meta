@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c6032a76d7b4c3b6e59282064108a5e0/texture.htex",
+      "path": "Library/Imported/072b8beaac918053718ee4c8bc87ae5c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c6032a76d7b4c3b6e59282064108a5e0/texture.dds",
+      "path": "Library/Imported/072b8beaac918053718ee4c8bc87ae5c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Brown_BaseColor",
-  "guid": "c6032a76d7b4c3b6e59282064108a5e0",
+  "guid": "072b8beaac918053718ee4c8bc87ae5c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Brown_BaseColor.png",
   "type": "Texture"

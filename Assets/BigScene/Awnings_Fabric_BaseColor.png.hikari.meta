@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/958d50f32360260dbf85052478050c53/texture.htex",
+      "path": "Library/Imported/f32a82465f710a9463b8476eba9e7aa5/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/958d50f32360260dbf85052478050c53/texture.dds",
+      "path": "Library/Imported/f32a82465f710a9463b8476eba9e7aa5/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Awnings_Fabric_BaseColor",
-  "guid": "958d50f32360260dbf85052478050c53",
+  "guid": "f32a82465f710a9463b8476eba9e7aa5",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Awnings_Fabric_BaseColor.png",
   "type": "Texture"

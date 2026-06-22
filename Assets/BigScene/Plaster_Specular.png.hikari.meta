@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/6aae4523dd567d71e1f49ddbd4872054/texture.htex",
+      "path": "Library/Imported/84e200dafd12d02c96d0c548c8c82587/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/6aae4523dd567d71e1f49ddbd4872054/texture.dds",
+      "path": "Library/Imported/84e200dafd12d02c96d0c548c8c82587/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Plaster_Specular",
-  "guid": "6aae4523dd567d71e1f49ddbd4872054",
+  "guid": "84e200dafd12d02c96d0c548c8c82587",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Plaster_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/91ac2b47c24fc420f1c1375e6138ce39/texture.htex",
+      "path": "Library/Imported/9cfebba5ee60e96545395a718b1f6625/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/91ac2b47c24fc420f1c1375e6138ce39/texture.dds",
+      "path": "Library/Imported/9cfebba5ee60e96545395a718b1f6625/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Linde_Tree_Large_Green_Leaves_BaseColor",
-  "guid": "91ac2b47c24fc420f1c1375e6138ce39",
+  "guid": "9cfebba5ee60e96545395a718b1f6625",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_BaseColor.png",
   "type": "Texture"

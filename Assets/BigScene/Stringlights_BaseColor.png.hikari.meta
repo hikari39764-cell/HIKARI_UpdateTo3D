@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/94d32bca1e21de1cf613afe1c7ca35e0/texture.htex",
+      "path": "Library/Imported/e3c8e8c25183204f9f68c959682c1445/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/94d32bca1e21de1cf613afe1c7ca35e0/texture.dds",
+      "path": "Library/Imported/e3c8e8c25183204f9f68c959682c1445/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Stringlights_BaseColor",
-  "guid": "94d32bca1e21de1cf613afe1c7ca35e0",
+  "guid": "e3c8e8c25183204f9f68c959682c1445",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Stringlights_BaseColor.png",
   "type": "Texture"

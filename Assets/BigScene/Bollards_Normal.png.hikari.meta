@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/aea2c4c965a3975a57096a2afac2d321/texture.htex",
+      "path": "Library/Imported/3e6718b7909c29b3ae0e293d0b2c92bb/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/aea2c4c965a3975a57096a2afac2d321/texture.dds",
+      "path": "Library/Imported/3e6718b7909c29b3ae0e293d0b2c92bb/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Bollards_Normal",
-  "guid": "aea2c4c965a3975a57096a2afac2d321",
+  "guid": "3e6718b7909c29b3ae0e293d0b2c92bb",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Bollards_Normal.png",
   "type": "Texture"

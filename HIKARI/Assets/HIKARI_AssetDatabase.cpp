@@ -77,7 +77,7 @@ namespace HIKARI {
         }
 
         bool IsModelExtension(const std::string& ext) {
-            return ext == ".gltf" || ext == ".obj";
+            return ext == ".gltf" || ext == ".obj" || ext == ".fbx";
         }
 
         bool IsVfxExtension(const std::string& ext) {
@@ -493,6 +493,39 @@ namespace HIKARI {
                 continue;
             }
             importGuids.push_back(record.guid);
+        }
+
+        for (const AssetGuid& guid : importGuids) {
+            ++batch.attempted;
+            if (ImportAsset(guid)) {
+                ++batch.succeeded;
+            } else {
+                ++batch.failed;
+            }
+        }
+
+        return batch;
+    }
+
+    AssetImportBatchResult AssetDatabase::ImportOutdatedInDirectory(
+        const std::filesystem::path& directory,
+        bool recursive) {
+
+        AssetImportBatchResult batch{};
+        std::vector<AssetGuid> importGuids;
+
+        const std::vector<const AssetRecord*> records = CollectInDirectory(directory, recursive);
+        importGuids.reserve(records.size());
+        for (const AssetRecord* record : records) {
+            if (!record ||
+                !record->importOutdated ||
+                record->duplicateGuid ||
+                !record->sourceExists ||
+                record->importerMissing ||
+                !record->guid.IsValid()) {
+                continue;
+            }
+            importGuids.push_back(record->guid);
         }
 
         for (const AssetGuid& guid : importGuids) {

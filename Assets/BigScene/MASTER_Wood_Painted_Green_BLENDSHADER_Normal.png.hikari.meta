@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/506d3bd36d50cc101e570e95e55f7941/texture.htex",
+      "path": "Library/Imported/7e4cd5cdb3937ffdf4286c7a996afd76/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/506d3bd36d50cc101e570e95e55f7941/texture.dds",
+      "path": "Library/Imported/7e4cd5cdb3937ffdf4286c7a996afd76/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted_Green_BLENDSHADER_Normal",
-  "guid": "506d3bd36d50cc101e570e95e55f7941",
+  "guid": "7e4cd5cdb3937ffdf4286c7a996afd76",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted_Green_BLENDSHADER_Normal.png",
   "type": "Texture"

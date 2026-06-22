@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/aeeaf53ca2d5f6b71127e307157d3c27/texture.htex",
+      "path": "Library/Imported/bd9fd260dded54c2123fb9c04d1d233a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/aeeaf53ca2d5f6b71127e307157d3c27/texture.dds",
+      "path": "Library/Imported/bd9fd260dded54c2123fb9c04d1d233a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Brick_Small_Red_BLENDSHADER_BaseColor",
-  "guid": "aeeaf53ca2d5f6b71127e307157d3c27",
+  "guid": "bd9fd260dded54c2123fb9c04d1d233a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Brick_Small_Red_BLENDSHADER_BaseColor.png",
   "type": "Texture"

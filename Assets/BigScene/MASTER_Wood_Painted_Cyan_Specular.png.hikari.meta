@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2dca4deae5a985ea01640f8f59d208de/texture.htex",
+      "path": "Library/Imported/ebd50f2962bd75fc560072fd923a3229/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2dca4deae5a985ea01640f8f59d208de/texture.dds",
+      "path": "Library/Imported/ebd50f2962bd75fc560072fd923a3229/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted_Cyan_Specular",
-  "guid": "2dca4deae5a985ea01640f8f59d208de",
+  "guid": "ebd50f2962bd75fc560072fd923a3229",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted_Cyan_Specular.png",
   "type": "Texture"

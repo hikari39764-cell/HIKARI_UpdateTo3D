@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/f051918dd29dacbe1e1a27a2497426ee/texture.htex",
+      "path": "Library/Imported/9024d95b153385302d282f150920af8f/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/f051918dd29dacbe1e1a27a2497426ee/texture.dds",
+      "path": "Library/Imported/9024d95b153385302d282f150920af8f/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Bakery_Specular",
-  "guid": "f051918dd29dacbe1e1a27a2497426ee",
+  "guid": "9024d95b153385302d282f150920af8f",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Bakery_Specular.png",
   "type": "Texture"

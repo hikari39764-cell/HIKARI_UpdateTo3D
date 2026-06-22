@@ -16,7 +16,7 @@
     "sourceFormat": ".material.json"
   },
   "importerId": "MaterialImporter",
-  "importerVersion": 2,
+  "importerVersion": 3,
   "metaVersion": 1,
   "sourcePath": "Assets/Materials/New Material_3.material.json",
   "type": "Material"

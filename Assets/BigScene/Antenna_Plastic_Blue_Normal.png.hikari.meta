@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5f32d25f37ed9f8e99f50875d5ee23fc/texture.htex",
+      "path": "Library/Imported/54f3536dca7845b517bce32bbe5c7821/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5f32d25f37ed9f8e99f50875d5ee23fc/texture.dds",
+      "path": "Library/Imported/54f3536dca7845b517bce32bbe5c7821/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Antenna_Plastic_Blue_Normal",
-  "guid": "5f32d25f37ed9f8e99f50875d5ee23fc",
+  "guid": "54f3536dca7845b517bce32bbe5c7821",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Antenna_Plastic_Blue_Normal.png",
   "type": "Texture"

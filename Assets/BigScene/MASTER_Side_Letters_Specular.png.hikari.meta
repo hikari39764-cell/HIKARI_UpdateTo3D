@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d7be5aaed8b4d41167a9e5329b69c01a/texture.htex",
+      "path": "Library/Imported/aa4166c3f9095b1b0e3376a4454e0871/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d7be5aaed8b4d41167a9e5329b69c01a/texture.dds",
+      "path": "Library/Imported/aa4166c3f9095b1b0e3376a4454e0871/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Side_Letters_Specular",
-  "guid": "d7be5aaed8b4d41167a9e5329b69c01a",
+  "guid": "aa4166c3f9095b1b0e3376a4454e0871",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Side_Letters_Specular.png",
   "type": "Texture"

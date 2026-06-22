@@ -29,6 +29,8 @@ namespace HIKARI::MESHRENDERER {
         int emissive = -1;
         int metallicRoughness = -1;
         int occlusion = -1;
+        int specular = -1;
+        int specularColor = -1;
     };
 
     struct MeshBindingContext {

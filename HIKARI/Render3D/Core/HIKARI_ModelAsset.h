@@ -49,6 +49,9 @@ namespace HIKARI {
     struct TextureSlot {
         int textureIndex = -1;
         int texCoord = 0;
+        MATH::Vec2 uvScale{ 1.0f, 1.0f };
+        MATH::Vec2 uvOffset{ 0.0f, 0.0f };
+        float uvRotation = 0.0f;
         float scale = 1.0f;
         float strength = 1.0f;
     };
@@ -58,6 +61,8 @@ namespace HIKARI {
         MATH::Vec4 baseColorFactor{ 1, 1, 1, 1 };
         float metallicFactor = 0.0f;
         float roughnessFactor = 1.0f;
+        float specularFactor = 1.0f;
+        MATH::Vec3 specularColorFactor{ 1.0f, 1.0f, 1.0f };
         MATH::Vec3 emissiveFactor{ 0, 0, 0 };
         float emissiveStrength = 1.0f;
         TextureSlot baseColorTexture;
@@ -65,6 +70,8 @@ namespace HIKARI {
         TextureSlot metallicRoughnessTexture;
         TextureSlot occlusionTexture;
         TextureSlot emissiveTexture;
+        TextureSlot specularTexture;
+        TextureSlot specularColorTexture;
         AlphaMode alphaMode = AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
@@ -103,6 +110,20 @@ namespace HIKARI {
                 ContainsLowerAscii(text, "fenetre") ||
                 ContainsLowerAscii(text, "fenster") ||
                 ContainsLowerAscii(text, "vitre") ||
+                ContainsLowerAscii(text, "headlight") ||
+                ContainsLowerAscii(text, "taillight") ||
+                ContainsLowerAscii(text, "lightbulb") ||
+                ContainsLowerAscii(text, "light_bulb") ||
+                ContainsLowerAscii(text, "foliage") ||
+                ContainsLowerAscii(text, "leaf") ||
+                ContainsLowerAscii(text, "leaves") ||
+                ContainsLowerAscii(text, "ivy") ||
+                ContainsLowerAscii(text, "hedge") ||
+                ContainsLowerAscii(text, "grass") ||
+                ContainsLowerAscii(text, "flower") ||
+                ContainsLowerAscii(text, "curtain") ||
+                ContainsLowerAscii(text, "cloth") ||
+                ContainsLowerAscii(text, "fabric") ||
                 ContainsLowerAscii(text, "transparent") ||
                 ContainsLowerAscii(text, "translucent");
         }
@@ -120,9 +141,7 @@ namespace HIKARI {
                 HasThinTransparentCue(material.name);
         }
 
-
         inline bool ShouldRenderDoubleSided(const MaterialAsset& material) {
-            // glTF の doubleSided は見た目の契約なので、cluster の最適化条件で上書きしない。
             return material.doubleSided;
         }
 
@@ -217,20 +236,8 @@ namespace HIKARI {
             const MaterialAsset& material,
             const MeshPrimitive& primitive) {
 
-            if (!material.doubleSided) {
-                return false;
-            }
-
-            // alpha / thin surface と分かるものは描画契約を優先する。
-            if (MATERIAL_POLICY::HasExplicitAlphaSurface(material) ||
-                HasThinSurfaceMaterialCue(material) ||
-                HasThinSurfaceCue(primitive.name)) {
-                return true;
-            }
-
-            // 形状だけが薄い opaque は、導出器の一括 doubleSided 指定であることが多い。
-            // cluster の cone/back-face culling を殺さないため、明示的な薄片語義がない限り単面へ正規化する。
-            return false;
+            (void)primitive;
+            return material.doubleSided;
         }
     } // namespace SURFACE_POLICY
 

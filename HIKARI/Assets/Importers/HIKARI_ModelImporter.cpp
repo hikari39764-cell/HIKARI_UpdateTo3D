@@ -32,11 +32,11 @@ namespace HIKARI {
         }
 
         bool IsCookableModelExtension(const std::string& ext) {
-            return ext == ".gltf" || ext == ".obj";
+            return ext == ".gltf" || ext == ".obj" || ext == ".fbx";
         }
 
         const char* ToSupportedModelExtensionsText() {
-            return ".gltf, .obj";
+            return ".gltf, .obj, .fbx";
         }
 
         std::filesystem::path ResolveProjectPath(
@@ -98,6 +98,10 @@ namespace HIKARI {
 
         nlohmann::json ToJson(const MATH::Vec3& value) {
             return nlohmann::json::array({ value.x, value.y, value.z });
+        }
+
+        nlohmann::json ToJson(const MATH::Vec2& value) {
+            return nlohmann::json::array({ value.x, value.y });
         }
 
         nlohmann::json ToJson(const MATH::Vec4& value) {
@@ -347,6 +351,16 @@ namespace HIKARI {
             float sourceAlphaCutoutRatio = 0.0f;
         };
 
+        struct MaterialAlphaPolicyStats {
+            uint32_t opaqueCount = 0;
+            uint32_t maskCount = 0;
+            uint32_t blendCount = 0;
+            uint32_t normalizedToOpaqueCount = 0;
+            uint32_t normalizedToMaskCount = 0;
+            uint32_t normalizedToBlendCount = 0;
+            uint32_t opaqueDoubleSidedPreservedCount = 0;
+        };
+
         nlohmann::json SlotToJson(
             const TextureSlot& slot,
             const std::vector<TextureCookDiagnostic>& textureDiagnostics) {
@@ -354,6 +368,9 @@ namespace HIKARI {
             nlohmann::json json{
                 { "textureIndex", slot.textureIndex },
                 { "texCoord", slot.texCoord },
+                { "uvScale", ToJson(slot.uvScale) },
+                { "uvOffset", ToJson(slot.uvOffset) },
+                { "uvRotation", slot.uvRotation },
                 { "scale", slot.scale },
                 { "strength", slot.strength },
             };
@@ -386,7 +403,8 @@ namespace HIKARI {
             ModelGeometryCookProfile clusterProfile,
             const ASSETS::GEOMETRY::ClusterCookSettings* clusterSettings,
             bool hcmeshReady,
-            const std::string& hcmeshMessage) {
+            const std::string& hcmeshMessage,
+            const MaterialAlphaPolicyStats& alphaPolicyStats) {
 
             int primitiveCount = 0;
             int staticVertexCount = 0;
@@ -427,6 +445,8 @@ namespace HIKARI {
                     { "baseColorFactor", ToJson(material.baseColorFactor) },
                     { "metallicFactor", material.metallicFactor },
                     { "roughnessFactor", material.roughnessFactor },
+                    { "specularFactor", material.specularFactor },
+                    { "specularColorFactor", ToJson(material.specularColorFactor) },
                     { "emissiveFactor", ToJson(material.emissiveFactor) },
                     { "emissiveStrength", material.emissiveStrength },
                     { "alphaMode", ToString(material.alphaMode) },
@@ -438,6 +458,8 @@ namespace HIKARI {
                         { "metallicRoughness", SlotToJson(material.metallicRoughnessTexture, textureDiagnostics) },
                         { "occlusion", SlotToJson(material.occlusionTexture, textureDiagnostics) },
                         { "emissive", SlotToJson(material.emissiveTexture, textureDiagnostics) },
+                        { "specular", SlotToJson(material.specularTexture, textureDiagnostics) },
+                        { "specularColor", SlotToJson(material.specularColorTexture, textureDiagnostics) },
                     } },
                 });
             }
@@ -465,6 +487,16 @@ namespace HIKARI {
                 { "skippedMorphPrimitiveCount", model.importDiagnostics.skippedMorphPrimitiveCount },
                 { "clusteredStaticPrimitiveCount", model.importDiagnostics.clusteredStaticPrimitiveCount },
                 { "fallbackPrimitiveCount", model.importDiagnostics.fallbackPrimitiveCount },
+            };
+
+            nlohmann::json alphaPolicyReport = {
+                { "opaque", alphaPolicyStats.opaqueCount },
+                { "mask", alphaPolicyStats.maskCount },
+                { "blend", alphaPolicyStats.blendCount },
+                { "normalizedToOpaque", alphaPolicyStats.normalizedToOpaqueCount },
+                { "normalizedToMask", alphaPolicyStats.normalizedToMaskCount },
+                { "normalizedToBlend", alphaPolicyStats.normalizedToBlendCount },
+                { "opaqueDoubleSidedPreserved", alphaPolicyStats.opaqueDoubleSidedPreservedCount },
             };
 
             nlohmann::json diagnostics{
@@ -496,6 +528,7 @@ namespace HIKARI {
                 } },
                 { "importMessages", std::move(importMessages) },
                 { "formatReport", std::move(formatReport) },
+                { "materialAlphaPolicy", std::move(alphaPolicyReport) },
                 { "textures", std::move(textures) },
                 { "materials", std::move(materials) },
             };
@@ -740,6 +773,10 @@ namespace HIKARI {
             ModelAsset& model,
             const std::vector<TextureCookDiagnostic>& textureDiagnostics) {
 
+            (void)model;
+            (void)textureDiagnostics;
+            return;
+
             for (MaterialAsset& material : model.materials) {
                 const int textureIndex = material.baseColorTexture.textureIndex;
                 if (textureIndex < 0 ||
@@ -775,6 +812,105 @@ namespace HIKARI {
                 }
             }
         }
+
+        bool HasMaterialThinSurfaceCookHint(const MaterialAsset& material) {
+            return
+                MATERIAL_POLICY::HasThinTransparentSurfaceHint(material) ||
+                SURFACE_POLICY::HasThinSurfaceCue(material.name) ||
+                SURFACE_POLICY::HasThinSurfaceCue(material.shaderProfileId) ||
+                SURFACE_POLICY::HasThinSurfaceCue(material.defaultMaterialFxProfileId);
+        }
+
+        void SetMaterialAlphaMode(MaterialAsset& material, AlphaMode mode) {
+            const bool sourceDoubleSided = material.doubleSided;
+
+            material.alphaMode = mode;
+            material.featureBits &= ~MATERIAL_FEATURES::AlphaMask;
+            material.featureBits &= ~MATERIAL_FEATURES::ThinTransparentSurface;
+
+            if (mode == AlphaMode::Mask) {
+                material.featureBits |= MATERIAL_FEATURES::AlphaMask;
+                material.doubleSided = true;
+                return;
+            }
+
+            if (mode == AlphaMode::Blend) {
+                material.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
+                material.doubleSided = true;
+                return;
+            }
+
+            material.doubleSided = sourceDoubleSided;
+        }
+
+        MaterialAlphaPolicyStats ApplyCanonicalBaseColorAlphaMaterialPolicy(
+            ModelAsset& model,
+            const std::vector<TextureCookDiagnostic>& textureDiagnostics) {
+
+            MaterialAlphaPolicyStats stats{};
+
+            for (MaterialAsset& material : model.materials) {
+                const AlphaMode originalMode = material.alphaMode;
+                const bool originalDoubleSided = material.doubleSided;
+
+                const int textureIndex = material.baseColorTexture.textureIndex;
+                const TextureCookDiagnostic* texture = nullptr;
+                if (textureIndex >= 0 &&
+                    static_cast<size_t>(textureIndex) < textureDiagnostics.size()) {
+                    texture = &textureDiagnostics[static_cast<size_t>(textureIndex)];
+                }
+
+                const bool factorAlpha = material.baseColorFactor.w < 0.999f;
+                const bool textureAlpha = texture != nullptr && texture->sourceHasMeaningfulAlpha;
+                const bool textureCutout = textureAlpha && IsCutoutDominantAlpha(*texture);
+                const bool textureTranslucent =
+                    textureAlpha &&
+                    texture->sourceHasTranslucentAlpha &&
+                    !textureCutout;
+                const bool explicitThinCue = HasMaterialThinSurfaceCookHint(material);
+                const bool sourceRequestedMask = originalMode == AlphaMode::Mask;
+                const bool sourceRequestedBlend = originalMode == AlphaMode::Blend;
+
+                const bool cutoutSurface =
+                    textureCutout &&
+                    (sourceRequestedMask || sourceRequestedBlend || explicitThinCue);
+                const bool translucentSurface =
+                    factorAlpha ||
+                    (textureTranslucent && (sourceRequestedBlend || explicitThinCue));
+
+                AlphaMode resolvedMode = AlphaMode::Opaque;
+                if (cutoutSurface && !factorAlpha) {
+                    resolvedMode = AlphaMode::Mask;
+                } else if (translucentSurface) {
+                    resolvedMode = AlphaMode::Blend;
+                }
+
+                SetMaterialAlphaMode(material, resolvedMode);
+
+                if (resolvedMode == AlphaMode::Opaque) {
+                    ++stats.opaqueCount;
+                    if (originalMode != AlphaMode::Opaque) {
+                        ++stats.normalizedToOpaqueCount;
+                    }
+                    if (originalDoubleSided && material.doubleSided) {
+                        ++stats.opaqueDoubleSidedPreservedCount;
+                    }
+                } else if (resolvedMode == AlphaMode::Mask) {
+                    ++stats.maskCount;
+                    if (originalMode != AlphaMode::Mask) {
+                        ++stats.normalizedToMaskCount;
+                    }
+                } else {
+                    ++stats.blendCount;
+                    if (originalMode != AlphaMode::Blend) {
+                        ++stats.normalizedToBlendCount;
+                    }
+                }
+            }
+
+            return stats;
+        }
+
     }
 
     const char* ModelImporter::GetImporterId() const {
@@ -782,7 +918,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 12;
+        return 21;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -894,7 +1030,8 @@ namespace HIKARI {
             textureDiagnostics.push_back(std::move(diagnostic));
         }
 
-        ApplyBaseColorAlphaMaterialPolicy(model, textureDiagnostics);
+        const MaterialAlphaPolicyStats alphaPolicyStats =
+            ApplyCanonicalBaseColorAlphaMaterialPolicy(model, textureDiagnostics);
 
         const std::filesystem::path finalPath = context.importedDirectory / "model.hmodel";
         const std::filesystem::path tempPath = context.importedDirectory / "model.importing.hmodel";
@@ -987,7 +1124,8 @@ namespace HIKARI {
             clusterProfile,
             &clusterSettings,
             hcmeshReady,
-            hcmeshMessage).dump(2);
+            hcmeshMessage,
+            alphaPolicyStats).dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainModel",
             MakeProjectRelative(context.projectRoot, finalPath).generic_string(),

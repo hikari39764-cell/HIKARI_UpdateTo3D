@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5b9048696f32292be0c8721d4e15e172/texture.htex",
+      "path": "Library/Imported/aec034733daef301a3456fbfef183168/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5b9048696f32292be0c8721d4e15e172/texture.dds",
+      "path": "Library/Imported/aec034733daef301a3456fbfef183168/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Concrete_Striped_BaseColor",
-  "guid": "5b9048696f32292be0c8721d4e15e172",
+  "guid": "aec034733daef301a3456fbfef183168",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Concrete_Striped_BaseColor.png",
   "type": "Texture"

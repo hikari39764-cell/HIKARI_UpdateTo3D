@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1f7d811dfb41d995292de4617d52de44/texture.htex",
+      "path": "Library/Imported/e2e7af53e29ff72abceee65e9cf4053c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1f7d811dfb41d995292de4617d52de44/texture.dds",
+      "path": "Library/Imported/e2e7af53e29ff72abceee65e9cf4053c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Brick_Large_White_BaseColor",
-  "guid": "1f7d811dfb41d995292de4617d52de44",
+  "guid": "e2e7af53e29ff72abceee65e9cf4053c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Brick_Large_White_BaseColor.png",
   "type": "Texture"

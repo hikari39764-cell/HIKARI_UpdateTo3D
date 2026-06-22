@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c471c95b557ded08e921ffb4744168e2/texture.htex",
+      "path": "Library/Imported/636410bfbf31b6252bd3127cce61f8b1/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c471c95b557ded08e921ffb4744168e2/texture.dds",
+      "path": "Library/Imported/636410bfbf31b6252bd3127cce61f8b1/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Book_Store_Emissive_Specular",
-  "guid": "c471c95b557ded08e921ffb4744168e2",
+  "guid": "636410bfbf31b6252bd3127cce61f8b1",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Emissive"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Book_Store_Emissive_Specular.png",
   "type": "Texture"

@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/9cc2acf2cc82bb15a976a842bf90c9e9/texture.htex",
+      "path": "Library/Imported/f1b0b96f5f8642eff056cf877ace6e25/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/9cc2acf2cc82bb15a976a842bf90c9e9/texture.dds",
+      "path": "Library/Imported/f1b0b96f5f8642eff056cf877ace6e25/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Plastic_Normal",
-  "guid": "9cc2acf2cc82bb15a976a842bf90c9e9",
+  "guid": "f1b0b96f5f8642eff056cf877ace6e25",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Plastic_Normal.png",
   "type": "Texture"

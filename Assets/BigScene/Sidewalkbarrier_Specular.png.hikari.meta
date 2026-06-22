@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/98271d52642e28d934fed237cf38e058/texture.htex",
+      "path": "Library/Imported/38d835726a74c16842cf73256c5422a3/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/98271d52642e28d934fed237cf38e058/texture.dds",
+      "path": "Library/Imported/38d835726a74c16842cf73256c5422a3/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Sidewalkbarrier_Specular",
-  "guid": "98271d52642e28d934fed237cf38e058",
+  "guid": "38d835726a74c16842cf73256c5422a3",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Sidewalkbarrier_Specular.png",
   "type": "Texture"

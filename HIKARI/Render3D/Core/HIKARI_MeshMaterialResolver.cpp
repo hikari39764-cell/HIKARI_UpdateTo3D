@@ -58,6 +58,8 @@ namespace HIKARI::MESHRENDERER {
         textures.emissive = ResolveEmissiveTexture(asset, materialAsset, stats);
         textures.metallicRoughness = ResolveMetallicRoughnessTexture(asset, materialAsset, stats);
         textures.occlusion = ResolveOcclusionTexture(asset, materialAsset, stats);
+        textures.specular = ResolveSpecularTexture(asset, materialAsset, stats);
+        textures.specularColor = ResolveSpecularColorTexture(asset, materialAsset, stats);
         return textures;
     }
 
@@ -305,6 +307,84 @@ namespace HIKARI::MESHRENDERER {
                 materialAsset->name + " sourcePath=" + texturePath + " fallback used");
         }
         return handle >= 0 ? handle : fallbacks_.whiteTexture;
+    }
+
+    int MeshMaterialResolver::ResolveSpecularTexture(
+        const ModelAsset& asset,
+        const MaterialAsset* materialAsset,
+        MeshRendererDebugStats* stats) {
+        if (materialAsset == nullptr) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const int textureIndex = materialAsset->specularTexture.textureIndex;
+        const TextureAsset3D* texture = FindTextureByIndex(asset, textureIndex);
+        if (texture == nullptr) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const std::string& texturePath = SelectRuntimeTexturePath(*texture);
+        if (texturePath.empty()) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const std::string cacheKey = "specular:" + texturePath;
+        auto found = materialTextureCache_.find(cacheKey);
+        if (found != materialTextureCache_.end()) {
+            if (stats != nullptr) {
+                ++stats->materialTextureCacheHitCount;
+            }
+            return BackendOrFallback(found->second, fallbacks_.whiteTexture);
+        }
+
+        if (stats != nullptr) {
+            ++stats->materialTextureCacheMissCount;
+        }
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/specular/",
+            texturePath,
+            RENDER3D::TextureResourceColorSpace::Linear);
+        materialTextureCache_[cacheKey] = resource;
+        return BackendOrFallback(resource, fallbacks_.whiteTexture);
+    }
+
+    int MeshMaterialResolver::ResolveSpecularColorTexture(
+        const ModelAsset& asset,
+        const MaterialAsset* materialAsset,
+        MeshRendererDebugStats* stats) {
+        if (materialAsset == nullptr) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const int textureIndex = materialAsset->specularColorTexture.textureIndex;
+        const TextureAsset3D* texture = FindTextureByIndex(asset, textureIndex);
+        if (texture == nullptr) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const std::string& texturePath = SelectRuntimeTexturePath(*texture);
+        if (texturePath.empty()) {
+            return fallbacks_.whiteTexture;
+        }
+
+        const std::string cacheKey = "specularColor:" + texturePath;
+        auto found = materialTextureCache_.find(cacheKey);
+        if (found != materialTextureCache_.end()) {
+            if (stats != nullptr) {
+                ++stats->materialTextureCacheHitCount;
+            }
+            return BackendOrFallback(found->second, fallbacks_.whiteTexture);
+        }
+
+        if (stats != nullptr) {
+            ++stats->materialTextureCacheMissCount;
+        }
+        const RENDER3D::TextureResourceHandle resource = LoadMaterialTextureResource(
+            "model_material/specular_color/",
+            texturePath,
+            RENDER3D::TextureResourceColorSpace::Srgb);
+        materialTextureCache_[cacheKey] = resource;
+        return BackendOrFallback(resource, fallbacks_.whiteTexture);
     }
 
 } // namespace HIKARI::MESHRENDERER

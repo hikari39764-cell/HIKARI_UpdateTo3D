@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5bdc04e3095c6403f57d24d160624af3/texture.htex",
+      "path": "Library/Imported/497906427c018d1093dff91fcde5e03f/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5bdc04e3095c6403f57d24d160624af3/texture.dds",
+      "path": "Library/Imported/497906427c018d1093dff91fcde5e03f/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Rollup_Door_BaseColor",
-  "guid": "5bdc04e3095c6403f57d24d160624af3",
+  "guid": "497906427c018d1093dff91fcde5e03f",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Rollup_Door_BaseColor.png",
   "type": "Texture"

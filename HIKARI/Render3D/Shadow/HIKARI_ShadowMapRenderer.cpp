@@ -299,6 +299,7 @@ namespace HIKARI::SHADOW {
                 }
                 dst.u = src.uv0.x;
                 dst.v = src.uv0.y;
+                dst.uv1 = src.uv1;
                 vertices.push_back(dst);
             }
 
@@ -1144,9 +1145,9 @@ namespace HIKARI::SHADOW {
             params[10].Descriptor.RegisterSpace = 0;
             D3D12_STATIC_SAMPLER_DESC sampler{};
             sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-            sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-            sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-            sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
             sampler.ShaderRegister = 0;
             sampler.RegisterSpace = 0;
             sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -1202,6 +1203,7 @@ namespace HIKARI::SHADOW {
                 { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, tangent)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, u)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, uv1)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
             const D3D12_INPUT_ELEMENT_DESC skinnedInput[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexSkinnedGpu3D, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

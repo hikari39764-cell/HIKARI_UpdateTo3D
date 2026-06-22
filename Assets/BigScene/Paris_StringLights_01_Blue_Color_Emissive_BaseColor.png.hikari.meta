@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/f2ee2526ee3c564dc5654f5d94a90006/texture.htex",
+      "path": "Library/Imported/49ca9a70448d519b5bb18d363ca8d428/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/f2ee2526ee3c564dc5654f5d94a90006/texture.dds",
+      "path": "Library/Imported/49ca9a70448d519b5bb18d363ca8d428/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Blue_Color_Emissive_BaseColor",
-  "guid": "f2ee2526ee3c564dc5654f5d94a90006",
+  "guid": "49ca9a70448d519b5bb18d363ca8d428",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_BaseColor.png",
   "type": "Texture"

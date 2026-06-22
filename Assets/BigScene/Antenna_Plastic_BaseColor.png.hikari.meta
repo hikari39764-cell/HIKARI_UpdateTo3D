@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1fe47ffe721921815942238abd57521f/texture.htex",
+      "path": "Library/Imported/7b2bf8188feb7f16fc8a961cedf141f7/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1fe47ffe721921815942238abd57521f/texture.dds",
+      "path": "Library/Imported/7b2bf8188feb7f16fc8a961cedf141f7/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Antenna_Plastic_BaseColor",
-  "guid": "1fe47ffe721921815942238abd57521f",
+  "guid": "7b2bf8188feb7f16fc8a961cedf141f7",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Antenna_Plastic_BaseColor.png",
   "type": "Texture"

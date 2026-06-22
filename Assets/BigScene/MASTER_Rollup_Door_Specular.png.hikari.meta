@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d276f55c44e42e9bd455d1cab604ebf4/texture.htex",
+      "path": "Library/Imported/e500503495f09b5ba6242315b37af4e4/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d276f55c44e42e9bd455d1cab604ebf4/texture.dds",
+      "path": "Library/Imported/e500503495f09b5ba6242315b37af4e4/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Rollup_Door_Specular",
-  "guid": "d276f55c44e42e9bd455d1cab604ebf4",
+  "guid": "e500503495f09b5ba6242315b37af4e4",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Rollup_Door_Specular.png",
   "type": "Texture"

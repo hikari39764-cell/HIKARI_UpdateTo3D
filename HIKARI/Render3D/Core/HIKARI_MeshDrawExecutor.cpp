@@ -1,5 +1,6 @@
 #include "Render3D/Core/HIKARI_MeshDrawExecutor.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 
@@ -87,12 +88,154 @@ namespace HIKARI::MESHRENDERER {
             indices.emissive = ResolveTextureDescriptorIndex(textures.emissive);
             indices.metallicRoughness = ResolveTextureDescriptorIndex(textures.metallicRoughness);
             indices.occlusion = ResolveTextureDescriptorIndex(textures.occlusion);
+            indices.specular = ResolveTextureDescriptorIndex(textures.specular);
+            indices.specularColor = ResolveTextureDescriptorIndex(textures.specularColor);
             return indices;
+        }
+
+        MATH::Vec4 ResolveSpecularParams(
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial) {
+
+            MATH::Vec3 specularColor{ 1.0f, 1.0f, 1.0f };
+            float specularFactor = 1.0f;
+            if (materialAsset != nullptr) {
+                specularColor = materialAsset->specularColorFactor;
+                specularFactor = materialAsset->specularFactor;
+            }
+            if (runtimeMaterial != nullptr) {
+                specularColor = runtimeMaterial->GetSpecularColorFactor();
+                specularFactor = runtimeMaterial->GetSpecularFactor();
+            }
+            return {
+                specularColor.x,
+                specularColor.y,
+                specularColor.z,
+                specularFactor
+            };
+        }
+
+        MATH::Vec4 DefaultUvTransform() {
+            return { 1.0f, 1.0f, 0.0f, 0.0f };
+        }
+
+        MATH::Vec4 ToUvTransform(const TextureSlot& slot) {
+            return {
+                slot.uvScale.x,
+                slot.uvScale.y,
+                slot.uvOffset.x,
+                slot.uvOffset.y
+            };
+        }
+
+        MATH::Vec4 ToUvTransform(const RuntimeTextureSlot& slot) {
+            return {
+                slot.uvScale.x,
+                slot.uvScale.y,
+                slot.uvOffset.x,
+                slot.uvOffset.y
+            };
+        }
+
+        uint32_t ToUvSet(int texCoord) {
+            return static_cast<uint32_t>(std::clamp(texCoord, 0, 1));
+        }
+
+        MATH::Vec4 ResolveSlotUvTransform(
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial,
+            ModelTextureUsage usage) {
+
+            if (runtimeMaterial != nullptr) {
+                return ToUvTransform(runtimeMaterial->GetTextureSlot(usage));
+            }
+            if (materialAsset == nullptr) {
+                return DefaultUvTransform();
+            }
+            switch (usage) {
+            case ModelTextureUsage::BaseColor: return ToUvTransform(materialAsset->baseColorTexture);
+            case ModelTextureUsage::Normal: return ToUvTransform(materialAsset->normalTexture);
+            case ModelTextureUsage::MetallicRoughness: return ToUvTransform(materialAsset->metallicRoughnessTexture);
+            case ModelTextureUsage::Occlusion: return ToUvTransform(materialAsset->occlusionTexture);
+            case ModelTextureUsage::Emissive: return ToUvTransform(materialAsset->emissiveTexture);
+            case ModelTextureUsage::Specular: return ToUvTransform(materialAsset->specularTexture);
+            case ModelTextureUsage::SpecularColor: return ToUvTransform(materialAsset->specularColorTexture);
+            default: return DefaultUvTransform();
+            }
+        }
+
+        float ResolveSlotUvRotation(
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial,
+            ModelTextureUsage usage) {
+
+            if (runtimeMaterial != nullptr) {
+                return runtimeMaterial->GetTextureSlot(usage).uvRotation;
+            }
+            if (materialAsset == nullptr) {
+                return 0.0f;
+            }
+            switch (usage) {
+            case ModelTextureUsage::BaseColor: return materialAsset->baseColorTexture.uvRotation;
+            case ModelTextureUsage::Normal: return materialAsset->normalTexture.uvRotation;
+            case ModelTextureUsage::MetallicRoughness: return materialAsset->metallicRoughnessTexture.uvRotation;
+            case ModelTextureUsage::Occlusion: return materialAsset->occlusionTexture.uvRotation;
+            case ModelTextureUsage::Emissive: return materialAsset->emissiveTexture.uvRotation;
+            case ModelTextureUsage::Specular: return materialAsset->specularTexture.uvRotation;
+            case ModelTextureUsage::SpecularColor: return materialAsset->specularColorTexture.uvRotation;
+            default: return 0.0f;
+            }
+        }
+
+        uint32_t ResolveSlotUvSet(
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial,
+            ModelTextureUsage usage) {
+
+            if (runtimeMaterial != nullptr) {
+                return ToUvSet(runtimeMaterial->GetTextureSlot(usage).texCoord);
+            }
+            if (materialAsset == nullptr) {
+                return 0u;
+            }
+            switch (usage) {
+            case ModelTextureUsage::BaseColor: return ToUvSet(materialAsset->baseColorTexture.texCoord);
+            case ModelTextureUsage::Normal: return ToUvSet(materialAsset->normalTexture.texCoord);
+            case ModelTextureUsage::MetallicRoughness: return ToUvSet(materialAsset->metallicRoughnessTexture.texCoord);
+            case ModelTextureUsage::Occlusion: return ToUvSet(materialAsset->occlusionTexture.texCoord);
+            case ModelTextureUsage::Emissive: return ToUvSet(materialAsset->emissiveTexture.texCoord);
+            case ModelTextureUsage::Specular: return ToUvSet(materialAsset->specularTexture.texCoord);
+            case ModelTextureUsage::SpecularColor: return ToUvSet(materialAsset->specularColorTexture.texCoord);
+            default: return 0u;
+            }
+        }
+
+        bool HasSpecularTextureSlot(
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial,
+            ModelTextureUsage usage) {
+
+            if (runtimeMaterial != nullptr) {
+                return runtimeMaterial->HasTextureSlot(usage);
+            }
+            if (materialAsset == nullptr) {
+                return false;
+            }
+            switch (usage) {
+            case ModelTextureUsage::Specular:
+                return materialAsset->specularTexture.textureIndex >= 0;
+            case ModelTextureUsage::SpecularColor:
+                return materialAsset->specularColorTexture.textureIndex >= 0;
+            default:
+                return false;
+            }
         }
 
         MaterialGpuData BuildMaterialGpuData(
             const ObjectCB& obj,
-            const MaterialTextureHandles& textures) {
+            const MaterialTextureHandles& textures,
+            const MaterialAsset* materialAsset,
+            const Material* runtimeMaterial) {
 
             MaterialGpuData data{};
             const MaterialTextureDescriptorIndices textureIndices =
@@ -105,23 +248,58 @@ namespace HIKARI::MESHRENDERER {
                 obj.occlusionStrength,
                 obj.alphaCutoff
             };
+            data.specularParams = ResolveSpecularParams(materialAsset, runtimeMaterial);
             data.materialFlags = obj.materialFlags;
             data.hasBaseColorTexture = obj.hasBaseColorTexture;
             data.hasNormalTexture = obj.hasNormalTexture;
             data.hasEmissiveTexture = obj.hasEmissiveTexture;
             data.hasMetallicRoughnessTexture = obj.hasMetallicRoughnessTexture;
             data.hasOcclusionTexture = obj.hasOcclusionTexture;
+            data.hasSpecularTexture =
+                HasSpecularTextureSlot(materialAsset, runtimeMaterial, ModelTextureUsage::Specular) ? 1u : 0u;
+            data.hasSpecularColorTexture =
+                HasSpecularTextureSlot(materialAsset, runtimeMaterial, ModelTextureUsage::SpecularColor) ? 1u : 0u;
             data.normalScale = obj.normalScale;
             data.baseColorTextureHandle = textures.baseColor;
             data.normalTextureHandle = textures.normal;
             data.emissiveTextureHandle = textures.emissive;
             data.metallicRoughnessTextureHandle = textures.metallicRoughness;
             data.occlusionTextureHandle = textures.occlusion;
+            data.specularTextureHandle = textures.specular;
+            data.specularColorTextureHandle = textures.specularColor;
             data.baseColorTextureDescriptorIndex = textureIndices.baseColor;
             data.normalTextureDescriptorIndex = textureIndices.normal;
             data.emissiveTextureDescriptorIndex = textureIndices.emissive;
             data.metallicRoughnessTextureDescriptorIndex = textureIndices.metallicRoughness;
             data.occlusionTextureDescriptorIndex = textureIndices.occlusion;
+            data.specularTextureDescriptorIndex = textureIndices.specular;
+            data.specularColorTextureDescriptorIndex = textureIndices.specularColor;
+            data.baseColorUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::BaseColor);
+            data.normalUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::Normal);
+            data.emissiveUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::Emissive);
+            data.metallicRoughnessUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::MetallicRoughness);
+            data.occlusionUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::Occlusion);
+            data.specularUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::Specular);
+            data.specularColorUvTransform = ResolveSlotUvTransform(materialAsset, runtimeMaterial, ModelTextureUsage::SpecularColor);
+            data.uvRotation0 = {
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::BaseColor),
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::Normal),
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::Emissive),
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::MetallicRoughness)
+            };
+            data.uvRotation1 = {
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::Occlusion),
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::Specular),
+                ResolveSlotUvRotation(materialAsset, runtimeMaterial, ModelTextureUsage::SpecularColor),
+                0.0f
+            };
+            data.uvSet0[0] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::BaseColor);
+            data.uvSet0[1] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::Normal);
+            data.uvSet0[2] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::Emissive);
+            data.uvSet0[3] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::MetallicRoughness);
+            data.uvSet1[0] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::Occlusion);
+            data.uvSet1[1] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::Specular);
+            data.uvSet1[2] = ResolveSlotUvSet(materialAsset, runtimeMaterial, ModelTextureUsage::SpecularColor);
             return data;
         }
 
@@ -135,6 +313,8 @@ namespace HIKARI::MESHRENDERER {
                 data.emissiveTextureDescriptorIndex,
                 data.metallicRoughnessTextureDescriptorIndex,
                 data.occlusionTextureDescriptorIndex,
+                data.specularTextureDescriptorIndex,
+                data.specularColorTextureDescriptorIndex,
             };
 
             for (uint32_t descriptorIndex : descriptorIndices) {
@@ -159,6 +339,8 @@ namespace HIKARI::MESHRENDERER {
                 data.emissiveTextureDescriptorIndex,
                 data.metallicRoughnessTextureDescriptorIndex,
                 data.occlusionTextureDescriptorIndex,
+                data.specularTextureDescriptorIndex,
+                data.specularColorTextureDescriptorIndex,
             };
 
             for (uint32_t descriptorIndex : descriptorIndices) {
@@ -314,6 +496,8 @@ namespace HIKARI::MESHRENDERER {
             textureHandles.emissive = fill.fallbackBlackTextureHandle;
             textureHandles.metallicRoughness = binding.fallbackTextureHandle;
             textureHandles.occlusion = binding.fallbackTextureHandle;
+            textureHandles.specular = binding.fallbackTextureHandle;
+            textureHandles.specularColor = binding.fallbackTextureHandle;
 
             if (material == nullptr) {
                 return textureHandles;
@@ -332,6 +516,12 @@ namespace HIKARI::MESHRENDERER {
             }
             if (material->HasTextureSlot(ModelTextureUsage::Occlusion)) {
                 textureHandles.occlusion = material->GetTextureSlot(ModelTextureUsage::Occlusion).handle;
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::Specular)) {
+                textureHandles.specular = material->GetTextureSlot(ModelTextureUsage::Specular).handle;
+            }
+            if (material->HasTextureSlot(ModelTextureUsage::SpecularColor)) {
+                textureHandles.specularColor = material->GetTextureSlot(ModelTextureUsage::SpecularColor).handle;
             }
             return textureHandles;
         }
@@ -440,6 +630,8 @@ namespace HIKARI::MESHRENDERER {
                 textures.emissive = handles.emissive;
                 textures.metallicRoughness = handles.metallicRoughness;
                 textures.occlusion = handles.occlusion;
+                textures.specular = handles.specular;
+                textures.specularColor = handles.specularColor;
                 return textures;
             }
 
@@ -452,6 +644,8 @@ namespace HIKARI::MESHRENDERER {
             textures.emissive = ctx.materialFill.fallbackBlackTextureHandle;
             textures.metallicRoughness = ctx.binding.fallbackTextureHandle;
             textures.occlusion = ctx.binding.fallbackTextureHandle;
+            textures.specular = ctx.binding.fallbackTextureHandle;
+            textures.specularColor = ctx.binding.fallbackTextureHandle;
             return textures;
         }
 
@@ -469,6 +663,8 @@ namespace HIKARI::MESHRENDERER {
                 textures.emissive = handles.emissive;
                 textures.metallicRoughness = handles.metallicRoughness;
                 textures.occlusion = handles.occlusion;
+                textures.specular = handles.specular;
+                textures.specularColor = handles.specularColor;
                 return textures;
             }
 
@@ -481,6 +677,8 @@ namespace HIKARI::MESHRENDERER {
             textures.emissive = ctx.materialFill.fallbackBlackTextureHandle;
             textures.metallicRoughness = ctx.binding.fallbackTextureHandle;
             textures.occlusion = ctx.binding.fallbackTextureHandle;
+            textures.specular = ctx.binding.fallbackTextureHandle;
+            textures.specularColor = ctx.binding.fallbackTextureHandle;
             return textures;
         }
 
@@ -490,7 +688,9 @@ namespace HIKARI::MESHRENDERER {
                 textures.normal,
                 textures.emissive,
                 textures.metallicRoughness,
-                textures.occlusion
+                textures.occlusion,
+                textures.specular,
+                textures.specularColor
             };
         }
 
@@ -682,7 +882,11 @@ namespace HIKARI::MESHRENDERER {
             FillRecordFxValues(obj, variantItem, record);
 
             const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
-            const MaterialGpuData materialData = BuildMaterialGpuData(obj, textureHandles);
+            const MaterialGpuData materialData = BuildMaterialGpuData(
+                obj,
+                textureHandles,
+                materialAsset,
+                record.materialOverride);
             RecordMaterialTexturePoolStats(ctx, materialData);
             const uint32_t materialDataIndex = UploadMaterialData(
                 ctx,
@@ -732,7 +936,11 @@ namespace HIKARI::MESHRENDERER {
             }
 
             const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
-            const MaterialGpuData materialData = BuildMaterialGpuData(obj, textureHandles);
+            const MaterialGpuData materialData = BuildMaterialGpuData(
+                obj,
+                textureHandles,
+                materialAsset,
+                source.materialOverride);
             RecordMaterialTexturePoolStats(ctx, materialData);
             const uint32_t materialDataIndex = UploadMaterialData(
                 ctx,

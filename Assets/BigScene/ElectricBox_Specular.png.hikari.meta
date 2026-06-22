@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/900f1f3abf29e7ba7b3220c18e1fe8ef/texture.htex",
+      "path": "Library/Imported/e922858ec5b566d3a7f964c2d1ec9fe0/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/900f1f3abf29e7ba7b3220c18e1fe8ef/texture.dds",
+      "path": "Library/Imported/e922858ec5b566d3a7f964c2d1ec9fe0/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "ElectricBox_Specular",
-  "guid": "900f1f3abf29e7ba7b3220c18e1fe8ef",
+  "guid": "e922858ec5b566d3a7f964c2d1ec9fe0",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/ElectricBox_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/669886f84ee1d87dcf9a60dc80af4f0a/texture.htex",
+      "path": "Library/Imported/34aca7a80fdd8b21e9079db5e01a183e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/669886f84ee1d87dcf9a60dc80af4f0a/texture.dds",
+      "path": "Library/Imported/34aca7a80fdd8b21e9079db5e01a183e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Brick_BLENDSHADER_BaseColor",
-  "guid": "669886f84ee1d87dcf9a60dc80af4f0a",
+  "guid": "34aca7a80fdd8b21e9079db5e01a183e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Brick_BLENDSHADER_BaseColor.png",
   "type": "Texture"

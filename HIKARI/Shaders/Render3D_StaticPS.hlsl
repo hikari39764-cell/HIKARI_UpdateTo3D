@@ -145,6 +145,7 @@ struct PSInput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
     // VS/MS 側の TEXCOORD スロットと一致させ、PSO リンク時の再割り当てを避ける。
@@ -156,7 +157,12 @@ struct PSInput
     nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
-float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS, float4 tangentWS, float2 uv)
+float3 ResolveShadingNormal(
+    HikariMeshMaterialData materialData,
+    float3 normalWS,
+    float4 tangentWS,
+    float2 uv0,
+    float2 uv1)
 {
     float3 n = normalize(normalWS);
     if (materialData.hasNormalTexture == 0)
@@ -179,11 +185,13 @@ float3 ResolveShadingNormal(HikariMeshMaterialData materialData, float3 normalWS
     t = normalize(t);
     float3 b = normalize(cross(n, t) * tangentWS.w);
 
+    const float2 normalUv =
+        HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_NORMAL, uv0, uv1);
     float3 normalTS =
         HikariSampleMaterialTexture(
             materialData.normalTextureDescriptorIndex,
             gLinearWrap,
-            uv,
+            normalUv,
             float4(0.5f, 0.5f, 1.0f, 1.0f)).xyz * 2.0f - 1.0f;
     normalTS.xy *= materialData.normalScale;
     normalTS = normalize(normalTS);
@@ -225,6 +233,8 @@ float3 AccumulatePointLightPbr(
     float3 baseColor,
     float metallic,
     float roughness,
+    float3 specularColor,
+    float specularFactor,
     float3 normalWS,
     float3 worldPosWS,
     float3 viewDir)
@@ -255,6 +265,8 @@ float3 AccumulatePointLightPbr(
             baseColor,
             metallic,
             roughness,
+            specularColor,
+            specularFactor,
             normalWS,
             viewDir,
             l,
@@ -265,21 +277,62 @@ float3 AccumulatePointLightPbr(
     return sum;
 }
 
-float3 ResolveEmissive(HikariMeshMaterialData materialData, float2 uv)
+float3 ResolveEmissive(HikariMeshMaterialData materialData, float2 uv0, float2 uv1)
 {
     float3 emissive = materialData.emissiveFactor.rgb;
     if (materialData.hasEmissiveTexture != 0)
     {
+        const float2 emissiveUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_EMISSIVE, uv0, uv1);
         emissive *= HikariSampleMaterialTexture(
             materialData.emissiveTextureDescriptorIndex,
             gLinearWrap,
-            uv,
+            emissiveUv,
             float4(0.0f, 0.0f, 0.0f, 1.0f)).rgb;
     }
     return emissive * materialData.emissiveFactor.a;
 }
 
-void ResolvePbrInputs(HikariMeshMaterialData materialData, float2 uv, out float metallic, out float roughness, out float occlusion)
+void ResolveSpecularInputs(
+    HikariMeshMaterialData materialData,
+    float2 uv0,
+    float2 uv1,
+    out float3 specularColor,
+    out float specularFactor)
+{
+    specularColor = max(0.0f.xxx, materialData.specularParams.rgb);
+    specularFactor = max(0.0f, materialData.specularParams.w);
+
+    if (materialData.hasSpecularTexture != 0)
+    {
+        const float2 specularUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_SPECULAR, uv0, uv1);
+        specularFactor *= HikariSampleMaterialTexture(
+            materialData.specularTextureDescriptorIndex,
+            gLinearWrap,
+            specularUv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f)).a;
+    }
+
+    if (materialData.hasSpecularColorTexture != 0)
+    {
+        const float2 specularColorUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_SPECULAR_COLOR, uv0, uv1);
+        specularColor *= HikariSampleMaterialTexture(
+            materialData.specularColorTextureDescriptorIndex,
+            gLinearWrap,
+            specularColorUv,
+            float4(1.0f, 1.0f, 1.0f, 1.0f)).rgb;
+    }
+}
+
+void ResolvePbrInputs(
+    HikariMeshMaterialData materialData,
+    float2 uv0,
+    float2 uv1,
+    out float metallic,
+    out float roughness,
+    out float occlusion)
 {
     metallic = saturate(materialData.pbrParams.x);
     roughness = clamp(materialData.pbrParams.y, 0.04f, 1.0f);
@@ -287,10 +340,12 @@ void ResolvePbrInputs(HikariMeshMaterialData materialData, float2 uv, out float 
 
     if (materialData.hasMetallicRoughnessTexture != 0)
     {
+        const float2 metallicRoughnessUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_METALLIC_ROUGHNESS, uv0, uv1);
         float4 mr = HikariSampleMaterialTexture(
             materialData.metallicRoughnessTextureDescriptorIndex,
             gLinearWrap,
-            uv,
+            metallicRoughnessUv,
             float4(1.0f, 1.0f, 1.0f, 1.0f));
         roughness = clamp(roughness * mr.g, 0.04f, 1.0f);
         metallic = saturate(metallic * mr.b);
@@ -298,10 +353,12 @@ void ResolvePbrInputs(HikariMeshMaterialData materialData, float2 uv, out float 
 
     if (materialData.hasOcclusionTexture != 0)
     {
+        const float2 occlusionUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_OCCLUSION, uv0, uv1);
         float ao = HikariSampleMaterialTexture(
             materialData.occlusionTextureDescriptorIndex,
             gLinearWrap,
-            uv,
+            occlusionUv,
             float4(1.0f, 1.0f, 1.0f, 1.0f)).r;
         occlusion = lerp(1.0f, ao, saturate(materialData.pbrParams.z));
     }
@@ -379,7 +436,7 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint 
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
-    float3 n = ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv);
+    float3 n = ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv, input.uv1);
     float3 geometricNormal = normalize(input.normalWS);
     float3 l = normalize(-gDirectionalDir.xyz);
     float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
@@ -392,10 +449,12 @@ float4 main(PSInput input) : SV_TARGET
     float4 albedo = materialData.baseColor;
     if (materialData.hasBaseColorTexture != 0)
     {
+        const float2 baseColorUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_BASE_COLOR, input.uv, input.uv1);
         albedo *= HikariSampleMaterialTexture(
             materialData.baseColorTextureDescriptorIndex,
             gLinearWrap,
-            input.uv,
+            baseColorUv,
             float4(1.0f, 1.0f, 1.0f, 1.0f));
     }
     if ((materialData.materialFlags & MATERIAL_ALPHA_MASK) != 0 && albedo.a < materialData.pbrParams.w)
@@ -406,14 +465,19 @@ float4 main(PSInput input) : SV_TARGET
     float metallic = 0.0f;
     float roughness = 1.0f;
     float occlusion = 1.0f;
-    ResolvePbrInputs(materialData, input.uv, metallic, roughness, occlusion);
+    float3 specularColor = 1.0f.xxx;
+    float specularFactor = 1.0f;
+    ResolvePbrInputs(materialData, input.uv, input.uv1, metallic, roughness, occlusion);
+    ResolveSpecularInputs(materialData, input.uv, input.uv1, specularColor, specularFactor);
     float screenAo = 1.0f;
     if (gSsaoEnabled > 0.5f)
     {
         screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
     }
     float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
-    float3 emissive = ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0) ? ResolveEmissive(materialData, input.uv) : 0.0f.xxx;
+    float3 emissive = ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0)
+        ? ResolveEmissive(materialData, input.uv, input.uv1)
+        : 0.0f.xxx;
 
     float3 shadedColor = albedo.rgb;
     if ((materialData.materialFlags & MATERIAL_UNLIT) == 0)
@@ -424,6 +488,8 @@ float4 main(PSInput input) : SV_TARGET
                 albedo.rgb,
                 metallic,
                 roughness,
+                specularColor,
+                specularFactor,
                 n,
                 v,
                 l,
@@ -435,6 +501,8 @@ float4 main(PSInput input) : SV_TARGET
             albedo.rgb,
             metallic,
             roughness,
+            specularColor,
+            specularFactor,
             n,
             input.worldPosWS,
             v);
@@ -443,6 +511,8 @@ float4 main(PSInput input) : SV_TARGET
             albedo.rgb,
             metallic,
             roughness,
+            specularColor,
+            specularFactor,
             occlusion,
             screenAo,
             n,

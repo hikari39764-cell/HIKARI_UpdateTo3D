@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a86a7befa6d6431af53e400150cc0458/texture.htex",
+      "path": "Library/Imported/1ac487c1fd3b62556cb67330880d6dd0/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a86a7befa6d6431af53e400150cc0458/texture.dds",
+      "path": "Library/Imported/1ac487c1fd3b62556cb67330880d6dd0/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Orange_Color_Emissive_BaseColor",
-  "guid": "a86a7befa6d6431af53e400150cc0458",
+  "guid": "1ac487c1fd3b62556cb67330880d6dd0",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Orange_Color_Emissive_BaseColor.png",
   "type": "Texture"

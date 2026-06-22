@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/10cdfdffa31d9e23a145c1c00b11c82a/texture.htex",
+      "path": "Library/Imported/036571593d3b54b2d8c9fac5036f9aff/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/10cdfdffa31d9e23a145c1c00b11c82a/texture.dds",
+      "path": "Library/Imported/036571593d3b54b2d8c9fac5036f9aff/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Focus_Ornament_Normal",
-  "guid": "10cdfdffa31d9e23a145c1c00b11c82a",
+  "guid": "036571593d3b54b2d8c9fac5036f9aff",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Focus_Ornament_Normal.png",
   "type": "Texture"

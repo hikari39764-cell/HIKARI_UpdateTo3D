@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c5aff3af90e129b69cf73260001a067e/texture.htex",
+      "path": "Library/Imported/5e8f3dc6c3602c04d4610904adcaf27f/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c5aff3af90e129b69cf73260001a067e/texture.dds",
+      "path": "Library/Imported/5e8f3dc6c3602c04d4610904adcaf27f/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Plastic_BaseColor",
-  "guid": "c5aff3af90e129b69cf73260001a067e",
+  "guid": "5e8f3dc6c3602c04d4610904adcaf27f",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Plastic_BaseColor.png",
   "type": "Texture"

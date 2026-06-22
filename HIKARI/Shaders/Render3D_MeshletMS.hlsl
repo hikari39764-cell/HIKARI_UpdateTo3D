@@ -37,6 +37,7 @@ struct HikariMeshletVertexOut
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
@@ -103,6 +104,7 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
         normalize(mul((float3x3)instance.clusterNormalMatrix, vertex.tangent.xyz)),
         vertex.tangent.w);
     output.uv = vertex.uv01.xy;
+    output.uv1 = vertex.uv01.zw;
     output.materialDataIndex = instance.materialDataIndex;
     output.receiveShadow =
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u ? 1u : 0u;

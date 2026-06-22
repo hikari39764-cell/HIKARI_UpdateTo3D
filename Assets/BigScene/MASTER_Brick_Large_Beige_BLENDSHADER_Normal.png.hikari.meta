@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/33a93a1507f18bde45f1cd2a87288386/texture.htex",
+      "path": "Library/Imported/78719f60f68c1573e571b96cd1d371c6/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/33a93a1507f18bde45f1cd2a87288386/texture.dds",
+      "path": "Library/Imported/78719f60f68c1573e571b96cd1d371c6/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Brick_Large_Beige_BLENDSHADER_Normal",
-  "guid": "33a93a1507f18bde45f1cd2a87288386",
+  "guid": "78719f60f68c1573e571b96cd1d371c6",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Brick_Large_Beige_BLENDSHADER_Normal.png",
   "type": "Texture"

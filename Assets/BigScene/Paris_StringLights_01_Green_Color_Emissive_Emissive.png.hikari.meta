@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/79b95290a2ad27dc9708c7796de150d6/texture.htex",
+      "path": "Library/Imported/8864387f8f700996ca3a7f4766dde705/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/79b95290a2ad27dc9708c7796de150d6/texture.dds",
+      "path": "Library/Imported/8864387f8f700996ca3a7f4766dde705/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Green_Color_Emissive_Emissive",
-  "guid": "79b95290a2ad27dc9708c7796de150d6",
+  "guid": "8864387f8f700996ca3a7f4766dde705",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Green_Color_Emissive_Emissive.png",
   "type": "Texture"

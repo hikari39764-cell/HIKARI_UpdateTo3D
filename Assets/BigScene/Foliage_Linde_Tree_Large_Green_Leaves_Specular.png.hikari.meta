@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/4d707e34d3c4dd693f8daaf19fcae230/texture.htex",
+      "path": "Library/Imported/c50aa275d27c0a5d2eb1d23f6e36faf3/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/4d707e34d3c4dd693f8daaf19fcae230/texture.dds",
+      "path": "Library/Imported/c50aa275d27c0a5d2eb1d23f6e36faf3/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Linde_Tree_Large_Green_Leaves_Specular",
-  "guid": "4d707e34d3c4dd693f8daaf19fcae230",
+  "guid": "c50aa275d27c0a5d2eb1d23f6e36faf3",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_Specular.png",
   "type": "Texture"

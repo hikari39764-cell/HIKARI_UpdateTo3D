@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/b9b91d0d9ab943e3cd5769453e3d8798/texture.htex",
+      "path": "Library/Imported/dfbe2af8f0fdc06b4eee363441883917/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/b9b91d0d9ab943e3cd5769453e3d8798/texture.dds",
+      "path": "Library/Imported/dfbe2af8f0fdc06b4eee363441883917/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Polished_Normal",
-  "guid": "b9b91d0d9ab943e3cd5769453e3d8798",
+  "guid": "dfbe2af8f0fdc06b4eee363441883917",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Polished_Normal.png",
   "type": "Texture"

@@ -228,6 +228,29 @@ namespace HIKARI {
             };
         }
         ImGui::SameLine();
+        if (activeScope_ != AssetBrowserScope::Project) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::SmallButton("Import Current Folder")) {
+            const std::filesystem::path currentDirectory = assetBrowserPanel_.CurrentDirectory();
+            const AssetImportBatchResult result =
+                assetDatabase.ImportOutdatedInDirectory(currentDirectory, assetBrowserPanel_.IsRecursiveEnabled());
+            assetDatabase.ScanAssets(false);
+            importMonitor_ = ResourceImportBatchMonitor{
+                result.attempted,
+                result.succeeded,
+                result.failed,
+                true,
+                "Current folder " + currentDirectory.generic_string()
+            };
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Imports outdated assets in the selected Asset Browser folder. Recursive follows the browser toggle.");
+        }
+        if (activeScope_ != AssetBrowserScope::Project) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
         if (selectedRecord == nullptr) {
             ImGui::BeginDisabled();
         }

@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/beb0b1874a81d6631915808595b1150e/texture.htex",
+      "path": "Library/Imported/37f6face6a03c167984c47627917d0fe/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/beb0b1874a81d6631915808595b1150e/texture.dds",
+      "path": "Library/Imported/37f6face6a03c167984c47627917d0fe/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Glass_Dirty_MASKED_Normal",
-  "guid": "beb0b1874a81d6631915808595b1150e",
+  "guid": "37f6face6a03c167984c47627917d0fe",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Glass_Dirty_MASKED_Normal.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/ec4bd7c827c6ba1c069e2f51c668e9b8/texture.htex",
+      "path": "Library/Imported/ee4a0069c03e4326c9fafae867bdcbab/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/ec4bd7c827c6ba1c069e2f51c668e9b8/texture.dds",
+      "path": "Library/Imported/ee4a0069c03e4326c9fafae867bdcbab/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Polished_Specular",
-  "guid": "ec4bd7c827c6ba1c069e2f51c668e9b8",
+  "guid": "ee4a0069c03e4326c9fafae867bdcbab",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Polished_Specular.png",
   "type": "Texture"

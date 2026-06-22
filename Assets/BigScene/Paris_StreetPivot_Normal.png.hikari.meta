@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/787ff179929b1d013ecfb1fbf1b33f19/texture.htex",
+      "path": "Library/Imported/a26125a02cc2f5a67825d389185d3066/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/787ff179929b1d013ecfb1fbf1b33f19/texture.dds",
+      "path": "Library/Imported/a26125a02cc2f5a67825d389185d3066/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StreetPivot_Normal",
-  "guid": "787ff179929b1d013ecfb1fbf1b33f19",
+  "guid": "a26125a02cc2f5a67825d389185d3066",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StreetPivot_Normal.png",
   "type": "Texture"

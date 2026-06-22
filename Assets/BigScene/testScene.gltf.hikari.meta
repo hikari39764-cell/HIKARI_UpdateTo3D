@@ -2,2048 +2,2048 @@
   "artifacts": [
     {
       "format": "HCMESH",
-      "path": "Library/Imported/dbc331c3f1b5368a70dfbc2d69468fb9/clustered_mesh.hcmesh",
+      "path": "Library/Imported/0f15adfa9d36813aa23e65fea78baadc/clustered_mesh.hcmesh",
       "role": "ClusteredGeometry"
     },
     {
       "format": "HMODEL",
-      "path": "Library/Imported/dbc331c3f1b5368a70dfbc2d69468fb9/model.hmodel",
+      "path": "Library/Imported/0f15adfa9d36813aa23e65fea78baadc/model.hmodel",
       "role": "MainModel"
     }
   ],
   "dependencies": [
     {
-      "guid": "dee6a1fded63984b2338e08a5db9ee41",
+      "guid": "5cf82eddb28b8e73559363977cf16c45",
       "path": "Assets/BigScene/Vespa_Headlight_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9b163a1ed2ba01660ad55b72ca5efdf2",
+      "guid": "3da6ae68ae7ebe97f2316e5768008147",
       "path": "Assets/BigScene/Vespa_Headlight_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1dfb29e88307699a66f1064015cd47a6",
+      "guid": "131c679dbc56ef3b58c0bb560e2b7fb5",
       "path": "Assets/BigScene/Vespa_Headlight_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "144b1b4dcaf9f63eee1bf1858725924d",
+      "guid": "af16667458ae8b2bdd9c69d0857b0ee5",
       "path": "Assets/BigScene/Foliage_Leaves_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "46cee398ecf935ec2ac6b08ad5e8a59f",
+      "guid": "c00efdc68e1c04dc3b01ad77493fbe0b",
       "path": "Assets/BigScene/Foliage_Leaves_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "f037689e5d252868017a4595f4910c3e",
+      "guid": "a7aaa115c96374d986e05f58629eac96",
       "path": "Assets/BigScene/Foliage_Leaves_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "1819f59f05de47bc757cbeb8c03428a5",
+      "guid": "86db04c7ab07874a27abd4af49792d25",
       "path": "Assets/BigScene/Foliage_Trunk_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d15f5471ae20f32d9d521c56a19ad3ea",
+      "guid": "26364b0e4737303398206b5eac304e20",
       "path": "Assets/BigScene/Foliage_Trunk_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a17e21d50e9041e2da9f15aa9c1865a4",
+      "guid": "bd8cac03f7e6ee6db664c6e5f05a03e0",
       "path": "Assets/BigScene/Foliage_Trunk_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "9ff71224a1c29ea4fc9e779b54baa33a",
+      "guid": "07bbb6cb1da8ad3946d1a853033f7d82",
       "path": "Assets/BigScene/Vespa_Odometer_Glass_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b9c74b2f30d1aa849f77ed1bba127b18",
+      "guid": "46147625e6688e32704be25c641adee6",
       "path": "Assets/BigScene/Vespa_Odometer_Glass_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7c6eba4cdcb97b62aff52281b7f69989",
+      "guid": "a1accc3611445585228c3e565be9beed",
       "path": "Assets/BigScene/Vespa_Odometer_Glass_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "2d9decb53bee60d514c0c909fce3eb65",
+      "guid": "185b58e7605882a957ebc3547cb00b42",
       "path": "Assets/BigScene/Vespa_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "a3279f0d8c0bae7f65e2e0793600f790",
+      "guid": "076fa15bfd208d545e2cf9a8e3504f69",
       "path": "Assets/BigScene/Vespa_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "2d6da0747dca0c2f278fc243a5401f08",
+      "guid": "55bfbaecdb8234f4b2e670baa16ec353",
       "path": "Assets/BigScene/Vespa_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0e9aa28d09d424c470fd97a42863017d",
+      "guid": "a10ef234cb991790aab88f445b022d80",
       "path": "Assets/BigScene/Vespa_Odometer_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "a066868bb8b612f631550f0b26cbbae9",
+      "guid": "2df913b99ee437ea5a5b105910719be9",
       "path": "Assets/BigScene/Vespa_Odometer_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d726c995694f8956b0d5b24282cc17ed",
+      "guid": "c3a1c260a191cf395a93e59237e686a9",
       "path": "Assets/BigScene/Vespa_Odometer_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c4cbe9d81c2cad86eece15cb8a7b3c33",
+      "guid": "76b4b030f435e78fa38bd473f8c38c72",
       "path": "Assets/BigScene/Foliage_Bux_Hedges46_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "55c62b039fcf86990bc629aacc82a879",
+      "guid": "04405e2128a60fa2698977b79412dd26",
       "path": "Assets/BigScene/Foliage_Bux_Hedges46_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ac1f23ed76c053bbd6e7b00466df5439",
+      "guid": "fe39b64f6a8c537e0444751693fc39fc",
       "path": "Assets/BigScene/Foliage_Bux_Hedges46_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "26ba95e4d91a2d02f63306299c46d8f7",
+      "guid": "f06d34f10484df066bac9ac773bab22b",
       "path": "Assets/BigScene/Foliage_Ivy_leaf_a_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "c896c964695e1935852f3ceb49f3e7b6",
+      "guid": "8e1bd0fd106631dd360611a90b4aa2f7",
       "path": "Assets/BigScene/Foliage_Ivy_leaf_a_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a7a24d1d441c2399233eedc857fbc3b2",
+      "guid": "aa04832455305902249151233222c3f2",
       "path": "Assets/BigScene/Foliage_Ivy_leaf_a_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c112dfb7546a030f781c3c5b25d1cefe",
+      "guid": "d16aff6bef523da91f32f04d0610833d",
       "path": "Assets/BigScene/Foliage_Ivy_branches_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "1a1e9f7e369f54fea5221dcb07e1cd9c",
+      "guid": "294be97801e171e76cc455aa039a7b12",
       "path": "Assets/BigScene/Foliage_Ivy_branches_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a3b6c58b72a773b113fc6534fe3181b0",
+      "guid": "eaaa4060ecbe402669252f9f9cfbbc05",
       "path": "Assets/BigScene/Foliage_Ivy_branches_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "df8f4e0a179999f76edca926250b95cc",
+      "guid": "4dc5081cd9dbdd6b7615fde40fcecffc",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Trunk_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5ed456f902b7be7f5e36a41f5c3ffd0c",
+      "guid": "bfa21db768805896c411a733cfcd2406",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Trunk_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "4d5eaee99069bbaa2bc0c5b91bde1f55",
+      "guid": "cf2c0e56638074c3082d479fe326f622",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Trunk_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "cbe6a59f14c50b79dc01c3aaaa5bf984",
+      "guid": "0cb77f1a679666c0e24b24c4880aff32",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Orange_Leaves_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "1c860cfdf502eb3fafaed0d459ef76f8",
+      "guid": "fb96a35a50a9b547345e2a0089297dea",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Orange_Leaves_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7b19b1f321e4b779f3ff0741f954e048",
+      "guid": "8f93b3497895c69b307ab5f6393c2207",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Orange_Leaves_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "4d707e34d3c4dd693f8daaf19fcae230",
+      "guid": "c50aa275d27c0a5d2eb1d23f6e36faf3",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "e33b64cf70c0b5e903cbeef107f0550c",
+      "guid": "c3bf6cd8da6db58e8cc916030ad09a9d",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "91ac2b47c24fc420f1c1375e6138ce39",
+      "guid": "9cfebba5ee60e96545395a718b1f6625",
       "path": "Assets/BigScene/Foliage_Linde_Tree_Large_Green_Leaves_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e858accb493d5876ab69362ebc793b92",
+      "guid": "33606cd6f7d83530e68b1c7f188c9b1e",
       "path": "Assets/BigScene/Antenna_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "84bc064f1a24cb96b8c20cee14c0499f",
+      "guid": "365b2c8b6e12cbb57847dab88d33d717",
       "path": "Assets/BigScene/Antenna_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "23c7621e4ea0caf22133a2e7bdf725af",
+      "guid": "0489cacc60acc0fa4a36a5c8630907cd",
       "path": "Assets/BigScene/Antenna_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "9babfd5741696276b5534e65e4528e0f",
+      "guid": "db008b59a9fc9cca24178a4590c7f82d",
       "path": "Assets/BigScene/Antenna_Plastic_Blue_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5f32d25f37ed9f8e99f50875d5ee23fc",
+      "guid": "54f3536dca7845b517bce32bbe5c7821",
       "path": "Assets/BigScene/Antenna_Plastic_Blue_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7a06730db79322caa926fd149e5767df",
+      "guid": "447b930ec43a98c777cf2584f0c22371",
       "path": "Assets/BigScene/Antenna_Plastic_Blue_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "fe1835ea5f4a7f04cc852614f0b76a3a",
+      "guid": "881dde68f31bccded626008d219f1a5a",
       "path": "Assets/BigScene/Antenna_Plastic_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "bc9c3e86038edd795f4b78052bc5a2e3",
+      "guid": "9282c64ced62582097c97426808f3b7a",
       "path": "Assets/BigScene/Antenna_Plastic_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1fe47ffe721921815942238abd57521f",
+      "guid": "7b2bf8188feb7f16fc8a961cedf141f7",
       "path": "Assets/BigScene/Antenna_Plastic_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "815e047d0dcf2d3abe6f5548ba827f3a",
+      "guid": "aea5dad5f7aac6abf1e50f859d6385f6",
       "path": "Assets/BigScene/Ashtray_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5552f3d3c7be9447f6056bf20e994168",
+      "guid": "b1bbc911883bc3979616e731b70e81cc",
       "path": "Assets/BigScene/Ashtray_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c65284a63a9d3ef6370db6f046cccd04",
+      "guid": "2ad05147127dd449c0b361926e4d1a13",
       "path": "Assets/BigScene/Ashtray_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "64c68df156546f02027bb258c19e4f25",
+      "guid": "6b6cffb9d2953e9547f008b8793775e3",
       "path": "Assets/BigScene/Awnings_Hotel_Fabric_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9ec5120cc6032368231cd736add0a5ba",
+      "guid": "cbe358ae551886929326d9af20d7fe5c",
       "path": "Assets/BigScene/Awnings_Hotel_Fabric_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "40ceea7bd63d98d3abe05a39b383f2b6",
+      "guid": "a0d80759d10e1019c60cd12761567364",
       "path": "Assets/BigScene/Awnings_Hotel_Fabric_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "5e5108ee522b5b2b6462d0fac2f77455",
+      "guid": "fe63b354dc86c1bc45fe5284bb7d28ec",
       "path": "Assets/BigScene/Awnings_Fabric_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "aa9ba14209a6ad8937c0c506c1351678",
+      "guid": "41f9d055d1100ab4176f73f56cb3d2f7",
       "path": "Assets/BigScene/Awnings_Fabric_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "958d50f32360260dbf85052478050c53",
+      "guid": "f32a82465f710a9463b8476eba9e7aa5",
       "path": "Assets/BigScene/Awnings_Fabric_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e7dcebdca8d333cbe8cd07d47747187e",
+      "guid": "a0031895241a7468e04b11882e875326",
       "path": "Assets/BigScene/Awnings_Beams_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "cb1ac08dbade550d31f5a2fef8029d90",
+      "guid": "5ca05134bc5c69b165ce55e143766fd4",
       "path": "Assets/BigScene/Awnings_Beams_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "6602f6023a2d9f700a8775738094832b",
+      "guid": "14daabe8a1fb54e1cb37e19696a97f56",
       "path": "Assets/BigScene/Awnings_Beams_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "8e2716b9a9f79af9d2fb3660388b3c83",
+      "guid": "cb63bbf0f0cd0dcc82f83334cc0a12fc",
       "path": "Assets/BigScene/Bistro_Sign_Main_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "1db1932562d5e59daf265ec7927a4a2a",
+      "guid": "5338c54768647cf64c2a8259c5c6449c",
       "path": "Assets/BigScene/Bistro_Sign_Main_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "77035b9aa3c475347dba74a10dee5b78",
+      "guid": "6516ad0f7193c6d4919f2430ee871a83",
       "path": "Assets/BigScene/Bistro_Sign_Main_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "97f716f950ebafd3d483bef46ea93b95",
+      "guid": "bf7cd1017840ead35dae4c08b9780cc9",
       "path": "Assets/BigScene/Bistro_Sign_Letters_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7c57df71d0072989f1881da54d6bce76",
+      "guid": "639bcb221bae5d9e3da410c91207c93c",
       "path": "Assets/BigScene/Bistro_Sign_Letters_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "bf62024802f272aacef43e249b9556ba",
+      "guid": "40721cc17277eb3b4e53f9199f562c92",
       "path": "Assets/BigScene/Bistro_Sign_Letters_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "d7f4cb963ff301a78b41cf430ad58d7c",
+      "guid": "9ebdb8cbaa9049ad4caf7b4b6d267457",
       "path": "Assets/BigScene/Banner_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "805ba6de95b7a31b4c5877d28d731ba8",
+      "guid": "0842155105fec4dd14e9900d24ba2b20",
       "path": "Assets/BigScene/Banner_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d6131e870fa4ab81b2adc8470f2e722b",
+      "guid": "1d3f69c3f38c7ce7500f8ad3361da6f1",
       "path": "Assets/BigScene/Banner_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "cda8085afc785eb74fd3221e3e3fb6a2",
+      "guid": "530224269f4cf1e0df5793d1b6ca2b56",
       "path": "Assets/BigScene/Bollards_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "aea2c4c965a3975a57096a2afac2d321",
+      "guid": "3e6718b7909c29b3ae0e293d0b2c92bb",
       "path": "Assets/BigScene/Bollards_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1ed835b169012613be1b07f8d776e908",
+      "guid": "1fc5cd061fbfea1d34b89bc4b56bc79f",
       "path": "Assets/BigScene/Bollards_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "095b3e61620cc771203cc0331e48ef15",
+      "guid": "41285cb06aac56b2785ee6f34dbe1779",
       "path": "Assets/BigScene/MASTER_Wood_Painted3_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "32215238251fa23cbe1abb9c6a84b38c",
+      "guid": "19972aee3745768ab27980cf1ad4645e",
       "path": "Assets/BigScene/MASTER_Wood_Painted3_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "29de0f42ea7b90cb082bfc91b7a85b98",
+      "guid": "b94278973aadb23abf6d4e9a755275e7",
       "path": "Assets/BigScene/MASTER_Wood_Painted3_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "177991630f948abfcb3dcecea8752261",
+      "guid": "da682bdb1a95d87404d8d4c7e3b7ee64",
       "path": "Assets/BigScene/MASTER_Plastic_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9cc2acf2cc82bb15a976a842bf90c9e9",
+      "guid": "f1b0b96f5f8642eff056cf877ace6e25",
       "path": "Assets/BigScene/MASTER_Plastic_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c5aff3af90e129b69cf73260001a067e",
+      "guid": "5e8f3dc6c3602c04d4610904adcaf27f",
       "path": "Assets/BigScene/MASTER_Plastic_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "ab2f3e1607cb85bc6ac4964d28afc811",
+      "guid": "405de6a0eaee3d0d9e2e92f667576f10",
       "path": "Assets/BigScene/MASTER_Grain_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "451451c17bbc7b9fdd21bbd8467aa738",
+      "guid": "4cb980e526620e2057d7cbe997f608f7",
       "path": "Assets/BigScene/MASTER_Grain_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "b5e8f152f92f8b874bcf79abaa7d5e9f",
+      "guid": "18db3781d98abb3b4b79e5201150208d",
       "path": "Assets/BigScene/MASTER_Grain_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "6737fcc8605cb1ba11de9117212620fc",
+      "guid": "20656b347a37e86393e3a32abc5ed144",
       "path": "Assets/BigScene/MASTER_Concrete_Yellow_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b707e483c1aa2a553ca214c77ec503a9",
+      "guid": "189a8c2cfad55f05ee7a9fc44cda7996",
       "path": "Assets/BigScene/MASTER_Concrete_Yellow_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "79d9c6274b545345a7cc77bbd8a3c763",
+      "guid": "219ce113f45c2ab17379585ea895626c",
       "path": "Assets/BigScene/MASTER_Concrete_Yellow_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c7f606cabc6dd7a833d3aa18d97a3710",
+      "guid": "9cb291a43d29298f92e0c74598f2ff56",
       "path": "Assets/BigScene/MASTER_Concrete_Grooved_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "4eb9259e8eef9e5a8eaaf546cb1574ad",
+      "guid": "6ab7889697bf5f6c2587f69fc415521a",
       "path": "Assets/BigScene/MASTER_Concrete_Grooved_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "3300d5bc4f82c74c8976748fdf75ea2c",
+      "guid": "cea8cba7207443c9c3158148112453ee",
       "path": "Assets/BigScene/MASTER_Concrete_Grooved_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "7b47ee9adf28242465da571512551255",
+      "guid": "d1288a3eca203bf39b69da1d0ecb5d96",
       "path": "Assets/BigScene/MASTER_Concrete_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5b50761b3e6d61a2cab6c5e0840d12a2",
+      "guid": "2572cc11278e6fa94f3389d159ec7c24",
       "path": "Assets/BigScene/MASTER_Concrete_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7adb0be0b8f289036ff1300767f38d96",
+      "guid": "28c56d27545c921349d9af0101e9f8b4",
       "path": "Assets/BigScene/MASTER_Concrete_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "8836eee905c11b8e795fecf8e61a410b",
+      "guid": "298a1d051718544727327e35feb68c33",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_MASKED_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "beb0b1874a81d6631915808595b1150e",
+      "guid": "37f6face6a03c167984c47627917d0fe",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_MASKED_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "fc2be752ea87c613dde2a49cecea5e9f",
+      "guid": "ec12c15b9e661954400fda4856e3252a",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_MASKED_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f4b7a6f9a78347e5c1191c191933e886",
+      "guid": "e1629e7542f9c1fb1b340547fd9476e4",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5dc4eff5698c22d442f844b81f8e4887",
+      "guid": "fb596df1a6c17659a4f9963e25256366",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ae75a9a00208177c97269c249ca02707",
+      "guid": "270db18998b0cdb5b528dcc83c3e430e",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "1519244852514ae3982a50f46fd7911e",
+      "guid": "d657c029c30f9ef1ba65dafaf4881d04",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Grey_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "3d9607c3f3405db5a83b00b92dc38ecf",
+      "guid": "6580a50ec9c3f22350d4e202bf62627e",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Grey_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5348795eb5703c66b77a1faea2b668b5",
+      "guid": "e3d03daddce60a742d2e787c675e9a57",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Grey_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "8f20c715db7bdf37ec6b3ad423483a45",
+      "guid": "8315f5fbbf37d5f188119583cc36400b",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster1_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "ad3ddb0c4e9fad2df9e5728dd9bab9db",
+      "guid": "4075751626d4d364f98a1a9aec2095a4",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster1_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "9c3809905efc356b0510f51c926b7b50",
+      "guid": "65316fe0d094c66a3948a1811abe82aa",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster1_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "524c7445214ec8379fb9c676ac78901d",
+      "guid": "16fe0b10a4812c966ff7d15a72ae222d",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Green_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5eefecf7c256bd7e38a99d21bebe8aef",
+      "guid": "d959bb164eba2d765f8562bfa1030659",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Green_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8e9bfbbe1ed238f07139d679aec753fb",
+      "guid": "e9acab7e7e6bb931292dc21744145e1d",
       "path": "Assets/BigScene/MASTER_Roofing_Shingle_Green_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "976fc37ff9b0653e8a1dd62243180cdb",
+      "guid": "9d86f199a451fd3a6baa81f67ff0920b",
       "path": "Assets/BigScene/MASTER_Trim_Cornice_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f466b228506d7fe7edfe2763b6a70533",
+      "guid": "3f277f91e40da3d2e16f89793b41fddf",
       "path": "Assets/BigScene/MASTER_Trim_Cornice_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "93d839a30f5e6c4d8f713392a479a8a7",
+      "guid": "d671f8001ca1a3d173e0c9ee757d61b4",
       "path": "Assets/BigScene/MASTER_Trim_Cornice_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "46bf1f7066eda012b507f5cb2a7cc2f9",
+      "guid": "e66947c8f336c778f7cf29899f951ed0",
       "path": "Assets/BigScene/MASTER_Forge_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "81772d89ddb599d3c2750c37da653732",
+      "guid": "98c25b951537988754d6656030ef5ee2",
       "path": "Assets/BigScene/MASTER_Forge_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "b3a9f73fcdf82091d7ce5aef6de56ddb",
+      "guid": "5d64da9d41583881b897c0f7ac8c1c4a",
       "path": "Assets/BigScene/MASTER_Forge_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e50e2ff1c7c9818f73ed53322a3e89bf",
+      "guid": "87b728dc674eba0a0e8022aaee32cb82",
       "path": "Assets/BigScene/MASTER_Curtains_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9bd860cc2b499ece8bcf5d0eddb52acc",
+      "guid": "f904342638dda073bd94a1ff91f013c3",
       "path": "Assets/BigScene/MASTER_Curtains_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "46e06c7a877f7161489dea70816b5386",
+      "guid": "2c3ac2f179b86cdf221643894d18fdcc",
       "path": "Assets/BigScene/MASTER_Curtains_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "2d583efc7f3ccad93e341bafa6ec1a50",
+      "guid": "d14c1a857331aa8db21612d650b73f81",
       "path": "Assets/BigScene/MASTER_Metal_Pipe_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "902c8019497a4f69ee6f192042b3aee1",
+      "guid": "86e6fedccab389e340869905950212d2",
       "path": "Assets/BigScene/MASTER_Metal_Pipe_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "066a428b99ff55dbc1ce7b17ba584679",
+      "guid": "33fbe689843d8e1a5fbc882deb1342eb",
       "path": "Assets/BigScene/MASTER_Metal_Pipe_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "7723d380a970478ffd5edba656a3cb0c",
+      "guid": "faf6a5e596723452c42547b28387a234",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "942800b52ceb40e540a819ea8d330403",
+      "guid": "f90481e1452415dd4d3409d6bf155de4",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "14428756c032a4f573d824575e9f6413",
+      "guid": "1bb3b731845ff9c67cce0374f6581fec",
       "path": "Assets/BigScene/MASTER_Glass_Dirty_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "ec4bd7c827c6ba1c069e2f51c668e9b8",
+      "guid": "ee4a0069c03e4326c9fafae867bdcbab",
       "path": "Assets/BigScene/MASTER_Wood_Polished_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b9b91d0d9ab943e3cd5769453e3d8798",
+      "guid": "dfbe2af8f0fdc06b4eee363441883917",
       "path": "Assets/BigScene/MASTER_Wood_Polished_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "b8ca7937049d0973102284e0d91c24e1",
+      "guid": "9d5dc089ede42207ae9bbe39f5815724",
       "path": "Assets/BigScene/MASTER_Wood_Polished_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "50342e6e6879b3d3728914c78d0c8709",
+      "guid": "4cdd66b4c9dff3980a27b9de19781baf",
       "path": "Assets/BigScene/MASTER_Focus_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "86667f34d9683d0ce35d3e3a95267d4c",
+      "guid": "1a9e2d741bffc91bb09876f1444b99f9",
       "path": "Assets/BigScene/MASTER_Focus_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "00e87a6f2091ecb37d011f6d9d6494e8",
+      "guid": "2f83b64483b6bcd4fcf05f7db324eb08",
       "path": "Assets/BigScene/MASTER_Focus_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "df84ffeb073b86ed92def5de4975bcc9",
+      "guid": "967b0f97642ffe5f63aef919328e0045",
       "path": "Assets/BigScene/Emissive_StreetLight_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "5bab16cafad6af3d984adf94d7d750e3",
+      "guid": "8b931f4ae128d4f63b759aa9d1bb0c8c",
       "path": "Assets/BigScene/Emissive_StreetLight_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "2d3f567588f6fe53fb84b36828d76e30",
+      "guid": "2ca8155afa39dd2b16d9b5a9d0fc6cc3",
       "path": "Assets/BigScene/Emissive_StreetLight_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8fa18c851b5c3e00c6cf0adce59fbdc7",
+      "guid": "d374eaca0ed8a43c18a536c0be56ac51",
       "path": "Assets/BigScene/Emissive_StreetLight_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "cce7a1536eff237cfbe9f2218942b58d",
+      "guid": "67c7d83e572d5b834cb1d9a461117d2b",
       "path": "Assets/BigScene/Spotlight_Glass_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "d974075a04a25fa978d060090f9af8f2",
+      "guid": "0ba00a19b1253af96bd66a5db1e16370",
       "path": "Assets/BigScene/Spotlight_Glass_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "988e0cc0be8341578300f1a3c4ac36a7",
+      "guid": "f24976daeab7520ff3fea02ea5b9f732",
       "path": "Assets/BigScene/Spotlight_Glass_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "642bf1d6f4bce8c3cac86e7c527772c1",
+      "guid": "90608d22e53b56d288b5e2f9fb00db24",
       "path": "Assets/BigScene/Spotlight_Glass_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0b6d4cb2494f2992d8a6cba5b811970e",
+      "guid": "8e757f6789cff02b583f5c99f0e19258",
       "path": "Assets/BigScene/MASTER_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "050a1bb24ee97b75735849969146f4a1",
+      "guid": "0d2b7b6515f6dc83974d6d4a803ea952",
       "path": "Assets/BigScene/MASTER_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "6aae59a57a70f1a01d56d0c9cf57748f",
+      "guid": "aec826dcf33d84bb5cdce87771492032",
       "path": "Assets/BigScene/MASTER_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "023acc1bf250b88b0f1b7555fa024ee8",
+      "guid": "896dfbf9fa766e828a50e96855831f71",
       "path": "Assets/BigScene/MASTER_Focus_Ornament_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "10cdfdffa31d9e23a145c1c00b11c82a",
+      "guid": "036571593d3b54b2d8c9fac5036f9aff",
       "path": "Assets/BigScene/MASTER_Focus_Ornament_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "db4e811535d60b60896a91f86b9955b8",
+      "guid": "a141e5cf71f984cc509427aaec084643",
       "path": "Assets/BigScene/MASTER_Focus_Ornament_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c60dc876d2b2748b7690a33b1905984f",
+      "guid": "e9bbfb3827e0e49a939e1cc55f0e27f6",
       "path": "Assets/BigScene/MASTER_Bistro_Main_Door_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "3c5a21bfcd51df0f36b1875c0d092893",
+      "guid": "dec951579e8836cf69309c805bf4651c",
       "path": "Assets/BigScene/MASTER_Bistro_Main_Door_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a541272975192fbdff87b10075c28814",
+      "guid": "21eb1c98e92b321eb286f0e60235968f",
       "path": "Assets/BigScene/MASTER_Bistro_Main_Door_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "372cbea3f69148ac78587fac8672f48d",
+      "guid": "5dc49a07de4e32fd9c4a5d0b73e5d7be",
       "path": "Assets/BigScene/MASTER_Glass_Exterior_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "e71b3f1ee0c3ead17a2e060384d139ff",
+      "guid": "59b9433f79e90c4338d46efb2db2d61c",
       "path": "Assets/BigScene/MASTER_Glass_Exterior_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "cac78dea5e29c52c3fc67dc7f22729ab",
+      "guid": "e23000f5dc26746732925c9ce4b8ce5d",
       "path": "Assets/BigScene/MASTER_Glass_Exterior_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "85562d87ff67dc595b47c5890826248c",
+      "guid": "d1f73ca7c9989d16415967866a83fac3",
       "path": "Assets/BigScene/MASTER_Light_Bulb_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "a152170ab1844ce8ca38f3a008f0044a",
+      "guid": "0cdc49d6b81feb339a83bc8e0cd5accd",
       "path": "Assets/BigScene/MASTER_Light_Bulb_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "f7e1149a8e0eb4cf4c4e76c9c6e2cec8",
+      "guid": "f6f9e54fa526d60f1c51532ba3fa1bd3",
       "path": "Assets/BigScene/MASTER_Light_Bulb_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "559cf32c64421048d269c9dc8db6ce63",
+      "guid": "ab6d20f2aac48927b4e845cc398fcba6",
       "path": "Assets/BigScene/MASTER_Concrete1_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "0e533a2b4709e3fdc39c9995f116b6a2",
+      "guid": "0b33286802a0851f5f8e65616f578e67",
       "path": "Assets/BigScene/MASTER_Concrete1_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "9ab066ceaaee72af5ffbdb9e2099253e",
+      "guid": "e69656ad46ad15b0abaf45908b676b85",
       "path": "Assets/BigScene/MASTER_Concrete1_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "d7be5aaed8b4d41167a9e5329b69c01a",
+      "guid": "aa4166c3f9095b1b0e3376a4454e0871",
       "path": "Assets/BigScene/MASTER_Side_Letters_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f96bd63380b53a88b4fa9519f00c1049",
+      "guid": "1c4096c446f06f27c5d91e0206b2c2c5",
       "path": "Assets/BigScene/MASTER_Side_Letters_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "189929d75ac8d401474b4039ceb116b0",
+      "guid": "d763d91e08fcd70501cf540ad108e8db",
       "path": "Assets/BigScene/MASTER_Side_Letters_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "df120ad2292a9b099e1e5548559b140d",
+      "guid": "76d7bd39552455c85aa6a1f60d62c48b",
       "path": "Assets/BigScene/MASTER_Doors_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5d122f13cd84ee1ed8e1b9b07d6663b3",
+      "guid": "c5452f3ac40c0791a3f853f10bdc943d",
       "path": "Assets/BigScene/MASTER_Doors_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "279c9aacae8e1f303f5694ea0898d302",
+      "guid": "aee2cf0b7460452688d626d4bc6f9dac",
       "path": "Assets/BigScene/MASTER_Doors_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "9a3df424019a5c03c7dd95b56736cca8",
+      "guid": "7bb4bc5249416edc462bf9d120605755",
       "path": "Assets/BigScene/MASTER_Brick_Large_Beige_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "33a93a1507f18bde45f1cd2a87288386",
+      "guid": "78719f60f68c1573e571b96cd1d371c6",
       "path": "Assets/BigScene/MASTER_Brick_Large_Beige_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "9e7e4f732a475905e015afbea2064568",
+      "guid": "f7b3e812cbe45dd2378d16339a6b0fd9",
       "path": "Assets/BigScene/MASTER_Brick_Large_Beige_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c2102c5b4f77b6ce773fb17d180fc9a9",
+      "guid": "0691b5b1eb19575d60df724d14548ac1",
       "path": "Assets/BigScene/MASTER_Wood_Brown_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7f6c3f00a6947ebbc121913c334e2f06",
+      "guid": "9d63ed82bb3ed8dd0a8aa3fa75c7dc76",
       "path": "Assets/BigScene/MASTER_Wood_Brown_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c6032a76d7b4c3b6e59282064108a5e0",
+      "guid": "072b8beaac918053718ee4c8bc87ae5c",
       "path": "Assets/BigScene/MASTER_Wood_Brown_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "ae282d6bc64745b25471fab434d07a6c",
+      "guid": "063da7088dd6e343e126a5a38480d772",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d50abdf0d1b9974c77a5280f6e3dc637",
+      "guid": "cf16647df861abbe1243a2b187eec2a3",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "aeeaf53ca2d5f6b71127e307157d3c27",
+      "guid": "bd9fd260dded54c2123fb9c04d1d233a",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "8da7350447491fdacdf850354cda4ccf",
+      "guid": "29c5eda0731495f61b3e707293914e36",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "78212f45e942aa608c7d660d11e69d43",
+      "guid": "6f8fc533d548212e35ad3e99da26c25b",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8e94ee5493d1d4bf5dcdeb63b537e75a",
+      "guid": "4bb385d92aa128e39c42cddbefdbe704",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "b2cb720c7ad97fe3616cf5a518fff367",
+      "guid": "d8edcf77ac055c55d1ce288da615c349",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "764a7196b570c02f10b22dc81cb9258f",
+      "guid": "fc01636bbd2626ab2beaefbb594ecfb7",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d277b7dd733e2c84abb368c8f93529e2",
+      "guid": "15124b7bd13ba3a0c7d3051dfc629dbe",
       "path": "Assets/BigScene/MASTER_Concrete_Plaster_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "5372abb04a0dbe6c858e589468f42a3e",
+      "guid": "d4b9b8f692105a9955898aaea0c4a487",
       "path": "Assets/BigScene/MASTER_Black_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "cf7695196e940ef2d915a232b4277aa8",
+      "guid": "233ed5008d485cde43e8028e0db18336",
       "path": "Assets/BigScene/MASTER_Black_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "71f5206bc2e54b25c26261dbfae9104b",
+      "guid": "31bf0b84d44fb35586e886031c5545aa",
       "path": "Assets/BigScene/MASTER_Black_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "4aa4d0eb1a78bb1cf6716b1832fbc35b",
+      "guid": "e54de6256b9c078efe26a4d49bb30897",
       "path": "Assets/BigScene/MASTER_Brick_Large_White_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d905eb9bc3e6a54ff5e51fe15068cabf",
+      "guid": "6072e49b6e7ffb4224f257b8efdd8347",
       "path": "Assets/BigScene/MASTER_Brick_Large_White_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1f7d811dfb41d995292de4617d52de44",
+      "guid": "e2e7af53e29ff72abceee65e9cf4053c",
       "path": "Assets/BigScene/MASTER_Brick_Large_White_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "4bf271dd83ddfda2219e36ff23908a1f",
+      "guid": "0942deadc6a2a17abf67e0cefead3d3f",
       "path": "Assets/BigScene/MASTER_Building_Details_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "54046e121ddacfcb092c1a0d53801819",
+      "guid": "d32e8724aaafc5a53c31be9edfc532ec",
       "path": "Assets/BigScene/MASTER_Building_Details_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a0492fa8ffae40a304f8d794bedca3a2",
+      "guid": "9469cd967cbdd24d81adf3af9041f381",
       "path": "Assets/BigScene/MASTER_Building_Details_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "2dca4deae5a985ea01640f8f59d208de",
+      "guid": "ebd50f2962bd75fc560072fd923a3229",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Cyan_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "73a55c06cbc8491f708d71c57005677e",
+      "guid": "9cb7656621d31277d33d3b8849c52d7c",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Cyan_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5b32f039c1ad4ac3dd749860b2dfd905",
+      "guid": "a6b1467b025de738a79c334f8fe9cf0b",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Cyan_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0367f2f8841a93bfd03458b4fd9a9b0b",
+      "guid": "e653ea525c2dd01f8bd59ace97431dd2",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "62ecd735780d79a5c43a78e317467d08",
+      "guid": "759b6db5b0d358ae68cd66822b63a480",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c57b7ab8d0735848c8c59296adfdf046",
+      "guid": "4fc85b2ebaf0033a3f7ad5356b6db93d",
       "path": "Assets/BigScene/MASTER_Brick_Small_Red_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e3d63cdd9f59244184eae7e6c907b10a",
+      "guid": "4c0de74c9a500b8d01add1536d5fa624",
       "path": "Assets/BigScene/MASTER_Roofing_Metal_01_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "4ceaccc6fdb23ab33b1c05fc5894dc12",
+      "guid": "7c2b3cde7b851f9b28a8238f155b3ff3",
       "path": "Assets/BigScene/MASTER_Roofing_Metal_01_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d83c13bd1e6aaeb3ad0f84be2a4ed42f",
+      "guid": "c01d401196ac0e897fc0c6c899eabef4",
       "path": "Assets/BigScene/MASTER_Roofing_Metal_01_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "5ac753b08ea19866b451cef1da4639a0",
+      "guid": "b52298f1afb97f625c45b0a61a9bd353",
       "path": "Assets/BigScene/MASTER_Room_Interior_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "164426779c110d6c48fd82aaf1cde7d2",
+      "guid": "465901997e43682312dd898d37bbdb9d",
       "path": "Assets/BigScene/MASTER_Room_Interior_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8c85880de962c6b87028707bea322cb0",
+      "guid": "4dcc0679913b50fe62108531fc48ca25",
       "path": "Assets/BigScene/MASTER_Room_Interior_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "797b002db9996c16b264fcd4192fd976",
+      "guid": "293817578425571df3e874adab5a32f5",
       "path": "Assets/BigScene/MASTER_Awning_Beams_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "47293260f2a7f42e88926afd220c15a9",
+      "guid": "0f44fbd31deda3fc2f9fb7cd88c70564",
       "path": "Assets/BigScene/MASTER_Awning_Beams_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8e129e142ab0bcc35dddb5e94d7252ec",
+      "guid": "66097ef59925aa38fabdd0c150223e76",
       "path": "Assets/BigScene/MASTER_Awning_Beams_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "2013ebbb7e18572be0ed0c02f2ae1b7c",
+      "guid": "c89f7466e4f38b6bbd4abeed8b352003",
       "path": "Assets/BigScene/MASTER_Boulangerie_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "54881f83456081327f86e76f70ae691b",
+      "guid": "7d45234644afafc5d2ed2b77f50fcba9",
       "path": "Assets/BigScene/MASTER_Boulangerie_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c437a6ef1d6d95db4ed946800c6ff46a",
+      "guid": "ecdfe344392100f02f2c0dd60650650a",
       "path": "Assets/BigScene/MASTER_Boulangerie_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "6d4df870e4d4b9dce18b4e5e002dbf14",
+      "guid": "bfb97373efbdb0cbb8ae41ca417c416a",
       "path": "Assets/BigScene/MASTER_Frosted_Glass_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "0dcf65808102991df65eb041c299e914",
+      "guid": "b9a857211618328e6a00cb73e9ec6a3b",
       "path": "Assets/BigScene/MASTER_Frosted_Glass_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "16ed063580f49b05e2997475643796d8",
+      "guid": "06afefc45650b6d2415b01d0d59be666",
       "path": "Assets/BigScene/MASTER_Frosted_Glass_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f4c9dfee186abb22743e2f7841b69baf",
+      "guid": "b6161362270c2175fe756dbda24e747b",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Cyan_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "8dbdd87f818ee72b4f55e8098243e7d0",
+      "guid": "d1b021d9dcb6adc24283203aca173386",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Cyan_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a70d40b08d74b87af0b186951ab950ea",
+      "guid": "569f2d6e97e60867aa9b42f9a8f31981",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Cyan_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "795ca5af4adcc99e447a267c0ae88f26",
+      "guid": "f550ea8fd32cb761ee768b9fd99a9f61",
       "path": "Assets/BigScene/MASTER_Concrete_White_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "fe45778a75f42f87cefaa5dc916130f7",
+      "guid": "26bea88b9fb426cd3bf2720a1673ed83",
       "path": "Assets/BigScene/MASTER_Concrete_White_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ea72c8a4e36ad0d82e4c4890d9e7a0e8",
+      "guid": "59da3e5a526f5c72ce6a2726aa2a8c83",
       "path": "Assets/BigScene/MASTER_Concrete_White_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "7616f9c195f7f10bfcce670b8b8c5d74",
+      "guid": "60bb7c594fccb016e04ae1a37bea931d",
       "path": "Assets/BigScene/MASTER_Bronze_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7b3327b1b29bd31a419b58bbe0446586",
+      "guid": "b20fdbc0e737b9d0afc667039bf411db",
       "path": "Assets/BigScene/MASTER_Bronze_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a123c699d2e83d9c9d9ecc755e053bff",
+      "guid": "09e48fb595f54d2075b8cc79bff998af",
       "path": "Assets/BigScene/MASTER_Bronze_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "edb9b3ad704eb2cfd00a9c66c33443ae",
+      "guid": "032f87ac60655f723b68abd6145874f5",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Red_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "883d328659d628537084401657efda37",
+      "guid": "f748805959dffe11f96e2fcc95115f96",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Red_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1e9f38ff4e351f899ba21be1f7806f46",
+      "guid": "2bb2809069e301b6b9c2648957cc64e9",
       "path": "Assets/BigScene/MASTER_Awning_Fabric_Red_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "bc3e14e49413004985487da7e24badce",
+      "guid": "1ce8af7869b4f0eb780f665a985242e0",
       "path": "Assets/BigScene/MASTER_Book_Covers_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "84babf573cd200a752b09cad80272bc2",
+      "guid": "99fd32a48b61c0be0c858c7695b4df53",
       "path": "Assets/BigScene/MASTER_Book_Covers_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d9f7fc109e038c34a7a9a1bfd22b5c4e",
+      "guid": "592a5b95cfbec4ba5ff04a7fac5650e8",
       "path": "Assets/BigScene/MASTER_Book_Covers_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "217637c47d3a1210c496ecdeb32f68e3",
+      "guid": "d5fe9d1c2700957519ed9e96687d4f8e",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "60042996f87a66f1e269e5c652d31d6c",
+      "guid": "18925098d4afeca1e9338fdac16cd70e",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7e14603257d2d6abfa2622c2945bc51e",
+      "guid": "ad49a3531f01ffd744f9fe6ea64cc9d1",
       "path": "Assets/BigScene/MASTER_Concrete_Smooth_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "4fcd72095bcff3decf48bd2ca2e25f0f",
+      "guid": "62371b61c84c5fb4799041644419848b",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "506d3bd36d50cc101e570e95e55f7941",
+      "guid": "7e4cd5cdb3937ffdf4286c7a996afd76",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c51af348f340cdbaf7a6bd9a078aa2fd",
+      "guid": "4594ffca86cf720918249218dd4a80be",
       "path": "Assets/BigScene/MASTER_Wood_Painted_Green_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "d276f55c44e42e9bd455d1cab604ebf4",
+      "guid": "e500503495f09b5ba6242315b37af4e4",
       "path": "Assets/BigScene/MASTER_Rollup_Door_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f974ea53e8f16aec1c93501d1bd8d0d7",
+      "guid": "d6dbf31f3bc1735108cbb71e735b0ff4",
       "path": "Assets/BigScene/MASTER_Rollup_Door_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5bdc04e3095c6403f57d24d160624af3",
+      "guid": "497906427c018d1093dff91fcde5e03f",
       "path": "Assets/BigScene/MASTER_Rollup_Door_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "1524ec179b370dd74016fa2c5422e9b5",
+      "guid": "c0dae801c0da7b65e30a99a55b511e7c",
       "path": "Assets/BigScene/MASTER_Details_Dark_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "708f3361e6bc1ef5ff0768bbfa0ba0aa",
+      "guid": "0b152dc6c4a6b77443ade070f3a63609",
       "path": "Assets/BigScene/MASTER_Details_Dark_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d59128ef37004bef549f7394f3c88088",
+      "guid": "debb0845a7bf53b06e5d76816bd8072f",
       "path": "Assets/BigScene/MASTER_Details_Dark_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "fe1f24834ca4806fbc929e9046b6f765",
+      "guid": "5fa2b38538d83c2c4d5c91f4ab49c79b",
       "path": "Assets/BigScene/Paris_Chair_01_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "a2829bc4ce4a58764738c1faa36049c4",
+      "guid": "b818b747fba06b50d52e4ce7dbf3d6d1",
       "path": "Assets/BigScene/Paris_Chair_01_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c7f02825eca9619131bb3fd1689a50b8",
+      "guid": "dc4952f1001a563abca53e4c4eb4219d",
       "path": "Assets/BigScene/Paris_Chair_01_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e05ceaba3c87667769aba2e403ab8ebe",
+      "guid": "064eaaad96d616e6de1de89d35a2d781",
       "path": "Assets/BigScene/Concrete_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f6a500a6f58ce2ac47a4ba59c3c2788a",
+      "guid": "f1bb77c852fc55267bdfec62eab65bca",
       "path": "Assets/BigScene/Concrete_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ee0e903e65994fecfe757019247c0220",
+      "guid": "2c7a7d672f97de27493942e3901e7a19",
       "path": "Assets/BigScene/Concrete_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "6aae4523dd567d71e1f49ddbd4872054",
+      "guid": "84e200dafd12d02c96d0c548c8c82587",
       "path": "Assets/BigScene/Plaster_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "661902fbf577f64d46c548a8b0da3102",
+      "guid": "59253ac0bcbace1895e6575c3c9a54f3",
       "path": "Assets/BigScene/Plaster_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "4dbfe717257432b0f97c543a3a9ff5cf",
+      "guid": "d9019ec2fc557f64c07d91f2e4ae6406",
       "path": "Assets/BigScene/Plaster_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "11794d2e3f3adfa821d11a66d74fed71",
+      "guid": "27e7910655df5687b55da45f6949f7c1",
       "path": "Assets/BigScene/Concrete2_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "2a30d0ca7b9b2fa4d44389a2c6658243",
+      "guid": "dbeb5a4a3ef865033e577c4546c4187a",
       "path": "Assets/BigScene/Concrete2_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7e1d6735fb5f228b3405443e10805842",
+      "guid": "91ebc2422121bde9b43a63a32d8747ae",
       "path": "Assets/BigScene/Concrete2_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "867106e6c366b7900df03fb4e5491b87",
+      "guid": "a3fb7535846e774cb8ee36176dfc6ebc",
       "path": "Assets/BigScene/Chimneys_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "3d2858ca84b03ee35a13728ca3334171",
+      "guid": "a05787c9b473a313acf1ab35940c1279",
       "path": "Assets/BigScene/Chimneys_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "15febbea0d00ff70879729fb7d42c0f0",
+      "guid": "bf01bcac180411f4ffd0d32270038796",
       "path": "Assets/BigScene/Chimneys_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0c22a7901294c1476b41cf0b00b8b4b5",
+      "guid": "1a1cd07ca8a5946d0bcec0a26276c8e4",
       "path": "Assets/BigScene/Concrete_Striped_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "25c5791e1647db63c40d5a0b7da46d08",
+      "guid": "dcdfff18694a5e4720d6a973b13a1f1a",
       "path": "Assets/BigScene/Concrete_Striped_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5b9048696f32292be0c8721d4e15e172",
+      "guid": "aec034733daef301a3456fbfef183168",
       "path": "Assets/BigScene/Concrete_Striped_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "900f1f3abf29e7ba7b3220c18e1fe8ef",
+      "guid": "e922858ec5b566d3a7f964c2d1ec9fe0",
       "path": "Assets/BigScene/ElectricBox_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d7d676e613eb9defe465b321b72838e4",
+      "guid": "80998277f7714d4a56bbfecf851ea801",
       "path": "Assets/BigScene/ElectricBox_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "e7c5e921802c6e2b81690ace15da1a0f",
+      "guid": "2b7a1555def40a536cfe266abce54b58",
       "path": "Assets/BigScene/ElectricBox_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f94f9582b8356de5e785a3e511436d0f",
+      "guid": "d67b695c6c1d1a40243f2049d742e0e4",
       "path": "Assets/BigScene/Foliage_Paris_Flowers_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "13f887ec69a2f2616c0186fac4945930",
+      "guid": "7d128a84d0c22f94fb5f1a16eb998f12",
       "path": "Assets/BigScene/Foliage_Paris_Flowers_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7dc7b9080e400b058160ce38c8130304",
+      "guid": "e1228ce0aa581852c4ff040d81049343",
       "path": "Assets/BigScene/Foliage_Paris_Flowers_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "7d8a367867a94aa50d66cec8c642544d",
+      "guid": "dee432cedac8969e78c98c606a4aec98",
       "path": "Assets/BigScene/Foliage_Flowers_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "a0053f7bb5017f3133551ddfa2192d8e",
+      "guid": "c9cf27fc9a94e6080170c8064e7e6819",
       "path": "Assets/BigScene/Foliage_Flowers_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "046bda70d2bc39bd7d363b5c15c900ec",
+      "guid": "12aa426adc0a9cc09f63db3d2e3d7b2e",
       "path": "Assets/BigScene/Foliage_Flowers_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "d5dc67755fe68a980a6ac736ab8d600f",
+      "guid": "95a9e5d926b937794446b9dcfb11b171",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Glass_Wine_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9d7016ec168e7c749bf05b17035a5c90",
+      "guid": "7dca92474225c8c96aded7174da2520b",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Glass_Wine_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7e38577c129913c0080f33b8dc5ab731",
+      "guid": "0ef0563c83d57236a7675c572732a549",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Glass_Wine_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "419a1aea689f17d0e62b163f22908d82",
+      "guid": "14372ad39cdf58f15e6d23b833e4e642",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Caps_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "95151262b34344cc151f39c90eb10f01",
+      "guid": "e5c580a4313c2f47733f88d3d73bbde0",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Caps_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "642062eb387d6c92991fcadd2c21e21e",
+      "guid": "ecb21fa31ac12c91d1746b45bba9f17f",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Caps_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "bc41a6dc30efcfa90b8abab4d16c8670",
+      "guid": "2c67ac7472659a45dd0092bd9a604ccb",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Labels_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5e8be12b4f7ec3958d2665e22a7dcb77",
+      "guid": "1531490d3962e7354833cb9c968d406d",
       "path": "Assets/BigScene/Paris_LiquorBottle_01_Labels_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "80720698294360ed2436017c582f98a4",
+      "guid": "4c5132b47cb5a92c4f41e438d5cf291f",
       "path": "Assets/BigScene/Balcony_Concrete_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "8ce7eb86bb6b335d5f39f3b8936e797c",
+      "guid": "97707c403bafd27ec07fc34fd2d796cb",
       "path": "Assets/BigScene/Balcony_Concrete_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "717d5d021a3958e167a2d58677872770",
+      "guid": "0b9e28ff34a3fc96f3bf916953240789",
       "path": "Assets/BigScene/Balcony_Concrete_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "10ba3e492530ac57f08d4b0633056636",
+      "guid": "14a20a563df30708b13c423f11fec09a",
       "path": "Assets/BigScene/Balcony_Trims_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b5d82d0a5846112778c3afb39f89d5b7",
+      "guid": "e931350e844e1fd4de16aea32866c7ae",
       "path": "Assets/BigScene/Balcony_Trims_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "098e605886fb514568686579f6a9b521",
+      "guid": "62b889b7c441439684a5d139b967c407",
       "path": "Assets/BigScene/Balcony_Trims_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c35a7905efd583bf95a22544708f78bd",
+      "guid": "78c773375b68f43669114580c0fa397d",
       "path": "Assets/BigScene/Balcony_Ornaments_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "fc4b52dc818988fd6584d646cf953d77",
+      "guid": "dc5f589d52d3be15f492ab3baca2769d",
       "path": "Assets/BigScene/Balcony_Ornaments_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "21b3bf5b4722814ed6781449977be824",
+      "guid": "dc8679bce75b1617940fe3f8c8bbb123",
       "path": "Assets/BigScene/Balcony_Ornaments_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "a61d1a673a780ab0d69db93780d1bb3c",
+      "guid": "4be9b975645d0603d6b87bf1bd46dece",
       "path": "Assets/BigScene/Balcony_Green_Wood_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "275f9f8270052a2306ef3683e75de910",
+      "guid": "48d0cf075785c0991343d42438dae823",
       "path": "Assets/BigScene/Balcony_Green_Wood_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c3cfd32ad7d3159bfd990e9cbe527710",
+      "guid": "5664e5316cf63e24adff5a2d89a7e8ba",
       "path": "Assets/BigScene/Balcony_Green_Wood_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "260eb9e37c7f452b966c8d9e2103cb4a",
+      "guid": "84197d5f4c04b58c13b9e6399b5aaf59",
       "path": "Assets/BigScene/MenuSign_01_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "ff65c1e0cc72b4c2d2d891b3f3521ab8",
+      "guid": "90a8e8e48f2dc359a6ad64bef71fc923",
       "path": "Assets/BigScene/MenuSign_01_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7bb0b900b4ff517b402cf705cfbd40ef",
+      "guid": "35981e6761145a59d440e2aedd8c1bb8",
       "path": "Assets/BigScene/MenuSign_01_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c07138efd687950a9556517606a6cff8",
+      "guid": "2d9c30984138c8c839b18344a49c9327",
       "path": "Assets/BigScene/MenuSign_02_Mesh_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5bd8e5c92451c0af647ecbc1992bddc1",
+      "guid": "511e9d370905bbc2116b4fa2c0389e6d",
       "path": "Assets/BigScene/MenuSign_02_Mesh_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "cc8fcac2d04cbc0525d4c42a07b541d5",
+      "guid": "6f25024ab72c67699199b18d8281c29d",
       "path": "Assets/BigScene/MenuSign_02_Mesh_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "e47ac3800c8f85e6b744f3a666e75a8f",
+      "guid": "48fb26d67191d85ceb370102e0ca154b",
       "path": "Assets/BigScene/MenuSign_02_Glass_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "8ea990d9ff560078a4af1f62f7b0ed6c",
+      "guid": "bcbe5c0f301b3a9e6d7a74ffb610a5e3",
       "path": "Assets/BigScene/MenuSign_02_Glass_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "2bdb12b600960f786c5127e70cbc5dcb",
+      "guid": "cb776f7f91de935d5d152c5a4f4ad12a",
       "path": "Assets/BigScene/MenuSign_02_Glass_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "3786eee20b0f5eb41f50cda2358dad75",
+      "guid": "239e29f5f495838525684b4b4fd57e32",
       "path": "Assets/BigScene/NapkinHolder_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "cff4c5aa04bde3b4d9739c356f1da5d2",
+      "guid": "0502e54612819514b9767d057fb4d5e8",
       "path": "Assets/BigScene/NapkinHolder_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c0174a3850d421c542ff8463467265a5",
+      "guid": "8d35b59a643d6fa6dd97e026ccc70f7c",
       "path": "Assets/BigScene/NapkinHolder_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "95ed85a49909ab3574dcf7c8612f17ca",
+      "guid": "715f1b8071e1bfc2425719a637bed13d",
       "path": "Assets/BigScene/Plantpots_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "fed33d7fdec20d1d13c5014aaea0afce",
+      "guid": "184bc40bb91cb307c83334690914c296",
       "path": "Assets/BigScene/Plantpots_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "1ef2819c64988eb7150bbf6ff6aa445e",
+      "guid": "5e42db1a21711e76230d901ed2435b4c",
       "path": "Assets/BigScene/Plantpots_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f051918dd29dacbe1e1a27a2497426ee",
+      "guid": "9024d95b153385302d282f150920af8f",
       "path": "Assets/BigScene/Shopsign_Bakery_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "32be6431f895a2f41ea4b4c599d78a66",
+      "guid": "34de03a4c7042a77ab5eba9b91fc334d",
       "path": "Assets/BigScene/Shopsign_Bakery_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "e74ad10799c82696f65ae6eaa1ad982f",
+      "guid": "5e23dbbee7466b225d2a3c591a8de9cf",
       "path": "Assets/BigScene/Shopsign_Bakery_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c89bf7e56dacaeaa7ae046392417bbcb",
+      "guid": "13f9504af4e2c12db96476ed63af0bc1",
       "path": "Assets/BigScene/Shopsign_Ties_Shop_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7fa164d552aed2d3b057f0f19d2a565c",
+      "guid": "cbd1bad6b3496871f9be62a0da8b2de3",
       "path": "Assets/BigScene/Shopsign_Ties_Shop_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "844dcdbaddb9572aead1dc9d369e29d1",
+      "guid": "00b37bfb5e81c332203c4f4eed29cc42",
       "path": "Assets/BigScene/Shopsign_Ties_Shop_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f8a58d593af4b0b969728da70c9c09a2",
+      "guid": "805340602388192d160edf9e4c8fc8cf",
       "path": "Assets/BigScene/Shopsign_Book_Store_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "c471c95b557ded08e921ffb4744168e2",
+      "guid": "636410bfbf31b6252bd3127cce61f8b1",
       "path": "Assets/BigScene/Shopsign_Book_Store_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d3647f9f748bd8f4bde4ffef2239d1c0",
+      "guid": "1a370542d9ee33db0d53ebf1b6556574",
       "path": "Assets/BigScene/Shopsign_Book_Store_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "2d876e3249ab337e0c48a48a2a90089b",
+      "guid": "1ecc8fbb9d7f2af4de1bfb084df9bf88",
       "path": "Assets/BigScene/Shopsign_Book_Store_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "041f851ad0f18df25dd727d817b0251d",
+      "guid": "4098a0095a1b494e0972dd3bf044f313",
       "path": "Assets/BigScene/Shopsign_Pharmacy_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "c0f970c0e23eba50a185b83cea60acec",
+      "guid": "bc0eb1762fba2c5203a49aa0a507f09d",
       "path": "Assets/BigScene/Shopsign_Pharmacy_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "5f175a77ea8e28dd4e9ec52cc33710df",
+      "guid": "3adf5be3b302e5a543168fe8cf5dd055",
       "path": "Assets/BigScene/Shopsign_Pharmacy_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ce679e875a4546e76a8db712564d8817",
+      "guid": "b82311cd90684f82fe2a5a1322287bd7",
       "path": "Assets/BigScene/Shopsign_Pharmacy_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "98271d52642e28d934fed237cf38e058",
+      "guid": "38d835726a74c16842cf73256c5422a3",
       "path": "Assets/BigScene/Sidewalkbarrier_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "8477951f4e2ef8d9edb11678b81513ee",
+      "guid": "b31b57c24cf30637eec3d8361711d2a0",
       "path": "Assets/BigScene/Sidewalkbarrier_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "8aff80c5e25698a36494ed4aff6e6fbb",
+      "guid": "1a908f4b3837db1a8caa09e82229e97b",
       "path": "Assets/BigScene/Sidewalkbarrier_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f4756262df830c2250bc91ab0c23d2a0",
+      "guid": "76eb1406bdb8f8be91e5edbeb668858a",
       "path": "Assets/BigScene/Pavement_Curbstones_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "996d8053f153c8df1202a5e691e760f6",
+      "guid": "995dff55ef77f8a05b6781dfbc839d3b",
       "path": "Assets/BigScene/Pavement_Curbstones_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ecc1243cddb8ac00b71c016ca808a7d2",
+      "guid": "27a428f5688fae9bb3558b098b06fb0c",
       "path": "Assets/BigScene/Pavement_Curbstones_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f38cab43c0a81c34de91811a1e8304f1",
+      "guid": "0d928c08c7bc490d9722cd747d21a12a",
       "path": "Assets/BigScene/Pavement_Cobblestone_Small_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "621307de07dd3386623aad199ec84483",
+      "guid": "25513a3c95323602a03793c81d41493e",
       "path": "Assets/BigScene/Pavement_Cobblestone_Small_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "55625409974473b06de927bf05d64021",
+      "guid": "86f4907ce8146a38fd72c9393dc462d8",
       "path": "Assets/BigScene/Pavement_Cobblestone_Small_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "9650658130c611127189613561c63bc6",
+      "guid": "a927688c3b339f68307cbe03c00851e3",
       "path": "Assets/BigScene/Pavement_Cobblestone_Big_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f08de77b8128dc83d6e689fa7546ef4e",
+      "guid": "1ab81fec55a96586be4fd96b47b508da",
       "path": "Assets/BigScene/Pavement_Cobblestone_Big_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "5b3d80320a48aa4f0a5f569e99a132e4",
+      "guid": "3e948b41b221f5f7ecaa552b9a205e23",
       "path": "Assets/BigScene/Pavement_Cobblestone_Big_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f367bce3f1de8fbd9326eca38b91c348",
+      "guid": "9d93212d96b9e9ce032189d7424c781e",
       "path": "Assets/BigScene/Pavement_Brick_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7ff6b8c21a7467bf3c74753c7a828808",
+      "guid": "cb659775cc9cb5172921ef43b761d798",
       "path": "Assets/BigScene/Pavement_Brick_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "669886f84ee1d87dcf9a60dc80af4f0a",
+      "guid": "34aca7a80fdd8b21e9079db5e01a183e",
       "path": "Assets/BigScene/Pavement_Brick_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "b0e02b728c13ba8074e810eb1f0821cc",
+      "guid": "710ed7487e532661c9d5c9c7071c7b25",
       "path": "Assets/BigScene/Pavement_Cobblestone_02_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "44a320579a250ee96e5e7570bb2e7692",
+      "guid": "c80fbb380a56b5778fd769d3960c20e4",
       "path": "Assets/BigScene/Pavement_Cobblestone_02_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "6f6bca140d75d6f4684070eabe15aab1",
+      "guid": "445aa3d69b01c5c6dcc8e24c6bd8b150",
       "path": "Assets/BigScene/Pavement_Cobblestone_02_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "ffb285b55d64dc3b89996bac561853bb",
+      "guid": "6734f75b71add29ead084db583283033",
       "path": "Assets/BigScene/Pavement_Ground_Wet_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f4385219320b2ef0e03a7146096c836e",
+      "guid": "e9e1a38b9c8b021acff8914bb0627622",
       "path": "Assets/BigScene/Pavement_Ground_Wet_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "6f4f4a00c196ee46cfebeae9c39e73c5",
+      "guid": "9123aa0e9a6c3a13a051e753f7b3553e",
       "path": "Assets/BigScene/Pavement_Ground_Wet_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "72d522cc10e7ce1e2ead05e619842c20",
+      "guid": "84c2f7a3973f3984e91475ced842de21",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "57b68e7cea949cfa20d92c851c202302",
+      "guid": "da562af30eeda85a4edd64883e86a0c2",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "9ad93010cccab8b634433e0b5aa2a5d2",
+      "guid": "7254846672eb0b331b906ba94a425b23",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "1aa74267813bf1d3fcdd75471a169608",
+      "guid": "ef92ad6dfb141bd6a533007fadb7f489",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_Leaves_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "3ab2c905c06c090de2cff8e6de40eaec",
+      "guid": "479afde5f01fc05f64de85e2a84aa3b4",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_Leaves_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "77a9a366abbc5c4cf223a948028411f3",
+      "guid": "ff3e42b4f508657f777319e11b195376",
       "path": "Assets/BigScene/Pavement_Cobblestone_Wet_Leaves_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "793bfae502da2349be2e1bbcc6f982d7",
+      "guid": "969c2ec549772d64838ce4cb77c0b5d9",
       "path": "Assets/BigScene/Pavement_Cobble_Leaves_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b3de68d8453a62188ab44fc764ac0ec1",
+      "guid": "5e46de2da9bf56bd1fddd612db1bba6f",
       "path": "Assets/BigScene/Pavement_Cobble_Leaves_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "7bacab28b6e104b8e26787a2def4becb",
+      "guid": "f0d2a1ffdd7ef249e719dcd1eededca1",
       "path": "Assets/BigScene/Pavement_Cobble_Leaves_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "720fa221e22fea7ac38d16dd3e84aea7",
+      "guid": "030fe4a3b7774a988da632a02f252970",
       "path": "Assets/BigScene/Pavement_Cobblestone_01_BLENDSHADER_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "80bd755d0188b488d7566409c76fb48e",
+      "guid": "845f6cc9653b21a72027babc2a15a5c7",
       "path": "Assets/BigScene/Pavement_Cobblestone_01_BLENDSHADER_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "376dcb0384b878033d687dcb739f9c06",
+      "guid": "c901a615a83b2fc2715c3584e344cd17",
       "path": "Assets/BigScene/Pavement_Cobblestone_01_BLENDSHADER_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "82cd8e7470b6400e9b6b39b40d863e39",
+      "guid": "c165760a3a7355f649727d3d640988be",
       "path": "Assets/BigScene/Concrete3_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d544355ccb01d65a3f4931007503deb3",
+      "guid": "a1486d7d06569178afd026b09fd3ecfc",
       "path": "Assets/BigScene/Concrete3_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "6a6af139c4c217c558c2912886d97c4b",
+      "guid": "ed1beb0a1146b6bafa9188f0cb9a550b",
       "path": "Assets/BigScene/Concrete3_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "d7da4106e4f158dfd8a80cab8dfd3552",
+      "guid": "f30bd191a04cc7b3a6eb0a18178d3a56",
       "path": "Assets/BigScene/Streetlight_Metal_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "d40c2805201de92b3cd3eef2d256cd65",
+      "guid": "93c2a1b9f629040f4ed6c449ada49d7d",
       "path": "Assets/BigScene/Streetlight_Metal_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c68159aa129be0591fa57501e91cf83e",
+      "guid": "bb263606ae3c50c5eacbed4a13090541",
       "path": "Assets/BigScene/Streetlight_Metal_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0ac986b84ccd2e0391df480a4123cc26",
+      "guid": "bfce7bca440b668f0455b48b79363f27",
       "path": "Assets/BigScene/Streetlight_Chains_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "3af279d6cef5c477d59ac952fdbf5996",
+      "guid": "5bfe73247f9d357a98219cb405e46bc8",
       "path": "Assets/BigScene/Streetlight_Chains_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "c59a33540c94c1a45e67251d2c7197e6",
+      "guid": "6065e250ba91259be1dd2a14be915383",
       "path": "Assets/BigScene/Streetlight_Chains_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c5196d1780f0991fb19b7e1da89d51dd",
+      "guid": "31e358a6108a24463481aeb354108125",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "b30f643cc5e15e5c4ec2a0d25bc65d67",
+      "guid": "46771e056dc116a096540fb4d4699d0d",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "092e9fd338f291671c95f3f0e6276d6b",
+      "guid": "4ea8b214743207214eecf72763417401",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "2623044fa720f1794057a21a7f144817",
+      "guid": "ebb02d11b5a5e148b922105eff844e4f",
       "path": "Assets/BigScene/Streetlight_Support_Bulb_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9148c5bb0e1be40bd7d993f61024dba0",
+      "guid": "31d7c9f3787c2827c67998fc14c3978b",
       "path": "Assets/BigScene/Streetlight_Support_Bulb_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "fd20280f20778769efdf2a014d4ee557",
+      "guid": "9616730db4b3b4e68e4e866f023fe499",
       "path": "Assets/BigScene/Streetlight_Support_Bulb_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f8c4b4fa9f17369df2724a57f9baca6a",
+      "guid": "ad8bd2bad2114b92ac60005993672d2c",
       "path": "Assets/BigScene/Paris_StreetPivot_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "787ff179929b1d013ecfb1fbf1b33f19",
+      "guid": "a26125a02cc2f5a67825d389185d3066",
       "path": "Assets/BigScene/Paris_StreetPivot_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "2cfa76715277c483b1417b0f013bd558",
+      "guid": "c1ef0e41b3556b38b27a3269fbe4d569",
       "path": "Assets/BigScene/Paris_StreetPivot_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "a49af22976fe78be75deb6775f44484e",
+      "guid": "7b354f4506325c3a62a90c4088cf36eb",
       "path": "Assets/BigScene/Paris_StreetSign_01_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "1e0b0b8c3fb10fd54b875e0af503a669",
+      "guid": "218f8ea346ab834005772d551da8b558",
       "path": "Assets/BigScene/Paris_StreetSign_01_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "76a80f140caf9d34fe00da833e42b15e",
+      "guid": "a4ef03ca0aeda9017874142cc888e8ad",
       "path": "Assets/BigScene/Paris_StreetSign_01_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "387729dc4aa00f94c04b00ed4a84554f",
+      "guid": "e48af6e7c4b425a2e19dd26d3113315b",
       "path": "Assets/BigScene/Paris_Table_Terrace_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "c8c4cb7e1570d538311144b25072644f",
+      "guid": "a74e2b02c3da273fc6b68fc5059f2a21",
       "path": "Assets/BigScene/Paris_Table_Terrace_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "3deea87c30427440aac3dfb64d82cf10",
+      "guid": "ab6f1a7ec64f53067e1c8e654ae315f9",
       "path": "Assets/BigScene/Paris_Table_Terrace_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "9b9d86b7e4c05aed36981f4b3b3e6323",
+      "guid": "dd17a5032b53aab6b6ebfdabf2972214",
       "path": "Assets/BigScene/Paris_TrafficSign_A_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "9b46d80b688b9b992c2ddda7ee0865a6",
+      "guid": "992b35f595e696269b660b70c038a073",
       "path": "Assets/BigScene/Paris_TrafficSign_A_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "96eed54136dc6cdb6481c0804ffe0d0a",
+      "guid": "11d6cc8fcf64b08adee9e7acd983d47a",
       "path": "Assets/BigScene/Paris_TrafficSign_A_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0cf7b08f1e84b7f728c490f2e5c48fdb",
+      "guid": "a9fdd18018a7db654d70c3dfcc568142",
       "path": "Assets/BigScene/Trashcan_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "db8d2ff5df48f7afed95abcb86e10aa9",
+      "guid": "277d920d1a9d876d780103c005b880bc",
       "path": "Assets/BigScene/Trashcan_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "ec93f31eaad7354015da957f9650846f",
+      "guid": "2790294d3be553ee666fbb86bdef11eb",
       "path": "Assets/BigScene/Trashcan_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "3f68957a30fba3606bd53b2b2a5db473",
+      "guid": "46d984077085ae96d2afbeb6b17a6437",
       "path": "Assets/BigScene/Spotlight_Main_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7d62d7e4d5563dea69e370e27276e8e2",
+      "guid": "a5ed367c5af2f632afaa8399d2912ec4",
       "path": "Assets/BigScene/Spotlight_Main_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "43f8aea68f310422a2269a5675c443d6",
+      "guid": "15febbb1764731a97292a98ab8508af0",
       "path": "Assets/BigScene/Spotlight_Main_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "7259bea290a49e5af520533d62fb05a2",
+      "guid": "0b1475c19d465d99c3d8b79744cca379",
       "path": "Assets/BigScene/Spotlight_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "e651fe0a41b8a0552f2220526e63475b",
+      "guid": "3a5064f5fc9ad3986151c08b592d2b17",
       "path": "Assets/BigScene/Spotlight_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "d414d58b9185f6a01448012ed1fa730a",
+      "guid": "f12fd72cc731b5bc04c5ff19e710be4c",
       "path": "Assets/BigScene/Spotlight_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "f5c206e55070292eab97990fe0e49d1c",
+      "guid": "e9932024ffeb9c70c83baca65f9a4153",
       "path": "Assets/BigScene/LanternEmissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "ffa8392dd9ed36f2b64bb574c402e385",
+      "guid": "f31c1a148f147a4675cdee965e823971",
       "path": "Assets/BigScene/LanternEmissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "399e5b6a1bd5a79a6ef69a8234377e06",
+      "guid": "bb62b1e46c2d3d400ba628350b0ac173",
       "path": "Assets/BigScene/LanternEmissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "569f129b0aee8655eb45cc58233c5ee2",
+      "guid": "4e2861a35fabf66a0fa93d491e5bf2e9",
       "path": "Assets/BigScene/Pavement_Manhole_Cover_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "c981ed0628a7e082cdeac0ad27ee53e4",
+      "guid": "bb9e4ed03b544db7991a54131c9f06a1",
       "path": "Assets/BigScene/Pavement_Manhole_Cover_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "56a24b8d1cd54d81fc50e67f3d006415",
+      "guid": "78f1fe63018313dda8c31eac40fb4ac0",
       "path": "Assets/BigScene/Pavement_Manhole_Cover_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "a35ec8b4f7d1a11a2df47ad1935f25e6",
+      "guid": "585c03f9892e5269ffa393b5b6289cd6",
       "path": "Assets/BigScene/Stringlights_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "f1e5b0b80488ca69df5d9dd8243ba1eb",
+      "guid": "d4628a7dcd6912f04d77175c319deaa1",
       "path": "Assets/BigScene/Stringlights_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "94d32bca1e21de1cf613afe1c7ca35e0",
+      "guid": "e3c8e8c25183204f9f68c959682c1445",
       "path": "Assets/BigScene/Stringlights_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "621ca51e82dc3f48b268ba2b526fcdc5",
+      "guid": "14f9d086cafc70fce894a895ba9c6455",
       "path": "Assets/BigScene/Paris_StringLights_01_Orange_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "597550b2b89c9fee4e565c18b11513c8",
+      "guid": "d758bddf084997326a68ab4ddfcf5af8",
       "path": "Assets/BigScene/Paris_StringLights_01_Orange_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "129f37648a34286a5c2fef5686015899",
+      "guid": "1c502993473a7bf2711073b64dbd7618",
       "path": "Assets/BigScene/Paris_StringLights_01_Orange_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "a86a7befa6d6431af53e400150cc0458",
+      "guid": "1ac487c1fd3b62556cb67330880d6dd0",
       "path": "Assets/BigScene/Paris_StringLights_01_Orange_Color_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0910ea43cd854ba9905b831cb1840f6d",
+      "guid": "24997c6dfbd5874b976354226f39ed0c",
       "path": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "fee3bb2ddcb04dfee67d0d30c57f17d9",
+      "guid": "b684a94515c1c08b80499948e2ed0c5f",
       "path": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "244173be7358dad1b420c9f668c85d72",
+      "guid": "aec0ba4a17eb56f0da20ef5d1ea5fa7f",
       "path": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "26478e1cfeafe1c3ac040f2458b6e472",
+      "guid": "d63b9b2482ca7e34541511891f57f2a2",
       "path": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "c5a304398b8a05b9c311dc5c799cec9f",
+      "guid": "c92dbc45efc473cbba055884911b74b4",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "09d35ab38a04fd345bf6c1e55e1ba3db",
+      "guid": "b52a2c5870001da3e30804c3d5b06ce7",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "4b98a165fe85c234a3f1dfe5189ca479",
+      "guid": "29baf2698057f3f123e8765b38fb8356",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "72e2f1e0ee1fc83899cca5d6ff91afb4",
+      "guid": "e6e55680d0044cd625e712c0abfe0e3b",
       "path": "Assets/BigScene/Paris_StringLights_01_White_Color_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "0d2dcd13a73c1999355732161d4af129",
+      "guid": "9674c1bde68cd49a89a15c05f84c4ef0",
       "path": "Assets/BigScene/Paris_StringLights_01_Pink_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "d4cd8d40a771c79b1fa12c17cf1a5bfb",
+      "guid": "a979cb9c42d2c46a8499b8397718db97",
       "path": "Assets/BigScene/Paris_StringLights_01_Pink_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "7bacf75f7c178837d2cf0a68570a8a7e",
+      "guid": "09efd1b99a11bddf4d76ad2f275a8ace",
       "path": "Assets/BigScene/Paris_StringLights_01_Pink_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "14952c515b2551bad9d3bb0b3163467e",
+      "guid": "aa8b8e2c38a0f857cc48803ea7d3e20b",
       "path": "Assets/BigScene/Paris_StringLights_01_Pink_Color_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "21f9421eb01d8011c1729367ce5a0f53",
+      "guid": "d01fd5551c3a654df5f791f4aa16094f",
       "path": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "fc1801e039a063df2ad0c882ded47266",
+      "guid": "613e0808537d556d3c509447ceae9a4b",
       "path": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "35592f9e7ce9641cc2a4b76414ed6dbb",
+      "guid": "32ccce7ecda1ae0679070688243e3f07",
       "path": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "f2ee2526ee3c564dc5654f5d94a90006",
+      "guid": "49ca9a70448d519b5bb18d363ca8d428",
       "path": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_BaseColor.png",
       "role": "Texture"
     },
     {
-      "guid": "79b95290a2ad27dc9708c7796de150d6",
+      "guid": "8864387f8f700996ca3a7f4766dde705",
       "path": "Assets/BigScene/Paris_StringLights_01_Green_Color_Emissive_Emissive.png",
       "role": "Texture"
     },
     {
-      "guid": "e2491f386873a677ad76d3ce4d8cbe30",
+      "guid": "ba810e0cc2e34be8de1fe448256d0152",
       "path": "Assets/BigScene/Paris_StringLights_01_Green_Color_Emissive_Specular.png",
       "role": "Texture"
     },
     {
-      "guid": "701c04ab4e11c60d84bd9619812eb20c",
+      "guid": "2044d08d6fa74778a09c680fb3ea725f",
       "path": "Assets/BigScene/Paris_StringLights_01_Green_Color_Emissive_Normal.png",
       "role": "Texture"
     },
     {
-      "guid": "bab8bff3739295b3adb14a1103157885",
+      "guid": "4a0fa15aef298cc73af1bdd13810663f",
       "path": "Assets/BigScene/Paris_StringLights_01_Green_Color_Emissive_BaseColor.png",
       "role": "Texture"
     }
   ],
-  "displayName": "testScene",
-  "guid": "dbc331c3f1b5368a70dfbc2d69468fb9",
+  "displayName": "testscene",
+  "guid": "0f15adfa9d36813aa23e65fea78baadc",
   "importSettings": {
     "clusterGeometry": {
       "enabled": true,
-      "largeSurfaceTargetExtent": 3.0,
+      "largeSurfaceTargetExtent": 0.25,
       "lockPartitionBorders": true,
       "lodQualityBias": 1.0,
       "maxLodCount": 5,
@@ -2058,8 +2058,8 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 12,
+  "importerVersion": 21,
   "metaVersion": 1,
-  "sourcePath": "Assets/BigScene/testScene.gltf",
+  "sourcePath": "Assets/BigScene/testscene.gltf",
   "type": "Model"
 }

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/95ed85a49909ab3574dcf7c8612f17ca/texture.htex",
+      "path": "Library/Imported/715f1b8071e1bfc2425719a637bed13d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/95ed85a49909ab3574dcf7c8612f17ca/texture.dds",
+      "path": "Library/Imported/715f1b8071e1bfc2425719a637bed13d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Plantpots_Specular",
-  "guid": "95ed85a49909ab3574dcf7c8612f17ca",
+  "guid": "715f1b8071e1bfc2425719a637bed13d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Plantpots_Specular.png",
   "type": "Texture"

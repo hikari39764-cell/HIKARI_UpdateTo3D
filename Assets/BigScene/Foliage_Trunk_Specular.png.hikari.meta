@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1819f59f05de47bc757cbeb8c03428a5/texture.htex",
+      "path": "Library/Imported/86db04c7ab07874a27abd4af49792d25/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1819f59f05de47bc757cbeb8c03428a5/texture.dds",
+      "path": "Library/Imported/86db04c7ab07874a27abd4af49792d25/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Trunk_Specular",
-  "guid": "1819f59f05de47bc757cbeb8c03428a5",
+  "guid": "86db04c7ab07874a27abd4af49792d25",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Trunk_Specular.png",
   "type": "Texture"

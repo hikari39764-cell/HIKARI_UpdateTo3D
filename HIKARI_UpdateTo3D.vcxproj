@@ -236,6 +236,32 @@
       <AdditionalLibraryDirectories>$(SolutionDir)ThirdParty\DirectXTex\DirectXTex\Bin\Desktop_2022_Win10\$(Platform)\Release;$(ProjectDir)ThirdParty\Effekseer\Lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\debug\bin\*.dll" "$(OutDir)" &gt; nul</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'!='Debug|x64' And '$(Platform)'=='x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\bin\*.dll" "$(OutDir)" &gt; nul</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="External\WICTextureLoader.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp" />
@@ -283,6 +309,7 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Camera3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Transform3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp" />
@@ -670,6 +697,7 @@
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />

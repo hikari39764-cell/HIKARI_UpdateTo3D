@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1ed835b169012613be1b07f8d776e908/texture.htex",
+      "path": "Library/Imported/1fc5cd061fbfea1d34b89bc4b56bc79f/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1ed835b169012613be1b07f8d776e908/texture.dds",
+      "path": "Library/Imported/1fc5cd061fbfea1d34b89bc4b56bc79f/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Bollards_BaseColor",
-  "guid": "1ed835b169012613be1b07f8d776e908",
+  "guid": "1fc5cd061fbfea1d34b89bc4b56bc79f",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Bollards_BaseColor.png",
   "type": "Texture"

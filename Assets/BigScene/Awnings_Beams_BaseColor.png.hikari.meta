@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/6602f6023a2d9f700a8775738094832b/texture.htex",
+      "path": "Library/Imported/14daabe8a1fb54e1cb37e19696a97f56/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/6602f6023a2d9f700a8775738094832b/texture.dds",
+      "path": "Library/Imported/14daabe8a1fb54e1cb37e19696a97f56/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Awnings_Beams_BaseColor",
-  "guid": "6602f6023a2d9f700a8775738094832b",
+  "guid": "14daabe8a1fb54e1cb37e19696a97f56",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Awnings_Beams_BaseColor.png",
   "type": "Texture"

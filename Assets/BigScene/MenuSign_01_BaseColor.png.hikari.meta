@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7bb0b900b4ff517b402cf705cfbd40ef/texture.htex",
+      "path": "Library/Imported/35981e6761145a59d440e2aedd8c1bb8/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7bb0b900b4ff517b402cf705cfbd40ef/texture.dds",
+      "path": "Library/Imported/35981e6761145a59d440e2aedd8c1bb8/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MenuSign_01_BaseColor",
-  "guid": "7bb0b900b4ff517b402cf705cfbd40ef",
+  "guid": "35981e6761145a59d440e2aedd8c1bb8",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MenuSign_01_BaseColor.png",
   "type": "Texture"

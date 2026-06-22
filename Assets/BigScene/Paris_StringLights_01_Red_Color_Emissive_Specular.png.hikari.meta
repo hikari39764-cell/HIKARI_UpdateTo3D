@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/fee3bb2ddcb04dfee67d0d30c57f17d9/texture.htex",
+      "path": "Library/Imported/b684a94515c1c08b80499948e2ed0c5f/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/fee3bb2ddcb04dfee67d0d30c57f17d9/texture.dds",
+      "path": "Library/Imported/b684a94515c1c08b80499948e2ed0c5f/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Red_Color_Emissive_Specular",
-  "guid": "fee3bb2ddcb04dfee67d0d30c57f17d9",
+  "guid": "b684a94515c1c08b80499948e2ed0c5f",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_Specular.png",
   "type": "Texture"

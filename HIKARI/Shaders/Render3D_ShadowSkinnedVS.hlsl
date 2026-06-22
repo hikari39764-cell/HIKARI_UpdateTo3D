@@ -40,6 +40,7 @@ struct VSOutput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
     nointerpolation uint materialFlags : MATERIALFLAGS;
     nointerpolation float alphaCutoff : ALPHACUTOFF;
     nointerpolation uint materialDataIndex : MATERIALINDEX;
@@ -78,6 +79,7 @@ VSOutput main(VSInput input)
     float4 worldPos = mul(world, float4(localPos.xyz, 1.0f));
     output.position = mul(gLightViewProj, worldPos);
     output.uv = input.uv0;
+    output.uv1 = input.uv1;
     output.materialFlags = materialFlags;
     output.alphaCutoff = alphaCutoff;
     output.materialDataIndex = materialDataIndex;

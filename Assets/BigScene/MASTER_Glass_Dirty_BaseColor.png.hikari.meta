@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/14428756c032a4f573d824575e9f6413/texture.htex",
+      "path": "Library/Imported/1bb3b731845ff9c67cce0374f6581fec/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/14428756c032a4f573d824575e9f6413/texture.dds",
+      "path": "Library/Imported/1bb3b731845ff9c67cce0374f6581fec/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Glass_Dirty_BaseColor",
-  "guid": "14428756c032a4f573d824575e9f6413",
+  "guid": "1bb3b731845ff9c67cce0374f6581fec",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Glass_Dirty_BaseColor.png",
   "type": "Texture"

@@ -905,6 +905,8 @@ namespace HIKARI {
                 drawRuntimeSlot("MetallicRoughness", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
                 drawRuntimeSlot("Occlusion", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Occlusion));
                 drawRuntimeSlot("Emissive", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Emissive));
+                drawRuntimeSlot("Specular", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Specular));
+                drawRuntimeSlot("SpecularColor", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::SpecularColor));
                 ImGui::TreePop();
             }
             ImGui::TreePop();
@@ -972,6 +974,8 @@ namespace HIKARI {
                 drawRuntimeSlot("MetallicRoughness", material->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
                 drawRuntimeSlot("Occlusion", material->GetTextureSlot(ModelTextureUsage::Occlusion));
                 drawRuntimeSlot("Emissive", material->GetTextureSlot(ModelTextureUsage::Emissive));
+                drawRuntimeSlot("Specular", material->GetTextureSlot(ModelTextureUsage::Specular));
+                drawRuntimeSlot("SpecularColor", material->GetTextureSlot(ModelTextureUsage::SpecularColor));
             }
             ImGui::TreePop();
         }

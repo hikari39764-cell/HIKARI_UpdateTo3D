@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2d9decb53bee60d514c0c909fce3eb65/texture.htex",
+      "path": "Library/Imported/185b58e7605882a957ebc3547cb00b42/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2d9decb53bee60d514c0c909fce3eb65/texture.dds",
+      "path": "Library/Imported/185b58e7605882a957ebc3547cb00b42/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_Specular",
-  "guid": "2d9decb53bee60d514c0c909fce3eb65",
+  "guid": "185b58e7605882a957ebc3547cb00b42",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_Specular.png",
   "type": "Texture"

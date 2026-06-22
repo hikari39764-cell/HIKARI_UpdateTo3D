@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/df84ffeb073b86ed92def5de4975bcc9/texture.htex",
+      "path": "Library/Imported/967b0f97642ffe5f63aef919328e0045/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/df84ffeb073b86ed92def5de4975bcc9/texture.dds",
+      "path": "Library/Imported/967b0f97642ffe5f63aef919328e0045/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Emissive_StreetLight_Emissive",
-  "guid": "df84ffeb073b86ed92def5de4975bcc9",
+  "guid": "967b0f97642ffe5f63aef919328e0045",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Emissive"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Emissive_StreetLight_Emissive.png",
   "type": "Texture"

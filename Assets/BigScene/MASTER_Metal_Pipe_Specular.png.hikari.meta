@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2d583efc7f3ccad93e341bafa6ec1a50/texture.htex",
+      "path": "Library/Imported/d14c1a857331aa8db21612d650b73f81/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2d583efc7f3ccad93e341bafa6ec1a50/texture.dds",
+      "path": "Library/Imported/d14c1a857331aa8db21612d650b73f81/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Metal_Pipe_Specular",
-  "guid": "2d583efc7f3ccad93e341bafa6ec1a50",
+  "guid": "d14c1a857331aa8db21612d650b73f81",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Metal_Pipe_Specular.png",
   "type": "Texture"

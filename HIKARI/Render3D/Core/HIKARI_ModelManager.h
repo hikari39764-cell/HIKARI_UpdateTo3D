@@ -55,6 +55,7 @@ namespace HIKARI {
     private:
         bool LoadAsObj(ModelAsset& asset, bool buildRuntimeResources);
         bool LoadAsGltf(ModelAsset& asset, bool buildRuntimeResources);
+        bool LoadAsAssimp(ModelAsset& asset, bool buildRuntimeResources);
         bool LoadAsHmodel(ModelAsset& asset);
         bool BuildRuntimeResources(ModelAsset& asset);
         bool BuildBuiltinCube(ModelAsset& asset);

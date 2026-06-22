@@ -14,6 +14,16 @@ float3 HikariFresnelSchlick(float cosTheta, float3 F0)
     return F0 + (1.0f.xxx - F0) * HikariPow5(1.0f - saturate(cosTheta));
 }
 
+float3 HikariSpecularF0(
+    float3 baseColor,
+    float metallic,
+    float3 specularColor,
+    float specularFactor)
+{
+    float3 dielectricF0 = saturate(0.04f.xxx * max(0.0f, specularFactor) * max(0.0f.xxx, specularColor));
+    return lerp(dielectricF0, baseColor, saturate(metallic));
+}
+
 float HikariDistributionGGX(float3 n, float3 h, float roughness)
 {
     float a = roughness * roughness;
@@ -48,6 +58,8 @@ float3 HikariEvaluateDirectPbr(
     float3 baseColor,
     float metallic,
     float roughness,
+    float3 specularColor,
+    float specularFactor,
     float3 n,
     float3 v,
     float3 l,
@@ -63,7 +75,7 @@ float3 HikariEvaluateDirectPbr(
         return 0.0f.xxx;
     }
 
-    float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
+    float3 F0 = HikariSpecularF0(baseColor, metallic, specularColor, specularFactor);
     float3 F = HikariFresnelSchlick(saturate(dot(h, v)), F0);
     float D = HikariDistributionGGX(n, h, roughness);
     float G = HikariGeometrySmith(n, v, l, roughness);

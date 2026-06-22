@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/47293260f2a7f42e88926afd220c15a9/texture.htex",
+      "path": "Library/Imported/0f44fbd31deda3fc2f9fb7cd88c70564/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/47293260f2a7f42e88926afd220c15a9/texture.dds",
+      "path": "Library/Imported/0f44fbd31deda3fc2f9fb7cd88c70564/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Awning_Beams_Normal",
-  "guid": "47293260f2a7f42e88926afd220c15a9",
+  "guid": "0f44fbd31deda3fc2f9fb7cd88c70564",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Awning_Beams_Normal.png",
   "type": "Texture"

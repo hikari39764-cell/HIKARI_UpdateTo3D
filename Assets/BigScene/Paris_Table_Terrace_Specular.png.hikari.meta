@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/387729dc4aa00f94c04b00ed4a84554f/texture.htex",
+      "path": "Library/Imported/e48af6e7c4b425a2e19dd26d3113315b/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/387729dc4aa00f94c04b00ed4a84554f/texture.dds",
+      "path": "Library/Imported/e48af6e7c4b425a2e19dd26d3113315b/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_Table_Terrace_Specular",
-  "guid": "387729dc4aa00f94c04b00ed4a84554f",
+  "guid": "e48af6e7c4b425a2e19dd26d3113315b",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_Table_Terrace_Specular.png",
   "type": "Texture"

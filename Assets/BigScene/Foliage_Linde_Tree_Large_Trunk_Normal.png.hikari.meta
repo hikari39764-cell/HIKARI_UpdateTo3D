@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5ed456f902b7be7f5e36a41f5c3ffd0c/texture.htex",
+      "path": "Library/Imported/bfa21db768805896c411a733cfcd2406/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5ed456f902b7be7f5e36a41f5c3ffd0c/texture.dds",
+      "path": "Library/Imported/bfa21db768805896c411a733cfcd2406/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Linde_Tree_Large_Trunk_Normal",
-  "guid": "5ed456f902b7be7f5e36a41f5c3ffd0c",
+  "guid": "bfa21db768805896c411a733cfcd2406",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Linde_Tree_Large_Trunk_Normal.png",
   "type": "Texture"

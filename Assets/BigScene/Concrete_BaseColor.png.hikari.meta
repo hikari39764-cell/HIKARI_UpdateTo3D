@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/ee0e903e65994fecfe757019247c0220/texture.htex",
+      "path": "Library/Imported/2c7a7d672f97de27493942e3901e7a19/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/ee0e903e65994fecfe757019247c0220/texture.dds",
+      "path": "Library/Imported/2c7a7d672f97de27493942e3901e7a19/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Concrete_BaseColor",
-  "guid": "ee0e903e65994fecfe757019247c0220",
+  "guid": "2c7a7d672f97de27493942e3901e7a19",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Concrete_BaseColor.png",
   "type": "Texture"

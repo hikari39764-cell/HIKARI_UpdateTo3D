@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/29de0f42ea7b90cb082bfc91b7a85b98/texture.htex",
+      "path": "Library/Imported/b94278973aadb23abf6d4e9a755275e7/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/29de0f42ea7b90cb082bfc91b7a85b98/texture.dds",
+      "path": "Library/Imported/b94278973aadb23abf6d4e9a755275e7/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted3_BaseColor",
-  "guid": "29de0f42ea7b90cb082bfc91b7a85b98",
+  "guid": "b94278973aadb23abf6d4e9a755275e7",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted3_BaseColor.png",
   "type": "Texture"

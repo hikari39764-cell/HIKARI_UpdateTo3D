@@ -1,0 +1,1105 @@
+{
+  "artifacts": [
+    {
+      "format": "HCMESH",
+      "path": "Library/Imported/1ca14fc05cf75d7d6ad7320746f55895/clustered_mesh.hcmesh",
+      "role": "ClusteredGeometry"
+    },
+    {
+      "format": "HMODEL",
+      "path": "Library/Imported/1ca14fc05cf75d7d6ad7320746f55895/model.hmodel",
+      "role": "MainModel"
+    }
+  ],
+  "dependencies": [
+    {
+      "guid": "fc9657a9c1322b2590b635001ee37284",
+      "path": "Assets/CafeScene/TransparentGlass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "90766ce619685089b27701de5eafe997",
+      "path": "Assets/CafeScene/TransparentGlass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0c9c6160d1611926ade003910d155625",
+      "path": "Assets/CafeScene/TransparentGlass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "71796f2edbbc41b33ef432c90a7f6148",
+      "path": "Assets/CafeScene/Cutlery_chrome_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5327eebcfb2dd0e08d312229f2fc4556",
+      "path": "Assets/CafeScene/Cutlery_chrome_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "21305388221f95400d498253657c1f6f",
+      "path": "Assets/CafeScene/Cutlery_chrome_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e9f965dc6772b9fb976023bbb95e5207",
+      "path": "Assets/CafeScene/Cutlery_details_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7d0c152fdeab7972efc08dc95dbfe570",
+      "path": "Assets/CafeScene/Cutlery_details_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f03f791b15f5596d8e1101401ec2586d",
+      "path": "Assets/CafeScene/Cutlery_details_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6e046276d085ea43a6a3994650c52f8e",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_03_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "30de718ed544188a20aabbf285cc74f2",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_03_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9c9b6cc2cbc275c887b486b8990342b7",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_03_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d8eeae027b3d2b9c0dcf3317e075fd09",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Caps_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6e4954416f7559e94a21f68aaa609e98",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Caps_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2d48c1422026e2962abd52f8f81e62b9",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Caps_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "dacb08d5462fca43ed9b92970ab48880",
+      "path": "Assets/CafeScene/ToffeeJar_Label_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3e5e9fbed8c806ddfcf4c32b78024064",
+      "path": "Assets/CafeScene/ToffeeJar_Label_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "cf1af8672e9e12fec22c7c09e0abe3bc",
+      "path": "Assets/CafeScene/ToffeeJar_Label_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9dff39e33c5c43b8cd6798070df94afc",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_02_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f1eae7b95ebb31f48de37497c00c417e",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_02_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5fdbd031ae94cc8a543b1d5d652a301c",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_02_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "16c7a1363ea63ec60c8f85a3ebd360f5",
+      "path": "Assets/CafeScene/Plates_Details_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "50625c3e3fe4dff1cef781914ad73169",
+      "path": "Assets/CafeScene/Plates_Details_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7cee6c36b36dbb7555552031c81555e1",
+      "path": "Assets/CafeScene/Plates_Details_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "69fc4a631966943ee8c6a639aadbe6ad",
+      "path": "Assets/CafeScene/Plates_Ceramic_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b9952ef495ea3731907d0f5fd46eebe6",
+      "path": "Assets/CafeScene/Plates_Ceramic_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6c7f2ef41e384b81617eac29f1db0456",
+      "path": "Assets/CafeScene/Plates_Ceramic_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "a1ef3416f13381c3e1bbe151137dd16c",
+      "path": "Assets/CafeScene/Paris_Table_03_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9d7e2d8d783e83fd23044304ac364361",
+      "path": "Assets/CafeScene/Paris_Table_03_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5d8445d0c88de5456852503594e81058",
+      "path": "Assets/CafeScene/Paris_Table_03_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "60862947ecf42e467e3a45600990d05e",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "513ba0027d46145ec75c653b209cb93f",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6e74151a8ef411f227c750b1266d93d1",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2abf02f5d0b8ea51b71753f0e9793ac4",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Brushed_Metal_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ccb7077396100a0db147918461364f9d",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Brushed_Metal_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5c1204111fbf1f6d6bd438a2088a7c81",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Brushed_Metal_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7f65f751bd235981dc9f95894f5e4e18",
+      "path": "Assets/CafeScene/WickerBasket_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "63e189bb81bb0159e9cbbb07fcd5bbaa",
+      "path": "Assets/CafeScene/WickerBasket_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8614eff71a6c0a98c684c818fa08d66d",
+      "path": "Assets/CafeScene/WickerBasket_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "54f58cf11f1fe67fda477f70f9e5656e",
+      "path": "Assets/CafeScene/MASTER_Concrete1_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0ada23f3f4178c8957e30cb228983658",
+      "path": "Assets/CafeScene/MASTER_Concrete1_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e9bf356ba37c8ad0324171c53fd6d54c",
+      "path": "Assets/CafeScene/MASTER_Concrete1_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d6bebc8180fdce987ff8633a4202872e",
+      "path": "Assets/CafeScene/Paris_Ceiling_Lamp_Emissive.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c6ae31493cb0a8840712dc4da8eb05ee",
+      "path": "Assets/CafeScene/Paris_Ceiling_Lamp_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "15eb690033ad6af99ae7f62b2c64df8f",
+      "path": "Assets/CafeScene/Paris_Ceiling_Lamp_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0de3b0d59d5cbc31e4038460bac43ff0",
+      "path": "Assets/CafeScene/Paris_Ceiling_Lamp_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e02f285fe91bdb7bad244e2354b76bd5",
+      "path": "Assets/CafeScene/Paris_Coasters_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3333fab79c607345d50ee061ed03b897",
+      "path": "Assets/CafeScene/Paris_Coasters_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "4b277a717d04964c216d3c07177fede4",
+      "path": "Assets/CafeScene/Paris_Coasters_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c5566528f42afa1a27ec5871670dbb7b",
+      "path": "Assets/CafeScene/NapkinHolder_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d4ed2d24ea062fc3ee9f31d5d0cf0e87",
+      "path": "Assets/CafeScene/NapkinHolder_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "04c510464f0c58c412b27c3d6a402de2",
+      "path": "Assets/CafeScene/NapkinHolder_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f31cbf8c145f2ae95ec94741128a0d3a",
+      "path": "Assets/CafeScene/MASTER_Interior_01_White_Plastic_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6fa47e7439a460d7d82f2ab568845f0d",
+      "path": "Assets/CafeScene/MASTER_Interior_01_White_Plastic_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c2d6984107a7104e2261c3f2d5355af8",
+      "path": "Assets/CafeScene/MASTER_Interior_01_White_Plastic_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2c01a1f35b24bcd68845c9dbe0fc4917",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid1_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "476604751af4fc6662ca9e6ac8f9e006",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid1_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e55f750c3f6463703a575d08dd15736b",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid1_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d7d1d6346871bcc60bba38686038439f",
+      "path": "Assets/CafeScene/MASTER_Wood_Painted3_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f0198e800c4e67e8bf6ed293d3366dbb",
+      "path": "Assets/CafeScene/MASTER_Wood_Painted3_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "44d970e6c55cfeec6fa4daa602249bbf",
+      "path": "Assets/CafeScene/MASTER_Wood_Painted3_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "70201e778ca117e2acebc6d5b4ec1523",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_Wine_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "13222e1a8b7730b0b92c52bb9c719849",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_Wine_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ce41c68017dbbe6b73e4ebfb16dc9e2d",
+      "path": "Assets/CafeScene/Paris_LiquorBottle_01_Glass_Wine_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "46d6587f266f95119fd7133dd966b8bf",
+      "path": "Assets/CafeScene/Paris_BarStool_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b9829d9fd6f845f7c9a9e3d7458a2d1c",
+      "path": "Assets/CafeScene/Paris_BarStool_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "59045356cbdc76c61f46dc8341f1bc98",
+      "path": "Assets/CafeScene/Paris_BarStool_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c64fc720d222cfeaa29fbfbc0bfd46ed",
+      "path": "Assets/CafeScene/Paris_Table_cloth_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "05aa97ef5e17c9d0e38959e5860460d1",
+      "path": "Assets/CafeScene/Paris_Table_cloth_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "80ffca1ac779829bc2e7266a162ec158",
+      "path": "Assets/CafeScene/Paris_Radiator_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "356c7ee602460a2abf03c2205759ee7c",
+      "path": "Assets/CafeScene/Paris_Radiator_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "cfc5f2f0d4d68574cb141a1597ab90dc",
+      "path": "Assets/CafeScene/Paris_Radiator_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b365c9d9e0262cbcc3917d1fc4e77da3",
+      "path": "Assets/CafeScene/MASTER_Bistro_Main_Door_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2971799df4ce0c371c41e8bbe0dfe46c",
+      "path": "Assets/CafeScene/MASTER_Bistro_Main_Door_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "21b9c66190e135843547f9584d0002a3",
+      "path": "Assets/CafeScene/MASTER_Bistro_Main_Door_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0615366b13ec991034993ba91a94342e",
+      "path": "Assets/CafeScene/MASTER_Concrete_Grooved_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d6d0f5e532de851604f0c5f50ea8dc02",
+      "path": "Assets/CafeScene/MASTER_Concrete_Grooved_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "a5be92bfa31a5007194fd45c0ebce00b",
+      "path": "Assets/CafeScene/MASTER_Concrete_Grooved_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "370887f3300e0441fe559665168ec3f5",
+      "path": "Assets/CafeScene/Cloth_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "285eb5620b7803aa8d83609e9bdd4331",
+      "path": "Assets/CafeScene/Cloth_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "63b6380f533b4ad8dd1ba2a38cd52492",
+      "path": "Assets/CafeScene/Cloth_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e1938cf0f74ea2f94c0be43452a82d86",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wood_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e2cdb6ee7451b28e279290b4e65fb2e3",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wood_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "574fac730ab5d4d043e20cd2609540ab",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wood_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "212eea440279e9af5a80add279efdae1",
+      "path": "Assets/CafeScene/Paris_Painting_Metal_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b16f540b5d4563420e11e127600cfd1d",
+      "path": "Assets/CafeScene/Paris_Painting_Metal_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "08d980f7cd2c526baaa7d51dd1bbc992",
+      "path": "Assets/CafeScene/Paris_Painting_Metal_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "a83a2ab135f4d55647cac5736962a286",
+      "path": "Assets/CafeScene/Paris_Paintings_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "110aec3b219d10f89194d76cc182be53",
+      "path": "Assets/CafeScene/Paris_Paintings_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "314b11b0f859f03f950cddeaa88a10c4",
+      "path": "Assets/CafeScene/Paris_Paintings_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "00257994c7f62ee8648fe2ac9fb63aea",
+      "path": "Assets/CafeScene/Paris_Paintings_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "44487ed2b844a55246d42bda2e189124",
+      "path": "Assets/CafeScene/Paris_Paintings_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e4aa86364c961be8f6cebb2c4a07249e",
+      "path": "Assets/CafeScene/Paris_Paintings_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "1ab0f885df01ffcf6d852ee069b20b2e",
+      "path": "Assets/CafeScene/Metal_Chrome1_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "207b972ca53b1f3872c8ad5b84c645d9",
+      "path": "Assets/CafeScene/Metal_Chrome1_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8d0c4d2c34d235db6f0748109a1a855c",
+      "path": "Assets/CafeScene/Metal_Chrome1_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "02f860ed003ea64a6705219890e8fcca",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_Red_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "75bf257e10e53685fcadc19e1aae7835",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_Red_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8110a2f7716276ccd7e3aa5a93135de8",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_Red_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "de3dedaa2465d60a5ba34d13677fe048",
+      "path": "Assets/CafeScene/MASTER_Concrete_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ad87bfe53031df6f732b9e2a94389f00",
+      "path": "Assets/CafeScene/MASTER_Concrete_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3126300215325909f6565da89ae1d9d2",
+      "path": "Assets/CafeScene/MASTER_Concrete_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "98bd4fe4f1ebc7380049610956c3540f",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster2_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7d5aedab5813f73191019cdfd60bf3b2",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster2_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "aac01d0f2299f1fbb51369514ab02060",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster2_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ccab7263a1e3292a47742908d656e3ff",
+      "path": "Assets/CafeScene/Paris_Beertap_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0bbae2de9a7ea032f478a3683c75176f",
+      "path": "Assets/CafeScene/Paris_Beertap_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0ea198366bea9a8a66e56e3ae412d937",
+      "path": "Assets/CafeScene/Paris_Beertap_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d9e3fc83a25bf2b6883f0517efc3a4d5",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Bartrim_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8101c40c876eeb31af1dc9f4964c3d95",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Bartrim_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ab2a99b49487008848c537d198735edd",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Bartrim_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "1579657ea670e77cf4b711fb82347d11",
+      "path": "Assets/CafeScene/Paris_CeilingFan_Emissive.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f036b07670ed90b590d5623c9f581a73",
+      "path": "Assets/CafeScene/Paris_CeilingFan_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7ae1ef74e4277436c80d37495fd2d1ce",
+      "path": "Assets/CafeScene/Paris_CeilingFan_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "990dc6479d9a616c28a363fe7d03ef0f",
+      "path": "Assets/CafeScene/Paris_CeilingFan_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d07254cdb92436c637c1490d5c5c22f5",
+      "path": "Assets/CafeScene/curtainA_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8db9f6762d1cce8bc6309cfb256934ee",
+      "path": "Assets/CafeScene/curtainA_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "1e8b050bdaf3161567e638abf6497e1f",
+      "path": "Assets/CafeScene/curtainA_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "48d4a5f5c53a241d29a27c0ef5fdde97",
+      "path": "Assets/CafeScene/curtainB1_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7c0c0bdce88e576e24d0a0c3d64490a6",
+      "path": "Assets/CafeScene/curtainB1_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0adf52f2f71352434e10eeb8e61c97bc",
+      "path": "Assets/CafeScene/curtainB1_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "4676fc70c133b7df369d8db1cbeb32f5",
+      "path": "Assets/CafeScene/Paris_Cashregister_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c1367792985522d352bd4c8eda57e4e7",
+      "path": "Assets/CafeScene/Paris_Cashregister_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e3a4ba03ea0f00ec27912c811d9fdf1d",
+      "path": "Assets/CafeScene/Paris_Cashregister_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "735aa9b0f53f81768c7ccdcb60f7466f",
+      "path": "Assets/CafeScene/Paris_Cashregister_Buttons_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0ce6d82f2f1eccdcc4fd237c28919834",
+      "path": "Assets/CafeScene/Paris_Cashregister_Buttons_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8810a17f584563448ef4eab680dbed2e",
+      "path": "Assets/CafeScene/Paris_Cashregister_Buttons_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c18c9ec4d9c0eb8e159ac20a0655e2ea",
+      "path": "Assets/CafeScene/Paris_Cashregister_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3570cd3c6dbafdbc762be3644658f572",
+      "path": "Assets/CafeScene/Paris_Cashregister_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3337249890698a75467b4a0697c805f4",
+      "path": "Assets/CafeScene/Paris_Cashregister_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "314ec3b0f543ee8344d993ac42c6d5a8",
+      "path": "Assets/CafeScene/MASTER_Concrete_Yellow_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f9a2ec2e71b46133d63790d6938c51aa",
+      "path": "Assets/CafeScene/MASTER_Concrete_Yellow_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "814ea9f4c1031ca7aafb90d342c6f03c",
+      "path": "Assets/CafeScene/MASTER_Concrete_Yellow_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "faa9dc6983258b02d7fe73fb053f6481",
+      "path": "Assets/CafeScene/ToffeeJar_Metal_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d240d7d47f31a8fbd1c9f701ab64ffca",
+      "path": "Assets/CafeScene/ToffeeJar_Metal_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "22ba12498c4fc507162f812004543722",
+      "path": "Assets/CafeScene/ToffeeJar_Metal_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "641c051f83843c8b0e2531950803d269",
+      "path": "Assets/CafeScene/CookieJar_Cookies_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "085a752291021a2a73f6b21385f80ef6",
+      "path": "Assets/CafeScene/CookieJar_Cookies_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "feab09b76dfeebfcc451db8ca558cfcf",
+      "path": "Assets/CafeScene/CookieJar_Cookies_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b25a41382f6e691632287ef2c1f00f67",
+      "path": "Assets/CafeScene/Wall_Lamp_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "0f127ff065303d0f41b2758504f1c0df",
+      "path": "Assets/CafeScene/Wall_Lamp_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "17b464210fb67941f2e1801e9864e2ca",
+      "path": "Assets/CafeScene/Wall_Lamp_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9b5e226ba6eec1156a94b8ecccbee2e3",
+      "path": "Assets/CafeScene/Metal_Bronze_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "60a58d637be5094dd14446ee11b165ab",
+      "path": "Assets/CafeScene/Metal_Bronze_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9f41bdd5dd3d7ad36a3fb88e5a9f24d9",
+      "path": "Assets/CafeScene/Metal_Bronze_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "40fa4618f87bb979af9e464f412b4304",
+      "path": "Assets/CafeScene/Paris_Wall_Bulb_Light_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "04ebf28346f88c62f2abb68fb83ca642",
+      "path": "Assets/CafeScene/Paris_Wall_Bulb_Light_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d92e2fbc8e2eed7f52fbe1315a176d0b",
+      "path": "Assets/CafeScene/Paris_Wall_Bulb_Light_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "942a48d095111c0bd7bb675bbd1540ec",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wooden_stuco_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d2b8e4ee121457ac7629c972f131170d",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wooden_stuco_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "809b2719a22602c15c428075c15a9755",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Wooden_stuco_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "97e5e3874667b3d1c1a3790b66f11908",
+      "path": "Assets/CafeScene/Paris_Doormat_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "bcd7d1fce9acd3381df78277387e9e19",
+      "path": "Assets/CafeScene/Paris_Doormat_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "dbd52078e78f7ab6226dc972f0c4f160",
+      "path": "Assets/CafeScene/Paris_Doormat_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8b8db6e3a1d958cf0bb46975563d099c",
+      "path": "Assets/CafeScene/Rubber_Bar_Mat_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2be841741e705124ff7f2ad11523a687",
+      "path": "Assets/CafeScene/Rubber_Bar_Mat_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "441ab06b4c4e2399606bd38948828e93",
+      "path": "Assets/CafeScene/Rubber_Bar_Mat_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e71a826aacae54eab8975e74e3695618",
+      "path": "Assets/CafeScene/Plastic_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "2d92d9cf5836ec7874cc361e006ef603",
+      "path": "Assets/CafeScene/Plastic_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c736b7efc7816535f05e020aaf1193a6",
+      "path": "Assets/CafeScene/Plastic_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5de44b53a78358815ba1ef80ea82c0d9",
+      "path": "Assets/CafeScene/Trolley_Plastic_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f645046a078268d29ad3c2adfe604a3b",
+      "path": "Assets/CafeScene/Trolley_Plastic_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "4dd344725c1e82af49d3bb68d20726e9",
+      "path": "Assets/CafeScene/Trolley_Plastic_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3da7c68a38362c2a7e979256d382363b",
+      "path": "Assets/CafeScene/Trolley_Wheels_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "62ff62d932de738f0c6bcb7077675631",
+      "path": "Assets/CafeScene/Trolley_Wheels_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7e7dd87e487ac5e4d7a4d0f9e73038ce",
+      "path": "Assets/CafeScene/Trolley_Wheels_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3912d924fc8234785a90ef6a5ac647d0",
+      "path": "Assets/CafeScene/Trolley_Wood_Painted_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d5e17bfd6fc02a5495674c072519e7b4",
+      "path": "Assets/CafeScene/Trolley_Wood_Painted_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9028e9daeb65af757a607db8369bbe7d",
+      "path": "Assets/CafeScene/Trolley_Wood_Painted_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "527b023e300037b155af53f619c47b0c",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Lantern_Emissive.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5e3e1bf453d2e1f19381cd233517f8ba",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Lantern_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5072ecb11ba5c4a4e2dd8a2d55f798a4",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Lantern_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "1c33b6669ea84658f4487c2abb04aa7f",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Paris_Lantern_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "cd8e0bfb15164732b8e48bc7c68a1089",
+      "path": "Assets/CafeScene/Paris_Wall_Light_Interior_Emissive.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6c5d336be5878b15f7132a51502034dc",
+      "path": "Assets/CafeScene/Paris_Wall_Light_Interior_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f3592696e5099090329dacdf2997de1a",
+      "path": "Assets/CafeScene/Paris_Wall_Light_Interior_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "d77e46fcba31dd7df62b7f814a563e39",
+      "path": "Assets/CafeScene/Paris_Wall_Light_Interior_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "29d8cfcf494916d7edb42fa12a9e11f3",
+      "path": "Assets/CafeScene/MASTER_Glass_Exterior_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e9544d56384ad1d2981e3ef164e57260",
+      "path": "Assets/CafeScene/MASTER_Glass_Exterior_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "5fa8cf56ec7a986fa968a43ea55d3f46",
+      "path": "Assets/CafeScene/MASTER_Glass_Exterior_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "100aa94271d7da15410f3da4d886685a",
+      "path": "Assets/CafeScene/Plants_Metal_Base_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "377b1b5ef3dc30442bcfee283af7e2d4",
+      "path": "Assets/CafeScene/Plants_Metal_Base_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7f793acff1537a045cec035d58fb5595",
+      "path": "Assets/CafeScene/Plants_Metal_Base_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3208621e83f6f9d7ed64fc5ebcabecf2",
+      "path": "Assets/CafeScene/Plants_plants_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b19cf4d83162153f83fdaf43b7cf1c54",
+      "path": "Assets/CafeScene/Plants_plants_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "fedab228ee3ae779b106b70359873d6f",
+      "path": "Assets/CafeScene/Plants_plants_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8b5dd8fdf0d845f81ab14c18247cab0b",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7a83172e4b6ff642e160f5f5639ac19c",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6d5415783334d7cc1c131d709e4128d8",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Plaster_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "bfa1136896692c6ea7457dfe107b61cf",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "cb5246745486349807926672632715c5",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "58ab990e9f0f1fd07c048c08771a02f0",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Grid_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "6223041c71883b385ecf68a15cd72844",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Frozen_Glass_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "98684e4981eb410b9c596fcf3fbcf822",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Frozen_Glass_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "9c4bc933885b95492dbb383531e56ada",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Frozen_Glass_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ae3c601f6f35e7d65a064035429a54d6",
+      "path": "Assets/CafeScene/Metal_Worn_01_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ac0327e0e913af25aa0ac4e9aff20ec1",
+      "path": "Assets/CafeScene/Metal_Worn_01_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "17d68972435afc02a869efca1e9ee139",
+      "path": "Assets/CafeScene/Metal_Worn_01_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "4a057558f3370505fe8080e4242fefce",
+      "path": "Assets/CafeScene/Wood_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7d93194494989575e89fa16ef6d32336",
+      "path": "Assets/CafeScene/Wood_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "595954d7fe4f07f7695297e35e6cb92a",
+      "path": "Assets/CafeScene/Wood_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "f10ebc3e7cf9a502bc9724a3ea35ff10",
+      "path": "Assets/CafeScene/Plastic_02_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "8ef27473ee3ae689f1fb4c3552929a00",
+      "path": "Assets/CafeScene/Plastic_02_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "e786c30912bc66b881b1a8234eb5d9cd",
+      "path": "Assets/CafeScene/Plastic_02_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "25d9981cd56a3f6c62238bd42471238b",
+      "path": "Assets/CafeScene/ToffeeJar_Toffee_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "58f4316e700379171ac7d042b5e7f51b",
+      "path": "Assets/CafeScene/ToffeeJar_Toffee_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "ae0e94f8af24ae40b3e26a05e5116cd8",
+      "path": "Assets/CafeScene/ToffeeJar_Toffee_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "7fe7fbba99c9e2a16bb4c8caaf1e037c",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Floor_Tile_Hexagonal_BLENDSHADER_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b23862477d0d90a2722dc1a606c08d12",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Floor_Tile_Hexagonal_BLENDSHADER_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "c18212fc009333fe14cdd76326c7a230",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Floor_Tile_Hexagonal_BLENDSHADER_BaseColor.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "b9c7a3f3e012b05a5ffb4ae97bb58662",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Material_Specular.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "3839ccf421845982582c8a15b43eb5db",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Material_Normal.png",
+      "role": "Texture"
+    },
+    {
+      "guid": "bf93f903faed4568ad2b698c38b0933f",
+      "path": "Assets/CafeScene/MASTER_Interior_01_Material_BaseColor.png",
+      "role": "Texture"
+    }
+  ],
+  "displayName": "cafe",
+  "guid": "1ca14fc05cf75d7d6ad7320746f55895",
+  "importSettings": {
+    "clusterGeometry": {
+      "enabled": true,
+      "largeSurfaceTargetExtent": 3.0,
+      "lockPartitionBorders": true,
+      "lodQualityBias": 1.0,
+      "maxLodCount": 5,
+      "partitionLargeSurfaces": true,
+      "profile": "Scene"
+    },
+    "cookModel": true,
+    "futureMeshFormat": "HCMESH",
+    "loadMaterials": true,
+    "loadTextures": true,
+    "outputFormat": "HMODEL",
+    "sourceFormat": ".gltf"
+  },
+  "importerId": "ModelImporter",
+  "importerVersion": 16,
+  "metaVersion": 1,
+  "sourcePath": "Assets/CafeScene/cafe.gltf",
+  "type": "Model"
+}

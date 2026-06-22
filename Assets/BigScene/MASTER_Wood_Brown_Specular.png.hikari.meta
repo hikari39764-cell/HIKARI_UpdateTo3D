@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c2102c5b4f77b6ce773fb17d180fc9a9/texture.htex",
+      "path": "Library/Imported/0691b5b1eb19575d60df724d14548ac1/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c2102c5b4f77b6ce773fb17d180fc9a9/texture.dds",
+      "path": "Library/Imported/0691b5b1eb19575d60df724d14548ac1/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Brown_Specular",
-  "guid": "c2102c5b4f77b6ce773fb17d180fc9a9",
+  "guid": "0691b5b1eb19575d60df724d14548ac1",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Brown_Specular.png",
   "type": "Texture"

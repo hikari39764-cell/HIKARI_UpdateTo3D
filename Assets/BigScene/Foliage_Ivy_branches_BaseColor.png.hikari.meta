@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a3b6c58b72a773b113fc6534fe3181b0/texture.htex",
+      "path": "Library/Imported/eaaa4060ecbe402669252f9f9cfbbc05/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a3b6c58b72a773b113fc6534fe3181b0/texture.dds",
+      "path": "Library/Imported/eaaa4060ecbe402669252f9f9cfbbc05/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Ivy_branches_BaseColor",
-  "guid": "a3b6c58b72a773b113fc6534fe3181b0",
+  "guid": "eaaa4060ecbe402669252f9f9cfbbc05",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Ivy_branches_BaseColor.png",
   "type": "Texture"

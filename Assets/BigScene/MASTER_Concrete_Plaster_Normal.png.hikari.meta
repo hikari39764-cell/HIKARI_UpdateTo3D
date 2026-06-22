@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/764a7196b570c02f10b22dc81cb9258f/texture.htex",
+      "path": "Library/Imported/fc01636bbd2626ab2beaefbb594ecfb7/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/764a7196b570c02f10b22dc81cb9258f/texture.dds",
+      "path": "Library/Imported/fc01636bbd2626ab2beaefbb594ecfb7/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Plaster_Normal",
-  "guid": "764a7196b570c02f10b22dc81cb9258f",
+  "guid": "fc01636bbd2626ab2beaefbb594ecfb7",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Plaster_Normal.png",
   "type": "Texture"

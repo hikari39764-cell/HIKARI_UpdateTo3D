@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/815e047d0dcf2d3abe6f5548ba827f3a/texture.htex",
+      "path": "Library/Imported/aea5dad5f7aac6abf1e50f859d6385f6/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/815e047d0dcf2d3abe6f5548ba827f3a/texture.dds",
+      "path": "Library/Imported/aea5dad5f7aac6abf1e50f859d6385f6/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Ashtray_Specular",
-  "guid": "815e047d0dcf2d3abe6f5548ba827f3a",
+  "guid": "aea5dad5f7aac6abf1e50f859d6385f6",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Ashtray_Specular.png",
   "type": "Texture"

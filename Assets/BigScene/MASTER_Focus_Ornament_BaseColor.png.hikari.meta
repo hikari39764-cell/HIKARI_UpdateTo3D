@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/db4e811535d60b60896a91f86b9955b8/texture.htex",
+      "path": "Library/Imported/a141e5cf71f984cc509427aaec084643/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/db4e811535d60b60896a91f86b9955b8/texture.dds",
+      "path": "Library/Imported/a141e5cf71f984cc509427aaec084643/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Focus_Ornament_BaseColor",
-  "guid": "db4e811535d60b60896a91f86b9955b8",
+  "guid": "a141e5cf71f984cc509427aaec084643",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Focus_Ornament_BaseColor.png",
   "type": "Texture"

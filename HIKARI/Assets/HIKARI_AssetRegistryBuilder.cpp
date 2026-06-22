@@ -155,7 +155,7 @@ namespace HIKARI {
             if (ext == ".gltf") {
                 return ModelImporterKind::Gltf;
             }
-            if (ext == ".obj") {
+            if (ext == ".obj" || ext == ".fbx") {
                 return ModelImporterKind::Assimp;
             }
             return ModelImporterKind::Gltf;

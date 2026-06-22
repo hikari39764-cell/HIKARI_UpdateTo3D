@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/3786eee20b0f5eb41f50cda2358dad75/texture.htex",
+      "path": "Library/Imported/239e29f5f495838525684b4b4fd57e32/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/3786eee20b0f5eb41f50cda2358dad75/texture.dds",
+      "path": "Library/Imported/239e29f5f495838525684b4b4fd57e32/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "NapkinHolder_Specular",
-  "guid": "3786eee20b0f5eb41f50cda2358dad75",
+  "guid": "239e29f5f495838525684b4b4fd57e32",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/NapkinHolder_Specular.png",
   "type": "Texture"

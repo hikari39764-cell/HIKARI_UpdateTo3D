@@ -45,6 +45,8 @@ namespace HIKARI {
         std::string ConsumeSaveSceneAsGuid() const;
         std::string ConsumeRefreshRuntimeAssetGuid() const;
         std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;
+        std::filesystem::path CurrentDirectory() const;
+        bool IsRecursiveEnabled() const;
 
     private:
         mutable std::filesystem::path currentDirectory_{ "Assets" };

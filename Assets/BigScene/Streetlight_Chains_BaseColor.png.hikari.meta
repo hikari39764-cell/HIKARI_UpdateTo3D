@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c59a33540c94c1a45e67251d2c7197e6/texture.htex",
+      "path": "Library/Imported/6065e250ba91259be1dd2a14be915383/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c59a33540c94c1a45e67251d2c7197e6/texture.dds",
+      "path": "Library/Imported/6065e250ba91259be1dd2a14be915383/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Streetlight_Chains_BaseColor",
-  "guid": "c59a33540c94c1a45e67251d2c7197e6",
+  "guid": "6065e250ba91259be1dd2a14be915383",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Streetlight_Chains_BaseColor.png",
   "type": "Texture"

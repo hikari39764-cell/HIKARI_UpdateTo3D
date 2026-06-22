@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/55c62b039fcf86990bc629aacc82a879/texture.htex",
+      "path": "Library/Imported/04405e2128a60fa2698977b79412dd26/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/55c62b039fcf86990bc629aacc82a879/texture.dds",
+      "path": "Library/Imported/04405e2128a60fa2698977b79412dd26/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Bux_Hedges46_Normal",
-  "guid": "55c62b039fcf86990bc629aacc82a879",
+  "guid": "04405e2128a60fa2698977b79412dd26",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Bux_Hedges46_Normal.png",
   "type": "Texture"

@@ -370,3 +370,4 @@ Assets/**
 !Assets/**/
 !Assets/**/*.hikari.meta
 Library/
+vcpkg_installed/

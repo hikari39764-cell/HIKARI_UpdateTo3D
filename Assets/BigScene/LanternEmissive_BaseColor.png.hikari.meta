@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/399e5b6a1bd5a79a6ef69a8234377e06/texture.htex",
+      "path": "Library/Imported/bb62b1e46c2d3d400ba628350b0ac173/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/399e5b6a1bd5a79a6ef69a8234377e06/texture.dds",
+      "path": "Library/Imported/bb62b1e46c2d3d400ba628350b0ac173/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "LanternEmissive_BaseColor",
-  "guid": "399e5b6a1bd5a79a6ef69a8234377e06",
+  "guid": "bb62b1e46c2d3d400ba628350b0ac173",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/LanternEmissive_BaseColor.png",
   "type": "Texture"

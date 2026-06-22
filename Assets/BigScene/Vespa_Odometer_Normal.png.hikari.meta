@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a066868bb8b612f631550f0b26cbbae9/texture.htex",
+      "path": "Library/Imported/2df913b99ee437ea5a5b105910719be9/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a066868bb8b612f631550f0b26cbbae9/texture.dds",
+      "path": "Library/Imported/2df913b99ee437ea5a5b105910719be9/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_Odometer_Normal",
-  "guid": "a066868bb8b612f631550f0b26cbbae9",
+  "guid": "2df913b99ee437ea5a5b105910719be9",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_Odometer_Normal.png",
   "type": "Texture"

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <string_view>
 
@@ -60,6 +61,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         uint64_t HashIntSlot(int value) {
             return static_cast<uint64_t>(static_cast<int64_t>(value) + 0x100000000ll);
+        }
+
+        uint64_t HashFloatBits(float value) {
+            uint32_t bits = 0;
+            std::memcpy(&bits, &value, sizeof(bits));
+            return static_cast<uint64_t>(bits);
+        }
+
+        uint64_t HashVec2(uint64_t hash, const MATH::Vec2& value) {
+            hash = HashAppend(hash, HashFloatBits(value.x));
+            return HashAppend(hash, HashFloatBits(value.y));
         }
 
         uint64_t BuildStableStringKey(std::string_view tag, const std::string& value) {
@@ -142,28 +154,54 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return material.HasTextureSlot(usage) ? material.GetTextureSlot(usage).handle : -1;
         }
 
+        uint64_t HashTextureSlot(uint64_t hash, const TextureSlot& slot) {
+            hash = HashAppend(hash, HashIntSlot(slot.textureIndex));
+            hash = HashAppend(hash, static_cast<uint64_t>(std::clamp(slot.texCoord, 0, 1)));
+            hash = HashVec2(hash, slot.uvScale);
+            hash = HashVec2(hash, slot.uvOffset);
+            hash = HashAppend(hash, HashFloatBits(slot.uvRotation));
+            return hash;
+        }
+
+        uint64_t HashRuntimeTextureSlot(
+            uint64_t hash,
+            const Material& material,
+            ModelTextureUsage usage) {
+
+            const RuntimeTextureSlot& slot = material.GetTextureSlot(usage);
+            hash = HashAppend(hash, HashIntSlot(slot.handle));
+            hash = HashAppend(hash, static_cast<uint64_t>(std::clamp(slot.texCoord, 0, 1)));
+            hash = HashVec2(hash, slot.uvScale);
+            hash = HashVec2(hash, slot.uvOffset);
+            return HashAppend(hash, HashFloatBits(slot.uvRotation));
+        }
+
         uint64_t BuildTextureSetKey(
             const GpuSceneSurfaceRecord& record,
             const MaterialAsset* materialAsset) {
 
             uint64_t hash = HashString("texture-set");
             if (record.materialOverride != nullptr) {
-                hash = HashAppend(hash, HashIntSlot(record.materialOverride->GetBaseColorTextureHandle()));
-                hash = HashAppend(hash, HashIntSlot(ResolveRuntimeTextureSlot(*record.materialOverride, ModelTextureUsage::Normal)));
-                hash = HashAppend(hash, HashIntSlot(ResolveRuntimeTextureSlot(*record.materialOverride, ModelTextureUsage::MetallicRoughness)));
-                hash = HashAppend(hash, HashIntSlot(ResolveRuntimeTextureSlot(*record.materialOverride, ModelTextureUsage::Occlusion)));
-                hash = HashAppend(hash, HashIntSlot(ResolveRuntimeTextureSlot(*record.materialOverride, ModelTextureUsage::Emissive)));
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::BaseColor);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Normal);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::MetallicRoughness);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Occlusion);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Emissive);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Specular);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::SpecularColor);
                 return hash;
             }
             if (materialAsset == nullptr) {
                 return HashAppend(hash, HashIntSlot(-1));
             }
 
-            hash = HashAppend(hash, HashIntSlot(materialAsset->baseColorTexture.textureIndex));
-            hash = HashAppend(hash, HashIntSlot(materialAsset->normalTexture.textureIndex));
-            hash = HashAppend(hash, HashIntSlot(materialAsset->metallicRoughnessTexture.textureIndex));
-            hash = HashAppend(hash, HashIntSlot(materialAsset->occlusionTexture.textureIndex));
-            hash = HashAppend(hash, HashIntSlot(materialAsset->emissiveTexture.textureIndex));
+            hash = HashTextureSlot(hash, materialAsset->baseColorTexture);
+            hash = HashTextureSlot(hash, materialAsset->normalTexture);
+            hash = HashTextureSlot(hash, materialAsset->metallicRoughnessTexture);
+            hash = HashTextureSlot(hash, materialAsset->occlusionTexture);
+            hash = HashTextureSlot(hash, materialAsset->emissiveTexture);
+            hash = HashTextureSlot(hash, materialAsset->specularTexture);
+            hash = HashTextureSlot(hash, materialAsset->specularColorTexture);
             return hash;
         }
 

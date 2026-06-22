@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7ff6b8c21a7467bf3c74753c7a828808/texture.htex",
+      "path": "Library/Imported/cb659775cc9cb5172921ef43b761d798/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7ff6b8c21a7467bf3c74753c7a828808/texture.dds",
+      "path": "Library/Imported/cb659775cc9cb5172921ef43b761d798/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Brick_BLENDSHADER_Normal",
-  "guid": "7ff6b8c21a7467bf3c74753c7a828808",
+  "guid": "cb659775cc9cb5172921ef43b761d798",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Brick_BLENDSHADER_Normal.png",
   "type": "Texture"

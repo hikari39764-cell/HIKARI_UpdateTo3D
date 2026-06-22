@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/8da7350447491fdacdf850354cda4ccf/texture.htex",
+      "path": "Library/Imported/29c5eda0731495f61b3e707293914e36/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/8da7350447491fdacdf850354cda4ccf/texture.dds",
+      "path": "Library/Imported/29c5eda0731495f61b3e707293914e36/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted_Green_Specular",
-  "guid": "8da7350447491fdacdf850354cda4ccf",
+  "guid": "29c5eda0731495f61b3e707293914e36",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted_Green_Specular.png",
   "type": "Texture"

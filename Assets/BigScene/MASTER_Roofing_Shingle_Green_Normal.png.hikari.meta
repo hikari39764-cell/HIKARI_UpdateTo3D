@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5eefecf7c256bd7e38a99d21bebe8aef/texture.htex",
+      "path": "Library/Imported/d959bb164eba2d765f8562bfa1030659/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5eefecf7c256bd7e38a99d21bebe8aef/texture.dds",
+      "path": "Library/Imported/d959bb164eba2d765f8562bfa1030659/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Roofing_Shingle_Green_Normal",
-  "guid": "5eefecf7c256bd7e38a99d21bebe8aef",
+  "guid": "d959bb164eba2d765f8562bfa1030659",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Roofing_Shingle_Green_Normal.png",
   "type": "Texture"

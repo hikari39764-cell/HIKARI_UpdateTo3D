@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/4fcd72095bcff3decf48bd2ca2e25f0f/texture.htex",
+      "path": "Library/Imported/62371b61c84c5fb4799041644419848b/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/4fcd72095bcff3decf48bd2ca2e25f0f/texture.dds",
+      "path": "Library/Imported/62371b61c84c5fb4799041644419848b/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted_Green_BLENDSHADER_Specular",
-  "guid": "4fcd72095bcff3decf48bd2ca2e25f0f",
+  "guid": "62371b61c84c5fb4799041644419848b",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted_Green_BLENDSHADER_Specular.png",
   "type": "Texture"

@@ -272,13 +272,15 @@ float3 HikariEvaluateAmbientIblApprox(
     float3 baseColor,
     float metallic,
     float roughness,
+    float3 specularColor,
+    float specularFactor,
     float occlusion,
     float screenAo,
     float3 n,
     float3 v,
     float3 worldPos)
 {
-    float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
+    float3 F0 = HikariSpecularF0(baseColor, metallic, specularColor, specularFactor);
     float ndotv = saturate(dot(n, v));
     float3 F = HikariFresnelSchlick(ndotv, F0);
 
@@ -325,6 +327,8 @@ float3 HikariEvaluateAmbientIbl(
     float3 baseColor,
     float metallic,
     float roughness,
+    float3 specularColor,
+    float specularFactor,
     float occlusion,
     float screenAo,
     float3 n,
@@ -340,6 +344,8 @@ float3 HikariEvaluateAmbientIbl(
             baseColor,
             metallic,
             roughness,
+            specularColor,
+            specularFactor,
             occlusion,
             screenAo,
             n,
@@ -348,7 +354,7 @@ float3 HikariEvaluateAmbientIbl(
     }
     else
     {
-        float3 F0 = lerp(0.04f.xxx, baseColor, metallic);
+        float3 F0 = HikariSpecularF0(baseColor, metallic, specularColor, specularFactor);
         float ndotv = saturate(dot(n, v));
         float3 F = HikariFresnelSchlick(ndotv, F0);
 

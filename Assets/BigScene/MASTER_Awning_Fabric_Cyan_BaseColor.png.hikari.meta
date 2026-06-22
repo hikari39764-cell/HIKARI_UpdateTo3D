@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a70d40b08d74b87af0b186951ab950ea/texture.htex",
+      "path": "Library/Imported/569f2d6e97e60867aa9b42f9a8f31981/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a70d40b08d74b87af0b186951ab950ea/texture.dds",
+      "path": "Library/Imported/569f2d6e97e60867aa9b42f9a8f31981/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Awning_Fabric_Cyan_BaseColor",
-  "guid": "a70d40b08d74b87af0b186951ab950ea",
+  "guid": "569f2d6e97e60867aa9b42f9a8f31981",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Awning_Fabric_Cyan_BaseColor.png",
   "type": "Texture"

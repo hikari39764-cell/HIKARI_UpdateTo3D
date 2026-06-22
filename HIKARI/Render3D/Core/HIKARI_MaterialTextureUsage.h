@@ -8,6 +8,8 @@ namespace HIKARI {
         MetallicRoughness,
         Occlusion,
         Emissive,
+        Specular,
+        SpecularColor,
         Unknown,
     };
 

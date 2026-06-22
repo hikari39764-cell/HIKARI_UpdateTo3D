@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/46bf1f7066eda012b507f5cb2a7cc2f9/texture.htex",
+      "path": "Library/Imported/e66947c8f336c778f7cf29899f951ed0/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/46bf1f7066eda012b507f5cb2a7cc2f9/texture.dds",
+      "path": "Library/Imported/e66947c8f336c778f7cf29899f951ed0/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Forge_Metal_Specular",
-  "guid": "46bf1f7066eda012b507f5cb2a7cc2f9",
+  "guid": "e66947c8f336c778f7cf29899f951ed0",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Forge_Metal_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/6aae59a57a70f1a01d56d0c9cf57748f/texture.htex",
+      "path": "Library/Imported/aec826dcf33d84bb5cdce87771492032/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/6aae59a57a70f1a01d56d0c9cf57748f/texture.dds",
+      "path": "Library/Imported/aec826dcf33d84bb5cdce87771492032/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Metal_BaseColor",
-  "guid": "6aae59a57a70f1a01d56d0c9cf57748f",
+  "guid": "aec826dcf33d84bb5cdce87771492032",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Metal_BaseColor.png",
   "type": "Texture"

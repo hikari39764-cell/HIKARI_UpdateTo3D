@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/8e94ee5493d1d4bf5dcdeb63b537e75a/texture.htex",
+      "path": "Library/Imported/4bb385d92aa128e39c42cddbefdbe704/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/8e94ee5493d1d4bf5dcdeb63b537e75a/texture.dds",
+      "path": "Library/Imported/4bb385d92aa128e39c42cddbefdbe704/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted_Green_BaseColor",
-  "guid": "8e94ee5493d1d4bf5dcdeb63b537e75a",
+  "guid": "4bb385d92aa128e39c42cddbefdbe704",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted_Green_BaseColor.png",
   "type": "Texture"

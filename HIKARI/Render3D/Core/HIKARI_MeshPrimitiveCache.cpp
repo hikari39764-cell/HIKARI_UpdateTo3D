@@ -56,6 +56,7 @@ namespace HIKARI::MESHRENDERER {
             dst.tangent = SanitizeTangent(src.tangent);
             dst.u = src.uv0.x;
             dst.v = src.uv0.y;
+            dst.uv1 = src.uv1;
             vertices.push_back(dst);
         }
 

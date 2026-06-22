@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/0367f2f8841a93bfd03458b4fd9a9b0b/texture.htex",
+      "path": "Library/Imported/e653ea525c2dd01f8bd59ace97431dd2/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/0367f2f8841a93bfd03458b4fd9a9b0b/texture.dds",
+      "path": "Library/Imported/e653ea525c2dd01f8bd59ace97431dd2/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Brick_Small_Red_Specular",
-  "guid": "0367f2f8841a93bfd03458b4fd9a9b0b",
+  "guid": "e653ea525c2dd01f8bd59ace97431dd2",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Brick_Small_Red_Specular.png",
   "type": "Texture"

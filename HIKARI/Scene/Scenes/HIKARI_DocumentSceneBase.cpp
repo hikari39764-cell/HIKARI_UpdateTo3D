@@ -114,6 +114,8 @@ namespace HIKARI {
             case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
             case ModelTextureUsage::Occlusion: return "Occlusion";
             case ModelTextureUsage::Emissive: return "Emissive";
+            case ModelTextureUsage::Specular: return "Specular";
+            case ModelTextureUsage::SpecularColor: return "SpecularColor";
             default: return "Unknown";
             }
         }

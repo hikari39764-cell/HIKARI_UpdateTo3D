@@ -16,6 +16,7 @@
 #include <json.hpp>
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Core/HIKARI_Logger.h"
+#include "Render3D/Core/HIKARI_AssimpModelLoader.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/HIKARI_Material.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -25,6 +26,18 @@ namespace HIKARI {
 
     namespace {
         using nlohmann::json;
+
+        float ClampGltfUnitFactor(float value) {
+            return std::clamp(value, 0.0f, 1.0f);
+        }
+
+        MATH::Vec3 ClampGltfUnitColor(const MATH::Vec3& value) {
+            return {
+                ClampGltfUnitFactor(value.x),
+                ClampGltfUnitFactor(value.y),
+                ClampGltfUnitFactor(value.z)
+            };
+        }
 
         struct ObjKey {
             int pos = -1;
@@ -64,6 +77,8 @@ namespace HIKARI {
             case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
             case ModelTextureUsage::Occlusion: return "Occlusion";
             case ModelTextureUsage::Emissive: return "Emissive";
+            case ModelTextureUsage::Specular: return "Specular";
+            case ModelTextureUsage::SpecularColor: return "SpecularColor";
             default: return "Unknown";
             }
         }
@@ -80,10 +95,12 @@ namespace HIKARI {
             switch (usage) {
             case ModelTextureUsage::BaseColor:
             case ModelTextureUsage::Emissive:
+            case ModelTextureUsage::SpecularColor:
                 return RENDER3D::TextureResourceColorSpace::Srgb;
             case ModelTextureUsage::Normal:
             case ModelTextureUsage::MetallicRoughness:
             case ModelTextureUsage::Occlusion:
+            case ModelTextureUsage::Specular:
             default:
                 return RENDER3D::TextureResourceColorSpace::Linear;
             }
@@ -126,6 +143,8 @@ namespace HIKARI {
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness)), releasedResources);
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Occlusion)), releasedResources);
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Emissive)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Specular)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::SpecularColor)), releasedResources);
         }
 
         const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
@@ -251,8 +270,17 @@ namespace HIKARI {
             }
         }
 
+        MATH::Vec3 BuildFallbackTangent(const MATH::Vec3& normal) {
+            const MATH::Vec3 reference =
+                std::abs(normal.y) < 0.999f
+                    ? MATH::Vec3{ 0.0f, 1.0f, 0.0f }
+                    : MATH::Vec3{ 1.0f, 0.0f, 0.0f };
+            return MATH::Normalize(MATH::Cross(reference, normal));
+        }
+
         void GenerateStaticPrimitiveTangents(MeshPrimitive& primitive) {
-            std::vector<MATH::Vec3> accum(primitive.staticVertices.size());
+            std::vector<MATH::Vec3> tangentAccum(primitive.staticVertices.size());
+            std::vector<MATH::Vec3> bitangentAccum(primitive.staticVertices.size());
             for (size_t i = 0; i + 2u < primitive.indices.size(); i += 3u) {
                 const uint32_t i0 = primitive.indices[i + 0u];
                 const uint32_t i1 = primitive.indices[i + 1u];
@@ -276,17 +304,34 @@ namespace HIKARI {
                 }
                 const float inv = 1.0f / denom;
                 const MATH::Vec3 tangent = (e1 * duv2.y - e2 * duv1.y) * inv;
-                accum[i0] = accum[i0] + tangent;
-                accum[i1] = accum[i1] + tangent;
-                accum[i2] = accum[i2] + tangent;
+                const MATH::Vec3 bitangent = (e2 * duv1.x - e1 * duv2.x) * inv;
+                tangentAccum[i0] = tangentAccum[i0] + tangent;
+                tangentAccum[i1] = tangentAccum[i1] + tangent;
+                tangentAccum[i2] = tangentAccum[i2] + tangent;
+                bitangentAccum[i0] = bitangentAccum[i0] + bitangent;
+                bitangentAccum[i1] = bitangentAccum[i1] + bitangent;
+                bitangentAccum[i2] = bitangentAccum[i2] + bitangent;
             }
 
             for (size_t i = 0; i < primitive.staticVertices.size(); ++i) {
-                MATH::Vec3 tangent = MATH::Normalize(accum[i]);
+                MATH::Vec3 normal = MATH::Normalize(primitive.staticVertices[i].normal);
+                if (MATH::Length(normal) <= 1.0e-6f) {
+                    normal = { 0.0f, 1.0f, 0.0f };
+                }
+
+                MATH::Vec3 tangent = tangentAccum[i] - normal * MATH::Dot(normal, tangentAccum[i]);
+                tangent = MATH::Normalize(tangent);
+                if (MATH::Length(tangent) <= 1.0e-6f) {
+                    tangent = BuildFallbackTangent(normal);
+                }
                 if (MATH::Length(tangent) <= 1.0e-6f) {
                     tangent = { 1.0f, 0.0f, 0.0f };
                 }
-                primitive.staticVertices[i].tangent = { tangent.x, tangent.y, tangent.z, 1.0f };
+
+                const MATH::Vec3 bitangent = bitangentAccum[i];
+                const float handedness =
+                    MATH::Dot(MATH::Cross(normal, tangent), bitangent) < 0.0f ? -1.0f : 1.0f;
+                primitive.staticVertices[i].tangent = { tangent.x, tangent.y, tangent.z, handedness };
             }
         }
 
@@ -826,6 +871,8 @@ namespace HIKARI {
                 ok = LoadAsObj(*asset, true);
             } else if (ext == ".gltf") {
                 ok = LoadAsGltf(*asset, true);
+            } else if (ext == ".fbx") {
+                ok = LoadAsAssimp(*asset, true);
             }
         }
 
@@ -878,6 +925,9 @@ namespace HIKARI {
         }
         if (ext == ".gltf") {
             return LoadAsGltf(asset, false);
+        }
+        if (ext == ".fbx") {
+            return LoadAsAssimp(asset, false);
         }
         return false;
     }
@@ -1016,6 +1066,10 @@ namespace HIKARI {
         if (slot.resolvedPath.empty()) {
             slot.resolvedPath = slot.sourcePath;
         }
+        slot.texCoord = std::clamp(textureSlot.texCoord, 0, 1);
+        slot.uvScale = textureSlot.uvScale;
+        slot.uvOffset = textureSlot.uvOffset;
+        slot.uvRotation = textureSlot.uvRotation;
 
         slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
             textureName,
@@ -1035,6 +1089,8 @@ namespace HIKARI {
         runtimeMaterial.SetBaseColor(source.baseColorFactor);
         runtimeMaterial.SetMetallicFactor(source.metallicFactor);
         runtimeMaterial.SetRoughnessFactor(source.roughnessFactor);
+        runtimeMaterial.SetSpecularFactor(source.specularFactor);
+        runtimeMaterial.SetSpecularColorFactor(source.specularColorFactor);
         runtimeMaterial.SetNormalScale(source.normalTexture.scale);
         runtimeMaterial.SetOcclusionStrength(source.occlusionTexture.strength);
         runtimeMaterial.SetEmissiveFactor(source.emissiveFactor);
@@ -1068,6 +1124,16 @@ namespace HIKARI {
             materialNamePrefix + "_emissive",
             source.emissiveTexture,
             ModelTextureUsage::Emissive));
+        runtimeMaterial.SetTextureSlot(ModelTextureUsage::Specular, ResolveAndLoadMaterialTexture(
+            asset,
+            materialNamePrefix + "_specular",
+            source.specularTexture,
+            ModelTextureUsage::Specular));
+        runtimeMaterial.SetTextureSlot(ModelTextureUsage::SpecularColor, ResolveAndLoadMaterialTexture(
+            asset,
+            materialNamePrefix + "_specularColor",
+            source.specularColorTexture,
+            ModelTextureUsage::SpecularColor));
     }
 
     void ModelManager::ResolvePbrTexturePaths(ModelAsset& asset) const {
@@ -1091,6 +1157,8 @@ namespace HIKARI {
             resolveSlot(material.metallicRoughnessTexture, ModelTextureUsage::MetallicRoughness);
             resolveSlot(material.occlusionTexture, ModelTextureUsage::Occlusion);
             resolveSlot(material.emissiveTexture, ModelTextureUsage::Emissive);
+            resolveSlot(material.specularTexture, ModelTextureUsage::Specular);
+            resolveSlot(material.specularColorTexture, ModelTextureUsage::SpecularColor);
         }
     }
 
@@ -1111,16 +1179,19 @@ namespace HIKARI {
             v0.normal = n;
             v0.u = 0.0f;
             v0.v = 0.0f;
+            v0.uv1 = { v0.u, v0.v };
             VertexStatic3D v1{};
             v1.position = p[i1];
             v1.normal = n;
             v1.u = 1.0f;
             v1.v = 0.0f;
+            v1.uv1 = { v1.u, v1.v };
             VertexStatic3D v2{};
             v2.position = p[i2];
             v2.normal = n;
             v2.u = 1.0f;
             v2.v = 1.0f;
+            v2.uv1 = { v2.u, v2.v };
             vertices.push_back(v0);
             vertices.push_back(v1);
             vertices.push_back(v2);
@@ -1167,6 +1238,16 @@ namespace HIKARI {
         return BuildRuntimeResources(asset);
     }
 
+    bool ModelManager::LoadAsAssimp(ModelAsset& asset, bool buildRuntimeResources) {
+        if (!LoadModelAssetFromAssimpSource(asset)) {
+            return false;
+        }
+
+        ResolvePbrTexturePaths(asset);
+        BOUNDS::EnsureModelBounds(asset);
+        return !buildRuntimeResources || BuildRuntimeResources(asset);
+    }
+
     bool ModelManager::BuildRuntimeResources(ModelAsset& asset) {
         std::vector<VertexStatic3D> legacyVertices;
         std::vector<uint32_t> legacyIndices;
@@ -1185,6 +1266,7 @@ namespace HIKARI {
                         vertex.tangent = source.tangent;
                         vertex.u = source.uv0.x;
                         vertex.v = source.uv0.y;
+                        vertex.uv1 = source.uv1;
                         legacyVertices.push_back(vertex);
                     }
                 } else if (!primitive.skinnedVertices.empty()) {
@@ -1196,6 +1278,7 @@ namespace HIKARI {
                         vertex.tangent = source.tangent;
                         vertex.u = source.uv0.x;
                         vertex.v = source.uv0.y;
+                        vertex.uv1 = source.uv1;
                         legacyVertices.push_back(vertex);
                     }
                 }
@@ -1476,7 +1559,8 @@ namespace HIKARI {
                 }
                 const std::string extension = extensionNode.get<std::string>();
                 if (extension == "KHR_materials_unlit" ||
-                    extension == "KHR_materials_emissive_strength") {
+                    extension == "KHR_materials_emissive_strength" ||
+                    extension == "KHR_materials_specular") {
                     continue;
                 }
                 ++asset.importDiagnostics.unsupportedFeatureCount;
@@ -1508,11 +1592,27 @@ namespace HIKARI {
                     const int imageIndex = root["textures"][static_cast<size_t>(textureIndex)].value("source", -1);
                     slot.textureIndex = imageIndex;
                 }
-                slot.texCoord = textureInfo.value("texCoord", 0);
+                slot.texCoord = std::clamp(textureInfo.value("texCoord", 0), 0, 1);
                 if (textureInfo.contains("extensions") && textureInfo["extensions"].is_object() &&
-                    textureInfo["extensions"].contains("KHR_texture_transform")) {
-                    ++asset.importDiagnostics.unsupportedFeatureCount;
-                    asset.importDiagnostics.messages.push_back("[glTF] KHR_texture_transform is recorded as unsupported for now");
+                    textureInfo["extensions"].contains("KHR_texture_transform") &&
+                    textureInfo["extensions"]["KHR_texture_transform"].is_object()) {
+                    const json& transform = textureInfo["extensions"]["KHR_texture_transform"];
+                    if (transform.contains("scale") && transform["scale"].is_array() && transform["scale"].size() >= 2) {
+                        slot.uvScale = {
+                            transform["scale"][0].get<float>(),
+                            transform["scale"][1].get<float>()
+                        };
+                    }
+                    if (transform.contains("offset") && transform["offset"].is_array() && transform["offset"].size() >= 2) {
+                        slot.uvOffset = {
+                            transform["offset"][0].get<float>(),
+                            transform["offset"][1].get<float>()
+                        };
+                    }
+                    slot.uvRotation = transform.value("rotation", slot.uvRotation);
+                    if (transform.contains("texCoord") && transform["texCoord"].is_number_integer()) {
+                        slot.texCoord = std::clamp(transform["texCoord"].get<int>(), 0, 1);
+                    }
                 }
             };
 
@@ -1590,9 +1690,31 @@ namespace HIKARI {
                     if (extensions.contains("KHR_materials_emissive_strength") && extensions["KHR_materials_emissive_strength"].is_object()) {
                         mat.emissiveStrength = extensions["KHR_materials_emissive_strength"].value("emissiveStrength", mat.emissiveStrength);
                     }
+                    if (extensions.contains("KHR_materials_specular") && extensions["KHR_materials_specular"].is_object()) {
+                        const json& specular = extensions["KHR_materials_specular"];
+                        mat.specularFactor = specular.value("specularFactor", mat.specularFactor);
+                        if (specular.contains("specularTexture") && specular["specularTexture"].is_object()) {
+                            readTextureSlot(specular["specularTexture"], mat.specularTexture);
+                        }
+                        if (specular.contains("specularColorFactor") &&
+                            specular["specularColorFactor"].is_array() &&
+                            specular["specularColorFactor"].size() >= 3) {
+                            mat.specularColorFactor = {
+                                specular["specularColorFactor"][0].get<float>(),
+                                specular["specularColorFactor"][1].get<float>(),
+                                specular["specularColorFactor"][2].get<float>()
+                            };
+                        }
+                        if (specular.contains("specularColorTexture") && specular["specularColorTexture"].is_object()) {
+                            readTextureSlot(specular["specularColorTexture"], mat.specularColorTexture);
+                        }
+                    }
+                    mat.specularFactor = ClampGltfUnitFactor(mat.specularFactor);
+                    mat.specularColorFactor = ClampGltfUnitColor(mat.specularColorFactor);
                     for (auto it = extensions.begin(); it != extensions.end(); ++it) {
                         if (it.key() == "KHR_materials_unlit" ||
-                            it.key() == "KHR_materials_emissive_strength") {
+                            it.key() == "KHR_materials_emissive_strength" ||
+                            it.key() == "KHR_materials_specular") {
                             continue;
                         }
                         ++asset.importDiagnostics.unsupportedFeatureCount;
@@ -1780,6 +1902,7 @@ namespace HIKARI {
                     legacy.tangent = out.tangent;
                     legacy.u = out.uv0.x;
                     legacy.v = out.uv0.y;
+                    legacy.uv1 = out.uv1;
                     legacyVertices.push_back(legacy);
                 }
                 for (uint32_t index : indices) {
@@ -2277,6 +2400,7 @@ namespace HIKARI {
                 legacy.tangent = source.tangent;
                 legacy.u = source.uv0.x;
                 legacy.v = source.uv0.y;
+                legacy.uv1 = source.uv1;
                 legacyVertices.push_back(legacy);
             }
             for (uint32_t index : primitive.indices) {

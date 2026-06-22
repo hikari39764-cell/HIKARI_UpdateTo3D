@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/0cf7b08f1e84b7f728c490f2e5c48fdb/texture.htex",
+      "path": "Library/Imported/a9fdd18018a7db654d70c3dfcc568142/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/0cf7b08f1e84b7f728c490f2e5c48fdb/texture.dds",
+      "path": "Library/Imported/a9fdd18018a7db654d70c3dfcc568142/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Trashcan_Specular",
-  "guid": "0cf7b08f1e84b7f728c490f2e5c48fdb",
+  "guid": "a9fdd18018a7db654d70c3dfcc568142",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Trashcan_Specular.png",
   "type": "Texture"

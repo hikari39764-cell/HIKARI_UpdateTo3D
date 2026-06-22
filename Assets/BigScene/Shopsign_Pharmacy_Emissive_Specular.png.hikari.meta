@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c0f970c0e23eba50a185b83cea60acec/texture.htex",
+      "path": "Library/Imported/bc0eb1762fba2c5203a49aa0a507f09d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c0f970c0e23eba50a185b83cea60acec/texture.dds",
+      "path": "Library/Imported/bc0eb1762fba2c5203a49aa0a507f09d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Pharmacy_Emissive_Specular",
-  "guid": "c0f970c0e23eba50a185b83cea60acec",
+  "guid": "bc0eb1762fba2c5203a49aa0a507f09d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Emissive"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Pharmacy_Emissive_Specular.png",
   "type": "Texture"

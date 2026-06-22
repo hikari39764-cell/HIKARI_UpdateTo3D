@@ -66,6 +66,8 @@ namespace HIKARI {
             AddMaterialTextureReference(data.metallicRoughnessTexture, owner, "Material MetallicRoughness", assetDatabase, summary);
             AddMaterialTextureReference(data.occlusionTexture, owner, "Material Occlusion", assetDatabase, summary);
             AddMaterialTextureReference(data.emissiveTexture, owner, "Material Emissive", assetDatabase, summary);
+            AddMaterialTextureReference(data.specularTexture, owner, "Material Specular", assetDatabase, summary);
+            AddMaterialTextureReference(data.specularColorTexture, owner, "Material SpecularColor", assetDatabase, summary);
         }
     }
 

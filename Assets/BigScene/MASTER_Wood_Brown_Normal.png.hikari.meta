@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7f6c3f00a6947ebbc121913c334e2f06/texture.htex",
+      "path": "Library/Imported/9d63ed82bb3ed8dd0a8aa3fa75c7dc76/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7f6c3f00a6947ebbc121913c334e2f06/texture.dds",
+      "path": "Library/Imported/9d63ed82bb3ed8dd0a8aa3fa75c7dc76/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Brown_Normal",
-  "guid": "7f6c3f00a6947ebbc121913c334e2f06",
+  "guid": "9d63ed82bb3ed8dd0a8aa3fa75c7dc76",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Brown_Normal.png",
   "type": "Texture"

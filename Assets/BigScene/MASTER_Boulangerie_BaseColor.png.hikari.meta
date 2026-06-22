@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c437a6ef1d6d95db4ed946800c6ff46a/texture.htex",
+      "path": "Library/Imported/ecdfe344392100f02f2c0dd60650650a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c437a6ef1d6d95db4ed946800c6ff46a/texture.dds",
+      "path": "Library/Imported/ecdfe344392100f02f2c0dd60650650a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Boulangerie_BaseColor",
-  "guid": "c437a6ef1d6d95db4ed946800c6ff46a",
+  "guid": "ecdfe344392100f02f2c0dd60650650a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Boulangerie_BaseColor.png",
   "type": "Texture"

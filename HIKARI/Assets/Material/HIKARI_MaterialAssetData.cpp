@@ -32,6 +32,17 @@ namespace HIKARI {
             };
         }
 
+        MATH::Vec2 ReadVec2(const nlohmann::json& node, const MATH::Vec2& fallback) {
+            return {
+                NumberOr(node, 0, fallback.x),
+                NumberOr(node, 1, fallback.y)
+            };
+        }
+
+        nlohmann::json WriteVec2(const MATH::Vec2& value) {
+            return nlohmann::json::array({ value.x, value.y });
+        }
+
         nlohmann::json WriteVec3(const MATH::Vec3& value) {
             return nlohmann::json::array({ value.x, value.y, value.z });
         }
@@ -47,13 +58,21 @@ namespace HIKARI {
             }
             slot.useTexture = node.value("useTexture", false);
             slot.textureAssetGuid.value = node.value("textureAssetGuid", std::string{});
+            slot.texCoord = std::clamp(node.value("texCoord", slot.texCoord), 0, 1);
+            slot.uvScale = ReadVec2(node.value("uvScale", nlohmann::json::array()), slot.uvScale);
+            slot.uvOffset = ReadVec2(node.value("uvOffset", nlohmann::json::array()), slot.uvOffset);
+            slot.uvRotation = node.value("uvRotation", slot.uvRotation);
             return slot;
         }
 
         nlohmann::json WriteSlot(const MaterialTextureSlotData& slot) {
             return nlohmann::json{
                 { "useTexture", slot.useTexture },
-                { "textureAssetGuid", slot.textureAssetGuid.value }
+                { "textureAssetGuid", slot.textureAssetGuid.value },
+                { "texCoord", slot.texCoord },
+                { "uvScale", WriteVec2(slot.uvScale) },
+                { "uvOffset", WriteVec2(slot.uvOffset) },
+                { "uvRotation", slot.uvRotation }
             };
         }
 
@@ -84,6 +103,16 @@ namespace HIKARI {
                 data.emissiveFactor = ReadVec3(emissive->value("factor", nlohmann::json::array()), data.emissiveFactor);
                 data.emissiveStrength = emissive->value("strength", data.emissiveStrength);
             }
+            if (auto specular = root.find("specular"); specular != root.end() && specular->is_object()) {
+                data.specularTexture = ReadSlot(*specular);
+                data.specularFactor = specular->value("factor", data.specularFactor);
+            }
+            if (auto specularColor = root.find("specularColor"); specularColor != root.end() && specularColor->is_object()) {
+                data.specularColorTexture = ReadSlot(*specularColor);
+                data.specularColorFactor = ReadVec3(
+                    specularColor->value("factor", nlohmann::json::array()),
+                    data.specularColorFactor);
+            }
 
             data.doubleSided = root.value("doubleSided", data.doubleSided);
             data.unlit = root.value("unlit", data.unlit);
@@ -92,7 +121,7 @@ namespace HIKARI {
 
         nlohmann::json ToJson(const PbrMaterialAssetData& data) {
             nlohmann::json root{
-                { "version", data.version },
+                { "version", 3u },
                 { "materialName", data.materialName },
                 { "shaderModel", "PBR" },
                 { "baseColor", WriteSlot(data.baseColorTexture) },
@@ -100,6 +129,8 @@ namespace HIKARI {
                 { "metallicRoughness", WriteSlot(data.metallicRoughnessTexture) },
                 { "occlusion", WriteSlot(data.occlusionTexture) },
                 { "emissive", WriteSlot(data.emissiveTexture) },
+                { "specular", WriteSlot(data.specularTexture) },
+                { "specularColor", WriteSlot(data.specularColorTexture) },
                 { "doubleSided", data.doubleSided },
                 { "unlit", data.unlit }
             };
@@ -111,6 +142,8 @@ namespace HIKARI {
             root["occlusion"]["strength"] = data.occlusionStrength;
             root["emissive"]["factor"] = WriteVec3(data.emissiveFactor);
             root["emissive"]["strength"] = data.emissiveStrength;
+            root["specular"]["factor"] = data.specularFactor;
+            root["specularColor"]["factor"] = WriteVec3(data.specularColorFactor);
             return root;
         }
     }

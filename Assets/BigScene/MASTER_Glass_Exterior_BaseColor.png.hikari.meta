@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/cac78dea5e29c52c3fc67dc7f22729ab/texture.htex",
+      "path": "Library/Imported/e23000f5dc26746732925c9ce4b8ce5d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/cac78dea5e29c52c3fc67dc7f22729ab/texture.dds",
+      "path": "Library/Imported/e23000f5dc26746732925c9ce4b8ce5d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Glass_Exterior_BaseColor",
-  "guid": "cac78dea5e29c52c3fc67dc7f22729ab",
+  "guid": "e23000f5dc26746732925c9ce4b8ce5d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Glass_Exterior_BaseColor.png",
   "type": "Texture"

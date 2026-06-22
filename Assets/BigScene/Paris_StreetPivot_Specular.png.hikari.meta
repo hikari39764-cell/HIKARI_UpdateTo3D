@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/f8c4b4fa9f17369df2724a57f9baca6a/texture.htex",
+      "path": "Library/Imported/ad8bd2bad2114b92ac60005993672d2c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/f8c4b4fa9f17369df2724a57f9baca6a/texture.dds",
+      "path": "Library/Imported/ad8bd2bad2114b92ac60005993672d2c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StreetPivot_Specular",
-  "guid": "f8c4b4fa9f17369df2724a57f9baca6a",
+  "guid": "ad8bd2bad2114b92ac60005993672d2c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StreetPivot_Specular.png",
   "type": "Texture"

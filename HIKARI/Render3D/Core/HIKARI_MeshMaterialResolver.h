@@ -25,6 +25,8 @@ namespace HIKARI::MESHRENDERER {
         int emissive = -1;
         int metallicRoughness = -1;
         int occlusion = -1;
+        int specular = -1;
+        int specularColor = -1;
     };
 
     class MeshMaterialResolver {
@@ -63,6 +65,16 @@ namespace HIKARI::MESHRENDERER {
             MeshRendererDebugStats* stats);
 
         int ResolveOcclusionTexture(
+            const ModelAsset& asset,
+            const MaterialAsset* materialAsset,
+            MeshRendererDebugStats* stats);
+
+        int ResolveSpecularTexture(
+            const ModelAsset& asset,
+            const MaterialAsset* materialAsset,
+            MeshRendererDebugStats* stats);
+
+        int ResolveSpecularColorTexture(
             const ModelAsset& asset,
             const MaterialAsset* materialAsset,
             MeshRendererDebugStats* stats);

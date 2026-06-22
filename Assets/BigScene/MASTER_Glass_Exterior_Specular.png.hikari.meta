@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/372cbea3f69148ac78587fac8672f48d/texture.htex",
+      "path": "Library/Imported/5dc49a07de4e32fd9c4a5d0b73e5d7be/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/372cbea3f69148ac78587fac8672f48d/texture.dds",
+      "path": "Library/Imported/5dc49a07de4e32fd9c4a5d0b73e5d7be/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Glass_Exterior_Specular",
-  "guid": "372cbea3f69148ac78587fac8672f48d",
+  "guid": "5dc49a07de4e32fd9c4a5d0b73e5d7be",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Glass_Exterior_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/4aa4d0eb1a78bb1cf6716b1832fbc35b/texture.htex",
+      "path": "Library/Imported/e54de6256b9c078efe26a4d49bb30897/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/4aa4d0eb1a78bb1cf6716b1832fbc35b/texture.dds",
+      "path": "Library/Imported/e54de6256b9c078efe26a4d49bb30897/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Brick_Large_White_Specular",
-  "guid": "4aa4d0eb1a78bb1cf6716b1832fbc35b",
+  "guid": "e54de6256b9c078efe26a4d49bb30897",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Brick_Large_White_Specular.png",
   "type": "Texture"

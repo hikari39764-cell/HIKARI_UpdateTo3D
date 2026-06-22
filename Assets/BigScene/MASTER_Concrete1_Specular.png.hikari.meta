@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/559cf32c64421048d269c9dc8db6ce63/texture.htex",
+      "path": "Library/Imported/ab6d20f2aac48927b4e845cc398fcba6/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/559cf32c64421048d269c9dc8db6ce63/texture.dds",
+      "path": "Library/Imported/ab6d20f2aac48927b4e845cc398fcba6/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete1_Specular",
-  "guid": "559cf32c64421048d269c9dc8db6ce63",
+  "guid": "ab6d20f2aac48927b4e845cc398fcba6",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete1_Specular.png",
   "type": "Texture"

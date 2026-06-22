@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5e8be12b4f7ec3958d2665e22a7dcb77/texture.htex",
+      "path": "Library/Imported/1531490d3962e7354833cb9c968d406d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5e8be12b4f7ec3958d2665e22a7dcb77/texture.dds",
+      "path": "Library/Imported/1531490d3962e7354833cb9c968d406d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_LiquorBottle_01_Labels_BaseColor",
-  "guid": "5e8be12b4f7ec3958d2665e22a7dcb77",
+  "guid": "1531490d3962e7354833cb9c968d406d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_LiquorBottle_01_Labels_BaseColor.png",
   "type": "Texture"

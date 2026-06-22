@@ -97,6 +97,7 @@ namespace HIKARI::MESHRENDERER {
                 { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
                 { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, uv1)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             };
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
@@ -455,13 +456,14 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::MeshletVisibleRanges].Descriptor.RegisterSpace = 0;
 
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
-        linearWrapSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-        linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        linearWrapSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        linearWrapSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        linearWrapSampler.Filter = D3D12_FILTER_ANISOTROPIC;
+        linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        linearWrapSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        linearWrapSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
         linearWrapSampler.ShaderRegister = 0;
         linearWrapSampler.RegisterSpace = 0;
         linearWrapSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        linearWrapSampler.MaxAnisotropy = 8;
         linearWrapSampler.MaxLOD = D3D12_FLOAT32_MAX;
 
         D3D12_STATIC_SAMPLER_DESC shadowSampler{};
@@ -526,6 +528,7 @@ namespace HIKARI::MESHRENDERER {
             { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, normal)),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(VertexStatic3D, tangent)),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, u)),        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,    0, static_cast<UINT>(offsetof(VertexStatic3D, uv1)),      D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};

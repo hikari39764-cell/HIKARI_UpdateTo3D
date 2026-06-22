@@ -155,7 +155,14 @@ namespace HIKARI {
             const std::string key = ToLowerCopy(sourcePath.stem().string() + " " + sourcePath.generic_string());
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
 
-            if (key.find("basecolor") != std::string::npos ||
+            if (key.find("normal") != std::string::npos ||
+                key.find("_nrm") != std::string::npos ||
+                key.find("_n.") != std::string::npos) {
+                settings.usage = TextureUsage::Normal;
+                settings.colorSpace = TextureAssetColorSpace::Linear;
+                settings.compression = TextureCompression::BC7;
+                settings.mipPolicy = TextureMipPolicy::Generate;
+            } else if (key.find("basecolor") != std::string::npos ||
                 key.find("base_color") != std::string::npos ||
                 key.find("albedo") != std::string::npos ||
                 key.find("diffuse") != std::string::npos ||
@@ -164,13 +171,6 @@ namespace HIKARI {
                 settings.usage = TextureUsage::BaseColor;
                 settings.colorSpace = TextureAssetColorSpace::Srgb;
                 settings.compression = TextureCompression::BC7;
-                settings.mipPolicy = TextureMipPolicy::Generate;
-            } else if (key.find("normal") != std::string::npos ||
-                key.find("_nrm") != std::string::npos ||
-                key.find("_n.") != std::string::npos) {
-                settings.usage = TextureUsage::Normal;
-                settings.colorSpace = TextureAssetColorSpace::Linear;
-                settings.compression = TextureCompression::BC5;
                 settings.mipPolicy = TextureMipPolicy::Generate;
             } else if (key.find("metallicroughness") != std::string::npos ||
                 key.find("metallic_roughness") != std::string::npos ||
@@ -232,7 +232,7 @@ namespace HIKARI {
             if (settings.usage == TextureUsage::Normal) {
                 settings.colorSpace = TextureAssetColorSpace::Linear;
                 if (settings.compression == TextureCompression::Auto) {
-                    settings.compression = TextureCompression::BC5;
+                    settings.compression = TextureCompression::BC7;
                 }
             }
 
@@ -301,7 +301,7 @@ namespace HIKARI {
     }
 
     uint32_t TextureImporter::GetImporterVersion() const {
-        return 3;
+        return 5;
     }
 
     bool TextureImporter::CanImport(const std::filesystem::path& sourcePath) const {

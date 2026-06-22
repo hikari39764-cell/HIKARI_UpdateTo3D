@@ -1,5 +1,6 @@
 #include "HIKARI_HmodelFormat.h"
 
+#include <algorithm>
 #include <fstream>
 #include <limits>
 #include <type_traits>
@@ -9,7 +10,7 @@ namespace HIKARI {
 
     namespace {
         constexpr uint32_t kHmodelMagic = 0x4C444D48u; // 'HMDL'
-        constexpr uint32_t kHmodelVersion = 1;
+        constexpr uint32_t kHmodelVersion = 3;
         constexpr uint32_t kMaxStringBytes = 16u * 1024u * 1024u;
         constexpr uint32_t kMaxVectorCount = 16u * 1024u * 1024u;
 
@@ -111,14 +112,26 @@ namespace HIKARI {
         bool WriteTextureSlot(std::ofstream& ofs, const TextureSlot& slot) {
             return WritePod(ofs, slot.textureIndex) &&
                 WritePod(ofs, slot.texCoord) &&
+                WritePod(ofs, slot.uvScale) &&
+                WritePod(ofs, slot.uvOffset) &&
+                WritePod(ofs, slot.uvRotation) &&
                 WritePod(ofs, slot.scale) &&
                 WritePod(ofs, slot.strength);
         }
 
-        bool ReadTextureSlot(std::ifstream& ifs, TextureSlot& slot) {
-            return ReadPod(ifs, slot.textureIndex) &&
-                ReadPod(ifs, slot.texCoord) &&
-                ReadPod(ifs, slot.scale) &&
+        bool ReadTextureSlot(std::ifstream& ifs, TextureSlot& slot, uint32_t version) {
+            if (!ReadPod(ifs, slot.textureIndex) ||
+                !ReadPod(ifs, slot.texCoord)) {
+                return false;
+            }
+            slot.texCoord = std::clamp(slot.texCoord, 0, 1);
+            if (version >= 3u &&
+                (!ReadPod(ifs, slot.uvScale) ||
+                 !ReadPod(ifs, slot.uvOffset) ||
+                 !ReadPod(ifs, slot.uvRotation))) {
+                return false;
+            }
+            return ReadPod(ifs, slot.scale) &&
                 ReadPod(ifs, slot.strength);
         }
 
@@ -127,6 +140,8 @@ namespace HIKARI {
                 WritePod(ofs, material.baseColorFactor) &&
                 WritePod(ofs, material.metallicFactor) &&
                 WritePod(ofs, material.roughnessFactor) &&
+                WritePod(ofs, material.specularFactor) &&
+                WritePod(ofs, material.specularColorFactor) &&
                 WritePod(ofs, material.emissiveFactor) &&
                 WritePod(ofs, material.emissiveStrength) &&
                 WriteTextureSlot(ofs, material.baseColorTexture) &&
@@ -134,6 +149,8 @@ namespace HIKARI {
                 WriteTextureSlot(ofs, material.metallicRoughnessTexture) &&
                 WriteTextureSlot(ofs, material.occlusionTexture) &&
                 WriteTextureSlot(ofs, material.emissiveTexture) &&
+                WriteTextureSlot(ofs, material.specularTexture) &&
+                WriteTextureSlot(ofs, material.specularColorTexture) &&
                 WritePod(ofs, material.alphaMode) &&
                 WritePod(ofs, material.alphaCutoff) &&
                 WriteBool(ofs, material.doubleSided) &&
@@ -142,18 +159,29 @@ namespace HIKARI {
                 WritePod(ofs, material.featureBits);
         }
 
-        bool ReadMaterial(std::ifstream& ifs, MaterialAsset& material) {
-            return ReadString(ifs, material.name) &&
-                ReadPod(ifs, material.baseColorFactor) &&
-                ReadPod(ifs, material.metallicFactor) &&
-                ReadPod(ifs, material.roughnessFactor) &&
-                ReadPod(ifs, material.emissiveFactor) &&
+        bool ReadMaterial(std::ifstream& ifs, MaterialAsset& material, uint32_t version) {
+            if (!ReadString(ifs, material.name) ||
+                !ReadPod(ifs, material.baseColorFactor) ||
+                !ReadPod(ifs, material.metallicFactor) ||
+                !ReadPod(ifs, material.roughnessFactor)) {
+                return false;
+            }
+
+            if (version >= 2u &&
+                (!ReadPod(ifs, material.specularFactor) ||
+                 !ReadPod(ifs, material.specularColorFactor))) {
+                return false;
+            }
+
+            return ReadPod(ifs, material.emissiveFactor) &&
                 ReadPod(ifs, material.emissiveStrength) &&
-                ReadTextureSlot(ifs, material.baseColorTexture) &&
-                ReadTextureSlot(ifs, material.normalTexture) &&
-                ReadTextureSlot(ifs, material.metallicRoughnessTexture) &&
-                ReadTextureSlot(ifs, material.occlusionTexture) &&
-                ReadTextureSlot(ifs, material.emissiveTexture) &&
+                ReadTextureSlot(ifs, material.baseColorTexture, version) &&
+                ReadTextureSlot(ifs, material.normalTexture, version) &&
+                ReadTextureSlot(ifs, material.metallicRoughnessTexture, version) &&
+                ReadTextureSlot(ifs, material.occlusionTexture, version) &&
+                ReadTextureSlot(ifs, material.emissiveTexture, version) &&
+                (version < 2u || ReadTextureSlot(ifs, material.specularTexture, version)) &&
+                (version < 2u || ReadTextureSlot(ifs, material.specularColorTexture, version)) &&
                 ReadPod(ifs, material.alphaMode) &&
                 ReadPod(ifs, material.alphaCutoff) &&
                 ReadBool(ifs, material.doubleSided) &&
@@ -432,7 +460,8 @@ namespace HIKARI {
         HmodelFileHeader header{};
         if (!ReadPod(ifs, header) ||
             header.magic != kHmodelMagic ||
-            header.version != kHmodelVersion ||
+            header.version < 1u ||
+            header.version > kHmodelVersion ||
             header.headerSize != sizeof(HmodelFileHeader)) {
             outMessage = "[HMODEL] invalid or unsupported file: " + path.generic_string();
             return false;
@@ -450,7 +479,9 @@ namespace HIKARI {
         const bool ok =
             ReadObjectVector(ifs, model.nodes, ReadNode) &&
             ReadObjectVector(ifs, model.meshes, ReadMesh) &&
-            ReadObjectVector(ifs, model.materials, ReadMaterial) &&
+            ReadObjectVector(ifs, model.materials, [version = header.version](std::ifstream& stream, MaterialAsset& material) {
+                return ReadMaterial(stream, material, version);
+            }) &&
             ReadObjectVector(ifs, model.textures, [](std::ifstream& stream, TextureAsset3D& texture) {
                 return ReadString(stream, texture.name) && ReadString(stream, texture.sourcePath);
             }) &&

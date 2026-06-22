@@ -119,7 +119,7 @@ namespace HIKARI {
             if (compression == TextureCompression::Auto) {
                 switch (settings.usage) {
                 case TextureUsage::Normal:
-                    compression = TextureCompression::BC5;
+                    compression = TextureCompression::BC7;
                     break;
                 case TextureUsage::BaseColor:
                 case TextureUsage::Emissive:
@@ -459,9 +459,11 @@ namespace HIKARI {
                 0,
                 mipmapped);
             if (FAILED(hr)) {
-                outMessage = "[DirectXTexBackend] mipmap generation failed: " + sourcePath.generic_string() + " hr=" + ToHexHr(hr);
-                HIKARI_LOG_ERROR(outMessage);
-                return false;
+                outMessage = "[DirectXTexBackend] mipmap generation failed, falling back to source mip: " +
+                    sourcePath.generic_string() +
+                    " hr=" +
+                    ToHexHr(hr);
+                HIKARI_LOG_WARN(outMessage);
             }
         }
 
@@ -481,9 +483,11 @@ namespace HIKARI {
                 DirectX::TEX_THRESHOLD_DEFAULT,
                 compressed);
             if (FAILED(hr)) {
-                outMessage = "[DirectXTexBackend] block compression failed: " + sourcePath.generic_string() + " hr=" + ToHexHr(hr);
-                HIKARI_LOG_ERROR(outMessage);
-                return false;
+                outMessage = "[DirectXTexBackend] block compression failed, writing uncompressed DDS: " +
+                    sourcePath.generic_string() +
+                    " hr=" +
+                    ToHexHr(hr);
+                HIKARI_LOG_WARN(outMessage);
             }
         }
 

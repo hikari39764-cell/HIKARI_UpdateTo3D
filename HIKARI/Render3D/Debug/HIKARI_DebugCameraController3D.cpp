@@ -5,7 +5,7 @@
 #undef min
 #undef max
 #include "HIKARI_Input.h"
-#if defined(_DEBUG)
+#if defined(HIKARI_WITH_EDITOR)
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "imgui.h"
 #endif
@@ -48,17 +48,23 @@ namespace HIKARI {
 
         bool wantMouse = false;
         bool wantKeyboard = false;
-#if defined(_DEBUG)
-        ImGuiIO& io = ImGui::GetIO();
-        wantMouse = io.WantCaptureMouse;
-        wantKeyboard = io.WantCaptureKeyboard;
+        bool acceptWheel = true;
+#if defined(HIKARI_WITH_EDITOR)
+        if (ImGui::GetCurrentContext() != nullptr) {
+            ImGuiIO& io = ImGui::GetIO();
+            wantMouse = io.WantCaptureMouse;
+            wantKeyboard = io.WantCaptureKeyboard;
+            acceptWheel = !wantMouse;
 
-        if (EDITOR::HasGameViewportInputRect()) {
-            const bool viewportMouseActive = EDITOR::IsGameViewportMouseInputActive();
-            const bool viewportKeyboardActive = EDITOR::IsGameViewportKeyboardInputActive();
+            if (EDITOR::HasGameViewportInputRect()) {
+                const bool viewportMouseActive = EDITOR::IsGameViewportMouseInputActive();
+                const bool viewportKeyboardActive = EDITOR::IsGameViewportKeyboardInputActive();
+                const bool viewportWheelActive = EDITOR::IsGameViewportWheelInputActive();
 
-            wantMouse = !viewportMouseActive;
-            wantKeyboard = !viewportKeyboardActive;
+                wantMouse = !viewportMouseActive;
+                wantKeyboard = !viewportKeyboardActive;
+                acceptWheel = viewportWheelActive;
+            }
         }
 #endif
 
@@ -103,7 +109,7 @@ namespace HIKARI {
             }
         }
 
-        if (!wantMouse) {
+        if (acceptWheel) {
             const float wheel = HINPUT::GetMouseWheelDelta();
             if (std::abs(wheel) > 1e-6f) {
                 position_ = position_ + forward * (wheel * settings_.wheelMoveStep);

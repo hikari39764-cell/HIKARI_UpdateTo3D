@@ -17,10 +17,12 @@ namespace HIKARI {
             switch (usage) {
             case ModelTextureUsage::BaseColor:
             case ModelTextureUsage::Emissive:
+            case ModelTextureUsage::SpecularColor:
                 return RENDER3D::TextureResourceColorSpace::Srgb;
             case ModelTextureUsage::Normal:
             case ModelTextureUsage::MetallicRoughness:
             case ModelTextureUsage::Occlusion:
+            case ModelTextureUsage::Specular:
             default:
                 return RENDER3D::TextureResourceColorSpace::Linear;
             }
@@ -33,6 +35,8 @@ namespace HIKARI {
             case ModelTextureUsage::MetallicRoughness: return "metallicRoughness";
             case ModelTextureUsage::Occlusion: return "occlusion";
             case ModelTextureUsage::Emissive: return "emissive";
+            case ModelTextureUsage::Specular: return "specular";
+            case ModelTextureUsage::SpecularColor: return "specularColor";
             default: return "unknown";
             }
         }
@@ -42,6 +46,8 @@ namespace HIKARI {
             switch (usage) {
             case ModelTextureUsage::BaseColor:
             case ModelTextureUsage::Occlusion:
+            case ModelTextureUsage::Specular:
+            case ModelTextureUsage::SpecularColor:
                 return DefaultPbrResources::WhiteSlot();
             case ModelTextureUsage::Normal:
                 return DefaultPbrResources::FlatNormalSlot();
@@ -82,6 +88,10 @@ namespace HIKARI {
             RuntimeTextureSlot slot{};
             slot.sourcePath = texture->sourcePath;
             slot.resolvedPath = texture->sourcePath;
+            slot.texCoord = slotData.texCoord;
+            slot.uvScale = slotData.uvScale;
+            slot.uvOffset = slotData.uvOffset;
+            slot.uvRotation = slotData.uvRotation;
             const std::string textureName =
                 "material_asset/" + std::string(debugName) + "/" + UsageName(usage);
             slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
@@ -109,6 +119,8 @@ namespace HIKARI {
         outMaterial.SetBaseColor(data.baseColorFactor);
         outMaterial.SetMetallicFactor(data.metallicFactor);
         outMaterial.SetRoughnessFactor(data.roughnessFactor);
+        outMaterial.SetSpecularFactor(data.specularFactor);
+        outMaterial.SetSpecularColorFactor(data.specularColorFactor);
         outMaterial.SetNormalScale(data.normalScale);
         outMaterial.SetOcclusionStrength(data.occlusionStrength);
         outMaterial.SetEmissiveFactor(data.emissiveFactor);
@@ -135,6 +147,10 @@ namespace HIKARI {
             BuildSlot(data.occlusionTexture, ModelTextureUsage::Occlusion, assetRegistry, debugName));
         outMaterial.SetTextureSlot(ModelTextureUsage::Emissive,
             BuildSlot(data.emissiveTexture, ModelTextureUsage::Emissive, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(ModelTextureUsage::Specular,
+            BuildSlot(data.specularTexture, ModelTextureUsage::Specular, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(ModelTextureUsage::SpecularColor,
+            BuildSlot(data.specularColorTexture, ModelTextureUsage::SpecularColor, assetRegistry, debugName));
 
         return true;
     }

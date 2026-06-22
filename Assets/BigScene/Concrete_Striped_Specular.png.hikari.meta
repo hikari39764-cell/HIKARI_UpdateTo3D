@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/0c22a7901294c1476b41cf0b00b8b4b5/texture.htex",
+      "path": "Library/Imported/1a1cd07ca8a5946d0bcec0a26276c8e4/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/0c22a7901294c1476b41cf0b00b8b4b5/texture.dds",
+      "path": "Library/Imported/1a1cd07ca8a5946d0bcec0a26276c8e4/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Concrete_Striped_Specular",
-  "guid": "0c22a7901294c1476b41cf0b00b8b4b5",
+  "guid": "1a1cd07ca8a5946d0bcec0a26276c8e4",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Concrete_Striped_Specular.png",
   "type": "Texture"

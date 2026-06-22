@@ -1,11 +1,22 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    {
+      "format": "HTEX",
+      "path": "Library/Imported/32ccce7ecda1ae0679070688243e3f07/texture.htex",
+      "role": "MainTexture"
+    },
+    {
+      "format": "DDS",
+      "path": "Library/Imported/32ccce7ecda1ae0679070688243e3f07/texture.dds",
+      "role": "DebugDDS"
+    }
+  ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Blue_Color_Emissive_Normal",
-  "guid": "35592f9e7ce9641cc2a4b76414ed6dbb",
+  "guid": "32ccce7ecda1ae0679070688243e3f07",
   "importSettings": {
     "allowResize": false,
-    "colorSpace": "Srgb",
+    "colorSpace": "Linear",
     "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
@@ -13,10 +24,10 @@
     "maxSize": 4096,
     "mipPolicy": "Generate",
     "outputFormat": "HTEX",
-    "usage": "BaseColor"
+    "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_Normal.png",
   "type": "Texture"

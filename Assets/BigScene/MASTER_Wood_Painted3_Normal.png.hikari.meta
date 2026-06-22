@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/32215238251fa23cbe1abb9c6a84b38c/texture.htex",
+      "path": "Library/Imported/19972aee3745768ab27980cf1ad4645e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/32215238251fa23cbe1abb9c6a84b38c/texture.dds",
+      "path": "Library/Imported/19972aee3745768ab27980cf1ad4645e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted3_Normal",
-  "guid": "32215238251fa23cbe1abb9c6a84b38c",
+  "guid": "19972aee3745768ab27980cf1ad4645e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted3_Normal.png",
   "type": "Texture"

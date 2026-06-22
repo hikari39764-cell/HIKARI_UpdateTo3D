@@ -75,6 +75,12 @@ namespace HIKARI {
         case ModelTextureUsage::Emissive:
             emissiveTexture_ = std::move(slot);
             break;
+        case ModelTextureUsage::Specular:
+            specularTexture_ = std::move(slot);
+            break;
+        case ModelTextureUsage::SpecularColor:
+            specularColorTexture_ = std::move(slot);
+            break;
         default:
             break;
         }
@@ -92,6 +98,10 @@ namespace HIKARI {
             return occlusionTexture_;
         case ModelTextureUsage::Emissive:
             return emissiveTexture_;
+        case ModelTextureUsage::Specular:
+            return specularTexture_;
+        case ModelTextureUsage::SpecularColor:
+            return specularColorTexture_;
         default:
             return kEmptyTextureSlot;
         }
@@ -115,6 +125,22 @@ namespace HIKARI {
 
     float Material::GetRoughnessFactor() const {
         return roughnessFactor_;
+    }
+
+    void Material::SetSpecularFactor(float value) {
+        specularFactor_ = std::max(0.0f, value);
+    }
+
+    float Material::GetSpecularFactor() const {
+        return specularFactor_;
+    }
+
+    void Material::SetSpecularColorFactor(const MATH::Vec3& value) {
+        specularColorFactor_ = value;
+    }
+
+    const MATH::Vec3& Material::GetSpecularColorFactor() const {
+        return specularColorFactor_;
     }
 
     void Material::SetNormalScale(float value) {

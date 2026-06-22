@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/ae75a9a00208177c97269c249ca02707/texture.htex",
+      "path": "Library/Imported/270db18998b0cdb5b528dcc83c3e430e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/ae75a9a00208177c97269c249ca02707/texture.dds",
+      "path": "Library/Imported/270db18998b0cdb5b528dcc83c3e430e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Smooth_BaseColor",
-  "guid": "ae75a9a00208177c97269c249ca02707",
+  "guid": "270db18998b0cdb5b528dcc83c3e430e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Smooth_BaseColor.png",
   "type": "Texture"

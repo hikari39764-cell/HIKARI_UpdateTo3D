@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7723d380a970478ffd5edba656a3cb0c/texture.htex",
+      "path": "Library/Imported/faf6a5e596723452c42547b28387a234/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7723d380a970478ffd5edba656a3cb0c/texture.dds",
+      "path": "Library/Imported/faf6a5e596723452c42547b28387a234/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Glass_Dirty_Specular",
-  "guid": "7723d380a970478ffd5edba656a3cb0c",
+  "guid": "faf6a5e596723452c42547b28387a234",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Glass_Dirty_Specular.png",
   "type": "Texture"

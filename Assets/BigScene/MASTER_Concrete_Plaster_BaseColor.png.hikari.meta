@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d277b7dd733e2c84abb368c8f93529e2/texture.htex",
+      "path": "Library/Imported/15124b7bd13ba3a0c7d3051dfc629dbe/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d277b7dd733e2c84abb368c8f93529e2/texture.dds",
+      "path": "Library/Imported/15124b7bd13ba3a0c7d3051dfc629dbe/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Plaster_BaseColor",
-  "guid": "d277b7dd733e2c84abb368c8f93529e2",
+  "guid": "15124b7bd13ba3a0c7d3051dfc629dbe",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Plaster_BaseColor.png",
   "type": "Texture"

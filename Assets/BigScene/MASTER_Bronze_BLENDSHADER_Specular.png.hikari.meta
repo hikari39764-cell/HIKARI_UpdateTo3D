@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7616f9c195f7f10bfcce670b8b8c5d74/texture.htex",
+      "path": "Library/Imported/60bb7c594fccb016e04ae1a37bea931d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7616f9c195f7f10bfcce670b8b8c5d74/texture.dds",
+      "path": "Library/Imported/60bb7c594fccb016e04ae1a37bea931d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Bronze_BLENDSHADER_Specular",
-  "guid": "7616f9c195f7f10bfcce670b8b8c5d74",
+  "guid": "60bb7c594fccb016e04ae1a37bea931d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Bronze_BLENDSHADER_Specular.png",
   "type": "Texture"

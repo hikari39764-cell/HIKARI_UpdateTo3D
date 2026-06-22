@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/b5d82d0a5846112778c3afb39f89d5b7/texture.htex",
+      "path": "Library/Imported/e931350e844e1fd4de16aea32866c7ae/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/b5d82d0a5846112778c3afb39f89d5b7/texture.dds",
+      "path": "Library/Imported/e931350e844e1fd4de16aea32866c7ae/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Balcony_Trims_Normal",
-  "guid": "b5d82d0a5846112778c3afb39f89d5b7",
+  "guid": "e931350e844e1fd4de16aea32866c7ae",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Balcony_Trims_Normal.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/46e06c7a877f7161489dea70816b5386/texture.htex",
+      "path": "Library/Imported/2c3ac2f179b86cdf221643894d18fdcc/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/46e06c7a877f7161489dea70816b5386/texture.dds",
+      "path": "Library/Imported/2c3ac2f179b86cdf221643894d18fdcc/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Curtains_BaseColor",
-  "guid": "46e06c7a877f7161489dea70816b5386",
+  "guid": "2c3ac2f179b86cdf221643894d18fdcc",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Curtains_BaseColor.png",
   "type": "Texture"

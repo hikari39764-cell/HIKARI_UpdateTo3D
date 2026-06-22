@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/fc1801e039a063df2ad0c882ded47266/texture.htex",
+      "path": "Library/Imported/613e0808537d556d3c509447ceae9a4b/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/fc1801e039a063df2ad0c882ded47266/texture.dds",
+      "path": "Library/Imported/613e0808537d556d3c509447ceae9a4b/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Blue_Color_Emissive_Specular",
-  "guid": "fc1801e039a063df2ad0c882ded47266",
+  "guid": "613e0808537d556d3c509447ceae9a4b",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Blue_Color_Emissive_Specular.png",
   "type": "Texture"

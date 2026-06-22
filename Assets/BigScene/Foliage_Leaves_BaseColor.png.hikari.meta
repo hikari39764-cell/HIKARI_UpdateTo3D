@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/f037689e5d252868017a4595f4910c3e/texture.htex",
+      "path": "Library/Imported/a7aaa115c96374d986e05f58629eac96/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/f037689e5d252868017a4595f4910c3e/texture.dds",
+      "path": "Library/Imported/a7aaa115c96374d986e05f58629eac96/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Leaves_BaseColor",
-  "guid": "f037689e5d252868017a4595f4910c3e",
+  "guid": "a7aaa115c96374d986e05f58629eac96",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Leaves_BaseColor.png",
   "type": "Texture"

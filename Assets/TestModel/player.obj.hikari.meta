@@ -26,7 +26,7 @@
     "sourceFormat": ".obj"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 12,
+  "importerVersion": 15,
   "metaVersion": 1,
   "sourcePath": "Assets/TestModel/player.obj",
   "type": "Model"

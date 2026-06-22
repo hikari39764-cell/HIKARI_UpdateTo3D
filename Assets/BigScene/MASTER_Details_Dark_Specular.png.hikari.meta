@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1524ec179b370dd74016fa2c5422e9b5/texture.htex",
+      "path": "Library/Imported/c0dae801c0da7b65e30a99a55b511e7c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1524ec179b370dd74016fa2c5422e9b5/texture.dds",
+      "path": "Library/Imported/c0dae801c0da7b65e30a99a55b511e7c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Details_Dark_Specular",
-  "guid": "1524ec179b370dd74016fa2c5422e9b5",
+  "guid": "c0dae801c0da7b65e30a99a55b511e7c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Details_Dark_Specular.png",
   "type": "Texture"

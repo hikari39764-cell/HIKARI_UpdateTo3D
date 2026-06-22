@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c0174a3850d421c542ff8463467265a5/texture.htex",
+      "path": "Library/Imported/8d35b59a643d6fa6dd97e026ccc70f7c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c0174a3850d421c542ff8463467265a5/texture.dds",
+      "path": "Library/Imported/8d35b59a643d6fa6dd97e026ccc70f7c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "NapkinHolder_BaseColor",
-  "guid": "c0174a3850d421c542ff8463467265a5",
+  "guid": "8d35b59a643d6fa6dd97e026ccc70f7c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/NapkinHolder_BaseColor.png",
   "type": "Texture"

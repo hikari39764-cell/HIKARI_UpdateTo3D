@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/14952c515b2551bad9d3bb0b3163467e/texture.htex",
+      "path": "Library/Imported/aa8b8e2c38a0f857cc48803ea7d3e20b/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/14952c515b2551bad9d3bb0b3163467e/texture.dds",
+      "path": "Library/Imported/aa8b8e2c38a0f857cc48803ea7d3e20b/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Pink_Color_Emissive_BaseColor",
-  "guid": "14952c515b2551bad9d3bb0b3163467e",
+  "guid": "aa8b8e2c38a0f857cc48803ea7d3e20b",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Pink_Color_Emissive_BaseColor.png",
   "type": "Texture"

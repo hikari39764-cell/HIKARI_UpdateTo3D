@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/f466b228506d7fe7edfe2763b6a70533/texture.htex",
+      "path": "Library/Imported/3f277f91e40da3d2e16f89793b41fddf/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/f466b228506d7fe7edfe2763b6a70533/texture.dds",
+      "path": "Library/Imported/3f277f91e40da3d2e16f89793b41fddf/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Trim_Cornice_Normal",
-  "guid": "f466b228506d7fe7edfe2763b6a70533",
+  "guid": "3f277f91e40da3d2e16f89793b41fddf",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Trim_Cornice_Normal.png",
   "type": "Texture"

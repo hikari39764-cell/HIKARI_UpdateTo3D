@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/d974075a04a25fa978d060090f9af8f2/texture.htex",
+      "path": "Library/Imported/0ba00a19b1253af96bd66a5db1e16370/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/d974075a04a25fa978d060090f9af8f2/texture.dds",
+      "path": "Library/Imported/0ba00a19b1253af96bd66a5db1e16370/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Spotlight_Glass_Emissive_Specular",
-  "guid": "d974075a04a25fa978d060090f9af8f2",
+  "guid": "0ba00a19b1253af96bd66a5db1e16370",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Emissive"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Spotlight_Glass_Emissive_Specular.png",
   "type": "Texture"

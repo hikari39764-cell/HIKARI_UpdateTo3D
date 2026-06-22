@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/79d9c6274b545345a7cc77bbd8a3c763/texture.htex",
+      "path": "Library/Imported/219ce113f45c2ab17379585ea895626c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/79d9c6274b545345a7cc77bbd8a3c763/texture.dds",
+      "path": "Library/Imported/219ce113f45c2ab17379585ea895626c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Yellow_BaseColor",
-  "guid": "79d9c6274b545345a7cc77bbd8a3c763",
+  "guid": "219ce113f45c2ab17379585ea895626c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Yellow_BaseColor.png",
   "type": "Texture"

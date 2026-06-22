@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2013ebbb7e18572be0ed0c02f2ae1b7c/texture.htex",
+      "path": "Library/Imported/c89f7466e4f38b6bbd4abeed8b352003/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2013ebbb7e18572be0ed0c02f2ae1b7c/texture.dds",
+      "path": "Library/Imported/c89f7466e4f38b6bbd4abeed8b352003/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Boulangerie_Specular",
-  "guid": "2013ebbb7e18572be0ed0c02f2ae1b7c",
+  "guid": "c89f7466e4f38b6bbd4abeed8b352003",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Boulangerie_Specular.png",
   "type": "Texture"

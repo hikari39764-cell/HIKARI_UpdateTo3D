@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/092e9fd338f291671c95f3f0e6276d6b/texture.htex",
+      "path": "Library/Imported/4ea8b214743207214eecf72763417401/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/092e9fd338f291671c95f3f0e6276d6b/texture.dds",
+      "path": "Library/Imported/4ea8b214743207214eecf72763417401/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_White_Color_BaseColor",
-  "guid": "092e9fd338f291671c95f3f0e6276d6b",
+  "guid": "4ea8b214743207214eecf72763417401",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_White_Color_BaseColor.png",
   "type": "Texture"

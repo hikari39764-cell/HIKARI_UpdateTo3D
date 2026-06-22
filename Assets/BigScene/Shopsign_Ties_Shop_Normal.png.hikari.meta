@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/7fa164d552aed2d3b057f0f19d2a565c/texture.htex",
+      "path": "Library/Imported/cbd1bad6b3496871f9be62a0da8b2de3/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/7fa164d552aed2d3b057f0f19d2a565c/texture.dds",
+      "path": "Library/Imported/cbd1bad6b3496871f9be62a0da8b2de3/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Ties_Shop_Normal",
-  "guid": "7fa164d552aed2d3b057f0f19d2a565c",
+  "guid": "cbd1bad6b3496871f9be62a0da8b2de3",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Ties_Shop_Normal.png",
   "type": "Texture"

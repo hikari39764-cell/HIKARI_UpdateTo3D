@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/0e533a2b4709e3fdc39c9995f116b6a2/texture.htex",
+      "path": "Library/Imported/0b33286802a0851f5f8e65616f578e67/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/0e533a2b4709e3fdc39c9995f116b6a2/texture.dds",
+      "path": "Library/Imported/0b33286802a0851f5f8e65616f578e67/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete1_Normal",
-  "guid": "0e533a2b4709e3fdc39c9995f116b6a2",
+  "guid": "0b33286802a0851f5f8e65616f578e67",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete1_Normal.png",
   "type": "Texture"

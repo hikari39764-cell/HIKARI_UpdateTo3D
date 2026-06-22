@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/844dcdbaddb9572aead1dc9d369e29d1/texture.htex",
+      "path": "Library/Imported/00b37bfb5e81c332203c4f4eed29cc42/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/844dcdbaddb9572aead1dc9d369e29d1/texture.dds",
+      "path": "Library/Imported/00b37bfb5e81c332203c4f4eed29cc42/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Ties_Shop_BaseColor",
-  "guid": "844dcdbaddb9572aead1dc9d369e29d1",
+  "guid": "00b37bfb5e81c332203c4f4eed29cc42",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Ties_Shop_BaseColor.png",
   "type": "Texture"

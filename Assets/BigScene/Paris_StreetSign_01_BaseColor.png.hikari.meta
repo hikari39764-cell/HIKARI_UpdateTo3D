@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/76a80f140caf9d34fe00da833e42b15e/texture.htex",
+      "path": "Library/Imported/a4ef03ca0aeda9017874142cc888e8ad/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/76a80f140caf9d34fe00da833e42b15e/texture.dds",
+      "path": "Library/Imported/a4ef03ca0aeda9017874142cc888e8ad/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StreetSign_01_BaseColor",
-  "guid": "76a80f140caf9d34fe00da833e42b15e",
+  "guid": "a4ef03ca0aeda9017874142cc888e8ad",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StreetSign_01_BaseColor.png",
   "type": "Texture"

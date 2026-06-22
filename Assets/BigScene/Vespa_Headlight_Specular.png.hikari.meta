@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/dee6a1fded63984b2338e08a5db9ee41/texture.htex",
+      "path": "Library/Imported/5cf82eddb28b8e73559363977cf16c45/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/dee6a1fded63984b2338e08a5db9ee41/texture.dds",
+      "path": "Library/Imported/5cf82eddb28b8e73559363977cf16c45/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_Headlight_Specular",
-  "guid": "dee6a1fded63984b2338e08a5db9ee41",
+  "guid": "5cf82eddb28b8e73559363977cf16c45",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_Headlight_Specular.png",
   "type": "Texture"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/a35ec8b4f7d1a11a2df47ad1935f25e6/texture.htex",
+      "path": "Library/Imported/585c03f9892e5269ffa393b5b6289cd6/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/a35ec8b4f7d1a11a2df47ad1935f25e6/texture.dds",
+      "path": "Library/Imported/585c03f9892e5269ffa393b5b6289cd6/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Stringlights_Specular",
-  "guid": "a35ec8b4f7d1a11a2df47ad1935f25e6",
+  "guid": "585c03f9892e5269ffa393b5b6289cd6",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Stringlights_Specular.png",
   "type": "Texture"

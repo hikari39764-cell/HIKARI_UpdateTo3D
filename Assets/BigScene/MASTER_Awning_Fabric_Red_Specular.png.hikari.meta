@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/edb9b3ad704eb2cfd00a9c66c33443ae/texture.htex",
+      "path": "Library/Imported/032f87ac60655f723b68abd6145874f5/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/edb9b3ad704eb2cfd00a9c66c33443ae/texture.dds",
+      "path": "Library/Imported/032f87ac60655f723b68abd6145874f5/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Awning_Fabric_Red_Specular",
-  "guid": "edb9b3ad704eb2cfd00a9c66c33443ae",
+  "guid": "032f87ac60655f723b68abd6145874f5",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Awning_Fabric_Red_Specular.png",
   "type": "Texture"

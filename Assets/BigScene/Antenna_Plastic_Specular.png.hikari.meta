@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/fe1835ea5f4a7f04cc852614f0b76a3a/texture.htex",
+      "path": "Library/Imported/881dde68f31bccded626008d219f1a5a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/fe1835ea5f4a7f04cc852614f0b76a3a/texture.dds",
+      "path": "Library/Imported/881dde68f31bccded626008d219f1a5a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Antenna_Plastic_Specular",
-  "guid": "fe1835ea5f4a7f04cc852614f0b76a3a",
+  "guid": "881dde68f31bccded626008d219f1a5a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Antenna_Plastic_Specular.png",
   "type": "Texture"

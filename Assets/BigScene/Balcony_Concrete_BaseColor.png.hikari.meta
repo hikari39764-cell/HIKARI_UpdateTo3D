@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/717d5d021a3958e167a2d58677872770/texture.htex",
+      "path": "Library/Imported/0b9e28ff34a3fc96f3bf916953240789/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/717d5d021a3958e167a2d58677872770/texture.dds",
+      "path": "Library/Imported/0b9e28ff34a3fc96f3bf916953240789/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Balcony_Concrete_BaseColor",
-  "guid": "717d5d021a3958e167a2d58677872770",
+  "guid": "0b9e28ff34a3fc96f3bf916953240789",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Balcony_Concrete_BaseColor.png",
   "type": "Texture"

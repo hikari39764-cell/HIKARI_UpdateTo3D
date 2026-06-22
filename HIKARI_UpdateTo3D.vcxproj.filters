@@ -558,6 +558,9 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
@@ -1472,6 +1475,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuVisibilityResult.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.h">
+      <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">
       <Filter>Header Files\Render3D\Core</Filter>

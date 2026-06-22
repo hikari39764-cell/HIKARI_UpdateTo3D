@@ -13,6 +13,10 @@ namespace HIKARI {
         RENDER3D::TextureResourceHandle resource{};
         int handle = -1;
         bool enabled = false;
+        int texCoord = 0;
+        MATH::Vec2 uvScale{ 1.0f, 1.0f };
+        MATH::Vec2 uvOffset{ 0.0f, 0.0f };
+        float uvRotation = 0.0f;
 
         bool IsValid() const {
             return resource.IsValid() || handle >= 0;
@@ -46,6 +50,10 @@ namespace HIKARI {
         float GetMetallicFactor() const;
         void SetRoughnessFactor(float value);
         float GetRoughnessFactor() const;
+        void SetSpecularFactor(float value);
+        float GetSpecularFactor() const;
+        void SetSpecularColorFactor(const MATH::Vec3& value);
+        const MATH::Vec3& GetSpecularColorFactor() const;
         void SetNormalScale(float value);
         float GetNormalScale() const;
         void SetOcclusionStrength(float value);
@@ -62,8 +70,12 @@ namespace HIKARI {
         RuntimeTextureSlot metallicRoughnessTexture_{};
         RuntimeTextureSlot occlusionTexture_{};
         RuntimeTextureSlot emissiveTexture_{};
+        RuntimeTextureSlot specularTexture_{};
+        RuntimeTextureSlot specularColorTexture_{};
         float metallicFactor_ = 0.0f;
         float roughnessFactor_ = 1.0f;
+        float specularFactor_ = 1.0f;
+        MATH::Vec3 specularColorFactor_{ 1.0f, 1.0f, 1.0f };
         float normalScale_ = 1.0f;
         float occlusionStrength_ = 1.0f;
         MATH::Vec3 emissiveFactor_{ 0.0f, 0.0f, 0.0f };

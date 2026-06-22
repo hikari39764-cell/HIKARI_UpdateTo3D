@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/e858accb493d5876ab69362ebc793b92/texture.htex",
+      "path": "Library/Imported/33606cd6f7d83530e68b1c7f188c9b1e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/e858accb493d5876ab69362ebc793b92/texture.dds",
+      "path": "Library/Imported/33606cd6f7d83530e68b1c7f188c9b1e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Antenna_Metal_Specular",
-  "guid": "e858accb493d5876ab69362ebc793b92",
+  "guid": "33606cd6f7d83530e68b1c7f188c9b1e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Antenna_Metal_Specular.png",
   "type": "Texture"

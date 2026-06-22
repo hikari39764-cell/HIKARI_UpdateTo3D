@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1ef2819c64988eb7150bbf6ff6aa445e/texture.htex",
+      "path": "Library/Imported/5e42db1a21711e76230d901ed2435b4c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1ef2819c64988eb7150bbf6ff6aa445e/texture.dds",
+      "path": "Library/Imported/5e42db1a21711e76230d901ed2435b4c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Plantpots_BaseColor",
-  "guid": "1ef2819c64988eb7150bbf6ff6aa445e",
+  "guid": "5e42db1a21711e76230d901ed2435b4c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Plantpots_BaseColor.png",
   "type": "Texture"

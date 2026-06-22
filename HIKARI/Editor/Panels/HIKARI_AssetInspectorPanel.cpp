@@ -235,16 +235,16 @@ namespace HIKARI {
                     IM_ARRAYSIZE(ModelGeometryProfileItems))) {
                 cluster["profile"] = ModelGeometryProfileItems[profile];
                 cluster["partitionLargeSurfaces"] = true;
-                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
+                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 1.0f;
                 dirty = true;
             }
 
             const bool characterProfile = profile == 1;
-            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
+            const float defaultPartitionExtent = characterProfile ? 1.25f : 1.0f;
             dirty = DrawClampedIntSetting("LOD Count", cluster, "maxLodCount", 5, 1, 5) || dirty;
             dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.25f, 4.0f) || dirty;
             dirty = DrawBoolSetting("Partition Large Surfaces", cluster, "partitionLargeSurfaces", true) || dirty;
-            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.50f, 64.0f) || dirty;
+            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.25f, 64.0f) || dirty;
             dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
 
             if (dirty) {
@@ -524,6 +524,23 @@ namespace HIKARI {
                     &selection) || changed;
                 changed = ImGui::SliderFloat("Metallic", &editData.metallicFactor, 0.0f, 1.0f) || changed;
                 changed = ImGui::SliderFloat("Roughness", &editData.roughnessFactor, 0.0f, 1.0f) || changed;
+            }
+
+            if (ImGui::CollapsingHeader("Specular")) {
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Specular",
+                    editData.specularTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = EDITOR::DrawMaterialTextureSlot(
+                    "Specular Color",
+                    editData.specularColorTexture,
+                    assetDatabase,
+                    assetRegistry,
+                    &selection) || changed;
+                changed = ImGui::SliderFloat("Factor##Specular", &editData.specularFactor, 0.0f, 2.0f) || changed;
+                changed = ImGui::ColorEdit3("Color##Specular", &editData.specularColorFactor.x) || changed;
             }
 
             if (ImGui::CollapsingHeader("Ambient Occlusion")) {

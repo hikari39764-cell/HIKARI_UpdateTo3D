@@ -77,7 +77,7 @@ namespace HIKARI {
     }
 
     uint32_t MaterialImporter::GetImporterVersion() const {
-        return 2;
+        return 4;
     }
 
     bool MaterialImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -133,6 +133,8 @@ namespace HIKARI {
         AddTextureDependency("MetallicRoughness", data.metallicRoughnessTexture, result);
         AddTextureDependency("Occlusion", data.occlusionTexture, result);
         AddTextureDependency("Emissive", data.emissiveTexture, result);
+        AddTextureDependency("Specular", data.specularTexture, result);
+        AddTextureDependency("SpecularColor", data.specularColorTexture, result);
 
         if (!ShouldCookHmat(ParseImportSettingsOrDefault(record.meta))) {
             result.success = true;

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/6f6bca140d75d6f4684070eabe15aab1/texture.htex",
+      "path": "Library/Imported/445aa3d69b01c5c6dcc8e24c6bd8b150/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/6f6bca140d75d6f4684070eabe15aab1/texture.dds",
+      "path": "Library/Imported/445aa3d69b01c5c6dcc8e24c6bd8b150/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Cobblestone_02_BaseColor",
-  "guid": "6f6bca140d75d6f4684070eabe15aab1",
+  "guid": "445aa3d69b01c5c6dcc8e24c6bd8b150",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Cobblestone_02_BaseColor.png",
   "type": "Texture"

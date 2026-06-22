@@ -111,12 +111,14 @@ namespace HIKARI {
         private:
             static void EnsureSceneRTSize();
             static void EnsureEditorViewportRTSize(int width, int height);
+            static bool EnsureToneMappedLdrRTSize(int width, int height, DXGI_FORMAT format);
             static void RefreshEditorViewportSrvDescriptor();
             static void EnsureSceneColorSnapshotRTSize();
             static void RefreshSceneColorSrvDescriptor();
             static bool IsEditorViewportTextureCurrent();
             static RenderTarget2D* EndSceneCaptureAndResolveFinal();
-            static bool DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
+            static RenderTarget2D* ResolveFinalSceneToLdr(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat);
+            static bool DrawResolvedSceneToCurrentTarget(RenderTarget2D& resolvedSceneRT, DXGI_FORMAT outputFormat);
             static void BindBackBufferFullViewport();
             static RenderTarget2D* ApplyBloom(RenderTarget2D& source);
             static RenderTarget2D* ApplyFxaa(RenderTarget2D& source);
@@ -131,6 +133,7 @@ namespace HIKARI {
             static RenderTarget2D sceneRT_;
             static RenderTarget2D editorViewportRT_;
             static RenderTarget2D sceneColorSnapshotRT_;
+            static RenderTarget2D toneMappedLdrRT_;
             static bool sceneColorReady_;
             static D3D12_CPU_DESCRIPTOR_HANDLE sceneColorSrvCpu_;
             static D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrvGpu_;

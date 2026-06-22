@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/9b9d86b7e4c05aed36981f4b3b3e6323/texture.htex",
+      "path": "Library/Imported/dd17a5032b53aab6b6ebfdabf2972214/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/9b9d86b7e4c05aed36981f4b3b3e6323/texture.dds",
+      "path": "Library/Imported/dd17a5032b53aab6b6ebfdabf2972214/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_TrafficSign_A_Specular",
-  "guid": "9b9d86b7e4c05aed36981f4b3b3e6323",
+  "guid": "dd17a5032b53aab6b6ebfdabf2972214",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_TrafficSign_A_Specular.png",
   "type": "Texture"

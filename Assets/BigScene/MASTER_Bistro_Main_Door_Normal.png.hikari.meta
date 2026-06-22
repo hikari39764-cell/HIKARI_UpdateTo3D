@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/3c5a21bfcd51df0f36b1875c0d092893/texture.htex",
+      "path": "Library/Imported/dec951579e8836cf69309c805bf4651c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/3c5a21bfcd51df0f36b1875c0d092893/texture.dds",
+      "path": "Library/Imported/dec951579e8836cf69309c805bf4651c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Bistro_Main_Door_Normal",
-  "guid": "3c5a21bfcd51df0f36b1875c0d092893",
+  "guid": "dec951579e8836cf69309c805bf4651c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Bistro_Main_Door_Normal.png",
   "type": "Texture"

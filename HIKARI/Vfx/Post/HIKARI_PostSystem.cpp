@@ -64,6 +64,7 @@ namespace HIKARI {
         RenderTarget2D PostSystem::sceneRT_{};
         RenderTarget2D PostSystem::editorViewportRT_{};
         RenderTarget2D PostSystem::sceneColorSnapshotRT_{};
+        RenderTarget2D PostSystem::toneMappedLdrRT_{};
         bool PostSystem::sceneColorReady_ = false;
         D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvCpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvGpu_{};
@@ -145,6 +146,7 @@ namespace HIKARI {
             sceneRT_.UpdateContext(ctx);
             editorViewportRT_.UpdateContext(ctx);
             sceneColorSnapshotRT_.UpdateContext(ctx);
+            toneMappedLdrRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
         }
 
@@ -162,6 +164,7 @@ namespace HIKARI {
             sceneRT_.Finalize();
             editorViewportRT_.Finalize();
             sceneColorSnapshotRT_.Finalize();
+            toneMappedLdrRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
 
@@ -290,6 +293,7 @@ namespace HIKARI {
                 << " transitionActive=" << transitionActive_
                 << " useLighting=" << useLighting_
                 << "\n  " << sceneRT_.DumpState()
+                << "\n  " << toneMappedLdrRT_.DumpState()
                 << "\n  " << lightRT_.DumpState()
                 << "\n  " << globalChain_.DumpState()
                 << "\n  " << bloomChain_.DumpState()
@@ -706,6 +710,43 @@ namespace HIKARI {
             RefreshEditorViewportSrvDescriptor();
         }
 
+        bool PostSystem::EnsureToneMappedLdrRTSize(int width, int height, DXGI_FORMAT format)
+        {
+            if (width <= 0 || height <= 0 || format == DXGI_FORMAT_UNKNOWN) {
+                return false;
+            }
+
+            toneMappedLdrRT_.UpdateContext(context_);
+
+            const bool invalid =
+                !toneMappedLdrRT_.GetResource() ||
+                toneMappedLdrRT_.GetWidth() != width ||
+                toneMappedLdrRT_.GetHeight() != height ||
+                toneMappedLdrRT_.GetFormat() != format ||
+                toneMappedLdrRT_.HasDepth();
+
+            if (!invalid) {
+                return true;
+            }
+
+            toneMappedLdrRT_.Finalize();
+            toneMappedLdrRT_.SetDebugName("Post.ToneMappedLDR");
+            const bool ok = toneMappedLdrRT_.Init(
+                width,
+                height,
+                format,
+                false,
+                { 0.0f, 0.0f, 0.0f, 1.0f });
+
+            if (!ok) {
+                DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] LDR resolve RT creation failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapped LDR RT creation failed");
+                return false;
+            }
+
+            return true;
+        }
+
         void PostSystem::RefreshEditorViewportSrvDescriptor()
         {
             ID3D12Device* device = context_.device;
@@ -1050,19 +1091,13 @@ namespace HIKARI {
                 finalSceneRT->EndCapture();
             }
 
-            // TODO: Consider moving FXAA after tone mapping once an LDR intermediate render target is introduced.
-            RenderTarget2D* fxaaRT = ApplyFxaa(*finalSceneRT);
-            if (fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) {
-                finalSceneRT = fxaaRT;
-            }
-
             if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
                 HIKARI_LOG_INFO(std::string("[PostSystem][FramePath] globalPost=") +
                     (globalChain_.HasAny() ? "on" : "off") +
                     " bloom=" +
                     ((bloomRT != nullptr && bloomRT->GetResource() != nullptr) ? "on" : "off") +
-                    " fxaa=" +
-                    ((fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) ? "on" : "off") +
+                    " fxaaStage=" +
+                    (fxaaSettings_.enabled ? "afterTone" : "off") +
                     " toneMapping=" +
                     (toneMappingSettings_.enabled ? "on" : "off") +
                     " transition=" +
@@ -1076,26 +1111,37 @@ namespace HIKARI {
             return finalSceneRT;
         }
 
-        bool PostSystem::DrawFinalSceneToCurrentTarget(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat)
+        RenderTarget2D* PostSystem::ResolveFinalSceneToLdr(RenderTarget2D& finalSceneRT, DXGI_FORMAT outputFormat)
         {
-            if (!quad_.SetOutputFormat(outputFormat)) {
-                LogFrameState("ToneMapping output format failed");
-                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping output format failed");
-                return false;
+            if (!EnsureToneMappedLdrRTSize(finalSceneRT.GetWidth(), finalSceneRT.GetHeight(), outputFormat)) {
+                LogFrameState("ToneMapped LDR RT failed");
+                return nullptr;
             }
 
-            if (transitionActive_ && transitionEffect_) {
+            const bool useTransition = transitionActive_ && transitionEffect_;
+            if (!useTransition && !EnsureToneMappingEffect()) {
+                return nullptr;
+            }
+
+            toneMappedLdrRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
+
+            if (!quad_.SetOutputFormat(toneMappedLdrRT_.GetFormat())) {
+                toneMappedLdrRT_.EndCapture();
+                LogFrameState("ToneMapping output format failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping output format failed");
+                return nullptr;
+            }
+
+            if (useTransition) {
                 quad_.SetInputTexture(finalSceneRT.GetSrvHeap(), finalSceneRT.GetSrvGpu());
                 transitionEffect_->ApplyCommonParams(transitionParams_);
                 if (!transitionEffect_->BindAndDraw(quad_)) {
+                    toneMappedLdrRT_.EndCapture();
                     LogFrameState("Transition BindAndDraw failed");
                     GFX::DumpD3D12InfoQueue(context_.device, "Transition BindAndDraw failed");
-                    return false;
+                    return nullptr;
                 }
             } else {
-                if (!EnsureToneMappingEffect()) {
-                    return false;
-                }
                 toneMappingParams_ = commonParams_;
                 toneMappingParams_.user[0] = {
                     toneMappingSettings_.enabled ? 1.0f : 0.0f,
@@ -1109,7 +1155,7 @@ namespace HIKARI {
                         " inputFormat=" +
                         GFX::FormatToString(finalSceneRT.GetFormat()) +
                         " outputFormat=" +
-                        GFX::FormatToString(outputFormat) +
+                        GFX::FormatToString(toneMappedLdrRT_.GetFormat()) +
                         " exposure=" +
                         std::to_string(toneMappingParams_.user[0].y) +
                         " gamma=" +
@@ -1120,10 +1166,11 @@ namespace HIKARI {
                 quad_.SetInputTexture(finalSceneRT.GetSrvHeap(), finalSceneRT.GetSrvGpu());
                 toneMappingEffect_->ApplyCommonParams(toneMappingParams_);
                 if (!toneMappingEffect_->BindAndDraw(quad_)) {
+                    toneMappedLdrRT_.EndCapture();
                     DEBUGLOG::PushRenderError("[PostSystem][ToneMapping][ERROR] BindAndDraw failed.");
                     LogFrameState("ToneMapping BindAndDraw failed");
                     GFX::DumpD3D12InfoQueue(context_.device, "ToneMapping BindAndDraw failed");
-                    return false;
+                    return nullptr;
                 }
             }
 
@@ -1131,11 +1178,47 @@ namespace HIKARI {
                 quad_.DrawBlended(lightRT_.GetSrvHeap(), lightRT_.GetSrvGpu(), BlendOption::Multiply);
             }
 
+            toneMappedLdrRT_.EndCapture();
+
+            RenderTarget2D* resolvedRT = &toneMappedLdrRT_;
+            RenderTarget2D* fxaaRT = ApplyFxaa(*resolvedRT);
+            if (fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) {
+                resolvedRT = fxaaRT;
+            }
+
+            if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
+                HIKARI_LOG_INFO(std::string("[PostSystem][LdrResolve] input=") +
+                    finalSceneRT.GetDebugName() +
+                    " ldr=" +
+                    toneMappedLdrRT_.GetDebugName() +
+                    " fxaa=" +
+                    ((fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) ? "on" : "off") +
+                    " resolved=" +
+                    (resolvedRT ? resolvedRT->GetDebugName() : "<null>"));
+            }
+
             if (dumpNextFrame_ || GFX::GetGfxDebugConfig().verbosePostLog) {
                 LogFrameState(dumpNextFrame_ ? "Requested frame dump" : "Verbose post log");
                 dumpNextFrame_ = false;
             }
 
+            return resolvedRT;
+        }
+
+        bool PostSystem::DrawResolvedSceneToCurrentTarget(RenderTarget2D& resolvedSceneRT, DXGI_FORMAT outputFormat)
+        {
+            if (resolvedSceneRT.GetResource() == nullptr) {
+                LogFrameState("Resolved scene RT null");
+                return false;
+            }
+
+            if (!quad_.SetOutputFormat(outputFormat)) {
+                LogFrameState("Resolved scene output format failed");
+                GFX::DumpD3D12InfoQueue(context_.device, "Resolved scene output format failed");
+                return false;
+            }
+
+            quad_.DrawFullscreen(resolvedSceneRT.GetSrvHeap(), resolvedSceneRT.GetSrvGpu());
             return true;
         }
 
@@ -1170,8 +1253,19 @@ namespace HIKARI {
                 return false;
             }
 
-            const int captureW = finalSceneRT->GetWidth();
-            const int captureH = finalSceneRT->GetHeight();
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuGameViewResolve(
+                context_.cmdList,
+                GFX::GPU_PROFILE::Pass::GameViewResolve);
+
+            RenderTarget2D* resolvedSceneRT = ResolveFinalSceneToLdr(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
+            if (resolvedSceneRT == nullptr || resolvedSceneRT->GetResource() == nullptr) {
+                BindBackBufferFullViewport();
+                editorViewportReady_ = false;
+                return false;
+            }
+
+            const int captureW = resolvedSceneRT->GetWidth();
+            const int captureH = resolvedSceneRT->GetHeight();
             EnsureEditorViewportRTSize(captureW, captureH);
             if (!editorViewportRT_.GetResource() || !editorViewportRT_.IsInitialized()) {
                 BindBackBufferFullViewport();
@@ -1179,11 +1273,8 @@ namespace HIKARI {
                 return false;
             }
 
-            GFX::GPU_PROFILE::ScopedGpuTimer gpuGameViewResolve(
-                context_.cmdList,
-                GFX::GPU_PROFILE::Pass::GameViewResolve);
             editorViewportRT_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
-            const bool drew = DrawFinalSceneToCurrentTarget(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
+            const bool drew = DrawResolvedSceneToCurrentTarget(*resolvedSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
             editorViewportRT_.EndCapture();
             RefreshEditorViewportSrvDescriptor();
             BindBackBufferFullViewport();
@@ -1211,6 +1302,13 @@ namespace HIKARI {
                 LogFrameState("EndSceneCaptureAndPresent cmd null");
                 return;
             }
+
+            RenderTarget2D* resolvedSceneRT = ResolveFinalSceneToLdr(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
+            if (resolvedSceneRT == nullptr || resolvedSceneRT->GetResource() == nullptr) {
+                BindBackBufferFullViewport();
+                return;
+            }
+
             cmd->OMSetRenderTargets(1, &context_.rtv, FALSE, nullptr);
 
             const auto letterbox = ComputeLetterboxRect(context_.backBufferWidth, context_.backBufferHeight);
@@ -1224,7 +1322,7 @@ namespace HIKARI {
             cmd->RSSetViewports(1, &vp);
             cmd->RSSetScissorRects(1, &sc);
 
-            DrawFinalSceneToCurrentTarget(*finalSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
+            DrawResolvedSceneToCurrentTarget(*resolvedSceneRT, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
 
         void PostSystem::BeginLayer(PostChain& chain, float r, float g, float b, float a)

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/5b3d80320a48aa4f0a5f569e99a132e4/texture.htex",
+      "path": "Library/Imported/3e948b41b221f5f7ecaa552b9a205e23/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/5b3d80320a48aa4f0a5f569e99a132e4/texture.dds",
+      "path": "Library/Imported/3e948b41b221f5f7ecaa552b9a205e23/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Cobblestone_Big_BLENDSHADER_BaseColor",
-  "guid": "5b3d80320a48aa4f0a5f569e99a132e4",
+  "guid": "3e948b41b221f5f7ecaa552b9a205e23",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Cobblestone_Big_BLENDSHADER_BaseColor.png",
   "type": "Texture"

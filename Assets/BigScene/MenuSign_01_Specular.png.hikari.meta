@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/260eb9e37c7f452b966c8d9e2103cb4a/texture.htex",
+      "path": "Library/Imported/84197d5f4c04b58c13b9e6399b5aaf59/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/260eb9e37c7f452b966c8d9e2103cb4a/texture.dds",
+      "path": "Library/Imported/84197d5f4c04b58c13b9e6399b5aaf59/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MenuSign_01_Specular",
-  "guid": "260eb9e37c7f452b966c8d9e2103cb4a",
+  "guid": "84197d5f4c04b58c13b9e6399b5aaf59",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MenuSign_01_Specular.png",
   "type": "Texture"

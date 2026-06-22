@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/e7c5e921802c6e2b81690ace15da1a0f/texture.htex",
+      "path": "Library/Imported/2b7a1555def40a536cfe266abce54b58/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/e7c5e921802c6e2b81690ace15da1a0f/texture.dds",
+      "path": "Library/Imported/2b7a1555def40a536cfe266abce54b58/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "ElectricBox_BaseColor",
-  "guid": "e7c5e921802c6e2b81690ace15da1a0f",
+  "guid": "2b7a1555def40a536cfe266abce54b58",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/ElectricBox_BaseColor.png",
   "type": "Texture"

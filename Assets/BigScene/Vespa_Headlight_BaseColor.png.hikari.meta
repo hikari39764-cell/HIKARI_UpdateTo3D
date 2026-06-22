@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/1dfb29e88307699a66f1064015cd47a6/texture.htex",
+      "path": "Library/Imported/131c679dbc56ef3b58c0bb560e2b7fb5/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/1dfb29e88307699a66f1064015cd47a6/texture.dds",
+      "path": "Library/Imported/131c679dbc56ef3b58c0bb560e2b7fb5/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_Headlight_BaseColor",
-  "guid": "1dfb29e88307699a66f1064015cd47a6",
+  "guid": "131c679dbc56ef3b58c0bb560e2b7fb5",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_Headlight_BaseColor.png",
   "type": "Texture"

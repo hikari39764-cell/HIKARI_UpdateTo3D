@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2cfa76715277c483b1417b0f013bd558/texture.htex",
+      "path": "Library/Imported/c1ef0e41b3556b38b27a3269fbe4d569/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2cfa76715277c483b1417b0f013bd558/texture.dds",
+      "path": "Library/Imported/c1ef0e41b3556b38b27a3269fbe4d569/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StreetPivot_BaseColor",
-  "guid": "2cfa76715277c483b1417b0f013bd558",
+  "guid": "c1ef0e41b3556b38b27a3269fbe4d569",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StreetPivot_BaseColor.png",
   "type": "Texture"

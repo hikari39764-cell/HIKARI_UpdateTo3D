@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/095b3e61620cc771203cc0331e48ef15/texture.htex",
+      "path": "Library/Imported/41285cb06aac56b2785ee6f34dbe1779/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/095b3e61620cc771203cc0331e48ef15/texture.dds",
+      "path": "Library/Imported/41285cb06aac56b2785ee6f34dbe1779/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Painted3_Specular",
-  "guid": "095b3e61620cc771203cc0331e48ef15",
+  "guid": "41285cb06aac56b2785ee6f34dbe1779",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Painted3_Specular.png",
   "type": "Texture"

@@ -13,6 +13,7 @@ struct PSInput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
@@ -37,11 +38,13 @@ float main(PSInput input) : SV_Depth
         return input.position.z;
     }
 
+    const float2 baseColorUv =
+        HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_BASE_COLOR, input.uv, input.uv1);
     const float alpha =
         HikariSampleMaterialTexture(
             materialData.baseColorTextureDescriptorIndex,
             gLinearWrap,
-            input.uv,
+            baseColorUv,
             float4(1.0f, 1.0f, 1.0f, 1.0f)).a;
     if (alpha < materialData.pbrParams.w)
     {

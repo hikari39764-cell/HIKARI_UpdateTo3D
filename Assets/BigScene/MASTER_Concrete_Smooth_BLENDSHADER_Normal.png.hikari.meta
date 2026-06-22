@@ -2,22 +2,22 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/60042996f87a66f1e269e5c652d31d6c/texture.htex",
+      "path": "Library/Imported/18925098d4afeca1e9338fdac16cd70e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/60042996f87a66f1e269e5c652d31d6c/texture.dds",
+      "path": "Library/Imported/18925098d4afeca1e9338fdac16cd70e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Smooth_BLENDSHADER_Normal",
-  "guid": "60042996f87a66f1e269e5c652d31d6c",
+  "guid": "18925098d4afeca1e9338fdac16cd70e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
-    "compression": "BC5",
+    "compression": "BC7",
     "debugOutputFormat": "DDS",
     "dimension": "Texture2D",
     "forcePowerOfTwo": false,
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Smooth_BLENDSHADER_Normal.png",
   "type": "Texture"

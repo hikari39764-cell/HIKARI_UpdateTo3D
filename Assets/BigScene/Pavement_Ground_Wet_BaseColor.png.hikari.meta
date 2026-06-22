@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/6f4f4a00c196ee46cfebeae9c39e73c5/texture.htex",
+      "path": "Library/Imported/9123aa0e9a6c3a13a051e753f7b3553e/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/6f4f4a00c196ee46cfebeae9c39e73c5/texture.dds",
+      "path": "Library/Imported/9123aa0e9a6c3a13a051e753f7b3553e/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Pavement_Ground_Wet_BaseColor",
-  "guid": "6f4f4a00c196ee46cfebeae9c39e73c5",
+  "guid": "9123aa0e9a6c3a13a051e753f7b3553e",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Pavement_Ground_Wet_BaseColor.png",
   "type": "Texture"

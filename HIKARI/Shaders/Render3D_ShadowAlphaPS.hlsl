@@ -11,6 +11,7 @@ struct PSInput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
     nointerpolation uint materialFlags : MATERIALFLAGS;
     nointerpolation float alphaCutoff : ALPHACUTOFF;
     nointerpolation uint materialDataIndex : MATERIALINDEX;
@@ -27,10 +28,12 @@ void main(PSInput input)
     if (input.materialDataIndex != HIKARI_INVALID_SHADOW_MATERIAL_INDEX)
     {
         HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
+        const float2 baseColorUv =
+            HikariResolveMaterialUv(materialData, HIKARI_MATERIAL_UV_BASE_COLOR, input.uv, input.uv1);
         alpha = HikariSampleMaterialTexture(
             materialData.baseColorTextureDescriptorIndex,
             gLinearWrap,
-            input.uv,
+            baseColorUv,
             float4(1.0f, 1.0f, 1.0f, 1.0f)).a;
     }
     else

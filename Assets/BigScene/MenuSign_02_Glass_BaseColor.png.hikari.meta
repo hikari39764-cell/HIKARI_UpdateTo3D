@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2bdb12b600960f786c5127e70cbc5dcb/texture.htex",
+      "path": "Library/Imported/cb776f7f91de935d5d152c5a4f4ad12a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2bdb12b600960f786c5127e70cbc5dcb/texture.dds",
+      "path": "Library/Imported/cb776f7f91de935d5d152c5a4f4ad12a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MenuSign_02_Glass_BaseColor",
-  "guid": "2bdb12b600960f786c5127e70cbc5dcb",
+  "guid": "cb776f7f91de935d5d152c5a4f4ad12a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MenuSign_02_Glass_BaseColor.png",
   "type": "Texture"

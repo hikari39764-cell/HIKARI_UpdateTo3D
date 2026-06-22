@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c112dfb7546a030f781c3c5b25d1cefe/texture.htex",
+      "path": "Library/Imported/d16aff6bef523da91f32f04d0610833d/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c112dfb7546a030f781c3c5b25d1cefe/texture.dds",
+      "path": "Library/Imported/d16aff6bef523da91f32f04d0610833d/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Ivy_branches_Specular",
-  "guid": "c112dfb7546a030f781c3c5b25d1cefe",
+  "guid": "d16aff6bef523da91f32f04d0610833d",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Ivy_branches_Specular.png",
   "type": "Texture"

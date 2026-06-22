@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/c89bf7e56dacaeaa7ae046392417bbcb/texture.htex",
+      "path": "Library/Imported/13f9504af4e2c12db96476ed63af0bc1/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/c89bf7e56dacaeaa7ae046392417bbcb/texture.dds",
+      "path": "Library/Imported/13f9504af4e2c12db96476ed63af0bc1/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Shopsign_Ties_Shop_Specular",
-  "guid": "c89bf7e56dacaeaa7ae046392417bbcb",
+  "guid": "13f9504af4e2c12db96476ed63af0bc1",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Shopsign_Ties_Shop_Specular.png",
   "type": "Texture"

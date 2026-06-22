@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/3300d5bc4f82c74c8976748fdf75ea2c/texture.htex",
+      "path": "Library/Imported/cea8cba7207443c9c3158148112453ee/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/3300d5bc4f82c74c8976748fdf75ea2c/texture.dds",
+      "path": "Library/Imported/cea8cba7207443c9c3158148112453ee/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Grooved_BaseColor",
-  "guid": "3300d5bc4f82c74c8976748fdf75ea2c",
+  "guid": "cea8cba7207443c9c3158148112453ee",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Grooved_BaseColor.png",
   "type": "Texture"

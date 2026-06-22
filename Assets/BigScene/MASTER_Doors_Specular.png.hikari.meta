@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/df120ad2292a9b099e1e5548559b140d/texture.htex",
+      "path": "Library/Imported/76d7bd39552455c85aa6a1f60d62c48b/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/df120ad2292a9b099e1e5548559b140d/texture.dds",
+      "path": "Library/Imported/76d7bd39552455c85aa6a1f60d62c48b/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Doors_Specular",
-  "guid": "df120ad2292a9b099e1e5548559b140d",
+  "guid": "76d7bd39552455c85aa6a1f60d62c48b",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Doors_Specular.png",
   "type": "Texture"

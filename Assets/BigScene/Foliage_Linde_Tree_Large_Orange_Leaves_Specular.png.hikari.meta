@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/cbe6a59f14c50b79dc01c3aaaa5bf984/texture.htex",
+      "path": "Library/Imported/0cb77f1a679666c0e24b24c4880aff32/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/cbe6a59f14c50b79dc01c3aaaa5bf984/texture.dds",
+      "path": "Library/Imported/0cb77f1a679666c0e24b24c4880aff32/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Foliage_Linde_Tree_Large_Orange_Leaves_Specular",
-  "guid": "cbe6a59f14c50b79dc01c3aaaa5bf984",
+  "guid": "0cb77f1a679666c0e24b24c4880aff32",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "Auto"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Foliage_Linde_Tree_Large_Orange_Leaves_Specular.png",
   "type": "Texture"

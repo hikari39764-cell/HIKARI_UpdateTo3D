@@ -32,7 +32,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 12,
+  "importerVersion": 21,
   "metaVersion": 1,
   "sourcePath": "Assets/FPStest/BunnyCube_10x10x10_1000_Scale10.gltf",
   "type": "Model"

@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/96eed54136dc6cdb6481c0804ffe0d0a/texture.htex",
+      "path": "Library/Imported/11d6cc8fcf64b08adee9e7acd983d47a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/96eed54136dc6cdb6481c0804ffe0d0a/texture.dds",
+      "path": "Library/Imported/11d6cc8fcf64b08adee9e7acd983d47a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_TrafficSign_A_BaseColor",
-  "guid": "96eed54136dc6cdb6481c0804ffe0d0a",
+  "guid": "11d6cc8fcf64b08adee9e7acd983d47a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_TrafficSign_A_BaseColor.png",
   "type": "Texture"

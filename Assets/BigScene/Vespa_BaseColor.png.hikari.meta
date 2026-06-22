@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/2d6da0747dca0c2f278fc243a5401f08/texture.htex",
+      "path": "Library/Imported/55bfbaecdb8234f4b2e670baa16ec353/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/2d6da0747dca0c2f278fc243a5401f08/texture.dds",
+      "path": "Library/Imported/55bfbaecdb8234f4b2e670baa16ec353/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Vespa_BaseColor",
-  "guid": "2d6da0747dca0c2f278fc243a5401f08",
+  "guid": "55bfbaecdb8234f4b2e670baa16ec353",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Vespa_BaseColor.png",
   "type": "Texture"

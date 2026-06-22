@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/4eb9259e8eef9e5a8eaaf546cb1574ad/texture.htex",
+      "path": "Library/Imported/6ab7889697bf5f6c2587f69fc415521a/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/4eb9259e8eef9e5a8eaaf546cb1574ad/texture.dds",
+      "path": "Library/Imported/6ab7889697bf5f6c2587f69fc415521a/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Concrete_Grooved_Normal",
-  "guid": "4eb9259e8eef9e5a8eaaf546cb1574ad",
+  "guid": "6ab7889697bf5f6c2587f69fc415521a",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Linear",
@@ -27,7 +27,7 @@
     "usage": "Normal"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Concrete_Grooved_Normal.png",
   "type": "Texture"

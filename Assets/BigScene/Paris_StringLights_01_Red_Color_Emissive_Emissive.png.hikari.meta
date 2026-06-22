@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/0910ea43cd854ba9905b831cb1840f6d/texture.htex",
+      "path": "Library/Imported/24997c6dfbd5874b976354226f39ed0c/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/0910ea43cd854ba9905b831cb1840f6d/texture.dds",
+      "path": "Library/Imported/24997c6dfbd5874b976354226f39ed0c/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "Paris_StringLights_01_Red_Color_Emissive_Emissive",
-  "guid": "0910ea43cd854ba9905b831cb1840f6d",
+  "guid": "24997c6dfbd5874b976354226f39ed0c",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/Paris_StringLights_01_Red_Color_Emissive_Emissive.png",
   "type": "Texture"

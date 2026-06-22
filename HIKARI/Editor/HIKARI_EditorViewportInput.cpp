@@ -134,6 +134,27 @@ namespace HIKARI::EDITOR {
 #endif
     }
 
+    bool IsGameViewportWheelInputActive()
+    {
+#if defined(HIKARI_WITH_EDITOR)
+        if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
+            return false;
+        }
+        if (gGameViewportInput.gizmoCaptured) {
+            return false;
+        }
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput) {
+            return false;
+        }
+
+        return IsMouseInsideGameViewport();
+#else
+        return false;
+#endif
+    }
+
     bool IsGameViewportKeyboardInputActive()
     {
 #if defined(HIKARI_WITH_EDITOR)

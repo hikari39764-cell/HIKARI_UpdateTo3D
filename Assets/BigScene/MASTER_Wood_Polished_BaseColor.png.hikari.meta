@@ -2,18 +2,18 @@
   "artifacts": [
     {
       "format": "HTEX",
-      "path": "Library/Imported/b8ca7937049d0973102284e0d91c24e1/texture.htex",
+      "path": "Library/Imported/9d5dc089ede42207ae9bbe39f5815724/texture.htex",
       "role": "MainTexture"
     },
     {
       "format": "DDS",
-      "path": "Library/Imported/b8ca7937049d0973102284e0d91c24e1/texture.dds",
+      "path": "Library/Imported/9d5dc089ede42207ae9bbe39f5815724/texture.dds",
       "role": "DebugDDS"
     }
   ],
   "dependencies": [],
   "displayName": "MASTER_Wood_Polished_BaseColor",
-  "guid": "b8ca7937049d0973102284e0d91c24e1",
+  "guid": "9d5dc089ede42207ae9bbe39f5815724",
   "importSettings": {
     "allowResize": false,
     "colorSpace": "Srgb",
@@ -27,7 +27,7 @@
     "usage": "BaseColor"
   },
   "importerId": "TextureImporter",
-  "importerVersion": 3,
+  "importerVersion": 5,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/MASTER_Wood_Polished_BaseColor.png",
   "type": "Texture"

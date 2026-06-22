@@ -13,6 +13,7 @@ namespace HIKARI {
         MATH::Vec4 tangent{ 1.0f, 0.0f, 0.0f, 1.0f };
         float u = 0.0f;
         float v = 0.0f;
+        MATH::Vec2 uv1{};
     };
 
     struct VertexSkinnedGpu3D {
