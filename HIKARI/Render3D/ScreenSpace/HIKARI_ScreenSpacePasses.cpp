@@ -1,5 +1,6 @@
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 
+#include <algorithm>
 #include <chrono>
 
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
@@ -33,6 +34,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         gScreenSpaceState.fallbackAoTextureHandle = -1;
         gScreenSpaceState.depthVisibilityValid = false;
         gScreenSpaceState.depthVisibilityViewProjValid = false;
+        gScreenSpaceState.depthVisibilityBuildAllowedThisFrame = true;
         gScreenSpaceState.geometryValid = false;
         gScreenSpaceState.ssaoValid = false;
     }
@@ -74,6 +76,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const bool historyHzbReady =
             historyDepthStats.hzbBuilt &&
             historyDepthStats.hzbFinestSrv.ptr != 0 &&
+            historyDepthStats.width == context.width &&
+            historyDepthStats.height == context.height &&
             historyDepthStats.hzbWidth != 0 &&
             historyDepthStats.hzbHeight != 0 &&
             historyDepthStats.hzbViewProjValid;
@@ -95,6 +99,9 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const CpuClock::time_point depthVisibilityStart = CpuClock::now();
         const bool frozenCullingView =
             MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive();
+        const bool depthVisibilityAllowedThisFrame = true;
+        state.depthVisibilityBuildAllowedThisFrame =
+            depthVisibilityAllowedThisFrame;
         if (frozenCullingView) {
             D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
                 state.depthVisibility.BeginDepthPrepass(
@@ -133,7 +140,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             } else {
                 (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
             }
-        } else if (historyHzbReady) {
+        } else if (depthVisibilityAllowedThisFrame && historyHzbReady) {
             GFX::PIX::ScopedGpuEvent pixHistory(
                 context.cmd,
                 GFX::PIX::kColorUpload,
@@ -268,7 +275,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 GFX::PIX::kColorPost,
                 "ScreenSpace.PostOpaqueTemporal");
 
-            if (!MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive()) {
+            if (!MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive() &&
+                state.depthVisibilityBuildAllowedThisFrame) {
                 result.hzbBuilt = state.depthVisibility.BuildHzbFromDepthSrv(
                     context.cmd,
                     context.width,
@@ -283,6 +291,9 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                     state.depthVisibilityValid = false;
                     state.depthVisibilityViewProjValid = false;
                 }
+            } else if (!state.depthVisibilityBuildAllowedThisFrame) {
+                state.depthVisibilityValid = false;
+                state.depthVisibilityViewProjValid = false;
             }
 
             if (refreshBalancedSsao) {

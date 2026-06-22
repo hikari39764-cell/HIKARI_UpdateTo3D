@@ -2058,7 +2058,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 21,
+  "importerVersion": 24,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/testscene.gltf",
   "type": "Model"

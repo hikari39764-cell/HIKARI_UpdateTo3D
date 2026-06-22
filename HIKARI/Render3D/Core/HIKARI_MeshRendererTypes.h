@@ -436,6 +436,11 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuHzbLargeRectCount = 0;
         size_t clusterGpuCullGpuHzbAabbAcceptedCount = 0;
         size_t clusterGpuCullGpuHzbSphereAcceptedCount = 0;
+        size_t clusterGpuCullGpuHzbRawOccludedCount = 0;
+        size_t clusterGpuCullGpuHzbTemporalPendingCount = 0;
+        size_t clusterGpuCullGpuHzbTemporalConfirmedCount = 0;
+        size_t clusterGpuCullGpuHzbTemporalResetCount = 0;
+        size_t clusterGpuCullGpuHzbTemporalCollisionCount = 0;
         size_t clusterGpuCullGpuClusterConeCulledCount = 0;
         size_t clusterGpuCullGpuClusterConeTestedCount = 0;
         size_t clusterGpuCullGpuDoubleSidedClusterCount = 0;
@@ -459,6 +464,7 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullInputCapacity = 0;
         size_t clusterGpuCullVisibleRangeCapacity = 0;
         size_t clusterGpuCullDrawArgumentCapacity = 0;
+        size_t clusterGpuCullOcclusionHistoryCapacity = 0;
         size_t clusterGpuCullDrawSeedCount = 0;
         size_t clusterDrawEligibleCommandCount = 0;
         size_t clusterDrawRejectContextCommandCount = 0;
@@ -514,6 +520,7 @@ namespace HIKARI::MESHRENDERER {
         bool clusterGpuCullCounterReadbackValid = false;
         bool clusterGpuCullDebugCountersEnabled = false;
         bool clusterGpuCullHzbOcclusionEnabled = false;
+        bool clusterGpuCullOcclusionHistoryReady = false;
         bool clusterDrawPipelineReady = false;
         bool clusterDrawForwardPipelineReady = false;
         bool clusterDrawGeometryAuxPipelineReady = false;

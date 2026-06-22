@@ -1,6 +1,7 @@
 #include "Assets/Geometry/HIKARI_ClusteredGeometryCooker.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -58,6 +59,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             const ClusterCookSettings& settings);
 
         bool IsFiniteVec3(const MATH::Vec3& v);
+        bool ShouldUsePermissiveOpaqueLods(uint32_t flags);
 
         bool ApplyMeshoptMeshletBounds(
             const ClusteredGeometryAsset& asset,
@@ -128,6 +130,101 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 outCluster.coneCutoff = 1.0f;
             }
             return true;
+        }
+
+        uint32_t ExpandMorton10(uint32_t value) {
+            value &= 0x000003ffu;
+            value = (value | (value << 16u)) & 0x030000ffu;
+            value = (value | (value << 8u)) & 0x0300f00fu;
+            value = (value | (value << 4u)) & 0x030c30c3u;
+            value = (value | (value << 2u)) & 0x09249249u;
+            return value;
+        }
+
+        uint32_t EncodeMorton3D(uint32_t x, uint32_t y, uint32_t z) {
+            return
+                (ExpandMorton10(x) << 2u) |
+                (ExpandMorton10(y) << 1u) |
+                ExpandMorton10(z);
+        }
+
+        uint32_t QuantizeMortonAxis(float value, float minValue, float extent) {
+            if (!std::isfinite(value) ||
+                !std::isfinite(minValue) ||
+                !std::isfinite(extent) ||
+                extent <= 1.0e-5f) {
+                return 0u;
+            }
+
+            const float normalized = (std::max)(
+                0.0f,
+                (std::min)((value - minValue) / extent, 1.0f));
+            return static_cast<uint32_t>(normalized * 1023.0f + 0.5f);
+        }
+
+        uint32_t ClusterMortonCode(
+            const MeshCluster& cluster,
+            const Bounds& rangeBounds) {
+
+            const MATH::Vec3 center =
+                (cluster.localBounds.min + cluster.localBounds.max) * 0.5f;
+            const MATH::Vec3 extent = rangeBounds.max - rangeBounds.min;
+            return EncodeMorton3D(
+                QuantizeMortonAxis(center.x, rangeBounds.min.x, extent.x),
+                QuantizeMortonAxis(center.y, rangeBounds.min.y, extent.y),
+                QuantizeMortonAxis(center.z, rangeBounds.min.z, extent.z));
+        }
+
+        void SpatialSortClusterRangeForPages(
+            uint32_t firstCluster,
+            uint32_t clusterCount,
+            ClusteredGeometryAsset& asset) {
+
+            if (clusterCount <= 1u ||
+                firstCluster >= asset.clusters.size() ||
+                firstCluster + clusterCount > asset.clusters.size()) {
+                return;
+            }
+
+            Bounds rangeBounds{};
+            bool hasBounds = false;
+            for (uint32_t i = 0; i < clusterCount; ++i) {
+                const MeshCluster& cluster = asset.clusters[firstCluster + i];
+                if (!BOUNDS::IsUsable(cluster.localBounds)) {
+                    continue;
+                }
+                if (!hasBounds) {
+                    rangeBounds = cluster.localBounds;
+                } else {
+                    rangeBounds.min.x = (std::min)(rangeBounds.min.x, cluster.localBounds.min.x);
+                    rangeBounds.min.y = (std::min)(rangeBounds.min.y, cluster.localBounds.min.y);
+                    rangeBounds.min.z = (std::min)(rangeBounds.min.z, cluster.localBounds.min.z);
+                    rangeBounds.max.x = (std::max)(rangeBounds.max.x, cluster.localBounds.max.x);
+                    rangeBounds.max.y = (std::max)(rangeBounds.max.y, cluster.localBounds.max.y);
+                    rangeBounds.max.z = (std::max)(rangeBounds.max.z, cluster.localBounds.max.z);
+                }
+                hasBounds = true;
+            }
+            if (!hasBounds || !BOUNDS::IsUsable(rangeBounds)) {
+                return;
+            }
+
+            auto begin = asset.clusters.begin() + firstCluster;
+            auto end = begin + clusterCount;
+            std::stable_sort(
+                begin,
+                end,
+                [&](const MeshCluster& a, const MeshCluster& b) {
+                    const uint32_t mortonA = ClusterMortonCode(a, rangeBounds);
+                    const uint32_t mortonB = ClusterMortonCode(b, rangeBounds);
+                    if (mortonA != mortonB) {
+                        return mortonA < mortonB;
+                    }
+                    if (a.firstIndex != b.firstIndex) {
+                        return a.firstIndex < b.firstIndex;
+                    }
+                    return a.firstPrimitive < b.firstPrimitive;
+                });
         }
 
         bool IsFiniteVec3(const MATH::Vec3& v) {
@@ -411,6 +508,275 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         uint32_t CountWorkTriangles(const SurfaceWork& work) {
             return static_cast<uint32_t>(work.indices.size() / 3u);
+        }
+
+        float Distance(const MATH::Vec3& a, const MATH::Vec3& b) {
+            const MATH::Vec3 d = a - b;
+            return std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+        }
+
+        float TriangleMaxEdgeLength(
+            const std::vector<ClusterVertex>& vertices,
+            uint32_t i0,
+            uint32_t i1,
+            uint32_t i2) {
+
+            if (i0 >= vertices.size() ||
+                i1 >= vertices.size() ||
+                i2 >= vertices.size()) {
+                return 0.0f;
+            }
+
+            return (std::max)(
+                Distance(vertices[i0].position, vertices[i1].position),
+                (std::max)(
+                    Distance(vertices[i1].position, vertices[i2].position),
+                    Distance(vertices[i2].position, vertices[i0].position)));
+        }
+
+        MATH::Vec2 LerpVec2(const MATH::Vec2& a, const MATH::Vec2& b, float t) {
+            return {
+                a.x + (b.x - a.x) * t,
+                a.y + (b.y - a.y) * t
+            };
+        }
+
+        MATH::Vec3 LerpVec3(const MATH::Vec3& a, const MATH::Vec3& b, float t) {
+            return {
+                a.x + (b.x - a.x) * t,
+                a.y + (b.y - a.y) * t,
+                a.z + (b.z - a.z) * t
+            };
+        }
+
+        MATH::Vec4 LerpVec4(const MATH::Vec4& a, const MATH::Vec4& b, float t) {
+            return {
+                a.x + (b.x - a.x) * t,
+                a.y + (b.y - a.y) * t,
+                a.z + (b.z - a.z) * t,
+                a.w + (b.w - a.w) * t
+            };
+        }
+
+        ClusterVertex LerpClusterVertex(
+            const ClusterVertex& a,
+            const ClusterVertex& b,
+            float t) {
+
+            ClusterVertex out{};
+            out.position = LerpVec3(a.position, b.position, t);
+            out.normal = MATH::Normalize(LerpVec3(a.normal, b.normal, t));
+            if (MATH::Length(out.normal) <= 1.0e-5f) {
+                out.normal = MATH::Length(a.normal) > 1.0e-5f
+                    ? a.normal
+                    : MATH::Vec3{ 0.0f, 1.0f, 0.0f };
+            }
+
+            const MATH::Vec3 tangentA{ a.tangent.x, a.tangent.y, a.tangent.z };
+            const MATH::Vec3 tangentB{ b.tangent.x, b.tangent.y, b.tangent.z };
+            MATH::Vec3 tangent = MATH::Normalize(LerpVec3(tangentA, tangentB, t));
+            if (MATH::Length(tangent) <= 1.0e-5f) {
+                tangent = MATH::Length(tangentA) > 1.0e-5f
+                    ? tangentA
+                    : MATH::Vec3{ 1.0f, 0.0f, 0.0f };
+            }
+            const float handedness =
+                std::abs(a.tangent.w) >= std::abs(b.tangent.w)
+                    ? a.tangent.w
+                    : b.tangent.w;
+            out.tangent = {
+                tangent.x,
+                tangent.y,
+                tangent.z,
+                std::abs(handedness) <= 1.0e-5f ? 1.0f : handedness
+            };
+            out.uv0 = LerpVec2(a.uv0, b.uv0, t);
+            out.uv1 = LerpVec2(a.uv1, b.uv1, t);
+            out.color = LerpVec4(a.color, b.color, t);
+            return out;
+        }
+
+        struct TriangleSubdivisionStats {
+            uint32_t sourceTriangleCount = 0;
+            uint32_t outputTriangleCount = 0;
+            bool budgetReached = false;
+        };
+
+        uint32_t AppendMidpointVertex(
+            std::vector<ClusterVertex>& vertices,
+            uint32_t a,
+            uint32_t b) {
+
+            if (a >= vertices.size() || b >= vertices.size()) {
+                return a;
+            }
+            if (vertices.size() >= static_cast<size_t>((std::numeric_limits<uint32_t>::max)())) {
+                return a;
+            }
+
+            const uint32_t index = static_cast<uint32_t>(vertices.size());
+            vertices.push_back(LerpClusterVertex(vertices[a], vertices[b], 0.5f));
+            return index;
+        }
+
+        void AppendTriangleIndices(
+            std::vector<uint32_t>& indices,
+            uint32_t i0,
+            uint32_t i1,
+            uint32_t i2,
+            TriangleSubdivisionStats& stats) {
+
+            indices.push_back(i0);
+            indices.push_back(i1);
+            indices.push_back(i2);
+            ++stats.outputTriangleCount;
+        }
+
+        void AppendSubdividedTriangleRecursive(
+            std::vector<ClusterVertex>& vertices,
+            std::vector<uint32_t>& indices,
+            uint32_t i0,
+            uint32_t i1,
+            uint32_t i2,
+            float maxEdgeLength,
+            uint32_t maxDepth,
+            uint32_t depth,
+            uint32_t maxGeneratedTriangles,
+            TriangleSubdivisionStats& stats) {
+
+            if (stats.outputTriangleCount >= maxGeneratedTriangles) {
+                stats.budgetReached = true;
+                AppendTriangleIndices(indices, i0, i1, i2, stats);
+                return;
+            }
+
+            const float e01 = i0 < vertices.size() && i1 < vertices.size()
+                ? Distance(vertices[i0].position, vertices[i1].position)
+                : 0.0f;
+            const float e12 = i1 < vertices.size() && i2 < vertices.size()
+                ? Distance(vertices[i1].position, vertices[i2].position)
+                : 0.0f;
+            const float e20 = i2 < vertices.size() && i0 < vertices.size()
+                ? Distance(vertices[i2].position, vertices[i0].position)
+                : 0.0f;
+            const float longest = (std::max)(e01, (std::max)(e12, e20));
+            if (longest <= maxEdgeLength ||
+                depth >= maxDepth ||
+                stats.outputTriangleCount + 2u > maxGeneratedTriangles) {
+                AppendTriangleIndices(indices, i0, i1, i2, stats);
+                if (longest > maxEdgeLength &&
+                    (depth >= maxDepth || stats.outputTriangleCount >= maxGeneratedTriangles)) {
+                    stats.budgetReached = true;
+                }
+                return;
+            }
+
+            if (e01 >= e12 && e01 >= e20) {
+                const uint32_t mid = AppendMidpointVertex(vertices, i0, i1);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, i0, mid, i2, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, mid, i1, i2, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+            } else if (e12 >= e20) {
+                const uint32_t mid = AppendMidpointVertex(vertices, i1, i2);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, i1, mid, i0, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, mid, i2, i0, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+            } else {
+                const uint32_t mid = AppendMidpointVertex(vertices, i2, i0);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, i2, mid, i1, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+                AppendSubdividedTriangleRecursive(
+                    vertices, indices, mid, i0, i1, maxEdgeLength,
+                    maxDepth, depth + 1u, maxGeneratedTriangles, stats);
+            }
+        }
+
+        bool ShouldSubdivideLargeStaticTriangles(
+            const SurfaceWork& work,
+            const ClusterCookSettings& settings) {
+
+            return
+                settings.subdivideLargeStaticTriangles &&
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::SceneStatic &&
+                ShouldUsePermissiveOpaqueLods(work.flags) &&
+                work.vertices.size() >= 3u &&
+                work.indices.size() >= 3u &&
+                settings.largeStaticTriangleMaxEdgeLength > 0.0f &&
+                settings.largeStaticTriangleMaxSubdivisions > 0u &&
+                settings.largeStaticTriangleMaxGeneratedTriangles > 0u;
+        }
+
+        SurfaceWork SubdivideLargeStaticTriangles(
+            const SurfaceWork& work,
+            const ClusterCookSettings& settings,
+            ClusteredGeometryBuildReport& report) {
+
+            if (!ShouldSubdivideLargeStaticTriangles(work, settings)) {
+                return work;
+            }
+
+            SurfaceWork refined = work;
+            refined.indices.clear();
+            refined.indices.reserve(work.indices.size());
+            const float maxEdgeLength =
+                (std::max)(0.1f, settings.largeStaticTriangleMaxEdgeLength);
+            const uint32_t maxDepth =
+                (std::max)(1u, settings.largeStaticTriangleMaxSubdivisions);
+            const uint32_t maxGeneratedTriangles =
+                (std::max)(1u, settings.largeStaticTriangleMaxGeneratedTriangles);
+
+            TriangleSubdivisionStats stats{};
+            for (size_t i = 0; i + 2u < work.indices.size(); i += 3u) {
+                const uint32_t i0 = work.indices[i + 0u];
+                const uint32_t i1 = work.indices[i + 1u];
+                const uint32_t i2 = work.indices[i + 2u];
+                if (i0 >= refined.vertices.size() ||
+                    i1 >= refined.vertices.size() ||
+                    i2 >= refined.vertices.size()) {
+                    continue;
+                }
+
+                const float maxEdge = TriangleMaxEdgeLength(refined.vertices, i0, i1, i2);
+                if (maxEdge > maxEdgeLength) {
+                    ++stats.sourceTriangleCount;
+                }
+                if (stats.budgetReached) {
+                    AppendTriangleIndices(refined.indices, i0, i1, i2, stats);
+                    continue;
+                }
+                AppendSubdividedTriangleRecursive(
+                    refined.vertices,
+                    refined.indices,
+                    i0,
+                    i1,
+                    i2,
+                    maxEdgeLength,
+                    maxDepth,
+                    0u,
+                    maxGeneratedTriangles,
+                    stats);
+            }
+
+            if (stats.sourceTriangleCount == 0u ||
+                refined.indices.size() <= work.indices.size()) {
+                return work;
+            }
+
+            ++report.subdividedSurfaceCount;
+            report.subdividedSourceTriangleCount += stats.sourceTriangleCount;
+            report.subdividedOutputTriangleCount += stats.outputTriangleCount;
+            if (stats.budgetReached) {
+                report.messages.push_back(
+                    "large static triangle subdivision reached per-surface budget");
+            }
+            return refined;
         }
 
         bool ShouldBuildReducedLods(uint32_t flags) {
@@ -982,6 +1348,19 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return { tri.i0, tri.i1, tri.i2 };
         }
 
+        uint32_t TriangleNormalBucket(const SourceTriangle& tri) {
+            const float ax = std::abs(tri.normal.x);
+            const float ay = std::abs(tri.normal.y);
+            const float az = std::abs(tri.normal.z);
+            if (ax >= ay && ax >= az) {
+                return tri.normal.x >= 0.0f ? 0u : 1u;
+            }
+            if (ay >= az) {
+                return tri.normal.y >= 0.0f ? 2u : 3u;
+            }
+            return tri.normal.z >= 0.0f ? 4u : 5u;
+        }
+
         std::vector<std::vector<uint32_t>> BuildSequentialTriangleGroups(
             const std::vector<SourceTriangle>& triangles,
             const ClusterCookSettings& settings) {
@@ -1032,7 +1411,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return groups;
         }
 
-        std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
+        std::vector<std::vector<uint32_t>> BuildMeshoptTriangleGroups(
             const std::vector<ClusterVertex>& vertices,
             const std::vector<SourceTriangle>& triangles,
             const ClusterCookSettings& settings) {
@@ -1070,6 +1449,18 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
             if (indices.empty()) {
                 return {};
+            }
+
+            if (indices.size() >= 6u) {
+                std::vector<unsigned int> sortedIndices(indices.size());
+                meshopt_spatialSortTriangles(
+                    sortedIndices.data(),
+                    indices.data(),
+                    indices.size(),
+                    &vertices[0].position.x,
+                    vertices.size(),
+                    sizeof(ClusterVertex));
+                indices = std::move(sortedIndices);
             }
 
             const size_t meshletBound =
@@ -1145,6 +1536,70 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             return groups.empty()
                 ? BuildSequentialTriangleGroups(triangles, settings)
+                : groups;
+        }
+
+        std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
+            const std::vector<ClusterVertex>& vertices,
+            const std::vector<SourceTriangle>& triangles,
+            const ClusterCookSettings& settings) {
+
+            const size_t maxTriangles =
+                (std::min<size_t>)((std::max)(1u, settings.maxTrianglesPerCluster), 512u);
+            const bool coneFriendlyScene =
+                settings.buildNormalCone &&
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::SceneStatic &&
+                triangles.size() >= maxTriangles * 2u;
+            if (!coneFriendlyScene) {
+                return BuildMeshoptTriangleGroups(vertices, triangles, settings);
+            }
+
+            std::array<std::vector<uint32_t>, 6u> buckets{};
+            for (uint32_t triangleIndex = 0; triangleIndex < triangles.size(); ++triangleIndex) {
+                buckets[TriangleNormalBucket(triangles[triangleIndex])].push_back(triangleIndex);
+            }
+
+            size_t nonEmptyBucketCount = 0;
+            for (const std::vector<uint32_t>& bucket : buckets) {
+                if (!bucket.empty()) {
+                    ++nonEmptyBucketCount;
+                }
+            }
+            if (nonEmptyBucketCount <= 1u) {
+                return BuildMeshoptTriangleGroups(vertices, triangles, settings);
+            }
+
+            std::vector<std::vector<uint32_t>> groups{};
+            for (const std::vector<uint32_t>& bucket : buckets) {
+                if (bucket.empty()) {
+                    continue;
+                }
+
+                std::vector<SourceTriangle> bucketTriangles{};
+                bucketTriangles.reserve(bucket.size());
+                for (uint32_t triangleIndex : bucket) {
+                    bucketTriangles.push_back(triangles[triangleIndex]);
+                }
+
+                std::vector<std::vector<uint32_t>> bucketGroups =
+                    BuildMeshoptTriangleGroups(vertices, bucketTriangles, settings);
+                for (std::vector<uint32_t>& bucketGroup : bucketGroups) {
+                    bool groupValid = true;
+                    for (uint32_t& localTriangleIndex : bucketGroup) {
+                        if (localTriangleIndex >= bucket.size()) {
+                            groupValid = false;
+                            break;
+                        }
+                        localTriangleIndex = bucket[localTriangleIndex];
+                    }
+                    if (groupValid && !bucketGroup.empty()) {
+                        groups.push_back(std::move(bucketGroup));
+                    }
+                }
+            }
+
+            return groups.empty()
+                ? BuildMeshoptTriangleGroups(vertices, triangles, settings)
                 : groups;
         }
 
@@ -1240,6 +1695,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 return;
             }
 
+            SpatialSortClusterRangeForPages(firstCluster, clusterCount, asset);
+
             const uint32_t maxPerPage = (std::max)(1u, settings.maxClustersPerPage);
             uint32_t remaining = clusterCount;
             uint32_t clusterCursor = firstCluster;
@@ -1248,26 +1705,33 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 ClusterPage page{};
                 page.firstCluster = clusterCursor;
                 page.clusterCount = pageClusterCount;
-                page.firstIndex = asset.clusters[clusterCursor].firstIndex;
-                page.firstVertex = asset.clusters[clusterCursor].firstVertex;
-                page.firstPrimitive = asset.clusters[clusterCursor].firstPrimitive;
 
                 Bounds bounds{};
                 bool hasBounds = false;
-                uint32_t endIndex = page.firstIndex;
-                uint32_t endVertex = page.firstVertex;
-                uint32_t endPrimitive = page.firstPrimitive;
+                const uint32_t invalidOffset = (std::numeric_limits<uint32_t>::max)();
+                uint32_t minIndex = invalidOffset;
+                uint32_t minVertex = invalidOffset;
+                uint32_t minPrimitive = invalidOffset;
+                uint32_t endIndex = 0u;
+                uint32_t endVertex = 0u;
+                uint32_t endPrimitive = 0u;
                 for (uint32_t i = 0; i < pageClusterCount; ++i) {
                     const MeshCluster& cluster = asset.clusters[clusterCursor + i];
                     bounds = hasBounds ? MergeBounds(bounds, cluster.localBounds) : cluster.localBounds;
                     hasBounds = hasBounds || BOUNDS::IsUsable(cluster.localBounds);
+                    minIndex = (std::min)(minIndex, cluster.firstIndex);
+                    minVertex = (std::min)(minVertex, cluster.firstVertex);
+                    minPrimitive = (std::min)(minPrimitive, cluster.firstPrimitive);
                     endIndex = (std::max)(endIndex, cluster.firstIndex + cluster.indexCount);
                     endVertex = (std::max)(endVertex, cluster.firstVertex + cluster.vertexCount);
                     endPrimitive = (std::max)(endPrimitive, cluster.firstPrimitive + cluster.primitiveCount);
                 }
-                page.indexCount = endIndex - page.firstIndex;
-                page.vertexCount = endVertex - page.firstVertex;
-                page.primitiveCount = endPrimitive - page.firstPrimitive;
+                page.firstIndex = minIndex != invalidOffset ? minIndex : 0u;
+                page.firstVertex = minVertex != invalidOffset ? minVertex : 0u;
+                page.firstPrimitive = minPrimitive != invalidOffset ? minPrimitive : 0u;
+                page.indexCount = endIndex >= page.firstIndex ? endIndex - page.firstIndex : 0u;
+                page.vertexCount = endVertex >= page.firstVertex ? endVertex - page.firstVertex : 0u;
+                page.primitiveCount = endPrimitive >= page.firstPrimitive ? endPrimitive - page.firstPrimitive : 0u;
                 page.localBounds = hasBounds ? bounds : Bounds{};
                 asset.pages.push_back(page);
 
@@ -1428,28 +1892,31 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 return false;
             }
 
-            const std::vector<SourceTriangle> triangles = BuildTriangles(work.vertices, work.indices);
+            const SurfaceWork buildWork =
+                SubdivideLargeStaticTriangles(work, settings, report);
+            const std::vector<SourceTriangle> triangles =
+                BuildTriangles(buildWork.vertices, buildWork.indices);
             if (triangles.empty()) {
                 ++report.skippedInvalidPrimitiveCount;
                 return false;
             }
 
             ClusterSurface surface{};
-            surface.nodeIndex = work.nodeIndex;
-            surface.meshIndex = work.meshIndex;
-            surface.primitiveIndex = work.primitiveIndex;
-            surface.materialIndex = work.materialIndex;
+            surface.nodeIndex = buildWork.nodeIndex;
+            surface.meshIndex = buildWork.meshIndex;
+            surface.primitiveIndex = buildWork.primitiveIndex;
+            surface.materialIndex = buildWork.materialIndex;
             const uint32_t surfaceIndex = static_cast<uint32_t>(asset.surfaces.size());
             surface.firstCluster = static_cast<uint32_t>(asset.clusters.size());
             surface.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
             surface.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
             surface.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
             surface.firstSection = static_cast<uint32_t>(asset.surfaceSections.size());
-            surface.flags = work.flags;
+            surface.flags = buildWork.flags;
 
             std::vector<SurfaceSectionBuildSource> sectionSources{};
             const bool partitioned = BuildLargeStaticSurfaceSectionSources(
-                work,
+                buildWork,
                 triangles,
                 settings,
                 report,
@@ -1458,7 +1925,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 SurfaceSectionBuildSource wholeSurface{};
                 wholeSurface.triangleIndices.resize(triangles.size());
                 std::iota(wholeSurface.triangleIndices.begin(), wholeSurface.triangleIndices.end(), 0u);
-                wholeSurface.groups = BuildClusterTriangleGroups(work.vertices, triangles, settings);
+                wholeSurface.groups = BuildClusterTriangleGroups(buildWork.vertices, triangles, settings);
                 sectionSources.push_back(std::move(wholeSurface));
             }
 
@@ -1475,11 +1942,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 section.firstIndex = static_cast<uint32_t>(asset.packedIndices.size());
                 section.firstVertex = static_cast<uint32_t>(asset.packedVertices.size());
                 section.firstPrimitive = static_cast<uint32_t>(asset.meshletPrimitives.size());
-                section.flags = work.flags;
+                section.flags = buildWork.flags;
 
                 SurfaceWork sectionWork = partitioned
-                    ? BuildSectionSurfaceWork(work, triangles, sectionSource.triangleIndices)
-                    : work;
+                    ? BuildSectionSurfaceWork(buildWork, triangles, sectionSource.triangleIndices)
+                    : buildWork;
                 if (sectionWork.vertices.empty() || sectionWork.indices.size() < 3u) {
                     continue;
                 }
@@ -1488,7 +1955,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     if (group.empty()) {
                         continue;
                     }
-                    AppendClusterGeometry(work, triangles, group, surfaceIndex, settings, asset);
+                    AppendClusterGeometry(buildWork, triangles, group, surfaceIndex, settings, asset);
                 }
 
                 section.clusterCount = static_cast<uint32_t>(asset.clusters.size()) - section.firstCluster;
@@ -1498,7 +1965,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     static_cast<uint32_t>(asset.meshletPrimitives.size()) - section.firstPrimitive;
                 section.localBounds = ComputeTriangleSubsetBounds(triangles, sectionSource.triangleIndices);
                 if (!BOUNDS::IsUsable(section.localBounds)) {
-                    section.localBounds = ComputeVertexBounds(work.vertices);
+                    section.localBounds = ComputeVertexBounds(buildWork.vertices);
                 }
                 ConfigureSectionLodMetric(
                     section,
@@ -1516,7 +1983,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             surface.indexCount = static_cast<uint32_t>(asset.packedIndices.size()) - surface.firstIndex;
             surface.vertexCount = static_cast<uint32_t>(asset.packedVertices.size()) - surface.firstVertex;
             surface.primitiveCount = static_cast<uint32_t>(asset.meshletPrimitives.size()) - surface.firstPrimitive;
-            surface.localBounds = ComputeVertexBounds(work.vertices);
+            surface.localBounds = ComputeVertexBounds(buildWork.vertices);
             surface.firstLodRange = static_cast<uint32_t>(asset.surfaceLodRanges.size());
             if (surface.clusterCount == 0u || sections.empty()) {
                 ++report.skippedInvalidPrimitiveCount;

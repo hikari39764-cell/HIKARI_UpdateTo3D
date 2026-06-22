@@ -269,6 +269,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t unsupportedFeatureCount = 0;
         uint32_t partitionedSurfaceCount = 0;
         uint32_t partitionedSurfaceChunkCount = 0;
+        uint32_t subdividedSurfaceCount = 0;
+        uint32_t subdividedSourceTriangleCount = 0;
+        uint32_t subdividedOutputTriangleCount = 0;
         std::vector<std::string> messages{};
     };
 

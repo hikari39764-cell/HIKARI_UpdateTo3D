@@ -73,12 +73,34 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return std::sqrt(ex * ex + ey * ey + ez * ez);
         }
 
-        constexpr float kDepthVisibilityMinOccluderRadius = 0.75f;
-        constexpr size_t kDepthVisibilityMaxOccluderRecords = 256;
+        float ComputeWorldBoundsMainAreaProxy(const Bounds& bounds) {
+            float sx = (std::max)(bounds.max.x - bounds.min.x, 0.0f);
+            float sy = (std::max)(bounds.max.y - bounds.min.y, 0.0f);
+            float sz = (std::max)(bounds.max.z - bounds.min.z, 0.0f);
+            if (sx < sy) {
+                std::swap(sx, sy);
+            }
+            if (sy < sz) {
+                std::swap(sy, sz);
+            }
+            if (sx < sy) {
+                std::swap(sx, sy);
+            }
+            return sx * sy;
+        }
+
+        float ComputeDepthOccluderScore(const Bounds& bounds, float radius) {
+            const float mainArea = ComputeWorldBoundsMainAreaProxy(bounds);
+            return std::sqrt((std::max)(mainArea, 0.0f)) + radius * 0.15f;
+        }
+
+        constexpr float kDepthVisibilityMinOccluderRadius = 0.35f;
+        constexpr size_t kDepthVisibilityMaxOccluderRecords = 1024;
 
         struct DepthPrepassOccluderCandidate {
             uint32_t recordIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             float radius = 0.0f;
+            float score = 0.0f;
         };
 
         bool HasDepthVisibilitySafeMaterial(const GpuSceneSurfaceRecord& record) {
@@ -153,7 +175,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     continue;
                 }
 
-                candidates.push_back({ recordIndex, radius });
+                candidates.push_back({
+                    recordIndex,
+                    radius,
+                    ComputeDepthOccluderScore(record.worldBounds, radius)
+                });
             }
 
             if (candidates.size() > kDepthVisibilityMaxOccluderRecords) {
@@ -162,6 +188,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     candidates.end(),
                     [](const DepthPrepassOccluderCandidate& a,
                        const DepthPrepassOccluderCandidate& b) {
+                        if (a.score != b.score) {
+                            return a.score > b.score;
+                        }
                         if (a.radius != b.radius) {
                             return a.radius > b.radius;
                         }

@@ -24,6 +24,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         int fallbackAoTextureHandle = -1;
         bool depthVisibilityValid = false;
         bool depthVisibilityViewProjValid = false;
+        bool depthVisibilityBuildAllowedThisFrame = true;
         bool geometryValid = false;
         bool ssaoValid = false;
     };

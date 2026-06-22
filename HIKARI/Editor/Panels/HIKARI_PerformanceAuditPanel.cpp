@@ -260,7 +260,7 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullSourceInstanceCount,
                     s.mesh.clusterGpuCullSubmittedInstanceCount,
                     s.mesh.clusterGpuCullOverflowInstanceCount);
-                MetricRow("GPU PageTasks GPUScene Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
+                MetricRow("GPU PageTask Groups GPUScene Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullSourcePageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskCount,
                     s.mesh.clusterGpuCullGpuPageTaskOverflowCount);
@@ -284,6 +284,10 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuVisibleClusterCount,
                     s.mesh.clusterGpuCullGpuDrawCommandCount,
                     s.mesh.clusterGpuCullGpuDrawCommandOverflowCount + s.mesh.clusterGpuCullGpuOverflowCount);
+                MetricRow("Cluster Capacity Visible / Draw / Bucket", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullVisibleRangeCapacity,
+                    s.mesh.clusterGpuCullDrawArgumentCapacity,
+                    s.mesh.clusterGpuCullDrawArgumentCapacity / 10u);
                 MetricRow("Page Tested / Page Frustum Culled", "%zu / %zu",
                     s.mesh.clusterGpuCullGpuPageTestedCount,
                     s.mesh.clusterGpuCullGpuPageFrustumCulledCount);
@@ -297,10 +301,11 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuPageOcclusionCulledCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionTestedCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
-                MetricRow("HZB Try / Allowed / Accepted / Culled", "%zu / %zu / %zu / %zu",
+                MetricRow("HZB Try / Allowed / Accepted / Raw / Culled", "%zu / %zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuHzbTryCount,
                     s.mesh.clusterGpuCullGpuHzbAllowedCount,
                     s.mesh.clusterGpuCullGpuHzbQueryAcceptedCount,
+                    s.mesh.clusterGpuCullGpuHzbRawOccludedCount,
                     s.mesh.clusterGpuCullGpuPageOcclusionCulledCount +
                         s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
                 MetricRow("HZB Reject Invalid / Pass / Near / Offscreen", "%zu / %zu / %zu / %zu",
@@ -312,6 +317,11 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuHzbAabbAcceptedCount,
                     s.mesh.clusterGpuCullGpuHzbSphereAcceptedCount,
                     s.mesh.clusterGpuCullGpuHzbLargeRectCount);
+                MetricRow("HZB Temporal Pending / Confirmed / Reset / Collision", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbTemporalPendingCount,
+                    s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount,
+                    s.mesh.clusterGpuCullGpuHzbTemporalResetCount,
+                    s.mesh.clusterGpuCullGpuHzbTemporalCollisionCount);
                 MetricRow("HZB Reject Pass / AABB / Sphere / Accepted", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuHzbPassRejectedCount,
                     s.mesh.clusterGpuCullGpuHzbAabbRejectedCount,

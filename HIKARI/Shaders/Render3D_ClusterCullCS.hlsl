@@ -114,14 +114,18 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullMergeClusterGapLimit;
     float gClusterCullLodTargetErrorNdc;
     uint gClusterCullEnableLodErrorSelection;
-    uint gClusterCullReserved0;
-    uint gClusterCullReserved1;
+    uint gClusterCullPageTaskGroupSize;
+    uint gClusterCullClusterHzbMinScreenPixels;
     uint gClusterCullEnableHzbOcclusion;
     uint gClusterCullHzbWidth;
     uint gClusterCullHzbHeight;
     uint gClusterCullHzbMipCount;
     float gClusterCullHzbDepthBias;
     float gClusterCullHzbMaxScreenRadiusPixels;
+    uint gClusterCullOcclusionHistoryCapacity;
+    uint gClusterCullTemporalFrameIndex;
+    uint gClusterCullHzbOcclusionConfirmFrames;
+    uint gClusterCullHzbAllowLargeRectOcclusion;
     uint gClusterCullReserved2;
     uint gClusterCullReserved3;
 };
@@ -132,6 +136,7 @@ RWStructuredBuffer<ClusterCullIndirectDrawArgument> gClusterCullDrawArguments : 
 RWStructuredBuffer<ClusterCullPageTask> gClusterCullPageTasks : register(u3);
 RWStructuredBuffer<uint3> gClusterCullDispatchArguments : register(u4);
 RWStructuredBuffer<ClusterCullMeshletDispatchArgument> gClusterCullMeshletDispatchArguments : register(u5);
+RWByteAddressBuffer gClusterCullOcclusionHistory : register(u6);
 
 #include "Include/HIKARI_SurfaceGpuScene.hlsli"
 #include "Include/HIKARI_ClusterGpuData.hlsli"
@@ -186,18 +191,29 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_OFFSCREEN_REJECTED_COUNT = 144
 static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_LARGE_RECT_COUNT = 148u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_AABB_ACCEPTED_COUNT = 152u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_ACCEPTED_COUNT = 156u;
-static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE = 160u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_PENDING_COUNT = 160u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_CONFIRMED_COUNT = 164u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_RESET_COUNT = 168u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_COLLISION_COUNT = 172u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_HZB_RAW_OCCLUDED_COUNT = 176u;
+static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BASE = 180u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE = 16u;
+static const float HIKARI_CLUSTER_CULL_CONE_NEAR_RADIUS_SCALE = 2.0f;
+static const float HIKARI_CLUSTER_CULL_CONE_RADIUS_BIAS = 0.02f;
+static const float HIKARI_CLUSTER_CULL_CONE_DISTANCE_BIAS = 0.001f;
+static const uint HIKARI_CLUSTER_CULL_TEMPORAL_CONFIRM_MAX_FRAME_GAP = 4u;
+static const uint HIKARI_CLUSTER_CULL_TEMPORAL_VISIBLE_RESET_FRAMES = 2u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_COUNT = 0u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_COUNT = 4u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_OVERFLOW_COUNT = 8u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_OVERFLOW_COUNT = 12u;
 
-static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 384u;
-static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 2048u;
-static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 8192u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 512u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 4096u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 16384u;
 // クラスタ間の穴埋めは描画量を増やしやすいため、既定では無効にする。
-static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 0u;
+static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 1u;
+static const uint HIKARI_CLUSTER_CULL_MESHLET_AS_MAX_CLUSTER_PAYLOAD = 64u;
 static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_OK = 0u;
 static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_INVALID = 1u;
 static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_REJECT_NEAR_PLANE = 2u;
@@ -339,6 +355,172 @@ void HikariClusterCullAddDebugCounter(uint byteOffset, uint value)
     {
         gClusterCullCounters.InterlockedAdd(byteOffset, value);
     }
+}
+
+uint HikariClusterCullHash(uint value)
+{
+    value ^= value >> 16;
+    value *= 0x7feb352du;
+    value ^= value >> 15;
+    value *= 0x846ca68bu;
+    value ^= value >> 16;
+    return value;
+}
+
+uint HikariClusterCullBuildOcclusionKey(
+    uint gpuSceneInstanceIndex,
+    uint passKind,
+    uint lodIndex,
+    uint sectionIndex,
+    uint pageIndex,
+    uint clusterIndex,
+    uint level)
+{
+    uint key = gpuSceneInstanceIndex + 1u;
+    key = HikariClusterCullHash(key ^ ((passKind + 3u) * 0x9e3779b9u));
+    key = HikariClusterCullHash(key ^ ((lodIndex + 5u) * 0x85ebca6bu));
+    key = HikariClusterCullHash(key ^ ((sectionIndex + 7u) * 0xc2b2ae35u));
+    key = HikariClusterCullHash(key ^ ((pageIndex + 11u) * 0x27d4eb2fu));
+    key = HikariClusterCullHash(key ^ ((clusterIndex + 13u) * 0x165667b1u));
+    key = HikariClusterCullHash(key ^ ((level + 17u) * 0xd3a2646cu));
+    return key != 0u ? key : 1u;
+}
+
+uint HikariClusterCullHistoryEntryOffset(uint key)
+{
+    uint capacity = max(gClusterCullOcclusionHistoryCapacity, 1u);
+    uint slot = HikariClusterCullHash(key) % capacity;
+    return slot * 8u;
+}
+
+uint HikariClusterCullHistoryPackState(uint frame, uint visibleMisses, uint streak)
+{
+    return ((frame & 0xffffu) << 16u) |
+        ((visibleMisses & 0xffu) << 8u) |
+        (streak & 0xffu);
+}
+
+uint HikariClusterCullHistoryFrame(uint state)
+{
+    return (state >> 16u) & 0xffffu;
+}
+
+uint HikariClusterCullHistoryVisibleMisses(uint state)
+{
+    return (state >> 8u) & 0xffu;
+}
+
+uint HikariClusterCullHistoryStreak(uint state)
+{
+    return state & 0xffu;
+}
+
+void HikariClusterCullHistoryResetVisible(uint key)
+{
+    if (gClusterCullOcclusionHistoryCapacity == 0u || key == 0u)
+    {
+        return;
+    }
+
+    uint offset = HikariClusterCullHistoryEntryOffset(key);
+    uint storedKey = gClusterCullOcclusionHistory.Load(offset);
+    if (storedKey != key)
+    {
+        return;
+    }
+    uint frame = gClusterCullTemporalFrameIndex & 0xffffu;
+    uint state = gClusterCullOcclusionHistory.Load(offset + 4u);
+    uint lastFrame = HikariClusterCullHistoryFrame(state);
+    uint visibleMisses = HikariClusterCullHistoryVisibleMisses(state);
+    uint streak = HikariClusterCullHistoryStreak(state);
+    uint nextVisibleMisses = lastFrame == frame
+        ? visibleMisses
+        : min(visibleMisses + 1u, 255u);
+    uint nextStreak = nextVisibleMisses >= HIKARI_CLUSTER_CULL_TEMPORAL_VISIBLE_RESET_FRAMES
+        ? 0u
+        : streak;
+    gClusterCullOcclusionHistory.Store(
+        offset + 4u,
+        HikariClusterCullHistoryPackState(frame, nextVisibleMisses, nextStreak));
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_RESET_COUNT,
+        1u);
+}
+
+bool HikariClusterCullTemporalOcclusionConfirmed(uint key)
+{
+    uint confirmFrames = 1;
+    if (confirmFrames <= 1u)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_CONFIRMED_COUNT,
+            1u);
+        return true;
+    }
+    if (gClusterCullOcclusionHistoryCapacity == 0u || key == 0u)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_PENDING_COUNT,
+            1u);
+        return false;
+    }
+
+    uint offset = HikariClusterCullHistoryEntryOffset(key);
+    uint storedKey = gClusterCullOcclusionHistory.Load(offset);
+    if (storedKey != key)
+    {
+        gClusterCullOcclusionHistory.Store(offset, key);
+        gClusterCullOcclusionHistory.Store(
+            offset + 4u,
+            HikariClusterCullHistoryPackState(
+                gClusterCullTemporalFrameIndex,
+                0u,
+                1u));
+        if (storedKey != 0u)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_COLLISION_COUNT,
+                1u);
+        }
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_PENDING_COUNT,
+            1u);
+        return false;
+    }
+
+    uint state = gClusterCullOcclusionHistory.Load(offset + 4u);
+    uint currentFrame = gClusterCullTemporalFrameIndex & 0xffffu;
+    uint lastFrame = HikariClusterCullHistoryFrame(state);
+    uint visibleMisses = HikariClusterCullHistoryVisibleMisses(state);
+    uint streak = HikariClusterCullHistoryStreak(state);
+    uint frameDelta = (currentFrame - lastFrame) & 0xffffu;
+    uint nextStreak = 1u;
+    if (lastFrame == currentFrame)
+    {
+        nextStreak = max(streak, 1u);
+    }
+    else if (frameDelta <= HIKARI_CLUSTER_CULL_TEMPORAL_CONFIRM_MAX_FRAME_GAP &&
+        visibleMisses < HIKARI_CLUSTER_CULL_TEMPORAL_VISIBLE_RESET_FRAMES)
+    {
+        nextStreak = min(streak + 1u, 255u);
+    }
+
+    gClusterCullOcclusionHistory.Store(
+        offset + 4u,
+        HikariClusterCullHistoryPackState(currentFrame, 0u, nextStreak));
+
+    if (nextStreak >= confirmFrames)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_CONFIRMED_COUNT,
+            1u);
+        return true;
+    }
+
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_TEMPORAL_PENDING_COUNT,
+        1u);
+    return false;
 }
 
 bool HikariClusterCullHzbOcclusionAllowed(uint passKind)
@@ -613,6 +795,8 @@ bool HikariClusterCullTryHzbOccluded(
     float4x4 world,
     float4 boundsMin,
     float4 boundsMax,
+    uint occlusionKey,
+    bool allowLargeRectOcclusion,
     out bool tested)
 {
     tested = false;
@@ -643,6 +827,7 @@ bool HikariClusterCullTryHzbOccluded(
     HikariClusterCullAddDebugCounter(
         HIKARI_CLUSTER_CULL_COUNTER_HZB_ALLOWED_COUNT,
         1);
+    
 
     HikariClusterCullHzbQuery query;
     uint queryRejectReason =
@@ -662,6 +847,7 @@ bool HikariClusterCullTryHzbOccluded(
                 HIKARI_CLUSTER_CULL_COUNTER_HZB_SPHERE_REJECTED_COUNT,
                 1);
             HikariClusterCullRecordHzbQueryReject(queryRejectReason);
+            HikariClusterCullHistoryResetVisible(occlusionKey);
             return false;
         }
         HikariClusterCullAddDebugCounter(
@@ -678,18 +864,44 @@ bool HikariClusterCullTryHzbOccluded(
     HikariClusterCullAddDebugCounter(
         HIKARI_CLUSTER_CULL_COUNTER_HZB_QUERY_ACCEPTED_COUNT,
         1);
+    
     if ((query.flags & HIKARI_CLUSTER_CULL_HZB_QUERY_FLAG_LARGE_RECT) != 0u)
     {
         HikariClusterCullAddDebugCounter(
             HIKARI_CLUSTER_CULL_COUNTER_HZB_LARGE_RECT_COUNT,
             1);
+        if (!allowLargeRectOcclusion &&
+            gClusterCullHzbAllowLargeRectOcclusion == 0u)
+        {
+            HikariClusterCullHistoryResetVisible(occlusionKey);
+            return false;
+        }
     }
     tested = true;
     uint mipLevel = HikariClusterCullSelectHzbMip(query.maxExtentPixels);
     float maxHzbDepth =
         HikariClusterCullLoadHzbMaxDepthInRect(query.minUv, query.maxUv, mipLevel);
+    if (!(maxHzbDepth > max(gClusterCullHzbDepthBias, 0.000001f)))
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_INVALID_REJECTED_COUNT,
+            1);
+        HikariClusterCullHistoryResetVisible(occlusionKey);
+        return false;
+    }
 
-    return query.nearestDepth > maxHzbDepth + max(gClusterCullHzbDepthBias, 0.0f);
+    bool rawOccluded =
+        query.nearestDepth > maxHzbDepth + max(gClusterCullHzbDepthBias, 0.0f);
+    if (!rawOccluded)
+    {
+        HikariClusterCullHistoryResetVisible(occlusionKey);
+        return false;
+    }
+    HikariClusterCullAddDebugCounter(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_RAW_OCCLUDED_COUNT,
+        1);
+
+    return HikariClusterCullTemporalOcclusionConfirmed(occlusionKey);
 }
 
 float HikariClusterCullProjectedLodError(
@@ -798,6 +1010,38 @@ uint HikariClusterCullMergeClusterGapLimit()
         : HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT;
 }
 
+uint HikariClusterCullPageTaskGroupSize()
+{
+    return clamp(gClusterCullPageTaskGroupSize, 1u, 8u);
+}
+
+float HikariClusterCullApproxHzbScreenRadiusPixels(float4 worldSphere)
+{
+    if (gClusterCullHzbWidth == 0u || gClusterCullHzbHeight == 0u)
+    {
+        return 0.0f;
+    }
+
+    float radiusNdc =
+        HikariClusterCullProjectedWorldLengthWithMatrix(
+            gClusterCullHzbViewProj,
+            worldSphere.xyz,
+            worldSphere.w);
+    return radiusNdc * 0.5f *
+        (float)max(gClusterCullHzbWidth, gClusterCullHzbHeight);
+}
+
+bool HikariClusterCullShouldTestClusterHzb(float4 worldSphere)
+{
+    if (gClusterCullClusterHzbMinScreenPixels == 0u)
+    {
+        return true;
+    }
+
+    return HikariClusterCullApproxHzbScreenRadiusPixels(worldSphere) >=
+        (float)gClusterCullClusterHzbMinScreenPixels;
+}
+
 float3 HikariClusterCullTransformNormalAxis(float4x4 world, float3 localAxis)
 {
     float3 axisX = float3(world._11, world._21, world._31);
@@ -817,11 +1061,6 @@ float3 HikariClusterCullTransformNormalAxis(float4x4 world, float3 localAxis)
         return float3(0.0f, 0.0f, 0.0f);
     }
     return normalize(normalAxis);
-}
-
-float3 HikariClusterCullTransformPoint(float4x4 world, float3 localPoint)
-{
-    return mul(world, float4(localPoint, 1.0f)).xyz;
 }
 
 bool HikariClusterCullConeBackfacing(
@@ -845,16 +1084,27 @@ bool HikariClusterCullConeBackfacing(
         return false;
     }
 
-    float3 worldApex = HikariClusterCullTransformPoint(world, cluster.coneApex.xyz);
-    float3 view = worldApex - gClusterCullCameraPosition.xyz;
+    float sphereRadius = max(worldSphere.w, 0.0f);
+    if (sphereRadius <= 0.000001f)
+    {
+        return false;
+    }
+
+    float3 view = worldSphere.xyz - gClusterCullCameraPosition.xyz;
     float viewLength = length(view);
-    if (viewLength <= 0.0001f)
+    if (viewLength <= max(0.0001f, sphereRadius * HIKARI_CLUSTER_CULL_CONE_NEAR_RADIUS_SCALE))
     {
         return false;
     }
 
     // meshoptimizer の perspective cone 判定。epsilon は境界のちらつきを抑えるため少し保守的にする。
-    return dot(view / viewLength, axis) >= coneCutoff + 0.001f;
+    // Sphere formula from meshoptimizer: dot(center - camera, axis) >=
+    // cutoff * distance + radius. The extra bias keeps the reject high-confidence.
+    float rejectThreshold = coneCutoff * viewLength + sphereRadius;
+    float stabilityBias = max(
+        viewLength * HIKARI_CLUSTER_CULL_CONE_DISTANCE_BIAS,
+        sphereRadius * HIKARI_CLUSTER_CULL_CONE_RADIUS_BIAS);
+    return dot(view, axis) >= rejectThreshold + stabilityBias;
 }
 
 void HikariClusterCullEmitDraw(
@@ -1036,7 +1286,8 @@ void HikariClusterCullAppendVisibleCluster(
         clusterGap <= HikariClusterCullMergeClusterGapLimit() &&
         indexGap <= HikariClusterCullMergeGapIndexLimit() &&
         runMergedGapIndexCount + indexGap <= HikariClusterCullMergeRunGapBudget() &&
-        mergedIndexCount <= HikariClusterCullMergeMaxIndexSpan();
+        mergedIndexCount <= HikariClusterCullMergeMaxIndexSpan() &&
+        mergedClusterCount <= HIKARI_CLUSTER_CULL_MESHLET_AS_MAX_CLUSTER_PAYLOAD;
     if (!canMerge)
     {
         HikariClusterCullFlushVisibleRun(
@@ -1288,7 +1539,8 @@ void HikariClusterCullProcessPage(
     HikariClusterGeometryHeader header,
     uint firstCluster,
     uint endCluster,
-    uint pageIndex)
+    uint pageIndex,
+    bool skipPageOcclusion)
 {
     bool doubleSided = HikariClusterCullIsDoubleSided(input.flags);
     bool hasRun = false;
@@ -1349,35 +1601,48 @@ void HikariClusterCullProcessPage(
         return;
     }
 
-    bool pageOcclusionTested = false;
-    bool pageOccluded = HikariClusterCullTryHzbOccluded(
+    if (!skipPageOcclusion)
+    {
+        bool pageOcclusionTested = false;
+        uint pageOcclusionKey = HikariClusterCullBuildOcclusionKey(
+            input.gpuSceneInstanceIndex,
             input.passKind,
-            input.clusterWorld,
-            page.boundsMin,
-            page.boundsMax,
-            pageOcclusionTested);
-    if (pageOcclusionTested)
-    {
-        HikariClusterCullAddDebugCounter(
-            HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_TESTED_COUNT,
-            1);
-    }
-    if (pageOccluded)
-    {
-        HikariClusterCullAddDebugCounter(
-            HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT,
-            1);
-        HikariClusterCullFlushVisibleRun(
-            input,
-            hasRun,
-            runFirstCluster,
-            runClusterCount,
-            runVisibleClusterCount,
-            runFirstIndex,
-            runIndexCount,
-            runMergedGapCount,
-            runMergedGapIndexCount);
-        return;
+            input.lodIndex,
+            input.sectionIndex,
+            pageIndex,
+            0xffffffffu,
+            0u);
+        bool pageOccluded = HikariClusterCullTryHzbOccluded(
+                input.passKind,
+                input.clusterWorld,
+                page.boundsMin,
+                page.boundsMax,
+                pageOcclusionKey,
+                false,
+                pageOcclusionTested);
+        if (pageOcclusionTested)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_TESTED_COUNT,
+                1);
+        }
+        if (pageOccluded)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT,
+                1);
+            HikariClusterCullFlushVisibleRun(
+                input,
+                hasRun,
+                runFirstCluster,
+                runClusterCount,
+                runVisibleClusterCount,
+                runFirstIndex,
+                runIndexCount,
+                runMergedGapCount,
+                runMergedGapIndexCount);
+            return;
+        }
     }
 
     for (uint clusterIndex = pageRangeStart; clusterIndex < pageRangeEnd; ++clusterIndex)
@@ -1424,25 +1689,38 @@ void HikariClusterCullProcessPage(
             continue;
         }
 
-        bool clusterOcclusionTested = false;
-        bool clusterOccluded = HikariClusterCullTryHzbOccluded(
+        if (HikariClusterCullShouldTestClusterHzb(clusterWorldSphere))
+        {
+            bool clusterOcclusionTested = false;
+            uint clusterOcclusionKey = HikariClusterCullBuildOcclusionKey(
+                input.gpuSceneInstanceIndex,
                 input.passKind,
-                input.clusterWorld,
-                cluster.boundsMin,
-                cluster.boundsMax,
-                clusterOcclusionTested);
-        if (clusterOcclusionTested)
-        {
-            HikariClusterCullAddDebugCounter(
-                HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_TESTED_COUNT,
-                1);
-        }
-        if (clusterOccluded)
-        {
-            HikariClusterCullAddDebugCounter(
-                HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_CULLED_COUNT,
-                1);
-            continue;
+                input.lodIndex,
+                input.sectionIndex,
+                pageIndex,
+                clusterIndex,
+                1u);
+            bool clusterOccluded = HikariClusterCullTryHzbOccluded(
+                    input.passKind,
+                    input.clusterWorld,
+                    cluster.boundsMin,
+                    cluster.boundsMax,
+                    clusterOcclusionKey,
+                    true,
+                    clusterOcclusionTested);
+            if (clusterOcclusionTested)
+            {
+                HikariClusterCullAddDebugCounter(
+                    HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_TESTED_COUNT,
+                    1);
+            }
+            if (clusterOccluded)
+            {
+                HikariClusterCullAddDebugCounter(
+                    HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_OCCLUSION_CULLED_COUNT,
+                    1);
+                continue;
+            }
         }
 
         if (doubleSided)
@@ -1503,6 +1781,115 @@ void HikariClusterCullProcessPage(
         runMergedGapIndexCount);
 }
 
+void HikariClusterCullProcessPageGroup(
+    ClusterCullInput input,
+    ByteAddressBuffer geometry,
+    HikariClusterGeometryHeader header,
+    uint firstCluster,
+    uint endCluster,
+    uint firstPage,
+    uint pageCount)
+{
+    uint groupFirstPage = min(firstPage, header.pageCount);
+    uint groupEndPage = min(groupFirstPage + max(pageCount, 1u), header.pageCount);
+    if (groupFirstPage >= groupEndPage)
+    {
+        return;
+    }
+
+    float4 groupBoundsMin = float4(1.0e30f, 1.0e30f, 1.0e30f, 0.0f);
+    float4 groupBoundsMax = float4(-1.0e30f, -1.0e30f, -1.0e30f, 0.0f);
+    uint validPageCount = 0u;
+    for (uint pageIndex = groupFirstPage; pageIndex < groupEndPage; ++pageIndex)
+    {
+        HikariClusterPage page = HikariLoadClusterPage(geometry, header, pageIndex);
+        uint pageEndCluster = page.firstCluster + page.clusterCount;
+        uint pageRangeStart = max(page.firstCluster, firstCluster);
+        uint pageRangeEnd = min(pageEndCluster, endCluster);
+        if (page.indexCount == 0u ||
+            page.clusterCount == 0u ||
+            pageRangeStart >= pageRangeEnd)
+        {
+            continue;
+        }
+
+        groupBoundsMin = min(groupBoundsMin, page.boundsMin);
+        groupBoundsMax = max(groupBoundsMax, page.boundsMax);
+        ++validPageCount;
+    }
+    if (validPageCount == 0u)
+    {
+        return;
+    }
+
+    float4 groupWorldSphere = HikariClusterCullBuildWorldSphere(
+        input.clusterWorld,
+        float4(0.0f, 0.0f, 0.0f, 0.0f),
+        groupBoundsMin,
+        groupBoundsMax);
+    if (!HikariClusterCullSphereVisible(groupWorldSphere))
+    {
+        if (gClusterCullEnableDebugCounters != 0u)
+        {
+            gClusterCullCounters.InterlockedAdd(
+                HIKARI_CLUSTER_CULL_COUNTER_PAGE_TESTED_COUNT,
+                validPageCount);
+            gClusterCullCounters.InterlockedAdd(
+                HIKARI_CLUSTER_CULL_COUNTER_PAGE_FRUSTUM_CULLED_COUNT,
+                validPageCount);
+        }
+        return;
+    }
+
+    bool groupOcclusionTested = false;
+    bool groupOccluded = false;
+    if (HikariClusterCullHzbOcclusionAllowed(input.passKind))
+    {
+        uint groupOcclusionKey = HikariClusterCullBuildOcclusionKey(
+            input.gpuSceneInstanceIndex,
+            input.passKind,
+            input.lodIndex,
+            input.sectionIndex,
+            groupFirstPage,
+            0xfffffffeu,
+            2u);
+        groupOccluded = HikariClusterCullTryHzbOccluded(
+                input.passKind,
+                input.clusterWorld,
+                groupBoundsMin,
+                groupBoundsMax,
+                groupOcclusionKey,
+                false,
+                groupOcclusionTested);
+        if (groupOcclusionTested)
+        {
+            HikariClusterCullAddDebugCounter(
+                HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_TESTED_COUNT,
+                validPageCount);
+        }
+    }
+    if (groupOccluded)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT,
+            validPageCount);
+        return;
+    }
+
+    bool skipPageOcclusion = false;
+    for (uint pageIndex = groupFirstPage; pageIndex < groupEndPage; ++pageIndex)
+    {
+        HikariClusterCullProcessPage(
+            input,
+            geometry,
+            header,
+            firstCluster,
+            endCluster,
+            pageIndex,
+            skipPageOcclusion);
+    }
+}
+
 ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask task)
 {
     ClusterCullInput input = (ClusterCullInput)0;
@@ -1545,29 +1932,33 @@ void HikariClusterCullEmitPageTasks(
         return;
     }
 
+    uint pageTaskGroupSize = HikariClusterCullPageTaskGroupSize();
+    uint groupCount = (pageCount + pageTaskGroupSize - 1u) / pageTaskGroupSize;
     uint taskBase = 0u;
     gClusterCullCounters.InterlockedAdd(
         HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_COUNT,
-        pageCount,
+        groupCount,
         taskBase);
     if (taskBase >= gClusterCullPageTaskCapacity)
     {
         gClusterCullCounters.InterlockedAdd(
             HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_OVERFLOW_COUNT,
-            pageCount);
+            groupCount);
         return;
     }
 
-    uint writableCount = min(pageCount, gClusterCullPageTaskCapacity - taskBase);
-    if (writableCount < pageCount)
+    uint writableCount = min(groupCount, gClusterCullPageTaskCapacity - taskBase);
+    if (writableCount < groupCount)
     {
         gClusterCullCounters.InterlockedAdd(
             HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_OVERFLOW_COUNT,
-            pageCount - writableCount);
+            groupCount - writableCount);
     }
 
-    for (uint pageOffset = 0u; pageOffset < writableCount; ++pageOffset)
+    for (uint groupOffset = 0u; groupOffset < writableCount; ++groupOffset)
     {
+        uint pageOffset = groupOffset * pageTaskGroupSize;
+        uint groupPageCount = min(pageTaskGroupSize, pageCount - pageOffset);
         ClusterCullPageTask task = (ClusterCullPageTask)0;
         task.clusterWorld = input.clusterWorld;
         task.boundsCenterRadius = input.boundsCenterRadius;
@@ -1587,11 +1978,11 @@ void HikariClusterCullEmitPageTasks(
         task.meshletPrimitiveOffsetBytes = input.meshletPrimitiveOffsetBytes;
         task.meshletPrimitiveCount = input.meshletPrimitiveCount;
         task.geometryClusterCount = input.geometryClusterCount;
-        task.reserved0 = 0u;
+        task.reserved0 = groupPageCount;
         task.reserved1 = 0u;
         task.reserved2 = 0u;
         task.reserved3 = 0u;
-        gClusterCullPageTasks[taskBase + pageOffset] = task;
+        gClusterCullPageTasks[taskBase + groupOffset] = task;
     }
 }
 
@@ -1813,11 +2204,12 @@ void CullPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     ClusterCullInput input =
         HikariClusterCullBuildInputFromPageTask(task);
-    HikariClusterCullProcessPage(
+    HikariClusterCullProcessPageGroup(
         input,
         geometry,
         header,
         task.firstCluster,
         min(task.endCluster, header.clusterCount),
-        task.pageIndex);
+        task.pageIndex,
+        max(task.reserved0, 1u));
 }

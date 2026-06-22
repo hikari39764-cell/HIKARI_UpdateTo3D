@@ -29,7 +29,9 @@ static const uint HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD = 64u;
 static const uint HIKARI_MESHLET_AS_MODE_COMPACT = 0u;
 static const uint HIKARI_MESHLET_AS_MODE_DENSE = 1u;
 static const uint HIKARI_MESHLET_AS_PASS_SHADOW = 3u;
-static const float HIKARI_MESHLET_AS_CONE_BACKFACE_BIAS = 0.003f;
+static const float HIKARI_MESHLET_AS_CONE_NEAR_RADIUS_SCALE = 2.0f;
+static const float HIKARI_MESHLET_AS_CONE_RADIUS_BIAS = 0.02f;
+static const float HIKARI_MESHLET_AS_CONE_DISTANCE_BIAS = 0.001f;
 
 ByteAddressBuffer gClusterGeometryPool[HIKARI_CLUSTER_SRV_POOL_COUNT] : register(t0, space1);
 
@@ -139,14 +141,10 @@ float3 HikariMeshletAsTransformNormalAxis(float4x4 world, float3 localAxis)
     return normalize(normalAxis);
 }
 
-float3 HikariMeshletAsTransformPoint(float4x4 world, float3 localPoint)
-{
-    return mul(world, float4(localPoint, 1.0f)).xyz;
-}
-
 bool HikariMeshletAsConeBackfacing(
     float4x4 world,
-    HikariMeshCluster cluster)
+    HikariMeshCluster cluster,
+    float4 worldSphere)
 {
     float3 localAxis = cluster.coneAxisCutoff.xyz;
     float localAxisLength = length(localAxis);
@@ -164,15 +162,24 @@ bool HikariMeshletAsConeBackfacing(
         return false;
     }
 
-    float3 worldApex = HikariMeshletAsTransformPoint(world, cluster.coneApex.xyz);
-    float3 view = worldApex - gCullCameraPos.xyz;
-    float viewLength = length(view);
-    if (viewLength <= 0.0001f)
+    float sphereRadius = max(worldSphere.w, 0.0f);
+    if (sphereRadius <= 0.000001f)
     {
         return false;
     }
 
-    return dot(view / viewLength, axis) >= coneCutoff - HIKARI_MESHLET_AS_CONE_BACKFACE_BIAS;
+    float3 view = worldSphere.xyz - gCullCameraPos.xyz;
+    float viewLength = length(view);
+    if (viewLength <= max(0.0001f, sphereRadius * HIKARI_MESHLET_AS_CONE_NEAR_RADIUS_SCALE))
+    {
+        return false;
+    }
+
+    float rejectThreshold = coneCutoff * viewLength + sphereRadius;
+    float stabilityBias = max(
+        viewLength * HIKARI_MESHLET_AS_CONE_DISTANCE_BIAS,
+        sphereRadius * HIKARI_MESHLET_AS_CONE_RADIUS_BIAS);
+    return dot(view, axis) >= rejectThreshold + stabilityBias;
 }
 
 bool HikariMeshletAsClusterVisible(
@@ -215,7 +222,7 @@ bool HikariMeshletAsClusterVisible(
     }
 
     if ((visible.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) == 0u &&
-        HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster))
+        HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster, worldSphere))
     {
         return false;
     }

@@ -193,11 +193,17 @@ namespace HIKARI {
                 meshStats.clusterGpuCullHzbOcclusionHeight,
                 meshStats.clusterGpuCullGpuPageOcclusionCulledCount,
                 meshStats.clusterGpuCullGpuClusterOcclusionCulledCount);
-            ImGui::Text("Cluster HZB Reject Pass / AABB / Sphere / Accepted: %zu / %zu / %zu / %zu",
+            ImGui::Text("Cluster HZB Reject Pass / AABB / Sphere / Accepted / Raw: %zu / %zu / %zu / %zu / %zu",
                 meshStats.clusterGpuCullGpuHzbPassRejectedCount,
                 meshStats.clusterGpuCullGpuHzbAabbRejectedCount,
                 meshStats.clusterGpuCullGpuHzbSphereRejectedCount,
-                meshStats.clusterGpuCullGpuHzbQueryAcceptedCount);
+                meshStats.clusterGpuCullGpuHzbQueryAcceptedCount,
+                meshStats.clusterGpuCullGpuHzbRawOccludedCount);
+            ImGui::Text("Cluster HZB Temporal Ready / Capacity / Pending / Confirmed: %s / %zu / %zu / %zu",
+                meshStats.clusterGpuCullOcclusionHistoryReady ? "yes" : "no",
+                meshStats.clusterGpuCullOcclusionHistoryCapacity,
+                meshStats.clusterGpuCullGpuHzbTemporalPendingCount,
+                meshStats.clusterGpuCullGpuHzbTemporalConfirmedCount);
             ImGui::Text("GPU LOD Selected L0 / L1 / L2 / L3+: %zu / %zu / %zu / %zu",
                 meshStats.clusterGpuCullGpuLod0SelectedCount,
                 meshStats.clusterGpuCullGpuLod1SelectedCount,

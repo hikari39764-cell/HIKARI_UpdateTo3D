@@ -912,6 +912,8 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuCounterReadbackValid;
             g.debugStats.clusterGpuCullDebugCountersEnabled =
                 clusterCullStats.debugCountersEnabled;
+            g.debugStats.clusterGpuCullOcclusionHistoryReady =
+                clusterCullStats.occlusionHistoryReady;
             g.debugStats.clusterGpuCullGpuInputCount =
                 clusterCullStats.gpuInputCount;
             g.debugStats.clusterGpuCullGpuPageTaskCount =
@@ -974,6 +976,16 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuHzbAabbAcceptedCount;
             g.debugStats.clusterGpuCullGpuHzbSphereAcceptedCount =
                 clusterCullStats.gpuHzbSphereAcceptedCount;
+            g.debugStats.clusterGpuCullGpuHzbRawOccludedCount =
+                clusterCullStats.gpuHzbRawOccludedCount;
+            g.debugStats.clusterGpuCullGpuHzbTemporalPendingCount =
+                clusterCullStats.gpuHzbTemporalPendingCount;
+            g.debugStats.clusterGpuCullGpuHzbTemporalConfirmedCount =
+                clusterCullStats.gpuHzbTemporalConfirmedCount;
+            g.debugStats.clusterGpuCullGpuHzbTemporalResetCount =
+                clusterCullStats.gpuHzbTemporalResetCount;
+            g.debugStats.clusterGpuCullGpuHzbTemporalCollisionCount =
+                clusterCullStats.gpuHzbTemporalCollisionCount;
             g.debugStats.clusterGpuCullGpuClusterConeCulledCount =
                 clusterCullStats.gpuClusterConeCulledCount;
             g.debugStats.clusterGpuCullGpuClusterConeTestedCount =
@@ -1016,6 +1028,8 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.visibleRangeCapacity;
             g.debugStats.clusterGpuCullDrawArgumentCapacity =
                 clusterCullStats.drawArgumentCapacity;
+            g.debugStats.clusterGpuCullOcclusionHistoryCapacity =
+                clusterCullStats.occlusionHistoryCapacity;
         }
 
         void UpdateClusterDrawDebugStats() {

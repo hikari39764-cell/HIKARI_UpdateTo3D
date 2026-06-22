@@ -5,6 +5,7 @@
 
 #include <d3dx12.h>
 
+#include "Core/HIKARI_TimeService.h"
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
@@ -20,15 +21,21 @@ namespace HIKARI::RENDER3D::CLUSTER {
     namespace {
         constexpr uint32_t kThreadGroupSize = 64u;
         constexpr size_t kClusterGpuCullingMaxSourceRangeCount = 8u;
-        constexpr uint32_t kClusterCullMergeGapIndexLimit = 384u;
-        constexpr uint32_t kClusterCullMergeRunGapIndexBudget = 2048u;
-        constexpr uint32_t kClusterCullMergeMaxIndexSpan = 8192u;
+        constexpr uint32_t kClusterCullMergeGapIndexLimit = 512u;
+        constexpr uint32_t kClusterCullMergeRunGapIndexBudget = 4096u;
+        constexpr uint32_t kClusterCullMergeMaxIndexSpan = 16384u;
         // クラスタ間の空白をまたぐ結合は過剰描画になりやすいので、正式なcompactまで無効化する。
-        constexpr uint32_t kClusterCullMergeClusterGapLimit = 0u;
+        constexpr uint32_t kClusterCullMergeClusterGapLimit = 1u;
         constexpr float kClusterCullLodTargetErrorNdc = 0.0060f;
+        constexpr uint32_t kClusterCullPageTaskGroupSize = 4u;
+        constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 6u;
         constexpr DXGI_FORMAT kClusterCullHzbFallbackFormat = DXGI_FORMAT_R32_FLOAT;
         constexpr float kClusterCullHzbDepthBias = 0.0005f;
         constexpr float kClusterCullHzbMaxScreenRadiusPixels = 4096.0f;
+        constexpr size_t kClusterCullOcclusionHistoryMinCapacity = 65536u;
+        constexpr size_t kClusterCullOcclusionHistoryMaxCapacity = 1048576u;
+        constexpr size_t kClusterCullOcclusionHistoryEntryBytes = sizeof(uint32_t) * 2u;
+        constexpr uint32_t kClusterCullHzbOcclusionConfirmFrames = 2u;
 
         constexpr UINT AlignConstantBufferSize(size_t size) {
             return static_cast<UINT>((size + 255u) & ~255u);
@@ -171,6 +178,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBuffer_.Reset();
         dispatchArgumentBuffer_.Reset();
         counterBuffer_.Reset();
+        occlusionHistoryBuffer_.Reset();
         ReleaseRenderResourceDescriptor(fallbackHzbSrv_);
         fallbackHzbSrv_ = {};
         fallbackHzb_.Reset();
@@ -189,6 +197,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         pageTaskCapacity_ = 0;
         visibleRangeCapacity_ = 0;
         drawArgumentCapacity_ = 0;
+        occlusionHistoryCapacity_ = 0;
         counterReadbackWriteIndex_ = 0;
         latestGpuCounters_ = {};
         latestGpuCountersValid_ = false;
@@ -198,6 +207,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        occlusionHistoryBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         stats_ = {};
     }
 
@@ -247,7 +257,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         hzbRange.OffsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-        D3D12_ROOT_PARAMETER params[10]{};
+        D3D12_ROOT_PARAMETER params[11]{};
         params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[0].Descriptor.ShaderRegister = 0;
@@ -289,6 +299,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[9].DescriptorTable.NumDescriptorRanges = 1;
         params[9].DescriptorTable.pDescriptorRanges = &hzbRange;
+
+        params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+        params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[10].Descriptor.ShaderRegister = 6;
 
         D3D12_ROOT_SIGNATURE_DESC rootDesc{};
         rootDesc.NumParameters = static_cast<UINT>(std::size(params));
@@ -483,6 +497,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
             NextCapacity(
                 (std::max)(visibleRangeCapacity, requestedDrawArgumentCapacity),
                 kDefaultClusterGpuCullingVisibleRangeCapacity);
+        const size_t requestedOcclusionHistoryCapacity =
+            (std::min)(
+                NextCapacity(
+                    (std::max)(
+                        requestedVisibleCapacity * 2u,
+                        requestedPageTaskCapacity * 8u),
+                    kClusterCullOcclusionHistoryMinCapacity),
+                kClusterCullOcclusionHistoryMaxCapacity);
         if (constantsUploadBuffer_ != nullptr &&
             counterResetUploadBuffer_ != nullptr &&
             pageTaskBuffer_ != nullptr &&
@@ -491,10 +513,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
             meshletDispatchArgumentBuffer_ != nullptr &&
             dispatchArgumentBuffer_ != nullptr &&
             counterBuffer_ != nullptr &&
+            occlusionHistoryBuffer_ != nullptr &&
             counterReadbackSlots_[0].buffer != nullptr &&
             pageTaskCapacity_ >= requestedPageTaskCapacity &&
             visibleRangeCapacity_ >= requestedVisibleCapacity &&
-            drawArgumentCapacity_ >= requestedDrawArgumentCapacity) {
+            drawArgumentCapacity_ >= requestedDrawArgumentCapacity &&
+            occlusionHistoryCapacity_ >= requestedOcclusionHistoryCapacity) {
             return true;
         }
 
@@ -508,6 +532,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBuffer_.Reset();
         dispatchArgumentBuffer_.Reset();
         counterBuffer_.Reset();
+        occlusionHistoryBuffer_.Reset();
         for (CounterReadbackSlot& slot : counterReadbackSlots_) {
             slot.buffer.Reset();
             slot.resolved = false;
@@ -515,6 +540,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         pageTaskCapacity_ = 0;
         visibleRangeCapacity_ = 0;
         drawArgumentCapacity_ = 0;
+        occlusionHistoryCapacity_ = 0;
         counterReadbackWriteIndex_ = 0;
         latestGpuCounters_ = {};
         latestGpuCountersValid_ = false;
@@ -524,6 +550,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        occlusionHistoryBufferState_ = D3D12_RESOURCE_STATE_COMMON;
 
         const auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         const auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -671,6 +698,26 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
         GFX::SetD3D12Name(counterBuffer_.Get(), L"Cluster GPU Culling Counters");
 
+        const UINT64 historyBytes =
+            static_cast<UINT64>(kClusterCullOcclusionHistoryEntryBytes) *
+            static_cast<UINT64>(requestedOcclusionHistoryCapacity);
+        auto historyDesc = CD3DX12_RESOURCE_DESC::Buffer(
+            historyBytes,
+            D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        hr = device->CreateCommittedResource(
+            &defaultHeap,
+            D3D12_HEAP_FLAG_NONE,
+            &historyDesc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(occlusionHistoryBuffer_.GetAddressOf()));
+        if (!HIKARI_DX_CHECK(hr, "ClusterGpuCulling::CreateOcclusionHistoryBuffer")) {
+            return false;
+        }
+        GFX::SetD3D12Name(
+            occlusionHistoryBuffer_.Get(),
+            L"Cluster GPU Occlusion History");
+
         auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GpuCounterBuffer));
         for (size_t i = 0; i < counterReadbackSlots_.size(); ++i) {
             hr = device->CreateCommittedResource(
@@ -691,6 +738,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         pageTaskCapacity_ = requestedPageTaskCapacity;
         visibleRangeCapacity_ = requestedVisibleCapacity;
         drawArgumentCapacity_ = requestedDrawArgumentCapacity;
+        occlusionHistoryCapacity_ = requestedOcclusionHistoryCapacity;
         return true;
     }
 
@@ -775,9 +823,12 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.pageTaskCapacity = pageTaskCapacity_;
         stats_.visibleRangeCapacity = visibleRangeCapacity_;
         stats_.drawArgumentCapacity = drawArgumentCapacity_;
+        stats_.occlusionHistoryCapacity = occlusionHistoryCapacity_;
         stats_.threadGroupSize = kThreadGroupSize;
         stats_.gpuCounterReadbackReady = counterReadbackSlots_[0].buffer != nullptr;
         stats_.gpuCounterReadbackValid = latestGpuCountersValid_;
+        stats_.occlusionHistoryReady = occlusionHistoryBuffer_ != nullptr &&
+            occlusionHistoryCapacity_ != 0u;
         if (latestGpuCountersValid_) {
             const GpuCounters& globalCounters = latestGpuCounters_.global;
             stats_.gpuInputCount = globalCounters.inputCount;
@@ -828,6 +879,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 globalCounters.hzbAabbAcceptedCount;
             stats_.gpuHzbSphereAcceptedCount =
                 globalCounters.hzbSphereAcceptedCount;
+            stats_.gpuHzbRawOccludedCount =
+                globalCounters.hzbRawOccludedCount;
+            stats_.gpuHzbTemporalPendingCount =
+                globalCounters.hzbTemporalPendingCount;
+            stats_.gpuHzbTemporalConfirmedCount =
+                globalCounters.hzbTemporalConfirmedCount;
+            stats_.gpuHzbTemporalResetCount =
+                globalCounters.hzbTemporalResetCount;
+            stats_.gpuHzbTemporalCollisionCount =
+                globalCounters.hzbTemporalCollisionCount;
             stats_.gpuClusterConeCulledCount =
                 globalCounters.clusterConeCulledCount;
             stats_.gpuClusterConeTestedCount =
@@ -1005,12 +1066,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return false;
         }
 
-        const bool hzbOcclusionEnabled =
+        const bool hzbOcclusionAvailable =
             depthOcclusion.enabled &&
             depthOcclusion.hzbSrv.ptr != 0 &&
             depthOcclusion.hzbWidth != 0 &&
             depthOcclusion.hzbHeight != 0 &&
             depthOcclusion.hzbViewProjValid;
+        const bool hzbOcclusionEnabled = hzbOcclusionAvailable;
         const D3D12_GPU_DESCRIPTOR_HANDLE hzbSrv =
             hzbOcclusionEnabled
                 ? depthOcclusion.hzbSrv
@@ -1018,16 +1080,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
         if (hzbSrv.ptr == 0) {
             return false;
         }
-        stats_.hzbOcclusionEnabled = hzbOcclusionEnabled;
-        stats_.hzbOcclusionWidth = hzbOcclusionEnabled ? depthOcclusion.hzbWidth : 1u;
-        stats_.hzbOcclusionHeight = hzbOcclusionEnabled ? depthOcclusion.hzbHeight : 1u;
+        if (occlusionHistoryBuffer_ == nullptr || occlusionHistoryCapacity_ == 0u) {
+            return false;
+        }
+        bool hzbOcclusionThisFrame = hzbOcclusionEnabled;
+        stats_.hzbOcclusionEnabled = hzbOcclusionThisFrame;
+        stats_.hzbOcclusionWidth = hzbOcclusionThisFrame ? depthOcclusion.hzbWidth : 1u;
+        stats_.hzbOcclusionHeight = hzbOcclusionThisFrame ? depthOcclusion.hzbHeight : 1u;
         stats_.hzbOcclusionMipCount =
-            hzbOcclusionEnabled ? (std::max)(1u, depthOcclusion.hzbMipCount) : 1u;
+            hzbOcclusionThisFrame ? (std::max)(1u, depthOcclusion.hzbMipCount) : 1u;
 
         GpuConstants baseConstants{};
         baseConstants.viewProj = viewProj;
         baseConstants.hzbViewProj =
-            hzbOcclusionEnabled ? depthOcclusion.hzbViewProj : viewProj;
+            hzbOcclusionThisFrame ? depthOcclusion.hzbViewProj : viewProj;
         baseConstants.cameraPosition = {
             cameraPosition.x,
             cameraPosition.y,
@@ -1051,12 +1117,22 @@ namespace HIKARI::RENDER3D::CLUSTER {
         baseConstants.mergeClusterGapLimit = kClusterCullMergeClusterGapLimit;
         baseConstants.lodTargetErrorNdc = kClusterCullLodTargetErrorNdc;
         baseConstants.enableLodErrorSelection = 1u;
-        baseConstants.enableHzbOcclusion = hzbOcclusionEnabled ? 1u : 0u;
+        baseConstants.pageTaskGroupSize = kClusterCullPageTaskGroupSize;
+        baseConstants.clusterHzbMinScreenPixels =
+            kClusterCullClusterHzbMinScreenPixels;
+        baseConstants.enableHzbOcclusion = hzbOcclusionThisFrame ? 1u : 0u;
         baseConstants.hzbWidth = stats_.hzbOcclusionWidth;
         baseConstants.hzbHeight = stats_.hzbOcclusionHeight;
         baseConstants.hzbMipCount = stats_.hzbOcclusionMipCount;
         baseConstants.hzbDepthBias = kClusterCullHzbDepthBias;
         baseConstants.hzbMaxScreenRadiusPixels = kClusterCullHzbMaxScreenRadiusPixels;
+        baseConstants.occlusionHistoryCapacity =
+            static_cast<uint32_t>(occlusionHistoryCapacity_);
+        baseConstants.temporalFrameIndex =
+            static_cast<uint32_t>(TIME::GetFrameContext().frameIndex);
+        baseConstants.hzbOcclusionConfirmFrames =
+            kClusterCullHzbOcclusionConfirmFrames;
+        baseConstants.hzbAllowLargeRectOcclusion = 0u;
         stats_.debugCountersEnabled = baseConstants.enableDebugCounters != 0u;
 
         const UINT constantsStride = AlignConstantBufferSize(sizeof(GpuConstants));
@@ -1146,6 +1222,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
             commandList->ResourceBarrier(1, &barrier);
             counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         }
+        if (occlusionHistoryBufferState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                occlusionHistoryBuffer_.Get(),
+                occlusionHistoryBufferState_,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            commandList->ResourceBarrier(1, &barrier);
+            occlusionHistoryBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        }
         commandList->CopyBufferRegion(
             counterBuffer_.Get(),
             0,
@@ -1184,6 +1268,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             8,
             meshletDispatchArgumentBuffer_->GetGPUVirtualAddress());
         commandList->SetComputeRootDescriptorTable(9, hzbSrv);
+        commandList->SetComputeRootUnorderedAccessView(
+            10,
+            occlusionHistoryBuffer_->GetGPUVirtualAddress());
 
         size_t expandWorkgroupCount = 0;
         {
@@ -1256,6 +1343,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             CD3DX12_RESOURCE_BARRIER::UAV(counterBuffer_.Get()),
             CD3DX12_RESOURCE_BARRIER::UAV(drawArgumentBuffer_.Get()),
             CD3DX12_RESOURCE_BARRIER::UAV(meshletDispatchArgumentBuffer_.Get()),
+            CD3DX12_RESOURCE_BARRIER::UAV(occlusionHistoryBuffer_.Get()),
         };
         commandList->ResourceBarrier(static_cast<UINT>(std::size(barriers)), barriers);
 

@@ -41,6 +41,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
         float largeSurfacePartitionMaxExtent = 6.0f;
         bool lockPartitionBorders = true;
 
+        bool subdivideLargeStaticTriangles = false;
+        float largeStaticTriangleMaxEdgeLength = 1.0f;
+        uint32_t largeStaticTriangleMaxSubdivisions = 8;
+        uint32_t largeStaticTriangleMaxGeneratedTriangles = 65536;
+
         // meshoptimizer の meshlet builder 用。小さすぎる cluster を避けつつ cone culling 用の局所性も残す。
         float meshletConeWeight = 0.35f;
         float meshletSplitFactor = 2.0f;

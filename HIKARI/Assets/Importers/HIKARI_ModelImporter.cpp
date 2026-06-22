@@ -245,8 +245,12 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMaxDepth = 5u;
                 cook.largeSurfacePartitionMaxExtent = 1.25f;
                 cook.lockPartitionBorders = true;
+                cook.subdivideLargeStaticTriangles = false;
             } else {
                 cook.maxSurfaceLodCount = 5u;
+                cook.maxTrianglesPerCluster = 48u;
+                cook.maxVerticesPerCluster = 96u;
+                cook.minTrianglesPerCluster = 16u;
                 cook.lod1TriangleRatio = 0.58f;
                 cook.lod2TriangleRatio = 0.42f;
                 cook.lod3TriangleRatio = 0.28f;
@@ -266,6 +270,12 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMaxDepth = 6u;
                 cook.largeSurfacePartitionMaxExtent = 3.0f;
                 cook.lockPartitionBorders = true;
+                cook.subdivideLargeStaticTriangles = false;
+                cook.largeStaticTriangleMaxEdgeLength = 1.0f;
+                cook.largeStaticTriangleMaxSubdivisions = 8u;
+                cook.largeStaticTriangleMaxGeneratedTriangles = 65536u;
+                cook.meshletConeWeight = 0.85f;
+                cook.meshletSplitFactor = 2.5f;
             }
 
             const float qualityBias = ReadClusterFloat(
@@ -323,6 +333,36 @@ namespace HIKARI {
                 cluster,
                 "lockPartitionBorders",
                 cook.lockPartitionBorders);
+            const float defaultLargeTriangleEdge =
+                profile == ModelGeometryCookProfile::Character
+                    ? cook.largeStaticTriangleMaxEdgeLength
+                    : (std::max)(0.35f, (std::min)(cook.largeSurfacePartitionMaxExtent, 1.0f));
+            cook.subdivideLargeStaticTriangles = ReadClusterBool(
+                settings,
+                cluster,
+                "subdivideLargeTriangles",
+                cook.subdivideLargeStaticTriangles);
+            cook.largeStaticTriangleMaxEdgeLength = ReadClusterFloat(
+                settings,
+                cluster,
+                "largeTriangleMaxEdgeLength",
+                defaultLargeTriangleEdge,
+                0.25f,
+                32.0f);
+            cook.largeStaticTriangleMaxSubdivisions = ReadClusterUint(
+                settings,
+                cluster,
+                "largeTriangleMaxSubdivisions",
+                cook.largeStaticTriangleMaxSubdivisions,
+                1u,
+                12u);
+            cook.largeStaticTriangleMaxGeneratedTriangles = ReadClusterUint(
+                settings,
+                cluster,
+                "largeTriangleMaxGeneratedTriangles",
+                cook.largeStaticTriangleMaxGeneratedTriangles,
+                1024u,
+                1048576u);
             cook.maxTrianglesPerCluster = ReadClusterUint(
                 settings,
                 cluster,
@@ -330,6 +370,13 @@ namespace HIKARI {
                 cook.maxTrianglesPerCluster,
                 16u,
                 128u);
+            cook.minTrianglesPerCluster = ReadClusterUint(
+                settings,
+                cluster,
+                "minTrianglesPerCluster",
+                cook.minTrianglesPerCluster,
+                1u,
+                cook.maxTrianglesPerCluster);
             cook.maxVerticesPerCluster = ReadClusterUint(
                 settings,
                 cluster,
@@ -598,6 +645,10 @@ namespace HIKARI {
                     { "largeSurfacePartitionMinTrianglesPerChunk", clusterSettings->largeSurfacePartitionMinTrianglesPerChunk },
                     { "largeSurfacePartitionMaxDepth", clusterSettings->largeSurfacePartitionMaxDepth },
                     { "lockPartitionBorders", clusterSettings->lockPartitionBorders },
+                    { "subdivideLargeTriangles", clusterSettings->subdivideLargeStaticTriangles },
+                    { "largeTriangleMaxEdgeLength", clusterSettings->largeStaticTriangleMaxEdgeLength },
+                    { "largeTriangleMaxSubdivisions", clusterSettings->largeStaticTriangleMaxSubdivisions },
+                    { "largeTriangleMaxGeneratedTriangles", clusterSettings->largeStaticTriangleMaxGeneratedTriangles },
                     { "meshletConeWeight", clusterSettings->meshletConeWeight },
                     { "meshletSplitFactor", clusterSettings->meshletSplitFactor },
                     { "buildNormalCone", clusterSettings->buildNormalCone },
@@ -638,6 +689,9 @@ namespace HIKARI {
                     { "unsupportedFeatures", clusteredReport->unsupportedFeatureCount },
                     { "partitionedSurfaces", clusteredReport->partitionedSurfaceCount },
                     { "partitionedSurfaceChunks", clusteredReport->partitionedSurfaceChunkCount },
+                    { "subdividedSurfaces", clusteredReport->subdividedSurfaceCount },
+                    { "subdividedSourceTriangles", clusteredReport->subdividedSourceTriangleCount },
+                    { "subdividedOutputTriangles", clusteredReport->subdividedOutputTriangleCount },
                 };
                 clusterJson["messages"] = std::move(messages);
             }
@@ -957,7 +1011,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 21;
+        return 25;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -992,6 +1046,10 @@ namespace HIKARI {
                 { "partitionLargeSurfaces", true },
                 { "largeSurfaceTargetExtent", 3.0f },
                 { "lockPartitionBorders", true },
+                { "subdivideLargeTriangles", false },
+                { "largeTriangleMaxEdgeLength", 1.0f },
+                { "largeTriangleMaxSubdivisions", 8 },
+                { "largeTriangleMaxGeneratedTriangles", 65536 },
             } },
         }.dump(2);
         return meta;
