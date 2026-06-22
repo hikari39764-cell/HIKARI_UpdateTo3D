@@ -1,5 +1,7 @@
 ﻿#include "HIKARI_DocumentSceneBase.h"
 
+#include <array>
+#include <cmath>
 #include <filesystem>
 #include <cctype>
 #include <utility>
@@ -23,6 +25,8 @@
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
@@ -56,6 +60,88 @@
 
 namespace HIKARI {
     namespace {
+        bool TryUnprojectClipCorner(
+            const MATH::Mat4& invViewProj,
+            float x,
+            float y,
+            float z,
+            MATH::Vec3& out) {
+
+            const MATH::Vec4 clip{ x, y, z, 1.0f };
+            const MATH::Vec4 world = invViewProj.TransformPoint(clip);
+            if (std::abs(world.w) < 1.0e-6f ||
+                !std::isfinite(world.x) ||
+                !std::isfinite(world.y) ||
+                !std::isfinite(world.z) ||
+                !std::isfinite(world.w)) {
+                return false;
+            }
+
+            const float invW = 1.0f / world.w;
+            out = { world.x * invW, world.y * invW, world.z * invW };
+            return true;
+        }
+
+        void SubmitGpuDrivenCullingDebugFrustum() {
+            const MESHRENDERER::GpuDrivenCullingDebugView debugView =
+                MESHRENDERER::GetGpuDrivenCullingDebugView();
+            if (!debugView.freezeRequested || !debugView.frozenViewValid) {
+                return;
+            }
+
+            const MATH::Mat4 invViewProj = MATH::Inverse(debugView.viewProj);
+            constexpr std::array<std::array<float, 3>, 8> kClipCorners{ {
+                { -1.0f, -1.0f, 0.0f },
+                {  1.0f, -1.0f, 0.0f },
+                {  1.0f,  1.0f, 0.0f },
+                { -1.0f,  1.0f, 0.0f },
+                { -1.0f, -1.0f, 1.0f },
+                {  1.0f, -1.0f, 1.0f },
+                {  1.0f,  1.0f, 1.0f },
+                { -1.0f,  1.0f, 1.0f },
+            } };
+
+            std::array<MATH::Vec3, 8> corners{};
+            for (size_t i = 0; i < kClipCorners.size(); ++i) {
+                const auto& c = kClipCorners[i];
+                if (!TryUnprojectClipCorner(
+                    invViewProj,
+                    c[0],
+                    c[1],
+                    c[2],
+                    corners[i])) {
+                    return;
+                }
+            }
+
+            constexpr std::array<std::array<int, 2>, 12> kEdges{ {
+                { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+                { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+                { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+            } };
+            constexpr unsigned int kNearColor = 0xFFD166FFu;
+            constexpr unsigned int kFrustumColor = 0x37C8FFFFu;
+            constexpr unsigned int kRayColor = 0x8F6AFFFFu;
+            for (size_t i = 0; i < kEdges.size(); ++i) {
+                const auto& edge = kEdges[i];
+                RENDERER3D::DEBUG::SubmitLine3D({
+                    corners[static_cast<size_t>(edge[0])],
+                    corners[static_cast<size_t>(edge[1])],
+                    i < 4 ? kNearColor : kFrustumColor,
+                    RENDERER3D::DEBUG::DebugDepthMode::XRay
+                });
+            }
+
+            for (size_t i = 0; i < 4; ++i) {
+                RENDERER3D::DEBUG::SubmitLine3D({
+                    debugView.cameraPosition,
+                    corners[i],
+                    kRayColor,
+                    RENDERER3D::DEBUG::DebugDepthMode::XRay
+                });
+            }
+        }
+
         // Scene Asset 縺ｧ髢九￥騾壼ｸｸ scene 縺ｮ讓呎ｺ・System 荳隕ｧ縲・
         std::vector<SceneSystemData> CreateDefaultSceneSystems() {
             return {
@@ -557,7 +643,10 @@ namespace HIKARI {
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
+        MESHRENDERER::SetGpuDrivenCullingDebugFreezeEnabled(
+            viewportDebugViewState_.freezeGpuDrivenCullingView);
         MODELRENDERER::RenderAll(camera_, activeEnvironment, viewportDebugViewState_.renderView);
+        SubmitGpuDrivenCullingDebugFrustum();
         RENDERER3D::RenderAll(camera_, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(camera_);
     }

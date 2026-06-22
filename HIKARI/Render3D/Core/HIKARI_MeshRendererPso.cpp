@@ -332,6 +332,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::Camera].Descriptor.ShaderRegister = 0;
         params[ROOT_PARAM::Camera].Descriptor.RegisterSpace = 0;
 
+        params[ROOT_PARAM::CullingCamera].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[ROOT_PARAM::CullingCamera].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::CullingCamera].Descriptor.ShaderRegister = 9;
+        params[ROOT_PARAM::CullingCamera].Descriptor.RegisterSpace = 0;
+
         params[ROOT_PARAM::Object].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         params[ROOT_PARAM::Object].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         params[ROOT_PARAM::Object].Descriptor.ShaderRegister = 1;

@@ -29,6 +29,7 @@ namespace HIKARI::MESHRENDERER {
         MeshPipelineStore pipelines;
 
         Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> cullingCameraCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> objectCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> objectDataBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> materialDataBuffer;
@@ -38,6 +39,7 @@ namespace HIKARI::MESHRENDERER {
         Microsoft::WRL::ComPtr<ID3D12Resource> jointPaletteCB;
 
         CameraCB* cameraMapped = nullptr;
+        CameraCB* cullingCameraMapped = nullptr;
         ObjectCB* objectMapped = nullptr;
         ObjectGpuData* objectDataMapped = nullptr;
         MaterialGpuData* materialDataMapped = nullptr;
@@ -78,6 +80,8 @@ namespace HIKARI::MESHRENDERER {
 
         RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};
         RENDER3D::GPUDRIVEN::GpuDrivenSceneResidency gpuDrivenSceneResidency{};
+
+        GpuDrivenCullingDebugView cullingDebugView{};
 
         float elapsedTimeSec = 0.0f;
     };

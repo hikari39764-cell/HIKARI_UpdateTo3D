@@ -550,6 +550,9 @@ namespace HIKARI::SHADOW {
             cmd->SetGraphicsRootConstantBufferView(
                 RECORD::kShadowStaticRootParamCamera,
                 g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0u);
+            cmd->SetGraphicsRootConstantBufferView(
+                RECORD::kShadowStaticRootParamCullingCamera,
+                g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0u);
             if (g.materialDataSrvGpu.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
                     RECORD::kShadowStaticRootParamMaterialData,
@@ -1091,7 +1094,7 @@ namespace HIKARI::SHADOW {
             clusterGeometryPoolRange.OffsetInDescriptorsFromTableStart =
                 D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[RECORD::kShadowStaticRootParamMeshletVisibleRanges + 1]{};
+            D3D12_ROOT_PARAMETER params[RECORD::kShadowStaticRootParamCullingCamera + 1]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -1143,6 +1146,12 @@ namespace HIKARI::SHADOW {
             params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[10].Descriptor.ShaderRegister = 18;
             params[10].Descriptor.RegisterSpace = 0;
+            params[RECORD::kShadowStaticRootParamCullingCamera].ParameterType =
+                D3D12_ROOT_PARAMETER_TYPE_CBV;
+            params[RECORD::kShadowStaticRootParamCullingCamera].ShaderVisibility =
+                D3D12_SHADER_VISIBILITY_ALL;
+            params[RECORD::kShadowStaticRootParamCullingCamera].Descriptor.ShaderRegister = 9;
+            params[RECORD::kShadowStaticRootParamCullingCamera].Descriptor.RegisterSpace = 0;
             D3D12_STATIC_SAMPLER_DESC sampler{};
             sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;

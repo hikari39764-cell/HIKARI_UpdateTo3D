@@ -67,6 +67,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer* surfaceIndirectDrawBuffer = nullptr;
         size_t surfaceGpuSceneBaseOffset = 0;
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
+        D3D12_GPU_VIRTUAL_ADDRESS cullingCameraAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress = 0;

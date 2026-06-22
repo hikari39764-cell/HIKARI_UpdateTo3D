@@ -257,6 +257,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t triangleCount = 0;
         uint32_t vertexCount = 0;
         uint32_t maxVerticesPerCluster = 0;
+        uint32_t normalConeValidClusterCount = 0;
+        uint32_t normalConeInvalidClusterCount = 0;
+        uint32_t normalConeCutoffLeZeroCount = 0;
+        uint32_t normalConeCutoffGeOneCount = 0;
+        uint32_t normalConeAxisInvalidCount = 0;
         uint32_t skippedSkinnedPrimitiveCount = 0;
         uint32_t skippedMorphPrimitiveCount = 0;
         uint32_t skippedInvalidPrimitiveCount = 0;

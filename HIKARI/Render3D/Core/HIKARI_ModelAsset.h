@@ -141,8 +141,28 @@ namespace HIKARI {
                 HasThinTransparentCue(material.name);
         }
 
+        inline bool HasAlphaMaskedSurface(const MaterialAsset& material) {
+            return
+                material.alphaMode == AlphaMode::Mask ||
+                (material.featureBits & MATERIAL_FEATURES::AlphaMask) != 0u;
+        }
+
+        inline bool HasBlendedSurface(const MaterialAsset& material) {
+            return material.alphaMode == AlphaMode::Blend;
+        }
+
+        inline bool HasExplicitThinTransparentSurface(const MaterialAsset& material) {
+            return (material.featureBits & MATERIAL_FEATURES::ThinTransparentSurface) != 0u;
+        }
+
         inline bool ShouldRenderDoubleSided(const MaterialAsset& material) {
-            return material.doubleSided;
+            if (!material.doubleSided) {
+                return false;
+            }
+            return
+                HasAlphaMaskedSurface(material) ||
+                HasBlendedSurface(material) ||
+                HasExplicitThinTransparentSurface(material);
         }
 
     } // namespace MATERIAL_POLICY
@@ -236,8 +256,26 @@ namespace HIKARI {
             const MaterialAsset& material,
             const MeshPrimitive& primitive) {
 
-            (void)primitive;
-            return material.doubleSided;
+            if (!material.doubleSided) {
+                return false;
+            }
+
+            if (MATERIAL_POLICY::HasBlendedSurface(material)) {
+                return true;
+            }
+
+            if (MATERIAL_POLICY::HasAlphaMaskedSurface(material)) {
+                return true;
+            }
+
+            if (MATERIAL_POLICY::HasExplicitThinTransparentSurface(material)) {
+                return
+                    HasThinSurfaceMaterialCue(material) ||
+                    HasThinSurfaceCue(primitive.name) ||
+                    IsThinPrimitivePlane(primitive);
+            }
+
+            return false;
         }
     } // namespace SURFACE_POLICY
 

@@ -700,6 +700,7 @@ namespace HIKARI::MESHRENDERER {
                 ctx.binding,
                 ctx.staticRootSig,
                 ctx.cameraAddress,
+                ctx.cullingCameraAddress,
                 ctx.lightAddress,
                 ctx.shadowAddress,
                 ctx.skyEnvironmentAddress);

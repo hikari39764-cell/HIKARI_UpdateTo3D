@@ -37,6 +37,14 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 screenParams{};
     };
 
+    struct GpuDrivenCullingDebugView {
+        bool freezeRequested = false;
+        bool frozenViewValid = false;
+        MATH::Mat4 viewProj = MATH::Mat4::Identity();
+        MATH::Vec3 cameraPosition{};
+        uint64_t capturedFrameIndex = 0;
+    };
+
     struct ObjectCB {
         MATH::Mat4 world{};
         MATH::Mat4 normalMatrix{};

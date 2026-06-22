@@ -49,6 +49,7 @@ namespace HIKARI::MESHRENDERER {
         const MeshBindingContext& ctx,
         ID3D12RootSignature* rootSig,
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress,
+        D3D12_GPU_VIRTUAL_ADDRESS cullingCameraAddress,
         D3D12_GPU_VIRTUAL_ADDRESS lightAddress,
         D3D12_GPU_VIRTUAL_ADDRESS shadowAddress,
         D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress);

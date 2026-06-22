@@ -323,6 +323,34 @@ namespace HIKARI {
                 cluster,
                 "lockPartitionBorders",
                 cook.lockPartitionBorders);
+            cook.maxTrianglesPerCluster = ReadClusterUint(
+                settings,
+                cluster,
+                "maxTrianglesPerCluster",
+                cook.maxTrianglesPerCluster,
+                16u,
+                128u);
+            cook.maxVerticesPerCluster = ReadClusterUint(
+                settings,
+                cluster,
+                "maxVerticesPerCluster",
+                cook.maxVerticesPerCluster,
+                32u,
+                256u);
+            cook.meshletConeWeight = ReadClusterFloat(
+                settings,
+                cluster,
+                "meshletConeWeight",
+                cook.meshletConeWeight,
+                0.0f,
+                2.0f);
+            cook.meshletSplitFactor = ReadClusterFloat(
+                settings,
+                cluster,
+                "meshletSplitFactor",
+                cook.meshletSplitFactor,
+                0.0f,
+                8.0f);
 
             cook.lod1TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod1TriangleRatio, qualityBias);
             cook.lod2TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod2TriangleRatio, qualityBias);
@@ -570,6 +598,9 @@ namespace HIKARI {
                     { "largeSurfacePartitionMinTrianglesPerChunk", clusterSettings->largeSurfacePartitionMinTrianglesPerChunk },
                     { "largeSurfacePartitionMaxDepth", clusterSettings->largeSurfacePartitionMaxDepth },
                     { "lockPartitionBorders", clusterSettings->lockPartitionBorders },
+                    { "meshletConeWeight", clusterSettings->meshletConeWeight },
+                    { "meshletSplitFactor", clusterSettings->meshletSplitFactor },
+                    { "buildNormalCone", clusterSettings->buildNormalCone },
                 };
             }
             if (clusteredReport != nullptr) {
@@ -586,6 +617,14 @@ namespace HIKARI {
                     { "triangles", clusteredReport->triangleCount },
                     { "vertices", clusteredReport->vertexCount },
                     { "maxVerticesPerCluster", clusteredReport->maxVerticesPerCluster },
+                    { "normalConeValidClusters", clusteredReport->normalConeValidClusterCount },
+                    { "normalConeInvalidClusters", clusteredReport->normalConeInvalidClusterCount },
+                    { "normalConeValidRatio", clusteredReport->clusterCount > 0u
+                        ? static_cast<double>(clusteredReport->normalConeValidClusterCount) / static_cast<double>(clusteredReport->clusterCount)
+                        : 0.0 },
+                    { "normalConeCutoffLeZero", clusteredReport->normalConeCutoffLeZeroCount },
+                    { "normalConeCutoffGeOne", clusteredReport->normalConeCutoffGeOneCount },
+                    { "normalConeAxisInvalid", clusteredReport->normalConeAxisInvalidCount },
                     { "avgTrianglesPerCluster", clusteredReport->clusterCount > 0u
                         ? static_cast<double>(clusteredReport->triangleCount) / static_cast<double>(clusteredReport->clusterCount)
                         : 0.0 },

@@ -84,6 +84,7 @@ namespace HIKARI {
     struct ViewportDebugViewState {
         RenderDebugView renderView = RenderDebugView::None;
         bool showLegend = true;
+        bool freezeGpuDrivenCullingView = false;
     };
 
     struct ViewportWindowState {

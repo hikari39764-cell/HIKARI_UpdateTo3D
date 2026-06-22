@@ -46,7 +46,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     ScreenSpaceFrameResult ExecuteScreenSpacePreLightingPasses(
         ScreenSpaceRuntimeState& state,
         const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
-        const MESHRENDERER::CameraCB& cameraCb,
+        const MESHRENDERER::CameraCB& renderCameraCb,
+        const MESHRENDERER::CameraCB& cullingCameraCb,
         const SceneEnvironment& environment);
     bool ExecuteScreenSpacePostOpaquePasses(
         ScreenSpaceRuntimeState& state,

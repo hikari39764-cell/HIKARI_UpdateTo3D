@@ -1669,6 +1669,27 @@ namespace HIKARI::ASSETS::GEOMETRY {
             report.vertexCount = asset.totalVertexCount;
             report.maxVerticesPerCluster = RENDER3D::CLUSTER::CountMaxClusterVertices(asset);
             report.unsupportedFeatureCount = asset.unsupportedFeatureCount;
+            for (const MeshCluster& cluster : asset.clusters) {
+                const float axisLength = MATH::Length(cluster.coneAxis);
+                const bool axisValid = axisLength > 1.0e-5f;
+                const bool cutoffValid =
+                    cluster.coneCutoff > 0.0f &&
+                    cluster.coneCutoff < 1.0f;
+                if (axisValid && cutoffValid) {
+                    ++report.normalConeValidClusterCount;
+                    continue;
+                }
+
+                ++report.normalConeInvalidClusterCount;
+                if (!axisValid) {
+                    ++report.normalConeAxisInvalidCount;
+                }
+                if (cluster.coneCutoff <= 0.0f) {
+                    ++report.normalConeCutoffLeZeroCount;
+                } else if (cluster.coneCutoff >= 1.0f) {
+                    ++report.normalConeCutoffGeOneCount;
+                }
+            }
         }
     }
 

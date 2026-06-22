@@ -90,13 +90,16 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
 
         const MESHRENDERER::CameraCB* cameraCb = MESHRENDERER::GetCameraConstants();
+        const MESHRENDERER::CameraCB* cullingCameraCb =
+            MESHRENDERER::GetGpuDrivenCullingCameraConstants();
 
         RENDER3D::SCREENSPACE::ScreenSpaceFrameResult screenResult{};
-        if (cameraCb != nullptr) {
+        if (cameraCb != nullptr && cullingCameraCb != nullptr) {
             screenResult = RENDER3D::SCREENSPACE::ExecuteScreenSpacePreLightingPasses(
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState(),
                 screenSpaceContext,
                 *cameraCb,
+                *cullingCameraCb,
                 environment);
         }
         else {

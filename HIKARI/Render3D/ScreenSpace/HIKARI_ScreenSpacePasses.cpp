@@ -58,7 +58,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     ScreenSpaceFrameResult ExecuteScreenSpacePreLightingPasses(
         ScreenSpaceRuntimeState& state,
         const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
-        const MESHRENDERER::CameraCB& cameraCb,
+        const MESHRENDERER::CameraCB& renderCameraCb,
+        const MESHRENDERER::CameraCB& cullingCameraCb,
         const SceneEnvironment& environment) {
 
         ScreenSpaceFrameResult result{};
@@ -92,7 +93,47 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const SsaoMode ssaoMode = ResolveEffectiveSsaoMode(environment.ambientOcclusion);
 
         const CpuClock::time_point depthVisibilityStart = CpuClock::now();
-        if (historyHzbReady) {
+        const bool frozenCullingView =
+            MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive();
+        if (frozenCullingView) {
+            D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
+                state.depthVisibility.BeginDepthPrepass(
+                    context.cmd,
+                    context.width,
+                    context.height);
+            const bool depthWritten =
+                visibilityDsv.ptr != 0 &&
+                MESHRENDERER::RenderDepthPrepass(visibilityDsv);
+            result.depthPrepassWritten = depthWritten;
+            state.depthVisibility.RecordDepthPrepass(depthWritten);
+            if (depthWritten) {
+                result.hzbBuilt =
+                    state.depthVisibility.BuildHzb(
+                        context.cmd,
+                        context.width,
+                        context.height);
+                if (result.hzbBuilt) {
+                    state.depthVisibility.RecordHzbViewProj(
+                        cullingCameraCb.viewProj);
+                }
+            }
+
+            context.renderTargetAccess.Rebind();
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& currentDepthStats =
+                state.depthVisibility.GetStats();
+            state.depthVisibilityValid =
+                result.hzbBuilt &&
+                currentDepthStats.hzbFinestSrv.ptr != 0 &&
+                currentDepthStats.hzbViewProjValid;
+            state.depthVisibilityViewProjValid = state.depthVisibilityValid;
+            state.depthVisibilityViewProj = cullingCameraCb.viewProj;
+            if (state.depthVisibilityValid) {
+                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
+                    currentDepthStats);
+            } else {
+                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
+            }
+        } else if (historyHzbReady) {
             GFX::PIX::ScopedGpuEvent pixHistory(
                 context.cmd,
                 GFX::PIX::kColorUpload,
@@ -172,7 +213,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 context.cmd,
                 state.geometryAux,
                 context.sceneDepthSrv,
-                cameraCb,
+                renderCameraCb,
                 environment.ambientOcclusion);
             context.renderTargetAccess.EndDepthRead();
             // SSAO は内部 AO RT を複数回 bind するので、lighting pass の前に scene RT へ戻す。
@@ -227,19 +268,21 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 GFX::PIX::kColorPost,
                 "ScreenSpace.PostOpaqueTemporal");
 
-            result.hzbBuilt = state.depthVisibility.BuildHzbFromDepthSrv(
-                context.cmd,
-                context.width,
-                context.height,
-                context.sceneDepthSrv,
-                cameraCb.viewProj);
-            if (result.hzbBuilt) {
-                state.depthVisibilityValid = true;
-                state.depthVisibilityViewProjValid = true;
-                state.depthVisibilityViewProj = cameraCb.viewProj;
-            } else {
-                state.depthVisibilityValid = false;
-                state.depthVisibilityViewProjValid = false;
+            if (!MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive()) {
+                result.hzbBuilt = state.depthVisibility.BuildHzbFromDepthSrv(
+                    context.cmd,
+                    context.width,
+                    context.height,
+                    context.sceneDepthSrv,
+                    cameraCb.viewProj);
+                if (result.hzbBuilt) {
+                    state.depthVisibilityValid = true;
+                    state.depthVisibilityViewProjValid = true;
+                    state.depthVisibilityViewProj = cameraCb.viewProj;
+                } else {
+                    state.depthVisibilityValid = false;
+                    state.depthVisibilityViewProjValid = false;
+                }
             }
 
             if (refreshBalancedSsao) {

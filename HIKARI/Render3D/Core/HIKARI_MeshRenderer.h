@@ -31,6 +31,9 @@ namespace HIKARI::MESHRENDERER {
     void SubmitSkinnedSubmesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4 (&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow = true, MeshRenderDebugMode renderDebugMode = MeshRenderDebugMode::Normal, const Material* materialOverride = nullptr);
     void SetGpuDrivenSceneSource(
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source);
+    void SetGpuDrivenCullingDebugFreezeEnabled(bool enabled);
+    GpuDrivenCullingDebugView GetGpuDrivenCullingDebugView();
+    bool IsGpuDrivenCullingDebugFreezeActive();
     bool HasSubmittedItems();
     bool BeginFrame(
         const Camera3D& camera,
@@ -43,6 +46,7 @@ namespace HIKARI::MESHRENDERER {
         uint32_t screenHeight,
         RenderDebugView debugView = RenderDebugView::None);
     const CameraCB* GetCameraConstants();
+    const CameraCB* GetGpuDrivenCullingCameraConstants();
     bool RenderGeometryAuxPass(
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);

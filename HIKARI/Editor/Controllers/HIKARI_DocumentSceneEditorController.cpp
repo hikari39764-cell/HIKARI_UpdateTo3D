@@ -1443,6 +1443,9 @@ namespace HIKARI {
             context_.viewportDebug.renderView = RenderDebugView::None;
         }
         ImGui::Checkbox("Show Legend", &context_.viewportDebug.showLegend);
+        ImGui::Checkbox(
+            "Freeze GPU Culling View",
+            &context_.viewportDebug.freezeGpuDrivenCullingView);
 
         if (context_.viewportDebug.renderView == RenderDebugView::None) {
             ImGui::TextDisabled("The viewport is using the normal shaded output.");
