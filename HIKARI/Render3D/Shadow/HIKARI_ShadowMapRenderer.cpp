@@ -16,6 +16,7 @@
 #include <wrl/client.h>
 
 #include "HIKARI_Services.h"
+#include "Core/HIKARI_TimeService.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
@@ -55,6 +56,21 @@ namespace HIKARI::SHADOW {
 
         struct ShadowCameraCB {
             MATH::Mat4 lightViewProj{};
+            MATH::Mat4 invLightViewProj{};
+            MATH::Vec4 lightPosition{};
+            MATH::Vec4 timeParams{};
+            MATH::Vec4 screenParams{};
+        };
+
+        struct ShadowLightFrame {
+            MATH::Mat4 view{};
+            MATH::Mat4 viewProj{};
+            MATH::Vec3 anchor{};
+            MATH::Vec3 lightPosition{};
+            MATH::Vec3 lightDirection{};
+            MATH::Vec3 right{};
+            MATH::Vec3 up{};
+            float anchorGrid = 0.0f;
         };
 
         struct ShadowObjectCB {
@@ -75,6 +91,10 @@ namespace HIKARI::SHADOW {
             uint32_t resolution = 0;
             D3D12_RESOURCE_STATES shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             MATH::Mat4 lightViewProj = MATH::Mat4::Identity();
+            MATH::Vec3 lightCullPosition{};
+            MATH::Vec3 lightAnchor{};
+            float lightAnchorGrid = 0.0f;
+            float elapsedTimeSec = 0.0f;
 
             ComPtr<ID3D12Resource> shadowMap;
             ComPtr<ID3D12DescriptorHeap> dsvHeap;
@@ -1335,31 +1355,124 @@ namespace HIKARI::SHADOW {
             return 4096;
         }
 
-        MATH::Mat4 BuildLightViewProj(const SceneEnvironment& environment, const Camera3D& camera) {
+        float SnapShadowAnchorValue(float value, float grid) {
+            if (grid <= 0.0001f) {
+                return value;
+            }
+            return std::round(value / grid) * grid;
+        }
+
+        float ResolveShadowAnchorGrid(
+            const SceneEnvironment& environment,
+            float orthoSize) {
+
+            if (!environment.directionalShadow.stabilize ||
+                g.resolution == 0u) {
+                return 0.0f;
+            }
+
+            constexpr float kAnchorGridFraction = 1.0f / 8.0f;
+            constexpr float kMinGridTexels = 64.0f;
+            const float texelWorldSize =
+                orthoSize / static_cast<float>((std::max)(1u, g.resolution));
+            return (std::max)(
+                orthoSize * kAnchorGridFraction,
+                texelWorldSize * kMinGridTexels);
+        }
+
+        MATH::Vec3 ResolveLightDirection(const SceneEnvironment& environment) {
             MATH::Vec3 lightDir = MATH::Normalize(environment.directional.direction);
             if (MATH::Length(lightDir) <= 1e-6f) {
                 lightDir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
             }
-            const MATH::Vec3 center = camera.GetPosition();
-            const float lightDistance = std::max(1.0f, environment.directionalShadow.shadowDistance);
-            const MATH::Vec3 lightPos = center - lightDir * lightDistance;
+            return lightDir;
+        }
+
+        ShadowLightFrame BuildShadowLightFrame(
+            const SceneEnvironment& environment,
+            const Camera3D& camera) {
+
+            ShadowLightFrame frame{};
+            const MATH::Vec3 lightDir = ResolveLightDirection(environment);
             MATH::Vec3 up{ 0.0f, 1.0f, 0.0f };
             if (std::abs(MATH::Dot(lightDir, up)) > 0.95f) {
                 up = { 1.0f, 0.0f, 0.0f };
             }
-            MATH::Mat4 view = MATH::Mat4::LookAtRH(lightPos, center, up);
+
+            MATH::Vec3 right = MATH::Normalize(MATH::Cross(up, lightDir));
+            if (MATH::Length(right) <= 1e-6f) {
+                right = { 1.0f, 0.0f, 0.0f };
+            }
+            MATH::Vec3 actualUp = MATH::Normalize(MATH::Cross(lightDir, right));
+            if (MATH::Length(actualUp) <= 1e-6f) {
+                actualUp = up;
+            }
+
             const float orthoSize = std::max(1.0f, environment.directionalShadow.orthoSize);
             const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
             const float farPlane = std::max(nearPlane + 0.01f, environment.directionalShadow.farPlane);
-            if (environment.directionalShadow.stabilize && g.resolution > 0) {
-                const float unitsPerTexel = orthoSize / static_cast<float>(g.resolution);
-                const MATH::Vec4 centerLS = view.TransformPoint({ center.x, center.y, center.z, 1.0f });
-                const float snappedX = std::floor(centerLS.x / unitsPerTexel) * unitsPerTexel;
-                const float snappedY = std::floor(centerLS.y / unitsPerTexel) * unitsPerTexel;
-                view.m[3][0] += snappedX - centerLS.x;
-                view.m[3][1] += snappedY - centerLS.y;
+            const float anchorGrid = ResolveShadowAnchorGrid(environment, orthoSize);
+
+            const MATH::Vec3 cameraCenter = camera.GetPosition();
+            MATH::Vec3 anchor = cameraCenter;
+            if (anchorGrid > 0.0f) {
+                const float snappedX =
+                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, right), anchorGrid);
+                const float snappedY =
+                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, actualUp), anchorGrid);
+                const float snappedZ =
+                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, lightDir), anchorGrid);
+                anchor =
+                    right * snappedX +
+                    actualUp * snappedY +
+                    lightDir * snappedZ;
             }
-            return MATH::Mat4::OrthoRH_ZO(orthoSize, orthoSize, nearPlane, farPlane) * view;
+
+            const float lightDistance =
+                std::max(1.0f, environment.directionalShadow.shadowDistance);
+            const MATH::Vec3 lightPos = anchor - lightDir * lightDistance;
+            frame.view = MATH::Mat4::LookAtRH(lightPos, anchor, actualUp);
+            frame.viewProj =
+                MATH::Mat4::OrthoRH_ZO(orthoSize, orthoSize, nearPlane, farPlane) *
+                frame.view;
+            frame.anchor = anchor;
+            frame.lightPosition = lightPos;
+            frame.lightDirection = lightDir;
+            frame.right = right;
+            frame.up = actualUp;
+            frame.anchorGrid = anchorGrid;
+            return frame;
+        }
+
+        void UploadShadowCameraConstants(const ShadowLightFrame& frame) {
+            if (g.cameraMapped == nullptr) {
+                return;
+            }
+
+            const FrameContext& frameContext = TIME::GetFrameContext();
+            g.elapsedTimeSec += std::max(0.0f, frameContext.unscaledDt);
+            const float resolution =
+                static_cast<float>((std::max)(1u, g.resolution));
+            g.cameraMapped->lightViewProj = frame.viewProj;
+            g.cameraMapped->invLightViewProj = MATH::Inverse(frame.viewProj);
+            g.cameraMapped->lightPosition = {
+                frame.lightPosition.x,
+                frame.lightPosition.y,
+                frame.lightPosition.z,
+                1.0f
+            };
+            g.cameraMapped->timeParams = {
+                g.elapsedTimeSec,
+                frameContext.unscaledDt,
+                frameContext.gameDt,
+                static_cast<float>(frameContext.frameIndex)
+            };
+            g.cameraMapped->screenParams = {
+                resolution,
+                resolution,
+                1.0f / resolution,
+                1.0f / resolution
+            };
         }
 
         void SubmitDebugFrustum(const SceneEnvironment& environment, const Camera3D& camera) {
@@ -1367,20 +1480,12 @@ namespace HIKARI::SHADOW {
                 return;
             }
 
-            MATH::Vec3 lightDir = MATH::Normalize(environment.directional.direction);
-            if (MATH::Length(lightDir) <= 1e-6f) {
-                lightDir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
-            }
-            const MATH::Vec3 center = camera.GetPosition();
-            const float lightDistance = std::max(1.0f, environment.directionalShadow.shadowDistance);
-            const MATH::Vec3 lightPos = center - lightDir * lightDistance;
-            MATH::Vec3 up{ 0.0f, 1.0f, 0.0f };
-            if (std::abs(MATH::Dot(lightDir, up)) > 0.95f) {
-                up = { 1.0f, 0.0f, 0.0f };
-            }
-            const MATH::Vec3 forward = MATH::Normalize(center - lightPos);
-            const MATH::Vec3 right = MATH::Normalize(MATH::Cross(up, forward));
-            const MATH::Vec3 actualUp = MATH::Cross(forward, right);
+            const ShadowLightFrame frame =
+                BuildShadowLightFrame(environment, camera);
+            const MATH::Vec3 lightPos = frame.lightPosition;
+            const MATH::Vec3 forward = frame.lightDirection;
+            const MATH::Vec3 right = frame.right;
+            const MATH::Vec3 actualUp = frame.up;
             const float half = std::max(1.0f, environment.directionalShadow.orthoSize) * 0.5f;
             const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
             const float farPlane = std::max(nearPlane + 0.01f, environment.directionalShadow.farPlane);
@@ -1478,7 +1583,7 @@ namespace HIKARI::SHADOW {
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
-        void BuildShadowGpuDrivenWorkFrame(const Camera3D& camera) {
+        void BuildShadowGpuDrivenWorkFrame() {
             const RENDER3D::GPUDRIVEN::GpuDrivenFrameBuildInput input =
                 RENDER3D::GPUDRIVEN::BuildGpuDrivenFrameInput(
                     g.shadowSceneSource);
@@ -1503,7 +1608,7 @@ namespace HIKARI::SHADOW {
             workContext.producer = &g.clusterGpuDrivenProducer;
             workContext.commandList = SERVICES::gCtx.cmdList;
             workContext.viewProj = g.lightViewProj;
-            workContext.cameraPosition = camera.GetPosition();
+            workContext.cameraPosition = g.lightCullPosition;
             workContext.geometryPoolSrv = ResolveClusterGeometryPoolSrv();
             workContext.surfaceGpuSceneGpuAddress =
                 g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
@@ -1735,13 +1840,16 @@ namespace HIKARI::SHADOW {
             }
             g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
         }
-        g.lightViewProj = BuildLightViewProj(environment, camera);
+        const ShadowLightFrame shadowFrame =
+            BuildShadowLightFrame(environment, camera);
+        g.lightViewProj = shadowFrame.viewProj;
+        g.lightCullPosition = shadowFrame.lightPosition;
+        g.lightAnchor = shadowFrame.anchor;
+        g.lightAnchorGrid = shadowFrame.anchorGrid;
+        UploadShadowCameraConstants(shadowFrame);
         if (CanReuseShadowCache(resolution)) {
             MarkShadowCacheHit();
             SubmitDebugFrustum(environment, camera);
-            if (g.cameraMapped != nullptr) {
-                g.cameraMapped->lightViewProj = g.lightViewProj;
-            }
             return;
         }
 
@@ -1752,12 +1860,9 @@ namespace HIKARI::SHADOW {
             return;
         }
         PrepareShadowSurfaceGpuSceneMaterialFrame();
-        BuildShadowGpuDrivenWorkFrame(camera);
+        BuildShadowGpuDrivenWorkFrame();
         UploadShadowIndirectDrawFrame();
         SubmitDebugFrustum(environment, camera);
-        if (g.cameraMapped != nullptr) {
-            g.cameraMapped->lightViewProj = g.lightViewProj;
-        }
     }
 
     void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow) {

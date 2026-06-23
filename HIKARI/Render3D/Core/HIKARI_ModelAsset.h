@@ -33,6 +33,7 @@ namespace HIKARI {
         constexpr uint32_t AlphaMask = 1u << 1;
         constexpr uint32_t Emissive = 1u << 2;
         constexpr uint32_t ThinTransparentSurface = 1u << 3;
+        constexpr uint32_t SpecularGlossCompatibility = 1u << 4;
     }
 
     struct Bounds {

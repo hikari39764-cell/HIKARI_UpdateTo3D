@@ -206,11 +206,6 @@ bool HikariMeshletAsClusterVisible(
         return false;
     }
 
-    if (visible.passKind == HIKARI_MESHLET_AS_PASS_SHADOW)
-    {
-        return true;
-    }
-
     float4 worldSphere = HikariMeshletAsBuildWorldSphere(
         instance.clusterWorld,
         cluster.sphereCenterRadius,
@@ -221,7 +216,9 @@ bool HikariMeshletAsClusterVisible(
         return false;
     }
 
-    if ((visible.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) == 0u &&
+    bool shadowPass = visible.passKind == HIKARI_MESHLET_AS_PASS_SHADOW;
+    if (!shadowPass &&
+        (visible.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) == 0u &&
         HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster, worldSphere))
     {
         return false;

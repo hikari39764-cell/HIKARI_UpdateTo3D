@@ -1004,6 +1004,59 @@ namespace HIKARI {
             return stats;
         }
 
+        bool ShouldUseSpecularGlossCompatibility(const MaterialAsset& material) {
+            return
+                material.specularColorTexture.textureIndex >= 0 &&
+                material.metallicRoughnessTexture.textureIndex < 0 &&
+                material.metallicFactor <= 0.001f;
+        }
+
+        float ClampFloat(float value, float minValue, float maxValue) {
+            if (value < minValue) {
+                return minValue;
+            }
+            if (value > maxValue) {
+                return maxValue;
+            }
+            return value;
+        }
+
+        void ApplySpecularGlossCompatibilityPolicy(ModelAsset& model) {
+            for (MaterialAsset& material : model.materials) {
+                if (!ShouldUseSpecularGlossCompatibility(material)) {
+                    continue;
+                }
+
+                material.featureBits |= MATERIAL_FEATURES::SpecularGlossCompatibility;
+
+                const bool alphaMasked =
+                    material.alphaMode == AlphaMode::Mask ||
+                    (material.featureBits & MATERIAL_FEATURES::AlphaMask) != 0u;
+                const float minRoughness = alphaMasked ? 0.86f : 0.72f;
+                const float maxSpecularFactor = alphaMasked ? 0.45f : 0.65f;
+                const float maxSpecularColor = alphaMasked ? 0.70f : 0.85f;
+
+                const float roughness = material.roughnessFactor < minRoughness
+                    ? minRoughness
+                    : material.roughnessFactor;
+                const float specularFactor = material.specularFactor > maxSpecularFactor
+                    ? maxSpecularFactor
+                    : material.specularFactor;
+
+                material.roughnessFactor = ClampFloat(roughness, 0.04f, 1.0f);
+                material.specularFactor = ClampFloat(specularFactor, 0.0f, 1.0f);
+                material.specularColorFactor.x = material.specularColorFactor.x > maxSpecularColor
+                    ? maxSpecularColor
+                    : material.specularColorFactor.x;
+                material.specularColorFactor.y = material.specularColorFactor.y > maxSpecularColor
+                    ? maxSpecularColor
+                    : material.specularColorFactor.y;
+                material.specularColorFactor.z = material.specularColorFactor.z > maxSpecularColor
+                    ? maxSpecularColor
+                    : material.specularColorFactor.z;
+            }
+        }
+
     }
 
     const char* ModelImporter::GetImporterId() const {
@@ -1011,7 +1064,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 25;
+        return 26;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -1129,6 +1182,7 @@ namespace HIKARI {
 
         const MaterialAlphaPolicyStats alphaPolicyStats =
             ApplyCanonicalBaseColorAlphaMaterialPolicy(model, textureDiagnostics);
+        ApplySpecularGlossCompatibilityPolicy(model);
 
         const std::filesystem::path finalPath = context.importedDirectory / "model.hmodel";
         const std::filesystem::path tempPath = context.importedDirectory / "model.importing.hmodel";

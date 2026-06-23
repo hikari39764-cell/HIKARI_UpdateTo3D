@@ -72,6 +72,8 @@ cbuffer ShadowCB : register(b4)
     float gShadowPcfRadius;
     float gShadowTexelSizeX;
     float gShadowTexelSizeY;
+    float gShadowEdgeFade;
+    float3 gShadowPadding;
 };
 
 cbuffer SkyEnvironmentCB : register(b5)
@@ -467,6 +469,17 @@ float SampleShadowPcf(float2 uv, float currentDepth)
     return sum / 9.0f;
 }
 
+float HikariShadowReceiverFade(float2 uv)
+{
+    if (gShadowEdgeFade <= 0.00001f)
+    {
+        return 1.0f;
+    }
+
+    float edgeDistance = min(min(uv.x, 1.0f - uv.x), min(uv.y, 1.0f - uv.y));
+    return saturate(edgeDistance / gShadowEdgeFade);
+}
+
 float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS, uint receiveShadow)
 {
     if (gShadowEnabled == 0 || receiveShadow == 0)
@@ -495,7 +508,8 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS, uint receiveSh
     float currentDepth = proj.z - gShadowDepthBias;
     float visibility = SampleShadowPcf(uv, currentDepth);
 
-    return lerp(1.0f - gShadowStrength, 1.0f, visibility);
+    float shadowFactor = lerp(1.0f - gShadowStrength, 1.0f, visibility);
+    return lerp(1.0f, shadowFactor, HikariShadowReceiverFade(uv));
 }
 
 

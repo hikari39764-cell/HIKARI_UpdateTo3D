@@ -175,6 +175,7 @@ namespace HIKARI::MESHRENDERER {
         const float resolution = static_cast<float>(std::max(1u, SHADOW::GetShadowResolution()));
         out.texelSizeX = 1.0f / resolution;
         out.texelSizeY = 1.0f / resolution;
+        out.edgeFade = 0.04f;
     }
 
     void FillSkyEnvironmentCB(const SceneEnvironment& environment, SkyEnvironmentCB& out) {
@@ -419,6 +420,9 @@ namespace HIKARI::MESHRENDERER {
         }
         if ((materialAsset->featureBits & MATERIAL_FEATURES::Emissive) != 0) {
             obj.materialFlags |= MATERIAL_FEATURES::Emissive;
+        }
+        if ((materialAsset->featureBits & MATERIAL_FEATURES::SpecularGlossCompatibility) != 0) {
+            obj.materialFlags |= MATERIAL_FEATURES::SpecularGlossCompatibility;
         }
         obj.emissiveFactor = {
             materialAsset->emissiveFactor.x,

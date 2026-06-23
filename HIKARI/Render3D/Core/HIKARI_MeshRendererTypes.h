@@ -199,6 +199,8 @@ namespace HIKARI::MESHRENDERER {
         float pcfRadius = 1.0f;
         float texelSizeX = 1.0f / 2048.0f;
         float texelSizeY = 1.0f / 2048.0f;
+        float edgeFade = 0.04f;
+        float padding[3]{};
     };
 
     constexpr size_t kMaxJointPaletteMatrices = 128u;

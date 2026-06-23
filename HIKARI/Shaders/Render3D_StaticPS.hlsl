@@ -27,6 +27,7 @@ cbuffer CameraCB : register(b0)
 static const uint MATERIAL_UNLIT = 1u << 0;
 static const uint MATERIAL_ALPHA_MASK = 1u << 1;
 static const uint MATERIAL_EMISSIVE = 1u << 2;
+static const uint MATERIAL_SPECULAR_GLOSS_COMPAT = 1u << 4;
 
 #ifndef HIKARI_USE_COOK_TORRANCE_PBR
 #define HIKARI_USE_COOK_TORRANCE_PBR 1
@@ -61,6 +62,8 @@ cbuffer ShadowCB : register(b4)
     float gShadowPcfRadius;
     float gShadowTexelSizeX;
     float gShadowTexelSizeY;
+    float gShadowEdgeFade;
+    float3 gShadowPadding;
 };
 
 cbuffer SkyEnvironmentCB : register(b5)
@@ -364,6 +367,43 @@ void ResolvePbrInputs(
     }
 }
 
+bool HikariNeedsSpecularGlossCompatibility(HikariMeshMaterialData materialData, float metallic)
+{
+    if ((materialData.materialFlags & MATERIAL_SPECULAR_GLOSS_COMPAT) != 0)
+    {
+        return true;
+    }
+
+    return
+        materialData.hasSpecularColorTexture != 0 &&
+        materialData.hasMetallicRoughnessTexture == 0 &&
+        metallic < 0.001f;
+}
+
+void ApplyPbrMaterialCompatibility(
+    HikariMeshMaterialData materialData,
+    float metallic,
+    inout float roughness,
+    inout float3 specularColor,
+    inout float specularFactor)
+{
+    const bool alphaMasked = (materialData.materialFlags & MATERIAL_ALPHA_MASK) != 0;
+    if (alphaMasked)
+    {
+        roughness = max(roughness, 0.72f);
+        specularFactor *= 0.75f;
+    }
+
+    if (!HikariNeedsSpecularGlossCompatibility(materialData, metallic))
+    {
+        return;
+    }
+
+    roughness = max(roughness, alphaMasked ? 0.86f : 0.72f);
+    specularFactor *= alphaMasked ? 0.45f : 0.65f;
+    specularColor *= alphaMasked ? 0.70f : 0.85f;
+}
+
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
     if (gFogParams.x < 0.5f)
@@ -407,6 +447,17 @@ float SampleShadowPcf(float2 uv, float currentDepth)
     return visibility;
 }
 
+float HikariShadowReceiverFade(float2 uv)
+{
+    if (gShadowEdgeFade <= 0.00001f)
+    {
+        return 1.0f;
+    }
+
+    float edgeDistance = min(min(uv.x, 1.0f - uv.x), min(uv.y, 1.0f - uv.y));
+    return saturate(edgeDistance / gShadowEdgeFade);
+}
+
 float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint receiveShadow)
 {
     if (gShadowEnabled == 0 || receiveShadow == 0)
@@ -430,7 +481,8 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint 
 
     float currentDepth = proj.z - gShadowDepthBias;
     float visibility = SampleShadowPcf(uv, currentDepth);
-    return lerp(1.0f - gShadowStrength, 1.0f, visibility);
+    float shadowFactor = lerp(1.0f - gShadowStrength, 1.0f, visibility);
+    return lerp(1.0f, shadowFactor, HikariShadowReceiverFade(uv));
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -469,6 +521,7 @@ float4 main(PSInput input) : SV_TARGET
     float specularFactor = 1.0f;
     ResolvePbrInputs(materialData, input.uv, input.uv1, metallic, roughness, occlusion);
     ResolveSpecularInputs(materialData, input.uv, input.uv1, specularColor, specularFactor);
+    ApplyPbrMaterialCompatibility(materialData, metallic, roughness, specularColor, specularFactor);
     float screenAo = 1.0f;
     if (gSsaoEnabled > 0.5f)
     {
