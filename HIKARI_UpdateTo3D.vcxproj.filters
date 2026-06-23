@@ -2255,6 +2255,9 @@
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl">
       <Filter>Project\Shaders\Render3D\Shadow</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Post_AniPS.hlsl">
+      <Filter>Project\Shaders\Post</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl">
       <Filter>Project\Shaders\Post</Filter>
     </None>

@@ -60,6 +60,8 @@
 
 namespace HIKARI {
     namespace {
+        constexpr const char* kDefaultGlobalPostProfileId = "Ani";
+
         bool TryUnprojectClipCorner(
             const MATH::Mat4& invViewProj,
             float x,
@@ -575,6 +577,11 @@ namespace HIKARI {
         RENDERER3D::Reset();
         MODELRENDERER::Reset();
         SKYRENDERER::Reset();
+
+        if (environment_.post.enabled && environment_.post.globalPostProfileId.empty()) {
+            environment_.post.globalPostProfileId = kDefaultGlobalPostProfileId;
+            environment_.post.valuesInitialized = false;
+        }
 
         if (environment_.post.enabled && !environment_.post.globalPostProfileId.empty()) {
             if (!environment_.post.valuesInitialized) {

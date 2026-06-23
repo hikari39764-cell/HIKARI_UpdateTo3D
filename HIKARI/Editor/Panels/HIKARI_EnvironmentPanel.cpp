@@ -27,6 +27,8 @@ namespace HIKARI {
 
 #if defined(HIKARI_WITH_EDITOR)
     namespace {
+        constexpr const char* kDefaultGlobalPostProfileId = "Ani";
+
         bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
             float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
             bool changed = false;
@@ -1002,7 +1004,14 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Global Post")) {
-                ImGui::Checkbox("Post Enabled", &environment.post.enabled);
+                const bool wasPostEnabled = environment.post.enabled;
+                if (ImGui::Checkbox("Post Enabled", &environment.post.enabled) &&
+                    environment.post.enabled &&
+                    !wasPostEnabled &&
+                    environment.post.globalPostProfileId.empty()) {
+                    environment.post.globalPostProfileId = kDefaultGlobalPostProfileId;
+                    environment.post.valuesInitialized = false;
+                }
                 const std::string previousProfileId = environment.post.globalPostProfileId;
                 char profileBuffer[256]{};
                 std::strncpy(profileBuffer, environment.post.globalPostProfileId.c_str(), sizeof(profileBuffer) - 1);

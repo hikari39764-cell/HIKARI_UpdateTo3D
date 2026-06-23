@@ -19,12 +19,14 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         ScreenSpaceGeometryAux geometryAux{};
         SsaoRenderer ssaoRenderer{};
         RENDER3D::GPUDRIVEN::GpuDepthVisibilityLayer depthVisibility{};
+        RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats frozenCullingDepthStats{};
         MATH::Mat4 depthVisibilityViewProj{};
         RENDER3D::TextureResourceHandle fallbackAoTextureResource{};
         int fallbackAoTextureHandle = -1;
         bool depthVisibilityValid = false;
         bool depthVisibilityViewProjValid = false;
         bool depthVisibilityBuildAllowedThisFrame = true;
+        bool frozenCullingDepthStatsValid = false;
         bool geometryValid = false;
         bool ssaoValid = false;
     };

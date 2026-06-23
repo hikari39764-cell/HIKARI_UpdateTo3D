@@ -2045,7 +2045,7 @@
       "enabled": true,
       "largeSurfaceTargetExtent": 0.25,
       "lockPartitionBorders": true,
-      "lodQualityBias": 1.0,
+      "lodQualityBias": 0.25,
       "maxLodCount": 5,
       "partitionLargeSurfaces": true,
       "profile": "Scene"
@@ -2058,7 +2058,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 24,
+  "importerVersion": 25,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/testscene.gltf",
   "type": "Model"

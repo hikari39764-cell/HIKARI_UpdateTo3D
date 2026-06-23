@@ -96,6 +96,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         constexpr float kDepthVisibilityMinOccluderRadius = 0.35f;
         constexpr size_t kDepthVisibilityMaxOccluderRecords = 1024;
+        constexpr float kShadowCasterMinRadius = 0.18f;
+        constexpr float kShadowAlphaMaskMinRadius = 0.75f;
+        constexpr float kShadowDoubleSidedMinRadius = 0.55f;
 
         struct DepthPrepassOccluderCandidate {
             uint32_t recordIndex = RUNTIME::kInvalidRenderSurfaceIndex;
@@ -128,6 +131,37 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             return ComputeWorldBoundsRadius(record.worldBounds) >=
                 kDepthVisibilityMinOccluderRadius;
+        }
+
+        bool HasShadowCasterSafeMaterial(const GpuSceneSurfaceRecord& record) {
+            return
+                !record.key.transparent &&
+                !record.key.depthAware &&
+                !record.key.materialFx &&
+                !record.key.waterMaterialFx;
+        }
+
+        bool IsGpuSceneStaticShadowCasterRecord(
+            const GpuSceneSurfaceRecord& record) {
+
+            if (!IsGpuSceneShadowResidentRecord(record) ||
+                !HasShadowCasterSafeMaterial(record)) {
+                return false;
+            }
+
+            const float radius = ComputeWorldBoundsRadius(record.worldBounds);
+            if (radius < kShadowCasterMinRadius) {
+                return false;
+            }
+            if (record.key.alphaMasked &&
+                radius < kShadowAlphaMaskMinRadius) {
+                return false;
+            }
+            if (record.key.doubleSided &&
+                radius < kShadowDoubleSidedMinRadius) {
+                return false;
+            }
+            return true;
         }
 
         void BuildDepthPrepassOccluderRecords(
@@ -1103,7 +1137,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             const GpuSceneSurfaceRecord& record = surfaceRecords_[recordIndex];
             if (record.valid && record.shadowCandidate && record.key.resourceKeyValid) {
-                if (IsGpuSceneShadowResidentRecord(record)) {
+                if (IsGpuSceneStaticShadowCasterRecord(record)) {
                     shadowResidentRecordIndices_.push_back(recordIndex);
                 } else if (IsGpuSceneShadowSkinnedTraditionalRecord(record)) {
                     shadowSkinnedRecordIndices_.push_back(recordIndex);
@@ -1377,11 +1411,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const bool oldNonOpaqueGpuPass =
                 IsGpuSceneForwardDepthAwareResidentRecord(oldRecord) ||
                 IsGpuSceneForwardTransparentResidentRecord(oldRecord) ||
-                IsGpuSceneShadowResidentRecord(oldRecord);
+                IsGpuSceneStaticShadowCasterRecord(oldRecord);
             const bool newNonOpaqueGpuPass =
                 IsGpuSceneForwardDepthAwareResidentRecord(newRecord) ||
                 IsGpuSceneForwardTransparentResidentRecord(newRecord) ||
-                IsGpuSceneShadowResidentRecord(newRecord);
+                IsGpuSceneStaticShadowCasterRecord(newRecord);
             if (oldNonOpaqueGpuPass || newNonOpaqueGpuPass) {
                 return false;
             }

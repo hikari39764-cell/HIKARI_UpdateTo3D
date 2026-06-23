@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -19,6 +20,49 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         float ElapsedMs(CpuClock::time_point start, CpuClock::time_point end) {
             return std::chrono::duration<float, std::milli>(end - start).count();
         }
+
+        bool NearlyEqualMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
+            constexpr float kEpsilon = 0.0001f;
+            for (int col = 0; col < 4; ++col) {
+                for (int row = 0; row < 4; ++row) {
+                    if (std::fabs(lhs.m[col][row] - rhs.m[col][row]) > kEpsilon) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        bool IsHzbStatsUsable(
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
+            uint32_t width,
+            uint32_t height) {
+
+            return
+                stats.hzbBuilt &&
+                stats.hzbFinestSrv.ptr != 0 &&
+                stats.width == width &&
+                stats.height == height &&
+                stats.hzbWidth != 0 &&
+                stats.hzbHeight != 0 &&
+                stats.hzbViewProjValid;
+        }
+
+        bool IsHzbStatsUsableForView(
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
+            uint32_t width,
+            uint32_t height,
+            const MATH::Mat4& viewProj) {
+
+            return
+                IsHzbStatsUsable(stats, width, height) &&
+                NearlyEqualMat4(stats.hzbViewProj, viewProj);
+        }
+
+        void ClearFrozenCullingDepthStats(ScreenSpaceRuntimeState& state) {
+            state.frozenCullingDepthStats = {};
+            state.frozenCullingDepthStatsValid = false;
+        }
     }
 
     ScreenSpaceRuntimeState& GetScreenSpaceRuntimeState() {
@@ -35,6 +79,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         gScreenSpaceState.depthVisibilityValid = false;
         gScreenSpaceState.depthVisibilityViewProjValid = false;
         gScreenSpaceState.depthVisibilityBuildAllowedThisFrame = true;
+        ClearFrozenCullingDepthStats(gScreenSpaceState);
         gScreenSpaceState.geometryValid = false;
         gScreenSpaceState.ssaoValid = false;
     }
@@ -74,13 +119,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats historyDepthStats =
             state.depthVisibility.GetStats();
         const bool historyHzbReady =
-            historyDepthStats.hzbBuilt &&
-            historyDepthStats.hzbFinestSrv.ptr != 0 &&
-            historyDepthStats.width == context.width &&
-            historyDepthStats.height == context.height &&
-            historyDepthStats.hzbWidth != 0 &&
-            historyDepthStats.hzbHeight != 0 &&
-            historyDepthStats.hzbViewProjValid;
+            IsHzbStatsUsable(historyDepthStats, context.width, context.height);
         state.depthVisibility.ResetFrame();
         BeginSsaoDebugFrame(context.width, context.height, environment.ambientOcclusion);
 
@@ -103,44 +142,79 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         state.depthVisibilityBuildAllowedThisFrame =
             depthVisibilityAllowedThisFrame;
         if (frozenCullingView) {
-            D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
-                state.depthVisibility.BeginDepthPrepass(
-                    context.cmd,
+            if (!state.frozenCullingDepthStatsValid &&
+                IsHzbStatsUsableForView(
+                    historyDepthStats,
                     context.width,
-                    context.height);
-            const bool depthWritten =
-                visibilityDsv.ptr != 0 &&
-                MESHRENDERER::RenderDepthPrepass(visibilityDsv);
-            result.depthPrepassWritten = depthWritten;
-            state.depthVisibility.RecordDepthPrepass(depthWritten);
-            if (depthWritten) {
-                result.hzbBuilt =
-                    state.depthVisibility.BuildHzb(
+                    context.height,
+                    cullingCameraCb.viewProj)) {
+                state.frozenCullingDepthStats = historyDepthStats;
+                state.frozenCullingDepthStatsValid = true;
+            }
+
+            const bool frozenHistoryReady =
+                state.frozenCullingDepthStatsValid &&
+                IsHzbStatsUsableForView(
+                    state.frozenCullingDepthStats,
+                    context.width,
+                    context.height,
+                    cullingCameraCb.viewProj);
+            if (frozenHistoryReady) {
+                GFX::PIX::ScopedGpuEvent pixFrozenHistory(
+                    context.cmd,
+                    GFX::PIX::kColorUpload,
+                    "GpuDepthVisibility.UseFrozenHistoryHZB");
+                result.hzbBuilt = true;
+                state.depthVisibilityValid = true;
+                state.depthVisibilityViewProjValid = true;
+                state.depthVisibilityViewProj =
+                    state.frozenCullingDepthStats.hzbViewProj;
+                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
+                    state.frozenCullingDepthStats);
+            } else {
+                D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
+                    state.depthVisibility.BeginDepthPrepass(
                         context.cmd,
                         context.width,
                         context.height);
-                if (result.hzbBuilt) {
-                    state.depthVisibility.RecordHzbViewProj(
-                        cullingCameraCb.viewProj);
+                const bool depthWritten =
+                    visibilityDsv.ptr != 0 &&
+                    MESHRENDERER::RenderDepthPrepass(visibilityDsv);
+                result.depthPrepassWritten = depthWritten;
+                state.depthVisibility.RecordDepthPrepass(depthWritten);
+                if (depthWritten) {
+                    result.hzbBuilt =
+                        state.depthVisibility.BuildHzb(
+                            context.cmd,
+                            context.width,
+                            context.height);
+                    if (result.hzbBuilt) {
+                        state.depthVisibility.RecordHzbViewProj(
+                            cullingCameraCb.viewProj);
+                    }
+                }
+
+                context.renderTargetAccess.Rebind();
+                const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& currentDepthStats =
+                    state.depthVisibility.GetStats();
+                state.depthVisibilityValid =
+                    result.hzbBuilt &&
+                    currentDepthStats.hzbFinestSrv.ptr != 0 &&
+                    currentDepthStats.hzbViewProjValid;
+                state.depthVisibilityViewProjValid = state.depthVisibilityValid;
+                state.depthVisibilityViewProj = cullingCameraCb.viewProj;
+                if (state.depthVisibilityValid) {
+                    state.frozenCullingDepthStats = currentDepthStats;
+                    state.frozenCullingDepthStatsValid = true;
+                    (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
+                        currentDepthStats);
+                } else {
+                    ClearFrozenCullingDepthStats(state);
+                    (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
                 }
             }
-
-            context.renderTargetAccess.Rebind();
-            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& currentDepthStats =
-                state.depthVisibility.GetStats();
-            state.depthVisibilityValid =
-                result.hzbBuilt &&
-                currentDepthStats.hzbFinestSrv.ptr != 0 &&
-                currentDepthStats.hzbViewProjValid;
-            state.depthVisibilityViewProjValid = state.depthVisibilityValid;
-            state.depthVisibilityViewProj = cullingCameraCb.viewProj;
-            if (state.depthVisibilityValid) {
-                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
-                    currentDepthStats);
-            } else {
-                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
-            }
         } else if (depthVisibilityAllowedThisFrame && historyHzbReady) {
+            ClearFrozenCullingDepthStats(state);
             GFX::PIX::ScopedGpuEvent pixHistory(
                 context.cmd,
                 GFX::PIX::kColorUpload,
@@ -151,6 +225,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                 historyDepthStats);
         } else {
+            ClearFrozenCullingDepthStats(state);
             state.depthVisibilityValid = false;
             state.depthVisibilityViewProjValid = false;
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();

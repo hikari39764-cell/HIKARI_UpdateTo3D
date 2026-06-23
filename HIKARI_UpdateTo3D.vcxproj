@@ -947,6 +947,7 @@
     <None Include="HIKARI\Shaders\Render3D_ShadowAlphaPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl" />
+    <None Include="HIKARI\Shaders\Post_AniPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_CinematicGradePS.hlsl" />
     <None Include="HIKARI\Shaders\Post_TransitionLinearWipePS.hlsl" />
     <None Include="HIKARI\Shaders\Post_BloomExtractPS.hlsl" />
