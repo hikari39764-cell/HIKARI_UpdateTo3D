@@ -32,6 +32,7 @@ static const uint HIKARI_MESHLET_AS_PASS_SHADOW = 3u;
 static const float HIKARI_MESHLET_AS_CONE_NEAR_RADIUS_SCALE = 2.0f;
 static const float HIKARI_MESHLET_AS_CONE_RADIUS_BIAS = 0.02f;
 static const float HIKARI_MESHLET_AS_CONE_DISTANCE_BIAS = 0.001f;
+static const float HIKARI_MESHLET_AS_CONE_AXIS_RADIUS_FLOOR_SCALE = 0.02f;
 
 ByteAddressBuffer gClusterGeometryPool[HIKARI_CLUSTER_SRV_POOL_COUNT] : register(t0, space1);
 
@@ -141,6 +142,25 @@ float3 HikariMeshletAsTransformNormalAxis(float4x4 world, float3 localAxis)
     return normalize(normalAxis);
 }
 
+float HikariMeshletAsConeAxisSupportRadius(
+    float4x4 world,
+    float4 boundsMin,
+    float4 boundsMax,
+    float3 worldAxis)
+{
+    float3 localCenter = (boundsMin.xyz + boundsMax.xyz) * 0.5f;
+    float3 localExtents = max(boundsMax.xyz - localCenter, float3(0.0f, 0.0f, 0.0f));
+
+    float3 axisX = float3(world._11, world._21, world._31);
+    float3 axisY = float3(world._12, world._22, world._32);
+    float3 axisZ = float3(world._13, world._23, world._33);
+    return max(
+        abs(dot(worldAxis, axisX)) * localExtents.x +
+        abs(dot(worldAxis, axisY)) * localExtents.y +
+        abs(dot(worldAxis, axisZ)) * localExtents.z,
+        0.0f);
+}
+
 bool HikariMeshletAsConeBackfacing(
     float4x4 world,
     HikariMeshCluster cluster,
@@ -168,17 +188,26 @@ bool HikariMeshletAsConeBackfacing(
         return false;
     }
 
+    float axisRadius = HikariMeshletAsConeAxisSupportRadius(
+        world,
+        cluster.boundsMin,
+        cluster.boundsMax,
+        axis);
+    float coneRadius = min(
+        sphereRadius,
+        max(axisRadius, sphereRadius * HIKARI_MESHLET_AS_CONE_AXIS_RADIUS_FLOOR_SCALE));
+
     float3 view = worldSphere.xyz - gCullCameraPos.xyz;
     float viewLength = length(view);
-    if (viewLength <= max(0.0001f, sphereRadius * HIKARI_MESHLET_AS_CONE_NEAR_RADIUS_SCALE))
+    if (viewLength <= max(0.0001f, coneRadius * HIKARI_MESHLET_AS_CONE_NEAR_RADIUS_SCALE))
     {
         return false;
     }
 
-    float rejectThreshold = coneCutoff * viewLength + sphereRadius;
+    float rejectThreshold = coneCutoff * viewLength + coneRadius;
     float stabilityBias = max(
         viewLength * HIKARI_MESHLET_AS_CONE_DISTANCE_BIAS,
-        sphereRadius * HIKARI_MESHLET_AS_CONE_RADIUS_BIAS);
+        coneRadius * HIKARI_MESHLET_AS_CONE_RADIUS_BIAS);
     return dot(view, axis) >= rejectThreshold + stabilityBias;
 }
 
@@ -216,9 +245,10 @@ bool HikariMeshletAsClusterVisible(
         return false;
     }
 
-    bool shadowPass = visible.passKind == HIKARI_MESHLET_AS_PASS_SHADOW;
-    if (!shadowPass &&
-        (visible.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED) == 0u &&
+    if ((visible.flags & (
+            HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED |
+            HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED |
+            HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT)) == 0u &&
         HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster, worldSphere))
     {
         return false;

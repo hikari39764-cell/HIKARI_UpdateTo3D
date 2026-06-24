@@ -201,6 +201,7 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_STRIDE = 16u;
 static const float HIKARI_CLUSTER_CULL_CONE_NEAR_RADIUS_SCALE = 2.0f;
 static const float HIKARI_CLUSTER_CULL_CONE_RADIUS_BIAS = 0.02f;
 static const float HIKARI_CLUSTER_CULL_CONE_DISTANCE_BIAS = 0.001f;
+static const float HIKARI_CLUSTER_CULL_CONE_AXIS_RADIUS_FLOOR_SCALE = 0.02f;
 static const uint HIKARI_CLUSTER_CULL_TEMPORAL_CONFIRM_MAX_FRAME_GAP = 4u;
 static const uint HIKARI_CLUSTER_CULL_TEMPORAL_VISIBLE_RESET_FRAMES = 2u;
 static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_BACK_FACE_DRAW_COUNT = 0u;
@@ -1063,6 +1064,25 @@ float3 HikariClusterCullTransformNormalAxis(float4x4 world, float3 localAxis)
     return normalize(normalAxis);
 }
 
+float HikariClusterCullConeAxisSupportRadius(
+    float4x4 world,
+    float4 boundsMin,
+    float4 boundsMax,
+    float3 worldAxis)
+{
+    float3 localCenter = (boundsMin.xyz + boundsMax.xyz) * 0.5f;
+    float3 localExtents = max(boundsMax.xyz - localCenter, float3(0.0f, 0.0f, 0.0f));
+
+    float3 axisX = float3(world._11, world._21, world._31);
+    float3 axisY = float3(world._12, world._22, world._32);
+    float3 axisZ = float3(world._13, world._23, world._33);
+    return max(
+        abs(dot(worldAxis, axisX)) * localExtents.x +
+        abs(dot(worldAxis, axisY)) * localExtents.y +
+        abs(dot(worldAxis, axisZ)) * localExtents.z,
+        0.0f);
+}
+
 bool HikariClusterCullConeBackfacing(
     float4x4 world,
     HikariMeshCluster cluster,
@@ -1090,9 +1110,18 @@ bool HikariClusterCullConeBackfacing(
         return false;
     }
 
+    float axisRadius = HikariClusterCullConeAxisSupportRadius(
+        world,
+        cluster.boundsMin,
+        cluster.boundsMax,
+        axis);
+    float coneRadius = min(
+        sphereRadius,
+        max(axisRadius, sphereRadius * HIKARI_CLUSTER_CULL_CONE_AXIS_RADIUS_FLOOR_SCALE));
+
     float3 view = worldSphere.xyz - gClusterCullCameraPosition.xyz;
     float viewLength = length(view);
-    if (viewLength <= max(0.0001f, sphereRadius * HIKARI_CLUSTER_CULL_CONE_NEAR_RADIUS_SCALE))
+    if (viewLength <= max(0.0001f, coneRadius * HIKARI_CLUSTER_CULL_CONE_NEAR_RADIUS_SCALE))
     {
         return false;
     }
@@ -1100,10 +1129,10 @@ bool HikariClusterCullConeBackfacing(
     // meshoptimizer の perspective cone 判定。epsilon は境界のちらつきを抑えるため少し保守的にする。
     // Sphere formula from meshoptimizer: dot(center - camera, axis) >=
     // cutoff * distance + radius. The extra bias keeps the reject high-confidence.
-    float rejectThreshold = coneCutoff * viewLength + sphereRadius;
+    float rejectThreshold = coneCutoff * viewLength + coneRadius;
     float stabilityBias = max(
         viewLength * HIKARI_CLUSTER_CULL_CONE_DISTANCE_BIAS,
-        sphereRadius * HIKARI_CLUSTER_CULL_CONE_RADIUS_BIAS);
+        coneRadius * HIKARI_CLUSTER_CULL_CONE_RADIUS_BIAS);
     return dot(view, axis) >= rejectThreshold + stabilityBias;
 }
 
@@ -1732,7 +1761,10 @@ void HikariClusterCullProcessPage(
                     1);
             }
         }
-        else if (gClusterCullEnableConeCull != 0u)
+        else if (gClusterCullEnableConeCull != 0u &&
+            (input.flags & (
+                HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED |
+                HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT)) == 0u)
         {
             if (gClusterCullEnableDebugCounters != 0u)
             {
