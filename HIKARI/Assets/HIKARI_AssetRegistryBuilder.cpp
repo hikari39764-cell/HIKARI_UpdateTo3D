@@ -249,7 +249,7 @@ namespace HIKARI {
                 cluster,
                 "largeSurfaceTargetExtent",
                 options.largeSurfaceTargetExtent,
-                0.50f,
+                0.75f,
                 64.0f);
             options.lockPartitionBorders = ReadClusterBool(settings, cluster, "lockPartitionBorders", options.lockPartitionBorders);
             return options;

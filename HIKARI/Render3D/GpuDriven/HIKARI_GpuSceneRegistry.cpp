@@ -96,9 +96,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         constexpr float kDepthVisibilityMinOccluderRadius = 0.35f;
         constexpr size_t kDepthVisibilityMaxOccluderRecords = 1024;
-        constexpr float kShadowCasterMinRadius = 0.18f;
-        constexpr float kShadowAlphaMaskMinRadius = 0.75f;
-        constexpr float kShadowDoubleSidedMinRadius = 0.55f;
+        constexpr float kShadowCasterMinRadius = 0.28f;
+        constexpr float kShadowCasterMinMainArea = 0.06f;
+        constexpr float kShadowAlphaMaskMinRadius = 1.10f;
+        constexpr float kShadowAlphaMaskMinMainArea = 0.35f;
+        constexpr float kShadowDoubleSidedMinRadius = 0.85f;
+        constexpr float kShadowDoubleSidedMinMainArea = 0.20f;
 
         struct DepthPrepassOccluderCandidate {
             uint32_t recordIndex = RUNTIME::kInvalidRenderSurfaceIndex;
@@ -150,15 +153,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             const float radius = ComputeWorldBoundsRadius(record.worldBounds);
+            const float mainArea = ComputeWorldBoundsMainAreaProxy(record.worldBounds);
             if (radius < kShadowCasterMinRadius) {
                 return false;
             }
+            if (mainArea < kShadowCasterMinMainArea) {
+                return false;
+            }
             if (record.key.alphaMasked &&
-                radius < kShadowAlphaMaskMinRadius) {
+                (radius < kShadowAlphaMaskMinRadius ||
+                    mainArea < kShadowAlphaMaskMinMainArea)) {
                 return false;
             }
             if (record.key.doubleSided &&
-                radius < kShadowDoubleSidedMinRadius) {
+                (radius < kShadowDoubleSidedMinRadius ||
+                    mainArea < kShadowDoubleSidedMinMainArea)) {
                 return false;
             }
             return true;

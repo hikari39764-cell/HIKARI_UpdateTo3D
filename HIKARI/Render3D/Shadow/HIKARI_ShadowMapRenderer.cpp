@@ -558,6 +558,7 @@ namespace HIKARI::SHADOW {
         void BindShadowGpuDrivenFrameResources(
             ID3D12GraphicsCommandList* cmd,
             ID3D12Resource* meshletVisibleRangeBuffer,
+            ID3D12Resource* meshletVisibleClusterListBuffer = nullptr,
             bool skinnedRoot = false) {
 
             ID3D12RootSignature* rootSig =
@@ -601,6 +602,11 @@ namespace HIKARI::SHADOW {
                 cmd->SetGraphicsRootShaderResourceView(
                     RECORD::kShadowStaticRootParamMeshletVisibleRanges,
                     meshletVisibleRangeBuffer->GetGPUVirtualAddress());
+            }
+            if (meshletVisibleClusterListBuffer != nullptr) {
+                cmd->SetGraphicsRootShaderResourceView(
+                    RECORD::kShadowStaticRootParamMeshletVisibleClusterList,
+                    meshletVisibleClusterListBuffer->GetGPUVirtualAddress());
             }
             cmd->SetGraphicsRoot32BitConstant(
                 RECORD::kShadowStaticRootParamMaterialIndex,
@@ -1166,6 +1172,12 @@ namespace HIKARI::SHADOW {
             params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[10].Descriptor.ShaderRegister = 18;
             params[10].Descriptor.RegisterSpace = 0;
+            params[RECORD::kShadowStaticRootParamMeshletVisibleClusterList].ParameterType =
+                D3D12_ROOT_PARAMETER_TYPE_SRV;
+            params[RECORD::kShadowStaticRootParamMeshletVisibleClusterList].ShaderVisibility =
+                D3D12_SHADER_VISIBILITY_ALL;
+            params[RECORD::kShadowStaticRootParamMeshletVisibleClusterList].Descriptor.ShaderRegister = 19;
+            params[RECORD::kShadowStaticRootParamMeshletVisibleClusterList].Descriptor.RegisterSpace = 0;
             params[RECORD::kShadowStaticRootParamCullingCamera].ParameterType =
                 D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[RECORD::kShadowStaticRootParamCullingCamera].ShaderVisibility =
@@ -1710,7 +1722,7 @@ namespace HIKARI::SHADOW {
                 }
 
                 if (hasSkinnedStream && g.skinnedPso != nullptr) {
-                    BindShadowGpuDrivenFrameResources(cmd, nullptr, true);
+                    BindShadowGpuDrivenFrameResources(cmd, nullptr, nullptr, true);
                     cmd->SetPipelineState(g.skinnedPso.Get());
                     for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
                         cmd->ExecuteIndirect(
@@ -1742,11 +1754,19 @@ namespace HIKARI::SHADOW {
                 backendContext.visibility != nullptr
                     ? backendContext.visibility->visibleMeshletRangeBuffer
                     : nullptr;
-            BindShadowGpuDrivenFrameResources(cmd, visibleRangeBuffer);
+            ID3D12Resource* visibleClusterListBuffer =
+                backendContext.visibility != nullptr
+                    ? backendContext.visibility->visibleMeshletClusterListBuffer
+                    : nullptr;
+            BindShadowGpuDrivenFrameResources(
+                cmd,
+                visibleRangeBuffer,
+                visibleClusterListBuffer);
 
             switch (backend) {
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader: {
-                if (visibleRangeBuffer == nullptr) {
+                if (visibleRangeBuffer == nullptr ||
+                    visibleClusterListBuffer == nullptr) {
                     return false;
                 }
                 RENDER3D::MESHLET::MeshletRenderExecutionContext ctx{};

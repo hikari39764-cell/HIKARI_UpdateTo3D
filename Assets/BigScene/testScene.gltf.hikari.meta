@@ -2043,11 +2043,18 @@
   "importSettings": {
     "clusterGeometry": {
       "enabled": true,
-      "largeSurfaceTargetExtent": 0.25,
+      "largeSurfaceTargetExtent": 5.0,
+      "largeTriangleMaxEdgeLength": 3.0,
+      "largeTriangleMaxGeneratedTriangles": 16384,
+      "largeTriangleMaxSubdivisions": 4,
       "lockPartitionBorders": true,
       "lodQualityBias": 0.25,
       "maxLodCount": 5,
+      "meshletSplitFactor": 1.25,
       "partitionLargeSurfaces": true,
+      "planarSurfaceMaxDepth": 4,
+      "planarSurfaceMinPartitionExtent": 5.0,
+      "planarSurfaceMinTrianglesPerChunk": 1024,
       "profile": "Scene"
     },
     "cookModel": true,
@@ -2058,7 +2065,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 26,
+  "importerVersion": 28,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/testscene.gltf",
   "type": "Model"

@@ -75,6 +75,7 @@ private:
     GpuDeferredReleaseQueue deferredReleaseQueue_;
 
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
+	std::array<uint64_t, kFrameCount> frameFenceValues_{};
     uint64_t fenceValue_{};
     HANDLE fenceEvent_{};
     uint32_t frameIndex_{};

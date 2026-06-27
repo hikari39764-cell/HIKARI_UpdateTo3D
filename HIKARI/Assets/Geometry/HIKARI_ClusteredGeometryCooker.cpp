@@ -31,6 +31,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             uint32_t i2 = 0;
             Bounds bounds{};
             MATH::Vec3 normal{ 0.0f, 1.0f, 0.0f };
+            float area = 0.0f;
         };
 
         struct SurfaceWork {
@@ -53,6 +54,23 @@ namespace HIKARI::ASSETS::GEOMETRY {
             std::vector<std::vector<uint32_t>> groups{};
         };
 
+        struct SurfaceShapeAnalysis {
+            float maxExtent = 0.0f;
+            float midExtent = 0.0f;
+            float minExtent = 0.0f;
+            float normalCoherence = 0.0f;
+            float dominantNormalRatio = 0.0f;
+            bool coherentPlanar = false;
+            bool largePlanar = false;
+        };
+
+        struct TrianglePartitionConfig {
+            uint32_t minChunkTriangles = 1;
+            uint32_t maxDepth = 1;
+            float maxExtent = 1.0f;
+            bool planarCoarsened = false;
+        };
+
         std::vector<std::vector<uint32_t>> BuildClusterTriangleGroups(
             const std::vector<ClusterVertex>& vertices,
             const std::vector<SourceTriangle>& triangles,
@@ -60,6 +78,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         bool IsFiniteVec3(const MATH::Vec3& v);
         bool ShouldUsePermissiveOpaqueLods(uint32_t flags);
+        uint32_t TriangleNormalBucket(const SourceTriangle& tri);
+        SurfaceShapeAnalysis AnalyzeSurfaceShape(
+            const std::vector<SourceTriangle>& triangles,
+            const Bounds& bounds);
+        TrianglePartitionConfig ResolveTrianglePartitionConfig(
+            const ClusterCookSettings& settings,
+            const SurfaceShapeAnalysis& analysis);
 
         bool ApplyMeshoptMeshletBounds(
             const ClusteredGeometryAsset& asset,
@@ -360,7 +385,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             const MATH::Vec3 e1 = vertices[i1].position - vertices[i0].position;
             const MATH::Vec3 e2 = vertices[i2].position - vertices[i0].position;
-            tri.normal = MATH::Normalize(MATH::Cross(e1, e2));
+            const MATH::Vec3 cross = MATH::Cross(e1, e2);
+            tri.area = MATH::Length(cross) * 0.5f;
+            tri.normal = MATH::Normalize(cross);
             if (MATH::Length(tri.normal) <= 1e-5f) {
                 tri.normal = { 0.0f, 1.0f, 0.0f };
             }
@@ -722,15 +749,39 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 return work;
             }
 
+            const std::vector<SourceTriangle> sourceTriangles =
+                BuildTriangles(work.vertices, work.indices);
+            const SurfaceShapeAnalysis shapeAnalysis =
+                AnalyzeSurfaceShape(sourceTriangles, ComputeVertexBounds(work.vertices));
+            const bool balancePlanarSubdivision =
+                settings.balancePlanarStaticSurfaces &&
+                settings.surfacePartitionPolicy == SurfacePartitionPolicy::SceneStatic &&
+                shapeAnalysis.largePlanar;
+            if (balancePlanarSubdivision &&
+                sourceTriangles.size() >= (std::max)(
+                    settings.largeSurfacePartitionMinTriangles / 2u,
+                    256u)) {
+                ++report.planarSubdivisionSkippedSurfaceCount;
+                return work;
+            }
+
             SurfaceWork refined = work;
             refined.indices.clear();
             refined.indices.reserve(work.indices.size());
-            const float maxEdgeLength =
+            float maxEdgeLength =
                 (std::max)(0.1f, settings.largeStaticTriangleMaxEdgeLength);
-            const uint32_t maxDepth =
+            uint32_t maxDepth =
                 (std::max)(1u, settings.largeStaticTriangleMaxSubdivisions);
-            const uint32_t maxGeneratedTriangles =
+            uint32_t maxGeneratedTriangles =
                 (std::max)(1u, settings.largeStaticTriangleMaxGeneratedTriangles);
+            if (balancePlanarSubdivision) {
+                maxEdgeLength = (std::max)(
+                    maxEdgeLength,
+                    (std::max)(2.0f, settings.planarStaticSurfaceMinPartitionExtent * 0.50f));
+                maxDepth = (std::min)(maxDepth, 4u);
+                maxGeneratedTriangles = (std::min)(maxGeneratedTriangles, 16384u);
+                ++report.planarSubdivisionCoarsenedSurfaceCount;
+            }
 
             TriangleSubdivisionStats stats{};
             for (size_t i = 0; i + 2u < work.indices.size(); i += 3u) {
@@ -977,6 +1028,121 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
         }
 
+        uint32_t TriangleNormalBucket(const SourceTriangle& tri) {
+            const float ax = std::abs(tri.normal.x);
+            const float ay = std::abs(tri.normal.y);
+            const float az = std::abs(tri.normal.z);
+            if (ax >= ay && ax >= az) {
+                return tri.normal.x >= 0.0f ? 0u : 1u;
+            }
+            if (ay >= az) {
+                return tri.normal.y >= 0.0f ? 2u : 3u;
+            }
+            return tri.normal.z >= 0.0f ? 4u : 5u;
+        }
+
+        SurfaceShapeAnalysis AnalyzeSurfaceShape(
+            const std::vector<SourceTriangle>& triangles,
+            const Bounds& bounds) {
+
+            SurfaceShapeAnalysis analysis{};
+            if (triangles.empty() || !BOUNDS::IsUsable(bounds)) {
+                return analysis;
+            }
+
+            std::array<float, 3u> extents{
+                BoundsExtentOnAxis(bounds, 0u),
+                BoundsExtentOnAxis(bounds, 1u),
+                BoundsExtentOnAxis(bounds, 2u),
+            };
+            std::sort(extents.begin(), extents.end());
+            analysis.minExtent = extents[0];
+            analysis.midExtent = extents[1];
+            analysis.maxExtent = extents[2];
+
+            double totalArea = 0.0;
+            double bucketAreaMax = 0.0;
+            std::array<double, 6u> bucketAreas{};
+            MATH::Vec3 normalSum{};
+            for (const SourceTriangle& tri : triangles) {
+                const float weight = std::isfinite(tri.area) && tri.area > 0.0f
+                    ? tri.area
+                    : 1.0f;
+                totalArea += static_cast<double>(weight);
+                normalSum = normalSum + tri.normal * weight;
+                bucketAreas[TriangleNormalBucket(tri)] += static_cast<double>(weight);
+            }
+
+            for (double bucketArea : bucketAreas) {
+                bucketAreaMax = (std::max)(bucketAreaMax, bucketArea);
+            }
+
+            if (totalArea > 0.0) {
+                analysis.normalCoherence =
+                    static_cast<float>(MATH::Length(normalSum) / totalArea);
+                analysis.dominantNormalRatio =
+                    static_cast<float>(bucketAreaMax / totalArea);
+            }
+
+            const bool thinBounds =
+                analysis.maxExtent > 0.0001f &&
+                analysis.midExtent > 0.0001f &&
+                analysis.minExtent <= (std::max)(0.08f, analysis.maxExtent * 0.04f);
+            analysis.coherentPlanar =
+                analysis.normalCoherence >= 0.88f &&
+                analysis.dominantNormalRatio >= 0.82f;
+            analysis.largePlanar =
+                analysis.coherentPlanar &&
+                thinBounds &&
+                analysis.maxExtent >= 1.5f;
+            return analysis;
+        }
+
+        TrianglePartitionConfig ResolveTrianglePartitionConfig(
+            const ClusterCookSettings& settings,
+            const SurfaceShapeAnalysis& analysis) {
+
+            TrianglePartitionConfig config{};
+            config.minChunkTriangles =
+                (std::max)(1u, settings.largeSurfacePartitionMinTrianglesPerChunk);
+            config.maxDepth = (std::max)(1u, settings.largeSurfacePartitionMaxDepth);
+            config.maxExtent =
+                (std::max)(0.25f, settings.largeSurfacePartitionMaxExtent);
+
+            if (!settings.balancePlanarStaticSurfaces ||
+                settings.surfacePartitionPolicy != SurfacePartitionPolicy::SceneStatic) {
+                return config;
+            }
+
+            if (analysis.largePlanar) {
+                config.planarCoarsened = true;
+                config.maxExtent = (std::max)(
+                    config.maxExtent,
+                    (std::max)(settings.planarStaticSurfaceMinPartitionExtent, 3.0f));
+                config.minChunkTriangles = (std::max)(
+                    config.minChunkTriangles,
+                    (std::max)(
+                        settings.planarStaticSurfaceMinTrianglesPerChunk,
+                        settings.maxTrianglesPerCluster * 12u));
+                config.maxDepth = (std::min)(
+                    config.maxDepth,
+                    (std::max)(1u, settings.planarStaticSurfaceMaxDepth));
+            } else if (analysis.coherentPlanar) {
+                config.maxExtent = (std::max)(config.maxExtent, 1.5f);
+                config.minChunkTriangles = (std::max)(
+                    config.minChunkTriangles,
+                    settings.maxTrianglesPerCluster * 8u);
+                config.maxDepth = (std::min)(config.maxDepth, 5u);
+            } else {
+                config.maxExtent = (std::max)(config.maxExtent, 0.75f);
+                config.minChunkTriangles = (std::max)(
+                    config.minChunkTriangles,
+                    settings.maxTrianglesPerCluster * 4u);
+            }
+
+            return config;
+        }
+
         Bounds ComputeTriangleSubsetBounds(
             const std::vector<SourceTriangle>& triangles,
             const std::vector<uint32_t>& triangleIndices) {
@@ -1011,24 +1177,111 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
 
             const float maxExtent =
-                (std::max)(0.5f, settings.largeSurfacePartitionMaxExtent);
+                (std::max)(0.25f, settings.largeSurfacePartitionMaxExtent);
             return MaxBoundsExtent(bounds) > maxExtent;
         }
 
         void PartitionTriangleIndicesRecursive(
             const std::vector<SourceTriangle>& triangles,
             std::vector<uint32_t> triangleIndices,
+            const TrianglePartitionConfig& config,
+            uint32_t depth,
+            std::vector<std::vector<uint32_t>>& outPartitions);
+
+        void AppendSpatialTrianglePartitions(
+            const std::vector<SourceTriangle>& triangles,
+            std::vector<uint32_t> triangleIndices,
+            const TrianglePartitionConfig& config,
+            std::vector<std::vector<uint32_t>>& outPartitions) {
+
+            if (triangleIndices.empty()) {
+                return;
+            }
+            PartitionTriangleIndicesRecursive(
+                triangles,
+                std::move(triangleIndices),
+                config,
+                0u,
+                outPartitions);
+        }
+
+        bool BuildNormalAwareTrianglePartitions(
+            const std::vector<SourceTriangle>& triangles,
             const ClusterCookSettings& settings,
+            const TrianglePartitionConfig& config,
+            std::vector<std::vector<uint32_t>>& outPartitions) {
+
+            outPartitions.clear();
+            if (!settings.buildNormalCone ||
+                settings.surfacePartitionPolicy != SurfacePartitionPolicy::SceneStatic ||
+                triangles.empty()) {
+                return false;
+            }
+
+            const uint32_t minChunkTriangles = config.minChunkTriangles;
+            std::array<std::vector<uint32_t>, 6u> buckets{};
+            for (uint32_t triangleIndex = 0; triangleIndex < triangles.size(); ++triangleIndex) {
+                buckets[TriangleNormalBucket(triangles[triangleIndex])].push_back(triangleIndex);
+            }
+
+            size_t usableBucketCount = 0;
+            for (const std::vector<uint32_t>& bucket : buckets) {
+                if (bucket.size() >= minChunkTriangles) {
+                    ++usableBucketCount;
+                }
+            }
+            if (usableBucketCount <= 1u) {
+                return false;
+            }
+
+            std::vector<uint32_t> smallBuckets{};
+            for (std::vector<uint32_t>& bucket : buckets) {
+                if (bucket.empty()) {
+                    continue;
+                }
+                if (bucket.size() < minChunkTriangles) {
+                    smallBuckets.insert(smallBuckets.end(), bucket.begin(), bucket.end());
+                    continue;
+                }
+                AppendSpatialTrianglePartitions(
+                    triangles,
+                    std::move(bucket),
+                    config,
+                    outPartitions);
+            }
+
+            if (smallBuckets.size() >= minChunkTriangles) {
+                AppendSpatialTrianglePartitions(
+                    triangles,
+                    std::move(smallBuckets),
+                    config,
+                    outPartitions);
+            } else if (!smallBuckets.empty() && !outPartitions.empty()) {
+                outPartitions.back().insert(
+                    outPartitions.back().end(),
+                    smallBuckets.begin(),
+                    smallBuckets.end());
+            }
+
+            if (outPartitions.size() <= 1u) {
+                outPartitions.clear();
+                return false;
+            }
+            return true;
+        }
+
+        void PartitionTriangleIndicesRecursive(
+            const std::vector<SourceTriangle>& triangles,
+            std::vector<uint32_t> triangleIndices,
+            const TrianglePartitionConfig& config,
             uint32_t depth,
             std::vector<std::vector<uint32_t>>& outPartitions) {
 
             const Bounds bounds = ComputeTriangleSubsetBounds(triangles, triangleIndices);
-            const uint32_t minChunkTriangles =
-                (std::max)(1u, settings.largeSurfacePartitionMinTrianglesPerChunk);
-            const float maxExtent =
-                (std::max)(0.5f, settings.largeSurfacePartitionMaxExtent);
+            const uint32_t minChunkTriangles = config.minChunkTriangles;
+            const float maxExtent = config.maxExtent;
             if (triangleIndices.size() < static_cast<size_t>(minChunkTriangles) * 2u ||
-                depth >= settings.largeSurfacePartitionMaxDepth ||
+                depth >= config.maxDepth ||
                 !BOUNDS::IsUsable(bounds) ||
                 MaxBoundsExtent(bounds) <= maxExtent) {
                 outPartitions.push_back(std::move(triangleIndices));
@@ -1063,13 +1316,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
             PartitionTriangleIndicesRecursive(
                 triangles,
                 std::move(left),
-                settings,
+                config,
                 depth + 1u,
                 outPartitions);
             PartitionTriangleIndicesRecursive(
                 triangles,
                 std::move(right),
-                settings,
+                config,
                 depth + 1u,
                 outPartitions);
         }
@@ -1094,13 +1347,26 @@ namespace HIKARI::ASSETS::GEOMETRY {
             std::vector<uint32_t> triangleIndices(triangles.size());
             std::iota(triangleIndices.begin(), triangleIndices.end(), 0u);
 
+            const SurfaceShapeAnalysis shapeAnalysis =
+                AnalyzeSurfaceShape(triangles, sourceBounds);
+            const TrianglePartitionConfig partitionConfig =
+                ResolveTrianglePartitionConfig(settings, shapeAnalysis);
+
             std::vector<std::vector<uint32_t>> partitions{};
-            PartitionTriangleIndicesRecursive(
-                triangles,
-                std::move(triangleIndices),
-                settings,
-                0u,
-                partitions);
+            const bool normalPartitioned =
+                BuildNormalAwareTrianglePartitions(
+                    triangles,
+                    settings,
+                    partitionConfig,
+                    partitions);
+            if (!normalPartitioned) {
+                PartitionTriangleIndicesRecursive(
+                    triangles,
+                    std::move(triangleIndices),
+                    partitionConfig,
+                    0u,
+                    partitions);
+            }
             if (partitions.size() <= 1u) {
                 return false;
             }
@@ -1149,6 +1415,17 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             ++report.partitionedSurfaceCount;
             report.partitionedSurfaceChunkCount += static_cast<uint32_t>(outSections.size());
+            if (normalPartitioned) {
+                ++report.normalPartitionedSurfaceCount;
+                report.normalPartitionedChunkCount += static_cast<uint32_t>(outSections.size());
+            }
+            if (shapeAnalysis.coherentPlanar) {
+                ++report.planarPartitionedSurfaceCount;
+                report.planarPartitionedChunkCount += static_cast<uint32_t>(outSections.size());
+            }
+            if (partitionConfig.planarCoarsened) {
+                ++report.planarPartitionCoarsenedSurfaceCount;
+            }
             return true;
         }
 
@@ -1346,19 +1623,6 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         TriangleKey MakeTriangleKey(const SourceTriangle& tri) {
             return { tri.i0, tri.i1, tri.i2 };
-        }
-
-        uint32_t TriangleNormalBucket(const SourceTriangle& tri) {
-            const float ax = std::abs(tri.normal.x);
-            const float ay = std::abs(tri.normal.y);
-            const float az = std::abs(tri.normal.z);
-            if (ax >= ay && ax >= az) {
-                return tri.normal.x >= 0.0f ? 0u : 1u;
-            }
-            if (ay >= az) {
-                return tri.normal.y >= 0.0f ? 2u : 3u;
-            }
-            return tri.normal.z >= 0.0f ? 4u : 5u;
         }
 
         std::vector<std::vector<uint32_t>> BuildSequentialTriangleGroups(
@@ -2136,7 +2400,22 @@ namespace HIKARI::ASSETS::GEOMETRY {
             report.vertexCount = asset.totalVertexCount;
             report.maxVerticesPerCluster = RENDER3D::CLUSTER::CountMaxClusterVertices(asset);
             report.unsupportedFeatureCount = asset.unsupportedFeatureCount;
+            uint64_t clusterTriangleTotal = 0;
+            float cutoffMin = (std::numeric_limits<float>::max)();
+            float cutoffMax = 0.0f;
+            double cutoffSum = 0.0;
+            uint32_t cutoffCount = 0;
             for (const MeshCluster& cluster : asset.clusters) {
+                clusterTriangleTotal += cluster.triangleCount;
+                report.maxTrianglesPerClusterObserved =
+                    (std::max)(report.maxTrianglesPerClusterObserved, cluster.triangleCount);
+                if (cluster.triangleCount <= 1u) {
+                    ++report.singleTriangleClusterCount;
+                }
+                if (cluster.triangleCount < RENDER3D::CLUSTER::kHcmeshMaxTrianglesPerCluster / 4u) {
+                    ++report.lowTriangleClusterCount;
+                }
+
                 const float axisLength = MATH::Length(cluster.coneAxis);
                 const bool axisValid = axisLength > 1.0e-5f;
                 const bool cutoffValid =
@@ -2144,6 +2423,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     cluster.coneCutoff < 1.0f;
                 if (axisValid && cutoffValid) {
                     ++report.normalConeValidClusterCount;
+                    cutoffMin = (std::min)(cutoffMin, cluster.coneCutoff);
+                    cutoffMax = (std::max)(cutoffMax, cluster.coneCutoff);
+                    cutoffSum += cluster.coneCutoff;
+                    ++cutoffCount;
                     continue;
                 }
 
@@ -2156,6 +2439,18 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 } else if (cluster.coneCutoff >= 1.0f) {
                     ++report.normalConeCutoffGeOneCount;
                 }
+            }
+            if (report.clusterCount > 0u) {
+                report.averageTrianglesPerCluster =
+                    static_cast<float>(
+                        static_cast<double>(clusterTriangleTotal) /
+                        static_cast<double>(report.clusterCount));
+            }
+            if (cutoffCount > 0u) {
+                report.normalConeCutoffMin = cutoffMin;
+                report.normalConeCutoffAverage =
+                    static_cast<float>(cutoffSum / static_cast<double>(cutoffCount));
+                report.normalConeCutoffMax = cutoffMax;
             }
         }
     }

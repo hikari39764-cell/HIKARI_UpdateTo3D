@@ -2207,10 +2207,31 @@
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaquePS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshletMSCommon.hlsli">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\HIKARI_ClusterCullCommon.hlsli">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterDispatchFinalizeCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterFineVisibilityCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterMeshletDispatchFinalizeCS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_ClusterWorklistCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\GpuDepthVisibility_BuildHzbCS.hlsl">
@@ -2223,6 +2244,18 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletDepthMS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletDepthPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxMS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl">

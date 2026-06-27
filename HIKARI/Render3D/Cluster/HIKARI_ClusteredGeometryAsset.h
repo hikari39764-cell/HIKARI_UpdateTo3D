@@ -269,9 +269,23 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t unsupportedFeatureCount = 0;
         uint32_t partitionedSurfaceCount = 0;
         uint32_t partitionedSurfaceChunkCount = 0;
+        uint32_t normalPartitionedSurfaceCount = 0;
+        uint32_t normalPartitionedChunkCount = 0;
+        uint32_t planarPartitionedSurfaceCount = 0;
+        uint32_t planarPartitionedChunkCount = 0;
+        uint32_t planarPartitionCoarsenedSurfaceCount = 0;
         uint32_t subdividedSurfaceCount = 0;
         uint32_t subdividedSourceTriangleCount = 0;
         uint32_t subdividedOutputTriangleCount = 0;
+        uint32_t planarSubdivisionSkippedSurfaceCount = 0;
+        uint32_t planarSubdivisionCoarsenedSurfaceCount = 0;
+        uint32_t singleTriangleClusterCount = 0;
+        uint32_t lowTriangleClusterCount = 0;
+        uint32_t maxTrianglesPerClusterObserved = 0;
+        float averageTrianglesPerCluster = 0.0f;
+        float normalConeCutoffMin = 0.0f;
+        float normalConeCutoffAverage = 0.0f;
+        float normalConeCutoffMax = 0.0f;
         std::vector<std::string> messages{};
     };
 

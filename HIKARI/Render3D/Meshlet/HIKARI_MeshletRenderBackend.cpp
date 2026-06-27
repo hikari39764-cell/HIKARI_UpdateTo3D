@@ -418,28 +418,58 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
 
         Microsoft::WRL::ComPtr<ID3DBlob> amplificationShader;
-        Microsoft::WRL::ComPtr<ID3DBlob> meshShader;
+        Microsoft::WRL::ComPtr<ID3DBlob> forwardMeshShader;
+        Microsoft::WRL::ComPtr<ID3DBlob> depthMeshShader;
+        Microsoft::WRL::ComPtr<ID3DBlob> geometryMeshShader;
         Microsoft::WRL::ComPtr<ID3DBlob> forwardPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> depthAwarePixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> transparentPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> shadowPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> depthPrepassPixelShader;
+        const bool needsForwardMeshShader =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) ||
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) ||
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent);
+        const bool needsDepthMeshShader =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow) ||
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass);
+        const bool needsGeometryMeshShader =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux);
         if (!GFX::CompileShaderFileSm6(
             L"HIKARI/Shaders/Render3D_MeshletAS.hlsl",
             "main",
             GFX::ShaderStage::Amplification,
-            amplificationShader.GetAddressOf()) ||
+            amplificationShader.GetAddressOf())) {
+            return false;
+        }
+        if (needsForwardMeshShader &&
             !GFX::CompileShaderFileSm6(
-            L"HIKARI/Shaders/Render3D_MeshletMS.hlsl",
-            "main",
-            GFX::ShaderStage::Mesh,
-            meshShader.GetAddressOf())) {
+                L"HIKARI/Shaders/Render3D_MeshletMS.hlsl",
+                "main",
+                GFX::ShaderStage::Mesh,
+                forwardMeshShader.GetAddressOf())) {
+            return false;
+        }
+        if (needsDepthMeshShader &&
+            !GFX::CompileShaderFileSm6(
+                L"HIKARI/Shaders/Render3D_MeshletDepthMS.hlsl",
+                "main",
+                GFX::ShaderStage::Mesh,
+                depthMeshShader.GetAddressOf())) {
+            return false;
+        }
+        if (needsGeometryMeshShader &&
+            !GFX::CompileShaderFileSm6(
+                L"HIKARI/Shaders/Render3D_MeshletGeometryAuxMS.hlsl",
+                "main",
+                GFX::ShaderStage::Mesh,
+                geometryMeshShader.GetAddressOf())) {
             return false;
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_GpuDrivenStaticFxPS.hlsl",
+                L"HIKARI/Shaders/Render3D_GpuDrivenOpaquePS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 forwardPixelShader.GetAddressOf())) {
@@ -463,7 +493,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::Shadow) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletShadowPS.hlsl",
+                L"HIKARI/Shaders/Render3D_MeshletDepthPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 shadowPixelShader.GetAddressOf())) {
@@ -471,7 +501,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::GeometryAux) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_GeometryAuxPS.hlsl",
+                L"HIKARI/Shaders/Render3D_MeshletGeometryAuxPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 geometryPixelShader.GetAddressOf())) {
@@ -479,7 +509,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletShadowPS.hlsl",
+                L"HIKARI/Shaders/Render3D_MeshletDepthPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 depthPrepassPixelShader.GetAddressOf())) {
@@ -497,7 +527,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    forwardMeshShader.Get(),
                     forwardPixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
@@ -516,7 +546,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    forwardMeshShader.Get(),
                     depthAwarePixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
@@ -535,7 +565,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    forwardMeshShader.Get(),
                     transparentPixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
@@ -554,7 +584,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    depthMeshShader.Get(),
                     shadowPixelShader.Get(),
                     DXGI_FORMAT_UNKNOWN,
                     CullModeForBucket(bucket),
@@ -573,7 +603,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    geometryMeshShader.Get(),
                     geometryPixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
@@ -592,7 +622,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    meshShader.Get(),
+                    depthMeshShader.Get(),
                     depthPrepassPixelShader.Get(),
                     DXGI_FORMAT_UNKNOWN,
                     CullModeForBucket(bucket),

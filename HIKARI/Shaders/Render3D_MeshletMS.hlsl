@@ -1,40 +1,5 @@
-cbuffer CameraCB : register(b0)
-{
-    float4x4 gViewProj;
-    float4x4 gInvViewProj;
-    float4 gCameraPos;
-    float4 gTimeParams;
-    float4 gScreenParams;
-};
-
-#include "Include/HIKARI_MeshletDraw.hlsli"
-#define HIKARI_SURFACE_GPU_SCENE_SKIP_CONTROL_CB 1
-#define HIKARI_SURFACE_GPU_SCENE_SKIP_CONTROL_HELPERS 1
-#include "Include/HIKARI_SurfaceGpuScene.hlsli"
-#include "Include/HIKARI_ClusterGpuData.hlsli"
+#include "Include/HIKARI_MeshletMSCommon.hlsli"
 #include "Include/HIKARI_GpuDrivenWaterDeform.hlsli"
-#include "Include/HIKARI_RenderDescriptorLayout.hlsli"
-
-static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_BEGIN;
-static const uint HIKARI_CLUSTER_SRV_POOL_COUNT = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_COUNT;
-static const uint HIKARI_MESHLET_MAX_PRIMITIVES =
-    HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_PRIMITIVES;
-static const uint HIKARI_MESHLET_MAX_VERTICES =
-    HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_VERTICES;
-static const uint HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD = 64u;
-static const uint HIKARI_MESHLET_AS_MODE_COMPACT = 0u;
-static const uint HIKARI_MESHLET_AS_MODE_DENSE = 1u;
-
-ByteAddressBuffer gClusterGeometryPool[HIKARI_CLUSTER_SRV_POOL_COUNT] : register(t0, space1);
-
-struct HikariMeshletPayload
-{
-    uint visibleRangeIndex;
-    uint visibleClusterCount;
-    uint clusterMode;
-    uint reserved0;
-    uint clusterOffsets[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
-};
 
 struct HikariMeshletVertexOut
 {
@@ -63,35 +28,11 @@ HikariMeshletVertexOut HikariBuildEmptyMeshletVertex()
     return output;
 }
 
-bool HikariResolveMeshletVertex(
-    ByteAddressBuffer geometry,
-    HikariClusterGeometryHeader header,
-    HikariMeshCluster cluster,
-    uint localVertexIndex,
-    out HikariClusterVertex vertex)
-{
-    vertex = (HikariClusterVertex)0;
-    if (localVertexIndex >= cluster.vertexCount)
-    {
-        return false;
-    }
-
-    uint vertexIndex = cluster.firstVertex + localVertexIndex;
-    if (vertexIndex >= header.vertexCount)
-    {
-        return false;
-    }
-
-    vertex = HikariLoadClusterVertex(geometry, header, vertexIndex);
-    return true;
-}
-
 HikariMeshletVertexOut HikariBuildMeshletVertex(
     HikariSurfaceGpuSceneInstance instance,
-    HikariMeshletVisibleRange visible,
+    HikariMeshletResolvedCluster resolved,
     HikariClusterVertex vertex,
-    uint surfaceGpuSceneIndex,
-    uint clusterIndex)
+    uint surfaceGpuSceneIndex)
 {
     HikariMeshletVertexOut output = HikariBuildEmptyMeshletVertex();
     float3 localPosition = vertex.position.xyz;
@@ -116,10 +57,11 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u ? 1u : 0u;
     output.objectDataIndex = surfaceGpuSceneIndex;
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
-    output.debugClusterId = clusterIndex;
-    output.debugSurfaceId = visible.clusterSurfaceIndex * 4099u + visible.sectionIndex;
-    output.debugLodIndex = visible.lodIndex;
-    output.debugDrawBucket = visible.drawBucket;
+    output.debugClusterId = resolved.clusterIndex;
+    output.debugSurfaceId =
+        resolved.visible.clusterSurfaceIndex * 4099u + resolved.visible.sectionIndex;
+    output.debugLodIndex = resolved.visible.lodIndex;
+    output.debugDrawBucket = resolved.visible.drawBucket;
     return output;
 }
 
@@ -132,84 +74,40 @@ void main(
     out vertices HikariMeshletVertexOut vertices[HIKARI_MESHLET_MAX_VERTICES],
     out indices uint3 triangles[HIKARI_MESHLET_MAX_PRIMITIVES])
 {
-    HikariMeshletVisibleRange visible = gMeshletVisibleRanges[payload.visibleRangeIndex];
-    bool valid =
-        payload.visibleClusterCount != 0u &&
-        groupId.x < payload.visibleClusterCount &&
-        visible.clusterGeometrySrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
-    uint clusterGeometryPoolIndex =
-        valid
-            ? visible.clusterGeometrySrvDescriptorIndex - HIKARI_CLUSTER_SRV_POOL_BEGIN
-            : 0u;
-    valid = valid && clusterGeometryPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT;
-    uint safeClusterGeometryPoolIndex =
-        min(clusterGeometryPoolIndex, HIKARI_CLUSTER_SRV_POOL_COUNT - 1u);
-
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(safeClusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = (HikariClusterGeometryHeader)0;
-    header.clusterOffsetBytes = visible.clusterOffsetBytes;
-    header.vertexOffsetBytes = visible.vertexOffsetBytes;
-    header.vertexCount = visible.vertexCount;
-    header.meshletPrimitiveOffsetBytes = visible.meshletPrimitiveOffsetBytes;
-    header.meshletPrimitiveCount = visible.meshletPrimitiveCount;
-    header.clusterCount = visible.geometryClusterCount;
-
-    uint localClusterOffset =
-        payload.clusterMode == HIKARI_MESHLET_AS_MODE_DENSE
-            ? groupId.x
-            : (groupId.x < HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD
-                ? payload.clusterOffsets[groupId.x]
-                : 0xffffffffu);
-    valid = valid && localClusterOffset < visible.clusterCount;
-
-    uint clusterIndex = visible.firstCluster + localClusterOffset;
-    valid =
-        valid &&
-        header.clusterOffsetBytes != 0u &&
-        header.vertexOffsetBytes != 0u &&
-        header.meshletPrimitiveOffsetBytes != 0u &&
-        clusterIndex < header.clusterCount;
-    uint safeClusterIndex = valid ? clusterIndex : 0u;
-
-    HikariMeshCluster cluster = HikariLoadMeshCluster(geometry, header, safeClusterIndex);
-    uint vertexCount = min(cluster.vertexCount, HIKARI_MESHLET_MAX_VERTICES);
-    uint primitiveCount = min(cluster.triangleCount, HIKARI_MESHLET_MAX_PRIMITIVES);
-    if (!valid ||
-        cluster.vertexCount == 0u ||
-        cluster.firstPrimitive >= header.meshletPrimitiveCount)
+    HikariMeshletResolvedCluster resolved =
+        HikariResolveMeshletCluster(payload, groupId);
+    SetMeshOutputCounts(resolved.vertexCount, resolved.primitiveCount);
+    if (!resolved.valid)
     {
-        vertexCount = 0u;
-        primitiveCount = 0u;
-    }
-    else
-    {
-        primitiveCount = min(
-            primitiveCount,
-            header.meshletPrimitiveCount - cluster.firstPrimitive);
-    }
-
-    SetMeshOutputCounts(vertexCount, primitiveCount);
-    if (!valid)
-    {
+        if (groupIndex < HIKARI_MESHLET_MAX_VERTICES)
+        {
+            vertices[groupIndex] = HikariBuildEmptyMeshletVertex();
+        }
+        if (groupIndex < HIKARI_MESHLET_MAX_PRIMITIVES)
+        {
+            triangles[groupIndex] = uint3(0u, 0u, 0u);
+        }
         return;
     }
 
+    ByteAddressBuffer geometry =
+        gClusterGeometryPool[NonUniformResourceIndex(resolved.clusterGeometryPoolIndex)];
     HikariSurfaceGpuSceneInstance instance =
-        gSurfaceGpuSceneBuffer[visible.gpuSceneInstanceIndex];
+        gSurfaceGpuSceneBuffer[resolved.visible.gpuSceneInstanceIndex];
 
-    if (groupIndex < vertexCount)
+    if (groupIndex < resolved.vertexCount)
     {
-        HikariClusterVertex vertex;
-        if (HikariResolveMeshletVertex(geometry, header, cluster, groupIndex, vertex))
+        uint vertexIndex = 0u;
+        if (HikariResolveMeshletVertexIndex(resolved, groupIndex, vertexIndex))
         {
+            HikariClusterVertex vertex =
+                HikariLoadClusterVertexShading(geometry, resolved.header, vertexIndex);
             vertices[groupIndex] =
                 HikariBuildMeshletVertex(
                     instance,
-                    visible,
+                    resolved,
                     vertex,
-                    visible.gpuSceneInstanceIndex,
-                    clusterIndex);
+                    resolved.visible.gpuSceneInstanceIndex);
         }
         else
         {
@@ -217,18 +115,15 @@ void main(
         }
     }
 
-    if (groupIndex < primitiveCount)
+    if (groupIndex < resolved.primitiveCount)
     {
-        HikariMeshletPrimitive primitive =
-            HikariLoadMeshletPrimitive(
-                geometry,
-                header,
-                cluster.firstPrimitive + groupIndex);
-        if (primitive.i0 < vertexCount &&
-            primitive.i1 < vertexCount &&
-            primitive.i2 < vertexCount)
+        uint3 primitive =
+            HikariLoadResolvedMeshletPrimitive(geometry, resolved, groupIndex);
+        if (primitive.x < resolved.vertexCount &&
+            primitive.y < resolved.vertexCount &&
+            primitive.z < resolved.vertexCount)
         {
-            triangles[groupIndex] = uint3(primitive.i0, primitive.i1, primitive.i2);
+            triangles[groupIndex] = primitive;
         }
         else
         {

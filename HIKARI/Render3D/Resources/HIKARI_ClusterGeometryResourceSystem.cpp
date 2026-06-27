@@ -12,6 +12,7 @@
 #include <d3dx12.h>
 
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryAsset.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -451,35 +452,79 @@ namespace HIKARI::RENDER3D {
             return packed;
         }
 
-        Microsoft::WRL::ComPtr<ID3D12Resource> CreateUploadBuffer(
-            ID3D12Device* device,
+        Microsoft::WRL::ComPtr<ID3D12Resource> CreateClusterGeometryGpuBuffer(
+            const GFX::Context& context,
             const std::vector<uint8_t>& bytes) {
 
-            if (device == nullptr || bytes.empty()) {
+            if (context.device == nullptr ||
+                context.cmdList == nullptr ||
+                context.deferredReleaseQueue == nullptr ||
+                bytes.empty()) {
                 return {};
             }
 
-            Microsoft::WRL::ComPtr<ID3D12Resource> buffer{};
-            const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_UPLOAD);
+            Microsoft::WRL::ComPtr<ID3D12Resource> gpuBuffer{};
+            const CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
             const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(bytes.size());
-            if (FAILED(device->CreateCommittedResource(
-                &heap,
+            HRESULT hr = context.device->CreateCommittedResource(
+                &defaultHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(gpuBuffer.GetAddressOf()));
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create default GPU buffer");
+                return {};
+            }
+            GFX::SetD3D12Name(gpuBuffer.Get(), L"Cluster Geometry GPU Buffer");
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer{};
+            const CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+            hr = context.device->CreateCommittedResource(
+                &uploadHeap,
                 D3D12_HEAP_FLAG_NONE,
                 &desc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
-                IID_PPV_ARGS(buffer.GetAddressOf())))) {
+                IID_PPV_ARGS(uploadBuffer.GetAddressOf()));
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create upload staging buffer");
                 return {};
             }
+            GFX::SetD3D12Name(uploadBuffer.Get(), L"Cluster Geometry Upload Staging");
 
             void* mapped = nullptr;
-            if (FAILED(buffer->Map(0, nullptr, &mapped)) || mapped == nullptr) {
+            hr = uploadBuffer->Map(0, nullptr, &mapped);
+            if (FAILED(hr) || mapped == nullptr) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Map upload staging buffer");
                 return {};
             }
             std::memcpy(mapped, bytes.data(), bytes.size());
-            buffer->Unmap(0, nullptr);
-            GFX::SetD3D12Name(buffer.Get(), L"Cluster Geometry GPU Buffer");
-            return buffer;
+            uploadBuffer->Unmap(0, nullptr);
+
+            context.cmdList->CopyBufferRegion(
+                gpuBuffer.Get(),
+                0,
+                uploadBuffer.Get(),
+                0,
+                static_cast<UINT64>(bytes.size()));
+
+            const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                gpuBuffer.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_GENERIC_READ);
+            context.cmdList->ResourceBarrier(1, &barrier);
+
+            Microsoft::WRL::ComPtr<ID3D12Resource> stagingKeepAlive = uploadBuffer;
+            context.deferredReleaseQueue->Enqueue(
+                context.currentFrameRetireFenceValue,
+                [stagingKeepAlive]() mutable {
+                    stagingKeepAlive.Reset();
+                },
+                "Cluster Geometry Upload Staging");
+
+            return gpuBuffer;
         }
 
         RenderResourceDesc BuildResourceDesc(
@@ -491,6 +536,7 @@ namespace HIKARI::RENDER3D {
             desc.kind = RenderResourceKind::ClusterGeometry;
             desc.usage =
                 RenderResourceUsageFlags::ShaderResource |
+                RenderResourceUsageFlags::CopyDest |
                 RenderResourceUsageFlags::IndirectArgument;
             desc.lifetime = RenderResourceLifetime::ImportedAsset;
             desc.sourceKey = sourceKey;
@@ -652,7 +698,7 @@ namespace HIKARI::RENDER3D {
 
         const PackedClusterGeometry packed = PackClusterGeometry(*asset);
         Microsoft::WRL::ComPtr<ID3D12Resource> buffer =
-            CreateUploadBuffer(state.context.device, packed.bytes);
+            CreateClusterGeometryGpuBuffer(state.context, packed.bytes);
         if (!buffer) {
             ++state.stats.failedCount;
             RebuildStats();

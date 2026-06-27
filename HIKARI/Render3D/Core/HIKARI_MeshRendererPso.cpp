@@ -460,6 +460,11 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::MeshletVisibleRanges].Descriptor.ShaderRegister = 18;
         params[ROOT_PARAM::MeshletVisibleRanges].Descriptor.RegisterSpace = 0;
 
+        params[ROOT_PARAM::MeshletVisibleClusterList].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+        params[ROOT_PARAM::MeshletVisibleClusterList].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[ROOT_PARAM::MeshletVisibleClusterList].Descriptor.ShaderRegister = 19;
+        params[ROOT_PARAM::MeshletVisibleClusterList].Descriptor.RegisterSpace = 0;
+
         D3D12_STATIC_SAMPLER_DESC linearWrapSampler{};
         linearWrapSampler.Filter = D3D12_FILTER_ANISOTROPIC;
         linearWrapSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;

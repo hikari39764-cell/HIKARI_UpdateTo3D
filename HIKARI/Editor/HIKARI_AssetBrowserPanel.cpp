@@ -729,12 +729,12 @@ namespace HIKARI {
             if (ImGui::Combo("Cook Profile", &profile, ModelGeometryProfileItems, IM_ARRAYSIZE(ModelGeometryProfileItems))) {
                 cluster["profile"] = ModelGeometryProfileItems[profile];
                 cluster["partitionLargeSurfaces"] = true;
-                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 1.0f;
+                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
                 dirty = true;
             }
 
             const bool characterProfile = profile == 1;
-            const float defaultPartitionExtent = characterProfile ? 1.25f : 1.0f;
+            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
             int lodCount = cluster.value("maxLodCount", 5);
             if (ImGui::InputInt("LOD Count", &lodCount)) {
                 cluster["maxLodCount"] = (std::max)(1, (std::min)(lodCount, 5));
@@ -755,7 +755,7 @@ namespace HIKARI {
 
             float extent = cluster.value("largeSurfaceTargetExtent", defaultPartitionExtent);
             if (ImGui::InputFloat("Partition Target Extent", &extent)) {
-                cluster["largeSurfaceTargetExtent"] = (std::max)(0.25f, (std::min)(extent, 64.0f));
+                cluster["largeSurfaceTargetExtent"] = (std::max)(0.75f, (std::min)(extent, 64.0f));
                 dirty = true;
             }
 

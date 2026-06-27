@@ -235,16 +235,16 @@ namespace HIKARI {
                     IM_ARRAYSIZE(ModelGeometryProfileItems))) {
                 cluster["profile"] = ModelGeometryProfileItems[profile];
                 cluster["partitionLargeSurfaces"] = true;
-                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 1.0f;
+                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
                 dirty = true;
             }
 
             const bool characterProfile = profile == 1;
-            const float defaultPartitionExtent = characterProfile ? 1.25f : 1.0f;
+            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
             dirty = DrawClampedIntSetting("LOD Count", cluster, "maxLodCount", 5, 1, 5) || dirty;
             dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.25f, 4.0f) || dirty;
             dirty = DrawBoolSetting("Partition Large Surfaces", cluster, "partitionLargeSurfaces", true) || dirty;
-            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.25f, 64.0f) || dirty;
+            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.75f, 64.0f) || dirty;
             dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
 
             if (dirty) {

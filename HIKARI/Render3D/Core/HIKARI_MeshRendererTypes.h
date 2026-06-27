@@ -443,6 +443,13 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuHzbTemporalConfirmedCount = 0;
         size_t clusterGpuCullGpuHzbTemporalResetCount = 0;
         size_t clusterGpuCullGpuHzbTemporalCollisionCount = 0;
+        size_t clusterGpuCullGpuHzbLargeRectSkippedCount = 0;
+        size_t clusterGpuCullGpuPageHzbSmallScreenSkippedCount = 0;
+        size_t clusterGpuCullGpuClusterHzbSmallScreenSkippedCount = 0;
+        size_t clusterGpuCullGpuConeSkippedDoubleSidedCount = 0;
+        size_t clusterGpuCullGpuConeSkippedMaterialCount = 0;
+        size_t clusterGpuCullGpuClusterHzbLargeScreenSkippedCount = 0;
+        size_t clusterGpuCullGpuHzbBudgetSkippedCount = 0;
         size_t clusterGpuCullGpuClusterConeCulledCount = 0;
         size_t clusterGpuCullGpuClusterConeTestedCount = 0;
         size_t clusterGpuCullGpuDoubleSidedClusterCount = 0;
@@ -454,6 +461,10 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuDoubleSidedDrawCommandOverflowCount = 0;
         size_t clusterGpuCullGpuMergedGapCount = 0;
         size_t clusterGpuCullGpuMergedGapIndexCount = 0;
+        size_t clusterGpuCullGpuPacketRangeCount = 0;
+        size_t clusterGpuCullGpuPacketClusterCount = 0;
+        size_t clusterGpuCullGpuVisibleClusterListReservedCount = 0;
+        size_t clusterGpuCullGpuVisibleClusterListOverflowCount = 0;
         size_t clusterGpuCullGpuLod0SelectedCount = 0;
         size_t clusterGpuCullGpuLod1SelectedCount = 0;
         size_t clusterGpuCullGpuLod2SelectedCount = 0;

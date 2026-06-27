@@ -54,8 +54,10 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT ClusterGeometryPool = 23;
     // Meshlet visible range buffer -> t18
     constexpr UINT MeshletVisibleRanges = 24;
+    // Meshlet visible cluster list buffer -> t19
+    constexpr UINT MeshletVisibleClusterList = 25;
     // JointPalette -> b3, skinned only. Keep this after indirect root constants.
-    constexpr UINT JointPalette = 25;
+    constexpr UINT JointPalette = 26;
 
     constexpr UINT Count = JointPalette + 1;
 

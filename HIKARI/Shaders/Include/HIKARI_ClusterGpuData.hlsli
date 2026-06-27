@@ -404,6 +404,47 @@ HikariClusterVertex HikariLoadClusterVertex(
     return vertex;
 }
 
+HikariClusterVertex HikariLoadClusterVertexShading(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    HikariClusterVertex vertex = (HikariClusterVertex)0;
+    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
+    vertex.position = asfloat(buffer.Load4(offset + 0u));
+    vertex.normal = asfloat(buffer.Load4(offset + 16u));
+    vertex.tangent = asfloat(buffer.Load4(offset + 32u));
+    vertex.uv01 = asfloat(buffer.Load4(offset + 48u));
+    return vertex;
+}
+
+float4 HikariLoadClusterVertexPosition(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
+    return asfloat(buffer.Load4(offset + 0u));
+}
+
+float4 HikariLoadClusterVertexNormal(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
+    return asfloat(buffer.Load4(offset + 16u));
+}
+
+float4 HikariLoadClusterVertexUv01(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
+    return asfloat(buffer.Load4(offset + 48u));
+}
+
 uint HikariLoadClusterIndex(
     ByteAddressBuffer buffer,
     HikariClusterGeometryHeader header,
@@ -426,6 +467,16 @@ HikariMeshletPrimitive HikariLoadMeshletPrimitive(
     primitive.i2 = v0.z;
     primitive.reserved0 = v0.w;
     return primitive;
+}
+
+uint3 HikariLoadMeshletPrimitiveIndices(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint primitiveIndex)
+{
+    uint offset = header.meshletPrimitiveOffsetBytes +
+        primitiveIndex * HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES;
+    return buffer.Load3(offset);
 }
 
 #endif

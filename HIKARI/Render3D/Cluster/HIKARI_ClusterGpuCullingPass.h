@@ -79,6 +79,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool inputBufferReady = false;
         bool pageTaskBufferReady = false;
         bool visibleRangeBufferReady = false;
+        bool visibleClusterListBufferReady = false;
         bool drawArgumentBufferReady = false;
         bool dispatchArgumentBufferReady = false;
         bool drawCommandSignatureReady = false;
@@ -86,6 +87,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t inputCapacity = 0;
         size_t pageTaskCapacity = 0;
         size_t visibleRangeCapacity = 0;
+        size_t visibleClusterListCapacity = 0;
         size_t drawArgumentCapacity = 0;
         size_t occlusionHistoryCapacity = 0;
         size_t sourceInstanceCount = 0;
@@ -138,6 +140,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t gpuHzbTemporalConfirmedCount = 0;
         uint32_t gpuHzbTemporalResetCount = 0;
         uint32_t gpuHzbTemporalCollisionCount = 0;
+        uint32_t gpuHzbLargeRectSkippedCount = 0;
+        uint32_t gpuPageHzbSmallScreenSkippedCount = 0;
+        uint32_t gpuClusterHzbSmallScreenSkippedCount = 0;
+        uint32_t gpuConeSkippedDoubleSidedCount = 0;
+        uint32_t gpuConeSkippedMaterialCount = 0;
+        uint32_t gpuClusterHzbLargeScreenSkippedCount = 0;
+        uint32_t gpuHzbBudgetSkippedCount = 0;
         uint32_t gpuClusterConeCulledCount = 0;
         uint32_t gpuClusterConeTestedCount = 0;
         uint32_t gpuDoubleSidedClusterCount = 0;
@@ -149,6 +158,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t gpuDoubleSidedDrawCommandOverflowCount = 0;
         uint32_t gpuMergedGapCount = 0;
         uint32_t gpuMergedGapIndexCount = 0;
+        uint32_t gpuPacketRangeCount = 0;
+        uint32_t gpuPacketClusterCount = 0;
+        uint32_t gpuVisibleClusterListReservedCount = 0;
+        uint32_t gpuVisibleClusterListOverflowCount = 0;
         uint32_t gpuLod0SelectedCount = 0;
         uint32_t gpuLod1SelectedCount = 0;
         uint32_t gpuLod2SelectedCount = 0;
@@ -186,6 +199,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const ClusterGpuCullingPassStats::PassOutputStats& GetPassStats(
             ClusterGpuCullingPassKind passKind) const;
         ID3D12Resource* GetVisibleRangeBuffer() const;
+        ID3D12Resource* GetVisibleClusterListBuffer() const;
         ID3D12Resource* GetDrawArgumentBuffer() const;
         ID3D12Resource* GetMeshletDispatchArgumentBuffer() const;
         ID3D12Resource* GetCounterBuffer() const;
@@ -224,9 +238,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t geometryClusterCount = 0;
             uint32_t reserved0 = 0;
             uint32_t reserved1 = 0;
+            uint32_t packetClusterIndices0[4] = {};
+            uint32_t packetClusterIndices1[4] = {};
+            uint32_t packetClusterIndices2[4] = {};
+            uint32_t packetClusterIndices3[4] = {};
         };
 
-        static_assert(sizeof(GpuVisibleRange) == 80u);
+        static_assert(sizeof(GpuVisibleRange) == 144u);
 
         struct GpuIndirectDrawArgument {
             uint32_t rootConstants[4]{};
@@ -316,9 +334,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t hzbTemporalResetCount = 0;
             uint32_t hzbTemporalCollisionCount = 0;
             uint32_t hzbRawOccludedCount = 0;
+            uint32_t hzbLargeRectSkippedCount = 0;
+            uint32_t pageHzbSmallScreenSkippedCount = 0;
+            uint32_t clusterHzbSmallScreenSkippedCount = 0;
+            uint32_t coneSkippedDoubleSidedCount = 0;
+            uint32_t coneSkippedMaterialCount = 0;
+            uint32_t clusterHzbLargeScreenSkippedCount = 0;
+            uint32_t hzbBudgetSkippedCount = 0;
+            uint32_t packetRangeCount = 0;
+            uint32_t packetClusterCount = 0;
+            uint32_t visibleClusterListReservedCount = 0;
+            uint32_t visibleClusterListOverflowCount = 0;
         };
 
-        static_assert(sizeof(GpuCounters) == 180u);
+        static_assert(sizeof(GpuCounters) == 224u);
 
         struct GpuPassCounters {
             uint32_t backFaceDrawCommandCount = 0;
@@ -334,8 +363,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             std::array<GpuPassCounters, kClusterGpuCullingPassKindCount> passes{};
         };
 
-        static_assert(offsetof(GpuCounterBuffer, passes) == 180u);
-        static_assert(sizeof(GpuCounterBuffer) == 260u);
+        static_assert(offsetof(GpuCounterBuffer, passes) == 224u);
+        static_assert(sizeof(GpuCounterBuffer) == 304u);
 
         struct CounterReadbackSlot {
             Microsoft::WRL::ComPtr<ID3D12Resource> buffer{};
@@ -376,11 +405,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t temporalFrameIndex = 0;
             uint32_t hzbOcclusionConfirmFrames = 2;
             uint32_t hzbAllowLargeRectOcclusion = 0;
+            uint32_t hzbTestBudget = 0;
+            uint32_t visibleClusterListCapacity = 0;
+            uint32_t meshletPreciseCompaction = 1;
+            uint32_t reserved0 = 0;
+            uint32_t reserved1 = 0;
             uint32_t reserved2 = 0;
-            uint32_t reserved3 = 0;
         };
 
-        static_assert(sizeof(GpuConstants) == 272u);
+        static_assert(sizeof(GpuConstants) == 288u);
 
         bool EnsurePipeline(ID3D12Device* device);
         bool EnsureDispatchCommandSignature(ID3D12Device* device);
@@ -417,6 +450,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         Microsoft::WRL::ComPtr<ID3D12Resource> counterResetUploadBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> pageTaskBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> visibleRangeBuffer_;
+        Microsoft::WRL::ComPtr<ID3D12Resource> visibleClusterListBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> drawArgumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> meshletDispatchArgumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> dispatchArgumentBuffer_;
@@ -431,12 +465,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
         GpuCounterBuffer latestGpuCounters_{};
         size_t pageTaskCapacity_ = 0;
         size_t visibleRangeCapacity_ = 0;
+        size_t visibleClusterListCapacity_ = 0;
         size_t drawArgumentCapacity_ = 0;
         size_t occlusionHistoryCapacity_ = 0;
         size_t counterReadbackWriteIndex_ = 0;
         bool latestGpuCountersValid_ = false;
         D3D12_RESOURCE_STATES pageTaskBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES visibleRangeBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES visibleClusterListBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES drawArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES dispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;

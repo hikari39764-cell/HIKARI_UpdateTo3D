@@ -18,10 +18,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
         uint32_t maxSurfaceLodCount = 5;
 
         // LOD は前段から次段へ連鎖生成する。ratio は前段に対する残存率。
-        float lod1TriangleRatio = 0.60f;
-        float lod2TriangleRatio = 0.50f;
-        float lod3TriangleRatio = 0.40f;
-        float lod4TriangleRatio = 0.30f;
+        float lod1TriangleRatio = 0.50f;
+        float lod2TriangleRatio = 0.40f;
+        float lod3TriangleRatio = 0.30f;
+        float lod4TriangleRatio = 0.10f;
         float lod1TargetError = 0.006f;
         float lod2TargetError = 0.014f;
         float lod3TargetError = 0.030f;
@@ -40,6 +40,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
         uint32_t largeSurfacePartitionMaxDepth = 4;
         float largeSurfacePartitionMaxExtent = 6.0f;
         bool lockPartitionBorders = true;
+        bool balancePlanarStaticSurfaces = true;
+        float planarStaticSurfaceMinPartitionExtent = 3.0f;
+        uint32_t planarStaticSurfaceMinTrianglesPerChunk = 512;
+        uint32_t planarStaticSurfaceMaxDepth = 4;
 
         bool subdivideLargeStaticTriangles = false;
         float largeStaticTriangleMaxEdgeLength = 1.0f;

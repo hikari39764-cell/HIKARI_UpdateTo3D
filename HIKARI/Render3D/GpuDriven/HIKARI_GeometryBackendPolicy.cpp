@@ -37,6 +37,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     GeometryBackendPolicy ResolveGeometryBackendPolicy(GpuDrivenPassKind pass) {
         GeometryBackendPolicy policy{};
+        policy.forcePreferredOnly = true;
         switch (pass) {
         case GpuDrivenPassKind::ForwardOpaque:
         case GpuDrivenPassKind::GeometryAux:

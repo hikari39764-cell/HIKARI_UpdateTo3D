@@ -1,4 +1,4 @@
-struct ClusterCullInput
+﻿struct ClusterCullInput
 {
     float4x4 clusterWorld;
     float4 boundsCenterRadius;
@@ -132,6 +132,10 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullHzbAllowLargeRectOcclusion;
     uint gClusterCullHzbTestBudget;
     uint gClusterCullVisibleClusterListCapacity;
+    uint gClusterCullMeshletPreciseCompaction;
+    uint gClusterCullReserved0;
+    uint gClusterCullReserved1;
+    uint gClusterCullReserved2;
 };
 
 RWStructuredBuffer<ClusterCullVisibleRange> gClusterCullVisibleRanges : register(u0);
@@ -228,7 +232,7 @@ static const uint HIKARI_CLUSTER_CULL_COUNTER_PASS_DOUBLE_SIDED_DRAW_OVERFLOW_CO
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_GAP_INDEX_LIMIT = 512u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_RUN_GAP_BUDGET = 4096u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 16384u;
-// クラスタ間の穴埋めは描画量を増やしやすいため、既定では無効にする。
+// 繧ｯ繝ｩ繧ｹ繧ｿ髢薙・遨ｴ蝓九ａ縺ｯ謠冗判驥上ｒ蠅励ｄ縺励ｄ縺吶＞縺溘ａ縲∵里螳壹〒縺ｯ辟｡蜉ｹ縺ｫ縺吶ｋ縲・
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 1u;
 static const uint HIKARI_CLUSTER_CULL_MESHLET_AS_MAX_CLUSTER_PAYLOAD = 64u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PACKET = 1u;
@@ -1197,7 +1201,7 @@ bool HikariClusterCullConeBackfacing(
         return false;
     }
 
-    // meshoptimizer の perspective cone 判定。epsilon は境界のちらつきを抑えるため少し保守的にする。
+    // meshoptimizer 縺ｮ perspective cone 蛻､螳壹Ｆpsilon 縺ｯ蠅・阜縺ｮ縺｡繧峨▽縺阪ｒ謚代∴繧九◆繧∝ｰ代＠菫晏ｮ育噪縺ｫ縺吶ｋ縲・
     // Sphere formula from meshoptimizer: dot(center - camera, axis) >=
     // cutoff * distance + radius. The extra bias keeps the reject high-confidence.
     float rejectThreshold = coneCutoff * viewLength + coneRadius;
@@ -1268,6 +1272,82 @@ void HikariClusterCullSetVisibleClusterListIndex(
         return;
     }
     gClusterCullVisibleClusterList[listStart + slot] = clusterIndex;
+}
+
+uint HikariClusterCullGetPacketIndex(
+    uint4 packet0,
+    uint4 packet1,
+    uint4 packet2,
+    uint4 packet3,
+    uint slot)
+{
+    if (slot < 4u)
+    {
+        return packet0[slot];
+    }
+    if (slot < 8u)
+    {
+        return packet1[slot - 4u];
+    }
+    if (slot < 12u)
+    {
+        return packet2[slot - 8u];
+    }
+    return packet3[slot - 12u];
+}
+
+bool HikariClusterCullPromoteVisibleRunToClusterList(
+    inout uint runClusterListStart,
+    uint runFirstCluster,
+    uint runVisibleClusterCount,
+    uint runMergedGapCount,
+    uint4 packetClusterIndices0,
+    uint4 packetClusterIndices1,
+    uint4 packetClusterIndices2,
+    uint4 packetClusterIndices3)
+{
+    if (runClusterListStart != 0xffffffffu)
+    {
+        return true;
+    }
+
+    if (runVisibleClusterCount >
+        HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY)
+    {
+        return false;
+    }
+
+    runClusterListStart = HikariClusterCullReserveVisibleClusterListRun();
+    if (runClusterListStart == 0xffffffffu)
+    {
+        return false;
+    }
+
+    [unroll]
+    for (uint slot = 0u;
+         slot < HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY;
+         ++slot)
+    {
+        if (slot >= runVisibleClusterCount)
+        {
+            continue;
+        }
+
+        const uint clusterIndex = runMergedGapCount == 0u
+            ? runFirstCluster + slot
+            : HikariClusterCullGetPacketIndex(
+                packetClusterIndices0,
+                packetClusterIndices1,
+                packetClusterIndices2,
+                packetClusterIndices3,
+                slot);
+        HikariClusterCullSetVisibleClusterListIndex(
+            runClusterListStart,
+            slot,
+            clusterIndex);
+    }
+
+    return true;
 }
 
 void HikariClusterCullEmitDraw(
@@ -1484,11 +1564,7 @@ void HikariClusterCullAppendVisibleCluster(
         runIndexCount = cluster.indexCount;
         runMergedGapCount = 0u;
         runMergedGapIndexCount = 0u;
-        runClusterListStart = HikariClusterCullReserveVisibleClusterListRun();
-        HikariClusterCullSetVisibleClusterListIndex(
-            runClusterListStart,
-            0u,
-            clusterIndex);
+        runClusterListStart = 0xffffffffu;
         runPacketClusterIndices0 = HikariClusterCullEmptyPacket4();
         runPacketClusterIndices1 = HikariClusterCullEmptyPacket4();
         runPacketClusterIndices2 = HikariClusterCullEmptyPacket4();
@@ -1510,31 +1586,65 @@ void HikariClusterCullAppendVisibleCluster(
     bool indexForward = cluster.firstIndex >= runEndIndex;
     uint indexGap = indexForward ? cluster.firstIndex - runEndIndex : 0xffffffffu;
     uint clusterEndIndex = cluster.firstIndex + cluster.indexCount;
-    uint mergedIndexCount = clusterEndIndex >= runFirstIndex
-        ? clusterEndIndex - runFirstIndex
+    uint mergedFirstIndex = min(runFirstIndex, cluster.firstIndex);
+    uint mergedEndIndex = max(runEndIndex, clusterEndIndex);
+    uint mergedIndexCount = mergedEndIndex >= mergedFirstIndex
+        ? mergedEndIndex - mergedFirstIndex
         : 0xffffffffu;
     uint mergedClusterCount = clusterIndex >= runFirstCluster
         ? clusterIndex - runFirstCluster + 1u
         : 0xffffffffu;
 
-    // 同一 surface/page 内の小さな欠けだけを吸収し、細かすぎる draw args を GPU 側で圧縮する。
+    // 蜷御ｸ surface/page 蜀・・蟆上＆縺ｪ谺縺代□縺代ｒ蜷ｸ蜿弱＠縲∫ｴｰ縺九☆縺弱ｋ draw args 繧・GPU 蛛ｴ縺ｧ蝨ｧ邵ｮ縺吶ｋ縲・
     bool contiguousMerge = runMergedGapCount == 0u && clusterGap == 0u && indexGap == 0u;
+    const uint nextVisibleClusterCount = runVisibleClusterCount + 1u;
+    const bool hasMergeGap = clusterGap != 0u || !indexForward || indexGap != 0u;
+    const bool fitsPacket =
+        nextVisibleClusterCount <= HIKARI_CLUSTER_CULL_VISIBLE_PACKET_CAPACITY;
     const bool fitsClusterList =
-        runVisibleClusterCount + 1u <=
-        HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY;
-    bool packetMerge =
-        runVisibleClusterCount < HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY &&
-        (clusterGap <= HikariClusterCullMergeClusterGapLimit() ||
-            runVisibleClusterCount < HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY) &&
-        (runClusterListStart != 0xffffffffu) &&
+        nextVisibleClusterCount <= HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY;
+    const bool gapIndexWithinBudget =
+        indexForward &&
         indexGap <= HikariClusterCullMergeGapIndexLimit() &&
         runMergedGapIndexCount + indexGap <= HikariClusterCullMergeRunGapBudget();
+    const bool legacyCompactGapMerge =
+        hasMergeGap &&
+        gapIndexWithinBudget &&
+        (fitsPacket || fitsClusterList);
+    const bool meshletPreciseCompaction =
+        gClusterCullMeshletPreciseCompaction != 0u;
+    const bool meshletPreciseGapMerge =
+        meshletPreciseCompaction &&
+        hasMergeGap &&
+        fitsClusterList;
+    const bool legacyIndexSpanValid =
+        mergedIndexCount <= HikariClusterCullMergeMaxIndexSpan();
     bool canMerge =
         clusterForward &&
-        indexForward &&
-        fitsClusterList &&
-        mergedIndexCount <= HikariClusterCullMergeMaxIndexSpan() &&
-        (contiguousMerge || packetMerge);
+        ((indexForward &&
+            (contiguousMerge ||
+                (legacyIndexSpanValid && legacyCompactGapMerge))) ||
+            meshletPreciseGapMerge);
+    if (canMerge &&
+        meshletPreciseCompaction &&
+        !fitsClusterList)
+    {
+        canMerge = false;
+    }
+    if (canMerge &&
+        meshletPreciseCompaction &&
+        !fitsPacket)
+    {
+        canMerge = HikariClusterCullPromoteVisibleRunToClusterList(
+            runClusterListStart,
+            runFirstCluster,
+            runVisibleClusterCount,
+            runMergedGapCount,
+            runPacketClusterIndices0,
+            runPacketClusterIndices1,
+            runPacketClusterIndices2,
+            runPacketClusterIndices3);
+    }
     if (!canMerge)
     {
         HikariClusterCullFlushVisibleRun(
@@ -1560,11 +1670,7 @@ void HikariClusterCullAppendVisibleCluster(
         runIndexCount = cluster.indexCount;
         runMergedGapCount = 0u;
         runMergedGapIndexCount = 0u;
-        runClusterListStart = HikariClusterCullReserveVisibleClusterListRun();
-        HikariClusterCullSetVisibleClusterListIndex(
-            runClusterListStart,
-            0u,
-            clusterIndex);
+        runClusterListStart = 0xffffffffu;
         runPacketClusterIndices0 = HikariClusterCullEmptyPacket4();
         runPacketClusterIndices1 = HikariClusterCullEmptyPacket4();
         runPacketClusterIndices2 = HikariClusterCullEmptyPacket4();
@@ -1589,17 +1695,21 @@ void HikariClusterCullAppendVisibleCluster(
             runVisibleClusterCount,
             clusterIndex);
     }
-    HikariClusterCullSetVisibleClusterListIndex(
-        runClusterListStart,
-        runVisibleClusterCount,
-        clusterIndex);
+    if (runClusterListStart != 0xffffffffu)
+    {
+        HikariClusterCullSetVisibleClusterListIndex(
+            runClusterListStart,
+            runVisibleClusterCount,
+            clusterIndex);
+    }
     runClusterCount = mergedClusterCount;
     ++runVisibleClusterCount;
+    runFirstIndex = mergedFirstIndex;
     runIndexCount = mergedIndexCount;
-    if (clusterGap != 0u || indexGap != 0u)
+    if (clusterGap != 0u || !indexForward || indexGap != 0u)
     {
         ++runMergedGapCount;
-        runMergedGapIndexCount += indexGap;
+        runMergedGapIndexCount += indexForward ? indexGap : 0u;
     }
 }
 
@@ -1745,8 +1855,8 @@ bool HikariClusterCullSelectSectionLodRange(
             continue;
         }
 
-        // LOD の段階変更は見た目サイズと幾何誤差の両方で決める。
-        // 片方だけで落とすと、高密度キャラクターが遠距離で最終 LOD に張り付きやすい。
+        // LOD 縺ｮ谿ｵ髫主､画峩縺ｯ隕九◆逶ｮ繧ｵ繧､繧ｺ縺ｨ蟷ｾ菴戊ｪ､蟾ｮ縺ｮ荳｡譁ｹ縺ｧ豎ｺ繧√ｋ縲・
+        // 迚・婿縺縺代〒關ｽ縺ｨ縺吶→縲・ｫ伜ｯ・ｺｦ繧ｭ繝｣繝ｩ繧ｯ繧ｿ繝ｼ縺碁□霍晞屬縺ｧ譛邨・LOD 縺ｫ蠑ｵ繧贋ｻ倥″繧・☆縺・・
         float transitionRadius = max(selectedRange.minScreenRadius, range.minScreenRadius);
         bool radiusAllowsStepDown =
             screenRadius < max(transitionRadius, 0.0f);
@@ -1822,22 +1932,22 @@ void HikariClusterCullProcessPage(
     uint firstCluster,
     uint endCluster,
     uint pageIndex,
-    bool skipPageOcclusion)
+    bool skipPageOcclusion,
+    inout bool hasRun,
+    inout uint runFirstCluster,
+    inout uint runClusterCount,
+    inout uint runVisibleClusterCount,
+    inout uint runFirstIndex,
+    inout uint runIndexCount,
+    inout uint runMergedGapCount,
+    inout uint runMergedGapIndexCount,
+    inout uint runClusterListStart,
+    inout uint4 runPacketClusterIndices0,
+    inout uint4 runPacketClusterIndices1,
+    inout uint4 runPacketClusterIndices2,
+    inout uint4 runPacketClusterIndices3)
 {
     bool doubleSided = HikariClusterCullIsDoubleSided(input.flags);
-    bool hasRun = false;
-    uint runFirstCluster = 0u;
-    uint runClusterCount = 0u;
-    uint runVisibleClusterCount = 0u;
-    uint runFirstIndex = 0u;
-    uint runIndexCount = 0u;
-    uint runMergedGapCount = 0u;
-    uint runMergedGapIndexCount = 0u;
-    uint runClusterListStart = 0xffffffffu;
-    uint4 runPacketClusterIndices0 = HikariClusterCullEmptyPacket4();
-    uint4 runPacketClusterIndices1 = HikariClusterCullEmptyPacket4();
-    uint4 runPacketClusterIndices2 = HikariClusterCullEmptyPacket4();
-    uint4 runPacketClusterIndices3 = HikariClusterCullEmptyPacket4();
 
     if (pageIndex >= header.pageCount)
     {
@@ -1875,21 +1985,6 @@ void HikariClusterCullProcessPage(
                 HIKARI_CLUSTER_CULL_COUNTER_PAGE_FRUSTUM_CULLED_COUNT,
                 1);
         }
-        HikariClusterCullFlushVisibleRun(
-            input,
-            hasRun,
-            runFirstCluster,
-            runClusterCount,
-            runVisibleClusterCount,
-            runFirstIndex,
-            runIndexCount,
-            runMergedGapCount,
-            runMergedGapIndexCount,
-            runClusterListStart,
-            runPacketClusterIndices0,
-            runPacketClusterIndices1,
-            runPacketClusterIndices2,
-            runPacketClusterIndices3);
         return;
     }
 
@@ -1924,21 +2019,6 @@ void HikariClusterCullProcessPage(
             HikariClusterCullAddDebugCounter(
                 HIKARI_CLUSTER_CULL_COUNTER_PAGE_OCCLUSION_CULLED_COUNT,
                 1);
-            HikariClusterCullFlushVisibleRun(
-                input,
-                hasRun,
-                runFirstCluster,
-                runClusterCount,
-                runVisibleClusterCount,
-                runFirstIndex,
-                runIndexCount,
-                runMergedGapCount,
-                runMergedGapIndexCount,
-                runClusterListStart,
-                runPacketClusterIndices0,
-                runPacketClusterIndices1,
-                runPacketClusterIndices2,
-                runPacketClusterIndices3);
             return;
         }
     }
@@ -1951,21 +2031,6 @@ void HikariClusterCullProcessPage(
             cluster.firstIndex >= header.indexCount ||
             cluster.firstIndex + cluster.indexCount > header.indexCount)
         {
-            HikariClusterCullFlushVisibleRun(
-                input,
-                hasRun,
-                runFirstCluster,
-                runClusterCount,
-                runVisibleClusterCount,
-                runFirstIndex,
-                runIndexCount,
-                runMergedGapCount,
-                runMergedGapIndexCount,
-                runClusterListStart,
-                runPacketClusterIndices0,
-                runPacketClusterIndices1,
-                runPacketClusterIndices2,
-                runPacketClusterIndices3);
             continue;
         }
 
@@ -2088,21 +2153,6 @@ void HikariClusterCullProcessPage(
             runPacketClusterIndices3);
     }
 
-    HikariClusterCullFlushVisibleRun(
-        input,
-        hasRun,
-        runFirstCluster,
-        runClusterCount,
-        runVisibleClusterCount,
-        runFirstIndex,
-        runIndexCount,
-        runMergedGapCount,
-        runMergedGapIndexCount,
-        runClusterListStart,
-        runPacketClusterIndices0,
-        runPacketClusterIndices1,
-        runPacketClusterIndices2,
-        runPacketClusterIndices3);
 }
 
 void HikariClusterCullProcessPageGroup(
@@ -2200,6 +2250,20 @@ void HikariClusterCullProcessPageGroup(
         return;
     }
 
+    bool hasRun = false;
+    uint runFirstCluster = 0u;
+    uint runClusterCount = 0u;
+    uint runVisibleClusterCount = 0u;
+    uint runFirstIndex = 0u;
+    uint runIndexCount = 0u;
+    uint runMergedGapCount = 0u;
+    uint runMergedGapIndexCount = 0u;
+    uint runClusterListStart = 0xffffffffu;
+    uint4 runPacketClusterIndices0 = HikariClusterCullEmptyPacket4();
+    uint4 runPacketClusterIndices1 = HikariClusterCullEmptyPacket4();
+    uint4 runPacketClusterIndices2 = HikariClusterCullEmptyPacket4();
+    uint4 runPacketClusterIndices3 = HikariClusterCullEmptyPacket4();
+
     bool skipPageOcclusion = false;
     for (uint pageIndex = groupFirstPage; pageIndex < groupEndPage; ++pageIndex)
     {
@@ -2210,8 +2274,37 @@ void HikariClusterCullProcessPageGroup(
             firstCluster,
             endCluster,
             pageIndex,
-            skipPageOcclusion);
+            skipPageOcclusion,
+            hasRun,
+            runFirstCluster,
+            runClusterCount,
+            runVisibleClusterCount,
+            runFirstIndex,
+            runIndexCount,
+            runMergedGapCount,
+            runMergedGapIndexCount,
+            runClusterListStart,
+            runPacketClusterIndices0,
+            runPacketClusterIndices1,
+            runPacketClusterIndices2,
+            runPacketClusterIndices3);
     }
+
+    HikariClusterCullFlushVisibleRun(
+        input,
+        hasRun,
+        runFirstCluster,
+        runClusterCount,
+        runVisibleClusterCount,
+        runFirstIndex,
+        runIndexCount,
+        runMergedGapCount,
+        runMergedGapIndexCount,
+        runClusterListStart,
+        runPacketClusterIndices0,
+        runPacketClusterIndices1,
+        runPacketClusterIndices2,
+        runPacketClusterIndices3);
 }
 
 ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask task)
@@ -2310,228 +2403,3 @@ void HikariClusterCullEmitPageTasks(
     }
 }
 
-[numthreads(64, 1, 1)]
-void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
-{
-    uint localInstanceIndex = dispatchThreadId.x;
-    if (localInstanceIndex >= gClusterCullInputCount)
-    {
-        return;
-    }
-
-    uint surfaceGpuSceneIndex =
-        gClusterCullSurfaceGpuSceneBaseIndex + localInstanceIndex;
-    HikariSurfaceGpuSceneInstance instance =
-        HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex);
-    if (!HikariClusterCullIsGpuSceneCandidate(instance))
-    {
-        return;
-    }
-
-    gClusterCullCounters.InterlockedAdd(
-        HIKARI_CLUSTER_CULL_COUNTER_INPUT_COUNT,
-        1);
-
-    if (instance.clusterGeometrySrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
-    {
-        return;
-    }
-
-    uint clusterGeometryPoolIndex =
-        instance.clusterGeometrySrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
-    if (clusterGeometryPoolIndex >= gClusterCullClusterSrvPoolCount)
-    {
-        return;
-    }
-
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(geometry);
-    if (!HikariIsValidClusterGeometryHeader(header) ||
-        instance.clusterRangeIndex >= header.clusterCount ||
-        instance.clusterSurfaceIndex >= header.surfaceCount)
-    {
-        return;
-    }
-
-    HikariClusterGeometrySurface surface =
-        HikariLoadClusterGeometrySurface(geometry, header, instance.clusterSurfaceIndex);
-    if (surface.clusterCount == 0u ||
-        surface.indexCount == 0u ||
-        surface.firstSection >= header.surfaceSectionCount ||
-        surface.sectionCount == 0u)
-    {
-        return;
-    }
-
-    uint sectionBegin = surface.firstSection;
-    uint sectionEnd = min(sectionBegin + surface.sectionCount, header.surfaceSectionCount);
-    for (uint sectionTableIndex = sectionBegin; sectionTableIndex < sectionEnd; ++sectionTableIndex)
-    {
-        HikariClusterGeometrySurfaceSection section =
-            HikariLoadClusterGeometrySurfaceSection(geometry, header, sectionTableIndex);
-        if (section.surfaceIndex != instance.clusterSurfaceIndex ||
-            section.clusterCount == 0u ||
-            section.indexCount == 0u ||
-            section.firstLodRange >= header.surfaceLodRangeCount ||
-            section.lodRangeCount == 0u)
-        {
-            continue;
-        }
-
-        float4 sectionWorldSphere = HikariClusterCullBuildWorldSphere(
-            instance.clusterWorld,
-            float4(0.0f, 0.0f, 0.0f, 0.0f),
-            section.boundsMin,
-            section.boundsMax);
-        if (!HikariClusterCullSphereVisible(sectionWorldSphere))
-        {
-            if (gClusterCullEnableDebugCounters != 0u)
-            {
-                gClusterCullCounters.InterlockedAdd(
-                    HIKARI_CLUSTER_CULL_COUNTER_INPUT_FRUSTUM_CULLED_COUNT,
-                    1);
-            }
-            continue;
-        }
-
-        HikariClusterGeometrySurfaceLodRange selectedRange;
-        if (!HikariClusterCullSelectSectionLodRange(
-                geometry,
-                header,
-                instance,
-                section,
-                sectionWorldSphere,
-                selectedRange))
-        {
-            continue;
-        }
-
-        ClusterCullInput input =
-            HikariClusterCullBuildInput(
-                surfaceGpuSceneIndex,
-                instance,
-                header,
-                selectedRange,
-                sectionWorldSphere);
-        if (input.clusterIndexCount == 0u ||
-            input.firstCluster >= header.clusterCount)
-        {
-            continue;
-        }
-
-        uint inputEndCluster = min(input.firstCluster + input.clusterCount, header.clusterCount);
-        uint firstCluster = input.firstCluster;
-        uint endCluster = inputEndCluster;
-        if (firstCluster >= endCluster)
-        {
-            continue;
-        }
-
-        uint inputPageEnd = min(input.firstPage + input.pageCount, header.pageCount);
-        uint firstPage = input.firstPage;
-        uint endPage = inputPageEnd;
-        if (firstPage >= endPage)
-        {
-            continue;
-        }
-
-        HikariClusterCullRecordSelectedLod(selectedRange.lodIndex);
-        HikariClusterCullEmitPageTasks(
-            input,
-            firstCluster,
-            endCluster,
-            firstPage,
-            endPage);
-    }
-}
-
-[numthreads(1, 1, 1)]
-void FinalizePageTaskDispatchCS(uint3 dispatchThreadId : SV_DispatchThreadID)
-{
-    uint pageTaskCount =
-        gClusterCullCounters.Load(HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_COUNT);
-    uint clampedTaskCount = min(pageTaskCount, gClusterCullPageTaskCapacity);
-    uint groupCount =
-        max(1u, (clampedTaskCount + 63u) / 64u);
-    gClusterCullDispatchArguments[0] = uint3(groupCount, 1u, 1u);
-}
-
-[numthreads(1, 1, 1)]
-void FinalizeMeshletDispatchCS(uint3 dispatchThreadId : SV_DispatchThreadID)
-{
-    [unroll]
-    for (uint passKind = 0u; passKind < HIKARI_CLUSTER_CULL_PASS_COUNT; ++passKind)
-    {
-        [unroll]
-        for (uint bucket = 0u; bucket < HIKARI_CLUSTER_DRAW_BUCKET_COUNT; ++bucket)
-        {
-            uint drawCounterOffset =
-                HikariClusterCullPassDrawCounterOffset(passKind, bucket);
-            uint drawCount = gClusterCullCounters.Load(drawCounterOffset);
-            uint clampedDrawCount = min(drawCount, gClusterCullDrawArgumentBucketCapacity);
-            uint bucketBase = HikariClusterCullPassBucketBaseIndex(passKind, bucket);
-
-            ClusterCullMeshletDispatchArgument meshletArgument;
-            meshletArgument.rootConstants = uint4(
-                bucketBase,
-                passKind,
-                bucket,
-                1u);
-            meshletArgument.threadGroupCountX = clampedDrawCount;
-            meshletArgument.threadGroupCountY = 1u;
-            meshletArgument.threadGroupCountZ = 1u;
-            meshletArgument.reserved0 = 0u;
-            gClusterCullMeshletDispatchArguments[bucketBase] = meshletArgument;
-        }
-    }
-}
-
-[numthreads(64, 1, 1)]
-void CullPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
-{
-    uint taskIndex = dispatchThreadId.x;
-    uint pageTaskCount =
-        gClusterCullCounters.Load(HIKARI_CLUSTER_CULL_COUNTER_PAGE_TASK_COUNT);
-    uint clampedTaskCount = min(pageTaskCount, gClusterCullPageTaskCapacity);
-    if (taskIndex >= clampedTaskCount)
-    {
-        return;
-    }
-
-    ClusterCullPageTask task = gClusterCullPageTasks[taskIndex];
-    if (task.clusterGeometrySrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
-    {
-        return;
-    }
-
-    uint clusterGeometryPoolIndex =
-        task.clusterGeometrySrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
-    if (clusterGeometryPoolIndex >= gClusterCullClusterSrvPoolCount)
-    {
-        return;
-    }
-
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(geometry);
-    if (!HikariIsValidClusterGeometryHeader(header) ||
-        task.firstCluster >= task.endCluster ||
-        task.firstCluster >= header.clusterCount ||
-        task.clusterSurfaceIndex >= header.surfaceCount ||
-        task.pageIndex >= header.pageCount)
-    {
-        return;
-    }
-
-    ClusterCullInput input =
-        HikariClusterCullBuildInputFromPageTask(task);
-    HikariClusterCullProcessPageGroup(
-        input,
-        geometry,
-        header,
-        task.firstCluster,
-        min(task.endCluster, header.clusterCount),
-        task.pageIndex,
-        max(task.reserved0, 1u));
-}

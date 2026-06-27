@@ -276,6 +276,7 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     SetD3D12Name(fence_.Get(), L"HIKARI Frame Fence");
     HIKARI_LOG_D3D12("Fence created.");
     fenceValue_ = 1;
+    frameFenceValues_.fill(0);
     fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!fenceEvent_) {
         HIKARI_LOG_ERROR("[Dx12Core] CreateEvent failed.");
@@ -529,16 +530,24 @@ bool Dx12Core::MoveToNextFrame() {
         return false;
     }
 
+    const uint32_t submittedFrameIndex = frameIndex_;
     const uint64_t signal = fenceValue_;
+
     const HRESULT signalHr = queue_->Signal(fence_.Get(), signal);
     if (FAILED(signalHr)) {
         HIKARI_DX_CHECK(signalHr, "Dx12Core::MoveToNextFrame Signal");
         CheckDeviceRemoved("Dx12Core::MoveToNextFrame Signal", signalHr);
         return false;
     }
+
+    frameFenceValues_[submittedFrameIndex] = signal;
     fenceValue_++;
 
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
+
+    // 重要：
+    // 今のエンジンは per-frame upload buffer / constant buffer がまだ完全に多重化されていない。
+    // そのため一旦ここでは submitted frame の完了を待つ。
     if (fence_->GetCompletedValue() < signal) {
         const HRESULT eventHr = fence_->SetEventOnCompletion(signal, fenceEvent_);
         if (FAILED(eventHr)) {
@@ -546,12 +555,13 @@ bool Dx12Core::MoveToNextFrame() {
             CheckDeviceRemoved("Dx12Core::MoveToNextFrame SetEventOnCompletion", eventHr);
             return false;
         }
+
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
+
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
     return true;
-}
-// ウィンドウサイズの変更に伴うリソースの再作成。GPU の完了を待ち、古いリソースを解放してから、新しいスワップチェインのバッファと深度バッファを作成する。
+}// ウィンドウサイズの変更に伴うリソースの再作成。GPU の完了を待ち、古いリソースを解放してから、新しいスワップチェインのバッファと深度バッファを作成する。
 bool Dx12Core::Resize(int w, int h) {
     if (w <= 0 || h <= 0) return true;
     if (deviceLost_ || swapChain_ == nullptr) return false;

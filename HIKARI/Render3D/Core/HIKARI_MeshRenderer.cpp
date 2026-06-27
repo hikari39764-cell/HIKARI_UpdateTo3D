@@ -986,6 +986,20 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuHzbTemporalResetCount;
             g.debugStats.clusterGpuCullGpuHzbTemporalCollisionCount =
                 clusterCullStats.gpuHzbTemporalCollisionCount;
+            g.debugStats.clusterGpuCullGpuHzbLargeRectSkippedCount =
+                clusterCullStats.gpuHzbLargeRectSkippedCount;
+            g.debugStats.clusterGpuCullGpuPageHzbSmallScreenSkippedCount =
+                clusterCullStats.gpuPageHzbSmallScreenSkippedCount;
+            g.debugStats.clusterGpuCullGpuClusterHzbSmallScreenSkippedCount =
+                clusterCullStats.gpuClusterHzbSmallScreenSkippedCount;
+            g.debugStats.clusterGpuCullGpuConeSkippedDoubleSidedCount =
+                clusterCullStats.gpuConeSkippedDoubleSidedCount;
+            g.debugStats.clusterGpuCullGpuConeSkippedMaterialCount =
+                clusterCullStats.gpuConeSkippedMaterialCount;
+            g.debugStats.clusterGpuCullGpuClusterHzbLargeScreenSkippedCount =
+                clusterCullStats.gpuClusterHzbLargeScreenSkippedCount;
+            g.debugStats.clusterGpuCullGpuHzbBudgetSkippedCount =
+                clusterCullStats.gpuHzbBudgetSkippedCount;
             g.debugStats.clusterGpuCullGpuClusterConeCulledCount =
                 clusterCullStats.gpuClusterConeCulledCount;
             g.debugStats.clusterGpuCullGpuClusterConeTestedCount =
@@ -1008,6 +1022,14 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuMergedGapCount;
             g.debugStats.clusterGpuCullGpuMergedGapIndexCount =
                 clusterCullStats.gpuMergedGapIndexCount;
+            g.debugStats.clusterGpuCullGpuPacketRangeCount =
+                clusterCullStats.gpuPacketRangeCount;
+            g.debugStats.clusterGpuCullGpuPacketClusterCount =
+                clusterCullStats.gpuPacketClusterCount;
+            g.debugStats.clusterGpuCullGpuVisibleClusterListReservedCount =
+                clusterCullStats.gpuVisibleClusterListReservedCount;
+            g.debugStats.clusterGpuCullGpuVisibleClusterListOverflowCount =
+                clusterCullStats.gpuVisibleClusterListOverflowCount;
             g.debugStats.clusterGpuCullGpuLod0SelectedCount =
                 clusterCullStats.gpuLod0SelectedCount;
             g.debugStats.clusterGpuCullGpuLod1SelectedCount =
@@ -1295,7 +1317,12 @@ namespace HIKARI::MESHRENDERER {
                 backendContext.visibility != nullptr
                     ? backendContext.visibility->visibleMeshletRangeBuffer
                     : nullptr;
-            if (visibleRangeBuffer == nullptr) {
+            ID3D12Resource* visibleClusterListBuffer =
+                backendContext.visibility != nullptr
+                    ? backendContext.visibility->visibleMeshletClusterListBuffer
+                    : nullptr;
+            if (visibleRangeBuffer == nullptr ||
+                visibleClusterListBuffer == nullptr) {
                 return false;
             }
 
@@ -1308,6 +1335,9 @@ namespace HIKARI::MESHRENDERER {
             BindMeshletVisibleRanges(
                 drawCtx.binding,
                 visibleRangeBuffer->GetGPUVirtualAddress());
+            BindMeshletVisibleClusterList(
+                drawCtx.binding,
+                visibleClusterListBuffer->GetGPUVirtualAddress());
 
             RENDER3D::MESHLET::MeshletRenderExecutionContext ctx{};
             ctx.commandList = backendContext.commandList;

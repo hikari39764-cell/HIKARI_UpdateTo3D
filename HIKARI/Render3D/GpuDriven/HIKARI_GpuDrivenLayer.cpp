@@ -9,6 +9,8 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
+        constexpr bool kMeshShaderOnlyMainline = true;
+
         uint32_t ClampToUint32(size_t value) {
             return static_cast<uint32_t>(
                 (std::min)(
@@ -454,11 +456,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         if (IsBackendConsumable(pass, policy.preferred)) {
             plan.AddGpuBackend(policy.preferred);
+            if (policy.forcePreferredOnly) {
+                return plan;
+            }
         } else if (!policy.forcePreferredOnly &&
             IsBackendConsumable(pass, policy.secondary)) {
             plan.AddGpuBackend(policy.secondary);
         }
-        if (IsBackendConsumable(
+        if (!policy.forcePreferredOnly &&
+            IsBackendConsumable(
             pass,
             GeometryBackendKind::GpuDrivenTraditionalVS)) {
             plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVS);
@@ -623,6 +629,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.meshDispatchSignature != nullptr &&
                 meshPipelineReady;
             state.clusterVsConsumable =
+                !kMeshShaderOnlyMainline &&
                 state.hasSource &&
                 state.clusterEligible &&
                 state.visibilityReady &&
@@ -631,6 +638,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.gpuDrawIndexedSignature != nullptr &&
                 clusterPipelineReady;
             state.traditionalIndirectConsumable =
+                !kMeshShaderOnlyMainline &&
                 state.hasSource &&
                 state.hasTraditionalIndirectCommands &&
                 indirectDrawBuffer_ != nullptr &&

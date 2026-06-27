@@ -317,6 +317,13 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuHzbAabbAcceptedCount,
                     s.mesh.clusterGpuCullGpuHzbSphereAcceptedCount,
                     s.mesh.clusterGpuCullGpuHzbLargeRectCount);
+                MetricRow("HZB Skipped LargeRect / PageSmall / ClusterSmall / ClusterLarge", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbLargeRectSkippedCount,
+                    s.mesh.clusterGpuCullGpuPageHzbSmallScreenSkippedCount,
+                    s.mesh.clusterGpuCullGpuClusterHzbSmallScreenSkippedCount,
+                    s.mesh.clusterGpuCullGpuClusterHzbLargeScreenSkippedCount);
+                MetricRow("HZB Budget Skipped", "%zu",
+                    s.mesh.clusterGpuCullGpuHzbBudgetSkippedCount);
                 MetricRow("HZB Temporal Pending / Confirmed / Reset / Collision", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuHzbTemporalPendingCount,
                     s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount,
@@ -332,6 +339,10 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuClusterFrustumCulledCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount,
                     s.mesh.clusterGpuCullGpuClusterConeCulledCount);
+                MetricRow("Cone Tested / Skipped DoubleSided / Skipped Material", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuClusterConeTestedCount,
+                    s.mesh.clusterGpuCullGpuConeSkippedDoubleSidedCount,
+                    s.mesh.clusterGpuCullGpuConeSkippedMaterialCount);
                 MetricRow("DrawArgs BackFace / DoubleSided / DoubleSided Share", "%zu / %zu / %.1f%%",
                     s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
                     s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
@@ -342,6 +353,20 @@ namespace HIKARI {
                     SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
                     SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
                     s.mesh.clusterGpuCullGpuMergedGapCount);
+                const size_t nonPacketRangeCount =
+                    s.mesh.clusterGpuCullGpuVisibleRangeCount >
+                            s.mesh.clusterGpuCullGpuPacketRangeCount
+                        ? s.mesh.clusterGpuCullGpuVisibleRangeCount -
+                            s.mesh.clusterGpuCullGpuPacketRangeCount
+                        : 0u;
+                MetricRow("Packet Ranges / NonPacket / Clusters / Fill", "%zu / %zu / %zu / %.2f",
+                    s.mesh.clusterGpuCullGpuPacketRangeCount,
+                    nonPacketRangeCount,
+                    s.mesh.clusterGpuCullGpuPacketClusterCount,
+                    SafeRatio(s.mesh.clusterGpuCullGpuPacketClusterCount, s.mesh.clusterGpuCullGpuPacketRangeCount));
+                MetricRow("Visible ClusterList Reserved / Overflow", "%zu / %zu",
+                    s.mesh.clusterGpuCullGpuVisibleClusterListReservedCount,
+                    s.mesh.clusterGpuCullGpuVisibleClusterListOverflowCount);
                 MetricRow("GPU LOD Selected L0 / L1 / L2 / L3+", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuLod0SelectedCount,
                     s.mesh.clusterGpuCullGpuLod1SelectedCount,
