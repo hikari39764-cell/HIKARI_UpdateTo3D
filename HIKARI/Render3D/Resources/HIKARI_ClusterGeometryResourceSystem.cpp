@@ -35,8 +35,10 @@ namespace HIKARI::RENDER3D {
         using ClusterGeometrySurfaceSection = CLUSTER::ClusterGeometrySurfaceSection;
 
         struct PackedClusterGeometry {
-            std::vector<uint8_t> bytes{};
+            std::vector<uint8_t> geometryBytes{};
+            std::vector<uint8_t> metadataBytes{};
             ClusterGeometryGpuLayout layout{};
+            uint64_t metadataByteSize = 0;
             std::vector<ClusterGeometrySurfaceRange> surfaceRanges{};
             std::vector<ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
             std::vector<ClusterGeometrySurfaceSection> surfaceSections{};
@@ -336,62 +338,65 @@ namespace HIKARI::RENDER3D {
 
         PackedClusterGeometry PackClusterGeometry(const CLUSTER::ClusteredGeometryAsset& asset) {
             PackedClusterGeometry packed{};
-            packed.bytes.resize(sizeof(ClusterGeometryGpuHeader));
+            packed.metadataBytes.resize(sizeof(ClusterGeometryGpuHeader));
+            packed.geometryBytes.resize(sizeof(ClusterGeometryGpuHeader));
 
-            ClusterGeometryGpuHeader header{};
-            header.flags = asset.flags;
-            header.surfaceCount = ClampToUint32(asset.surfaces.size());
-            header.surfaceLodRangeCount = ClampToUint32(asset.surfaceLodRanges.size());
-            header.surfaceSectionCount = ClampToUint32(asset.surfaceSections.size());
-            header.clusterCount = ClampToUint32(asset.clusters.size());
-            header.pageCount = ClampToUint32(asset.pages.size());
-            header.vertexCount = ClampToUint32(asset.packedVertices.size());
-            header.indexCount = ClampToUint32(asset.packedIndices.size());
-            header.materialSlotCount = ClampToUint32(asset.materialSlotMapping.size());
-            header.meshletPrimitiveCount = ClampToUint32(asset.meshletPrimitives.size());
-            header.totalTriangleCount = asset.totalTriangleCount;
-            header.totalVertexCount = asset.totalVertexCount;
-            header.localBoundsMin = BoundsMin4(asset.localBounds);
-            header.localBoundsMax = BoundsMax4(asset.localBounds);
+            ClusterGeometryGpuHeader metadataHeader{};
+            metadataHeader.flags = asset.flags;
+            metadataHeader.surfaceCount = ClampToUint32(asset.surfaces.size());
+            metadataHeader.surfaceLodRangeCount = ClampToUint32(asset.surfaceLodRanges.size());
+            metadataHeader.surfaceSectionCount = ClampToUint32(asset.surfaceSections.size());
+            metadataHeader.clusterCount = ClampToUint32(asset.clusters.size());
+            metadataHeader.pageCount = ClampToUint32(asset.pages.size());
+            metadataHeader.vertexCount = ClampToUint32(asset.packedVertices.size());
+            metadataHeader.indexCount = ClampToUint32(asset.packedIndices.size());
+            metadataHeader.materialSlotCount = ClampToUint32(asset.materialSlotMapping.size());
+            metadataHeader.meshletPrimitiveCount = ClampToUint32(asset.meshletPrimitives.size());
+            metadataHeader.totalTriangleCount = asset.totalTriangleCount;
+            metadataHeader.totalVertexCount = asset.totalVertexCount;
+            metadataHeader.localBoundsMin = BoundsMin4(asset.localBounds);
+            metadataHeader.localBoundsMax = BoundsMax4(asset.localBounds);
 
-            header.surfaceOffsetBytes = AlignSection(packed.bytes);
+            ClusterGeometryGpuHeader geometryHeader = metadataHeader;
+
+            metadataHeader.surfaceOffsetBytes = AlignSection(packed.metadataBytes);
             packed.surfaceRanges.reserve(asset.surfaces.size());
             for (size_t surfaceIndex = 0; surfaceIndex < asset.surfaces.size(); ++surfaceIndex) {
                 const CLUSTER::ClusterSurface& surface = asset.surfaces[surfaceIndex];
-                AppendPod(packed.bytes, ToGpuSurface(surface));
+                AppendPod(packed.metadataBytes, ToGpuSurface(surface));
                 packed.surfaceRanges.push_back(ToSurfaceRange(ClampToUint32(surfaceIndex), surface));
             }
 
-            header.surfaceLodRangeOffsetBytes = AlignSection(packed.bytes);
+            metadataHeader.surfaceLodRangeOffsetBytes = AlignSection(packed.metadataBytes);
             packed.surfaceLodRanges.reserve(asset.surfaceLodRanges.size());
             for (const CLUSTER::ClusterSurfaceLodRange& lodRange : asset.surfaceLodRanges) {
-                AppendPod(packed.bytes, ToGpuSurfaceLodRange(lodRange));
+                AppendPod(packed.metadataBytes, ToGpuSurfaceLodRange(lodRange));
                 packed.surfaceLodRanges.push_back(ToSurfaceLodRange(lodRange));
             }
 
-            header.surfaceSectionOffsetBytes = AlignSection(packed.bytes);
+            metadataHeader.surfaceSectionOffsetBytes = AlignSection(packed.metadataBytes);
             packed.surfaceSections.reserve(asset.surfaceSections.size());
             for (const CLUSTER::ClusterSurfaceSection& section : asset.surfaceSections) {
-                AppendPod(packed.bytes, ToGpuSurfaceSection(section));
+                AppendPod(packed.metadataBytes, ToGpuSurfaceSection(section));
                 packed.surfaceSections.push_back(ToSurfaceSection(section));
             }
 
-            header.clusterOffsetBytes = AlignSection(packed.bytes);
+            metadataHeader.clusterOffsetBytes = AlignSection(packed.metadataBytes);
             for (const CLUSTER::MeshCluster& cluster : asset.clusters) {
-                AppendPod(packed.bytes, ToGpuCluster(cluster));
+                AppendPod(packed.metadataBytes, ToGpuCluster(cluster));
             }
 
-            header.pageOffsetBytes = AlignSection(packed.bytes);
+            metadataHeader.pageOffsetBytes = AlignSection(packed.metadataBytes);
             for (const CLUSTER::ClusterPage& page : asset.pages) {
-                AppendPod(packed.bytes, ToGpuPage(page));
+                AppendPod(packed.metadataBytes, ToGpuPage(page));
             }
 
-            header.vertexOffsetBytes = AlignSection(packed.bytes);
+            geometryHeader.vertexOffsetBytes = AlignSection(packed.geometryBytes);
             for (const CLUSTER::ClusterVertex& vertex : asset.packedVertices) {
-                AppendPod(packed.bytes, ToGpuVertex(vertex));
+                AppendPod(packed.geometryBytes, ToGpuVertex(vertex));
             }
 
-            header.indexOffsetBytes = AlignSection(packed.bytes);
+            geometryHeader.indexOffsetBytes = AlignSection(packed.geometryBytes);
             // GPU側では cluster 局所 index ではなく、packed vertex への直接 index として扱う。
             std::vector<uint32_t> gpuIndices(asset.packedIndices.size(), 0u);
             for (const CLUSTER::MeshCluster& cluster : asset.clusters) {
@@ -406,49 +411,67 @@ namespace HIKARI::RENDER3D {
                 }
             }
             for (const uint32_t index : gpuIndices) {
-                AppendPod(packed.bytes, index);
+                AppendPod(packed.geometryBytes, index);
             }
 
-            header.meshletPrimitiveOffsetBytes = AlignSection(packed.bytes);
+            geometryHeader.meshletPrimitiveOffsetBytes = AlignSection(packed.geometryBytes);
             for (const CLUSTER::MeshletPrimitive& primitive : asset.meshletPrimitives) {
-                AppendPod(packed.bytes, ToGpuMeshletPrimitive(primitive));
+                AppendPod(packed.geometryBytes, ToGpuMeshletPrimitive(primitive));
             }
 
-            header.materialSlotOffsetBytes = AlignSection(packed.bytes);
+            geometryHeader.materialSlotOffsetBytes = AlignSection(packed.geometryBytes);
             for (const uint32_t materialSlot : asset.materialSlotMapping) {
-                AppendPod(packed.bytes, materialSlot);
+                AppendPod(packed.geometryBytes, materialSlot);
             }
 
-            packed.bytes.resize(AlignUp(
-                ClampToUint32(packed.bytes.size()),
+            packed.metadataBytes.resize(AlignUp(
+                ClampToUint32(packed.metadataBytes.size()),
                 CLUSTER::kClusterGeometryGpuSectionAlignment));
-            header.byteSize = ClampToUint32(packed.bytes.size());
-            std::memcpy(packed.bytes.data(), &header, sizeof(header));
+            packed.geometryBytes.resize(AlignUp(
+                ClampToUint32(packed.geometryBytes.size()),
+                CLUSTER::kClusterGeometryGpuSectionAlignment));
 
-            packed.layout.surfaceCount = header.surfaceCount;
-            packed.layout.surfaceLodRangeCount = header.surfaceLodRangeCount;
-            packed.layout.surfaceSectionCount = header.surfaceSectionCount;
-            packed.layout.clusterCount = header.clusterCount;
-            packed.layout.pageCount = header.pageCount;
-            packed.layout.vertexCount = header.vertexCount;
-            packed.layout.indexCount = header.indexCount;
-            packed.layout.materialSlotCount = header.materialSlotCount;
-            packed.layout.surfaceOffsetBytes = header.surfaceOffsetBytes;
-            packed.layout.surfaceLodRangeOffsetBytes = header.surfaceLodRangeOffsetBytes;
-            packed.layout.surfaceSectionOffsetBytes = header.surfaceSectionOffsetBytes;
-            packed.layout.clusterOffsetBytes = header.clusterOffsetBytes;
-            packed.layout.pageOffsetBytes = header.pageOffsetBytes;
-            packed.layout.vertexOffsetBytes = header.vertexOffsetBytes;
-            packed.layout.indexOffsetBytes = header.indexOffsetBytes;
-            packed.layout.materialSlotOffsetBytes = header.materialSlotOffsetBytes;
-            packed.layout.meshletPrimitiveCount = header.meshletPrimitiveCount;
-            packed.layout.meshletPrimitiveOffsetBytes = header.meshletPrimitiveOffsetBytes;
-            packed.layout.totalTriangleCount = header.totalTriangleCount;
-            packed.layout.totalVertexCount = header.totalVertexCount;
-            packed.layout.flags = header.flags;
-            packed.layout.byteSize = header.byteSize;
-            packed.layout.localBoundsMin = header.localBoundsMin;
-            packed.layout.localBoundsMax = header.localBoundsMax;
+            metadataHeader.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
+            metadataHeader.indexOffsetBytes = geometryHeader.indexOffsetBytes;
+            metadataHeader.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
+            metadataHeader.meshletPrimitiveOffsetBytes = geometryHeader.meshletPrimitiveOffsetBytes;
+            metadataHeader.byteSize = ClampToUint32(packed.metadataBytes.size());
+
+            geometryHeader.surfaceOffsetBytes = metadataHeader.surfaceOffsetBytes;
+            geometryHeader.surfaceLodRangeOffsetBytes = metadataHeader.surfaceLodRangeOffsetBytes;
+            geometryHeader.surfaceSectionOffsetBytes = metadataHeader.surfaceSectionOffsetBytes;
+            geometryHeader.clusterOffsetBytes = metadataHeader.clusterOffsetBytes;
+            geometryHeader.pageOffsetBytes = metadataHeader.pageOffsetBytes;
+            geometryHeader.byteSize = ClampToUint32(packed.geometryBytes.size());
+
+            std::memcpy(packed.metadataBytes.data(), &metadataHeader, sizeof(metadataHeader));
+            std::memcpy(packed.geometryBytes.data(), &geometryHeader, sizeof(geometryHeader));
+
+            packed.layout.surfaceCount = metadataHeader.surfaceCount;
+            packed.layout.surfaceLodRangeCount = metadataHeader.surfaceLodRangeCount;
+            packed.layout.surfaceSectionCount = metadataHeader.surfaceSectionCount;
+            packed.layout.clusterCount = metadataHeader.clusterCount;
+            packed.layout.pageCount = metadataHeader.pageCount;
+            packed.layout.vertexCount = geometryHeader.vertexCount;
+            packed.layout.indexCount = geometryHeader.indexCount;
+            packed.layout.materialSlotCount = geometryHeader.materialSlotCount;
+            packed.layout.surfaceOffsetBytes = metadataHeader.surfaceOffsetBytes;
+            packed.layout.surfaceLodRangeOffsetBytes = metadataHeader.surfaceLodRangeOffsetBytes;
+            packed.layout.surfaceSectionOffsetBytes = metadataHeader.surfaceSectionOffsetBytes;
+            packed.layout.clusterOffsetBytes = metadataHeader.clusterOffsetBytes;
+            packed.layout.pageOffsetBytes = metadataHeader.pageOffsetBytes;
+            packed.layout.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
+            packed.layout.indexOffsetBytes = geometryHeader.indexOffsetBytes;
+            packed.layout.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
+            packed.layout.meshletPrimitiveCount = geometryHeader.meshletPrimitiveCount;
+            packed.layout.meshletPrimitiveOffsetBytes = geometryHeader.meshletPrimitiveOffsetBytes;
+            packed.layout.totalTriangleCount = metadataHeader.totalTriangleCount;
+            packed.layout.totalVertexCount = metadataHeader.totalVertexCount;
+            packed.layout.flags = metadataHeader.flags;
+            packed.layout.byteSize = geometryHeader.byteSize;
+            packed.layout.localBoundsMin = metadataHeader.localBoundsMin;
+            packed.layout.localBoundsMax = metadataHeader.localBoundsMax;
+            packed.metadataByteSize = metadataHeader.byteSize;
             return packed;
         }
 
@@ -551,16 +574,16 @@ namespace HIKARI::RENDER3D {
 
         RenderResourceView CreateClusterGeometrySrv(
             ID3D12Resource* resource,
-            const PackedClusterGeometry& packed) {
+            uint64_t byteSize) {
 
-            if (resource == nullptr || packed.layout.byteSize == 0) {
+            if (resource == nullptr || byteSize == 0) {
                 return {};
             }
 
             return AllocateBufferSrvDescriptor(
                 resource,
                 DXGI_FORMAT_R32_TYPELESS,
-                packed.layout.byteSize / sizeof(uint32_t),
+                static_cast<UINT>(byteSize / sizeof(uint32_t)),
                 0,
                 D3D12_BUFFER_SRV_FLAG_RAW);
         }
@@ -568,6 +591,18 @@ namespace HIKARI::RENDER3D {
         void ReleaseClusterGeometryRecordViews(const ClusterGeometryResourceRecord& record) {
             if (record.srv.IsValid()) {
                 ReleaseRenderResourceDescriptor(record.srv);
+            }
+            if (record.metadataSrv.IsValid()) {
+                ReleaseRenderResourceDescriptor(record.metadataSrv);
+            }
+            if (record.metadataBuffer && State().context.deferredReleaseQueue != nullptr) {
+                Microsoft::WRL::ComPtr<ID3D12Resource> keepAlive = record.metadataBuffer;
+                State().context.deferredReleaseQueue->Enqueue(
+                    State().context.currentFrameRetireFenceValue,
+                    [keepAlive]() mutable {
+                        keepAlive.Reset();
+                    },
+                    "Cluster Geometry Metadata Buffer");
             }
         }
 
@@ -616,7 +651,7 @@ namespace HIKARI::RENDER3D {
                     continue;
                 }
                 ++stats.readyResourceCount;
-                if (record.srv.IsValid()) {
+                if (record.srv.IsValid() && record.metadataSrv.IsValid()) {
                     ++stats.shaderVisibleResourceCount;
                 }
                 else {
@@ -631,7 +666,7 @@ namespace HIKARI::RENDER3D {
                 stats.indexCount += record.layout.indexCount;
                 stats.meshletPrimitiveCount += record.layout.meshletPrimitiveCount;
                 stats.surfaceRangeCount += ClampToUint32(record.surfaceRanges.size());
-                stats.gpuBufferBytes += record.layout.byteSize;
+                stats.gpuBufferBytes += record.layout.byteSize + record.metadataBufferBytes;
             }
 
             state.stats = stats;
@@ -697,9 +732,11 @@ namespace HIKARI::RENDER3D {
         }
 
         const PackedClusterGeometry packed = PackClusterGeometry(*asset);
-        Microsoft::WRL::ComPtr<ID3D12Resource> buffer =
-            CreateClusterGeometryGpuBuffer(state.context, packed.bytes);
-        if (!buffer) {
+        Microsoft::WRL::ComPtr<ID3D12Resource> geometryBuffer =
+            CreateClusterGeometryGpuBuffer(state.context, packed.geometryBytes);
+        Microsoft::WRL::ComPtr<ID3D12Resource> metadataBuffer =
+            CreateClusterGeometryGpuBuffer(state.context, packed.metadataBytes);
+        if (!geometryBuffer || !metadataBuffer) {
             ++state.stats.failedCount;
             RebuildStats();
             return {};
@@ -712,8 +749,15 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
-        RenderResourceView srv = CreateClusterGeometrySrv(buffer.Get(), packed);
-        if (!srv.IsValid()) {
+        RenderResourceView srv = CreateClusterGeometrySrv(geometryBuffer.Get(), packed.layout.byteSize);
+        RenderResourceView metadataSrv = CreateClusterGeometrySrv(metadataBuffer.Get(), packed.metadataByteSize);
+        if (!srv.IsValid() || !metadataSrv.IsValid()) {
+            if (srv.IsValid()) {
+                ReleaseRenderResourceDescriptor(srv);
+            }
+            if (metadataSrv.IsValid()) {
+                ReleaseRenderResourceDescriptor(metadataSrv);
+            }
             ++state.stats.failedCount;
             ++state.stats.descriptorAllocationFailedCount;
             RebuildStats();
@@ -722,9 +766,10 @@ namespace HIKARI::RENDER3D {
 
         if (!GetRenderResourcePool().AttachOwnedResource(
             handle.ToUntyped(),
-            std::move(buffer),
+            std::move(geometryBuffer),
             BuildResourceDesc(sourceKey, hcmeshPath, packed))) {
             ReleaseRenderResourceDescriptor(srv);
+            ReleaseRenderResourceDescriptor(metadataSrv);
             ++state.stats.failedCount;
             RebuildStats();
             return {};
@@ -732,10 +777,14 @@ namespace HIKARI::RENDER3D {
 
         if (!GetRenderResourcePool().SetView(handle.ToUntyped(), RenderResourceViewKind::Srv, srv)) {
             ReleaseRenderResourceDescriptor(srv);
+            ReleaseRenderResourceDescriptor(metadataSrv);
             const auto staleRecordIt = state.recordsBySourceKey.find(sourceKey);
             if (staleRecordIt != state.recordsBySourceKey.end()) {
                 ReleaseClusterGeometryRecordViews(staleRecordIt->second);
                 staleRecordIt->second.srv = {};
+                staleRecordIt->second.metadataSrv = {};
+                staleRecordIt->second.metadataBuffer.Reset();
+                staleRecordIt->second.metadataBufferBytes = 0;
                 staleRecordIt->second.ready = false;
             }
             ++state.stats.failedCount;
@@ -761,6 +810,9 @@ namespace HIKARI::RENDER3D {
         record.surfaceLodRanges = packed.surfaceLodRanges;
         record.surfaceSections = packed.surfaceSections;
         record.srv = srv;
+        record.metadataSrv = metadataSrv;
+        record.metadataBuffer = std::move(metadataBuffer);
+        record.metadataBufferBytes = packed.metadataByteSize;
         record.ready = true;
         state.recordsBySourceKey[sourceKey] = std::move(record);
         state.sourceKeyByHandle[PackHandle(handle)] = sourceKey;

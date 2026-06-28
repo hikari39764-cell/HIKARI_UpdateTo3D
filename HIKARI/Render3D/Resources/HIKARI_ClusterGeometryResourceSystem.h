@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <d3d12.h>
+#include <wrl/client.h>
 
 #include "Gfx/HIKARI_GfxContext.h"
 #include "Render3D/Cluster/HIKARI_ClusterGpuData.h"
@@ -53,6 +54,9 @@ namespace HIKARI::RENDER3D {
         std::vector<CLUSTER::ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
         std::vector<CLUSTER::ClusterGeometrySurfaceSection> surfaceSections{};
         RenderResourceView srv{};
+        RenderResourceView metadataSrv{};
+        Microsoft::WRL::ComPtr<ID3D12Resource> metadataBuffer{};
+        uint64_t metadataBufferBytes = 0;
         bool ready = false;
     };
 

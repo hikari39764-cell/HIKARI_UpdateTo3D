@@ -392,6 +392,64 @@ namespace HIKARI::MESHRENDERER {
                 GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
         }
 
+        bool CreateMappedUploadBuffer(
+            ID3D12Device* device,
+            UINT64 byteSize,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
+            void** mapped) {
+
+            if (device == nullptr || byteSize == 0 || mapped == nullptr) {
+                return false;
+            }
+
+            resource.Reset();
+            *mapped = nullptr;
+            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+            if (FAILED(device->CreateCommittedResource(
+                &heap,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(resource.GetAddressOf())))) {
+                return false;
+            }
+
+            return SUCCEEDED(resource->Map(0, nullptr, mapped));
+        }
+
+        void BindActiveFrameResources(uint32_t frameIndex) {
+            g.activeFrameResourceIndex = frameIndex % GFX::kFrameResourceCount;
+            MeshRendererFrameResources& frame =
+                g.frameResources[g.activeFrameResourceIndex];
+
+            g.cameraCB = frame.cameraCB;
+            g.cullingCameraCB = frame.cullingCameraCB;
+            g.objectCB = frame.objectCB;
+            g.objectDataBuffer = frame.objectDataBuffer;
+            g.materialDataBuffer = frame.materialDataBuffer;
+            g.lightCB = frame.lightCB;
+            g.shadowCB = frame.shadowCB;
+            g.skyEnvironmentCB = frame.skyEnvironmentCB;
+            g.jointPaletteCB = frame.jointPaletteCB;
+
+            g.cameraMapped = frame.cameraMapped;
+            g.cullingCameraMapped = frame.cullingCameraMapped;
+            g.objectMapped = frame.objectMapped;
+            g.objectDataMapped = frame.objectDataMapped;
+            g.materialDataMapped = frame.materialDataMapped;
+            g.lightMapped = frame.lightMapped;
+            g.shadowMapped = frame.shadowMapped;
+            g.skyEnvironmentMapped = frame.skyEnvironmentMapped;
+            g.jointPaletteMapped = frame.jointPaletteMapped;
+
+            g.objectDataSrvCpu = frame.objectDataSrvCpu;
+            g.objectDataSrvGpu = frame.objectDataSrvGpu;
+            g.materialDataSrvCpu = frame.materialDataSrvCpu;
+            g.materialDataSrvGpu = frame.materialDataSrvGpu;
+        }
+
         bool CreateBuffers(ID3D12Device* device) {
             const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
             const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
@@ -403,65 +461,16 @@ namespace HIKARI::MESHRENDERER {
             const UINT jointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
             const UINT jointPaletteBytes = jointPaletteStride * kMaxObjectCount;
 
-            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            auto cameraDesc = CD3DX12_RESOURCE_DESC::Buffer(cameraBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &cameraDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.cameraCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.cameraCB->Map(0, nullptr, reinterpret_cast<void**>(&g.cameraMapped)))) {
-                return false;
-            }
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &cameraDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.cullingCameraCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.cullingCameraCB->Map(0, nullptr, reinterpret_cast<void**>(&g.cullingCameraMapped)))) {
-                return false;
-            }
-
-            auto objectDesc = CD3DX12_RESOURCE_DESC::Buffer(objectBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &objectDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.objectCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.objectCB->Map(0, nullptr, reinterpret_cast<void**>(&g.objectMapped)))) {
-                return false;
-            }
-
-            auto objectDataDesc = CD3DX12_RESOURCE_DESC::Buffer(objectDataBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &objectDataDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.objectDataBuffer.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.objectDataBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g.objectDataMapped)))) {
-                return false;
-            }
-
-            auto materialDataDesc = CD3DX12_RESOURCE_DESC::Buffer(materialDataBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &materialDataDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.materialDataBuffer.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.materialDataBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g.materialDataMapped)))) {
-                return false;
-            }
-
             ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
             if (srvHeap == nullptr) {
                 return false;
             }
             const UINT descriptorSize =
                 device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            const UINT objectDataSrvIndex =
-                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshObjectData);
-            g.objectDataSrvCpu =
-                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
-            g.objectDataSrvGpu =
-                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
-            const UINT materialDataSrvIndex =
-                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshMaterialData);
-            g.materialDataSrvCpu =
-                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
-            g.materialDataSrvGpu =
-                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
             const UINT surfaceGpuSceneSrvIndex =
-                GFX::DESCRIPTOR::ToIndex(GFX::DESCRIPTOR::SystemSrv::MeshSurfaceGpuScene);
+                GFX::DESCRIPTOR::ToFrameIndex(
+                    GFX::DESCRIPTOR::SystemSrv::MeshSurfaceGpuSceneFrame0,
+                    0u);
             const D3D12_CPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvCpu =
                 GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, surfaceGpuSceneSrvIndex);
             const D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvGpu =
@@ -469,7 +478,8 @@ namespace HIKARI::MESHRENDERER {
             if (!g.surfaceGpuSceneBuffer.Initialize(
                 device,
                 surfaceGpuSceneSrvCpu,
-                surfaceGpuSceneSrvGpu)) {
+                surfaceGpuSceneSrvGpu,
+                descriptorSize)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. GPU-driven mesh pass will be unavailable.");
             }
 
@@ -481,7 +491,6 @@ namespace HIKARI::MESHRENDERER {
             objectDataSrv.Buffer.NumElements = kMaxObjectCount;
             objectDataSrv.Buffer.StructureByteStride = sizeof(ObjectGpuData);
             objectDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-            device->CreateShaderResourceView(g.objectDataBuffer.Get(), &objectDataSrv, g.objectDataSrvCpu);
 
             D3D12_SHADER_RESOURCE_VIEW_DESC materialDataSrv{};
             materialDataSrv.Format = DXGI_FORMAT_UNKNOWN;
@@ -491,40 +500,86 @@ namespace HIKARI::MESHRENDERER {
             materialDataSrv.Buffer.NumElements = kMaxMaterialDataCount;
             materialDataSrv.Buffer.StructureByteStride = sizeof(MaterialGpuData);
             materialDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-            device->CreateShaderResourceView(g.materialDataBuffer.Get(), &materialDataSrv, g.materialDataSrvCpu);
 
-            auto lightDesc = CD3DX12_RESOURCE_DESC::Buffer(lightBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &lightDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.lightCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.lightCB->Map(0, nullptr, reinterpret_cast<void**>(&g.lightMapped)))) {
-                return false;
+            for (uint32_t frameIndex = 0; frameIndex < GFX::kFrameResourceCount; ++frameIndex) {
+                MeshRendererFrameResources& frame = g.frameResources[frameIndex];
+
+                if (!CreateMappedUploadBuffer(
+                    device,
+                    cameraBytes,
+                    frame.cameraCB,
+                    reinterpret_cast<void**>(&frame.cameraMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        cameraBytes,
+                        frame.cullingCameraCB,
+                        reinterpret_cast<void**>(&frame.cullingCameraMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        objectBytes,
+                        frame.objectCB,
+                        reinterpret_cast<void**>(&frame.objectMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        objectDataBytes,
+                        frame.objectDataBuffer,
+                        reinterpret_cast<void**>(&frame.objectDataMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        materialDataBytes,
+                        frame.materialDataBuffer,
+                        reinterpret_cast<void**>(&frame.materialDataMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        lightBytes,
+                        frame.lightCB,
+                        reinterpret_cast<void**>(&frame.lightMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        shadowBytes,
+                        frame.shadowCB,
+                        reinterpret_cast<void**>(&frame.shadowMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        skyEnvironmentBytes,
+                        frame.skyEnvironmentCB,
+                        reinterpret_cast<void**>(&frame.skyEnvironmentMapped)) ||
+                    !CreateMappedUploadBuffer(
+                        device,
+                        jointPaletteBytes,
+                        frame.jointPaletteCB,
+                        reinterpret_cast<void**>(&frame.jointPaletteMapped))) {
+                    return false;
+                }
+
+                const UINT objectDataSrvIndex =
+                    GFX::DESCRIPTOR::ToFrameIndex(
+                        GFX::DESCRIPTOR::SystemSrv::MeshObjectDataFrame0,
+                        frameIndex);
+                frame.objectDataSrvCpu =
+                    GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
+                frame.objectDataSrvGpu =
+                    GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
+                device->CreateShaderResourceView(
+                    frame.objectDataBuffer.Get(),
+                    &objectDataSrv,
+                    frame.objectDataSrvCpu);
+
+                const UINT materialDataSrvIndex =
+                    GFX::DESCRIPTOR::ToFrameIndex(
+                        GFX::DESCRIPTOR::SystemSrv::MeshMaterialDataFrame0,
+                        frameIndex);
+                frame.materialDataSrvCpu =
+                    GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
+                frame.materialDataSrvGpu =
+                    GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
+                device->CreateShaderResourceView(
+                    frame.materialDataBuffer.Get(),
+                    &materialDataSrv,
+                    frame.materialDataSrvCpu);
             }
 
-            auto shadowDesc = CD3DX12_RESOURCE_DESC::Buffer(shadowBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &shadowDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.shadowCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.shadowCB->Map(0, nullptr, reinterpret_cast<void**>(&g.shadowMapped)))) {
-                return false;
-            }
-
-            auto skyEnvironmentDesc = CD3DX12_RESOURCE_DESC::Buffer(skyEnvironmentBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &skyEnvironmentDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.skyEnvironmentCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.skyEnvironmentCB->Map(0, nullptr, reinterpret_cast<void**>(&g.skyEnvironmentMapped)))) {
-                return false;
-            }
-
-            auto jointPaletteDesc = CD3DX12_RESOURCE_DESC::Buffer(jointPaletteBytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &jointPaletteDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.jointPaletteCB.GetAddressOf())))) {
-                return false;
-            }
-            if (FAILED(g.jointPaletteCB->Map(0, nullptr, reinterpret_cast<void**>(&g.jointPaletteMapped)))) {
-                return false;
-            }
-
+            BindActiveFrameResources(SERVICES::gCtx.frameIndex);
             return true;
         }
 
@@ -634,7 +689,9 @@ namespace HIKARI::MESHRENDERER {
             g.gpuDrivenLayer.BeginFrame(&g.gpuDrivenSceneSource);
 
             RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadDesc uploadDesc{};
+            uploadDesc.commandList = SERVICES::gCtx.cmdList;
             uploadDesc.residency = &g.gpuDrivenSceneResidency;
+            uploadDesc.frameIndex = SERVICES::gCtx.frameIndex;
             const RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadStats& uploadStats =
                 g.gpuDrivenLayer.UploadSceneFrame(uploadDesc);
 
@@ -715,7 +772,7 @@ namespace HIKARI::MESHRENDERER {
             prepareMaterialSources(
                 shadow.traditionalIndirect.gpuSceneBaseIndex,
                 shadow.traditionalIndirect.materialSources);
-            g.gpuDrivenLayer.PrepareSurfaceGpuSceneMaterialFrame();
+            g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
         }
 
         void UpdateSurfaceIndirectDrawStats() {
@@ -764,6 +821,7 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.cullViewProj = &viewProj;
+            commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenCommandStreamDebugStats();
@@ -791,7 +849,10 @@ namespace HIKARI::MESHRENDERER {
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
             UpdateGpuDrivenWorkOwnershipDebugStats();
-            g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
+            RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+            commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+            commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
+            g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
             UpdateSurfaceIndirectDrawStats();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
@@ -810,7 +871,10 @@ namespace HIKARI::MESHRENDERER {
                 UpdateMeshletBackendDebugStats();
                 UpdateGpuDrivenWorkReadyDebugStats();
                 UpdateGpuDrivenWorkOwnershipDebugStats();
-                g.gpuDrivenLayer.BuildCommandFrame({ SERVICES::gCtx.cmdList });
+                RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+                commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+                commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
+                g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
                 UpdateSurfaceIndirectDrawStats();
                 UpdateGpuDrivenCommandStreamDebugStats();
                 return;
@@ -1906,6 +1970,7 @@ namespace HIKARI::MESHRENDERER {
         if (!EnsureInitialized()) {
             return false;
         }
+        BindActiveFrameResources(SERVICES::gCtx.frameIndex);
         if (!PrepareMeshFrame(camera, environment, debugView)) {
             return false;
         }
@@ -1949,6 +2014,7 @@ namespace HIKARI::MESHRENDERER {
         if (!EnsureInitialized()) {
             return false;
         }
+        BindActiveFrameResources(SERVICES::gCtx.frameIndex);
         // Capture 用の固定解像度めEcamera constants に反映する、E
         if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
             return false;

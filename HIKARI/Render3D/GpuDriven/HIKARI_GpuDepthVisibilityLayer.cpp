@@ -10,10 +10,11 @@
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_DescriptorAllocator.h"
+#include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "HIKARI_Services.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -47,26 +48,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : 0;
         }
 
-        void RetireDescriptor(RenderResourceView view, const char* debugName) {
-            if (!view.IsValid()) {
-                return;
-            }
-
-            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-            const uint64_t retireFence = CurrentRetireFenceValue();
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [view]() {
-                        (void)ReleaseRenderResourceDescriptor(view);
-                    },
-                    debugName != nullptr ? debugName : "GpuDepthVisibility.Descriptor");
-                return;
-            }
-
-            (void)ReleaseRenderResourceDescriptor(view);
-        }
-
         template <typename T>
         void RetireD3D12Object(Microsoft::WRL::ComPtr<T>& object, const char* debugName) {
             if (object == nullptr) {
@@ -89,6 +70,151 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             retired.Reset();
+        }
+
+        struct DepthVisibilityDescriptorState {
+            GFX::Context context{};
+            GFX::DescriptorAllocator allocator{};
+            UINT descriptorSize = 0;
+            bool initialized = false;
+        };
+
+        DepthVisibilityDescriptorState& DepthVisibilityDescriptors() {
+            static DepthVisibilityDescriptorState state{};
+            return state;
+        }
+
+        bool EnsureDepthVisibilityDescriptorAllocator() {
+            DepthVisibilityDescriptorState& state = DepthVisibilityDescriptors();
+            ID3D12Device* device = SERVICES::gCtx.device;
+            ID3D12DescriptorHeap* heap = SERVICES::gCtx.srvHeap;
+            if (device == nullptr || heap == nullptr) {
+                return false;
+            }
+
+            if (!state.initialized ||
+                state.context.device != device ||
+                state.context.srvHeap != heap) {
+                state.context = SERVICES::gCtx;
+                state.descriptorSize = device->GetDescriptorHandleIncrementSize(
+                    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                state.allocator.Initialize(
+                    GFX::DESCRIPTOR::kGpuDepthVisibilityTransientDescriptorBegin,
+                    GFX::DESCRIPTOR::kGpuDepthVisibilityTransientDescriptorCount);
+                state.initialized = true;
+            }
+            return true;
+        }
+
+        RenderResourceView AllocateDepthVisibilityDescriptor() {
+            RenderResourceView view{};
+            if (!EnsureDepthVisibilityDescriptorAllocator()) {
+                return view;
+            }
+
+            DepthVisibilityDescriptorState& state = DepthVisibilityDescriptors();
+            const GFX::DescriptorSlot slot = state.allocator.Allocate();
+            if (!slot.IsValid()) {
+                HIKARI_LOG_ERROR("[GpuDepthVisibility][ERROR] transient descriptor pool exhausted.");
+                return view;
+            }
+
+            view.descriptorIndex = slot.index;
+            view.cpu = GFX::DESCRIPTOR::CpuAt(
+                state.context.srvHeap,
+                state.descriptorSize,
+                slot.index);
+            view.gpu = GFX::DESCRIPTOR::GpuAt(
+                state.context.srvHeap,
+                state.descriptorSize,
+                slot.index);
+            return view;
+        }
+
+        void FreeDepthVisibilityDescriptor(RenderResourceView view) {
+            if (view.descriptorIndex == UINT32_MAX) {
+                return;
+            }
+
+            DepthVisibilityDescriptorState& state = DepthVisibilityDescriptors();
+            const GFX::DescriptorSlot slot{ view.descriptorIndex };
+            if (!state.initialized ||
+                !state.allocator.Owns(slot) ||
+                !state.allocator.IsAllocated(slot)) {
+                return;
+            }
+
+            state.allocator.Free(slot);
+        }
+
+        void RetireDescriptor(RenderResourceView view, const char* debugName) {
+            if (!view.IsValid()) {
+                return;
+            }
+
+            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
+            const uint64_t retireFence = CurrentRetireFenceValue();
+            if (queue != nullptr && retireFence != 0) {
+                queue->Enqueue(
+                    retireFence,
+                    [view]() {
+                        FreeDepthVisibilityDescriptor(view);
+                    },
+                    debugName != nullptr ? debugName : "GpuDepthVisibility.Descriptor");
+                return;
+            }
+
+            FreeDepthVisibilityDescriptor(view);
+        }
+
+        RenderResourceView CreateTransientTexture2DSrvDescriptor(
+            ID3D12Resource* resource,
+            DXGI_FORMAT format,
+            UINT mostDetailedMip = 0,
+            UINT mipLevels = 1) {
+
+            if (resource == nullptr || mipLevels == 0) {
+                return {};
+            }
+
+            RenderResourceView view = AllocateDepthVisibilityDescriptor();
+            if (!view.IsValid() || view.cpu.ptr == 0 || view.gpu.ptr == 0) {
+                return {};
+            }
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Format = format;
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
+            srvDesc.Texture2D.MipLevels = mipLevels;
+            srvDesc.Texture2D.PlaneSlice = 0;
+            srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+            SERVICES::gCtx.device->CreateShaderResourceView(resource, &srvDesc, view.cpu);
+            return view;
+        }
+
+        RenderResourceView CreateTransientTexture2DUavDescriptor(
+            ID3D12Resource* resource,
+            DXGI_FORMAT format,
+            UINT mipSlice = 0) {
+
+            if (resource == nullptr) {
+                return {};
+            }
+
+            RenderResourceView view = AllocateDepthVisibilityDescriptor();
+            if (!view.IsValid() || view.cpu.ptr == 0 || view.gpu.ptr == 0) {
+                return {};
+            }
+
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+            uavDesc.Format = format;
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uavDesc.Texture2D.MipSlice = mipSlice;
+            uavDesc.Texture2D.PlaneSlice = 0;
+            SERVICES::gCtx.device->CreateUnorderedAccessView(resource, nullptr, &uavDesc, view.cpu);
+            return view;
         }
     }
 
@@ -467,8 +593,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         device->CreateDepthStencilView(visibilityDepth_.Get(), &dsvDesc, visibilityDsv_);
 
-        visibilityDepthSrv_ =
-            AllocateTexture2DSrvDescriptor(visibilityDepth_.Get(), DXGI_FORMAT_R32_FLOAT);
+        visibilityDepthSrv_ = CreateTransientTexture2DSrvDescriptor(
+            visibilityDepth_.Get(),
+            DXGI_FORMAT_R32_FLOAT);
         if (!visibilityDepthSrv_.IsValid()) {
             ReleaseDepthResource();
             return false;
@@ -539,7 +666,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
         hzbTexture_->SetName(L"HIKARI.DepthVisibility.HZB");
 
-        hzbSrv_ = AllocateTexture2DSrvDescriptor(
+        hzbSrv_ = CreateTransientTexture2DSrvDescriptor(
             hzbTexture_.Get(),
             kHzbFormat,
             0,
@@ -556,18 +683,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             mip.width = mipWidth;
             mip.height = mipHeight;
 
-            mip.srv = AllocateTexture2DSrvDescriptor(
+            mip.srv = CreateTransientTexture2DSrvDescriptor(
                 hzbTexture_.Get(),
                 kHzbFormat,
                 mipIndex,
                 1);
-            mip.uav = AllocateTexture2DUavDescriptor(
+            mip.uav = CreateTransientTexture2DUavDescriptor(
                 hzbTexture_.Get(),
                 kHzbFormat,
                 mipIndex);
             if (!mip.srv.IsValid() || !mip.uav.IsValid()) {
-                ReleaseRenderResourceDescriptor(mip.srv);
-                ReleaseRenderResourceDescriptor(mip.uav);
+                RetireDescriptor(mip.srv, "GpuDepthVisibility.HZB.MipSRV.FailedCreate");
+                RetireDescriptor(mip.uav, "GpuDepthVisibility.HZB.MipUAV.FailedCreate");
                 ReleaseResources();
                 return false;
             }

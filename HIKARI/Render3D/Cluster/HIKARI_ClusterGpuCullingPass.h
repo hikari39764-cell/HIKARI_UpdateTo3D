@@ -7,6 +7,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
+#include "Gfx/HIKARI_GfxContext.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Resources/HIKARI_RenderResourcePool.h"
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
@@ -225,7 +226,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t clusterSurfaceIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t passKind = 0;
             uint32_t flags = 0;
-            uint32_t clusterIndex = RUNTIME::kInvalidRenderSurfaceIndex;
+            uint32_t clusterGeometryMetadataSrvDescriptorIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t lodIndex = 0;
             uint32_t pageIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t drawBucket = 0;
@@ -283,7 +284,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t reserved0 = 0;
             uint32_t reserved1 = 0;
             uint32_t reserved2 = 0;
-            uint32_t reserved3 = 0;
+            uint32_t clusterGeometryMetadataSrvDescriptorIndex = RUNTIME::kInvalidRenderSurfaceIndex;
         };
 
         static_assert(sizeof(GpuPageTask) == 160u);
@@ -437,6 +438,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         void BuildRangeStats(const ClusterGpuCullingSourceRange* ranges, size_t rangeCount);
         void CollectCounterReadback(CounterReadbackSlot& slot);
         void QueueCounterReadback(ID3D12GraphicsCommandList* commandList);
+        void BindFrameResources(uint32_t frameIndex);
+        void StoreActiveFrameResourceStates();
 
         Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> expandPageTasksPipelineState_;
@@ -446,6 +449,29 @@ namespace HIKARI::RENDER3D::CLUSTER {
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> dispatchCommandSignature_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> drawCommandSignature_;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> meshletDispatchCommandSignature_;
+        struct FrameResources {
+            Microsoft::WRL::ComPtr<ID3D12Resource> constantsUploadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> counterResetUploadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> pageTaskBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> visibleRangeBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> visibleClusterListBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> drawArgumentBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> meshletDispatchArgumentBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> dispatchArgumentBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> counterBuffer;
+            uint8_t* constantsMapped = nullptr;
+            GpuCounterBuffer* counterResetMapped = nullptr;
+            D3D12_RESOURCE_STATES pageTaskBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES visibleRangeBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES visibleClusterListBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES drawArgumentBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES meshletDispatchArgumentBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES dispatchArgumentBufferState = D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES counterBufferState = D3D12_RESOURCE_STATE_COMMON;
+        };
+        std::array<FrameResources, GFX::kFrameResourceCount> frameResources_{};
+        uint32_t activeFrameResourceIndex_ = 0;
+
         Microsoft::WRL::ComPtr<ID3D12Resource> constantsUploadBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> counterResetUploadBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> pageTaskBuffer_;

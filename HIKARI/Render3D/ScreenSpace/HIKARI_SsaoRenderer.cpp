@@ -12,6 +12,7 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "HIKARI_Services.h"
@@ -20,6 +21,39 @@
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
     namespace {
+        uint64_t CurrentRetireFenceValue() {
+            return SERVICES::gCtx.currentFrameRetireFenceValue != 0
+                ? SERVICES::gCtx.currentFrameRetireFenceValue
+                : 0;
+        }
+
+        template <typename T>
+        void RetireD3D12Object(
+            Microsoft::WRL::ComPtr<T>& object,
+            const char* debugName) {
+
+            if (object == nullptr) {
+                return;
+            }
+
+            Microsoft::WRL::ComPtr<T> retired = object;
+            object.Reset();
+
+            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
+            const uint64_t retireFence = CurrentRetireFenceValue();
+            if (queue != nullptr && retireFence != 0) {
+                queue->Enqueue(
+                    retireFence,
+                    [retired]() mutable {
+                        retired.Reset();
+                    },
+                    debugName != nullptr ? debugName : "SSAO.D3D12Object");
+                return;
+            }
+
+            retired.Reset();
+        }
+
         struct SsaoPassCB {
             MATH::Mat4 viewProj{};
             MATH::Mat4 invViewProj{};
@@ -527,10 +561,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return false;
         }
 
-        rawAo_.Reset();
-        blurredAo_.Reset();
-        resolvedAo_.Reset();
-        rtvHeap_.Reset();
+        RetireD3D12Object(rawAo_, "SSAO.RawAO");
+        RetireD3D12Object(blurredAo_, "SSAO.BlurredAO");
+        RetireD3D12Object(resolvedAo_, "SSAO.ResolvedAO");
+        RetireD3D12Object(rtvHeap_, "SSAO.RTVHeap");
         rawRtv_ = {};
         blurredRtv_ = {};
         resolvedRtv_ = {};
@@ -815,11 +849,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             constantBuffer_->Unmap(0, nullptr);
             constantMapped_ = nullptr;
         }
-        constantBuffer_.Reset();
-        rawAo_.Reset();
-        blurredAo_.Reset();
-        resolvedAo_.Reset();
-        rtvHeap_.Reset();
+        RetireD3D12Object(constantBuffer_, "SSAO.ConstantBuffer");
+        RetireD3D12Object(rawAo_, "SSAO.RawAO");
+        RetireD3D12Object(blurredAo_, "SSAO.BlurredAO");
+        RetireD3D12Object(resolvedAo_, "SSAO.ResolvedAO");
+        RetireD3D12Object(rtvHeap_, "SSAO.RTVHeap");
         generateRootSig_.Reset();
         depthOnlyGenerateRootSig_.Reset();
         generatePso_.Reset();

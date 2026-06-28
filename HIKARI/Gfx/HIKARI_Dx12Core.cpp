@@ -545,11 +545,13 @@ bool Dx12Core::MoveToNextFrame() {
 
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
 
-    // 重要：
-    // 今のエンジンは per-frame upload buffer / constant buffer がまだ完全に多重化されていない。
-    // そのため一旦ここでは submitted frame の完了を待つ。
-    if (fence_->GetCompletedValue() < signal) {
-        const HRESULT eventHr = fence_->SetEventOnCompletion(signal, fenceEvent_);
+    // Frame resources are triple-buffered; only wait when the next swapchain
+    // back buffer would reuse resources whose submitted work is still pending.
+    const uint64_t frameFenceToWait = frameFenceValues_[frameIndex_];
+    if (frameFenceToWait != 0 &&
+        fence_->GetCompletedValue() < frameFenceToWait) {
+        const HRESULT eventHr =
+            fence_->SetEventOnCompletion(frameFenceToWait, fenceEvent_);
         if (FAILED(eventHr)) {
             HIKARI_DX_CHECK(eventHr, "Dx12Core::MoveToNextFrame SetEventOnCompletion");
             CheckDeviceRemoved("Dx12Core::MoveToNextFrame SetEventOnCompletion", eventHr);

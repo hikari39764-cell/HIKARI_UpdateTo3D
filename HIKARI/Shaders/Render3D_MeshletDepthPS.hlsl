@@ -14,18 +14,18 @@ struct PSInput
     nointerpolation uint materialDataIndex : TEXCOORD2;
 };
 
-float main(PSInput input) : SV_Depth
+void main(PSInput input)
 {
     if (input.materialDataIndex == HIKARI_INVALID_MESHLET_DEPTH_MATERIAL_INDEX)
     {
-        return input.position.z;
+        return;
     }
 
     HikariMeshMaterialData materialData =
         HikariGetMeshMaterialData(input.materialDataIndex);
     if ((materialData.materialFlags & MATERIAL_ALPHA_MASK) == 0u)
     {
-        return input.position.z;
+        return;
     }
 
     const float2 baseColorUv =
@@ -44,5 +44,4 @@ float main(PSInput input) : SV_Depth
     {
         discard;
     }
-    return input.position.z;
 }

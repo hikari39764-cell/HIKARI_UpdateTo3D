@@ -8,9 +8,45 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "HIKARI_Services.h"
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
+
+    namespace {
+        uint64_t CurrentRetireFenceValue() {
+            return SERVICES::gCtx.currentFrameRetireFenceValue != 0
+                ? SERVICES::gCtx.currentFrameRetireFenceValue
+                : 0;
+        }
+
+        template <typename T>
+        void RetireD3D12Object(
+            Microsoft::WRL::ComPtr<T>& object,
+            const char* debugName) {
+
+            if (object == nullptr) {
+                return;
+            }
+
+            Microsoft::WRL::ComPtr<T> retired = object;
+            object.Reset();
+
+            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
+            const uint64_t retireFence = CurrentRetireFenceValue();
+            if (queue != nullptr && retireFence != 0) {
+                queue->Enqueue(
+                    retireFence,
+                    [retired]() mutable {
+                        retired.Reset();
+                    },
+                    debugName != nullptr ? debugName : "ScreenSpaceGeometryAux.D3D12Object");
+                return;
+            }
+
+            retired.Reset();
+        }
+    }
 
     bool ScreenSpaceGeometryAux::EnsureSize(uint32_t width, uint32_t height) {
         width = std::max(1u, width);
@@ -24,8 +60,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     }
 
     void ScreenSpaceGeometryAux::Release() {
-        normalRoughness_.Reset();
-        rtvHeap_.Reset();
+        RetireD3D12Object(normalRoughness_, "ScreenSpaceGeometryAux.NormalRoughness");
+        RetireD3D12Object(rtvHeap_, "ScreenSpaceGeometryAux.RTVHeap");
         normalRoughnessRtv_ = {};
         normalRoughnessSrvCpu_ = {};
         normalRoughnessSrvGpu_ = {};

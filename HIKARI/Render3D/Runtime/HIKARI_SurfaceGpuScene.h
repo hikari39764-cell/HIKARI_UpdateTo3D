@@ -65,7 +65,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t materialResourceGeneration = 0;
 
         uint32_t clusterGeometryResourceIndex = 0;
-        uint32_t clusterGeometryResourceGeneration = 0;
+        uint32_t clusterGeometryMetadataSrvDescriptorIndex = kInvalidRenderSurfaceIndex;
         uint32_t resourceFlags = 0;
         uint32_t geometryBackend = 0;
 

@@ -3,14 +3,21 @@
 #include <cstdint>
 #include <d3d12.h>
 
+#include "Gfx/HIKARI_GfxContext.h"
+
 namespace HIKARI::GFX::DESCRIPTOR {
 
-    constexpr UINT kSrvHeapCapacity = 4097;
-    constexpr UINT kSystemSrvReservedCount = 129;
+    constexpr UINT kUserSrvCount = 3968;
+    constexpr UINT kSystemSrvFixedCount = 33;
+    constexpr UINT kSystemSrvDynamicCount = 111;
+    constexpr UINT kGpuDepthVisibilityTransientDescriptorCount = 384;
+    constexpr UINT kSystemSrvAuxUsedCount = kGpuDepthVisibilityTransientDescriptorCount + 1;
+    constexpr UINT kSystemSrvReservedCount =
+        kSystemSrvFixedCount + kSystemSrvDynamicCount + kSystemSrvAuxUsedCount;
+    constexpr UINT kSrvHeapCapacity = kUserSrvCount + kSystemSrvReservedCount;
 
     constexpr UINT kUserSrvBegin = 0;
     constexpr UINT kSystemSrvBegin = kSrvHeapCapacity - kSystemSrvReservedCount;
-    constexpr UINT kUserSrvCount = kSystemSrvBegin - kUserSrvBegin;
 
     enum class SystemSrv : UINT {
         SceneColor = kSystemSrvBegin + 0,
@@ -32,14 +39,40 @@ namespace HIKARI::GFX::DESCRIPTOR {
         ShadowSurfaceGpuScene = kSystemSrvBegin + 15,
         ShadowMaterialData = kSystemSrvBegin + 16,
         PostSceneDepth = kSystemSrvBegin + 17,
+
+        MeshObjectDataFrame0 = kSystemSrvBegin + 18,
+        MeshObjectDataFrame1 = kSystemSrvBegin + 19,
+        MeshObjectDataFrame2 = kSystemSrvBegin + 20,
+        MeshMaterialDataFrame0 = kSystemSrvBegin + 21,
+        MeshMaterialDataFrame1 = kSystemSrvBegin + 22,
+        MeshMaterialDataFrame2 = kSystemSrvBegin + 23,
+        MeshSurfaceGpuSceneFrame0 = kSystemSrvBegin + 24,
+        MeshSurfaceGpuSceneFrame1 = kSystemSrvBegin + 25,
+        MeshSurfaceGpuSceneFrame2 = kSystemSrvBegin + 26,
+        ShadowSurfaceGpuSceneFrame0 = kSystemSrvBegin + 27,
+        ShadowSurfaceGpuSceneFrame1 = kSystemSrvBegin + 28,
+        ShadowSurfaceGpuSceneFrame2 = kSystemSrvBegin + 29,
+        ShadowMaterialDataFrame0 = kSystemSrvBegin + 30,
+        ShadowMaterialDataFrame1 = kSystemSrvBegin + 31,
+        ShadowMaterialDataFrame2 = kSystemSrvBegin + 32,
     };
 
-    constexpr UINT kSystemSrvUsedCount = 18;
+    constexpr UINT kSystemSrvUsedCount = kSystemSrvFixedCount;
     constexpr UINT kSystemSrvDynamicBegin = kSystemSrvBegin + kSystemSrvUsedCount;
-    constexpr UINT kSystemSrvDynamicCount = kSystemSrvReservedCount - kSystemSrvUsedCount;
+    constexpr UINT kSystemSrvAuxBegin = kSystemSrvDynamicBegin + kSystemSrvDynamicCount;
+    constexpr UINT kGpuDepthVisibilityTransientDescriptorBegin = kSystemSrvAuxBegin;
+    constexpr UINT kGpuDepthVisibilityTransientDescriptorEnd =
+        kGpuDepthVisibilityTransientDescriptorBegin +
+        kGpuDepthVisibilityTransientDescriptorCount;
+    constexpr UINT kClusterCullFallbackHzbSrv =
+        kGpuDepthVisibilityTransientDescriptorEnd;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
+    }
+
+    constexpr UINT ToFrameIndex(SystemSrv firstFrameSlot, uint32_t frameIndex) {
+        return ToIndex(firstFrameSlot) + (frameIndex % GFX::kFrameResourceCount);
     }
 
     inline D3D12_CPU_DESCRIPTOR_HANDLE CpuAt(
@@ -72,13 +105,19 @@ namespace HIKARI::GFX::DESCRIPTOR {
         return handle;
     }
 
-    static_assert(kSystemSrvReservedCount >= kSystemSrvUsedCount);
+    static_assert(
+        kSystemSrvReservedCount >=
+        kSystemSrvUsedCount + kSystemSrvDynamicCount + kSystemSrvAuxUsedCount);
     static_assert(kUserSrvCount == 3968);
-    static_assert(kSystemSrvDynamicBegin == 3986);
+    static_assert(kSystemSrvDynamicBegin == 4001);
     static_assert(kSystemSrvDynamicCount == 111);
+    static_assert(kSystemSrvAuxBegin == 4112);
     static_assert(kSystemSrvBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin + kSystemSrvDynamicCount <= kSrvHeapCapacity);
+    static_assert(kGpuDepthVisibilityTransientDescriptorBegin < kSrvHeapCapacity);
+    static_assert(kGpuDepthVisibilityTransientDescriptorEnd <= kSrvHeapCapacity);
+    static_assert(kClusterCullFallbackHzbSrv < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneColor) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneDepth) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::EditorViewport) < kSrvHeapCapacity);
@@ -97,5 +136,15 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuScene) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::ShadowMaterialData) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::PostSceneDepth) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshObjectDataFrame0) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshObjectDataFrame2) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshMaterialDataFrame0) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshMaterialDataFrame2) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshSurfaceGpuSceneFrame0) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::MeshSurfaceGpuSceneFrame2) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuSceneFrame0) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuSceneFrame2) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowMaterialDataFrame0) < kSrvHeapCapacity);
+    static_assert(ToIndex(SystemSrv::ShadowMaterialDataFrame2) < kSrvHeapCapacity);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

@@ -31,7 +31,7 @@ struct HikariSurfaceGpuSceneInstance
     uint materialResourceGeneration;
 
     uint clusterGeometryResourceIndex;
-    uint clusterGeometryResourceGeneration;
+    uint clusterGeometryMetadataSrvDescriptorIndex;
     uint resourceFlags;
     uint geometryBackend;
 

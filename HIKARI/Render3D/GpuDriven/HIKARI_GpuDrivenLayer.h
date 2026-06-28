@@ -39,13 +39,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     };
 
     struct GpuDrivenSceneUploadDesc {
+        ID3D12GraphicsCommandList* commandList = nullptr;
         GpuDrivenSceneResidency* residency = nullptr;
+        uint32_t frameIndex = 0;
         bool allowDirtyRangePatching = true;
     };
 
     struct GpuDrivenCommandFrameDesc {
         ID3D12GraphicsCommandList* commandList = nullptr;
         const MATH::Mat4* cullViewProj = nullptr;
+        uint32_t frameIndex = 0;
         bool resetTraditionalIndirectBuffer = true;
         bool publishCommandBuffers = true;
         bool enableSurfaceFrustumCull = true;
@@ -81,7 +84,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t transparentBaseIndex,
             uint32_t shadowBaseIndex,
             bool sceneResident);
-        void PrepareSurfaceGpuSceneMaterialFrame();
+        void CommitSurfaceGpuSceneMaterialFrame(ID3D12GraphicsCommandList* commandList);
         void ImportProducerOutput(
             const GpuDrivenProducerFrameOutput& output);
         void SetBackendAvailability(

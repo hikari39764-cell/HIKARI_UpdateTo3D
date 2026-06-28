@@ -1,8 +1,14 @@
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/HIKARI_GfxContext.h"
 
 #include <utility>
+#include <unknwn.h>
+
+namespace HIKARI::SERVICES {
+    extern GFX::Context gCtx;
+}
 
 namespace HIKARI::GFX {
 	// GPU による遅延解放のためのキュークラス GpuDeferredReleaseQueue の実装
@@ -54,6 +60,29 @@ namespace HIKARI::GFX {
 	// 保留リストに現在存在するアイテムの数を返す
     size_t GpuDeferredReleaseQueue::GetPendingCount() const {
         return pending_.size();
+    }
+
+    void RetireD3D12ObjectForCurrentFrame(
+        IUnknown* object,
+        std::string debugName) {
+
+        if (object == nullptr) {
+            return;
+        }
+
+        GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
+        const uint64_t retireFenceValue = SERVICES::gCtx.currentFrameRetireFenceValue;
+        if (queue != nullptr && retireFenceValue != 0) {
+            queue->Enqueue(
+                retireFenceValue,
+                [object]() {
+                    object->Release();
+                },
+                std::move(debugName));
+            return;
+        }
+
+        object->Release();
     }
 
 } // namespace HIKARI::GFX

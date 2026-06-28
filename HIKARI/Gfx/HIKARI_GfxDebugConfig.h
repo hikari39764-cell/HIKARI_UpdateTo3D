@@ -3,7 +3,7 @@
 namespace HIKARI::GFX {
 
     struct GfxDebugConfig {
-        bool enableDebugLayer = false;
+        bool enableDebugLayer = true;
         bool enableGpuBasedValidation = false;
         bool enableGpuFrameProfiler = true;
         bool enableGpuFrameProfilerWithDebugLayer = false;

@@ -5,6 +5,8 @@
 
 namespace HIKARI::GFX {
 
+constexpr uint32_t kFrameResourceCount = 3;
+
 class GpuDeferredReleaseQueue;
 class ResourceStateTracker;
 

@@ -221,6 +221,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         sceneUploadStats_ = {};
         frameContext_.scene.instanceBuffer = sceneBuffer_;
+        if (sceneBuffer_ != nullptr) {
+            sceneBuffer_->BeginFrame(desc.frameIndex);
+        }
 
         if (sceneBuffer_ == nullptr || frameSource_ == nullptr) {
             if (sceneBuffer_ != nullptr) {
@@ -256,30 +259,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             desc.residency->resident &&
             desc.residency->layoutVersion == layoutVersion &&
             desc.residency->instanceCount == sourceInstanceCount;
+        const bool activeFrameResidentMatches =
+            sceneBuffer_->CanReuseFrame(
+                sourceInstanceCount,
+                layoutVersion,
+                sourceVersion);
 
         if (sourceInstanceCount == 0u) {
             sceneBuffer_->ResetFrame();
             if (desc.residency != nullptr) {
                 desc.residency->Reset();
             }
-        } else if (residentLayoutMatches) {
+        } else if (residentLayoutMatches && activeFrameResidentMatches) {
             sceneUploadStats_.reusedResidentFrame = true;
             sceneBuffer_->ReuseFrame(sourceInstanceCount);
-            if (desc.residency->sourceVersion != sourceVersion) {
-                const bool patched =
-                    desc.allowDirtyRangePatching &&
-                    source.HasAnyDirtyGpuSceneRanges() &&
-                    PatchDirtySceneRanges(*sceneBuffer_, source);
-                if (patched) {
-                    sceneUploadStats_.patchedDirtyRanges = true;
-                } else {
-                    UploadFullScene(*sceneBuffer_, source);
-                    sceneUploadStats_.uploadedFullScene = true;
-                }
-            }
         } else {
             UploadFullScene(*sceneBuffer_, source);
             sceneUploadStats_.uploadedFullScene = true;
+        }
+
+        if (sourceInstanceCount != 0u) {
+            sceneBuffer_->MarkResident(layoutVersion, sourceVersion, sourceInstanceCount);
+            sceneBuffer_->CommitFrame(desc.commandList);
         }
 
         sceneUploadStats_.bufferStats = sceneBuffer_->GetStats();
@@ -336,7 +337,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameContext_.stats.sceneResident = sceneResident;
     }
 
-    void GpuDrivenLayer::PrepareSurfaceGpuSceneMaterialFrame() {
+    void GpuDrivenLayer::CommitSurfaceGpuSceneMaterialFrame(
+        ID3D12GraphicsCommandList* commandList) {
+
+        if (sceneBuffer_ != nullptr) {
+            sceneBuffer_->CommitFrame(commandList);
+        }
     }
 
     void GpuDrivenLayer::ImportProducerOutput(
@@ -364,6 +370,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenCommandFrameDesc& desc) {
 
         commandFrameStats_ = {};
+
+        if (indirectDrawBuffer_ != nullptr) {
+            indirectDrawBuffer_->BeginFrame(desc.frameIndex);
+        }
 
         if (indirectDrawBuffer_ != nullptr &&
             desc.resetTraditionalIndirectBuffer) {

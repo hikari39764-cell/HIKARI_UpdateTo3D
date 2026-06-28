@@ -33,6 +33,18 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return true;
         }
 
+        float MaxAbsDeltaMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
+            float maxDelta = 0.0f;
+            for (int col = 0; col < 4; ++col) {
+                for (int row = 0; row < 4; ++row) {
+                    maxDelta = (std::max)(
+                        maxDelta,
+                        std::fabs(lhs.m[col][row] - rhs.m[col][row]));
+                }
+            }
+            return maxDelta;
+        }
+
         bool IsHzbStatsUsable(
             const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
             uint32_t width,
@@ -57,6 +69,21 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return
                 IsHzbStatsUsable(stats, width, height) &&
                 NearlyEqualMat4(stats.hzbViewProj, viewProj);
+        }
+
+        bool IsHistoryHzbUsableForCullingView(
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
+            uint32_t width,
+            uint32_t height,
+            const MATH::Mat4& viewProj) {
+
+            if (!IsHzbStatsUsable(stats, width, height)) {
+                return false;
+            }
+
+            constexpr float kHistoryViewProjMaxDelta = 0.0125f;
+            return MaxAbsDeltaMat4(stats.hzbViewProj, viewProj) <=
+                kHistoryViewProjMaxDelta;
         }
 
         void ClearFrozenCullingDepthStats(ScreenSpaceRuntimeState& state) {
@@ -120,6 +147,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             state.depthVisibility.GetStats();
         const bool historyHzbReady =
             IsHzbStatsUsable(historyDepthStats, context.width, context.height);
+        const bool historyHzbMatchesCullingView =
+            IsHistoryHzbUsableForCullingView(
+                historyDepthStats,
+                context.width,
+                context.height,
+                cullingCameraCb.viewProj);
         state.depthVisibility.ResetFrame();
         BeginSsaoDebugFrame(context.width, context.height, environment.ambientOcclusion);
 
@@ -213,7 +246,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                     (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
                 }
             }
-        } else if (depthVisibilityAllowedThisFrame && historyHzbReady) {
+        } else if (depthVisibilityAllowedThisFrame && historyHzbReady && historyHzbMatchesCullingView) {
             ClearFrozenCullingDepthStats(state);
             GFX::PIX::ScopedGpuEvent pixHistory(
                 context.cmd,

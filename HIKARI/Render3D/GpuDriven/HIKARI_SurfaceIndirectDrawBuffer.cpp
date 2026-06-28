@@ -5,6 +5,7 @@
 
 #include <d3dx12.h>
 
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_DXCheck.h"
@@ -38,6 +39,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         constexpr UINT AlignConstantBufferSize(size_t size) {
             return static_cast<UINT>((size + 255u) & ~255u);
+        }
+
+        template <typename T>
+        void RetireD3D12Object(
+            Microsoft::WRL::ComPtr<T>& object,
+            const char* debugName) {
+
+            if (object == nullptr) {
+                return;
+            }
+
+            T* retired = object.Detach();
+            GFX::RetireD3D12ObjectForCurrentFrame(
+                retired,
+                debugName != nullptr ? debugName : "SurfaceIndirectDraw.D3D12Object");
         }
 
         SurfaceIndirectDrawPayload ToDrawPayload(
@@ -231,32 +247,49 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return false;
         }
 
-        argumentBuffer_.Reset();
-        skinnedArgumentBuffer_.Reset();
-        seedBuffer_.Reset();
-        seedUploadBuffer_.Reset();
-        payloadBuffer_.Reset();
-        payloadUploadBuffer_.Reset();
-        counterBuffer_.Reset();
-        counterResetUploadBuffer_.Reset();
-        constantsUploadBuffer_.Reset();
-        computeRootSignature_.Reset();
-        compactPipelineState_.Reset();
-        commandSignature_.Reset();
-        skinnedCommandSignature_.Reset();
-        seedMapped_ = nullptr;
-        payloadMapped_ = nullptr;
-        counterResetMapped_ = nullptr;
-        constantsMapped_ = nullptr;
+        auto resetGpuBuffers = [this]() {
+            RetireD3D12Object(argumentBuffer_, "SurfaceIndirectDraw.Active.ArgumentBuffer");
+            RetireD3D12Object(skinnedArgumentBuffer_, "SurfaceIndirectDraw.Active.SkinnedArgumentBuffer");
+            RetireD3D12Object(seedBuffer_, "SurfaceIndirectDraw.Active.SeedBuffer");
+            RetireD3D12Object(seedUploadBuffer_, "SurfaceIndirectDraw.Active.SeedUploadBuffer");
+            RetireD3D12Object(payloadBuffer_, "SurfaceIndirectDraw.Active.PayloadBuffer");
+            RetireD3D12Object(payloadUploadBuffer_, "SurfaceIndirectDraw.Active.PayloadUploadBuffer");
+            RetireD3D12Object(counterBuffer_, "SurfaceIndirectDraw.Active.CounterBuffer");
+            RetireD3D12Object(counterResetUploadBuffer_, "SurfaceIndirectDraw.Active.CounterResetUploadBuffer");
+            RetireD3D12Object(constantsUploadBuffer_, "SurfaceIndirectDraw.Active.ConstantsUploadBuffer");
+            seedMapped_ = nullptr;
+            payloadMapped_ = nullptr;
+            counterResetMapped_ = nullptr;
+            constantsMapped_ = nullptr;
+            argumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+            skinnedArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+            seedBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+            payloadBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+            counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
+            for (FrameResources& frame : frameResources_) {
+                RetireD3D12Object(frame.argumentBuffer, "SurfaceIndirectDraw.Frame.ArgumentBuffer");
+                RetireD3D12Object(frame.skinnedArgumentBuffer, "SurfaceIndirectDraw.Frame.SkinnedArgumentBuffer");
+                RetireD3D12Object(frame.seedBuffer, "SurfaceIndirectDraw.Frame.SeedBuffer");
+                RetireD3D12Object(frame.seedUploadBuffer, "SurfaceIndirectDraw.Frame.SeedUploadBuffer");
+                RetireD3D12Object(frame.payloadBuffer, "SurfaceIndirectDraw.Frame.PayloadBuffer");
+                RetireD3D12Object(frame.payloadUploadBuffer, "SurfaceIndirectDraw.Frame.PayloadUploadBuffer");
+                RetireD3D12Object(frame.counterBuffer, "SurfaceIndirectDraw.Frame.CounterBuffer");
+                RetireD3D12Object(frame.counterResetUploadBuffer, "SurfaceIndirectDraw.Frame.CounterResetUploadBuffer");
+                RetireD3D12Object(frame.constantsUploadBuffer, "SurfaceIndirectDraw.Frame.ConstantsUploadBuffer");
+                frame = FrameResources{};
+            }
+            activeFrameResourceIndex_ = 0;
+        };
+
+        resetGpuBuffers();
+        RetireD3D12Object(computeRootSignature_, "SurfaceIndirectDraw.ComputeRootSignature");
+        RetireD3D12Object(compactPipelineState_, "SurfaceIndirectDraw.CompactPipelineState");
+        RetireD3D12Object(commandSignature_, "SurfaceIndirectDraw.CommandSignature");
+        RetireD3D12Object(skinnedCommandSignature_, "SurfaceIndirectDraw.SkinnedCommandSignature");
         capacity_ = 0;
         seedCursor_ = 0;
         payloadCursor_ = 0;
         rootConstantCount_ = rootConstantCount;
-        argumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
-        skinnedArgumentBufferState_ = D3D12_RESOURCE_STATE_COMMON;
-        seedBufferState_ = D3D12_RESOURCE_STATE_COMMON;
-        payloadBufferState_ = D3D12_RESOURCE_STATE_COMMON;
-        counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
         payloadIndexByGpuSceneInstance_.clear();
         stats_ = {};
 
@@ -269,17 +302,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         auto argumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             bufferBytes,
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        if (FAILED(device->CreateCommittedResource(
-            &argumentHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &argumentDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(argumentBuffer_.GetAddressOf())))) {
-            return false;
-        }
-        GFX::SetD3D12Name(argumentBuffer_.Get(), L"Surface Indirect Draw Argument Buffer");
-
         const UINT64 skinnedBufferBytes =
             static_cast<UINT64>(sizeof(SurfaceSkinnedIndirectDrawArgument)) *
             static_cast<UINT64>(capacity) *
@@ -288,213 +310,190 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         auto skinnedArgumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             skinnedBufferBytes,
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        if (FAILED(device->CreateCommittedResource(
-            &argumentHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &skinnedArgumentDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(skinnedArgumentBuffer_.GetAddressOf())))) {
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(
-            skinnedArgumentBuffer_.Get(),
-            L"Surface Skinned Indirect Draw Argument Buffer");
-
         const UINT64 seedBytes =
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawSeed)) *
             static_cast<UINT64>(capacity);
         auto seedDesc = CD3DX12_RESOURCE_DESC::Buffer(seedBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &argumentHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &seedDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(seedBuffer_.GetAddressOf())))) {
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(seedBuffer_.Get(), L"Surface Indirect Draw Seed Buffer");
-
         auto seedUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        if (FAILED(device->CreateCommittedResource(
-            &seedUploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &seedDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(seedUploadBuffer_.GetAddressOf())))) {
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        if (FAILED(seedUploadBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&seedMapped_)))) {
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(seedUploadBuffer_.Get(), L"Surface Indirect Draw Seed Upload Buffer");
-
         const UINT64 payloadBytes =
             static_cast<UINT64>(sizeof(SurfaceIndirectDrawPayload)) *
             static_cast<UINT64>(capacity);
         auto payloadDesc = CD3DX12_RESOURCE_DESC::Buffer(payloadBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &argumentHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &payloadDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(payloadBuffer_.GetAddressOf())))) {
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(payloadBuffer_.Get(), L"Surface Indirect Draw Payload Buffer");
-
-        if (FAILED(device->CreateCommittedResource(
-            &seedUploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &payloadDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(payloadUploadBuffer_.GetAddressOf())))) {
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        if (FAILED(payloadUploadBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&payloadMapped_)))) {
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(payloadUploadBuffer_.Get(), L"Surface Indirect Draw Payload Upload Buffer");
-
         auto counterDesc = CD3DX12_RESOURCE_DESC::Buffer(
             kSurfaceIndirectCounterBufferBytes,
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        if (FAILED(device->CreateCommittedResource(
-            &argumentHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &counterDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(counterBuffer_.GetAddressOf())))) {
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(counterBuffer_.Get(), L"Surface Indirect Draw Counters");
-
         auto counterUploadDesc =
             CD3DX12_RESOURCE_DESC::Buffer(kSurfaceIndirectCounterBufferBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &seedUploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &counterUploadDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(counterResetUploadBuffer_.GetAddressOf())))) {
-            counterBuffer_.Reset();
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        if (FAILED(counterResetUploadBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&counterResetMapped_)))) {
-            counterResetMapped_ = nullptr;
-            counterResetUploadBuffer_.Reset();
-            counterBuffer_.Reset();
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(counterResetUploadBuffer_.Get(), L"Surface Indirect Draw Counter Reset");
-
         const UINT constantsBytes =
             AlignConstantBufferSize(sizeof(SurfaceIndirectCullingConstants));
         auto constantsDesc = CD3DX12_RESOURCE_DESC::Buffer(constantsBytes);
-        if (FAILED(device->CreateCommittedResource(
-            &seedUploadHeap,
-            D3D12_HEAP_FLAG_NONE,
-            &constantsDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(constantsUploadBuffer_.GetAddressOf())))) {
-            counterResetMapped_ = nullptr;
-            counterResetUploadBuffer_.Reset();
-            counterBuffer_.Reset();
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
+
+        auto createFrameResources = [&](FrameResources& frame) -> bool {
+            frame = FrameResources{};
+
+            if (FAILED(device->CreateCommittedResource(
+                &argumentHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &argumentDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(frame.argumentBuffer.GetAddressOf())))) {
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.argumentBuffer.Get(),
+                L"Surface Indirect Draw Argument Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &argumentHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &skinnedArgumentDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(frame.skinnedArgumentBuffer.GetAddressOf())))) {
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.skinnedArgumentBuffer.Get(),
+                L"Surface Skinned Indirect Draw Argument Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &argumentHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &seedDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(frame.seedBuffer.GetAddressOf())))) {
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.seedBuffer.Get(),
+                L"Surface Indirect Draw Seed Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &seedUploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &seedDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(frame.seedUploadBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(frame.seedUploadBuffer->Map(
+                0,
+                nullptr,
+                reinterpret_cast<void**>(&frame.seedMapped)))) {
+                frame.seedMapped = nullptr;
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.seedUploadBuffer.Get(),
+                L"Surface Indirect Draw Seed Upload Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &argumentHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &payloadDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(frame.payloadBuffer.GetAddressOf())))) {
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.payloadBuffer.Get(),
+                L"Surface Indirect Draw Payload Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &seedUploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &payloadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(frame.payloadUploadBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(frame.payloadUploadBuffer->Map(
+                0,
+                nullptr,
+                reinterpret_cast<void**>(&frame.payloadMapped)))) {
+                frame.payloadMapped = nullptr;
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.payloadUploadBuffer.Get(),
+                L"Surface Indirect Draw Payload Upload Buffer");
+
+            if (FAILED(device->CreateCommittedResource(
+                &argumentHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &counterDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(frame.counterBuffer.GetAddressOf())))) {
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.counterBuffer.Get(),
+                L"Surface Indirect Draw Counters");
+
+            if (FAILED(device->CreateCommittedResource(
+                &seedUploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &counterUploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(frame.counterResetUploadBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(frame.counterResetUploadBuffer->Map(
+                0,
+                nullptr,
+                reinterpret_cast<void**>(&frame.counterResetMapped)))) {
+                frame.counterResetMapped = nullptr;
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.counterResetUploadBuffer.Get(),
+                L"Surface Indirect Draw Counter Reset");
+
+            if (FAILED(device->CreateCommittedResource(
+                &seedUploadHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &constantsDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(frame.constantsUploadBuffer.GetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(frame.constantsUploadBuffer->Map(
+                0,
+                nullptr,
+                reinterpret_cast<void**>(&frame.constantsMapped)))) {
+                frame.constantsMapped = nullptr;
+                return false;
+            }
+            GFX::SetD3D12Name(
+                frame.constantsUploadBuffer.Get(),
+                L"Surface Indirect Draw Culling Constants");
+
+            return true;
+        };
+
+        for (FrameResources& frame : frameResources_) {
+            if (!createFrameResources(frame)) {
+                resetGpuBuffers();
+                return false;
+            }
         }
-        if (FAILED(constantsUploadBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&constantsMapped_)))) {
-            constantsMapped_ = nullptr;
-            constantsUploadBuffer_.Reset();
-            counterResetMapped_ = nullptr;
-            counterResetUploadBuffer_.Reset();
-            counterBuffer_.Reset();
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
-            return false;
-        }
-        GFX::SetD3D12Name(constantsUploadBuffer_.Get(), L"Surface Indirect Draw Culling Constants");
 
         if (!CreateComputeRootSignature(device, computeRootSignature_.GetAddressOf()) ||
             !CreateComputePipelineState(
                 device,
                 computeRootSignature_.Get(),
                 compactPipelineState_.GetAddressOf())) {
-            constantsMapped_ = nullptr;
-            constantsUploadBuffer_.Reset();
-            counterResetMapped_ = nullptr;
-            counterResetUploadBuffer_.Reset();
-            counterBuffer_.Reset();
-            payloadMapped_ = nullptr;
-            payloadUploadBuffer_.Reset();
-            payloadBuffer_.Reset();
-            seedMapped_ = nullptr;
-            seedUploadBuffer_.Reset();
-            seedBuffer_.Reset();
-            argumentBuffer_.Reset();
+            resetGpuBuffers();
+            computeRootSignature_.Reset();
+            compactPipelineState_.Reset();
             return false;
         }
 
@@ -517,12 +516,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             rootSignature,
             IID_PPV_ARGS(commandSignature_.GetAddressOf())))) {
             commandSignature_.Reset();
-            argumentBuffer_.Reset();
+            resetGpuBuffers();
+            computeRootSignature_.Reset();
+            compactPipelineState_.Reset();
             return false;
         }
         GFX::SetD3D12Name(commandSignature_.Get(), L"Surface Indirect Draw Command Signature");
 
         capacity_ = capacity;
+        BindFrameResources(0);
         ResetFrame();
         return true;
     }
@@ -579,6 +581,43 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             L"Surface Skinned Indirect Draw Command Signature");
         stats_.skinnedCommandSignatureReady = true;
         return true;
+    }
+
+    void SurfaceIndirectDrawBuffer::BeginFrame(uint32_t frameIndex) {
+        StoreActiveFrameResourceStates();
+        BindFrameResources(frameIndex);
+    }
+
+    void SurfaceIndirectDrawBuffer::BindFrameResources(uint32_t frameIndex) {
+        activeFrameResourceIndex_ = frameIndex % GFX::kFrameResourceCount;
+        FrameResources& frame = frameResources_[activeFrameResourceIndex_];
+        argumentBuffer_ = frame.argumentBuffer;
+        skinnedArgumentBuffer_ = frame.skinnedArgumentBuffer;
+        seedBuffer_ = frame.seedBuffer;
+        seedUploadBuffer_ = frame.seedUploadBuffer;
+        payloadBuffer_ = frame.payloadBuffer;
+        payloadUploadBuffer_ = frame.payloadUploadBuffer;
+        counterBuffer_ = frame.counterBuffer;
+        counterResetUploadBuffer_ = frame.counterResetUploadBuffer;
+        constantsUploadBuffer_ = frame.constantsUploadBuffer;
+        seedMapped_ = frame.seedMapped;
+        payloadMapped_ = frame.payloadMapped;
+        counterResetMapped_ = frame.counterResetMapped;
+        constantsMapped_ = frame.constantsMapped;
+        argumentBufferState_ = frame.argumentBufferState;
+        skinnedArgumentBufferState_ = frame.skinnedArgumentBufferState;
+        seedBufferState_ = frame.seedBufferState;
+        payloadBufferState_ = frame.payloadBufferState;
+        counterBufferState_ = frame.counterBufferState;
+    }
+
+    void SurfaceIndirectDrawBuffer::StoreActiveFrameResourceStates() {
+        FrameResources& frame = frameResources_[activeFrameResourceIndex_];
+        frame.argumentBufferState = argumentBufferState_;
+        frame.skinnedArgumentBufferState = skinnedArgumentBufferState_;
+        frame.seedBufferState = seedBufferState_;
+        frame.payloadBufferState = payloadBufferState_;
+        frame.counterBufferState = counterBufferState_;
     }
 
     void SurfaceIndirectDrawBuffer::ResetFrame() {
@@ -923,6 +962,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.gpuBuildDispatchCount = 1u;
         stats_.gpuCompactionReady = true;
         stats_.gpuCounterBacked = true;
+        StoreActiveFrameResourceStates();
         return true;
     }
 

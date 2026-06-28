@@ -27,22 +27,23 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         ID3D12Device* device,
         D3D12_CPU_DESCRIPTOR_HANDLE srvCpu,
         D3D12_GPU_DESCRIPTOR_HANDLE srvGpu,
+        UINT descriptorSize,
         size_t capacity) {
 
-        if (device == nullptr || srvCpu.ptr == 0 || srvGpu.ptr == 0 || capacity == 0) {
+        if (device == nullptr ||
+            srvCpu.ptr == 0 ||
+            srvGpu.ptr == 0 ||
+            descriptorSize == 0 ||
+            capacity == 0) {
             return false;
         }
 
-        buffer_.Reset();
-        mapped_ = nullptr;
+        for (FrameSlot& slot : slots_) {
+            slot = {};
+        }
+        activeSlotIndex_ = 0;
         capacity_ = 0;
-        cursor_ = 0;
         stats_ = {};
-        stats_.srv = srvGpu;
-
-        // 実バッファの確保に失敗しても、descriptor table は常に有効にしておく。
-        D3D12_SHADER_RESOURCE_VIEW_DESC nullSrvDesc = BuildSurfaceGpuSceneSrvDesc(1);
-        device->CreateShaderResourceView(nullptr, &nullSrvDesc, srvCpu);
 
         for (size_t attemptCapacity = capacity;
             attemptCapacity > 0;
@@ -51,44 +52,112 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const UINT64 bufferBytes =
                 static_cast<UINT64>(sizeof(RUNTIME::SurfaceGpuSceneInstance)) *
                 static_cast<UINT64>(attemptCapacity);
+            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(bufferBytes);
 
-            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(bufferBytes);
-            if (FAILED(device->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &desc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(buffer_.GetAddressOf())))) {
-                buffer_.Reset();
-                continue;
+            bool allSlotsReady = true;
+            for (uint32_t slotIndex = 0; slotIndex < GFX::kFrameResourceCount; ++slotIndex) {
+                FrameSlot& slot = slots_[slotIndex];
+                slot = {};
+                slot.srvCpu = srvCpu;
+                slot.srvCpu.ptr += static_cast<SIZE_T>(descriptorSize) * slotIndex;
+                slot.srvGpu = srvGpu;
+                slot.srvGpu.ptr += static_cast<UINT64>(descriptorSize) * slotIndex;
+
+                auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+                if (FAILED(device->CreateCommittedResource(
+                    &uploadHeap,
+                    D3D12_HEAP_FLAG_NONE,
+                    &desc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    IID_PPV_ARGS(slot.uploadBuffer.GetAddressOf())))) {
+                    allSlotsReady = false;
+                    break;
+                }
+
+                if (FAILED(slot.uploadBuffer->Map(
+                    0,
+                    nullptr,
+                    reinterpret_cast<void**>(&slot.mapped)))) {
+                    allSlotsReady = false;
+                    break;
+                }
+
+                auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+                if (FAILED(device->CreateCommittedResource(
+                    &defaultHeap,
+                    D3D12_HEAP_FLAG_NONE,
+                    &desc,
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    nullptr,
+                    IID_PPV_ARGS(slot.defaultBuffer.GetAddressOf())))) {
+                    allSlotsReady = false;
+                    break;
+                }
+                slot.defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
             }
 
-            if (FAILED(buffer_->Map(0, nullptr, reinterpret_cast<void**>(&mapped_)))) {
-                mapped_ = nullptr;
-                buffer_.Reset();
-                continue;
+            if (allSlotsReady) {
+                capacity_ = attemptCapacity;
+                break;
             }
 
-            capacity_ = attemptCapacity;
-            break;
+            for (FrameSlot& slot : slots_) {
+                slot = {};
+            }
         }
 
-        if (mapped_ == nullptr || capacity_ == 0) {
+        if (capacity_ == 0) {
             return false;
         }
 
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = BuildSurfaceGpuSceneSrvDesc(capacity_);
-        device->CreateShaderResourceView(buffer_.Get(), &srvDesc, srvCpu);
+        const D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc =
+            BuildSurfaceGpuSceneSrvDesc(capacity_);
+        for (FrameSlot& slot : slots_) {
+            device->CreateShaderResourceView(slot.defaultBuffer.Get(), &srvDesc, slot.srvCpu);
+        }
 
-        stats_.capacity = capacity_;
-        stats_.initialized = true;
+        BeginFrame(0);
         return true;
     }
 
+    SurfaceGpuSceneFrameBuffer::FrameSlot* SurfaceGpuSceneFrameBuffer::ActiveSlot() {
+        return &slots_[activeSlotIndex_ % GFX::kFrameResourceCount];
+    }
+
+    const SurfaceGpuSceneFrameBuffer::FrameSlot* SurfaceGpuSceneFrameBuffer::ActiveSlot() const {
+        return &slots_[activeSlotIndex_ % GFX::kFrameResourceCount];
+    }
+
+    void SurfaceGpuSceneFrameBuffer::BeginFrame(uint32_t frameIndex) {
+        activeSlotIndex_ = frameIndex % GFX::kFrameResourceCount;
+        FrameSlot* slot = ActiveSlot();
+
+        stats_ = {};
+        stats_.capacity = capacity_;
+        stats_.initialized =
+            capacity_ != 0 &&
+            slot != nullptr &&
+            slot->mapped != nullptr &&
+            slot->defaultBuffer != nullptr;
+        stats_.srv = slot != nullptr ? slot->srvGpu : D3D12_GPU_DESCRIPTOR_HANDLE{};
+
+        if (slot != nullptr) {
+            slot->cursor = 0;
+            slot->dirty = false;
+        }
+    }
+
     void SurfaceGpuSceneFrameBuffer::ResetFrame() {
-        cursor_ = 0;
+        FrameSlot* slot = ActiveSlot();
+        if (slot != nullptr) {
+            slot->cursor = 0;
+            slot->resident = false;
+            slot->residentInstanceCount = 0;
+            slot->layoutVersion = 0;
+            slot->sourceVersion = 0;
+            slot->dirty = false;
+        }
 
         const size_t capacity = stats_.capacity;
         const bool initialized = stats_.initialized;
@@ -99,16 +168,33 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.srv = srv;
     }
 
+    bool SurfaceGpuSceneFrameBuffer::CanReuseFrame(
+        size_t residentInstanceCount,
+        uint64_t layoutVersion,
+        uint64_t sourceVersion) const {
+
+        const FrameSlot* slot = ActiveSlot();
+        return
+            slot != nullptr &&
+            slot->resident &&
+            slot->residentInstanceCount == residentInstanceCount &&
+            slot->layoutVersion == layoutVersion &&
+            slot->sourceVersion == sourceVersion &&
+            residentInstanceCount <= capacity_;
+    }
+
     void SurfaceGpuSceneFrameBuffer::ReuseFrame(size_t residentInstanceCount) {
-        const size_t capacity = stats_.capacity;
-        const bool initialized = stats_.initialized;
-        const D3D12_GPU_DESCRIPTOR_HANDLE srv = stats_.srv;
+        const FrameSlot* slot = ActiveSlot();
         const size_t residentCount =
             (std::min)(
                 residentInstanceCount,
-                (std::min)(cursor_, capacity_));
+                (std::min)(
+                    slot != nullptr ? slot->residentInstanceCount : 0u,
+                    capacity_));
 
-        // GPU scene が同じ場合は mapped buffer の中身を再利用し、CPU upload を発生させない。
+        const size_t capacity = stats_.capacity;
+        const bool initialized = stats_.initialized;
+        const D3D12_GPU_DESCRIPTOR_HANDLE srv = stats_.srv;
         stats_ = {};
         stats_.capacity = capacity;
         stats_.initialized = initialized;
@@ -124,24 +210,27 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const RUNTIME::SurfaceGpuSceneInstance* instances,
         size_t count) {
 
+        FrameSlot* slot = ActiveSlot();
         stats_.requestedInstanceCount += count;
         ++stats_.uploadCallCount;
         if (instances == nullptr || count == 0) {
             return;
         }
-        if (mapped_ == nullptr || capacity_ == 0) {
+        if (slot == nullptr || slot->mapped == nullptr || capacity_ == 0) {
             stats_.overflowInstanceCount += count;
             return;
         }
 
-        const size_t remainingCapacity = capacity_ > cursor_ ? capacity_ - cursor_ : 0;
+        const size_t remainingCapacity =
+            capacity_ > slot->cursor ? capacity_ - slot->cursor : 0;
         const size_t uploadCount = (std::min)(count, remainingCapacity);
         if (uploadCount > 0) {
             std::memcpy(
-                mapped_ + cursor_,
+                slot->mapped + slot->cursor,
                 instances,
                 sizeof(RUNTIME::SurfaceGpuSceneInstance) * uploadCount);
-            cursor_ += uploadCount;
+            slot->cursor += uploadCount;
+            slot->dirty = true;
             stats_.uploadedInstanceCount += uploadCount;
         }
         if (uploadCount < count) {
@@ -160,12 +249,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const RUNTIME::SurfaceGpuSceneInstance* instances,
         size_t count) {
 
+        FrameSlot* slot = ActiveSlot();
         stats_.requestedInstanceCount += count;
         ++stats_.uploadCallCount;
         if (instances == nullptr || count == 0) {
             return true;
         }
-        if (mapped_ == nullptr ||
+        if (slot == nullptr ||
+            slot->mapped == nullptr ||
             firstInstance >= capacity_ ||
             count > capacity_ - firstInstance) {
             stats_.overflowInstanceCount += count;
@@ -173,11 +264,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         std::memcpy(
-            mapped_ + firstInstance,
+            slot->mapped + firstInstance,
             instances,
             sizeof(RUNTIME::SurfaceGpuSceneInstance) * count);
         stats_.uploadedInstanceCount =
             (std::max)(stats_.uploadedInstanceCount, firstInstance + count);
+        slot->cursor = (std::max)(slot->cursor, firstInstance + count);
+        slot->dirty = true;
         return true;
     }
 
@@ -185,24 +278,93 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t instanceIndex,
         uint32_t materialDataIndex) {
 
-        if (mapped_ == nullptr ||
+        FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr ||
+            slot->mapped == nullptr ||
             instanceIndex >= stats_.uploadedInstanceCount ||
             instanceIndex >= capacity_) {
             return false;
         }
 
-        mapped_[instanceIndex].materialDataIndex = materialDataIndex;
+        slot->mapped[instanceIndex].materialDataIndex = materialDataIndex;
+        slot->dirty = true;
         return true;
     }
 
     bool SurfaceGpuSceneFrameBuffer::HasMaterialDataIndex(size_t instanceIndex) const {
-        if (mapped_ == nullptr ||
+        const FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr ||
+            slot->mapped == nullptr ||
             instanceIndex >= stats_.uploadedInstanceCount ||
             instanceIndex >= capacity_) {
             return false;
         }
 
-        return mapped_[instanceIndex].materialDataIndex != RUNTIME::kInvalidRenderSurfaceIndex;
+        return
+            slot->mapped[instanceIndex].materialDataIndex !=
+            RUNTIME::kInvalidRenderSurfaceIndex;
+    }
+
+    void SurfaceGpuSceneFrameBuffer::MarkResident(
+        uint64_t layoutVersion,
+        uint64_t sourceVersion,
+        size_t instanceCount) {
+
+        FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr || stats_.overflowInstanceCount != 0u) {
+            return;
+        }
+
+        slot->resident = true;
+        slot->residentInstanceCount = instanceCount;
+        slot->layoutVersion = layoutVersion;
+        slot->sourceVersion = sourceVersion;
+    }
+
+    void SurfaceGpuSceneFrameBuffer::CommitFrame(ID3D12GraphicsCommandList* commandList) {
+        FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr ||
+            commandList == nullptr ||
+            slot->uploadBuffer == nullptr ||
+            slot->defaultBuffer == nullptr ||
+            !slot->dirty ||
+            stats_.uploadedInstanceCount == 0u) {
+            return;
+        }
+
+        const UINT64 copyBytes =
+            static_cast<UINT64>(sizeof(RUNTIME::SurfaceGpuSceneInstance)) *
+            static_cast<UINT64>(stats_.uploadedInstanceCount);
+        if (copyBytes == 0u) {
+            return;
+        }
+
+        if (slot->defaultState != D3D12_RESOURCE_STATE_COPY_DEST) {
+            const auto toCopyDest = CD3DX12_RESOURCE_BARRIER::Transition(
+                slot->defaultBuffer.Get(),
+                slot->defaultState,
+                D3D12_RESOURCE_STATE_COPY_DEST);
+            commandList->ResourceBarrier(1, &toCopyDest);
+            slot->defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+
+        commandList->CopyBufferRegion(
+            slot->defaultBuffer.Get(),
+            0,
+            slot->uploadBuffer.Get(),
+            0,
+            copyBytes);
+
+        const D3D12_RESOURCE_STATES shaderState =
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        const auto toShader = CD3DX12_RESOURCE_BARRIER::Transition(
+            slot->defaultBuffer.Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            shaderState);
+        commandList->ResourceBarrier(1, &toShader);
+        slot->defaultState = shaderState;
+        slot->dirty = false;
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE SurfaceGpuSceneFrameBuffer::GetSrv() const {
@@ -210,7 +372,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     D3D12_GPU_VIRTUAL_ADDRESS SurfaceGpuSceneFrameBuffer::GetGpuVirtualAddress() const {
-        return buffer_ != nullptr ? buffer_->GetGPUVirtualAddress() : 0;
+        const FrameSlot* slot = ActiveSlot();
+        return
+            slot != nullptr && slot->defaultBuffer != nullptr
+                ? slot->defaultBuffer->GetGPUVirtualAddress()
+                : 0;
     }
 
     const SurfaceGpuSceneFrameBufferStats& SurfaceGpuSceneFrameBuffer::GetStats() const {

@@ -42,6 +42,7 @@ struct HikariMeshletResolvedCluster
 {
     bool valid;
     uint clusterGeometryPoolIndex;
+    uint clusterMetadataPoolIndex;
     uint clusterIndex;
     uint vertexCount;
     uint primitiveCount;
@@ -124,15 +125,25 @@ HikariMeshletResolvedCluster HikariResolveMeshletCluster(
     bool valid =
         payload.visibleClusterCount != 0u &&
         groupId.x < payload.visibleClusterCount &&
-        result.visible.clusterGeometrySrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
+        result.visible.clusterGeometrySrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN &&
+        result.visible.clusterGeometryMetadataSrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
 
     result.clusterGeometryPoolIndex =
         valid
             ? result.visible.clusterGeometrySrvDescriptorIndex - HIKARI_CLUSTER_SRV_POOL_BEGIN
             : 0u;
-    valid = valid && result.clusterGeometryPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT;
+    result.clusterMetadataPoolIndex =
+        valid
+            ? result.visible.clusterGeometryMetadataSrvDescriptorIndex - HIKARI_CLUSTER_SRV_POOL_BEGIN
+            : 0u;
+    valid =
+        valid &&
+        result.clusterGeometryPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT &&
+        result.clusterMetadataPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT;
     result.clusterGeometryPoolIndex =
         min(result.clusterGeometryPoolIndex, HIKARI_CLUSTER_SRV_POOL_COUNT - 1u);
+    result.clusterMetadataPoolIndex =
+        min(result.clusterMetadataPoolIndex, HIKARI_CLUSTER_SRV_POOL_COUNT - 1u);
     result.header = HikariBuildMeshletHeader(result.visible);
 
     bool clusterIndexValid = false;
@@ -150,11 +161,11 @@ HikariMeshletResolvedCluster HikariResolveMeshletCluster(
         result.header.meshletPrimitiveOffsetBytes != 0u &&
         result.clusterIndex < result.header.clusterCount;
 
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(result.clusterGeometryPoolIndex)];
+    ByteAddressBuffer metadata =
+        gClusterGeometryPool[NonUniformResourceIndex(result.clusterMetadataPoolIndex)];
     result.cluster =
         HikariLoadMeshCluster(
-            geometry,
+            metadata,
             result.header,
             valid ? result.clusterIndex : 0u);
 

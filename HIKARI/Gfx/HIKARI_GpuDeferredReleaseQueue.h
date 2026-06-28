@@ -6,6 +6,8 @@
 #include <functional>
 #include <string>
 
+struct IUnknown;
+
 namespace HIKARI::GFX {
 
     class GpuDeferredReleaseQueue {
@@ -30,5 +32,9 @@ namespace HIKARI::GFX {
 
         std::deque<PendingRelease> pending_;
     };
+
+    void RetireD3D12ObjectForCurrentFrame(
+        IUnknown* object,
+        std::string debugName = {});
 
 } // namespace HIKARI::GFX

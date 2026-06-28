@@ -553,9 +553,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             const ClusterGeometryResourceRecord* resourceRecord =
                 GetClusterGeometryResource(resources.clusterGeometry);
-            if (resourceRecord != nullptr && resourceRecord->ready && resourceRecord->srv.IsValid()) {
+            if (resourceRecord != nullptr &&
+                resourceRecord->ready &&
+                resourceRecord->srv.IsValid() &&
+                resourceRecord->metadataSrv.IsValid()) {
                 instance.clusterGeometrySrvDescriptorIndex =
                     resourceRecord->srv.descriptorIndex;
+                instance.clusterGeometryMetadataSrvDescriptorIndex =
+                    resourceRecord->metadataSrv.descriptorIndex;
                 instance.resourceFlags |= ToResourceFlag(
                     RUNTIME::SurfaceGpuSceneResourceFlags::ClusterGeometryShaderVisible);
                 if (stats != nullptr) {
@@ -643,7 +648,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             if (resources.clusterGeometry) {
                 instance.clusterGeometryResourceIndex = resources.clusterGeometry.index;
-                instance.clusterGeometryResourceGeneration = resources.clusterGeometry.generation;
                 instance.resourceFlags |= ToResourceFlag(
                     RUNTIME::SurfaceGpuSceneResourceFlags::ClusterGeometry);
             }

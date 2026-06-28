@@ -23,12 +23,23 @@ namespace HIKARI {
         namespace {
 
 
-            DynamicUploadBuffer g_uploadCB;
-            DynamicUploadBuffer g_uploadVB;
+            DynamicUploadBuffer g_uploadCB[GFX::kFrameResourceCount];
+            DynamicUploadBuffer g_uploadVB[GFX::kFrameResourceCount];
             GFX::Context g_ctx{};
+            uint32_t g_uploadFrameIndex = 0;
 
             float g_screenW = kScreenW;
             float g_screenH = kScreenH;
+
+            DynamicUploadBuffer& ActiveUploadCB()
+            {
+                return g_uploadCB[g_uploadFrameIndex % GFX::kFrameResourceCount];
+            }
+
+            DynamicUploadBuffer& ActiveUploadVB()
+            {
+                return g_uploadVB[g_uploadFrameIndex % GFX::kFrameResourceCount];
+            }
 
             struct LineVertex {
                 float px, py;
@@ -295,8 +306,16 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             auto* device = g_ctx.device;
 
             // === UploadBuffers ===
-            g_uploadCB.Init(device, static_cast<size_t>(1024 * 1024) * 8);
-            g_uploadVB.Init(device, 1024 * 1024 * 16);
+            for (uint32_t frameIndex = 0;
+                frameIndex < GFX::kFrameResourceCount;
+                ++frameIndex) {
+                g_uploadCB[frameIndex].Init(
+                    device,
+                    static_cast<size_t>(1024 * 1024) * 8);
+                g_uploadVB[frameIndex].Init(
+                    device,
+                    static_cast<size_t>(1024 * 1024) * 16);
+            }
 
             // === RootSignature (Default) ===
             {
@@ -470,16 +489,20 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
         void DxRenderer::Finalize()
         {
-            auto* device = g_ctx.device;
-            device;
+            for (uint32_t frameIndex = 0;
+                frameIndex < GFX::kFrameResourceCount;
+                ++frameIndex) {
+                g_uploadCB[frameIndex].Finalize();
+                g_uploadVB[frameIndex].Finalize();
+            }
         }
 
 
         void DxRenderer::BeginFrame()
         {
-
-            g_uploadCB.Reset();
-            g_uploadVB.Reset();
+            g_uploadFrameIndex = g_ctx.frameIndex % GFX::kFrameResourceCount;
+            ActiveUploadCB().Reset();
+            ActiveUploadVB().Reset();
         }
 
         void DxRenderer::EndFrame()
@@ -531,7 +554,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
             // Upload VB
             D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
-            MeshVertex* vb = (MeshVertex*)g_uploadVB.Allocate(
+            MeshVertex* vb = (MeshVertex*)ActiveUploadVB().Allocate(
                 sizeof(MeshVertex) * vertexCount, gpuVB);
 
             for (int i = 0; i < vertexCount; ++i) {
@@ -558,7 +581,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
             // 【修改后】 强制 256 字节对齐
             UINT cbSizeAligned = (sizeof(cb) + 255) & ~255;
-            memcpy(g_uploadCB.Allocate(cbSizeAligned, gpuCB), &cb, sizeof(cb));
+            memcpy(ActiveUploadCB().Allocate(cbSizeAligned, gpuCB), &cb, sizeof(cb));
 
             cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
 
@@ -645,7 +668,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
             // 2. Upload Vertex Buffer (和普通绘制一样)
             D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
-            MeshVertex* vb = (MeshVertex*)g_uploadVB.Allocate(
+            MeshVertex* vb = (MeshVertex*)ActiveUploadVB().Allocate(
                 sizeof(MeshVertex) * vertexCount, gpuVB);
 
             for (int i = 0; i < vertexCount; ++i) {
@@ -666,7 +689,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
             // =============== 修改 GlobalCB ===============
             UINT globalSizeAligned = (sizeof(GlobalCB) + 255) & ~255;
-            memcpy(g_uploadCB.Allocate(globalSizeAligned, gpuCB), &cb, sizeof(cb));
+            memcpy(ActiveUploadCB().Allocate(globalSizeAligned, gpuCB), &cb, sizeof(cb));
             cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
 
             // 4. Upload MaskCB (b1)
@@ -674,15 +697,8 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
 
             // =============== 修改 MaskCB ===============
             UINT maskSizeAligned = (sizeof(MaskCB) + 255) & ~255;
-            memcpy(g_uploadCB.Allocate(maskSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
+            memcpy(ActiveUploadCB().Allocate(maskSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
             cmd->SetGraphicsRootConstantBufferView(2, gpuMaskCB);
-
-            // 计算对齐后的大小
-            UINT maskCbSizeAligned = (sizeof(MaskCB) + 255) & ~255;
-            // 申请对齐后的大小
-            memcpy(g_uploadCB.Allocate(maskCbSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
-
-            cmd->SetGraphicsRootConstantBufferView(2, gpuMaskCB); // RootParam[2]
 
             // 5. 绑定纹理 SRV (t0)
             ID3D12DescriptorHeap* heap = HIKARI::DXTEX::DxTextureManager::GetSrvHeap();
@@ -765,7 +781,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
             };
 
             D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
-            LineVertex* vb = (LineVertex*)g_uploadVB.Allocate(sizeof(verts), gpuVB);
+            LineVertex* vb = (LineVertex*)ActiveUploadVB().Allocate(sizeof(verts), gpuVB);
             memcpy(vb, verts, sizeof(verts));
 
             D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -777,7 +793,7 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
             cb.screenSize[0] = g_screenW;
             cb.screenSize[1] = g_screenH;
             D3D12_GPU_VIRTUAL_ADDRESS gpuCB;
-            memcpy(g_uploadCB.Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
+            memcpy(ActiveUploadCB().Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
 
             cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
 

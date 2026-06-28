@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
@@ -8,6 +9,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
+#include "Gfx/HIKARI_GfxContext.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
@@ -84,6 +86,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             UINT rootConstantParameterIndex,
             UINT jointPaletteParameterIndex);
 
+        void BeginFrame(uint32_t frameIndex);
         void ResetFrame();
         void UploadSurfaceCommandSeeds(
             const GpuDrivenTraditionalIndirectView& view);
@@ -125,6 +128,35 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const SurfaceIndirectDrawBufferStats& GetStats() const;
 
     private:
+        struct FrameResources {
+            Microsoft::WRL::ComPtr<ID3D12Resource> argumentBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> skinnedArgumentBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> seedBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> seedUploadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> payloadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> payloadUploadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> counterBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> counterResetUploadBuffer;
+            Microsoft::WRL::ComPtr<ID3D12Resource> constantsUploadBuffer;
+            std::byte* seedMapped = nullptr;
+            std::byte* payloadMapped = nullptr;
+            std::byte* counterResetMapped = nullptr;
+            std::byte* constantsMapped = nullptr;
+            D3D12_RESOURCE_STATES argumentBufferState =
+                D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES skinnedArgumentBufferState =
+                D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES seedBufferState =
+                D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES payloadBufferState =
+                D3D12_RESOURCE_STATE_COMMON;
+            D3D12_RESOURCE_STATES counterBufferState =
+                D3D12_RESOURCE_STATE_COMMON;
+        };
+
+        void BindFrameResources(uint32_t frameIndex);
+        void StoreActiveFrameResourceStates();
+
         Microsoft::WRL::ComPtr<ID3D12Resource> argumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> skinnedArgumentBuffer_;
         Microsoft::WRL::ComPtr<ID3D12Resource> seedBuffer_;
@@ -156,6 +188,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATE_COMMON;
         D3D12_RESOURCE_STATES counterBufferState_ =
             D3D12_RESOURCE_STATE_COMMON;
+        std::array<FrameResources, GFX::kFrameResourceCount> frameResources_{};
+        uint32_t activeFrameResourceIndex_ = 0;
         std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
         SurfaceIndirectDrawBufferStats stats_{};
     };

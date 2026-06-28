@@ -13,21 +13,21 @@ void CullPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     ClusterCullPageTask task = gClusterCullPageTasks[taskIndex];
-    if (task.clusterGeometrySrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
+    if (task.clusterGeometryMetadataSrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
     {
         return;
     }
 
-    uint clusterGeometryPoolIndex =
-        task.clusterGeometrySrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
-    if (clusterGeometryPoolIndex >= gClusterCullClusterSrvPoolCount)
+    uint clusterMetadataPoolIndex =
+        task.clusterGeometryMetadataSrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
+    if (clusterMetadataPoolIndex >= gClusterCullClusterSrvPoolCount)
     {
         return;
     }
 
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(geometry);
+    ByteAddressBuffer metadata =
+        gClusterGeometryPool[NonUniformResourceIndex(clusterMetadataPoolIndex)];
+    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(metadata);
     if (!HikariIsValidClusterGeometryHeader(header) ||
         task.firstCluster >= task.endCluster ||
         task.firstCluster >= header.clusterCount ||
@@ -41,7 +41,7 @@ void CullPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         HikariClusterCullBuildInputFromPageTask(task);
     HikariClusterCullProcessPageGroup(
         input,
-        geometry,
+        metadata,
         header,
         task.firstCluster,
         min(task.endCluster, header.clusterCount),

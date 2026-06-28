@@ -4,6 +4,7 @@
     float4 boundsCenterRadius;
     uint gpuSceneInstanceIndex;
     uint clusterGeometrySrvDescriptorIndex;
+    uint clusterGeometryMetadataSrvDescriptorIndex;
     uint firstCluster;
     uint clusterCount;
     uint clusterSurfaceIndex;
@@ -32,7 +33,7 @@ struct ClusterCullVisibleRange
     uint clusterSurfaceIndex;
     uint passKind;
     uint flags;
-    uint clusterIndex;
+    uint clusterGeometryMetadataSrvDescriptorIndex;
     uint lodIndex;
     uint pageIndex;
     uint drawBucket;
@@ -92,7 +93,7 @@ struct ClusterCullPageTask
     uint reserved0;
     uint reserved1;
     uint reserved2;
-    uint reserved3;
+    uint clusterGeometryMetadataSrvDescriptorIndex;
 };
 
 cbuffer ClusterCullFrameCB : register(b0)
@@ -1422,7 +1423,7 @@ void HikariClusterCullEmitDraw(
     visible.clusterSurfaceIndex = input.clusterSurfaceIndex;
     visible.passKind = input.passKind;
     visible.flags = input.flags;
-    visible.clusterIndex = firstCluster;
+    visible.clusterGeometryMetadataSrvDescriptorIndex = input.clusterGeometryMetadataSrvDescriptorIndex;
     visible.lodIndex = input.lodIndex;
     visible.pageIndex = input.firstPage;
     visible.drawBucket = bucket;
@@ -1753,6 +1754,7 @@ bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_CLUSTER_MAINLINE) != 0u &&
         instance.materialDataIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
         instance.clusterGeometrySrvDescriptorIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
+        instance.clusterGeometryMetadataSrvDescriptorIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
         instance.clusterRangeIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
         instance.clusterRangeCount > 0u &&
         instance.clusterSurfaceIndex != HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX &&
@@ -1905,6 +1907,7 @@ ClusterCullInput HikariClusterCullBuildInput(
     input.boundsCenterRadius = boundsCenterRadius;
     input.gpuSceneInstanceIndex = surfaceGpuSceneIndex;
     input.clusterGeometrySrvDescriptorIndex = instance.clusterGeometrySrvDescriptorIndex;
+    input.clusterGeometryMetadataSrvDescriptorIndex = instance.clusterGeometryMetadataSrvDescriptorIndex;
     input.firstCluster = lodRange.firstCluster;
     input.clusterCount = lodRange.clusterCount;
     input.clusterSurfaceIndex = instance.clusterSurfaceIndex;
@@ -2314,6 +2317,7 @@ ClusterCullInput HikariClusterCullBuildInputFromPageTask(ClusterCullPageTask tas
     input.boundsCenterRadius = task.boundsCenterRadius;
     input.gpuSceneInstanceIndex = task.gpuSceneInstanceIndex;
     input.clusterGeometrySrvDescriptorIndex = task.clusterGeometrySrvDescriptorIndex;
+    input.clusterGeometryMetadataSrvDescriptorIndex = task.clusterGeometryMetadataSrvDescriptorIndex;
     input.firstCluster = task.firstCluster;
     input.clusterCount = task.endCluster > task.firstCluster
         ? task.endCluster - task.firstCluster
@@ -2381,6 +2385,7 @@ void HikariClusterCullEmitPageTasks(
         task.boundsCenterRadius = input.boundsCenterRadius;
         task.gpuSceneInstanceIndex = input.gpuSceneInstanceIndex;
         task.clusterGeometrySrvDescriptorIndex = input.clusterGeometrySrvDescriptorIndex;
+        task.clusterGeometryMetadataSrvDescriptorIndex = input.clusterGeometryMetadataSrvDescriptorIndex;
         task.firstCluster = firstCluster;
         task.endCluster = endCluster;
         task.clusterSurfaceIndex = input.clusterSurfaceIndex;
@@ -2398,7 +2403,6 @@ void HikariClusterCullEmitPageTasks(
         task.reserved0 = groupPageCount;
         task.reserved1 = 0u;
         task.reserved2 = 0u;
-        task.reserved3 = 0u;
         gClusterCullPageTasks[taskBase + groupOffset] = task;
     }
 }

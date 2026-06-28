@@ -185,17 +185,17 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         (clusterListRange
             ? clusterListCount
             : (packetRange ? packetClusterCount : visible.clusterCount)) != 0u &&
-        visible.clusterGeometrySrvDescriptorIndex != 0xffffffffu &&
-        visible.clusterGeometrySrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
+        visible.clusterGeometryMetadataSrvDescriptorIndex != 0xffffffffu &&
+        visible.clusterGeometryMetadataSrvDescriptorIndex >= HIKARI_CLUSTER_SRV_POOL_BEGIN;
 
-    uint clusterGeometryPoolIndex =
+    uint clusterMetadataPoolIndex =
         rangeValid
-            ? visible.clusterGeometrySrvDescriptorIndex - HIKARI_CLUSTER_SRV_POOL_BEGIN
+            ? visible.clusterGeometryMetadataSrvDescriptorIndex - HIKARI_CLUSTER_SRV_POOL_BEGIN
             : 0u;
 
     rangeValid =
         rangeValid &&
-        clusterGeometryPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT;
+        clusterMetadataPoolIndex < HIKARI_CLUSTER_SRV_POOL_COUNT;
 
     bool useDenseRange =
         rangeValid &&
@@ -225,8 +225,8 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         }
         compactCount = min(compactCount, HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD);
 
-        ByteAddressBuffer geometry =
-            gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
+        ByteAddressBuffer metadata =
+            gClusterGeometryPool[NonUniformResourceIndex(clusterMetadataPoolIndex)];
         HikariClusterGeometryHeader header = (HikariClusterGeometryHeader)0;
         header.clusterOffsetBytes = visible.clusterOffsetBytes;
         header.vertexOffsetBytes = visible.vertexOffsetBytes;
@@ -267,7 +267,7 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         HikariSurfaceGpuSceneInstance instance =
             gSurfaceGpuSceneBuffer[visible.gpuSceneInstanceIndex];
         HikariMeshCluster cluster =
-            HikariLoadMeshCluster(geometry, header, clusterValid ? clusterIndex : 0u);
+            HikariLoadMeshCluster(metadata, header, clusterValid ? clusterIndex : 0u);
 
         float4 worldSphere = HikariMeshletAsBuildWorldSphere(
             instance.clusterWorld,
@@ -304,8 +304,8 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
     }
     else if (rangeValid && !useDenseRange)
     {
-        ByteAddressBuffer geometry =
-            gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
+        ByteAddressBuffer metadata =
+            gClusterGeometryPool[NonUniformResourceIndex(clusterMetadataPoolIndex)];
         HikariClusterGeometryHeader header = (HikariClusterGeometryHeader)0;
         header.clusterOffsetBytes = visible.clusterOffsetBytes;
         header.vertexOffsetBytes = visible.vertexOffsetBytes;
@@ -324,7 +324,7 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         HikariSurfaceGpuSceneInstance instance =
             gSurfaceGpuSceneBuffer[visible.gpuSceneInstanceIndex];
         HikariMeshCluster cluster =
-            HikariLoadMeshCluster(geometry, header, clusterValid ? clusterIndex : 0u);
+            HikariLoadMeshCluster(metadata, header, clusterValid ? clusterIndex : 0u);
 
         float4 worldSphere = HikariMeshletAsBuildWorldSphere(
             instance.clusterWorld,

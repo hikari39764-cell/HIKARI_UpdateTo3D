@@ -22,21 +22,21 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         HIKARI_CLUSTER_CULL_COUNTER_INPUT_COUNT,
         1);
 
-    if (instance.clusterGeometrySrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
+    if (instance.clusterGeometryMetadataSrvDescriptorIndex < gClusterCullClusterSrvPoolBegin)
     {
         return;
     }
 
-    uint clusterGeometryPoolIndex =
-        instance.clusterGeometrySrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
-    if (clusterGeometryPoolIndex >= gClusterCullClusterSrvPoolCount)
+    uint clusterMetadataPoolIndex =
+        instance.clusterGeometryMetadataSrvDescriptorIndex - gClusterCullClusterSrvPoolBegin;
+    if (clusterMetadataPoolIndex >= gClusterCullClusterSrvPoolCount)
     {
         return;
     }
 
-    ByteAddressBuffer geometry =
-        gClusterGeometryPool[NonUniformResourceIndex(clusterGeometryPoolIndex)];
-    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(geometry);
+    ByteAddressBuffer metadata =
+        gClusterGeometryPool[NonUniformResourceIndex(clusterMetadataPoolIndex)];
+    HikariClusterGeometryHeader header = HikariLoadClusterGeometryHeader(metadata);
     if (!HikariIsValidClusterGeometryHeader(header) ||
         instance.clusterRangeIndex >= header.clusterCount ||
         instance.clusterSurfaceIndex >= header.surfaceCount)
@@ -45,7 +45,7 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     HikariClusterGeometrySurface surface =
-        HikariLoadClusterGeometrySurface(geometry, header, instance.clusterSurfaceIndex);
+        HikariLoadClusterGeometrySurface(metadata, header, instance.clusterSurfaceIndex);
     if (surface.clusterCount == 0u ||
         surface.indexCount == 0u ||
         surface.firstSection >= header.surfaceSectionCount ||
@@ -59,7 +59,7 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     for (uint sectionTableIndex = sectionBegin; sectionTableIndex < sectionEnd; ++sectionTableIndex)
     {
         HikariClusterGeometrySurfaceSection section =
-            HikariLoadClusterGeometrySurfaceSection(geometry, header, sectionTableIndex);
+            HikariLoadClusterGeometrySurfaceSection(metadata, header, sectionTableIndex);
         if (section.surfaceIndex != instance.clusterSurfaceIndex ||
             section.clusterCount == 0u ||
             section.indexCount == 0u ||
@@ -87,7 +87,7 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 
         HikariClusterGeometrySurfaceLodRange selectedRange;
         if (!HikariClusterCullSelectSectionLodRange(
-                geometry,
+                metadata,
                 header,
                 instance,
                 section,

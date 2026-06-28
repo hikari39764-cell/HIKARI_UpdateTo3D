@@ -10,7 +10,7 @@ struct HikariMeshletVisibleRange
     uint clusterSurfaceIndex;
     uint passKind;
     uint flags;
-    uint clusterIndex;
+    uint clusterGeometryMetadataSrvDescriptorIndex;
     uint lodIndex;
     uint pageIndex;
     uint drawBucket;

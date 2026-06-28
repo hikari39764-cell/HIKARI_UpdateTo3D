@@ -152,7 +152,7 @@ namespace HIKARI {
 
             if (!ImGui_ImplDX12_Init(
                 device,
-                2,
+                static_cast<int>(GFX::kFrameResourceCount),
                 DXGI_FORMAT_R8G8B8A8_UNORM,
                 srvHeap,
                 gImGuiFontSrvCpu,
