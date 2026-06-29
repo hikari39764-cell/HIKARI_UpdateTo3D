@@ -493,7 +493,7 @@ namespace HIKARI::RENDER3D {
                 &defaultHeap,
                 D3D12_HEAP_FLAG_NONE,
                 &desc,
-                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_COMMON,
                 nullptr,
                 IID_PPV_ARGS(gpuBuffer.GetAddressOf()));
             if (FAILED(hr)) {
@@ -525,6 +525,13 @@ namespace HIKARI::RENDER3D {
             }
             std::memcpy(mapped, bytes.data(), bytes.size());
             uploadBuffer->Unmap(0, nullptr);
+
+            const CD3DX12_RESOURCE_BARRIER toCopyDest =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    gpuBuffer.Get(),
+                    D3D12_RESOURCE_STATE_COMMON,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+            context.cmdList->ResourceBarrier(1, &toCopyDest);
 
             context.cmdList->CopyBufferRegion(
                 gpuBuffer.Get(),

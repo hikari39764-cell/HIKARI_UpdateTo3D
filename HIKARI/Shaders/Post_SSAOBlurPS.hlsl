@@ -7,6 +7,7 @@ cbuffer SsaoPassCB : register(b0)
     float4 gAoParams0;
     float4 gAoParams1;
     float4 gBlurParams;
+    float4 gDepthScreenParams;
 };
 
 Texture2D gAoTex : register(t0);
@@ -47,7 +48,7 @@ float3 ReconstructWorld(float2 uv, float depth)
 
 float3 ReconstructNormalFromDepth(float2 uv, float centerDepth)
 {
-    float2 texel = gScreenParams.zw;
+    float2 texel = gDepthScreenParams.zw;
     float2 uvRight = saturate(uv + float2(texel.x, 0.0f));
     float2 uvDown = saturate(uv + float2(0.0f, texel.y));
     float depthRight = gSceneDepthTex.SampleLevel(gPointClamp, uvRight, 0).r;

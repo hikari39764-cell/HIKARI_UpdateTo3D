@@ -18,5 +18,5 @@ static const float kDt = 1.0f / 60.0f;
 
 struct Vector2 { float x, y; };
 
-const int kScreenW = 1280;
-const int kScreenH = 720;
+const int kScreenW = 1920;
+const int kScreenH = 1080;

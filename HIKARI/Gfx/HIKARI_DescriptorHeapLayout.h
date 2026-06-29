@@ -10,8 +10,8 @@ namespace HIKARI::GFX::DESCRIPTOR {
     constexpr UINT kUserSrvCount = 3968;
     constexpr UINT kSystemSrvFixedCount = 33;
     constexpr UINT kSystemSrvDynamicCount = 111;
-    constexpr UINT kGpuDepthVisibilityTransientDescriptorCount = 384;
-    constexpr UINT kSystemSrvAuxUsedCount = kGpuDepthVisibilityTransientDescriptorCount + 1;
+    constexpr UINT kDepthPyramidTransientDescriptorCount = 384;
+    constexpr UINT kSystemSrvAuxUsedCount = kDepthPyramidTransientDescriptorCount + 1;
     constexpr UINT kSystemSrvReservedCount =
         kSystemSrvFixedCount + kSystemSrvDynamicCount + kSystemSrvAuxUsedCount;
     constexpr UINT kSrvHeapCapacity = kUserSrvCount + kSystemSrvReservedCount;
@@ -60,12 +60,18 @@ namespace HIKARI::GFX::DESCRIPTOR {
     constexpr UINT kSystemSrvUsedCount = kSystemSrvFixedCount;
     constexpr UINT kSystemSrvDynamicBegin = kSystemSrvBegin + kSystemSrvUsedCount;
     constexpr UINT kSystemSrvAuxBegin = kSystemSrvDynamicBegin + kSystemSrvDynamicCount;
-    constexpr UINT kGpuDepthVisibilityTransientDescriptorBegin = kSystemSrvAuxBegin;
+    constexpr UINT kDepthPyramidTransientDescriptorBegin = kSystemSrvAuxBegin;
+    constexpr UINT kDepthPyramidTransientDescriptorEnd =
+        kDepthPyramidTransientDescriptorBegin +
+        kDepthPyramidTransientDescriptorCount;
+    constexpr UINT kGpuDepthVisibilityTransientDescriptorCount =
+        kDepthPyramidTransientDescriptorCount;
+    constexpr UINT kGpuDepthVisibilityTransientDescriptorBegin =
+        kDepthPyramidTransientDescriptorBegin;
     constexpr UINT kGpuDepthVisibilityTransientDescriptorEnd =
-        kGpuDepthVisibilityTransientDescriptorBegin +
-        kGpuDepthVisibilityTransientDescriptorCount;
+        kDepthPyramidTransientDescriptorEnd;
     constexpr UINT kClusterCullFallbackHzbSrv =
-        kGpuDepthVisibilityTransientDescriptorEnd;
+        kDepthPyramidTransientDescriptorEnd;
 
     constexpr UINT ToIndex(SystemSrv slot) {
         return static_cast<UINT>(slot);
@@ -115,8 +121,10 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(kSystemSrvBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin + kSystemSrvDynamicCount <= kSrvHeapCapacity);
-    static_assert(kGpuDepthVisibilityTransientDescriptorBegin < kSrvHeapCapacity);
-    static_assert(kGpuDepthVisibilityTransientDescriptorEnd <= kSrvHeapCapacity);
+    static_assert(kDepthPyramidTransientDescriptorBegin < kSrvHeapCapacity);
+    static_assert(kDepthPyramidTransientDescriptorEnd <= kSrvHeapCapacity);
+    static_assert(kGpuDepthVisibilityTransientDescriptorBegin == kDepthPyramidTransientDescriptorBegin);
+    static_assert(kGpuDepthVisibilityTransientDescriptorEnd == kDepthPyramidTransientDescriptorEnd);
     static_assert(kClusterCullFallbackHzbSrv < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneColor) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SceneDepth) < kSrvHeapCapacity);

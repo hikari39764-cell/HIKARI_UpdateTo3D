@@ -506,6 +506,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (record.key.waterMaterialFx) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::WaterMaterialFx);
             }
+            if (record.key.depthAware) {
+                flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::DepthAware);
+            }
             if (record.key.clusterMainlineEligible) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::ClusterMainline);
             }
@@ -784,8 +787,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return
             record.forwardCandidate &&
             IsGpuSceneResidentRecordCommon(record) &&
-            record.key.depthAware &&
-            record.key.waterMaterialFx;
+            record.key.depthAware;
     }
 
     bool IsGpuSceneForwardTransparentResidentRecord(

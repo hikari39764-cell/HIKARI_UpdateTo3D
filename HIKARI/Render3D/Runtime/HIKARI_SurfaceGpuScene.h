@@ -25,6 +25,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         MaterialFx = 1u << 7,
         ClusterMainline = 1u << 8,
         WaterMaterialFx = 1u << 9,
+        DepthAware = 1u << 10,
     };
 
     enum class SurfaceGpuSceneResourceFlags : uint32_t {

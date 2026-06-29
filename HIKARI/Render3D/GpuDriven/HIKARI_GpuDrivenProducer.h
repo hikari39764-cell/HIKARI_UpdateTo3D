@@ -8,6 +8,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuCommandBuildResult.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
 #include "Render3D/GpuDriven/HIKARI_GpuVisibilityResult.h"
+#include "Render3D/Depth/HIKARI_DepthPyramidLayer.h"
 #include "Render3D/HIKARI_Math3D.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
@@ -35,6 +36,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t hzbMipCount = 0;
         MATH::Mat4 hzbViewProj{};
         bool hzbViewProjValid = false;
+        HIKARI::RENDER3D::DEPTH::DepthPyramidView depthPyramid{};
     };
 
     struct GpuDrivenProducerWorkContext {

@@ -8,11 +8,42 @@
 #include <d3dx12.h>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 
 using Microsoft::WRL::ComPtr;
 
 namespace HIKARI {
     namespace POST {
+
+        namespace {
+            template <typename T>
+            void RetireD3D12Object(
+                Microsoft::WRL::ComPtr<T>& object,
+                const GFX::Context& context,
+                const char* debugName)
+            {
+                if (object == nullptr) {
+                    return;
+                }
+
+                Microsoft::WRL::ComPtr<T> retired = object;
+                object.Reset();
+
+                GFX::GpuDeferredReleaseQueue* queue = context.deferredReleaseQueue;
+                const uint64_t retireFence = context.currentFrameRetireFenceValue;
+                if (queue != nullptr && retireFence != 0) {
+                    queue->Enqueue(
+                        retireFence,
+                        [retired]() mutable {
+                            retired.Reset();
+                        },
+                        debugName != nullptr ? debugName : "PostEffect.D3D12Object");
+                    return;
+                }
+
+                retired.Reset();
+            }
+        }
 
         GFX::Context PostEffect::context_{};
 
@@ -31,6 +62,7 @@ namespace HIKARI {
                 constantBuffer_->Unmap(0, nullptr);
                 mappedPtr_ = nullptr;
             }
+            RetireD3D12Object(constantBuffer_, context_, "PostEffect.ConstantBuffer");
         }
 
         bool PostEffect::CreateConstantBuffer()

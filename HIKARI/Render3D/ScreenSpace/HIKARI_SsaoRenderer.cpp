@@ -62,6 +62,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             MATH::Vec4 aoParams0{};
             MATH::Vec4 aoParams1{};
             MATH::Vec4 blurParams{};
+            MATH::Vec4 depthScreenParams{};
         };
 
         constexpr uint32_t kSsaoConstantSliceCount = 8;
@@ -76,6 +77,13 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         uint32_t NormalizeBlurIterations(uint32_t value) {
             return std::clamp<uint32_t>(value, 0u, 4u);
+        }
+
+        uint32_t NormalizeHalfResolutionBlurPasses(uint32_t value) {
+            if (value == 0u) {
+                return 0u;
+            }
+            return std::clamp<uint32_t>(value * 2u, 2u, 4u);
         }
 
         uint32_t NormalizeSampleCount(uint32_t value) {
@@ -123,7 +131,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 break;
             case SsaoMode::OptimizedHigh:
                 resolved.sampleCount = std::clamp<uint32_t>(referenceSamples, 16u, 24u);
-                resolved.blurIterations = std::min<uint32_t>(referenceBlur, 2u);
+                resolved.blurIterations = NormalizeHalfResolutionBlurPasses(referenceBlur);
                 resolved.radiusScale = 0.92f;
                 resolved.optimizedMainPass = true;
                 resolved.halfResolution = true;
@@ -131,7 +139,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 break;
             case SsaoMode::Balanced:
                 resolved.sampleCount = std::min<uint32_t>(referenceSamples, 16u);
-                resolved.blurIterations = std::min<uint32_t>(referenceBlur, 1u);
+                resolved.blurIterations = NormalizeHalfResolutionBlurPasses(referenceBlur);
                 resolved.radiusScale = 0.95f;
                 resolved.optimizedMainPass = true;
                 resolved.halfResolution = true;
@@ -322,6 +330,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         cb.invViewProj = camera.invViewProj;
         cb.cameraPos = camera.cameraPos;
         cb.screenParams = MakeScreenParams(screenWidth_, screenHeight_);
+        cb.depthScreenParams = MakeScreenParams(screenWidth_, screenHeight_);
         cb.aoParams0 = {
             std::max(0.01f, settings.radius) * modeParams.radiusScale,
             std::max(0.0f, settings.bias),

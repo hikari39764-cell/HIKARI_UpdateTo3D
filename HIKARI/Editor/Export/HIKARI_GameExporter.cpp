@@ -815,8 +815,8 @@ namespace HIKARI::EDITOR {
                     { "enableDebugLayer", false },
                     { "enableDebugCamera", false },
                     { "resizableWindow", true },
-                    { "windowWidth", 1280 },
-                    { "windowHeight", 720 }
+                    { "windowWidth", 1920 },
+                    { "windowHeight", 1080 }
             };
 
             if (!options.startupSceneGuid.empty()) {

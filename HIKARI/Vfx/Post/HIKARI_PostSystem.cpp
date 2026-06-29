@@ -225,9 +225,9 @@ namespace HIKARI {
                     return false;
                 }
 
+                globalChain_.Clear();
                 activeGlobalEffects_.clear();
                 activeGlobalEffects_.reserve(loadedProfile.passes.size());
-                globalChain_.Clear();
                 for (const auto& pass : loadedProfile.passes) {
                     auto effect = std::make_unique<PostEffect>();
                     std::wstring shaderPath = L"HIKARI/Shaders/";
@@ -254,8 +254,8 @@ namespace HIKARI {
         void PostSystem::ClearGlobalProfile() {
             activeGlobalProfileId_.clear();
             activeGlobalProfile_ = PostProfile{};
-            activeGlobalEffects_.clear();
             globalChain_.Clear();
+            activeGlobalEffects_.clear();
         }
 
         void PostSystem::SetBloomSettings(const BloomSettings& settings) {
@@ -356,8 +356,8 @@ namespace HIKARI {
                 return true;
             }
 
-            activeBloomEffects_.clear();
             bloomChain_.Clear();
+            activeBloomEffects_.clear();
             activeBloomBlurPairCount_ = 0;
 
             auto addEffect = [](const wchar_t* shaderPath) -> std::unique_ptr<PostEffect> {
@@ -380,8 +380,8 @@ namespace HIKARI {
                 auto blurH = addEffect(L"HIKARI/Shaders/Post_BloomBlurHPS.hlsl");
                 auto blurV = addEffect(L"HIKARI/Shaders/Post_BloomBlurVPS.hlsl");
                 if (!blurH || !blurV) {
-                    activeBloomEffects_.clear();
                     bloomChain_.Clear();
+                    activeBloomEffects_.clear();
                     LogFrameState("EnsureBloomEffects Blur failed");
                     return false;
                 }

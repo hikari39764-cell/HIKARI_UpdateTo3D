@@ -7,6 +7,7 @@
 #include <wrl/client.h>
 
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/Depth/HIKARI_DepthPyramidLayer.h"
 #include "Render3D/Resources/HIKARI_RenderResourcePool.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
@@ -30,6 +31,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         D3D12_GPU_DESCRIPTOR_HANDLE hzbCoarsestSrv{};
         MATH::Mat4 hzbViewProj{};
         bool hzbViewProjValid = false;
+        HIKARI::RENDER3D::DEPTH::DepthPyramidView depthPyramid{};
     };
 
     class GpuDepthVisibilityLayer final {
@@ -38,69 +40,43 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void Release();
 
         void RecordDepthPrepass(bool written);
-        void RecordHzbViewProj(const MATH::Mat4& viewProj);
         D3D12_CPU_DESCRIPTOR_HANDLE BeginDepthPrepass(
             ID3D12GraphicsCommandList* cmd,
             uint32_t width,
             uint32_t height);
-        bool BuildHzb(
+        bool BuildDepthPyramidFromVisibilityPrepass(
             ID3D12GraphicsCommandList* cmd,
             uint32_t width,
-            uint32_t height);
-        bool BuildHzbFromDepthSrv(
+            uint32_t height,
+            const MATH::Mat4& viewProj);
+        bool BuildDepthPyramidFromDepthSrv(
             ID3D12GraphicsCommandList* cmd,
             uint32_t width,
             uint32_t height,
             D3D12_GPU_DESCRIPTOR_HANDLE sourceDepthSrv,
-            const MATH::Mat4& hzbViewProj);
+            const MATH::Mat4& viewProj);
 
         const GpuDepthVisibilityStats& GetStats() const { return stats_; }
         D3D12_GPU_DESCRIPTOR_HANDLE GetVisibilityDepthSrv() const { return visibilityDepthSrv_.gpu; }
-        D3D12_GPU_DESCRIPTOR_HANDLE GetHzbFinestSrv() const { return stats_.hzbFinestSrv; }
-        D3D12_GPU_DESCRIPTOR_HANDLE GetHzbCoarsestSrv() const { return stats_.hzbCoarsestSrv; }
+        const HIKARI::RENDER3D::DEPTH::DepthPyramidView& GetDepthPyramidView() const {
+            return stats_.depthPyramid;
+        }
 
     private:
-        struct HzbMipView {
-            RenderResourceView srv{};
-            RenderResourceView uav{};
-            D3D12_RESOURCE_STATES state =
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-            uint32_t width = 0;
-            uint32_t height = 0;
-        };
-
-        bool EnsurePipeline();
-        bool EnsureResources(uint32_t width, uint32_t height);
         bool EnsureDepthResource(uint32_t width, uint32_t height);
-        bool BuildHzbFromSource(
-            ID3D12GraphicsCommandList* cmd,
-            uint32_t width,
-            uint32_t height,
-            D3D12_GPU_DESCRIPTOR_HANDLE sourceDepthSrv,
-            const char* pixEventName);
-        void ReleaseResources();
         void ReleaseDepthResource();
         void TransitionDepth(
             ID3D12GraphicsCommandList* cmd,
             D3D12_RESOURCE_STATES nextState);
-        void TransitionHzbMip(
-            ID3D12GraphicsCommandList* cmd,
-            uint32_t mipIndex,
-            D3D12_RESOURCE_STATES nextState);
+        void PublishDepthPyramidStats(
+            const HIKARI::RENDER3D::DEPTH::DepthPyramidView& view);
 
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> hzbRootSig_{};
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> hzbPso_{};
+        HIKARI::RENDER3D::DEPTH::DepthPyramidLayer depthPyramid_{};
         Microsoft::WRL::ComPtr<ID3D12Resource> visibilityDepth_{};
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> visibilityDsvHeap_{};
         RenderResourceView visibilityDepthSrv_{};
         D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv_{};
         D3D12_RESOURCE_STATES visibilityDepthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-        Microsoft::WRL::ComPtr<ID3D12Resource> hzbTexture_{};
-        RenderResourceView hzbSrv_{};
-        std::vector<HzbMipView> hzbMips_{};
-        uint32_t width_ = 0;
-        uint32_t height_ = 0;
         uint32_t depthWidth_ = 0;
         uint32_t depthHeight_ = 0;
         GpuDepthVisibilityStats stats_{};

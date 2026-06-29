@@ -9,6 +9,7 @@
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -25,6 +26,34 @@ namespace HIKARI {
             static uint64_t MakeShaderKey(ID3DBlob* blob)
             {
                 return reinterpret_cast<uint64_t>(blob);
+            }
+
+            template <typename T>
+            void RetireD3D12Object(
+                Microsoft::WRL::ComPtr<T>& object,
+                const GFX::Context& context,
+                const char* debugName)
+            {
+                if (object == nullptr) {
+                    return;
+                }
+
+                Microsoft::WRL::ComPtr<T> retired = object;
+                object.Reset();
+
+                GFX::GpuDeferredReleaseQueue* queue = context.deferredReleaseQueue;
+                const uint64_t retireFence = context.currentFrameRetireFenceValue;
+                if (queue != nullptr && retireFence != 0) {
+                    queue->Enqueue(
+                        retireFence,
+                        [retired]() mutable {
+                            retired.Reset();
+                        },
+                        debugName != nullptr ? debugName : "PostQuadDrawer.D3D12Object");
+                    return;
+                }
+
+                retired.Reset();
             }
 
             const char* kFullscreenVS = R"(
@@ -269,10 +298,21 @@ float4 main(PS_IN i) : SV_TARGET
 
         void QuadDrawer::Finalize()
         {
+            for (auto& entry : pipelineCache_) {
+                PipelineSet& set = entry.second;
+                RetireD3D12Object(set.copy, context_, "PostQuadDrawer.CopyPSO");
+                RetireD3D12Object(set.blendAlpha, context_, "PostQuadDrawer.BlendAlphaPSO");
+                RetireD3D12Object(set.blendAdd, context_, "PostQuadDrawer.BlendAddPSO");
+                RetireD3D12Object(set.blendMultiply, context_, "PostQuadDrawer.BlendMultiplyPSO");
+                for (auto& shaderPso : set.postByShader) {
+                    RetireD3D12Object(shaderPso.second, context_, "PostQuadDrawer.DynamicPostPSO");
+                }
+                set.postByShader.clear();
+            }
             pipelineCache_.clear();
             currentPipelineSet_ = nullptr;
             currentPostPso_ = nullptr;
-            rootSig_.Reset();
+            RetireD3D12Object(rootSig_, context_, "PostQuadDrawer.RootSignature");
             vsBlob_.Reset();
             psCopyBlob_.Reset();
             currentPostPS_ = nullptr;

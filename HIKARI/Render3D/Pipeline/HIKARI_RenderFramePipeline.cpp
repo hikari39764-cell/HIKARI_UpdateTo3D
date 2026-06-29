@@ -7,6 +7,7 @@
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -59,6 +60,12 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 ? context.sceneDepthSrv
                 : SERVICES::gCtx.sceneDepthSrv;
             resources.ssaoSrv = screenResult.aoSrv;
+            if (screenResult.depthPyramid.valid) {
+                resources.depthPyramid = screenResult.depthPyramid;
+            } else if (const RENDER3D::DEPTH::DepthPyramidView* depthPyramid =
+                RENDER3D::DEPTH::TryGetFrameDepthPyramidView()) {
+                resources.depthPyramid = *depthPyramid;
+            }
             resources.fallbackAoTextureHandle = screenResult.fallbackAoTextureHandle;
             return resources;
         }
@@ -103,6 +110,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 environment);
         }
         else {
+            RENDER3D::DEPTH::ResetDepthPyramidFrameResources();
             RENDER3D::SCREENSPACE::EnsureScreenSpaceFallbacks(RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState());
             screenResult.fallbackAoTextureHandle =
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState().fallbackAoTextureHandle;

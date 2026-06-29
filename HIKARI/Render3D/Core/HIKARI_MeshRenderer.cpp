@@ -192,7 +192,7 @@ namespace HIKARI::MESHRENDERER {
         void BuildGpuDrivenFrameState();
         void UpdateGpuDrivenWorkOwnershipDebugStats();
         void BuildGpuDrivenWorkFrame(
-            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats* depthVisibilityStats = nullptr,
+            const HIKARI::RENDER3D::DEPTH::DepthPyramidView* depthPyramid = nullptr,
             uint32_t passMask = 0xffffffffu,
             bool collectCounterReadback = true);
 
@@ -895,7 +895,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void BuildGpuDrivenWorkFrame(
-            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats* depthVisibilityStats,
+            const HIKARI::RENDER3D::DEPTH::DepthPyramidView* depthPyramid,
             uint32_t passMask,
             bool collectCounterReadback) {
             const MATH::Mat4 viewProj = ResolveGpuDrivenCullingViewProj();
@@ -916,21 +916,22 @@ namespace HIKARI::MESHRENDERER {
             workContext.frame = &g.gpuDrivenFrame;
             workContext.passMask = passMask;
             workContext.collectCounterReadback = collectCounterReadback;
-            if (depthVisibilityStats != nullptr &&
-                depthVisibilityStats->hzbBuilt &&
-                depthVisibilityStats->hzbFinestSrv.ptr != 0 &&
-                depthVisibilityStats->hzbWidth != 0 &&
-                depthVisibilityStats->hzbHeight != 0 &&
-                depthVisibilityStats->hzbViewProjValid) {
+            if (depthPyramid != nullptr &&
+                depthPyramid->valid &&
+                depthPyramid->pyramidSrv.ptr != 0 &&
+                depthPyramid->width != 0 &&
+                depthPyramid->height != 0 &&
+                depthPyramid->viewProjValid) {
 
                 workContext.depthOcclusion.enabled = true;
-                workContext.depthOcclusion.hzbSrv = depthVisibilityStats->hzbFinestSrv;
-                workContext.depthOcclusion.hzbWidth = depthVisibilityStats->hzbWidth;
-                workContext.depthOcclusion.hzbHeight = depthVisibilityStats->hzbHeight;
+                workContext.depthOcclusion.hzbSrv = depthPyramid->pyramidSrv;
+                workContext.depthOcclusion.hzbWidth = depthPyramid->width;
+                workContext.depthOcclusion.hzbHeight = depthPyramid->height;
                 workContext.depthOcclusion.hzbMipCount =
-                    std::max(1u, depthVisibilityStats->hzbMipCount);
-                workContext.depthOcclusion.hzbViewProj = depthVisibilityStats->hzbViewProj;
+                    std::max(1u, depthPyramid->mipCount);
+                workContext.depthOcclusion.hzbViewProj = depthPyramid->viewProj;
                 workContext.depthOcclusion.hzbViewProjValid = true;
+                workContext.depthOcclusion.depthPyramid = *depthPyramid;
             }
             (void)RENDER3D::GPUDRIVEN::BuildGpuDrivenWork(workContext);
 
@@ -2093,12 +2094,14 @@ namespace HIKARI::MESHRENDERER {
     bool FinalizeGpuDrivenVisibilityFromDepth(
         const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& depthVisibilityStats) {
 
+        const HIKARI::RENDER3D::DEPTH::DepthPyramidView& depthPyramid =
+            depthVisibilityStats.depthPyramid;
         if (!HasGpuDrivenSceneSource() ||
-            !depthVisibilityStats.hzbBuilt ||
-            depthVisibilityStats.hzbFinestSrv.ptr == 0 ||
-            depthVisibilityStats.hzbWidth == 0 ||
-            depthVisibilityStats.hzbHeight == 0 ||
-            !depthVisibilityStats.hzbViewProjValid) {
+            !depthPyramid.valid ||
+            depthPyramid.pyramidSrv.ptr == 0 ||
+            depthPyramid.width == 0 ||
+            depthPyramid.height == 0 ||
+            !depthPyramid.viewProjValid) {
             return false;
         }
 
@@ -2107,7 +2110,7 @@ namespace HIKARI::MESHRENDERER {
             GFX::PIX::kColorUpload,
             "GpuDepthVisibility.FinalizeVisibility");
         BuildGpuDrivenWorkFrame(
-            &depthVisibilityStats,
+            &depthPyramid,
             MakeMainCameraGpuDrivenPassMask(),
             true);
         UpdateGpuDrivenWorkReadyDebugStats();

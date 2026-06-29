@@ -9,7 +9,7 @@ namespace HIKARI {
         // ====== 内部状態 ======
         static State     gState{};
         static Vector2   gScreenCenter{ 0.0f, 0.0f };
-        static int       gScreenW = 1280, gScreenH = 720;
+        static int       gScreenW = 1920, gScreenH = 1080;
         static Matrix3x3 gView = Matrix3x3::MakeIdentity();
 
         static bool      gDebugControlEnabled = true;

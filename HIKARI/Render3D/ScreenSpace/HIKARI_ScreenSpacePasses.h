@@ -3,6 +3,7 @@
 #include <d3d12.h>
 
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
+#include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDepthVisibilityLayer.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
@@ -34,8 +35,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     struct ScreenSpaceFrameResult {
         bool depthPrepassWritten = false;
         bool hzbBuilt = false;
+        bool depthPyramidBuilt = false;
         bool geometryAuxWritten = false;
         bool ssaoRendered = false;
+        RENDER3D::DEPTH::DepthPyramidView depthPyramid{};
         D3D12_GPU_DESCRIPTOR_HANDLE aoSrv{};
         RENDER3D::TextureResourceHandle fallbackAoTextureResource{};
         int fallbackAoTextureHandle = -1;

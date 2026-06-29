@@ -1613,26 +1613,26 @@ bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance
 
     const bool transparent =
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT) != 0u;
-    const bool waterMaterialFx =
-        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX) != 0u;
+    const bool depthAware =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DEPTH_AWARE) != 0u;
 
     if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE)
     {
-        if (!waterMaterialFx)
+        if (!depthAware)
         {
             return false;
         }
     }
     else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_TRANSPARENT)
     {
-        if (!transparent || waterMaterialFx)
+        if (!transparent || depthAware)
         {
             return false;
         }
     }
     else
     {
-        if (transparent || waterMaterialFx)
+        if (transparent || depthAware)
         {
             return false;
         }

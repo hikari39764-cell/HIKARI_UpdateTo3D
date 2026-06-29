@@ -213,7 +213,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 &defaultHeap,
                 D3D12_HEAP_FLAG_NONE,
                 &bufferDesc,
-                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_COMMON,
                 nullptr,
                 IID_PPV_ARGS(shBuffer.GetAddressOf()));
             if (!HIKARI_DX_CHECK(hr, "LightProbeVolumeRuntime::CreateShBuffer")) {
@@ -262,6 +262,13 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 SetMessage(outMessage, "Failed to create light probe upload command list.");
                 return false;
             }
+            const CD3DX12_RESOURCE_BARRIER toCopyDest =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    shBuffer.Get(),
+                    D3D12_RESOURCE_STATE_COMMON,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+            cmd->ResourceBarrier(1, &toCopyDest);
+
             cmd->CopyBufferRegion(shBuffer.Get(), 0, uploadBuffer.Get(), 0, bytes);
             const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
                 shBuffer.Get(),

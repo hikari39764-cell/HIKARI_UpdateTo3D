@@ -97,6 +97,9 @@
     <Filter Include="Header Files\Render3D\Cluster">
       <UniqueIdentifier>{07AE88EF-98D9-443D-A5E8-4C94D5F1128B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Depth">
+      <UniqueIdentifier>{DC9CF9D7-92B4-4E7F-BE90-30FE74C62F59}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\GpuDriven">
       <UniqueIdentifier>{5A5F66D2-2B7F-4C10-9056-6E42FD7E80B1}</UniqueIdentifier>
     </Filter>
@@ -345,6 +348,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Cluster">
       <UniqueIdentifier>{87491D43-B4C7-4D08-8A94-65F075579BBE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Depth">
+      <UniqueIdentifier>{3A87E223-E844-4AAE-9F60-1A70173727E1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\GpuDriven">
       <UniqueIdentifier>{C914ED57-737F-44AD-9FF5-D76B77BA0203}</UniqueIdentifier>
@@ -1294,6 +1300,12 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.cpp">
+      <Filter>Source Files\Render3D\Depth</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.cpp">
+      <Filter>Source Files\Render3D\Depth</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp">
       <Filter>Source Files\Render3D\Meshlet</Filter>
     </ClCompile>
@@ -2112,6 +2124,12 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.h">
+      <Filter>Header Files\Render3D\Depth</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.h">
+      <Filter>Header Files\Render3D\Depth</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">
       <Filter>Header Files\Render3D\Meshlet</Filter>
     </ClInclude>
@@ -2234,7 +2252,7 @@
     <None Include="HIKARI\Shaders\Render3D_ClusterWorklistCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
-    <None Include="HIKARI\Shaders\GpuDepthVisibility_BuildHzbCS.hlsl">
+    <None Include="HIKARI\Shaders\DepthPyramid_BuildCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl">

@@ -1,11 +1,11 @@
-cbuffer HzbBuildCB : register(b0)
+cbuffer DepthPyramidBuildCB : register(b0)
 {
     uint2 gSourceSize;
     uint2 gDestSize;
 };
 
 Texture2D<float> gSourceDepth : register(t0);
-RWTexture2D<float> gDestHzb : register(u0);
+RWTexture2D<float> gDestDepthPyramid : register(u0);
 
 float LoadSourceDepth(uint2 pixel)
 {
@@ -27,7 +27,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float d1 = LoadSourceDepth(src + uint2(1u, 0u));
     const float d2 = LoadSourceDepth(src + uint2(0u, 1u));
     const float d3 = LoadSourceDepth(src + uint2(1u, 1u));
+
     // Standard D3D less-depth: larger depth is farther. Store the farthest
     // covered depth so an occlusion test only passes when the whole sample is in front.
-    gDestHzb[dst] = max(max(d0, d1), max(d2, d3));
+    gDestDepthPyramid[dst] = max(max(d0, d1), max(d2, d3));
 }

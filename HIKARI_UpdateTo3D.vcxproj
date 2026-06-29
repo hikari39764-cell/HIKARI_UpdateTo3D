@@ -322,6 +322,8 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
@@ -669,6 +671,8 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />
+    <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.h" />
+    <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.h" />
@@ -940,7 +944,7 @@
     <None Include="HIKARI\Shaders\Render3D_ClusterFineVisibilityCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterMeshletDispatchFinalizeCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterWorklistCS.hlsl" />
-    <None Include="HIKARI\Shaders\GpuDepthVisibility_BuildHzbCS.hlsl" />
+    <None Include="HIKARI\Shaders\DepthPyramid_BuildCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl" />

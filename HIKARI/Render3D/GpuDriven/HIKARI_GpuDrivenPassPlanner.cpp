@@ -18,10 +18,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         };
 
         constexpr std::array<GpuDrivenPassDesc, kGpuDrivenPassCount> kPassDescs{ {
-            { GpuDrivenPassKind::ForwardOpaque, true, false, true, true, false, false, false, false },
-            { GpuDrivenPassKind::DepthAware, true, false, false, false, false, false, true, false },
-            { GpuDrivenPassKind::Transparent, true, false, false, false, true, false, true, true },
-            { GpuDrivenPassKind::Shadow, false, true, false, false, false, false, false, false },
+            { GpuDrivenPassKind::ForwardOpaque, true, false, true, true, false, true, false, false },
+            { GpuDrivenPassKind::DepthAware, true, false, false, false, false, true, true, false },
+            { GpuDrivenPassKind::Transparent, true, false, false, false, true, true, true, true },
+            { GpuDrivenPassKind::Shadow, false, true, false, false, false, true, false, false },
             { GpuDrivenPassKind::GeometryAux, true, false, true, true, false, false, false, false },
             { GpuDrivenPassKind::ReflectionCapture, true, false, true, true, false, false, false, false },
             { GpuDrivenPassKind::DepthPrepass, true, false, true, true, false, false, false, false },

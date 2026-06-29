@@ -13,8 +13,8 @@ namespace HIKARI {
             float combo = 0.0f;
             float intensity = 1.0f;
 
-            float resolutionX = 1280.0f;
-            float resolutionY = 720.0f;
+            float resolutionX = 1920.0f;
+            float resolutionY = 1080.0f;
             float pad0 = 0.0f;
             float pad1 = 0.0f;
 
