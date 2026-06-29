@@ -50,8 +50,8 @@ namespace HIKARI {
         bool IsClusterSubpass(GFX::GPU_PROFILE::Pass pass) {
             return
                 pass == GFX::GPU_PROFILE::Pass::ClusterCull ||
-                pass == GFX::GPU_PROFILE::Pass::ClusterDrawGeometryAux ||
-                pass == GFX::GPU_PROFILE::Pass::ClusterDrawForward ||
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawGeometryAux ||
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawForward ||
                 pass == GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux ||
                 pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward;
         }
@@ -155,15 +155,15 @@ namespace HIKARI {
             const size_t mainlineSubmittedCount =
                 s.mesh.meshletBackendSubmittedDispatchCount > 0
                     ? s.mesh.meshletBackendSubmittedDispatchCount
-                    : s.mesh.clusterDrawSubmittedCount;
+                    : s.mesh.clusterGpuCullGpuDrawCommandCount;
             const bool clusterMainline =
                 s.mesh.clusterGpuCullSubmittedInstanceCount > 0 ||
                 mainlineSubmittedCount > 0;
             const bool gpuDrivenReady =
                 s.mesh.surfaceGpuSceneSrvValid &&
                 s.mesh.surfaceGpuSceneBufferReady &&
-                s.mesh.surfaceIndirectArgumentBufferReady &&
-                s.mesh.surfaceIndirectCommandSignatureReady;
+                s.mesh.traditionalCommandStreamArgumentBufferReady &&
+                s.mesh.traditionalCommandStreamCommandSignatureReady;
             const double parentGpuMs = SumGpuMsByScope(s.gpu, false);
             const double clusterSubpassGpuMs = SumGpuMsByScope(s.gpu, true);
 
@@ -182,7 +182,7 @@ namespace HIKARI {
                 ImGui::TextColored(StatusColor(clusterMainline), "cluster %s", clusterMainline ? "Active" : "Idle");
                 ImGui::Text("submitted %zu / eligible %zu",
                     mainlineSubmittedCount,
-                    s.mesh.clusterDrawEligibleCommandCount);
+                    s.mesh.clusterGpuCullGpuDrawCommandCount);
 
                 ImGui::TableNextColumn();
                 ImGui::Text("GPU parent %.3f ms", parentGpuMs);
@@ -269,7 +269,7 @@ namespace HIKARI {
                     s.mesh.gpuDrivenWorklistClusterPassCount,
                     s.mesh.gpuDrivenWorklistSourceInstanceCount,
                     s.mesh.gpuDrivenWorklistClusterInstanceCount);
-                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / TraditionalVS", "%zu / %zu / %zu / %zu",
+                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / Traditional VS/PS", "%zu / %zu / %zu / %zu",
                     s.mesh.gpuDrivenCommandStreamPassCount,
                     s.mesh.gpuDrivenCommandStreamRangeCount,
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
@@ -392,22 +392,22 @@ namespace HIKARI {
         void DrawStrictGpuDrivenTable(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Strict GPU Driven");
             if (BeginMetricTable("StrictGpuDrivenMetrics", 270.0f)) {
-                MetricRow("Strict Mainline / Legacy Views Suppressed", "%s / %u",
+                MetricRow("Strict Mainline / CPU Views Suppressed", "%s / %u",
                     s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
-                    s.gpuRegistry.legacyForwardViewSuppressedCount);
+                    s.gpuRegistry.cpuForwardViewSuppressedCount);
                 MetricRow("Strict Mainline Blocked Records", "%u",
                     s.gpuRegistry.strictMainlineBlockedRecordCount);
                 MetricRow("Blocked Records Depth / Transparent / Shadow", "%u / %u / %u",
                     s.gpuRegistry.blockedForwardDepthAwareRecordCount,
                     s.gpuRegistry.blockedForwardTransparentRecordCount,
                     s.gpuRegistry.blockedShadowRecordCount);
-                MetricRow("CommandStream GPU Authored / TraditionalVS", "%zu / %zu",
+                MetricRow("CommandStream GPU Authored / Traditional VS/PS", "%zu / %zu",
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
-                MetricRow("SurfaceIndirect Seeds / Overflow / Executed", "%zu / %zu / %zu",
-                    s.mesh.surfaceIndirectUploadedCommandCount,
-                    s.mesh.surfaceIndirectOverflowCommandCount,
-                    s.mesh.surfaceIndirectExecutedDrawCount);
+                MetricRow("GpuTraditionalCommandStream Seeds / Overflow / Executed", "%zu / %zu / %zu",
+                    s.mesh.traditionalCommandStreamUploadedCommandCount,
+                    s.mesh.traditionalCommandStreamOverflowCommandCount,
+                    s.mesh.traditionalCommandStreamExecutedDrawCount);
                 MetricRow("GPU Scene Instances Opaque / DepthPre / DepthAware / Transparent / Shadow", "%u / %u / %u / %u / %zu",
                     s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
                     s.gpuRegistry.depthPrepassGpuSceneStats.instanceCount,
@@ -468,19 +468,19 @@ namespace HIKARI {
                     s.gpuRegistry.forwardOpaqueBatchStats.sortedMaterialResourceRunCount,
                     s.gpuRegistry.forwardOpaqueBatchStats.rawClusterResourceRunCount,
                     s.gpuRegistry.forwardOpaqueBatchStats.sortedClusterResourceRunCount);
-                MetricRow("Surface ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
-                    s.mesh.surfaceIndirectOpaqueCommandCount,
-                    s.mesh.surfaceIndirectDepthAwareCommandCount,
-                    s.mesh.surfaceIndirectTransparentCommandCount);
-                MetricRow("Surface Indirect Seeds / Overflow / MissingArgs", "%zu / %zu / %zu",
-                    s.mesh.surfaceIndirectUploadedCommandCount,
-                    s.mesh.surfaceIndirectOverflowCommandCount,
-                    s.mesh.surfaceIndirectMissingDrawArgsCommandCount);
-                MetricRow("Surface Indirect Batches / Commands / Saved / Max", "%zu / %zu / %zu / %zu",
-                    s.mesh.surfaceIndirectBatchSubmitCount,
-                    s.mesh.surfaceIndirectBatchedCommandCount,
-                    s.mesh.surfaceIndirectSavedSubmitCount,
-                    s.mesh.surfaceIndirectMaxBatchCommandCount);
+                MetricRow("Traditional VS/PS ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
+                    s.mesh.traditionalCommandStreamOpaqueCommandCount,
+                    s.mesh.traditionalCommandStreamDepthAwareCommandCount,
+                    s.mesh.traditionalCommandStreamTransparentCommandCount);
+                MetricRow("GPU Traditional Command Stream Seeds / Overflow / MissingArgs", "%zu / %zu / %zu",
+                    s.mesh.traditionalCommandStreamUploadedCommandCount,
+                    s.mesh.traditionalCommandStreamOverflowCommandCount,
+                    s.mesh.traditionalCommandStreamMissingDrawArgsCommandCount);
+                MetricRow("GPU Traditional Command Stream Batches / Commands / Saved / Max", "%zu / %zu / %zu / %zu",
+                    s.mesh.traditionalCommandStreamBatchSubmitCount,
+                    s.mesh.traditionalCommandStreamBatchedCommandCount,
+                    s.mesh.traditionalCommandStreamSavedSubmitCount,
+                    s.mesh.traditionalCommandStreamMaxBatchCommandCount);
                 ImGui::EndTable();
             }
         }
@@ -554,7 +554,7 @@ namespace HIKARI {
             if (ImGui::BeginTable("ReadinessTable", 3, ImGuiTableFlags_SizingStretchSame)) {
                 ImGui::TableNextColumn();
                 TextStatus("GPU Scene", s.mesh.surfaceGpuSceneSrvValid && s.mesh.surfaceGpuSceneBufferReady);
-                TextStatus("Indirect Args", s.mesh.surfaceIndirectArgumentBufferReady && s.mesh.surfaceIndirectCommandSignatureReady);
+                TextStatus("Indirect Args", s.mesh.traditionalCommandStreamArgumentBufferReady && s.mesh.traditionalCommandStreamCommandSignatureReady);
                 ImGui::TableNextColumn();
                 TextStatus("Cluster Cull", s.mesh.clusterGpuCullReady && s.mesh.clusterGpuCullDrawArgsReady);
                 TextStatus("Meshlet Draw",

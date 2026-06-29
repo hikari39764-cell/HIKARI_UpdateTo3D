@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <Filter Include="Header Files">
@@ -102,6 +102,12 @@
     </Filter>
     <Filter Include="Header Files\Render3D\GpuDriven">
       <UniqueIdentifier>{5A5F66D2-2B7F-4C10-9056-6E42FD7E80B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\GpuDriven\Backend">
+      <UniqueIdentifier>{636E80AB-5B30-446D-A90E-7B706DE3261E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\GpuDriven\CommandStream">
+      <UniqueIdentifier>{8F7CE297-8BDE-4A75-8C7B-AFA2D73F5099}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Render3D\Meshlet">
       <UniqueIdentifier>{D2AA28DB-0E86-43B5-9275-016F628A384C}</UniqueIdentifier>
@@ -354,6 +360,12 @@
     </Filter>
     <Filter Include="Source Files\Render3D\GpuDriven">
       <UniqueIdentifier>{C914ED57-737F-44AD-9FF5-D76B77BA0203}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\GpuDriven\Backend">
+      <UniqueIdentifier>{102CF892-6BC9-43BB-8420-D15A89DB2165}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\GpuDriven\CommandStream">
+      <UniqueIdentifier>{CC4D7C63-2E6C-4C2D-A47E-1D0B7287E583}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Meshlet">
       <UniqueIdentifier>{A9499146-4201-4146-9BBE-F8D176810E42}</UniqueIdentifier>
@@ -1249,16 +1261,19 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp">
-      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.cpp">
+      <Filter>Source Files\Render3D\GpuDriven\CommandStream</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp">
-      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.cpp">
+      <Filter>Source Files\Render3D\GpuDriven\Backend</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassDesc.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.cpp">
@@ -1267,14 +1282,8 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.cpp">
-      <Filter>Source Files\Render3D\GpuDriven</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp">
       <Filter>Source Files\Render3D\Pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.cpp">
-      <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
@@ -1434,14 +1443,14 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.h">
-      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.h">
+      <Filter>Header Files\Render3D\GpuDriven\CommandStream</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendContext.h">
-      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendContext.h">
+      <Filter>Header Files\Render3D\GpuDriven\Backend</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.h">
-      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.h">
+      <Filter>Header Files\Render3D\GpuDriven\Backend</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuCommandBuildResult.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
@@ -1468,9 +1477,6 @@
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassDesc.h">
-      <Filter>Header Files\Render3D\GpuDriven</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenProducer.h">
@@ -2094,9 +2100,6 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h">
       <Filter>Header Files\Render3D\Pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.h">
-      <Filter>Header Files\Render3D\Cluster</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
@@ -2255,10 +2258,7 @@
     <None Include="HIKARI\Shaders\DepthPyramid_BuildCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
-    <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl">
-      <Filter>Project\Shaders\Render3D</Filter>
-    </None>
-    <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl">
+    <None Include="HIKARI\Shaders\Render3D_GpuTraditionalCommandCompactCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl">

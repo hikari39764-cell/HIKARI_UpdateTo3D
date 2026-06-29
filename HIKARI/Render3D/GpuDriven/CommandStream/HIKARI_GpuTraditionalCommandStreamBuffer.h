@@ -19,29 +19,29 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenTraditionalIndirectView;
 
-    constexpr size_t kDefaultSurfaceIndirectDrawCommandCapacity = 4096u;
-    constexpr UINT kSurfaceIndirectRootConstantCount = 4u;
-    struct SurfaceIndirectDrawArgument {
+    constexpr size_t kDefaultGpuTraditionalCommandCapacity = 4096u;
+    constexpr UINT kGpuTraditionalCommandStreamRootConstantCount = 4u;
+    struct GpuTraditionalCommandArgument {
         D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
         D3D12_INDEX_BUFFER_VIEW indexBuffer{};
-        uint32_t rootConstants[kSurfaceIndirectRootConstantCount]{};
+        uint32_t rootConstants[kGpuTraditionalCommandStreamRootConstantCount]{};
         D3D12_DRAW_INDEXED_ARGUMENTS draw{};
     };
 
-    static_assert(sizeof(SurfaceIndirectDrawArgument) == 72u);
+    static_assert(sizeof(GpuTraditionalCommandArgument) == 72u);
 
-    struct SurfaceSkinnedIndirectDrawArgument {
+    struct GpuTraditionalSkinnedCommandArgument {
         D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
         D3D12_INDEX_BUFFER_VIEW indexBuffer{};
-        uint32_t rootConstants[kSurfaceIndirectRootConstantCount]{};
+        uint32_t rootConstants[kGpuTraditionalCommandStreamRootConstantCount]{};
         D3D12_GPU_VIRTUAL_ADDRESS jointPalette = 0;
         D3D12_DRAW_INDEXED_ARGUMENTS draw{};
         uint32_t reserved0 = 0;
     };
 
-    static_assert(sizeof(SurfaceSkinnedIndirectDrawArgument) == 80u);
+    static_assert(sizeof(GpuTraditionalSkinnedCommandArgument) == 80u);
 
-    struct SurfaceIndirectDrawBufferStats {
+    struct GpuTraditionalCommandStreamStats {
         size_t capacity = 0;
         size_t requestedCommandCount = 0;
         size_t uploadedCommandCount = 0;
@@ -72,14 +72,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         UINT skinnedCommandStride = 0;
     };
 
-    class SurfaceIndirectDrawBuffer final {
+    class GpuTraditionalCommandStreamBuffer final {
     public:
         bool Initialize(
             ID3D12Device* device,
             ID3D12RootSignature* rootSignature,
             UINT rootConstantParameterIndex,
             UINT rootConstantCount,
-            size_t capacity = kDefaultSurfaceIndirectDrawCommandCapacity);
+            size_t capacity = kDefaultGpuTraditionalCommandCapacity);
         bool InitializeSkinnedCommandStream(
             ID3D12Device* device,
             ID3D12RootSignature* skinnedRootSignature,
@@ -88,7 +88,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         void BeginFrame(uint32_t frameIndex);
         void ResetFrame();
-        void UploadSurfaceCommandSeeds(
+        void UploadCommandSeeds(
             const GpuDrivenTraditionalIndirectView& view);
         bool BuildGpuCompactedCommands(
             ID3D12GraphicsCommandList* commandList,
@@ -125,7 +125,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t GetUploadedSeedCount() const;
         size_t GetUploadedSkinnedSeedCount() const;
         bool HasGpuCompactedCommands() const;
-        const SurfaceIndirectDrawBufferStats& GetStats() const;
+        const GpuTraditionalCommandStreamStats& GetStats() const;
 
     private:
         struct FrameResources {
@@ -191,7 +191,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::array<FrameResources, GFX::kFrameResourceCount> frameResources_{};
         uint32_t activeFrameResourceIndex_ = 0;
         std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
-        SurfaceIndirectDrawBufferStats stats_{};
+        GpuTraditionalCommandStreamStats stats_{};
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

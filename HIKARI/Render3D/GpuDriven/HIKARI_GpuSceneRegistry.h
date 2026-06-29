@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
@@ -44,7 +42,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t forwardOpaqueClusterCandidateRecordCount = 0;
         uint32_t unsupportedForwardRecordCount = 0;
         bool strictGpuDrivenMainline = false;
-        uint32_t legacyForwardViewSuppressedCount = 0;
+        uint32_t cpuForwardViewSuppressedCount = 0;
         uint32_t strictMainlineBlockedRecordCount = 0;
         uint32_t blockedForwardDepthAwareRecordCount = 0;
         uint32_t blockedForwardTransparentRecordCount = 0;
@@ -78,14 +76,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void Clear();
         void SyncForwardFromSceneCache(const GpuSceneRegistrySyncInput& input);
 
-        bool HasForwardCoverageForObject(RUNTIME::SceneRenderObjectId objectId) const;
-        bool HasFullForwardCoverageForObject(RUNTIME::SceneRenderObjectId objectId) const;
-        bool ShouldBypassLegacyForwardSurface(
-            RUNTIME::SceneRenderObjectId objectId,
-            uint32_t nodeIndex,
-            uint32_t meshIndex,
-            uint32_t primitiveIndex) const;
-
         const GpuDrivenSceneSource& GetSceneSource() const;
         bool HasShadowPassSource() const;
         const std::vector<GpuSceneSurfaceRecord>& GetSurfaceRecords() const;
@@ -105,16 +95,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         };
 
     private:
-        struct ObjectCoverage {
-            uint32_t expectedForwardRecordCount = 0;
-            uint32_t handledForwardRecordCount = 0;
-            std::unordered_set<uint64_t> forwardBypassSurfaceKeys{};
-        };
-
-        void RecordForwardExpectedSurface(const GpuSceneSurfaceRecord& record);
-        void RecordForwardHandledSurface(const GpuSceneSurfaceRecord& record);
         void RebuildForwardFromSceneCache(const GpuSceneRegistrySyncInput& input);
-        void SuppressLegacyForwardViews(
+        void SuppressCpuForwardViews(
             const GpuSceneRegistrySyncInput& input);
         bool TryPatchForwardDataFromSceneCache(const GpuSceneRegistrySyncInput& input);
         void RebuildForwardSceneSource();
@@ -149,7 +131,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         TraditionalSkinnedStream forwardDepthAwareSkinnedStream_{};
         TraditionalSkinnedStream forwardTransparentSkinnedStream_{};
         TraditionalSkinnedStream shadowSkinnedStream_{};
-        std::unordered_map<uint64_t, ObjectCoverage> objectCoverage_{};
         GpuDrivenSceneSource sceneSource_{};
         GpuSceneRegistryStats stats_{};
         uint64_t layoutVersion_ = 0;

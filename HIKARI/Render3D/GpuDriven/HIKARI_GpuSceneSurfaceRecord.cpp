@@ -810,27 +810,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             !record.key.transparent;
     }
 
-    uint64_t BuildGpuSceneSurfaceFilterKey(
-        uint32_t nodeIndex,
-        uint32_t meshIndex,
-        uint32_t primitiveIndex) {
-
-        uint64_t key = 1469598103934665603ull;
-        key = HashAppend(key, nodeIndex);
-        key = HashAppend(key, meshIndex);
-        key = HashAppend(key, primitiveIndex);
-        return key;
-    }
-
-    uint64_t BuildGpuSceneSurfaceFilterKey(
-        const GpuSceneSurfaceRecord& record) {
-
-        return BuildGpuSceneSurfaceFilterKey(
-            record.nodeIndex,
-            record.meshIndex,
-            record.primitiveIndex);
-    }
-
     RUNTIME::SurfaceGpuSceneMaterialSource BuildGpuSceneMaterialSource(
         const GpuSceneSurfaceRecord& record,
         const RUNTIME::SurfaceGpuSceneInstance& instance) {

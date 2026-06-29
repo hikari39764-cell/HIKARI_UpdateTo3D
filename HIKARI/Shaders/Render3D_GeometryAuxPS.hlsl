@@ -15,7 +15,7 @@ struct PSInput
     float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
-    // Keep TEXCOORD slots aligned with ClusterVS/MeshletMS for PSO linkage.
+    // Keep TEXCOORD slots aligned between VS and MeshletMS layouts for PSO linkage.
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
     nointerpolation uint debugClusterId : TEXCOORD6;

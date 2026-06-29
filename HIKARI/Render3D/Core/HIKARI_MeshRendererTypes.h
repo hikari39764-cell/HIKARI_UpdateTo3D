@@ -74,7 +74,7 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 fxUser3{};
     };
 
-    // StructuredBuffer 用。ObjectCB の互換フィールドは含めない。
+    // StructuredBuffer layout. Keep this compact and independent from ObjectCB padding.
     struct ObjectGpuData {
         MATH::Mat4 world{};
         MATH::Mat4 normalMatrix{};
@@ -106,7 +106,7 @@ namespace HIKARI::MESHRENDERER {
     constexpr uint32_t kInvalidMaterialDataIndex = 0xffffffffu;
     constexpr uint32_t kInvalidTextureDescriptorIndex = 0xffffffffu;
 
-    // MaterialData 用。texture handle は次段の bindless 化に残す。
+    // MaterialData layout. Texture handles stay in ObjectGpuData until bindless material tables land.
     struct MaterialGpuData {
         MATH::Vec4 baseColor{};
         MATH::Vec4 emissiveFactor{};
@@ -312,7 +312,6 @@ namespace HIKARI::MESHRENDERER {
         size_t frameResourceSkipCount = 0;
         size_t objectResourceBindCount = 0;
         size_t objectResourceSkipCount = 0;
-        size_t legacyObjectCbWriteCount = 0;
         size_t objectDataWriteCount = 0;
         size_t objectDataBufferBindCount = 0;
         size_t objectDataBufferSkipCount = 0;
@@ -358,25 +357,25 @@ namespace HIKARI::MESHRENDERER {
         size_t surfaceRecordExecutorGpuSceneDrawCount = 0;
         size_t surfaceRecordExecutorGpuSceneRecordCount = 0;
         size_t surfaceGpuSceneCapacity = 0;
-        size_t surfaceIndirectCommandCapacity = 0;
-        size_t surfaceIndirectRequestedCommandCount = 0;
-        size_t surfaceIndirectUploadedCommandCount = 0;
-        size_t surfaceIndirectOverflowCommandCount = 0;
-        size_t surfaceIndirectMissingDrawArgsCommandCount = 0;
-        size_t surfaceIndirectUploadCallCount = 0;
-        size_t surfaceIndirectCommandStride = 0;
-        size_t surfaceIndirectExecutedDrawCount = 0;
-        size_t surfaceIndirectExecutedRecordCount = 0;
-        size_t surfaceIndirectOpaqueCommandCount = 0;
-        size_t surfaceIndirectOpaqueRecordCount = 0;
-        size_t surfaceIndirectDepthAwareCommandCount = 0;
-        size_t surfaceIndirectDepthAwareRecordCount = 0;
-        size_t surfaceIndirectTransparentCommandCount = 0;
-        size_t surfaceIndirectTransparentRecordCount = 0;
-        size_t surfaceIndirectBatchSubmitCount = 0;
-        size_t surfaceIndirectBatchedCommandCount = 0;
-        size_t surfaceIndirectSavedSubmitCount = 0;
-        size_t surfaceIndirectMaxBatchCommandCount = 0;
+        size_t traditionalCommandStreamCommandCapacity = 0;
+        size_t traditionalCommandStreamRequestedCommandCount = 0;
+        size_t traditionalCommandStreamUploadedCommandCount = 0;
+        size_t traditionalCommandStreamOverflowCommandCount = 0;
+        size_t traditionalCommandStreamMissingDrawArgsCommandCount = 0;
+        size_t traditionalCommandStreamUploadCallCount = 0;
+        size_t traditionalCommandStreamCommandStride = 0;
+        size_t traditionalCommandStreamExecutedDrawCount = 0;
+        size_t traditionalCommandStreamExecutedRecordCount = 0;
+        size_t traditionalCommandStreamOpaqueCommandCount = 0;
+        size_t traditionalCommandStreamOpaqueRecordCount = 0;
+        size_t traditionalCommandStreamDepthAwareCommandCount = 0;
+        size_t traditionalCommandStreamDepthAwareRecordCount = 0;
+        size_t traditionalCommandStreamTransparentCommandCount = 0;
+        size_t traditionalCommandStreamTransparentRecordCount = 0;
+        size_t traditionalCommandStreamBatchSubmitCount = 0;
+        size_t traditionalCommandStreamBatchedCommandCount = 0;
+        size_t traditionalCommandStreamSavedSubmitCount = 0;
+        size_t traditionalCommandStreamMaxBatchCommandCount = 0;
         size_t surfaceGpuSceneOpaqueInstanceCount = 0;
         size_t surfaceGpuSceneDepthPrepassInstanceCount = 0;
         size_t surfaceGpuSceneDepthAwareInstanceCount = 0;
@@ -479,27 +478,6 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullDrawArgumentCapacity = 0;
         size_t clusterGpuCullOcclusionHistoryCapacity = 0;
         size_t clusterGpuCullDrawSeedCount = 0;
-        size_t clusterDrawEligibleCommandCount = 0;
-        size_t clusterDrawRejectContextCommandCount = 0;
-        size_t clusterDrawRejectMainlineCommandCount = 0;
-        size_t clusterDrawRejectBackendCommandCount = 0;
-        size_t clusterDrawRejectTransparentCommandCount = 0;
-        size_t clusterDrawRejectMaterialFxCommandCount = 0;
-        size_t clusterDrawRejectRangeCommandCount = 0;
-        size_t clusterDrawRejectInstanceResourceCommandCount = 0;
-        size_t clusterDrawRejectInstanceFlagCommandCount = 0;
-        size_t clusterDrawRejectMaterialPatchCommandCount = 0;
-        size_t clusterDrawRequestedCount = 0;
-        size_t clusterDrawSubmittedCount = 0;
-        size_t clusterDrawSkippedCount = 0;
-        size_t clusterDrawSkippedBucketCount = 0;
-        size_t clusterDrawSubmitCallCount = 0;
-        size_t clusterDrawForwardSubmittedCount = 0;
-        size_t clusterDrawGeometryAuxSubmittedCount = 0;
-        size_t clusterDrawForwardSubmitCallCount = 0;
-        size_t clusterDrawGeometryAuxSubmitCallCount = 0;
-        size_t clusterDrawBackFaceSubmitCallCount = 0;
-        size_t clusterDrawDoubleSidedSubmitCallCount = 0;
         size_t meshletBackendRequestedDispatchCount = 0;
         size_t meshletBackendSubmittedDispatchCount = 0;
         size_t meshletBackendSkippedDispatchCount = 0;
@@ -524,8 +502,8 @@ namespace HIKARI::MESHRENDERER {
         bool clusterMainlineOverflowBlocked = false;
         bool surfaceGpuSceneSrvValid = false;
         bool surfaceGpuSceneBufferReady = false;
-        bool surfaceIndirectArgumentBufferReady = false;
-        bool surfaceIndirectCommandSignatureReady = false;
+        bool traditionalCommandStreamArgumentBufferReady = false;
+        bool traditionalCommandStreamCommandSignatureReady = false;
         bool clusterGpuCullReady = false;
         bool clusterGpuCullDrawArgsReady = false;
         bool clusterGpuCullCommandSignatureReady = false;
@@ -534,11 +512,6 @@ namespace HIKARI::MESHRENDERER {
         bool clusterGpuCullDebugCountersEnabled = false;
         bool clusterGpuCullHzbOcclusionEnabled = false;
         bool clusterGpuCullOcclusionHistoryReady = false;
-        bool clusterDrawPipelineReady = false;
-        bool clusterDrawForwardPipelineReady = false;
-        bool clusterDrawGeometryAuxPipelineReady = false;
-        bool clusterDrawArgumentBufferReady = false;
-        bool clusterDrawCommandSignatureReady = false;
         bool meshletBackendInitialized = false;
         bool meshletBackendShaderModel65Supported = false;
         bool meshletBackendMeshShaderSupported = false;

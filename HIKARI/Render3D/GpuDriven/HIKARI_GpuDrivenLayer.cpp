@@ -4,7 +4,7 @@
 
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -149,7 +149,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         void UploadTraditionalIndirectCommands(
-            SurfaceIndirectDrawBuffer& buffer,
+            GpuTraditionalCommandStreamBuffer& buffer,
             const GpuDrivenSceneSource& source) {
 
             for (const GpuDrivenPassSource& pass : source.passes) {
@@ -158,7 +158,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 if (view.commands == nullptr || view.commands->empty()) {
                     continue;
                 }
-                buffer.UploadSurfaceCommandSeeds(view);
+                buffer.UploadCommandSeeds(view);
             }
         }
     }
@@ -181,17 +181,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         (void)rootConstantParameterIndex;
         (void)rootConstantCount;
         return sceneBuffer_ != nullptr ||
-            indirectDrawBuffer_ != nullptr ||
+            traditionalCommandStreamBuffer_ != nullptr ||
             producer_ != nullptr;
     }
 
     void GpuDrivenLayer::Attach(
         SurfaceGpuSceneFrameBuffer* sceneBuffer,
-        SurfaceIndirectDrawBuffer* indirectDrawBuffer,
+        GpuTraditionalCommandStreamBuffer* traditionalCommandStreamBuffer,
         IGpuDrivenProducer* producer) {
 
         sceneBuffer_ = sceneBuffer;
-        indirectDrawBuffer_ = indirectDrawBuffer;
+        traditionalCommandStreamBuffer_ = traditionalCommandStreamBuffer;
         producer_ = producer;
         frameContext_.scene.instanceBuffer = sceneBuffer_;
     }
@@ -372,29 +372,29 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         commandFrameStats_ = {};
 
-        if (indirectDrawBuffer_ != nullptr) {
-            indirectDrawBuffer_->BeginFrame(desc.frameIndex);
+        if (traditionalCommandStreamBuffer_ != nullptr) {
+            traditionalCommandStreamBuffer_->BeginFrame(desc.frameIndex);
         }
 
-        if (indirectDrawBuffer_ != nullptr &&
+        if (traditionalCommandStreamBuffer_ != nullptr &&
             desc.resetTraditionalIndirectBuffer) {
-            indirectDrawBuffer_->ResetFrame();
+            traditionalCommandStreamBuffer_->ResetFrame();
         }
 
-        if (indirectDrawBuffer_ != nullptr) {
+        if (traditionalCommandStreamBuffer_ != nullptr) {
             if (frameSource_ != nullptr) {
                 UploadTraditionalIndirectCommands(
-                    *indirectDrawBuffer_,
+                    *traditionalCommandStreamBuffer_,
                     *frameSource_);
                 if (desc.cullViewProj != nullptr) {
-                    (void)indirectDrawBuffer_->BuildGpuCompactedCommands(
+                    (void)traditionalCommandStreamBuffer_->BuildGpuCompactedCommands(
                         desc.commandList,
                         *desc.cullViewProj,
                         desc.enableSurfaceFrustumCull);
                 }
             }
-            commandFrameStats_.surfaceIndirectStats =
-                indirectDrawBuffer_->GetStats();
+            commandFrameStats_.traditionalCommandStreamStats =
+                traditionalCommandStreamBuffer_->GetStats();
         }
 
         if (desc.publishCommandBuffers) {
@@ -406,24 +406,24 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     void GpuDrivenLayer::BuildCommandBuffers() {
         frameContext_.commands.surfaceDrawIndexedArgs =
-            indirectDrawBuffer_ != nullptr
-                ? indirectDrawBuffer_->GetArgumentBuffer()
+            traditionalCommandStreamBuffer_ != nullptr
+                ? traditionalCommandStreamBuffer_->GetArgumentBuffer()
                 : nullptr;
         frameContext_.commands.surfaceSkinnedDrawIndexedArgs =
-            indirectDrawBuffer_ != nullptr
-                ? indirectDrawBuffer_->GetSkinnedArgumentBuffer()
+            traditionalCommandStreamBuffer_ != nullptr
+                ? traditionalCommandStreamBuffer_->GetSkinnedArgumentBuffer()
                 : nullptr;
         frameContext_.commands.surfaceDrawIndexedCounter =
-            indirectDrawBuffer_ != nullptr
-                ? indirectDrawBuffer_->GetCounterBuffer()
+            traditionalCommandStreamBuffer_ != nullptr
+                ? traditionalCommandStreamBuffer_->GetCounterBuffer()
                 : nullptr;
         frameContext_.commands.surfaceDrawIndexedSignature =
-            indirectDrawBuffer_ != nullptr
-                ? indirectDrawBuffer_->GetCommandSignature()
+            traditionalCommandStreamBuffer_ != nullptr
+                ? traditionalCommandStreamBuffer_->GetCommandSignature()
                 : nullptr;
         frameContext_.commands.surfaceSkinnedDrawIndexedSignature =
-            indirectDrawBuffer_ != nullptr
-                ? indirectDrawBuffer_->GetSkinnedCommandSignature()
+            traditionalCommandStreamBuffer_ != nullptr
+                ? traditionalCommandStreamBuffer_->GetSkinnedCommandSignature()
                 : nullptr;
 
         frameContext_.stats.commandBuildReady =
@@ -445,9 +445,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         switch (backend) {
         case GeometryBackendKind::GpuDrivenMeshShader:
             return state.meshShaderConsumable;
-        case GeometryBackendKind::GpuDrivenClusterVS:
-            return state.clusterVsConsumable;
-        case GeometryBackendKind::GpuDrivenTraditionalVS:
+        case GeometryBackendKind::GpuDrivenTraditionalVsPs:
             return state.traditionalIndirectConsumable;
         default:
             return false;
@@ -470,8 +468,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (kAllowGpuAuthoredTraditionalSupplement &&
                 IsBackendConsumable(
                     pass,
-                    GeometryBackendKind::GpuDrivenTraditionalVS)) {
-                plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVS);
+                    GeometryBackendKind::GpuDrivenTraditionalVsPs)) {
+                plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVsPs);
             }
             if (policy.forcePreferredOnly) {
                 return plan;
@@ -483,8 +481,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (kAllowGpuAuthoredTraditionalSupplement &&
             IsBackendConsumable(
             pass,
-            GeometryBackendKind::GpuDrivenTraditionalVS)) {
-            plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVS);
+            GeometryBackendKind::GpuDrivenTraditionalVsPs)) {
+            plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVsPs);
         }
         return plan;
     }
@@ -524,8 +522,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return sceneBuffer_;
     }
 
-    SurfaceIndirectDrawBuffer* GpuDrivenLayer::GetIndirectDrawBuffer() const {
-        return indirectDrawBuffer_;
+    GpuTraditionalCommandStreamBuffer* GpuDrivenLayer::GetTraditionalCommandStreamBuffer() const {
+        return traditionalCommandStreamBuffer_;
     }
 
     IGpuDrivenProducer* GpuDrivenLayer::GetProducer() const {
@@ -633,10 +631,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 useGeometryPipeline
                     ? frameContext_.backendAvailability.meshShaderGeometryAuxPipelineReady
                     : frameContext_.backendAvailability.meshShaderForwardPipelineReady;
-            const bool clusterPipelineReady =
-                useGeometryPipeline
-                    ? frameContext_.backendAvailability.clusterVsGeometryAuxPipelineReady
-                    : frameContext_.backendAvailability.clusterVsForwardPipelineReady;
             state.meshShaderConsumable =
                 state.hasSource &&
                 state.clusterEligible &&
@@ -645,21 +639,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.meshDispatchArgs != nullptr &&
                 frameContext_.commands.meshDispatchSignature != nullptr &&
                 meshPipelineReady;
-            state.clusterVsConsumable =
-                !kMeshShaderOnlyMainline &&
-                state.hasSource &&
-                state.clusterEligible &&
-                state.visibilityReady &&
-                state.commandBuildReady &&
-                frameContext_.commands.gpuDrawIndexedArgs != nullptr &&
-                frameContext_.commands.gpuDrawIndexedSignature != nullptr &&
-                clusterPipelineReady;
             state.traditionalIndirectConsumable =
                 kAllowGpuAuthoredTraditionalSupplement &&
                 state.hasSource &&
                 state.hasTraditionalIndirectCommands &&
-                indirectDrawBuffer_ != nullptr &&
-                indirectDrawBuffer_->HasGpuCompactedCommands() &&
+                traditionalCommandStreamBuffer_ != nullptr &&
+                traditionalCommandStreamBuffer_->HasGpuCompactedCommands() &&
                 (frameContext_.commands.surfaceDrawIndexedArgs != nullptr ||
                     frameContext_.commands.surfaceSkinnedDrawIndexedArgs != nullptr) &&
                 frameContext_.commands.surfaceDrawIndexedCounter != nullptr &&
@@ -668,7 +653,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.backendAvailability.traditionalIndirectPipelineReady;
             state.gpuBackendReady =
                 state.meshShaderConsumable ||
-                state.clusterVsConsumable ||
                 state.traditionalIndirectConsumable;
         }
         RebuildDrawCommandStream();
@@ -718,37 +702,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.drawStream.SetRange(range);
             }
 
-            if (state.clusterVsConsumable) {
-                GpuDrivenDrawCommandRange range{};
-                range.pass = state.pass;
-                range.sourcePass = state.sourcePass;
-                range.backend = GeometryBackendKind::GpuDrivenClusterVS;
-                range.producer = GpuDrivenCommandProducerKind::GpuCommandBuilder;
-                range.gpuCommandLayout = &commandLayout;
-                range.argumentBuffer = frameContext_.commands.gpuDrawIndexedArgs;
-                range.commandSignature =
-                    frameContext_.commands.gpuDrawIndexedSignature;
-                range.commandCount = state.drawSeedCount;
-                range.visibleCommandCount = state.visibleCommandCount;
-                range.visibleCommandOverflowCount =
-                    state.visibleCommandOverflowCount;
-                range.commandBucketCapacity =
-                    state.gpuCommandBucketCapacity;
-                range.gpuSceneBaseIndex = passSource.gpuSceneBaseIndex;
-                range.instanceCount = state.sourceInstanceCount;
-                range.consumable = true;
-                range.gpuAuthored = true;
-                range.gpuCounterBacked = state.gpuCommandCounterBacked;
-                range.visibleCommandCountKnown =
-                    state.visibleCommandCountKnown;
-                frameContext_.drawStream.SetRange(range);
-            }
-
             if (state.traditionalIndirectConsumable) {
                 GpuDrivenDrawCommandRange range{};
                 range.pass = state.pass;
                 range.sourcePass = state.sourcePass;
-                range.backend = GeometryBackendKind::GpuDrivenTraditionalVS;
+                range.backend = GeometryBackendKind::GpuDrivenTraditionalVsPs;
                 range.producer = GpuDrivenCommandProducerKind::GpuCompactedIndirect;
                 range.traditionalIndirect = &passSource.traditionalIndirect;
                 range.argumentBuffer = frameContext_.commands.surfaceDrawIndexedArgs;
@@ -760,36 +718,36 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.skinnedCommandSignature =
                     frameContext_.commands.surfaceSkinnedDrawIndexedSignature;
                 range.argumentBufferOffset =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetArgumentBufferOffset(state.sourcePass)
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetArgumentBufferOffset(state.sourcePass)
                         : 0u;
                 range.skinnedArgumentBufferOffset =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetSkinnedArgumentBufferOffset(state.sourcePass)
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetSkinnedArgumentBufferOffset(state.sourcePass)
                         : 0u;
                 range.counterBufferOffset =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetCommandCounterOffset(state.sourcePass)
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetCommandCounterOffset(state.sourcePass)
                         : 0u;
                 range.skinnedCounterBufferOffset =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetSkinnedCommandCounterOffset(state.sourcePass)
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetSkinnedCommandCounterOffset(state.sourcePass)
                         : 0u;
                 range.argumentBucketStride =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetArgumentBucketStride()
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetArgumentBucketStride()
                         : 0u;
                 range.skinnedArgumentBucketStride =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetSkinnedArgumentBucketStride()
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetSkinnedArgumentBucketStride()
                         : 0u;
                 range.counterBucketStride =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetCounterBucketStride()
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetCounterBucketStride()
                         : 0u;
                 range.commandBucketCount =
-                    indirectDrawBuffer_ != nullptr
-                        ? indirectDrawBuffer_->GetCommandBucketCount()
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetCommandBucketCount()
                         : 0u;
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;

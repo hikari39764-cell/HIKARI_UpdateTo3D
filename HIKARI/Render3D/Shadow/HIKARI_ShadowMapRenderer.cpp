@@ -22,7 +22,6 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
-#include "Render3D/Cluster/HIKARI_ClusterDrawExecutor.h"
 #include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
@@ -34,7 +33,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
@@ -138,12 +137,11 @@ namespace HIKARI::SHADOW {
             const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* gpuDrivenSceneSource = nullptr;
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
-            RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+            RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer traditionalCommandStreamBuffer{};
             RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
             RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
             RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
             RENDER3D::GPUDRIVEN::ClusterGpuDrivenProducerAdapter clusterGpuDrivenProducer{};
-            RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
             RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveMeshCache;
             std::unordered_map<const MeshPrimitive*, std::unique_ptr<Mesh>> primitiveSkinnedMeshCache;
@@ -870,12 +868,8 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
             const RENDER3D::MESHLET::MeshletRenderBackendStats& meshletStats =
                 g.meshletRenderBackend.GetStats();
-            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterStats =
-                g.clusterDrawExecutor.GetStats();
             availability.meshShaderForwardPipelineReady =
                 meshletStats.shadowPipelineReady;
-            availability.clusterVsForwardPipelineReady =
-                clusterStats.shadowPipelineReady;
             availability.traditionalIndirectPipelineReady =
                 g.rootSig != nullptr &&
                 g.skinnedRootSig != nullptr &&
@@ -1201,7 +1195,7 @@ namespace HIKARI::SHADOW {
             params[5].Constants.RegisterSpace = 0;
             // GPU-driven record path note.
             params[5].Constants.Num32BitValues =
-                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount;
+                RENDER3D::GPUDRIVEN::kGpuTraditionalCommandStreamRootConstantCount;
 
             params[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -1342,13 +1336,13 @@ namespace HIKARI::SHADOW {
                 return false;
             }
             GFX::SetD3D12Name(g.skinnedPso.Get(), L"Shadow Skinned PSO");
-            if (!g.surfaceIndirectDrawBuffer.Initialize(
+            if (!g.traditionalCommandStreamBuffer.Initialize(
                 device,
                 g.rootSig.Get(),
                 RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
+                RENDER3D::GPUDRIVEN::kGpuTraditionalCommandStreamRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow indirect draw buffer initialization failed. Direct shadow record path will be used.");
-            } else if (!g.surfaceIndirectDrawBuffer.InitializeSkinnedCommandStream(
+            } else if (!g.traditionalCommandStreamBuffer.InitializeSkinnedCommandStream(
                 device,
                 g.skinnedRootSig.Get(),
                 RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
@@ -1359,31 +1353,25 @@ namespace HIKARI::SHADOW {
                 device,
                 g.rootSig.Get(),
                 RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
+                RENDER3D::GPUDRIVEN::kGpuTraditionalCommandStreamRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster GPU culling initialization failed. GPU-driven shadow pass will be unavailable.");
-            }
-            if (!g.clusterDrawExecutor.Initialize(
-                device,
-                g.rootSig.Get(),
-                RENDER3D::CLUSTER::ClusterDrawPipelineMask::ShadowRenderer)) {
-                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow cluster draw executor initialization failed. Cluster shadow backend will be unavailable.");
             }
             if (!g.meshletRenderBackend.Initialize(
                 device,
                 g.rootSig.Get(),
                 RENDER3D::MESHLET::MeshletPipelineMask::ShadowRenderer)) {
-                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow meshlet backend initialization failed. Cluster shadow backend remains available.");
+                DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow meshlet backend initialization failed. GPU-driven shadow mesh shader route will be unavailable.");
             }
             g.clusterGpuDrivenProducer.Attach(&g.clusterGpuCullingPass);
             g.gpuDrivenLayer.Attach(
                 &g.surfaceGpuSceneBuffer,
-                &g.surfaceIndirectDrawBuffer,
+                &g.traditionalCommandStreamBuffer,
                 &g.clusterGpuDrivenProducer);
             if (!g.gpuDrivenLayer.Initialize(
                 device,
                 g.rootSig.Get(),
                 RECORD::kShadowStaticRootParamSurfaceGpuSceneControl,
-                RENDER3D::GPUDRIVEN::kSurfaceIndirectRootConstantCount)) {
+                RENDER3D::GPUDRIVEN::kGpuTraditionalCommandStreamRootConstantCount)) {
                 DEBUGLOG::PushRenderError("[ShadowMapRenderer][WARN] Shadow GPU-driven layer initialization failed. Shadow draw backend will be unavailable.");
             }
             return true;
@@ -1642,7 +1630,6 @@ namespace HIKARI::SHADOW {
             g.clusterGpuDrivenProducer.BeginFrame(false);
             g.gpuDrivenLayer.ImportProducerOutput(
                 g.clusterGpuDrivenProducer.BuildFrameOutput());
-            g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
@@ -1687,7 +1674,6 @@ namespace HIKARI::SHADOW {
             g.gpuDrivenLayer.ImportProducerOutput(
                 g.clusterGpuDrivenProducer.BuildFrameOutput());
             g.gpuDrivenLayer.BuildCommandBuffers();
-            g.clusterDrawExecutor.ResetFrame();
             g.meshletRenderBackend.ResetFrame();
             SyncShadowGpuDrivenBackendAvailability();
             RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
@@ -1704,8 +1690,8 @@ namespace HIKARI::SHADOW {
             commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
 
-            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
+            const RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamStats& indirectStats =
+                g.gpuDrivenLayer.GetCommandFrameStats().traditionalCommandStreamStats;
             g.debugStats.shadowIndirectCapacity = indirectStats.capacity;
             g.debugStats.shadowIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
             g.debugStats.shadowIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
@@ -1731,7 +1717,7 @@ namespace HIKARI::SHADOW {
                     shadowPass,
                     backend);
 
-            if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS) {
+            if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs) {
                 const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
                     backendContext.drawCommandRange;
                 if (range == nullptr ||
@@ -1835,15 +1821,6 @@ namespace HIKARI::SHADOW {
                 ctx.drawCommandRange = backendContext.drawCommandRange;
                 ctx.pipelineKind = RENDER3D::MESHLET::MeshletPipelineKind::Shadow;
                 return g.meshletRenderBackend.Execute(ctx);
-            }
-            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS: {
-                RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
-                ctx.commandList = backendContext.commandList;
-                ctx.pass = backendContext.pass;
-                ctx.visibility = backendContext.visibility;
-                ctx.drawCommandRange = backendContext.drawCommandRange;
-                ctx.pipelineKind = RENDER3D::CLUSTER::ClusterDrawPipelineKind::Shadow;
-                return g.clusterDrawExecutor.Execute(ctx);
             }
             default:
                 return false;

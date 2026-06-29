@@ -1,4 +1,4 @@
-#include "Render3D/GpuDriven/HIKARI_ClusterGpuDrivenProducerAdapter.h"
+﻿#include "Render3D/GpuDriven/HIKARI_ClusterGpuDrivenProducerAdapter.h"
 
 #include <array>
 
@@ -8,9 +8,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
         constexpr GpuDrivenCommandBucket ToGpuDrivenCommandBucket(
-            CLUSTER::ClusterDrawCullModeBucket bucket) {
+            CLUSTER::GeometryCullModeBucket bucket) {
 
-            return bucket == CLUSTER::ClusterDrawCullModeBucket::DoubleSided
+            return bucket == CLUSTER::GeometryCullModeBucket::DoubleSided
                 ? GpuDrivenCommandBucket::DoubleSided
                 : GpuDrivenCommandBucket::BackFaceCulled;
         }
@@ -64,11 +64,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 commands.layout.GetPass(pass);
             layout.commandBucketCapacity =
                 cullingPass.GetDrawArgumentBucketCapacity();
-            constexpr CLUSTER::ClusterDrawCullModeBucket sourceBuckets[] = {
-                CLUSTER::ClusterDrawCullModeBucket::BackFace,
-                CLUSTER::ClusterDrawCullModeBucket::DoubleSided,
+            constexpr CLUSTER::GeometryCullModeBucket sourceBuckets[] = {
+                CLUSTER::GeometryCullModeBucket::BackFace,
+                CLUSTER::GeometryCullModeBucket::DoubleSided,
             };
-            for (const CLUSTER::ClusterDrawCullModeBucket sourceBucket :
+            for (const CLUSTER::GeometryCullModeBucket sourceBucket :
                 sourceBuckets) {
 
                 GpuDrivenCommandBucketLayout& bucketLayout =
@@ -97,7 +97,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 bucketVisibility.visibleCommandCountKnown =
                     stats.gpuCounterReadbackValid;
                 if (stats.gpuCounterReadbackValid) {
-                    if (sourceBucket == CLUSTER::ClusterDrawCullModeBucket::DoubleSided) {
+                    if (sourceBucket == CLUSTER::GeometryCullModeBucket::DoubleSided) {
                         bucketVisibility.visibleCommandCount =
                             stats.gpuDoubleSidedDrawCommandCount;
                         bucketVisibility.visibleCommandOverflowCount =

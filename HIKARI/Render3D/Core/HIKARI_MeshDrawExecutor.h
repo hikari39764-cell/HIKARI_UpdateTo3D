@@ -24,7 +24,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuSceneSurfaceRecord;
     class SurfaceGpuSceneFrameBuffer;
-    class SurfaceIndirectDrawBuffer;
+    class GpuTraditionalCommandStreamBuffer;
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -64,7 +64,7 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
         RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer* surfaceGpuSceneFrameBuffer = nullptr;
-        RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer* surfaceIndirectDrawBuffer = nullptr;
+        RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer* traditionalCommandStreamBuffer = nullptr;
         size_t surfaceGpuSceneBaseOffset = 0;
         D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS cullingCameraAddress = 0;

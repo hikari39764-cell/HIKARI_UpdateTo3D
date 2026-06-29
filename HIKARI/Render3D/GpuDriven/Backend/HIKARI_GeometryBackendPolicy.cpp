@@ -1,4 +1,4 @@
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
+﻿#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -6,8 +6,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         bool IsKnownGpuBackend(GeometryBackendKind backend) {
             switch (backend) {
-            case GeometryBackendKind::GpuDrivenTraditionalVS:
-            case GeometryBackendKind::GpuDrivenClusterVS:
+            case GeometryBackendKind::GpuDrivenTraditionalVsPs:
             case GeometryBackendKind::GpuDrivenMeshShader:
                 return true;
             default:
@@ -43,25 +42,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         case GpuDrivenPassKind::GeometryAux:
         case GpuDrivenPassKind::DepthPrepass:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         case GpuDrivenPassKind::Shadow:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         case GpuDrivenPassKind::ReflectionCapture:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         case GpuDrivenPassKind::DepthAware:
         case GpuDrivenPassKind::Transparent:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         case GpuDrivenPassKind::Debug:
         default:
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenClusterVS;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         }
     }

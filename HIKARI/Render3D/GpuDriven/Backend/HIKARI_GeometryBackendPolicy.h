@@ -1,17 +1,17 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstddef>
 
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
-    constexpr size_t kMaxGeometryBackendPlanBackends = 3;
+    constexpr size_t kMaxGeometryBackendPlanBackends = 2;
 
     struct GeometryBackendPolicy {
         GeometryBackendKind preferred = GeometryBackendKind::GpuDrivenMeshShader;
-        GeometryBackendKind secondary = GeometryBackendKind::GpuDrivenClusterVS;
+        GeometryBackendKind secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
         bool forcePreferredOnly = false;
     };
 

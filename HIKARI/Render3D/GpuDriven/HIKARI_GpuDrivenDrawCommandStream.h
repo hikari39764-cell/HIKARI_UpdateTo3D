@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstddef>
@@ -6,7 +6,7 @@
 
 #include <d3d12.h>
 
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuCommandBuildResult.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 
@@ -28,7 +28,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenDrawCommandRange {
         GpuDrivenPassKind pass = GpuDrivenPassKind::ForwardOpaque;
         GpuDrivenPassKind sourcePass = GpuDrivenPassKind::ForwardOpaque;
-        GeometryBackendKind backend = GeometryBackendKind::GpuDrivenTraditionalVS;
+        GeometryBackendKind backend = GeometryBackendKind::GpuDrivenTraditionalVsPs;
         GpuDrivenCommandProducerKind producer = GpuDrivenCommandProducerKind::None;
 
         const GpuDrivenCommandPassLayout* gpuCommandLayout = nullptr;

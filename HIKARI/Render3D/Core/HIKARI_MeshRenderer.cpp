@@ -1,4 +1,4 @@
-#include "HIKARI_MeshRenderer.h"
+﻿#include "HIKARI_MeshRenderer.h"
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererState.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
@@ -183,8 +183,6 @@ namespace HIKARI::MESHRENDERER {
             OwnedTraditionalIndirectStream,
             RENDER3D::GPUDRIVEN::kGpuDrivenPassCount>
             gOwnedTraditionalIndirectStreams{};
-
-        void UpdateClusterDrawDebugStats();
         void UpdateMeshletBackendDebugStats();
         void SyncGpuDrivenBackendAvailability();
         void UpdateGpuDrivenWorkReadyDebugStats();
@@ -598,13 +596,13 @@ namespace HIKARI::MESHRENDERER {
             if (!InitializeMeshPipelines(device, g.pipelines)) {
                 return false;
             }
-            if (!g.surfaceIndirectDrawBuffer.Initialize(
+            if (!g.traditionalCommandStreamBuffer.Initialize(
                 device,
                 GetStaticRootSignature(g.pipelines),
                 ROOT_PARAM::SurfaceGpuSceneControl,
                 4u)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Surface indirect draw buffer initialization failed. GPU-compacted surface stream will be unavailable.");
-            } else if (!g.surfaceIndirectDrawBuffer.InitializeSkinnedCommandStream(
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] GPU Traditional Command Stream draw buffer initialization failed. GPU-compacted surface stream will be unavailable.");
+            } else if (!g.traditionalCommandStreamBuffer.InitializeSkinnedCommandStream(
                 device,
                 GetSkinnedRootSignature(g.pipelines),
                 ROOT_PARAM::SurfaceGpuSceneControl,
@@ -618,22 +616,16 @@ namespace HIKARI::MESHRENDERER {
                 4u)) {
                 DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster GPU culling pass initialization failed. Cluster draw seeds will be disabled.");
             }
-            if (!g.clusterDrawExecutor.Initialize(
-                device,
-                GetStaticRootSignature(g.pipelines),
-                RENDER3D::CLUSTER::ClusterDrawPipelineMask::MainRenderer)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Cluster draw executor initialization failed. Cluster VS backend will be unavailable.");
-            }
             if (!g.meshletRenderBackend.Initialize(
                 device,
                 GetStaticRootSignature(g.pipelines),
                 RENDER3D::MESHLET::MeshletPipelineMask::MainRenderer)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Meshlet render backend is not ready. Cluster draw backend remains active.");
+                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] Meshlet render backend is not ready. GPU-driven mesh shader route will be unavailable.");
             }
             g.clusterGpuDrivenProducer.Attach(&g.clusterGpuCullingPass);
             g.gpuDrivenLayer.Attach(
                 &g.surfaceGpuSceneBuffer,
-                &g.surfaceIndirectDrawBuffer,
+                &g.traditionalCommandStreamBuffer,
                 &g.clusterGpuDrivenProducer);
             if (!g.gpuDrivenLayer.Initialize(
                 device,
@@ -644,7 +636,7 @@ namespace HIKARI::MESHRENDERER {
             }
             UpdateMeshletBackendDebugStats();
 
-            // MeshRenderer 共送Efallback は resource handle を正として保持する、E
+            // MeshRenderer 蜈ｱ騾・fallback 縺ｯ resource handle 繧呈ｭ｣縺ｨ縺励※菫晄戟縺吶ｋ縲・
             g.fallbackTextureResource = RENDER3D::LoadTextureResource(
                 "mesh_renderer/fallback_white",
                 "HIKARI/black1x1.png");
@@ -775,18 +767,18 @@ namespace HIKARI::MESHRENDERER {
             g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
         }
 
-        void UpdateSurfaceIndirectDrawStats() {
-            const RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBufferStats& indirectStats =
-                g.gpuDrivenLayer.GetCommandFrameStats().surfaceIndirectStats;
-            g.debugStats.surfaceIndirectCommandCapacity = indirectStats.capacity;
-            g.debugStats.surfaceIndirectRequestedCommandCount = indirectStats.requestedCommandCount;
-            g.debugStats.surfaceIndirectUploadedCommandCount = indirectStats.uploadedCommandCount;
-            g.debugStats.surfaceIndirectOverflowCommandCount = indirectStats.overflowCommandCount;
-            g.debugStats.surfaceIndirectMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
-            g.debugStats.surfaceIndirectUploadCallCount = indirectStats.uploadCallCount;
-            g.debugStats.surfaceIndirectCommandStride = indirectStats.commandStride;
-            g.debugStats.surfaceIndirectArgumentBufferReady = indirectStats.initialized;
-            g.debugStats.surfaceIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
+        void UpdateTraditionalCommandStreamStats() {
+            const RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamStats& indirectStats =
+                g.gpuDrivenLayer.GetCommandFrameStats().traditionalCommandStreamStats;
+            g.debugStats.traditionalCommandStreamCommandCapacity = indirectStats.capacity;
+            g.debugStats.traditionalCommandStreamRequestedCommandCount = indirectStats.requestedCommandCount;
+            g.debugStats.traditionalCommandStreamUploadedCommandCount = indirectStats.uploadedCommandCount;
+            g.debugStats.traditionalCommandStreamOverflowCommandCount = indirectStats.overflowCommandCount;
+            g.debugStats.traditionalCommandStreamMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
+            g.debugStats.traditionalCommandStreamUploadCallCount = indirectStats.uploadCallCount;
+            g.debugStats.traditionalCommandStreamCommandStride = indirectStats.commandStride;
+            g.debugStats.traditionalCommandStreamArgumentBufferReady = indirectStats.initialized;
+            g.debugStats.traditionalCommandStreamCommandSignatureReady = indirectStats.commandSignatureReady;
         }
 
         void UpdateGpuDrivenWorklistDebugStats() {
@@ -823,7 +815,7 @@ namespace HIKARI::MESHRENDERER {
             commandFrameDesc.cullViewProj = &viewProj;
             commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
-            UpdateSurfaceIndirectDrawStats();
+            UpdateTraditionalCommandStreamStats();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
 
@@ -843,8 +835,6 @@ namespace HIKARI::MESHRENDERER {
             g.clusterGpuDrivenProducer.BeginFrame(false);
             g.gpuDrivenLayer.ImportProducerOutput(
                 g.clusterGpuDrivenProducer.BuildFrameOutput());
-            g.clusterDrawExecutor.ResetFrame();
-            UpdateClusterDrawDebugStats();
             g.meshletRenderBackend.ResetFrame();
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
@@ -853,7 +843,7 @@ namespace HIKARI::MESHRENDERER {
             commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
             commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
-            UpdateSurfaceIndirectDrawStats();
+            UpdateTraditionalCommandStreamStats();
             UpdateGpuDrivenCommandStreamDebugStats();
         }
 
@@ -865,8 +855,6 @@ namespace HIKARI::MESHRENDERER {
                 g.clusterGpuDrivenProducer.BeginFrame(false);
                 g.gpuDrivenLayer.ImportProducerOutput(
                     g.clusterGpuDrivenProducer.BuildFrameOutput());
-                g.clusterDrawExecutor.ResetFrame();
-                UpdateClusterDrawDebugStats();
                 g.meshletRenderBackend.ResetFrame();
                 UpdateMeshletBackendDebugStats();
                 UpdateGpuDrivenWorkReadyDebugStats();
@@ -875,7 +863,7 @@ namespace HIKARI::MESHRENDERER {
                 commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
                 commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
                 g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
-                UpdateSurfaceIndirectDrawStats();
+                UpdateTraditionalCommandStreamStats();
                 UpdateGpuDrivenCommandStreamDebugStats();
                 return;
             }
@@ -885,8 +873,6 @@ namespace HIKARI::MESHRENDERER {
                 nullptr,
                 MakePreDepthGpuDrivenPassMask(),
                 false);
-            g.clusterDrawExecutor.ResetFrame();
-            UpdateClusterDrawDebugStats();
             g.meshletRenderBackend.ResetFrame();
             UpdateMeshletBackendDebugStats();
             UpdateGpuDrivenWorkReadyDebugStats();
@@ -1118,44 +1104,6 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterGpuCullOcclusionHistoryCapacity =
                 clusterCullStats.occlusionHistoryCapacity;
         }
-
-        void UpdateClusterDrawDebugStats() {
-            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterDrawStats =
-                g.clusterDrawExecutor.GetStats();
-            g.debugStats.clusterDrawRequestedCount =
-                clusterDrawStats.requestedDrawCount;
-            g.debugStats.clusterDrawSubmittedCount =
-                clusterDrawStats.submittedDrawCount;
-            g.debugStats.clusterDrawSkippedCount =
-                clusterDrawStats.skippedDrawCount;
-            g.debugStats.clusterDrawSkippedBucketCount =
-                clusterDrawStats.skippedBucketCount;
-            g.debugStats.clusterDrawSubmitCallCount =
-                clusterDrawStats.submitCallCount;
-            g.debugStats.clusterDrawForwardSubmittedCount =
-                clusterDrawStats.forwardSubmittedDrawCount;
-            g.debugStats.clusterDrawGeometryAuxSubmittedCount =
-                clusterDrawStats.geometryAuxSubmittedDrawCount;
-            g.debugStats.clusterDrawForwardSubmitCallCount =
-                clusterDrawStats.forwardSubmitCallCount;
-            g.debugStats.clusterDrawGeometryAuxSubmitCallCount =
-                clusterDrawStats.geometryAuxSubmitCallCount;
-            g.debugStats.clusterDrawBackFaceSubmitCallCount =
-                clusterDrawStats.backFaceSubmitCallCount;
-            g.debugStats.clusterDrawDoubleSidedSubmitCallCount =
-                clusterDrawStats.doubleSidedSubmitCallCount;
-            g.debugStats.clusterDrawPipelineReady =
-                clusterDrawStats.drawPipelineReady;
-            g.debugStats.clusterDrawForwardPipelineReady =
-                clusterDrawStats.forwardPipelineReady;
-            g.debugStats.clusterDrawGeometryAuxPipelineReady =
-                clusterDrawStats.geometryAuxPipelineReady;
-            g.debugStats.clusterDrawArgumentBufferReady =
-                clusterDrawStats.drawArgumentBufferReady;
-            g.debugStats.clusterDrawCommandSignatureReady =
-                clusterDrawStats.drawCommandSignatureReady;
-        }
-
         void UpdateMeshletBackendDebugStats() {
             const RENDER3D::MESHLET::MeshletRenderBackendStats& meshletStats =
                 g.meshletRenderBackend.GetStats();
@@ -1215,8 +1163,6 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
             const RENDER3D::MESHLET::MeshletRenderBackendStats& meshletStats =
                 g.meshletRenderBackend.GetStats();
-            const RENDER3D::CLUSTER::ClusterDrawExecutorStats& clusterStats =
-                g.clusterDrawExecutor.GetStats();
 
             availability.meshShaderForwardPipelineReady =
                 meshletStats.forwardPipelineReady &&
@@ -1224,12 +1170,6 @@ namespace HIKARI::MESHRENDERER {
                 meshletStats.transparentPipelineReady;
             availability.meshShaderGeometryAuxPipelineReady =
                 meshletStats.geometryAuxPipelineReady;
-            availability.clusterVsForwardPipelineReady =
-                clusterStats.forwardPipelineReady &&
-                clusterStats.depthAwarePipelineReady &&
-                clusterStats.transparentPipelineReady;
-            availability.clusterVsGeometryAuxPipelineReady =
-                clusterStats.geometryAuxPipelineReady;
             availability.traditionalIndirectPipelineReady =
                 GetStaticRootSignature(g.pipelines) != nullptr &&
                 GetSkinnedRootSignature(g.pipelines) != nullptr &&
@@ -1284,17 +1224,6 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.clusterMainlineOwnedRecordCount = stats.ownedRecordCount;
             g.debugStats.clusterMainlineGeometryAuxCommandCount = stats.geometryAuxCommandCount;
             g.debugStats.clusterMainlineGeometryAuxRecordCount = stats.geometryAuxRecordCount;
-
-            g.debugStats.clusterDrawEligibleCommandCount = stats.eligibleCommandCount;
-            g.debugStats.clusterDrawRejectContextCommandCount = stats.rejectContextCommandCount;
-            g.debugStats.clusterDrawRejectMainlineCommandCount = stats.rejectMainlineCommandCount;
-            g.debugStats.clusterDrawRejectBackendCommandCount = stats.rejectBackendCommandCount;
-            g.debugStats.clusterDrawRejectTransparentCommandCount = stats.rejectTransparentCommandCount;
-            g.debugStats.clusterDrawRejectMaterialFxCommandCount = stats.rejectMaterialFxCommandCount;
-            g.debugStats.clusterDrawRejectRangeCommandCount = stats.rejectRangeCommandCount;
-            g.debugStats.clusterDrawRejectInstanceResourceCommandCount = stats.rejectInstanceResourceCommandCount;
-            g.debugStats.clusterDrawRejectInstanceFlagCommandCount = stats.rejectInstanceFlagCommandCount;
-            g.debugStats.clusterDrawRejectMaterialPatchCommandCount = stats.rejectMaterialPatchCommandCount;
         }
 
         void UpdateGpuDrivenWorkOwnershipDebugStats() {
@@ -1328,42 +1257,8 @@ namespace HIKARI::MESHRENDERER {
         struct GeometryBackendExecutionResult {
             bool gpuBackendExecuted = false;
             RENDER3D::GPUDRIVEN::GeometryBackendKind executedGpuBackend =
-                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS;
+                RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs;
         };
-
-        bool ExecuteClusterDrawFrame(
-            const MeshPassResources& passResources,
-            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
-            MeshDrawPassKind passKind,
-            RENDER3D::CLUSTER::ClusterDrawPipelineKind pipelineKind) {
-            if (!IsGpuDrivenWorkPreparedForPass(gpuPass)) {
-                return false;
-            }
-
-            MeshBindingStateCache bindingCache{};
-            const bool depthAwarePhase =
-                gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
-            MeshDrawContext drawCtx = BuildDrawContext(depthAwarePhase, passKind, passResources);
-            drawCtx.binding.cache = &bindingCache;
-            BindSurfaceRecordFrameResources(drawCtx);
-
-            const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
-                g.gpuDrivenLayer.BuildGeometryBackendContext(
-                    SERVICES::gCtx.cmdList,
-                    gpuPass,
-                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS);
-            RENDER3D::CLUSTER::ClusterDrawExecutionContext ctx{};
-            ctx.commandList = backendContext.commandList;
-            ctx.pass = backendContext.pass;
-            ctx.visibility = backendContext.visibility;
-            ctx.drawCommandRange = backendContext.drawCommandRange;
-            ctx.pipelineKind = pipelineKind;
-            const bool executed = g.clusterDrawExecutor.Execute(ctx);
-            UpdateClusterDrawDebugStats();
-            UpdateGpuDrivenWorkReadyDebugStats();
-            return executed;
-        }
-
         bool ExecuteMeshletDrawFrame(
             const MeshPassResources& passResources,
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
@@ -1429,7 +1324,7 @@ namespace HIKARI::MESHRENDERER {
                 g.gpuDrivenLayer.BuildGeometryBackendContext(
                     SERVICES::gCtx.cmdList,
                     gpuPass,
-                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS);
+                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs);
             const RENDER3D::GPUDRIVEN::GpuDrivenDrawCommandRange* range =
                 backendContext.drawCommandRange;
             if (range == nullptr ||
@@ -1551,8 +1446,7 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
             const MeshPassResources& passResources,
             MeshDrawPassKind passKind,
-            RENDER3D::MESHLET::MeshletPipelineKind meshletPipelineKind,
-            RENDER3D::CLUSTER::ClusterDrawPipelineKind clusterPipelineKind) {
+            RENDER3D::MESHLET::MeshletPipelineKind meshletPipelineKind) {
 
             switch (backend) {
             case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenMeshShader:
@@ -1561,13 +1455,7 @@ namespace HIKARI::MESHRENDERER {
                     gpuPass,
                     passKind,
                     meshletPipelineKind);
-            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenClusterVS:
-                return ExecuteClusterDrawFrame(
-                    passResources,
-                    gpuPass,
-                    passKind,
-                    clusterPipelineKind);
-            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS:
+            case RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs:
                 return ExecuteTraditionalDrawFrame(
                     passResources,
                     gpuPass,
@@ -1581,8 +1469,7 @@ namespace HIKARI::MESHRENDERER {
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind pass,
             const MeshPassResources& passResources,
             MeshDrawPassKind passKind,
-            RENDER3D::MESHLET::MeshletPipelineKind meshletPipelineKind,
-            RENDER3D::CLUSTER::ClusterDrawPipelineKind clusterPipelineKind) {
+            RENDER3D::MESHLET::MeshletPipelineKind meshletPipelineKind) {
 
             GeometryBackendExecutionResult result{};
             SyncGpuDrivenBackendAvailability();
@@ -1596,8 +1483,7 @@ namespace HIKARI::MESHRENDERER {
                     pass,
                     passResources,
                     passKind,
-                    meshletPipelineKind,
-                    clusterPipelineKind)) {
+                    meshletPipelineKind)) {
                     continue;
                 }
                 result.gpuBackendExecuted = true;
@@ -1617,7 +1503,7 @@ namespace HIKARI::MESHRENDERER {
             for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
                 const RENDER3D::GPUDRIVEN::GeometryBackendKind backend =
                     plan.gpuBackends[i];
-                if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVS) {
+                if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs) {
                     continue;
                 }
                 if (!ExecuteGeometryBackend(
@@ -1625,8 +1511,7 @@ namespace HIKARI::MESHRENDERER {
                     pass,
                     passResources,
                     MeshDrawPassKind::DepthPrepass,
-                    RENDER3D::MESHLET::MeshletPipelineKind::DepthPrepass,
-                    RENDER3D::CLUSTER::ClusterDrawPipelineKind::DepthPrepass)) {
+                    RENDER3D::MESHLET::MeshletPipelineKind::DepthPrepass)) {
                     continue;
                 }
                 result.gpuBackendExecuted = true;
@@ -1702,7 +1587,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialDataSrv = g.materialDataSrvGpu;
             ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
             ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
-            ctx.surfaceIndirectDrawBuffer = &g.surfaceIndirectDrawBuffer;
+            ctx.traditionalCommandStreamBuffer = &g.traditionalCommandStreamBuffer;
             ctx.cameraAddress = ResolveCameraAddressForPass(passKind);
             ctx.cullingCameraAddress = ResolveCullingCameraAddress();
             ctx.lightAddress = g.lightCB ? g.lightCB->GetGPUVirtualAddress() : 0;
@@ -1762,8 +1647,7 @@ namespace HIKARI::MESHRENDERER {
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::GeometryAux,
                     passResources,
                     MeshDrawPassKind::GeometryAux,
-                    RENDER3D::MESHLET::MeshletPipelineKind::GeometryAux,
-                    RENDER3D::CLUSTER::ClusterDrawPipelineKind::GeometryAux);
+                    RENDER3D::MESHLET::MeshletPipelineKind::GeometryAux);
             geometryAux.EndNormalRoughnessPass(SERVICES::gCtx.cmdList);
             return backendResult.gpuBackendExecuted;
         }
@@ -2016,7 +1900,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
-        // Capture 用の固定解像度めEcamera constants に反映する、E
+        // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
         if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
             return false;
         }
@@ -2130,8 +2014,7 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
                 passResources,
                 MeshDrawPassKind::Forward,
-                RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque,
-                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardOpaque);
+                RENDER3D::MESHLET::MeshletPipelineKind::ForwardOpaque);
         return backendResult.gpuBackendExecuted;
     }
 
@@ -2146,8 +2029,7 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
                 passResources,
                 MeshDrawPassKind::Forward,
-                RENDER3D::MESHLET::MeshletPipelineKind::ForwardTransparent,
-                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardTransparent);
+                RENDER3D::MESHLET::MeshletPipelineKind::ForwardTransparent);
         return backendResult.gpuBackendExecuted;
     }
 
@@ -2172,8 +2054,7 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
                 passResources,
                 MeshDrawPassKind::Forward,
-                RENDER3D::MESHLET::MeshletPipelineKind::ForwardDepthAware,
-                RENDER3D::CLUSTER::ClusterDrawPipelineKind::ForwardDepthAware);
+                RENDER3D::MESHLET::MeshletPipelineKind::ForwardDepthAware);
         return backendResult.gpuBackendExecuted;
     }
 

@@ -1,4 +1,4 @@
-#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
+﻿#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 
 #include <algorithm>
 #include <iterator>
@@ -138,17 +138,17 @@ namespace HIKARI::RENDER3D::CLUSTER {
             HIKARI_LOG_WARN(message);
         }
 
-        ClusterDrawCullModeBucket ResolveCullBucket(uint32_t flags) {
+        GeometryCullModeBucket ResolveCullBucket(uint32_t flags) {
             constexpr uint32_t doubleSidedFlag =
                 static_cast<uint32_t>(RUNTIME::SurfaceGpuSceneInstanceFlags::DoubleSided);
             return (flags & doubleSidedFlag) != 0u
-                ? ClusterDrawCullModeBucket::DoubleSided
-                : ClusterDrawCullModeBucket::BackFace;
+                ? GeometryCullModeBucket::DoubleSided
+                : GeometryCullModeBucket::BackFace;
         }
 
-        size_t CullBucketIndex(ClusterDrawCullModeBucket bucket) {
+        size_t CullBucketIndex(GeometryCullModeBucket bucket) {
             const size_t index = static_cast<size_t>(bucket);
-            return index < kClusterDrawCullModeBucketCount ? index : 0u;
+            return index < kGeometryCullModeBucketCount ? index : 0u;
         }
 
         size_t CullPassIndex(ClusterGpuCullingPassKind passKind) {
@@ -1847,16 +1847,16 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     size_t ClusterGpuCullingPass::GetDrawArgumentBucketCapacity() const {
         return drawArgumentCapacity_ /
-            (kClusterGpuCullingPassKindCount * kClusterDrawCullModeBucketCount);
+            (kClusterGpuCullingPassKindCount * kGeometryCullModeBucketCount);
     }
 
     UINT64 ClusterGpuCullingPass::GetDrawArgumentBufferOffset(
         ClusterGpuCullingPassKind passKind,
-        ClusterDrawCullModeBucket bucket) const {
+        GeometryCullModeBucket bucket) const {
 
         const UINT64 passBase =
             static_cast<UINT64>(CullPassIndex(passKind)) *
-            static_cast<UINT64>(kClusterDrawCullModeBucketCount) *
+            static_cast<UINT64>(kGeometryCullModeBucketCount) *
             static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
             static_cast<UINT64>(sizeof(GpuIndirectDrawArgument));
         return
@@ -1868,11 +1868,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     UINT64 ClusterGpuCullingPass::GetMeshletDispatchArgumentBufferOffset(
         ClusterGpuCullingPassKind passKind,
-        ClusterDrawCullModeBucket bucket) const {
+        GeometryCullModeBucket bucket) const {
 
         const UINT64 passBase =
             static_cast<UINT64>(CullPassIndex(passKind)) *
-            static_cast<UINT64>(kClusterDrawCullModeBucketCount) *
+            static_cast<UINT64>(kGeometryCullModeBucketCount) *
             static_cast<UINT64>(GetDrawArgumentBucketCapacity()) *
             static_cast<UINT64>(sizeof(GpuIndirectMeshletDispatchArgument));
         return
@@ -1884,18 +1884,18 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     UINT64 ClusterGpuCullingPass::GetDrawCommandCounterOffset(
         ClusterGpuCullingPassKind passKind,
-        ClusterDrawCullModeBucket bucket) const {
+        GeometryCullModeBucket bucket) const {
 
         const UINT64 passOffset =
             static_cast<UINT64>(offsetof(GpuCounterBuffer, passes)) +
             static_cast<UINT64>(CullPassIndex(passKind)) *
                 static_cast<UINT64>(sizeof(GpuPassCounters));
         switch (bucket) {
-        case ClusterDrawCullModeBucket::DoubleSided:
+        case GeometryCullModeBucket::DoubleSided:
             return passOffset + offsetof(
                 GpuPassCounters,
                 doubleSidedDrawCommandCount);
-        case ClusterDrawCullModeBucket::BackFace:
+        case GeometryCullModeBucket::BackFace:
         default:
             return passOffset + offsetof(
                 GpuPassCounters,

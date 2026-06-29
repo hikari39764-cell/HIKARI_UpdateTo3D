@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -325,15 +325,14 @@
     <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.cpp" />
     <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp" />
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassDesc.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp" />
-    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp" />
@@ -674,10 +673,10 @@
     <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.h" />
     <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceIndirectDrawBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.h" />
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendContext.h" />
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GeometryBackendPolicy.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendContext.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuCommandBuildResult.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenCommandBucket.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.h" />
@@ -686,7 +685,6 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPass.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassDesc.h" />
-    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenPassPlanner.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenProducer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenStats.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenView.h" />
@@ -765,7 +763,6 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
-    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h" />
@@ -945,8 +942,7 @@
     <None Include="HIKARI\Shaders\Render3D_ClusterMeshletDispatchFinalizeCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterWorklistCS.hlsl" />
     <None Include="HIKARI\Shaders\DepthPyramid_BuildCS.hlsl" />
-    <None Include="HIKARI\Shaders\Render3D_SurfaceIndirectCullCS.hlsl" />
-    <None Include="HIKARI\Shaders\Render3D_ClusterVS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuTraditionalCommandCompactCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletAS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletDepthMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletDepthPS.hlsl" />

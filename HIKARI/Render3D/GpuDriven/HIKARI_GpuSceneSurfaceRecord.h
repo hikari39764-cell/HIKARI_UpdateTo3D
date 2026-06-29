@@ -129,14 +129,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     bool IsGpuSceneShadowResidentRecord(
         const GpuSceneSurfaceRecord& record);
 
-    uint64_t BuildGpuSceneSurfaceFilterKey(
-        uint32_t nodeIndex,
-        uint32_t meshIndex,
-        uint32_t primitiveIndex);
-
-    uint64_t BuildGpuSceneSurfaceFilterKey(
-        const GpuSceneSurfaceRecord& record);
-
     RUNTIME::SurfaceGpuSceneMaterialSource BuildGpuSceneMaterialSource(
         const GpuSceneSurfaceRecord& record,
         const RUNTIME::SurfaceGpuSceneInstance& instance);

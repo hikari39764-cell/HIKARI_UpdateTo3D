@@ -165,7 +165,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         for (const GpuDrivenPassDrawCommandStream& pass : passes) {
             for (const GpuDrivenDrawCommandRange& range : pass.ranges) {
                 if (range.IsActive() &&
-                    range.backend == GeometryBackendKind::GpuDrivenTraditionalVS) {
+                    range.backend == GeometryBackendKind::GpuDrivenTraditionalVsPs) {
                     count += range.commandCount;
                 }
             }

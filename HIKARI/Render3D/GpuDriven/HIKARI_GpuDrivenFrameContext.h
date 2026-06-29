@@ -1,10 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstddef>
 
 #include "Render3D/GpuDriven/HIKARI_GpuCommandBuildResult.h"
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenStats.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneFrame.h"
@@ -21,8 +21,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenBackendAvailability {
         bool meshShaderForwardPipelineReady = false;
         bool meshShaderGeometryAuxPipelineReady = false;
-        bool clusterVsForwardPipelineReady = false;
-        bool clusterVsGeometryAuxPipelineReady = false;
         bool traditionalIndirectPipelineReady = false;
     };
 
@@ -42,7 +40,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool gpuBackendReady = false;
 
         bool meshShaderConsumable = false;
-        bool clusterVsConsumable = false;
         bool traditionalIndirectConsumable = false;
 
         size_t sourceInstanceCount = 0;

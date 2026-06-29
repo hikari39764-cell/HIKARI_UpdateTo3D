@@ -170,7 +170,7 @@ namespace HIKARI {
                 meshStats.gpuDrivenWorklistClusterPassCount,
                 meshStats.gpuDrivenWorklistSourceInstanceCount,
                 meshStats.gpuDrivenWorklistClusterInstanceCount);
-            ImGui::Text("Command Stream Passes / Ranges / GPU Cmd / TraditionalVS: %zu / %zu / %zu / %zu",
+            ImGui::Text("Command Stream Passes / Ranges / GPU Cmd / Traditional VS/PS: %zu / %zu / %zu / %zu",
                 meshStats.gpuDrivenCommandStreamPassCount,
                 meshStats.gpuDrivenCommandStreamRangeCount,
                 meshStats.gpuDrivenCommandStreamGpuCommandCount,
@@ -227,10 +227,10 @@ namespace HIKARI {
                 meshStats.meshletBackendGeometryAuxSubmittedDispatchCount,
                 meshStats.meshletBackendBackFaceSubmitCallCount,
                 meshStats.meshletBackendDoubleSidedSubmitCallCount);
-            ImGui::Text("Surface ExecuteIndirect Opaque / DepthAware / Transparent: %zu / %zu / %zu",
-                meshStats.surfaceIndirectOpaqueCommandCount,
-                meshStats.surfaceIndirectDepthAwareCommandCount,
-                meshStats.surfaceIndirectTransparentCommandCount);
+            ImGui::Text("Traditional VS/PS ExecuteIndirect Opaque / DepthAware / Transparent: %zu / %zu / %zu",
+                meshStats.traditionalCommandStreamOpaqueCommandCount,
+                meshStats.traditionalCommandStreamDepthAwareCommandCount,
+                meshStats.traditionalCommandStreamTransparentCommandCount);
 
             ImGui::SeparatorText("Shadow Baseline");
             ImGui::Text("Shadow GPU Scene Ready / Uploaded / Overflow: %s / %zu / %zu",

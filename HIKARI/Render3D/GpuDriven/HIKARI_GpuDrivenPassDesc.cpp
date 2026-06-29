@@ -1,4 +1,4 @@
-#include "Render3D/GpuDriven/HIKARI_GpuDrivenPassPlanner.h"
+#include "Render3D/GpuDriven/HIKARI_GpuDrivenPassDesc.h"
 
 #include <array>
 
@@ -35,21 +35,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return kFallbackDesc;
         }
         return kPassDescs[index];
-    }
-
-    GpuDrivenView BuildGpuDrivenView(
-        GpuDrivenPassKind pass,
-        const MATH::Mat4& viewProj,
-        const MATH::Vec3& viewPosition,
-        uint32_t flags) {
-
-        GpuDrivenView view{};
-        view.pass = pass;
-        view.viewProj = viewProj;
-        view.viewPosition = viewPosition;
-        view.passMask = MakeGpuDrivenPassMask(pass);
-        view.flags = flags;
-        return view;
     }
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

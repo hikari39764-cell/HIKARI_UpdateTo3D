@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstddef>
@@ -7,12 +7,12 @@
 #include <d3d12.h>
 
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendContext.h"
-#include "Render3D/GpuDriven/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrameContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenProducer.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -56,7 +56,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenCommandFrameStats {
         bool commandFramePublished = false;
-        SurfaceIndirectDrawBufferStats surfaceIndirectStats{};
+        GpuTraditionalCommandStreamStats traditionalCommandStreamStats{};
     };
 
     class GpuDrivenLayer final {
@@ -69,7 +69,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         void Attach(
             SurfaceGpuSceneFrameBuffer* sceneBuffer,
-            SurfaceIndirectDrawBuffer* indirectDrawBuffer,
+            GpuTraditionalCommandStreamBuffer* traditionalCommandStreamBuffer,
             IGpuDrivenProducer* producer);
 
         void ResetFrame();
@@ -107,7 +107,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenPassExecutionState& GetPassExecutionState(
             GpuDrivenPassKind pass) const;
         SurfaceGpuSceneFrameBuffer* GetSceneBuffer() const;
-        SurfaceIndirectDrawBuffer* GetIndirectDrawBuffer() const;
+        GpuTraditionalCommandStreamBuffer* GetTraditionalCommandStreamBuffer() const;
         IGpuDrivenProducer* GetProducer() const;
         const GpuDrivenFrameContext& GetFrameContext() const;
         const GpuDrivenDrawCommandStream& GetDrawCommandStream() const;
@@ -116,7 +116,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     private:
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
-        SurfaceIndirectDrawBuffer* indirectDrawBuffer_ = nullptr;
+        GpuTraditionalCommandStreamBuffer* traditionalCommandStreamBuffer_ = nullptr;
         IGpuDrivenProducer* producer_ = nullptr;
         const GpuDrivenSceneSource* frameSource_ = nullptr;
         GpuDrivenFrameContext frameContext_{};

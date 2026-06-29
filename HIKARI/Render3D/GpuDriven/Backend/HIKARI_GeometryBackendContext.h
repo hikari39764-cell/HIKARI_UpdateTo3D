@@ -15,8 +15,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenTraditionalIndirectView;
 
     enum class GeometryBackendKind : uint32_t {
-        GpuDrivenTraditionalVS,
-        GpuDrivenClusterVS,
+        GpuDrivenTraditionalVsPs,
         GpuDrivenMeshShader,
     };
 
@@ -24,7 +23,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         ID3D12GraphicsCommandList* commandList = nullptr;
         GpuDrivenPassKind requestedPass = GpuDrivenPassKind::ForwardOpaque;
         GpuDrivenPassKind pass = GpuDrivenPassKind::ForwardOpaque;
-        GeometryBackendKind backend = GeometryBackendKind::GpuDrivenTraditionalVS;
+        GeometryBackendKind backend = GeometryBackendKind::GpuDrivenTraditionalVsPs;
         const GpuSceneFrame* scene = nullptr;
         const GpuVisibilityResult* visibility = nullptr;
         const GpuCommandBuildResult* commands = nullptr;

@@ -10,7 +10,6 @@
 #include "Gfx/HIKARI_GfxContext.h"
 #include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
-#include "Render3D/Cluster/HIKARI_ClusterDrawExecutor.h"
 #include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 #include "Render3D/Core/HIKARI_MeshRendererPso.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
@@ -19,7 +18,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
-#include "Render3D/GpuDriven/HIKARI_SurfaceIndirectDrawBuffer.h"
+#include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
@@ -101,12 +100,11 @@ namespace HIKARI::MESHRENDERER {
         D3D12_CPU_DESCRIPTOR_HANDLE materialDataSrvCpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
         RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
-        RENDER3D::GPUDRIVEN::SurfaceIndirectDrawBuffer surfaceIndirectDrawBuffer{};
+        RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer traditionalCommandStreamBuffer{};
         RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
         RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
         RENDER3D::GPUDRIVEN::ClusterGpuDrivenProducerAdapter clusterGpuDrivenProducer{};
-        RENDER3D::CLUSTER::ClusterDrawExecutor clusterDrawExecutor{};
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
         RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};

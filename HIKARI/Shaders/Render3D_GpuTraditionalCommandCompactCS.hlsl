@@ -1,4 +1,4 @@
-struct SurfaceIndirectDrawArgument
+struct GpuTraditionalCommandArgument
 {
     uint2 vertexBufferLocation;
     uint vertexBufferSizeInBytes;
@@ -17,7 +17,7 @@ struct SurfaceIndirectDrawArgument
     uint startInstanceLocation;
 };
 
-struct SurfaceSkinnedIndirectDrawArgument
+struct GpuTraditionalSkinnedCommandArgument
 {
     uint2 vertexBufferLocation;
     uint vertexBufferSizeInBytes;
@@ -39,7 +39,7 @@ struct SurfaceSkinnedIndirectDrawArgument
     uint reserved0;
 };
 
-struct SurfaceIndirectDrawPayload
+struct GpuTraditionalCommandPayload
 {
     uint2 vertexBufferLocation;
     uint vertexBufferSizeInBytes;
@@ -59,7 +59,7 @@ struct SurfaceIndirectDrawPayload
     uint flags;
 };
 
-struct SurfaceIndirectDrawSeed
+struct GpuTraditionalCommandSeed
 {
     float4 boundsCenterRadius;
     uint absoluteGpuSceneInstanceIndex;
@@ -72,20 +72,20 @@ struct SurfaceIndirectDrawSeed
     uint reserved1;
 };
 
-cbuffer SurfaceIndirectCullingCB : register(b0)
+cbuffer GpuTraditionalCommandStreamCullingCB : register(b0)
 {
-    float4x4 gSurfaceIndirectViewProj;
-    uint gSurfaceIndirectInputCount;
-    uint gSurfaceIndirectOutputCapacity;
-    uint gSurfaceIndirectEnableFrustumCull;
-    uint gSurfaceIndirectPayloadCount;
+    float4x4 gGpuTraditionalCommandStreamViewProj;
+    uint gGpuTraditionalCommandStreamInputCount;
+    uint gGpuTraditionalCommandStreamOutputCapacity;
+    uint gGpuTraditionalCommandStreamEnableFrustumCull;
+    uint gGpuTraditionalCommandStreamPayloadCount;
 };
 
-StructuredBuffer<SurfaceIndirectDrawSeed> gSurfaceIndirectSeeds : register(t0);
-StructuredBuffer<SurfaceIndirectDrawPayload> gSurfaceIndirectPayloads : register(t1);
-RWStructuredBuffer<SurfaceIndirectDrawArgument> gSurfaceIndirectArguments : register(u0);
-RWStructuredBuffer<SurfaceSkinnedIndirectDrawArgument> gSurfaceSkinnedIndirectArguments : register(u1);
-RWByteAddressBuffer gSurfaceIndirectCounters : register(u2);
+StructuredBuffer<GpuTraditionalCommandSeed> gGpuTraditionalCommandStreamSeeds : register(t0);
+StructuredBuffer<GpuTraditionalCommandPayload> gGpuTraditionalCommandStreamPayloads : register(t1);
+RWStructuredBuffer<GpuTraditionalCommandArgument> gGpuTraditionalCommandStreamArguments : register(u0);
+RWStructuredBuffer<GpuTraditionalSkinnedCommandArgument> gGpuTraditionalSkinnedCommandArguments : register(u1);
+RWByteAddressBuffer gGpuTraditionalCommandStreamCounters : register(u2);
 
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT = 0u;
 static const uint HIKARI_SURFACE_INDIRECT_COUNTER_VISIBLE_COUNT = 4u;
@@ -97,43 +97,43 @@ static const uint HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES = 32u;
 static const uint HIKARI_SURFACE_INDIRECT_BUCKET_COUNT = 2u;
 static const uint HIKARI_SURFACE_INDIRECT_FLAG_SKINNED = 1u << 1;
 
-float4 HikariSurfaceIndirectViewProjRow0()
+float4 HikariGpuTraditionalCommandStreamViewProjRow0()
 {
     return float4(
-        gSurfaceIndirectViewProj._11,
-        gSurfaceIndirectViewProj._12,
-        gSurfaceIndirectViewProj._13,
-        gSurfaceIndirectViewProj._14);
+        gGpuTraditionalCommandStreamViewProj._11,
+        gGpuTraditionalCommandStreamViewProj._12,
+        gGpuTraditionalCommandStreamViewProj._13,
+        gGpuTraditionalCommandStreamViewProj._14);
 }
 
-float4 HikariSurfaceIndirectViewProjRow1()
+float4 HikariGpuTraditionalCommandStreamViewProjRow1()
 {
     return float4(
-        gSurfaceIndirectViewProj._21,
-        gSurfaceIndirectViewProj._22,
-        gSurfaceIndirectViewProj._23,
-        gSurfaceIndirectViewProj._24);
+        gGpuTraditionalCommandStreamViewProj._21,
+        gGpuTraditionalCommandStreamViewProj._22,
+        gGpuTraditionalCommandStreamViewProj._23,
+        gGpuTraditionalCommandStreamViewProj._24);
 }
 
-float4 HikariSurfaceIndirectViewProjRow2()
+float4 HikariGpuTraditionalCommandStreamViewProjRow2()
 {
     return float4(
-        gSurfaceIndirectViewProj._31,
-        gSurfaceIndirectViewProj._32,
-        gSurfaceIndirectViewProj._33,
-        gSurfaceIndirectViewProj._34);
+        gGpuTraditionalCommandStreamViewProj._31,
+        gGpuTraditionalCommandStreamViewProj._32,
+        gGpuTraditionalCommandStreamViewProj._33,
+        gGpuTraditionalCommandStreamViewProj._34);
 }
 
-float4 HikariSurfaceIndirectViewProjRow3()
+float4 HikariGpuTraditionalCommandStreamViewProjRow3()
 {
     return float4(
-        gSurfaceIndirectViewProj._41,
-        gSurfaceIndirectViewProj._42,
-        gSurfaceIndirectViewProj._43,
-        gSurfaceIndirectViewProj._44);
+        gGpuTraditionalCommandStreamViewProj._41,
+        gGpuTraditionalCommandStreamViewProj._42,
+        gGpuTraditionalCommandStreamViewProj._43,
+        gGpuTraditionalCommandStreamViewProj._44);
 }
 
-bool HikariSurfaceIndirectPlaneVisible(float4 plane, float3 center, float radius)
+bool HikariGpuTraditionalCommandStreamPlaneVisible(float4 plane, float3 center, float radius)
 {
     const float planeLength = length(plane.xyz);
     if (planeLength <= 0.000001f)
@@ -143,7 +143,7 @@ bool HikariSurfaceIndirectPlaneVisible(float4 plane, float3 center, float radius
     return dot(plane.xyz, center) + plane.w >= -radius * planeLength;
 }
 
-bool HikariSurfaceIndirectFrustumVisible(float4 boundsCenterRadius)
+bool HikariGpuTraditionalCommandStreamFrustumVisible(float4 boundsCenterRadius)
 {
     const float radius = boundsCenterRadius.w;
     if (radius < 0.0f)
@@ -152,30 +152,30 @@ bool HikariSurfaceIndirectFrustumVisible(float4 boundsCenterRadius)
     }
 
     const float3 center = boundsCenterRadius.xyz;
-    const float4 row0 = HikariSurfaceIndirectViewProjRow0();
-    const float4 row1 = HikariSurfaceIndirectViewProjRow1();
-    const float4 row2 = HikariSurfaceIndirectViewProjRow2();
-    const float4 row3 = HikariSurfaceIndirectViewProjRow3();
+    const float4 row0 = HikariGpuTraditionalCommandStreamViewProjRow0();
+    const float4 row1 = HikariGpuTraditionalCommandStreamViewProjRow1();
+    const float4 row2 = HikariGpuTraditionalCommandStreamViewProjRow2();
+    const float4 row3 = HikariGpuTraditionalCommandStreamViewProjRow3();
 
     return
-        HikariSurfaceIndirectPlaneVisible(row3 + row0, center, radius) &&
-        HikariSurfaceIndirectPlaneVisible(row3 - row0, center, radius) &&
-        HikariSurfaceIndirectPlaneVisible(row3 + row1, center, radius) &&
-        HikariSurfaceIndirectPlaneVisible(row3 - row1, center, radius) &&
-        HikariSurfaceIndirectPlaneVisible(row2, center, radius) &&
-        HikariSurfaceIndirectPlaneVisible(row3 - row2, center, radius);
+        HikariGpuTraditionalCommandStreamPlaneVisible(row3 + row0, center, radius) &&
+        HikariGpuTraditionalCommandStreamPlaneVisible(row3 - row0, center, radius) &&
+        HikariGpuTraditionalCommandStreamPlaneVisible(row3 + row1, center, radius) &&
+        HikariGpuTraditionalCommandStreamPlaneVisible(row3 - row1, center, radius) &&
+        HikariGpuTraditionalCommandStreamPlaneVisible(row2, center, radius) &&
+        HikariGpuTraditionalCommandStreamPlaneVisible(row3 - row2, center, radius);
 }
 
 [numthreads(64, 1, 1)]
-void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
+void CompactGpuTraditionalCommandStreamCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     const uint seedIndex = dispatchThreadId.x;
-    if (seedIndex >= gSurfaceIndirectInputCount)
+    if (seedIndex >= gGpuTraditionalCommandStreamInputCount)
     {
         return;
     }
 
-    const SurfaceIndirectDrawSeed seed = gSurfaceIndirectSeeds[seedIndex];
+    const GpuTraditionalCommandSeed seed = gGpuTraditionalCommandStreamSeeds[seedIndex];
     const uint bucketIndex =
         min(seed.bucketIndex, HIKARI_SURFACE_INDIRECT_BUCKET_COUNT - 1u);
     const uint passBucketIndex =
@@ -183,18 +183,18 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     const uint passCounterBase =
         passBucketIndex * HIKARI_SURFACE_INDIRECT_COUNTER_STRIDE_BYTES;
     const uint passOutputBase =
-        passBucketIndex * gSurfaceIndirectOutputCapacity;
-    if (seed.payloadIndex >= gSurfaceIndirectPayloadCount)
+        passBucketIndex * gGpuTraditionalCommandStreamOutputCapacity;
+    if (seed.payloadIndex >= gGpuTraditionalCommandStreamPayloadCount)
     {
         uint ignoredPayload = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
             1u,
             ignoredPayload);
         return;
     }
-    const SurfaceIndirectDrawPayload payload =
-        gSurfaceIndirectPayloads[seed.payloadIndex];
+    const GpuTraditionalCommandPayload payload =
+        gGpuTraditionalCommandStreamPayloads[seed.payloadIndex];
     const bool skinned = (seed.flags & HIKARI_SURFACE_INDIRECT_FLAG_SKINNED) != 0u;
     const uint2 vertexLocation = payload.vertexBufferLocation;
     const uint2 indexLocation = payload.indexBufferLocation;
@@ -217,7 +217,7 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         !hasJointPalette)
     {
         uint ignored = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
             1u,
             ignored);
@@ -225,12 +225,12 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const bool visible =
-        gSurfaceIndirectEnableFrustumCull == 0u ||
-        HikariSurfaceIndirectFrustumVisible(seed.boundsCenterRadius);
+        gGpuTraditionalCommandStreamEnableFrustumCull == 0u ||
+        HikariGpuTraditionalCommandStreamFrustumVisible(seed.boundsCenterRadius);
     if (!visible)
     {
         uint ignored = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_CULLED_COUNT,
             1u,
             ignored);
@@ -238,7 +238,7 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     uint ignoredVisible = 0u;
-    gSurfaceIndirectCounters.InterlockedAdd(
+    gGpuTraditionalCommandStreamCounters.InterlockedAdd(
         passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_VISIBLE_COUNT,
         1u,
         ignoredVisible);
@@ -246,26 +246,26 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (skinned)
     {
         uint visibleSkinnedIndex = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_DRAW_COUNT,
             1u,
             visibleSkinnedIndex);
         uint ignoredSkinnedVisible = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_VISIBLE_COUNT,
             1u,
             ignoredSkinnedVisible);
-        if (visibleSkinnedIndex >= gSurfaceIndirectOutputCapacity)
+        if (visibleSkinnedIndex >= gGpuTraditionalCommandStreamOutputCapacity)
         {
             uint ignoredOverflow = 0u;
-            gSurfaceIndirectCounters.InterlockedAdd(
+            gGpuTraditionalCommandStreamCounters.InterlockedAdd(
                 passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
                 1u,
                 ignoredOverflow);
             return;
         }
 
-        SurfaceSkinnedIndirectDrawArgument argument;
+        GpuTraditionalSkinnedCommandArgument argument;
         argument.vertexBufferLocation = payload.vertexBufferLocation;
         argument.vertexBufferSizeInBytes = payload.vertexBufferSizeInBytes;
         argument.vertexBufferStrideInBytes = payload.vertexBufferStrideInBytes;
@@ -283,27 +283,27 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
         argument.baseVertexLocation = payload.baseVertexLocation;
         argument.startInstanceLocation = 0u;
         argument.reserved0 = 0u;
-        gSurfaceSkinnedIndirectArguments[passOutputBase + visibleSkinnedIndex] = argument;
+        gGpuTraditionalSkinnedCommandArguments[passOutputBase + visibleSkinnedIndex] = argument;
         return;
     }
 
     uint visibleIndex = 0u;
-    gSurfaceIndirectCounters.InterlockedAdd(
+    gGpuTraditionalCommandStreamCounters.InterlockedAdd(
         passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT,
         1u,
         visibleIndex);
 
-    if (visibleIndex >= gSurfaceIndirectOutputCapacity)
+    if (visibleIndex >= gGpuTraditionalCommandStreamOutputCapacity)
     {
         uint ignoredOverflow = 0u;
-        gSurfaceIndirectCounters.InterlockedAdd(
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
             1u,
             ignoredOverflow);
         return;
     }
 
-    SurfaceIndirectDrawArgument argument;
+    GpuTraditionalCommandArgument argument;
     argument.vertexBufferLocation = payload.vertexBufferLocation;
     argument.vertexBufferSizeInBytes = payload.vertexBufferSizeInBytes;
     argument.vertexBufferStrideInBytes = payload.vertexBufferStrideInBytes;
@@ -319,5 +319,5 @@ void CompactSurfaceIndirectCS(uint3 dispatchThreadId : SV_DispatchThreadID)
     argument.startIndexLocation = payload.startIndexLocation;
     argument.baseVertexLocation = payload.baseVertexLocation;
     argument.startInstanceLocation = 0u;
-    gSurfaceIndirectArguments[passOutputBase + visibleIndex] = argument;
+    gGpuTraditionalCommandStreamArguments[passOutputBase + visibleIndex] = argument;
 }

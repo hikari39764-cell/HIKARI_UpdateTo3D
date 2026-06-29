@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -18,14 +18,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
     constexpr size_t kDefaultClusterGpuDrawArgumentCapacity = 524288u;
     constexpr size_t kDefaultClusterGpuPageTaskCapacity = 262144u;
 
-    enum class ClusterDrawCullModeBucket : uint32_t {
+    enum class GeometryCullModeBucket : uint32_t {
         BackFace = 0,
         DoubleSided = 1,
         Count = 2,
     };
 
-    constexpr size_t kClusterDrawCullModeBucketCount =
-        static_cast<size_t>(ClusterDrawCullModeBucket::Count);
+    constexpr size_t kGeometryCullModeBucketCount =
+        static_cast<size_t>(GeometryCullModeBucket::Count);
     constexpr UINT64 kClusterGpuCullDrawCommandCounterOffsetBytes = 16u;
     constexpr UINT64 kClusterGpuCullDoubleSidedDrawCommandCounterOffsetBytes = 20u;
 
@@ -209,13 +209,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         size_t GetDrawArgumentBucketCapacity() const;
         UINT64 GetDrawArgumentBufferOffset(
             ClusterGpuCullingPassKind passKind,
-            ClusterDrawCullModeBucket bucket) const;
+            GeometryCullModeBucket bucket) const;
         UINT64 GetMeshletDispatchArgumentBufferOffset(
             ClusterGpuCullingPassKind passKind,
-            ClusterDrawCullModeBucket bucket) const;
+            GeometryCullModeBucket bucket) const;
         UINT64 GetDrawCommandCounterOffset(
             ClusterGpuCullingPassKind passKind,
-            ClusterDrawCullModeBucket bucket) const;
+            GeometryCullModeBucket bucket) const;
 
     private:
         struct GpuVisibleRange {

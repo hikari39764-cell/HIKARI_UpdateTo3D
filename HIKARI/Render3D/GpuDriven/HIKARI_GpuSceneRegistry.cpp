@@ -1063,7 +1063,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardDepthAwareSkinnedStream_.Clear();
         forwardTransparentSkinnedStream_.Clear();
         shadowSkinnedStream_.Clear();
-        objectCoverage_.clear();
         sceneSource_.Reset();
         stats_ = {};
         layoutVersion_ = 0;
@@ -1130,9 +1129,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 BuildGpuSceneSurfaceRecord(
                     surfaces[surfaceIndex],
                     surfaceIndex);
-            if (record.forwardCandidate) {
-                RecordForwardExpectedSurface(record);
-            }
             surfaceRecords_.push_back(std::move(record));
         }
 
@@ -1169,17 +1165,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             const GpuSceneSurfaceRecord& record = surfaceRecords_[recordIndex];
-            bool handledForward = false;
             if (IsGpuSceneForwardOpaqueResidentRecord(record)) {
                 forwardOpaqueResidentRecordIndices_.push_back(recordIndex);
                 ++stats_.forwardOpaqueClusterCandidateRecordCount;
-                handledForward = true;
             } else if (IsGpuSceneForwardDepthAwareResidentRecord(record)) {
                 forwardDepthAwareResidentRecordIndices_.push_back(recordIndex);
-                handledForward = true;
             } else if (IsGpuSceneForwardTransparentResidentRecord(record)) {
                 forwardTransparentResidentRecordIndices_.push_back(recordIndex);
-                handledForward = true;
             } else if (IsGpuSceneForwardSkinnedTraditionalRecord(record)) {
                 if (record.key.depthAware) {
                     forwardDepthAwareSkinnedRecordIndices_.push_back(recordIndex);
@@ -1188,11 +1180,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 } else {
                     forwardOpaqueSkinnedRecordIndices_.push_back(recordIndex);
                 }
-                handledForward = true;
-            }
-
-            if (handledForward) {
-                RecordForwardHandledSurface(record);
             } else if (record.forwardCandidate) {
                 ++stats_.unsupportedForwardRecordCount;
                 if (record.key.depthAware) {
@@ -1355,15 +1342,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         routingVersion_ = input.sceneCache->GetSurfaceRoutingVersion();
         dataVersion_ = input.sceneCache->GetSurfaceDataVersion();
         sourceSurfaceCount_ = ClampToUint32(surfaces.size());
-        SuppressLegacyForwardViews(input);
+        SuppressCpuForwardViews(input);
         RebuildForwardSceneSource();
     }
 
-    void GpuSceneRegistry::SuppressLegacyForwardViews(
+    void GpuSceneRegistry::SuppressCpuForwardViews(
         const GpuSceneRegistrySyncInput& input) {
 
         stats_.strictGpuDrivenMainline = true;
-        stats_.legacyForwardViewSuppressedCount =
+        stats_.cpuForwardViewSuppressedCount =
             input.sceneCache != nullptr ? 1u : 0u;
         stats_.forwardOpaqueTraditionalGpuSceneStats = {};
         stats_.forwardDepthAwareTraditionalGpuSceneStats = {};
@@ -1574,42 +1561,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
     }
 
-    bool GpuSceneRegistry::HasForwardCoverageForObject(
-        RUNTIME::SceneRenderObjectId objectId) const {
-
-        const auto found = objectCoverage_.find(objectId.value);
-        return
-            found != objectCoverage_.end() &&
-            found->second.handledForwardRecordCount > 0;
-    }
-
-    bool GpuSceneRegistry::HasFullForwardCoverageForObject(
-        RUNTIME::SceneRenderObjectId objectId) const {
-
-        const auto found = objectCoverage_.find(objectId.value);
-        return
-            found != objectCoverage_.end() &&
-            found->second.expectedForwardRecordCount > 0 &&
-            found->second.expectedForwardRecordCount ==
-            found->second.handledForwardRecordCount;
-    }
-
-    bool GpuSceneRegistry::ShouldBypassLegacyForwardSurface(
-        RUNTIME::SceneRenderObjectId objectId,
-        uint32_t nodeIndex,
-        uint32_t meshIndex,
-        uint32_t primitiveIndex) const {
-
-        const auto found = objectCoverage_.find(objectId.value);
-        if (found == objectCoverage_.end()) {
-            return false;
-        }
-        return
-            found->second.forwardBypassSurfaceKeys.find(
-                BuildGpuSceneSurfaceFilterKey(nodeIndex, meshIndex, primitiveIndex)) !=
-            found->second.forwardBypassSurfaceKeys.end();
-    }
-
     const GpuDrivenSceneSource& GpuSceneRegistry::GetSceneSource() const {
         return sceneSource_;
     }
@@ -1626,26 +1577,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     const GpuSceneRegistryStats& GpuSceneRegistry::GetStats() const {
         return stats_;
-    }
-
-    void GpuSceneRegistry::RecordForwardExpectedSurface(
-        const GpuSceneSurfaceRecord& record) {
-
-        if (!record.objectId.IsValid()) {
-            return;
-        }
-        ++objectCoverage_[record.objectId.value].expectedForwardRecordCount;
-    }
-
-    void GpuSceneRegistry::RecordForwardHandledSurface(
-        const GpuSceneSurfaceRecord& record) {
-
-        if (!record.objectId.IsValid()) {
-            return;
-        }
-        ObjectCoverage& coverage = objectCoverage_[record.objectId.value];
-        ++coverage.handledForwardRecordCount;
-        coverage.forwardBypassSurfaceKeys.insert(BuildGpuSceneSurfaceFilterKey(record));
     }
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN
