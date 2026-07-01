@@ -34,6 +34,43 @@ static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_PRECULLED = 2u;
 static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_CLUSTER_LIST = 4u;
 static const uint HIKARI_MESHLET_VISIBLE_PACKET_CAPACITY = 16u;
 static const uint HIKARI_MESHLET_VISIBLE_CLUSTER_LIST_CAPACITY = 64u;
+static const uint HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD = 64u;
+static const uint HIKARI_MESHLET_AS_MODE_COMPACT = 0u;
+static const uint HIKARI_MESHLET_AS_MODE_DENSE = 1u;
+
+struct HikariMeshletPayloadCluster
+{
+    uint clusterIndex;
+    uint firstVertex;
+    uint vertexCount;
+    uint firstPrimitive;
+    uint primitiveCount;
+};
+
+struct HikariMeshletPayload
+{
+    uint visibleRangeIndex;
+    uint visibleClusterCount;
+    uint clusterMode;
+    uint clusterGeometryPoolIndex;
+
+    uint gpuSceneInstanceIndex;
+    uint clusterSurfaceIndex;
+    uint sectionIndex;
+    uint lodIndex;
+
+    uint drawBucket;
+    uint vertexOffsetBytes;
+    uint vertexCount;
+    uint meshletPrimitiveOffsetBytes;
+
+    uint meshletPrimitiveCount;
+    uint firstCluster;
+    uint rangeClusterCount;
+    uint geometryClusterCount;
+
+    HikariMeshletPayloadCluster clusters[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
+};
 
 bool HikariMeshletVisibleRangeUsesPacket(HikariMeshletVisibleRange visible)
 {

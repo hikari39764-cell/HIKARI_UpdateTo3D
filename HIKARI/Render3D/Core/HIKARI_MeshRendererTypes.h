@@ -166,7 +166,8 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 fogColorDensity{};
         MATH::Vec4 fogParams{};
         uint32_t debugView = 0;
-        float debugPadding[3]{};
+        float forwardCostMode = 0.0f;
+        float debugPadding[2]{};
     };
 
     struct SkyEnvironmentCB {
@@ -318,6 +319,8 @@ namespace HIKARI::MESHRENDERER {
         size_t objectIndexBindCount = 0;
         size_t objectIndexSkipCount = 0;
         size_t materialDataWriteCount = 0;
+        size_t materialDataGpuUploadBytes = 0;
+        size_t materialDataGpuUploadCallCount = 0;
         size_t materialDataCacheHitCount = 0;
         size_t materialDataCacheMissCount = 0;
         size_t materialDataOverflowCount = 0;
@@ -383,9 +386,13 @@ namespace HIKARI::MESHRENDERER {
         size_t surfaceGpuSceneShadowInstanceCount = 0;
         size_t surfaceGpuSceneRequestedInstanceCount = 0;
         size_t surfaceGpuSceneUploadedInstanceCount = 0;
+        size_t surfaceGpuSceneCommittedInstanceCount = 0;
+        size_t surfaceGpuSceneCommittedBytes = 0;
         size_t surfaceGpuSceneOverflowInstanceCount = 0;
         size_t surfaceGpuSceneUploadCallCount = 0;
         size_t surfaceGpuSceneMaterialPatchCount = 0;
+        size_t surfaceGpuSceneMaterialPatchChangedCount = 0;
+        size_t surfaceGpuSceneMaterialPatchUnchangedCount = 0;
         size_t surfaceGpuSceneMaterialPatchFailCount = 0;
         size_t surfaceGpuSceneBufferBindCount = 0;
         size_t surfaceGpuSceneBufferSkipCount = 0;

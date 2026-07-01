@@ -1,4 +1,5 @@
-﻿#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -12,6 +13,35 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             default:
                 return false;
             }
+        }
+
+        GeometryBackendPolicy MakePolicyFromQualitySettings(bool forceMeshShaderForPass) {
+            GeometryBackendPolicy policy{};
+            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
+            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
+            policy.forcePreferredOnly = true;
+
+            if (forceMeshShaderForPass) {
+                return policy;
+            }
+
+            switch (RENDER3D::GetRenderQualitySettings().geometryPipeline) {
+            case RENDER3D::GeometryPipelineMode::TraditionalVsPs:
+                policy.preferred = GeometryBackendKind::GpuDrivenTraditionalVsPs;
+                policy.secondary = GeometryBackendKind::GpuDrivenMeshShader;
+                policy.forcePreferredOnly = true;
+                break;
+            case RENDER3D::GeometryPipelineMode::AutoFallback:
+                policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
+                policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
+                policy.forcePreferredOnly = false;
+                break;
+            case RENDER3D::GeometryPipelineMode::MeshShader:
+            default:
+                break;
+            }
+
+            return policy;
         }
 
     } // namespace
@@ -35,32 +65,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     GeometryBackendPolicy ResolveGeometryBackendPolicy(GpuDrivenPassKind pass) {
-        GeometryBackendPolicy policy{};
-        policy.forcePreferredOnly = true;
+        const bool forceMeshShader =
+            pass == GpuDrivenPassKind::DepthPrepass;
+        GeometryBackendPolicy policy = MakePolicyFromQualitySettings(forceMeshShader);
+
         switch (pass) {
         case GpuDrivenPassKind::ForwardOpaque:
         case GpuDrivenPassKind::GeometryAux:
         case GpuDrivenPassKind::DepthPrepass:
-            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
-            return policy;
         case GpuDrivenPassKind::Shadow:
-            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
-            return policy;
         case GpuDrivenPassKind::ReflectionCapture:
-            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
-            return policy;
         case GpuDrivenPassKind::DepthAware:
         case GpuDrivenPassKind::Transparent:
-            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
-            return policy;
         case GpuDrivenPassKind::Debug:
         default:
-            policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
-            policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             return policy;
         }
     }

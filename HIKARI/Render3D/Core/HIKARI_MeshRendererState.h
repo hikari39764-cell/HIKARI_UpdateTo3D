@@ -28,7 +28,9 @@ namespace HIKARI::MESHRENDERER {
         Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> cullingCameraCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> objectCB;
+        Microsoft::WRL::ComPtr<ID3D12Resource> objectDataUploadBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> objectDataBuffer;
+        Microsoft::WRL::ComPtr<ID3D12Resource> materialDataUploadBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> materialDataBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> lightCB;
         Microsoft::WRL::ComPtr<ID3D12Resource> shadowCB;
@@ -49,6 +51,8 @@ namespace HIKARI::MESHRENDERER {
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrvGpu{};
         D3D12_CPU_DESCRIPTOR_HANDLE materialDataSrvCpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
+        D3D12_RESOURCE_STATES objectDataState = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_RESOURCE_STATES materialDataState = D3D12_RESOURCE_STATE_COMMON;
     };
 
     struct MeshRendererState {

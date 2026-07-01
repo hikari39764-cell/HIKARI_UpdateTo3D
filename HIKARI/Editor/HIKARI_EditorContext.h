@@ -91,7 +91,6 @@ namespace HIKARI {
         bool showGameView = true;
         bool showViewportHud = true;
         bool gameOnlyMode = false;
-        float gameViewResolutionScale = 1.0f;
     };
 
     struct AuthoringWindowState {
@@ -101,6 +100,7 @@ namespace HIKARI {
     struct ResourceWindowState {
         bool showAssetBrowser = true;
         bool showEnvironment = true;
+        bool showQuality = true;
         bool showLightingBake = false;
     };
 

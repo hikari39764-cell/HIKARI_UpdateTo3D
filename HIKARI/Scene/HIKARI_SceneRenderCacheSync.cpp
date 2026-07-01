@@ -116,7 +116,11 @@ namespace HIKARI {
 
             RENDER3D::RUNTIME::SceneRenderObjectDesc desc{};
             desc.id = ResolveSceneRenderObjectId(object);
-            desc.visible = model.IsVisible();
+            const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
+            const bool debugOnly =
+                debugMode == ModelRenderDebugMode::WireOnly ||
+                debugMode == ModelRenderDebugMode::BoundsOnly;
+            desc.visible = model.IsVisible() && !debugOnly;
 
             const ModelAsset* asset = ResolveModelAsset(model);
             desc.model = asset;
@@ -140,12 +144,9 @@ namespace HIKARI {
                 desc.animationTimeSec = animator->GetTime();
                 desc.animationLoop = animator->GetLoop();
             }
-            desc.hasSpecialRenderDebug =
-                model.GetRenderDebugMode() != ModelRenderDebugMode::Normal ||
-                model.IsSkeletonDebugVisible();
+            desc.hasSpecialRenderDebug = false;
             desc.allowStaticCachedForward =
-                !desc.hasRuntimeAnimation &&
-                !desc.hasSpecialRenderDebug;
+                !desc.hasRuntimeAnimation;
             desc.materialOverride = model.GetRuntimeMaterialOverride();
             desc.materialFxProfileId = model.GetMaterialFxProfileId();
             desc.postGroupMask = model.GetPostGroupMask();

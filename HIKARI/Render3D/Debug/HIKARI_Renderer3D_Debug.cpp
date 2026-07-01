@@ -11,6 +11,7 @@
 #include <wrl/client.h>
 
 #include "Gfx/HIKARI_D3DBlobCompat.h"
+#include "Gfx/HIKARI_GfxContext.h"
 #include "HIKARI_Services.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
@@ -29,16 +30,20 @@ namespace HIKARI::RENDERER3D::DEBUG {
             MATH::Mat4 viewProj{};
         };
 
-        struct State {
-            bool initialized = false;
-            ComPtr<ID3D12RootSignature> rootSig;
-            ComPtr<ID3D12PipelineState> depthTestPso;
-            ComPtr<ID3D12PipelineState> xrayPso;
+        struct FrameResources {
             ComPtr<ID3D12Resource> cameraCB;
             ComPtr<ID3D12Resource> vertexBuffer;
             CameraCB* cameraMapped = nullptr;
             DebugLineVertex3D* vertexMapped = nullptr;
             size_t vertexCapacity = 0;
+        };
+
+        struct State {
+            bool initialized = false;
+            ComPtr<ID3D12RootSignature> rootSig;
+            ComPtr<ID3D12PipelineState> depthTestPso;
+            ComPtr<ID3D12PipelineState> xrayPso;
+            std::array<FrameResources, GFX::kFrameResourceCount> frameResources{};
         };
 
         std::vector<WireCube> g_cubes;
@@ -210,37 +215,42 @@ namespace HIKARI::RENDERER3D::DEBUG {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(outPso)));
         }
 
-        bool CreateCameraBuffer(ID3D12Device* device) {
+        FrameResources& ActiveFrameResources() {
+            const uint32_t frameIndex = SERVICES::gCtx.frameIndex % GFX::kFrameResourceCount;
+            return g_state.frameResources[frameIndex];
+        }
+
+        bool CreateCameraBuffer(ID3D12Device* device, FrameResources& frame) {
             const UINT bytes = (sizeof(CameraCB) + 255u) & ~255u;
             const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto desc = CD3DX12_RESOURCE_DESC::Buffer(bytes);
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g_state.cameraCB.GetAddressOf())))) {
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(frame.cameraCB.GetAddressOf())))) {
                 return false;
             }
-            return SUCCEEDED(g_state.cameraCB->Map(0, nullptr, reinterpret_cast<void**>(&g_state.cameraMapped)));
+            return SUCCEEDED(frame.cameraCB->Map(0, nullptr, reinterpret_cast<void**>(&frame.cameraMapped)));
         }
 
-        bool EnsureVertexCapacity(ID3D12Device* device, size_t requiredVertices) {
+        bool EnsureVertexCapacity(ID3D12Device* device, FrameResources& frame, size_t requiredVertices) {
             if (requiredVertices == 0) {
                 return true;
             }
-            if (g_state.vertexBuffer != nullptr && g_state.vertexMapped != nullptr && g_state.vertexCapacity >= requiredVertices) {
+            if (frame.vertexBuffer != nullptr && frame.vertexMapped != nullptr && frame.vertexCapacity >= requiredVertices) {
                 return true;
             }
 
-            if (g_state.vertexBuffer != nullptr) {
-                g_state.vertexBuffer->Unmap(0, nullptr);
+            if (frame.vertexBuffer != nullptr) {
+                frame.vertexBuffer->Unmap(0, nullptr);
             }
-            g_state.vertexBuffer.Reset();
-            g_state.vertexMapped = nullptr;
-            g_state.vertexCapacity = std::max<size_t>(requiredVertices, 1024u);
+            frame.vertexBuffer.Reset();
+            frame.vertexMapped = nullptr;
+            frame.vertexCapacity = std::max<size_t>(requiredVertices, 1024u);
 
             const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(g_state.vertexCapacity * sizeof(DebugLineVertex3D)));
-            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g_state.vertexBuffer.GetAddressOf())))) {
+            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(frame.vertexCapacity * sizeof(DebugLineVertex3D)));
+            if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(frame.vertexBuffer.GetAddressOf())))) {
                 return false;
             }
-            return SUCCEEDED(g_state.vertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&g_state.vertexMapped)));
+            return SUCCEEDED(frame.vertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&frame.vertexMapped)));
         }
 
         bool EnsureInitialized() {
@@ -255,48 +265,50 @@ namespace HIKARI::RENDERER3D::DEBUG {
 
             if (!CreateRootSignature(device) ||
                 !CreatePipeline(device, false, g_state.depthTestPso.GetAddressOf()) ||
-                !CreatePipeline(device, true, g_state.xrayPso.GetAddressOf()) ||
-                !CreateCameraBuffer(device)) {
+                !CreatePipeline(device, true, g_state.xrayPso.GetAddressOf())) {
                 return false;
+            }
+            for (FrameResources& frame : g_state.frameResources) {
+                if (!CreateCameraBuffer(device, frame)) {
+                    return false;
+                }
             }
 
             g_state.initialized = true;
             return true;
         }
 
-        void RenderLineBatch(const Camera3D& camera, const std::vector<Line3D>& lines, ID3D12PipelineState* pso) {
-            if (lines.empty() || pso == nullptr || SERVICES::gCtx.cmdList == nullptr || !EnsureInitialized()) {
-                return;
-            }
-
-            ID3D12Device* device = SERVICES::gCtx.device;
-            if (device == nullptr || !EnsureVertexCapacity(device, lines.size() * 2u)) {
-                return;
-            }
-
-            if (g_state.cameraMapped != nullptr) {
-                g_state.cameraMapped->viewProj = camera.GetViewProj();
-            }
-
-            size_t vertexIndex = 0;
+        size_t WriteLineVertices(DebugLineVertex3D* dst, size_t startVertex, const std::vector<Line3D>& lines) {
+            size_t vertexIndex = startVertex;
             for (const Line3D& line : lines) {
                 const MATH::Vec4 color = DecodeRgba(line.rgba);
-                g_state.vertexMapped[vertexIndex++] = { line.from, color };
-                g_state.vertexMapped[vertexIndex++] = { line.to, color };
+                dst[vertexIndex++] = { line.from, color };
+                dst[vertexIndex++] = { line.to, color };
+            }
+            return vertexIndex - startVertex;
+        }
+
+        void RenderLineBatch(const FrameResources& frame, size_t firstVertex, size_t vertexCount, ID3D12PipelineState* pso) {
+            if (vertexCount == 0 || pso == nullptr || SERVICES::gCtx.cmdList == nullptr || !EnsureInitialized()) {
+                return;
+            }
+
+            if (frame.cameraCB == nullptr || frame.vertexBuffer == nullptr) {
+                return;
             }
 
             D3D12_VERTEX_BUFFER_VIEW vb{};
-            vb.BufferLocation = g_state.vertexBuffer->GetGPUVirtualAddress();
-            vb.SizeInBytes = static_cast<UINT>(vertexIndex * sizeof(DebugLineVertex3D));
+            vb.BufferLocation = frame.vertexBuffer->GetGPUVirtualAddress() + firstVertex * sizeof(DebugLineVertex3D);
+            vb.SizeInBytes = static_cast<UINT>(vertexCount * sizeof(DebugLineVertex3D));
             vb.StrideInBytes = sizeof(DebugLineVertex3D);
 
             ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
             cmd->SetGraphicsRootSignature(g_state.rootSig.Get());
             cmd->SetPipelineState(pso);
-            cmd->SetGraphicsRootConstantBufferView(0, g_state.cameraCB->GetGPUVirtualAddress());
+            cmd->SetGraphicsRootConstantBufferView(0, frame.cameraCB->GetGPUVirtualAddress());
             cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
             cmd->IASetVertexBuffers(0, 1, &vb);
-            cmd->DrawInstanced(static_cast<UINT>(vertexIndex), 1, 0, 0);
+            cmd->DrawInstanced(static_cast<UINT>(vertexCount), 1, 0, 0);
         }
     }
 
@@ -376,8 +388,27 @@ namespace HIKARI::RENDERER3D::DEBUG {
         if (!EnsureInitialized()) {
             return;
         }
-        RenderLineBatch(camera, g_depthTestScratch, g_state.depthTestPso.Get());
-        RenderLineBatch(camera, g_xrayScratch, g_state.xrayPso.Get());
+        ID3D12Device* device = SERVICES::gCtx.device;
+        FrameResources& frame = ActiveFrameResources();
+        const size_t depthVertexCount = g_depthTestScratch.size() * 2u;
+        const size_t xrayVertexCount = g_xrayScratch.size() * 2u;
+        const size_t totalVertexCount = depthVertexCount + xrayVertexCount;
+        if (device == nullptr || !EnsureVertexCapacity(device, frame, totalVertexCount) || frame.vertexMapped == nullptr) {
+            return;
+        }
+
+        if (frame.cameraMapped != nullptr) {
+            frame.cameraMapped->viewProj = camera.GetViewProj();
+        }
+
+        size_t vertexCursor = 0;
+        const size_t depthVertexStart = vertexCursor;
+        vertexCursor += WriteLineVertices(frame.vertexMapped, vertexCursor, g_depthTestScratch);
+        const size_t xrayVertexStart = vertexCursor;
+        vertexCursor += WriteLineVertices(frame.vertexMapped, vertexCursor, g_xrayScratch);
+
+        RenderLineBatch(frame, depthVertexStart, depthVertexCount, g_state.depthTestPso.Get());
+        RenderLineBatch(frame, xrayVertexStart, xrayVertexCount, g_state.xrayPso.Get());
     }
 
 } // namespace HIKARI::RENDERER3D::DEBUG

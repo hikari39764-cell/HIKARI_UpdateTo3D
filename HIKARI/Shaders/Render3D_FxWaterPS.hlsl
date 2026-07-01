@@ -58,7 +58,8 @@ cbuffer LightCB : register(b2)
     float4 gFogColorDensity;
     float4 gFogParams;
     uint gDebugView;
-    float3 gDebugPadding;
+    float gForwardCostMode;
+    float2 gDebugPadding;
 };
 
 cbuffer ShadowCB : register(b4)

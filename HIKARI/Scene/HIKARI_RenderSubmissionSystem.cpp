@@ -39,6 +39,52 @@ namespace HIKARI {
         }
     }
 
+    namespace {
+        const ModelAsset* ResolveDebugModelAsset(ModelComponent& model) {
+            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
+                return PROCEDURAL::GetOrCreateModel(model.GetProceduralSettings());
+            }
+            return model.GetAsset();
+        }
+
+        void SubmitDebugOverlays(World& world, RenderSubmissionDebugStats& stats) {
+            MESHWIREDEBUG::BeginFrame();
+            world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
+                if (!model.IsVisible()) {
+                    return;
+                }
+
+                const ModelRenderDebugMode debugMode = model.GetRenderDebugMode();
+                if (debugMode == ModelRenderDebugMode::Normal) {
+                    return;
+                }
+
+                const ModelAsset* asset = ResolveDebugModelAsset(model);
+                if (asset == nullptr) {
+                    return;
+                }
+
+                const Transform3D& worldTransform = object.Transform();
+                if (debugMode == ModelRenderDebugMode::WireOverlay ||
+                    debugMode == ModelRenderDebugMode::WireOnly) {
+                    MESHWIREDEBUG::SubmitModelWire(
+                        *asset,
+                        worldTransform,
+                        model.GetWireColor(),
+                        model.GetMaxWireLines(),
+                        model.GetWirePerPrimitiveColor());
+                    ++stats.fallbackWireCount;
+                } else if (debugMode == ModelRenderDebugMode::BoundsOnly) {
+                    MESHWIREDEBUG::SubmitModelBounds(
+                        *asset,
+                        worldTransform,
+                        model.GetWireColor());
+                    ++stats.fallbackWireCount;
+                }
+            });
+        }
+    }
+
     void RenderSubmissionSystem::SetAssetContext(
         const AssetRegistry* assetRegistry,
         std::filesystem::path projectRoot) {
@@ -123,7 +169,7 @@ namespace HIKARI {
             SHADOW::SetGpuDrivenSceneSource(nullptr);
         }
 
-        MESHWIREDEBUG::BeginFrame();
+        SubmitDebugOverlays(world, sDebugStats_);
     }
 
 } // namespace HIKARI

@@ -1081,6 +1081,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return kGpuTraditionalCommandStreamCounterStrideBytes;
     }
 
+    size_t GpuTraditionalCommandStreamBuffer::GetCommandBucketCapacity() const {
+        return capacity_;
+    }
+
     size_t GpuTraditionalCommandStreamBuffer::GetCommandBucketCount() const {
         return kGpuDrivenCommandBucketCount;
     }

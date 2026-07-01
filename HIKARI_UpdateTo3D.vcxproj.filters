@@ -669,6 +669,9 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1315,6 +1318,9 @@
     <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.cpp">
       <Filter>Source Files\Render3D\Depth</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp">
       <Filter>Source Files\Render3D\Meshlet</Filter>
     </ClCompile>
@@ -1672,6 +1678,9 @@
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
@@ -2133,6 +2142,9 @@
     <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.h">
       <Filter>Header Files\Render3D\Depth</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">
       <Filter>Header Files\Render3D\Meshlet</Filter>
     </ClInclude>
@@ -2238,9 +2250,6 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\HIKARI_ClusterCullCommon.hlsli">
-      <Filter>Project\Shaders\Render3D</Filter>
-    </None>
-    <None Include="HIKARI\Shaders\Render3D_ClusterCullCS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_ClusterDispatchFinalizeCS.hlsl">

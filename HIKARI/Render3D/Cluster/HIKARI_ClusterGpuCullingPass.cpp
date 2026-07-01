@@ -1416,7 +1416,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
         const ClusterGpuCullingSourceRange* ranges,
         size_t rangeCount,
         const ClusterGpuDepthOcclusionDesc& depthOcclusion,
-        bool collectCounterReadback) {
+        bool collectCounterReadback,
+        bool emitTraditionalDrawArgs) {
 
         const auto& debugConfig = GFX::GetGfxDebugConfig();
         const bool counterReadbackEnabled =
@@ -1518,7 +1519,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 visibleClusterListCapacity_,
                 static_cast<size_t>(UINT32_MAX)));
         baseConstants.meshletPreciseCompaction = 1u;
+        baseConstants.emitTraditionalDrawArgs =
+            emitTraditionalDrawArgs ? 1u : 0u;
         stats_.debugCountersEnabled = baseConstants.enableDebugCounters != 0u;
+        stats_.traditionalDrawArgsEmitted = emitTraditionalDrawArgs;
 
         const UINT constantsStride = AlignConstantBufferSize(sizeof(GpuConstants));
         std::array<UINT, kClusterGpuCullingMaxSourceRangeCount> expandGroupCounts{};

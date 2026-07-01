@@ -19,8 +19,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t capacity = 0;
         size_t requestedInstanceCount = 0;
         size_t uploadedInstanceCount = 0;
+        size_t committedInstanceCount = 0;
+        size_t committedBytes = 0;
         size_t overflowInstanceCount = 0;
         size_t uploadCallCount = 0;
+        size_t materialPatchCount = 0;
+        size_t materialPatchChangedCount = 0;
+        size_t materialPatchUnchangedCount = 0;
         bool initialized = false;
         D3D12_GPU_DESCRIPTOR_HANDLE srv{};
     };
@@ -66,6 +71,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATES defaultState = D3D12_RESOURCE_STATE_COMMON;
             size_t cursor = 0;
             size_t residentInstanceCount = 0;
+            size_t dirtyFirstInstance = 0;
+            size_t dirtyEndInstance = 0;
             uint64_t layoutVersion = 0;
             uint64_t sourceVersion = 0;
             bool resident = false;
@@ -74,6 +81,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         FrameSlot* ActiveSlot();
         const FrameSlot* ActiveSlot() const;
+        void MarkDirtyRange(FrameSlot& slot, size_t firstInstance, size_t endInstance);
 
         std::array<FrameSlot, GFX::kFrameResourceCount> slots_{};
         uint32_t activeSlotIndex_ = 0;

@@ -34,11 +34,17 @@ HikariMeshletDepthVertexOut HikariBuildMeshletDepthVertex(
         localNormal);
 
     float4 worldPos = mul(instance.clusterWorld, float4(localPosition, 1.0f));
-    float4 uv01 = HikariLoadClusterVertexUv01(geometry, resolved.header, vertexIndex);
     output.position = mul(gViewProj, worldPos);
-    output.uv = uv01.xy;
-    output.uv1 = uv01.zw;
-    output.materialDataIndex = instance.materialDataIndex;
+
+    const bool alphaMasked =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED) != 0u;
+    if (alphaMasked)
+    {
+        float4 uv01 = HikariLoadClusterVertexUv01(geometry, resolved.header, vertexIndex);
+        output.uv = uv01.xy;
+        output.uv1 = uv01.zw;
+        output.materialDataIndex = instance.materialDataIndex;
+    }
     return output;
 }
 

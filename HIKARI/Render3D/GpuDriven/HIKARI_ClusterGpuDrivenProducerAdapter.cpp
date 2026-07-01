@@ -161,11 +161,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             stats.counterBufferReady;
 
         output.commands.gpuDrawIndexedArgs =
-            cullingPass_->GetDrawArgumentBuffer();
+            stats.traditionalDrawArgsEmitted
+                ? cullingPass_->GetDrawArgumentBuffer()
+                : nullptr;
         output.commands.meshDispatchArgs =
             cullingPass_->GetMeshletDispatchArgumentBuffer();
         output.commands.gpuDrawIndexedSignature =
-            cullingPass_->GetDrawCommandSignature();
+            stats.traditionalDrawArgsEmitted
+                ? cullingPass_->GetDrawCommandSignature()
+                : nullptr;
         output.commands.meshDispatchSignature =
             cullingPass_->GetMeshletDispatchCommandSignature();
 
@@ -267,7 +271,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             rangeCount != 0 ? ranges.data() : nullptr,
             rangeCount,
             depthOcclusion,
-            context.collectCounterReadback);
+            context.collectCounterReadback,
+            context.emitTraditionalDrawArgs);
         return result;
     }
 

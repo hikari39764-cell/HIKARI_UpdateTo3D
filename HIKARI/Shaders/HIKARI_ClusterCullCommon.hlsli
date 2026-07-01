@@ -134,7 +134,7 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullHzbTestBudget;
     uint gClusterCullVisibleClusterListCapacity;
     uint gClusterCullMeshletPreciseCompaction;
-    uint gClusterCullReserved0;
+    uint gClusterCullEmitTraditionalDrawArgs;
     uint gClusterCullReserved1;
     uint gClusterCullReserved2;
 };
@@ -1473,17 +1473,20 @@ void HikariClusterCullEmitDraw(
     visible.packetClusterIndices3 = packetClusterIndices3;
     gClusterCullVisibleRanges[visibleIndex] = visible;
 
-    ClusterCullIndirectDrawArgument drawArgument;
-    drawArgument.rootConstants = uint4(
-        input.gpuSceneInstanceIndex,
-        firstIndex,
-        visibleIndex,
-        input.passKind);
-    drawArgument.vertexCountPerInstance = indexCount;
-    drawArgument.instanceCount = 1;
-    drawArgument.startVertexLocation = 0;
-    drawArgument.startInstanceLocation = 0;
-    gClusterCullDrawArguments[globalDrawIndex] = drawArgument;
+    if (gClusterCullEmitTraditionalDrawArgs != 0u)
+    {
+        ClusterCullIndirectDrawArgument drawArgument;
+        drawArgument.rootConstants = uint4(
+            input.gpuSceneInstanceIndex,
+            firstIndex,
+            visibleIndex,
+            input.passKind);
+        drawArgument.vertexCountPerInstance = indexCount;
+        drawArgument.instanceCount = 1;
+        drawArgument.startVertexLocation = 0;
+        drawArgument.startInstanceLocation = 0;
+        gClusterCullDrawArguments[globalDrawIndex] = drawArgument;
+    }
 }
 
 void HikariClusterCullFlushVisibleRun(

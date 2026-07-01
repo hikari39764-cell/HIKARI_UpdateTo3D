@@ -48,6 +48,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenFrame* frame = nullptr;
         uint32_t passMask = 0xffffffffu;
         bool collectCounterReadback = true;
+        bool emitTraditionalDrawArgs = false;
         GpuDrivenDepthOcclusionContext depthOcclusion{};
     };
 

@@ -15,6 +15,7 @@ struct GpuTraditionalCommandArgument
     uint startIndexLocation;
     int baseVertexLocation;
     uint startInstanceLocation;
+    uint reserved0;
 };
 
 struct GpuTraditionalSkinnedCommandArgument
@@ -257,6 +258,11 @@ void CompactGpuTraditionalCommandStreamCS(uint3 dispatchThreadId : SV_DispatchTh
             ignoredSkinnedVisible);
         if (visibleSkinnedIndex >= gGpuTraditionalCommandStreamOutputCapacity)
         {
+            uint ignoredSkinnedDrawRollback = 0u;
+            gGpuTraditionalCommandStreamCounters.InterlockedAdd(
+                passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_SKINNED_DRAW_COUNT,
+                0xffffffffu,
+                ignoredSkinnedDrawRollback);
             uint ignoredOverflow = 0u;
             gGpuTraditionalCommandStreamCounters.InterlockedAdd(
                 passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
@@ -295,6 +301,11 @@ void CompactGpuTraditionalCommandStreamCS(uint3 dispatchThreadId : SV_DispatchTh
 
     if (visibleIndex >= gGpuTraditionalCommandStreamOutputCapacity)
     {
+        uint ignoredDrawRollback = 0u;
+        gGpuTraditionalCommandStreamCounters.InterlockedAdd(
+            passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_DRAW_COUNT,
+            0xffffffffu,
+            ignoredDrawRollback);
         uint ignoredOverflow = 0u;
         gGpuTraditionalCommandStreamCounters.InterlockedAdd(
             passCounterBase + HIKARI_SURFACE_INDIRECT_COUNTER_OVERFLOW_COUNT,
@@ -319,5 +330,6 @@ void CompactGpuTraditionalCommandStreamCS(uint3 dispatchThreadId : SV_DispatchTh
     argument.startIndexLocation = payload.startIndexLocation;
     argument.baseVertexLocation = payload.baseVertexLocation;
     argument.startInstanceLocation = 0u;
+    argument.reserved0 = 0u;
     gGpuTraditionalCommandStreamArguments[passOutputBase + visibleIndex] = argument;
 }

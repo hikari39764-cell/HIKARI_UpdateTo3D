@@ -567,6 +567,10 @@ bool Dx12Core::MoveToNextFrame() {
 bool Dx12Core::Resize(int w, int h) {
     if (w <= 0 || h <= 0) return true;
     if (deviceLost_ || swapChain_ == nullptr) return false;
+    if (frameOpen_) {
+        HIKARI_LOG_ERROR("Dx12Core::Resize was requested while a GPU frame is open. Resize must be deferred to a frame boundary.");
+        return false;
+    }
     if (!WaitGPU()) {
         return false;
     }

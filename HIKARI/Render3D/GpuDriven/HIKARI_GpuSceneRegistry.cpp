@@ -1,4 +1,5 @@
 #include "Render3D/GpuDriven/HIKARI_GpuSceneRegistry.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -884,6 +885,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return args.indexCountPerInstance > 0u && args.instanceCount > 0u;
         }
 
+        bool ShouldPublishStaticTraditionalStreams() {
+            return HIKARI::RENDER3D::GetRenderQualitySettings().geometryPipeline ==
+                HIKARI::RENDER3D::GeometryPipelineMode::TraditionalVsPs;
+        }
+
         bool HasValidGpuSceneSubmitPrimitiveTarget(
             const GpuSceneSurfaceRecord& record) {
 
@@ -896,11 +902,117 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     record.model->meshes[record.meshIndex].primitives.size();
         }
 
+        void FillTraditionalDrawCommand(
+            const GpuSceneSurfaceRecord& record,
+            uint32_t recordIndexInStream,
+            uint32_t executableIndex,
+            uint32_t gpuSceneInstanceIndex,
+            RUNTIME::SurfaceDrawCommandPass pass,
+            bool clusterMainlineEligible,
+            RUNTIME::SurfaceDrawCommand& command) {
+
+            command = {};
+            command.pass = pass;
+            command.firstExecutableIndex = executableIndex;
+            command.recordCount = 1u;
+            command.firstRecordIndex = recordIndexInStream;
+            command.firstGpuSceneInstanceIndex = gpuSceneInstanceIndex;
+            command.gpuSceneInstanceCount = 1u;
+            command.batchKey = RUNTIME::BuildSurfaceDrawBatchKey(
+                pass,
+                record.key);
+            command.resources = record.key.resources;
+            command.psoKey = record.key.psoKey;
+            command.geometryKey = record.key.geometryKey;
+            command.geometryBackend = record.key.geometryBackend;
+            command.materialKey = record.key.materialKey;
+            command.textureSetKey = record.key.textureSetKey;
+            command.modelKey = record.key.modelKey;
+            command.singleRecord = true;
+            command.transparent = record.key.transparent;
+            command.alphaMasked = record.key.alphaMasked;
+            command.doubleSided = record.key.doubleSided;
+            command.clusterMainlineEligible = clusterMainlineEligible;
+            command.drawArgs = BuildDrawIndexedArgs(record);
+            command.drawArgsValid = IsValidDrawArgs(command.drawArgs);
+        }
+
+        bool AppendTraditionalRecordInstance(
+            const std::vector<GpuSceneSurfaceRecord>& records,
+            uint32_t sourceRecordIndex,
+            uint32_t streamRecordIndex,
+            GpuSceneRegistry::TraditionalIndirectStream& stream) {
+
+            std::vector<uint32_t> singleRecordIndex{ sourceRecordIndex };
+            std::vector<RUNTIME::SurfaceGpuSceneInstance> singleInstance{};
+            std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> singleMaterial{};
+            (void)BuildGpuSceneInstanceList(
+                records,
+                singleRecordIndex,
+                singleInstance,
+                singleMaterial);
+            if (singleInstance.empty() || singleMaterial.empty()) {
+                return false;
+            }
+
+            singleInstance.front().sourceRecordIndex = streamRecordIndex;
+            stream.instances.push_back(singleInstance.front());
+            stream.materialSources.push_back(singleMaterial.front());
+            return true;
+        }
+
+        void AppendStaticTraditionalRecord(
+            const std::vector<GpuSceneSurfaceRecord>& records,
+            uint32_t recordIndex,
+            RUNTIME::SurfaceDrawCommandPass pass,
+            GpuSceneRegistry::TraditionalIndirectStream& stream) {
+
+            if (recordIndex >= records.size()) {
+                return;
+            }
+            const GpuSceneSurfaceRecord& record = records[recordIndex];
+            if (!HasValidGpuSceneSubmitPrimitiveTarget(record)) {
+                return;
+            }
+
+            const uint32_t recordIndexInStream = ClampToUint32(stream.records.size());
+            const uint32_t executableIndex =
+                ClampToUint32(stream.executableRecordIndices.size());
+            const uint32_t gpuSceneInstanceIndex =
+                ClampToUint32(stream.instances.size());
+
+            stream.records.push_back(record);
+            stream.executableRecordIndices.push_back(recordIndexInStream);
+            stream.jointPalettes.emplace_back();
+            if (!AppendTraditionalRecordInstance(
+                records,
+                recordIndex,
+                recordIndexInStream,
+                stream)) {
+                stream.records.pop_back();
+                stream.executableRecordIndices.pop_back();
+                stream.jointPalettes.pop_back();
+                return;
+            }
+
+            RUNTIME::SurfaceDrawCommand command{};
+            FillTraditionalDrawCommand(
+                record,
+                recordIndexInStream,
+                executableIndex,
+                gpuSceneInstanceIndex,
+                pass,
+                record.key.clusterMainlineEligible,
+                command);
+            stream.commands.push_back(command);
+            ++stream.staticCommandCount;
+        }
+
         void AppendSkinnedTraditionalRecord(
             const std::vector<GpuSceneSurfaceRecord>& records,
             uint32_t recordIndex,
             RUNTIME::SurfaceDrawCommandPass pass,
-            GpuSceneRegistry::TraditionalSkinnedStream& stream,
+            GpuSceneRegistry::TraditionalIndirectStream& stream,
             SkinPoseBuildCache& poseCache) {
 
             if (recordIndex >= records.size()) {
@@ -922,53 +1034,33 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             stream.records.push_back(record);
             stream.executableRecordIndices.push_back(recordIndexInStream);
             stream.jointPalettes.push_back(*palette);
-
-            std::vector<uint32_t> singleRecordIndex{ recordIndex };
-            std::vector<RUNTIME::SurfaceGpuSceneInstance> singleInstance{};
-            std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> singleMaterial{};
-            (void)BuildGpuSceneInstanceList(
+            if (!AppendTraditionalRecordInstance(
                 records,
-                singleRecordIndex,
-                singleInstance,
-                singleMaterial);
-            if (!singleInstance.empty()) {
-                singleInstance.front().sourceRecordIndex = recordIndexInStream;
-                stream.instances.push_back(singleInstance.front());
-            }
-            if (!singleMaterial.empty()) {
-                stream.materialSources.push_back(singleMaterial.front());
+                recordIndex,
+                recordIndexInStream,
+                stream)) {
+                stream.records.pop_back();
+                stream.executableRecordIndices.pop_back();
+                stream.jointPalettes.pop_back();
+                return;
             }
 
             RUNTIME::SurfaceDrawCommand command{};
-            command.pass = pass;
-            command.firstExecutableIndex = executableIndex;
-            command.recordCount = 1u;
-            command.firstRecordIndex = recordIndexInStream;
-            command.firstGpuSceneInstanceIndex = gpuSceneInstanceIndex;
-            command.gpuSceneInstanceCount = 1u;
-            command.batchKey = RUNTIME::BuildSurfaceDrawBatchKey(
+            FillTraditionalDrawCommand(
+                record,
+                recordIndexInStream,
+                executableIndex,
+                gpuSceneInstanceIndex,
                 pass,
-                stream.records.back().key);
-            command.resources = stream.records.back().key.resources;
-            command.psoKey = stream.records.back().key.psoKey;
-            command.geometryKey = stream.records.back().key.geometryKey;
-            command.geometryBackend = stream.records.back().key.geometryBackend;
-            command.materialKey = stream.records.back().key.materialKey;
-            command.textureSetKey = stream.records.back().key.textureSetKey;
-            command.modelKey = stream.records.back().key.modelKey;
-            command.singleRecord = true;
-            command.transparent = stream.records.back().key.transparent;
-            command.alphaMasked = stream.records.back().key.alphaMasked;
-            command.doubleSided = stream.records.back().key.doubleSided;
-            command.clusterMainlineEligible = false;
-            command.drawArgs = BuildDrawIndexedArgs(record);
-            command.drawArgsValid = IsValidDrawArgs(command.drawArgs);
+                false,
+                command);
             stream.commands.push_back(command);
+            ++stream.skinnedCommandCount;
         }
 
-        void AttachTraditionalSkinnedView(
+        void AttachTraditionalIndirectView(
             GpuDrivenPassSource& pass,
-            const GpuSceneRegistry::TraditionalSkinnedStream& stream,
+            const GpuSceneRegistry::TraditionalIndirectStream& stream,
             uint32_t gpuSceneBaseIndex) {
 
             pass.traditionalIndirect.Reset();
@@ -985,6 +1077,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
             pass.traditionalIndirect.gpuSceneInstanceCount =
                 ClampToUint32(stream.instances.size());
+            pass.traditionalIndirect.staticCommandCount =
+                stream.staticCommandCount;
+            pass.traditionalIndirect.skinnedCommandCount =
+                stream.skinnedCommandCount;
         }
 
         bool IsGpuSceneSkinnedTraditionalRecordCommon(
@@ -1016,20 +1112,24 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
     }
 
-    void GpuSceneRegistry::TraditionalSkinnedStream::Clear() {
+    void GpuSceneRegistry::TraditionalIndirectStream::Clear() {
         records.clear();
         executableRecordIndices.clear();
         commands.clear();
         instances.clear();
         materialSources.clear();
         jointPalettes.clear();
+        staticCommandCount = 0;
+        skinnedCommandCount = 0;
     }
 
-    bool GpuSceneRegistry::TraditionalSkinnedStream::HasCommands() const {
+    bool GpuSceneRegistry::TraditionalIndirectStream::HasCommands() const {
         return
             !records.empty() &&
             !commands.empty() &&
             !executableRecordIndices.empty() &&
+            records.size() == instances.size() &&
+            records.size() == materialSources.size() &&
             records.size() == jointPalettes.size();
     }
 
@@ -1059,16 +1159,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         forwardTransparentMaterialSources_.clear();
         shadowGpuSceneInstances_.clear();
         shadowMaterialSources_.clear();
-        forwardOpaqueSkinnedStream_.Clear();
-        forwardDepthAwareSkinnedStream_.Clear();
-        forwardTransparentSkinnedStream_.Clear();
-        shadowSkinnedStream_.Clear();
+        forwardOpaqueTraditionalStream_.Clear();
+        forwardDepthAwareTraditionalStream_.Clear();
+        forwardTransparentTraditionalStream_.Clear();
+        shadowTraditionalStream_.Clear();
         sceneSource_.Reset();
         stats_ = {};
         layoutVersion_ = 0;
         routingVersion_ = 0;
         dataVersion_ = 0;
         sourceSurfaceCount_ = 0;
+        publishStaticTraditionalStreams_ = false;
     }
 
     void GpuSceneRegistry::SyncForwardFromSceneCache(
@@ -1089,7 +1190,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             layoutVersion_ != layoutVersion ||
             routingVersion_ != routingVersion ||
             sourceSurfaceCount_ != surfaceCount;
-        if (layoutChanged || !sceneSource_.HasAnyGpuSceneRanges()) {
+        const bool publishStaticTraditionalStreams =
+            ShouldPublishStaticTraditionalStreams();
+        const bool traditionalStreamPolicyChanged =
+            publishStaticTraditionalStreams_ != publishStaticTraditionalStreams;
+        if (layoutChanged ||
+            traditionalStreamPolicyChanged ||
+            !sceneSource_.HasAnyGpuSceneRanges()) {
             RebuildForwardFromSceneCache(input);
             return;
         }
@@ -1117,6 +1224,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (input.sceneCache == nullptr) {
             return;
         }
+        publishStaticTraditionalStreams_ =
+            ShouldPublishStaticTraditionalStreams();
 
         const std::vector<RUNTIME::SceneSurfaceInstance>& surfaces =
             input.sceneCache->GetSurfaceInstances();
@@ -1285,21 +1394,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             shadowGpuSceneInstances_,
             shadowMaterialSources_);
 
-        const auto buildSkinnedStream =
-            [&](const std::vector<uint32_t>& recordIndices,
-                RUNTIME::SurfaceDrawCommandPass pass,
-                TraditionalSkinnedStream& stream) {
-            stream.Clear();
-            SkinPoseBuildCache poseCache{};
-            for (const uint32_t recordIndex : recordIndices) {
-                AppendSkinnedTraditionalRecord(
-                    surfaceRecords_,
-                    recordIndex,
-                    pass,
-                    stream,
-                    poseCache);
-            }
-
+        const auto buildTraditionalStreamStats =
+            [](const TraditionalIndirectStream& stream) {
             RUNTIME::SurfaceGpuSceneBuildStats streamStats{};
             streamStats.commandCount = ClampToUint32(stream.commands.size());
             streamStats.instanceCount = ClampToUint32(stream.instances.size());
@@ -1317,26 +1413,65 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return streamStats;
         };
 
-        stats_.forwardOpaqueSkinnedTraditionalGpuSceneStats =
-            buildSkinnedStream(
+        const auto buildTraditionalStream =
+            [&](const std::vector<uint32_t>& staticRecordIndices,
+                const std::vector<uint32_t>& skinnedRecordIndices,
+                RUNTIME::SurfaceDrawCommandPass pass,
+                TraditionalIndirectStream& stream) {
+            stream.Clear();
+            if (publishStaticTraditionalStreams_) {
+                for (const uint32_t recordIndex : staticRecordIndices) {
+                    AppendStaticTraditionalRecord(
+                        surfaceRecords_,
+                        recordIndex,
+                        pass,
+                        stream);
+                }
+            }
+
+            SkinPoseBuildCache poseCache{};
+            for (const uint32_t recordIndex : skinnedRecordIndices) {
+                AppendSkinnedTraditionalRecord(
+                    surfaceRecords_,
+                    recordIndex,
+                    pass,
+                    stream,
+                    poseCache);
+            }
+
+            return buildTraditionalStreamStats(stream);
+        };
+
+        stats_.forwardOpaqueTraditionalGpuSceneStats =
+            buildTraditionalStream(
+                forwardOpaqueResidentRecordIndices_,
                 forwardOpaqueSkinnedRecordIndices_,
                 RUNTIME::SurfaceDrawCommandPass::Forward,
-                forwardOpaqueSkinnedStream_);
-        stats_.forwardDepthAwareSkinnedTraditionalGpuSceneStats =
-            buildSkinnedStream(
+                forwardOpaqueTraditionalStream_);
+        stats_.forwardOpaqueSkinnedTraditionalGpuSceneStats =
+            stats_.forwardOpaqueTraditionalGpuSceneStats;
+        stats_.forwardDepthAwareTraditionalGpuSceneStats =
+            buildTraditionalStream(
+                forwardDepthAwareResidentRecordIndices_,
                 forwardDepthAwareSkinnedRecordIndices_,
                 RUNTIME::SurfaceDrawCommandPass::DepthAware,
-                forwardDepthAwareSkinnedStream_);
-        stats_.forwardTransparentSkinnedTraditionalGpuSceneStats =
-            buildSkinnedStream(
+                forwardDepthAwareTraditionalStream_);
+        stats_.forwardDepthAwareSkinnedTraditionalGpuSceneStats =
+            stats_.forwardDepthAwareTraditionalGpuSceneStats;
+        stats_.forwardTransparentTraditionalGpuSceneStats =
+            buildTraditionalStream(
+                forwardTransparentResidentRecordIndices_,
                 forwardTransparentSkinnedRecordIndices_,
                 RUNTIME::SurfaceDrawCommandPass::Forward,
-                forwardTransparentSkinnedStream_);
+                forwardTransparentTraditionalStream_);
+        stats_.forwardTransparentSkinnedTraditionalGpuSceneStats =
+            stats_.forwardTransparentTraditionalGpuSceneStats;
         stats_.shadowSkinnedTraditionalGpuSceneStats =
-            buildSkinnedStream(
+            buildTraditionalStream(
+                shadowResidentRecordIndices_,
                 shadowSkinnedRecordIndices_,
                 RUNTIME::SurfaceDrawCommandPass::Shadow,
-                shadowSkinnedStream_);
+                shadowTraditionalStream_);
 
         layoutVersion_ = input.sceneCache->GetSurfaceVersion();
         routingVersion_ = input.sceneCache->GetSurfaceRoutingVersion();
@@ -1352,13 +1487,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.strictGpuDrivenMainline = true;
         stats_.cpuForwardViewSuppressedCount =
             input.sceneCache != nullptr ? 1u : 0u;
-        stats_.forwardOpaqueTraditionalGpuSceneStats = {};
-        stats_.forwardDepthAwareTraditionalGpuSceneStats = {};
-        stats_.forwardTransparentTraditionalGpuSceneStats = {};
     }
 
     bool GpuSceneRegistry::TryPatchForwardDataFromSceneCache(
         const GpuSceneRegistrySyncInput& input) {
+
+        if (ShouldPublishStaticTraditionalStreams()) {
+            return false;
+        }
 
         if (input.sceneCache == nullptr) {
             return false;
@@ -1492,11 +1628,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenBackendKind::MeshShader,
             true);
         cursor += ClampToUint32(forwardOpaqueGpuSceneInstances_.size());
-        AttachTraditionalSkinnedView(
+        AttachTraditionalIndirectView(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardOpaque),
-            forwardOpaqueSkinnedStream_,
+            forwardOpaqueTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardOpaqueSkinnedStream_.instances.size());
+        cursor += ClampToUint32(forwardOpaqueTraditionalStream_.instances.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::DepthPrepass),
@@ -1515,11 +1651,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenBackendKind::MeshShader,
             true);
         cursor += ClampToUint32(forwardDepthAwareGpuSceneInstances_.size());
-        AttachTraditionalSkinnedView(
+        AttachTraditionalIndirectView(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardDepthAware),
-            forwardDepthAwareSkinnedStream_,
+            forwardDepthAwareTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardDepthAwareSkinnedStream_.instances.size());
+        cursor += ClampToUint32(forwardDepthAwareTraditionalStream_.instances.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
@@ -1529,11 +1665,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenBackendKind::MeshShader,
             true);
         cursor += ClampToUint32(forwardTransparentGpuSceneInstances_.size());
-        AttachTraditionalSkinnedView(
+        AttachTraditionalIndirectView(
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
-            forwardTransparentSkinnedStream_,
+            forwardTransparentTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardTransparentSkinnedStream_.instances.size());
+        cursor += ClampToUint32(forwardTransparentTraditionalStream_.instances.size());
 
         ResetPassSource(
             sceneSource_.GetPass(GpuDrivenPassKind::Shadow),
@@ -1543,11 +1679,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenBackendKind::MeshShader,
             true);
         cursor += ClampToUint32(shadowGpuSceneInstances_.size());
-        AttachTraditionalSkinnedView(
+        AttachTraditionalIndirectView(
             sceneSource_.GetPass(GpuDrivenPassKind::Shadow),
-            shadowSkinnedStream_,
+            shadowTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(shadowSkinnedStream_.instances.size());
+        cursor += ClampToUint32(shadowTraditionalStream_.instances.size());
 
         sceneSource_.layoutVersion =
             BuildSourceLayoutVersion(layoutVersion_, routingVersion_);

@@ -5,12 +5,17 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        constexpr bool kMeshShaderOnlyMainline = true;
-        constexpr bool kAllowGpuAuthoredTraditionalSupplement = true;
+        bool ShouldBuildTraditionalCommandStream() {
+            const RENDER3D::GeometryPipelineMode mode =
+                RENDER3D::GetRenderQualitySettings().geometryPipeline;
+            return mode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
+                mode == RENDER3D::GeometryPipelineMode::AutoFallback;
+        }
 
         uint32_t ClampToUint32(size_t value) {
             return static_cast<uint32_t>(
@@ -371,17 +376,19 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenCommandFrameDesc& desc) {
 
         commandFrameStats_ = {};
+        const bool buildTraditionalStream =
+            ShouldBuildTraditionalCommandStream();
 
         if (traditionalCommandStreamBuffer_ != nullptr) {
             traditionalCommandStreamBuffer_->BeginFrame(desc.frameIndex);
         }
 
         if (traditionalCommandStreamBuffer_ != nullptr &&
-            desc.resetTraditionalIndirectBuffer) {
+            (desc.resetTraditionalIndirectBuffer || !buildTraditionalStream)) {
             traditionalCommandStreamBuffer_->ResetFrame();
         }
 
-        if (traditionalCommandStreamBuffer_ != nullptr) {
+        if (traditionalCommandStreamBuffer_ != nullptr && buildTraditionalStream) {
             if (frameSource_ != nullptr) {
                 UploadTraditionalIndirectCommands(
                     *traditionalCommandStreamBuffer_,
@@ -465,24 +472,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         if (IsBackendConsumable(pass, policy.preferred)) {
             plan.AddGpuBackend(policy.preferred);
-            if (kAllowGpuAuthoredTraditionalSupplement &&
-                IsBackendConsumable(
-                    pass,
-                    GeometryBackendKind::GpuDrivenTraditionalVsPs)) {
-                plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVsPs);
-            }
-            if (policy.forcePreferredOnly) {
-                return plan;
-            }
+            return plan;
         } else if (!policy.forcePreferredOnly &&
             IsBackendConsumable(pass, policy.secondary)) {
             plan.AddGpuBackend(policy.secondary);
-        }
-        if (kAllowGpuAuthoredTraditionalSupplement &&
-            IsBackendConsumable(
-            pass,
-            GeometryBackendKind::GpuDrivenTraditionalVsPs)) {
-            plan.AddGpuBackend(GeometryBackendKind::GpuDrivenTraditionalVsPs);
         }
         return plan;
     }
@@ -640,7 +633,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 frameContext_.commands.meshDispatchSignature != nullptr &&
                 meshPipelineReady;
             state.traditionalIndirectConsumable =
-                kAllowGpuAuthoredTraditionalSupplement &&
                 state.hasSource &&
                 state.hasTraditionalIndirectCommands &&
                 traditionalCommandStreamBuffer_ != nullptr &&
@@ -745,6 +737,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     traditionalCommandStreamBuffer_ != nullptr
                         ? traditionalCommandStreamBuffer_->GetCounterBucketStride()
                         : 0u;
+                range.commandBucketCapacity =
+                    traditionalCommandStreamBuffer_ != nullptr
+                        ? traditionalCommandStreamBuffer_->GetCommandBucketCapacity()
+                        : 0u;
                 range.commandBucketCount =
                     traditionalCommandStreamBuffer_ != nullptr
                         ? traditionalCommandStreamBuffer_->GetCommandBucketCount()
@@ -752,10 +748,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
                 range.commandCount = state.traditionalIndirectCommandCount;
+                range.staticCommandCount =
+                    passSource.traditionalIndirect.staticCommandCount;
                 range.skinnedCommandCount =
-                    passSource.traditionalIndirect.jointPalettes != nullptr
-                        ? state.traditionalIndirectCommandCount
-                        : 0u;
+                    passSource.traditionalIndirect.skinnedCommandCount;
                 range.recordCount = range.commandCount;
                 range.instanceCount = state.traditionalIndirectInstanceCount;
                 range.consumable = true;

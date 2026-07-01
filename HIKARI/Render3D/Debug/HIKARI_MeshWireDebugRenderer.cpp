@@ -36,6 +36,64 @@ namespace HIKARI::MESHWIREDEBUG {
             return { out.x, out.y, out.z };
         }
 
+        MATH::Mat4 GetNodeLocalMatrix(const ModelNode& node) {
+            return node.hasLocalMatrix
+                ? node.localMatrix
+                : node.localTransform.GetLocalMatrix();
+        }
+
+        void EvaluateNodeMatrixRecursive(
+            const ModelAsset& asset,
+            int nodeIndex,
+            const MATH::Mat4& parentWorld,
+            std::vector<MATH::Mat4>& outGlobals,
+            std::vector<uint8_t>& visited) {
+
+            if (nodeIndex < 0 || nodeIndex >= static_cast<int>(asset.nodes.size())) {
+                return;
+            }
+            const size_t index = static_cast<size_t>(nodeIndex);
+            if (visited[index]) {
+                return;
+            }
+
+            const ModelNode& node = asset.nodes[index];
+            outGlobals[index] = parentWorld * GetNodeLocalMatrix(node);
+            visited[index] = 1;
+
+            for (int childIndex : node.children) {
+                EvaluateNodeMatrixRecursive(asset, childIndex, outGlobals[index], outGlobals, visited);
+            }
+        }
+
+        void BuildStaticNodeGlobalMatrices(
+            const ModelAsset& asset,
+            const MATH::Mat4& rootWorld,
+            std::vector<MATH::Mat4>& outGlobals,
+            std::vector<uint8_t>& visited) {
+
+            outGlobals.assign(asset.nodes.size(), rootWorld);
+            visited.assign(asset.nodes.size(), 0);
+
+            for (size_t i = 0; i < asset.nodes.size(); ++i) {
+                if (asset.nodes[i].parent == -1) {
+                    EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), rootWorld, outGlobals, visited);
+                }
+            }
+
+            for (size_t i = 0; i < asset.nodes.size(); ++i) {
+                if (visited[i]) {
+                    continue;
+                }
+                const int parent = asset.nodes[i].parent;
+                const MATH::Mat4 parentWorld =
+                    (parent >= 0 && parent < static_cast<int>(outGlobals.size()))
+                    ? outGlobals[static_cast<size_t>(parent)]
+                    : rootWorld;
+                EvaluateNodeMatrixRecursive(asset, static_cast<int>(i), parentWorld, outGlobals, visited);
+            }
+        }
+
         uint64_t MakeEdge(uint32_t a, uint32_t b) {
             const uint32_t lo = (std::min)(a, b);
             const uint32_t hi = (std::max)(a, b);
@@ -135,6 +193,63 @@ namespace HIKARI::MESHWIREDEBUG {
                 ++gStats.submittedLineCount;
             }
         }
+
+        bool SubmitPrimitiveWire(
+            const MeshPrimitive& primitive,
+            size_t primitiveIndex,
+            const MATH::Mat4& worldMatrix,
+            uint32_t color,
+            bool perPrimitiveColor,
+            uint32_t& remaining) {
+
+            if (!primitive.skinnedVertices.empty() && !gSkinnedWarningEmitted) {
+                DEBUGLOG::PushRenderError("[MeshWireDebug] Skinned mesh wire uses bind-pose geometry.");
+                gSkinnedWarningEmitted = true;
+            }
+
+            const CachedPrimitiveWire& cached = GetOrCreateWire(primitive, remaining);
+            const uint32_t primitiveColor = PrimitiveColor(color, primitiveIndex, perPrimitiveColor);
+            for (const WireLine& line : cached.lines) {
+                if (remaining == 0) {
+                    ++gStats.truncatedModelCount;
+                    return false;
+                }
+                RENDERER3D::DEBUG::SubmitLine3D({
+                    TransformPoint(worldMatrix, line.a),
+                    TransformPoint(worldMatrix, line.b),
+                    primitiveColor,
+                    RENDERER3D::DEBUG::DebugDepthMode::XRay
+                });
+                ++gStats.submittedLineCount;
+                --remaining;
+            }
+
+            if (cached.truncated) {
+                ++gStats.truncatedModelCount;
+            }
+            return remaining > 0;
+        }
+
+        bool SubmitMeshWire(
+            const MeshAsset& mesh,
+            const MATH::Mat4& worldMatrix,
+            uint32_t color,
+            bool perPrimitiveColor,
+            uint32_t& remaining) {
+
+            for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
+                if (!SubmitPrimitiveWire(
+                    mesh.primitives[primitiveIndex],
+                    primitiveIndex,
+                    worldMatrix,
+                    color,
+                    perPrimitiveColor,
+                    remaining)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     void BeginFrame() {
@@ -151,32 +266,31 @@ namespace HIKARI::MESHWIREDEBUG {
         constexpr uint32_t kHardWireLineCap = 200000;
         const uint32_t effectiveMaxLines = (maxLines == 0 || maxLines > kHardWireLineCap) ? kHardWireLineCap : maxLines;
         uint32_t remaining = effectiveMaxLines;
+
+        if (!asset.nodes.empty()) {
+            std::vector<MATH::Mat4> nodeGlobals;
+            std::vector<uint8_t> visited;
+            BuildStaticNodeGlobalMatrices(asset, worldMatrix, nodeGlobals, visited);
+            for (size_t nodeIndex = 0; nodeIndex < asset.nodes.size(); ++nodeIndex) {
+                const ModelNode& node = asset.nodes[nodeIndex];
+                if (node.meshIndex < 0 || node.meshIndex >= static_cast<int>(asset.meshes.size())) {
+                    continue;
+                }
+                if (!SubmitMeshWire(
+                    asset.meshes[static_cast<size_t>(node.meshIndex)],
+                    nodeGlobals[nodeIndex],
+                    color,
+                    perPrimitiveColor,
+                    remaining)) {
+                    return;
+                }
+            }
+            return;
+        }
+
         for (const MeshAsset& mesh : asset.meshes) {
-            for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
-                const MeshPrimitive& primitive = mesh.primitives[primitiveIndex];
-                if (!primitive.skinnedVertices.empty() && !gSkinnedWarningEmitted) {
-                    DEBUGLOG::PushRenderError("[MeshWireDebug] Skinned mesh wire uses bind-pose geometry.");
-                    gSkinnedWarningEmitted = true;
-                }
-                const CachedPrimitiveWire& cached = GetOrCreateWire(primitive, remaining);
-                const uint32_t primitiveColor = PrimitiveColor(color, primitiveIndex, perPrimitiveColor);
-                for (const WireLine& line : cached.lines) {
-                    if (remaining == 0) {
-                        ++gStats.truncatedModelCount;
-                        return;
-                    }
-                    RENDERER3D::DEBUG::SubmitLine3D({
-                        TransformPoint(worldMatrix, line.a),
-                        TransformPoint(worldMatrix, line.b),
-                        primitiveColor,
-                        RENDERER3D::DEBUG::DebugDepthMode::XRay
-                    });
-                    ++gStats.submittedLineCount;
-                    --remaining;
-                }
-                if (cached.truncated) {
-                    ++gStats.truncatedModelCount;
-                }
+            if (!SubmitMeshWire(mesh, worldMatrix, color, perPrimitiveColor, remaining)) {
+                return;
             }
         }
     }

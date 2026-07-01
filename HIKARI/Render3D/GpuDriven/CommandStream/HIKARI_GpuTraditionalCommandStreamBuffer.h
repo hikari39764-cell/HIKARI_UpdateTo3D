@@ -26,6 +26,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         D3D12_INDEX_BUFFER_VIEW indexBuffer{};
         uint32_t rootConstants[kGpuTraditionalCommandStreamRootConstantCount]{};
         D3D12_DRAW_INDEXED_ARGUMENTS draw{};
+        uint32_t reserved0 = 0;
     };
 
     static_assert(sizeof(GpuTraditionalCommandArgument) == 72u);
@@ -121,6 +122,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         UINT64 GetArgumentBucketStride() const;
         UINT64 GetSkinnedArgumentBucketStride() const;
         UINT64 GetCounterBucketStride() const;
+        size_t GetCommandBucketCapacity() const;
         size_t GetCommandBucketCount() const;
         size_t GetUploadedSeedCount() const;
         size_t GetUploadedSkinnedSeedCount() const;

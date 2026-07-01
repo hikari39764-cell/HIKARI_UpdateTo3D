@@ -1,5 +1,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 
+#include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
+
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     void GpuDrivenTraditionalIndirectView::Reset() {
@@ -11,14 +13,30 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         jointPalettes = nullptr;
         gpuSceneBaseIndex = 0;
         gpuSceneInstanceCount = 0;
+        staticCommandCount = 0;
+        skinnedCommandCount = 0;
     }
 
     bool GpuDrivenTraditionalIndirectView::HasCommands() const {
+        if (records == nullptr ||
+            executableRecordIndices == nullptr ||
+            commands == nullptr ||
+            instances == nullptr ||
+            materialSources == nullptr ||
+            jointPalettes == nullptr ||
+            commands->empty()) {
+            return false;
+        }
+
+        const size_t commandCount = commands->size();
         return
-            records != nullptr &&
-            executableRecordIndices != nullptr &&
-            commands != nullptr &&
-            !commands->empty();
+            records->size() == commandCount &&
+            executableRecordIndices->size() == commandCount &&
+            instances->size() == commandCount &&
+            materialSources->size() == commandCount &&
+            jointPalettes->size() == commandCount &&
+            static_cast<size_t>(staticCommandCount) +
+                static_cast<size_t>(skinnedCommandCount) == commandCount;
     }
 
     bool GpuDrivenTraditionalIndirectView::HasGpuSceneRange() const {

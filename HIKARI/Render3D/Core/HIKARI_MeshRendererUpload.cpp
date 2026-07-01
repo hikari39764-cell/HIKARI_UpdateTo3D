@@ -9,6 +9,7 @@
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #ifdef max
@@ -123,6 +124,10 @@ namespace HIKARI::MESHRENDERER {
             std::max(0.0f, environment.fog.heightFalloff)
         };
         out.debugView = static_cast<uint32_t>(debugView);
+        out.forwardCostMode =
+            static_cast<float>(
+                static_cast<uint8_t>(
+                    RENDER3D::GetRenderQualitySettings().forwardCostMode));
 
         constexpr uint32_t kMaxPointLights = 8;
         uint32_t uploadedCount = 0;

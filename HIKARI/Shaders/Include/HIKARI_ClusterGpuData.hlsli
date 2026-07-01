@@ -2,7 +2,7 @@
 #define HIKARI_CLUSTER_GPU_DATA_INCLUDED
 
 static const uint HIKARI_CLUSTER_GEOMETRY_GPU_MAGIC = 0x534c4348u;
-static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 8u;
+static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 10u;
 static const uint HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX = 0xffffffffu;
 static const uint HIKARI_CLUSTER_GEOMETRY_HEADER_BYTES = 128u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_BYTES = 112u;
@@ -10,8 +10,9 @@ static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_LOD_RANGE_BYTES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_SECTION_BYTES = 128u;
 static const uint HIKARI_CLUSTER_GEOMETRY_CLUSTER_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_PAGE_BYTES = 64u;
-static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES = 80u;
-static const uint HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES = 16u;
+static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES = 16u;
+static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_ATTRIBUTE_BYTES = 32u;
+static const uint HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES = 4u;
 static const uint HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_PRIMITIVES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_VERTICES = 128u;
 
@@ -389,19 +390,82 @@ HikariClusterPage HikariLoadClusterPage(
     return page;
 }
 
+uint HikariClusterVertexAttributeOffset(
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    uint attributeBase =
+        header.vertexOffsetBytes + header.vertexCount * HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES;
+    return attributeBase + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_ATTRIBUTE_BYTES;
+}
+
+float HikariUnpackSnorm16(uint value)
+{
+    int signedValue = int(value & 0x7fffu) - int(value & 0x8000u);
+    return max(float(signedValue) / 32767.0f, -1.0f);
+}
+
+float2 HikariUnpackSnorm16x2(uint packed)
+{
+    return float2(
+        HikariUnpackSnorm16(packed),
+        HikariUnpackSnorm16(packed >> 16u));
+}
+
+float HikariUnpackHalf16(uint value)
+{
+    return f16tof32(value & 0xffffu).x;
+}
+
+float2 HikariUnpackHalf16x2(uint packed)
+{
+    return f16tof32(packed);
+}
+
+float3 HikariNormalizeOrDefault(float3 value, float3 fallbackValue)
+{
+    return dot(value, value) > 1.0e-8f ? normalize(value) : fallbackValue;
+}
+
+HikariClusterVertex HikariDecodeClusterVertex(
+    float4 position,
+    uint4 a0,
+    uint4 a1)
+{
+    HikariClusterVertex vertex = (HikariClusterVertex)0;
+    float2 normalXY = HikariUnpackSnorm16x2(a0.x);
+    float normalZ = HikariUnpackSnorm16(a0.y);
+    float tangentW = HikariUnpackSnorm16(a0.y >> 16u);
+    float2 tangentXY = HikariUnpackSnorm16x2(a0.z);
+    float tangentZ = HikariUnpackSnorm16(a0.w);
+    float uv0x = HikariUnpackHalf16(a0.w >> 16u);
+    float2 uv0YUv1X = HikariUnpackHalf16x2(a1.x);
+    float uv1y = HikariUnpackHalf16(a1.y);
+
+    vertex.position = position;
+    vertex.normal = float4(
+        HikariNormalizeOrDefault(float3(normalXY, normalZ), float3(0.0f, 1.0f, 0.0f)),
+        0.0f);
+    vertex.tangent = float4(
+        HikariNormalizeOrDefault(float3(tangentXY, tangentZ), float3(1.0f, 0.0f, 0.0f)),
+        tangentW >= 0.0f ? 1.0f : -1.0f);
+    vertex.uv01 = float4(uv0x, uv0YUv1X.x, uv0YUv1X.y, uv1y);
+    vertex.color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    return vertex;
+}
+
 HikariClusterVertex HikariLoadClusterVertex(
     ByteAddressBuffer buffer,
     HikariClusterGeometryHeader header,
     uint vertexIndex)
 {
-    HikariClusterVertex vertex = (HikariClusterVertex)0;
-    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
-    vertex.position = asfloat(buffer.Load4(offset + 0u));
-    vertex.normal = asfloat(buffer.Load4(offset + 16u));
-    vertex.tangent = asfloat(buffer.Load4(offset + 32u));
-    vertex.uv01 = asfloat(buffer.Load4(offset + 48u));
-    vertex.color = asfloat(buffer.Load4(offset + 64u));
-    return vertex;
+    uint positionOffset =
+        header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES;
+    uint attributeOffset = HikariClusterVertexAttributeOffset(header, vertexIndex);
+    return HikariDecodeClusterVertex(
+        asfloat(buffer.Load4(positionOffset)),
+        buffer.Load4(attributeOffset + 0u),
+        buffer.Load4(attributeOffset + 16u));
 }
 
 HikariClusterVertex HikariLoadClusterVertexShading(
@@ -409,13 +473,13 @@ HikariClusterVertex HikariLoadClusterVertexShading(
     HikariClusterGeometryHeader header,
     uint vertexIndex)
 {
-    HikariClusterVertex vertex = (HikariClusterVertex)0;
-    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
-    vertex.position = asfloat(buffer.Load4(offset + 0u));
-    vertex.normal = asfloat(buffer.Load4(offset + 16u));
-    vertex.tangent = asfloat(buffer.Load4(offset + 32u));
-    vertex.uv01 = asfloat(buffer.Load4(offset + 48u));
-    return vertex;
+    uint positionOffset =
+        header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES;
+    uint attributeOffset = HikariClusterVertexAttributeOffset(header, vertexIndex);
+    return HikariDecodeClusterVertex(
+        asfloat(buffer.Load4(positionOffset)),
+        buffer.Load4(attributeOffset + 0u),
+        buffer.Load4(attributeOffset + 16u));
 }
 
 float4 HikariLoadClusterVertexPosition(
@@ -423,8 +487,9 @@ float4 HikariLoadClusterVertexPosition(
     HikariClusterGeometryHeader header,
     uint vertexIndex)
 {
-    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
-    return asfloat(buffer.Load4(offset + 0u));
+    uint offset =
+        header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES;
+    return asfloat(buffer.Load4(offset));
 }
 
 float4 HikariLoadClusterVertexNormal(
@@ -432,8 +497,13 @@ float4 HikariLoadClusterVertexNormal(
     HikariClusterGeometryHeader header,
     uint vertexIndex)
 {
-    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
-    return asfloat(buffer.Load4(offset + 16u));
+    uint offset = HikariClusterVertexAttributeOffset(header, vertexIndex);
+    uint4 a0 = buffer.Load4(offset + 0u);
+    float2 normalXY = HikariUnpackSnorm16x2(a0.x);
+    float normalZ = HikariUnpackSnorm16(a0.y);
+    return float4(
+        HikariNormalizeOrDefault(float3(normalXY, normalZ), float3(0.0f, 1.0f, 0.0f)),
+        0.0f);
 }
 
 float4 HikariLoadClusterVertexUv01(
@@ -441,8 +511,13 @@ float4 HikariLoadClusterVertexUv01(
     HikariClusterGeometryHeader header,
     uint vertexIndex)
 {
-    uint offset = header.vertexOffsetBytes + vertexIndex * HIKARI_CLUSTER_GEOMETRY_VERTEX_BYTES;
-    return asfloat(buffer.Load4(offset + 48u));
+    uint offset = HikariClusterVertexAttributeOffset(header, vertexIndex);
+    uint4 a0 = buffer.Load4(offset + 0u);
+    uint4 a1 = buffer.Load4(offset + 16u);
+    float uv0x = HikariUnpackHalf16(a0.w >> 16u);
+    float2 uv0YUv1X = HikariUnpackHalf16x2(a1.x);
+    float uv1y = HikariUnpackHalf16(a1.y);
+    return float4(uv0x, uv0YUv1X.x, uv0YUv1X.y, uv1y);
 }
 
 uint HikariLoadClusterIndex(
@@ -450,7 +525,11 @@ uint HikariLoadClusterIndex(
     HikariClusterGeometryHeader header,
     uint indexIndex)
 {
-    return buffer.Load(header.indexOffsetBytes + indexIndex * 4u);
+    uint byteOffset = header.indexOffsetBytes + indexIndex * 2u;
+    uint packed = buffer.Load(byteOffset & ~3u);
+    return (byteOffset & 2u) == 0u
+        ? (packed & 0xffffu)
+        : ((packed >> 16u) & 0xffffu);
 }
 
 HikariMeshletPrimitive HikariLoadMeshletPrimitive(
@@ -461,11 +540,11 @@ HikariMeshletPrimitive HikariLoadMeshletPrimitive(
     HikariMeshletPrimitive primitive = (HikariMeshletPrimitive)0;
     uint offset = header.meshletPrimitiveOffsetBytes +
         primitiveIndex * HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES;
-    uint4 v0 = buffer.Load4(offset);
-    primitive.i0 = v0.x;
-    primitive.i1 = v0.y;
-    primitive.i2 = v0.z;
-    primitive.reserved0 = v0.w;
+    uint packed = buffer.Load(offset);
+    primitive.i0 = packed & 0xffu;
+    primitive.i1 = (packed >> 8u) & 0xffu;
+    primitive.i2 = (packed >> 16u) & 0xffu;
+    primitive.reserved0 = (packed >> 24u) & 0xffu;
     return primitive;
 }
 
@@ -476,7 +555,11 @@ uint3 HikariLoadMeshletPrimitiveIndices(
 {
     uint offset = header.meshletPrimitiveOffsetBytes +
         primitiveIndex * HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES;
-    return buffer.Load3(offset);
+    uint packed = buffer.Load(offset);
+    return uint3(
+        packed & 0xffu,
+        (packed >> 8u) & 0xffu,
+        (packed >> 16u) & 0xffu);
 }
 
 #endif

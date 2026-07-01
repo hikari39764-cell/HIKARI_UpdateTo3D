@@ -82,13 +82,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuSceneRegistryStats& GetStats() const;
 
     public:
-        struct TraditionalSkinnedStream {
+        struct TraditionalIndirectStream {
             std::vector<GpuSceneSurfaceRecord> records{};
             std::vector<uint32_t> executableRecordIndices{};
             std::vector<RUNTIME::SurfaceDrawCommand> commands{};
             std::vector<RUNTIME::SurfaceGpuSceneInstance> instances{};
             std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
             std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+            uint32_t staticCommandCount = 0;
+            uint32_t skinnedCommandCount = 0;
 
             void Clear();
             bool HasCommands() const;
@@ -127,16 +129,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardTransparentMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> shadowGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> shadowMaterialSources_{};
-        TraditionalSkinnedStream forwardOpaqueSkinnedStream_{};
-        TraditionalSkinnedStream forwardDepthAwareSkinnedStream_{};
-        TraditionalSkinnedStream forwardTransparentSkinnedStream_{};
-        TraditionalSkinnedStream shadowSkinnedStream_{};
+        TraditionalIndirectStream forwardOpaqueTraditionalStream_{};
+        TraditionalIndirectStream forwardDepthAwareTraditionalStream_{};
+        TraditionalIndirectStream forwardTransparentTraditionalStream_{};
+        TraditionalIndirectStream shadowTraditionalStream_{};
         GpuDrivenSceneSource sceneSource_{};
         GpuSceneRegistryStats stats_{};
         uint64_t layoutVersion_ = 0;
         uint64_t routingVersion_ = 0;
         uint64_t dataVersion_ = 0;
         uint32_t sourceSurfaceCount_ = 0;
+        bool publishStaticTraditionalStreams_ = false;
     };
 
 } // namespace HIKARI::RENDER3D::GPUDRIVEN

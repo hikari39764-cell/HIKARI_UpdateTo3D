@@ -20,6 +20,7 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Audio/HIKARI_Audio.h"
@@ -83,6 +84,14 @@ namespace HIKARI {
         inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
         inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
         inline bool gGpuFrameReady = false;
+        inline bool gHasPendingWindowResize = false;
+        inline int gPendingWindowWidth = 0;
+        inline int gPendingWindowHeight = 0;
+        inline int gLogicalScreenWidth = kScreenW;
+        inline int gLogicalScreenHeight = kScreenH;
+        inline bool gEditorGameViewportVisible = false;
+        inline int gEditorGameViewportWidth = 0;
+        inline int gEditorGameViewportHeight = 0;
 
         inline RuntimeHostMode GetRuntimeHostMode() { return gRuntimeHostMode; }
         inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
@@ -105,6 +114,114 @@ namespace HIKARI {
         inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = IsEditorHost() && enabled; }
         inline void SetPortableObjectToolsEnabled(bool enabled) {
             gEnablePortableObjectTools = AllowsPortableObjectTools(gRuntimeHostMode) && enabled;
+        }
+
+        inline void SetEditorGameViewportSize(int width, int height, bool visible) {
+            gEditorGameViewportVisible = visible && width > 0 && height > 0;
+            gEditorGameViewportWidth = gEditorGameViewportVisible ? width : 0;
+            gEditorGameViewportHeight = gEditorGameViewportVisible ? height : 0;
+        }
+
+        inline void UpdateGpuContexts() {
+            gCtx = gCore.BuildContext();
+            DXTEX::DxTextureManager::UpdateContext(gCtx);
+            RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
+            RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
+            DX::DxRenderer::UpdateContext(gCtx);
+            POST::PostSystem::UpdateContext(gCtx);
+            HIKARI::VFX::UpdateContext(gCtx);
+        }
+
+        inline void QueueWindowResize(int width, int height) {
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+            gPendingWindowWidth = width;
+            gPendingWindowHeight = height;
+            gHasPendingWindowResize = true;
+        }
+
+        inline bool ApplyPendingWindowResize() {
+            if (!gHasPendingWindowResize) {
+                return true;
+            }
+
+            const int width = gPendingWindowWidth;
+            const int height = gPendingWindowHeight;
+            gHasPendingWindowResize = false;
+            gPendingWindowWidth = 0;
+            gPendingWindowHeight = 0;
+
+            if (width <= 0 || height <= 0) {
+                return true;
+            }
+
+            if (!gCore.Resize(width, height)) {
+                gGpuFrameReady = false;
+                HIKARI_LOG_ERROR("D3D12 deferred resize failed; GPU frame recording disabled.");
+                return false;
+            }
+
+            UpdateGpuContexts();
+            HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
+            HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
+            return true;
+        }
+
+        inline bool ApplyWindowPresentationSettings() {
+            const RENDER3D::RenderQualitySettings& settings =
+                RENDER3D::GetRenderQualitySettings();
+            const RENDER3D::RenderResolution size =
+                RENDER3D::ResolveFixedRenderResolution(settings.windowSize);
+            const int windowWidth = size.width > 0 ? size.width : gWindow.Width();
+            const int windowHeight = size.height > 0 ? size.height : gWindow.Height();
+
+            PLATFORM::WindowMode mode = PLATFORM::WindowMode::Windowed;
+            switch (settings.windowMode) {
+            case RENDER3D::WindowPresentationMode::BorderlessWindow:
+                mode = PLATFORM::WindowMode::BorderlessWindow;
+                break;
+            case RENDER3D::WindowPresentationMode::Fullscreen:
+                mode = PLATFORM::WindowMode::Fullscreen;
+                break;
+            case RENDER3D::WindowPresentationMode::Windowed:
+            default:
+                mode = PLATFORM::WindowMode::Windowed;
+                break;
+            }
+
+            return gWindow.ApplyWindowMode(mode, windowWidth, windowHeight);
+        }
+
+        inline RENDER3D::RenderResolution ResolveFrameSceneCaptureResolution() {
+            const RENDER3D::RenderQualitySettings& settings =
+                RENDER3D::GetRenderQualitySettings();
+
+            int viewportWidth = gWindow.Width();
+            int viewportHeight = gWindow.Height();
+#if defined(HIKARI_WITH_EDITOR)
+            if (IsEditorHost() &&
+                IsEditorUIEnabled() &&
+                gEditorGameViewportVisible &&
+                gEditorGameViewportWidth > 0 &&
+                gEditorGameViewportHeight > 0) {
+                viewportWidth = gEditorGameViewportWidth;
+                viewportHeight = gEditorGameViewportHeight;
+            }
+#endif
+
+            return RENDER3D::ResolveSceneCaptureResolution(
+                settings,
+                viewportWidth,
+                viewportHeight);
+        }
+
+        inline void ApplyFrameSceneCaptureSize() {
+            const RENDER3D::RenderResolution resolution =
+                ResolveFrameSceneCaptureResolution();
+            HIKARI::POST::PostSystem::SetSceneCaptureSize(
+                resolution.width,
+                resolution.height);
         }
 
         inline void ConfigureEditorImGuiContext() {
@@ -224,23 +341,11 @@ namespace HIKARI {
 
             const int logicalScreenW = cfg.windowWidth;
             const int logicalScreenH = cfg.windowHeight;
+            gLogicalScreenWidth = logicalScreenW;
+            gLogicalScreenHeight = logicalScreenH;
 
-            gWindow.SetResizeCallback([logicalScreenW, logicalScreenH](int w, int h) {
-                if (!gCore.Resize(w, h)) {
-                    gGpuFrameReady = false;
-                    HIKARI_LOG_ERROR("D3D12 resize failed; GPU frame recording disabled.");
-                    return;
-                }
-                gCtx = gCore.BuildContext();
-                DXTEX::DxTextureManager::UpdateContext(gCtx);
-                RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
-                RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
-                DX::DxRenderer::UpdateContext(gCtx);
-                POST::PostSystem::UpdateContext(gCtx);
-                HIKARI::VFX::UpdateContext(gCtx);
-
-                HIKARI::CAMERA::SetScreenSize(logicalScreenW, logicalScreenH);
-                HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
+            gWindow.SetResizeCallback([](int w, int h) {
+                QueueWindowResize(w, h);
             });
 
             gCtx = gCore.BuildContext();
@@ -376,13 +481,10 @@ namespace HIKARI {
             gGpuFrameReady = false;
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.BeginFrame");
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
-            gCtx = gCore.BuildContext();
-            DXTEX::DxTextureManager::UpdateContext(gCtx);
-            RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
-            RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
-            DX::DxRenderer::UpdateContext(gCtx);
-            POST::PostSystem::UpdateContext(gCtx);
-            HIKARI::VFX::UpdateContext(gCtx);
+            if (!ApplyPendingWindowResize()) {
+                return false;
+            }
+            UpdateGpuContexts();
 
             if (!gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f)) {
                 HIKARI_LOG_ERROR("D3D12 BeginFrame failed; skipping frame.");
@@ -391,11 +493,11 @@ namespace HIKARI {
             gGpuFrameReady = true;
 
             HIKARI::RENDERER::BeginFrame();
+            ApplyFrameSceneCaptureSize();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
 #if defined(HIKARI_WITH_EDITOR)
             if (!IsEditorHost() || !IsEditorUIEnabled()) {
                 HIKARI::EDITOR::ClearGameViewportInputRect();
-                HIKARI::POST::PostSystem::SetSceneCaptureSize(0, 0);
             }
 #endif
             HIKARI::POST::PostSystem::BeginSceneCapture();

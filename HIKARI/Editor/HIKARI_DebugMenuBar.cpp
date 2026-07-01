@@ -460,6 +460,7 @@ namespace HIKARI {
             if (ImGui::BeginMenu("Resources & Environment")) {
                 ImGui::MenuItem("Asset Browser", nullptr, &windows.resources.showAssetBrowser);
                 ImGui::MenuItem("Environment", nullptr, &windows.resources.showEnvironment);
+                ImGui::MenuItem("Quality", nullptr, &windows.resources.showQuality);
                 ImGui::MenuItem("Lighting Bake", nullptr, &windows.resources.showLightingBake);
                 ImGui::EndMenu();
             }

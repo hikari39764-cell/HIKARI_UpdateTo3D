@@ -104,6 +104,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool gpuCounterReadbackReady = false;
         bool gpuCounterReadbackValid = false;
         bool debugCountersEnabled = false;
+        bool traditionalDrawArgsEmitted = false;
         bool occlusionHistoryReady = false;
         uint32_t gpuInputCount = 0;
         uint32_t gpuPageTaskCount = 0;
@@ -194,7 +195,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             const ClusterGpuCullingSourceRange* ranges,
             size_t rangeCount,
             const ClusterGpuDepthOcclusionDesc& depthOcclusion,
-            bool collectCounterReadback = true);
+            bool collectCounterReadback = true,
+            bool emitTraditionalDrawArgs = false);
 
         const ClusterGpuCullingPassStats& GetStats() const;
         const ClusterGpuCullingPassStats::PassOutputStats& GetPassStats(
@@ -409,7 +411,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t hzbTestBudget = 0;
             uint32_t visibleClusterListCapacity = 0;
             uint32_t meshletPreciseCompaction = 1;
-            uint32_t reserved0 = 0;
+            uint32_t emitTraditionalDrawArgs = 0;
             uint32_t reserved1 = 0;
             uint32_t reserved2 = 0;
         };

@@ -33,6 +33,7 @@
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
 #ifdef max
@@ -122,6 +123,8 @@ namespace HIKARI::MESHRENDERER {
             std::vector<std::vector<MATH::Mat4>> jointPalettes{};
             uint32_t gpuSceneBaseIndex = 0;
             uint32_t gpuSceneInstanceCount = 0;
+            uint32_t staticCommandCount = 0;
+            uint32_t skinnedCommandCount = 0;
 
             void Clear() {
                 records.clear();
@@ -132,6 +135,8 @@ namespace HIKARI::MESHRENDERER {
                 jointPalettes.clear();
                 gpuSceneBaseIndex = 0;
                 gpuSceneInstanceCount = 0;
+                staticCommandCount = 0;
+                skinnedCommandCount = 0;
             }
 
             bool CopyFrom(
@@ -155,6 +160,8 @@ namespace HIKARI::MESHRENDERER {
                 }
                 gpuSceneBaseIndex = view.gpuSceneBaseIndex;
                 gpuSceneInstanceCount = view.gpuSceneInstanceCount;
+                staticCommandCount = view.staticCommandCount;
+                skinnedCommandCount = view.skinnedCommandCount;
                 return true;
             }
 
@@ -176,6 +183,10 @@ namespace HIKARI::MESHRENDERER {
                 pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
                 pass.traditionalIndirect.gpuSceneInstanceCount =
                     gpuSceneInstanceCount;
+                pass.traditionalIndirect.staticCommandCount =
+                    staticCommandCount;
+                pass.traditionalIndirect.skinnedCommandCount =
+                    skinnedCommandCount;
             }
         };
 
@@ -417,6 +428,85 @@ namespace HIKARI::MESHRENDERER {
             return SUCCEEDED(resource->Map(0, nullptr, mapped));
         }
 
+        bool CreateDefaultBuffer(
+            ID3D12Device* device,
+            UINT64 byteSize,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& resource) {
+
+            if (device == nullptr || byteSize == 0) {
+                return false;
+            }
+
+            resource.Reset();
+            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+            auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+            return SUCCEEDED(device->CreateCommittedResource(
+                &heap,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(resource.GetAddressOf())));
+        }
+
+        bool CreateGpuResidentMappedBuffer(
+            ID3D12Device* device,
+            UINT64 byteSize,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& uploadResource,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& defaultResource,
+            void** mapped) {
+
+            if (!CreateMappedUploadBuffer(device, byteSize, uploadResource, mapped) ||
+                !CreateDefaultBuffer(device, byteSize, defaultResource)) {
+                return false;
+            }
+            if (mapped != nullptr && *mapped != nullptr) {
+                std::memset(*mapped, 0, static_cast<size_t>(byteSize));
+            }
+            return true;
+        }
+
+        void CommitMappedBufferToGpu(
+            ID3D12GraphicsCommandList* commandList,
+            ID3D12Resource* uploadResource,
+            ID3D12Resource* defaultResource,
+            D3D12_RESOURCE_STATES& defaultState,
+            UINT64 byteCount) {
+
+            if (commandList == nullptr ||
+                uploadResource == nullptr ||
+                defaultResource == nullptr ||
+                byteCount == 0) {
+                return;
+            }
+
+            if (defaultState != D3D12_RESOURCE_STATE_COPY_DEST) {
+                const auto toCopyDest = CD3DX12_RESOURCE_BARRIER::Transition(
+                    defaultResource,
+                    defaultState,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+                commandList->ResourceBarrier(1, &toCopyDest);
+                defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
+            }
+
+            commandList->CopyBufferRegion(
+                defaultResource,
+                0,
+                uploadResource,
+                0,
+                byteCount);
+
+            const D3D12_RESOURCE_STATES shaderState =
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            const auto toShader = CD3DX12_RESOURCE_BARRIER::Transition(
+                defaultResource,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                shaderState);
+            commandList->ResourceBarrier(1, &toShader);
+            defaultState = shaderState;
+        }
+
         void BindActiveFrameResources(uint32_t frameIndex) {
             g.activeFrameResourceIndex = frameIndex % GFX::kFrameResourceCount;
             MeshRendererFrameResources& frame =
@@ -517,14 +607,16 @@ namespace HIKARI::MESHRENDERER {
                         objectBytes,
                         frame.objectCB,
                         reinterpret_cast<void**>(&frame.objectMapped)) ||
-                    !CreateMappedUploadBuffer(
+                    !CreateGpuResidentMappedBuffer(
                         device,
                         objectDataBytes,
+                        frame.objectDataUploadBuffer,
                         frame.objectDataBuffer,
                         reinterpret_cast<void**>(&frame.objectDataMapped)) ||
-                    !CreateMappedUploadBuffer(
+                    !CreateGpuResidentMappedBuffer(
                         device,
                         materialDataBytes,
+                        frame.materialDataUploadBuffer,
                         frame.materialDataBuffer,
                         reinterpret_cast<void**>(&frame.materialDataMapped)) ||
                     !CreateMappedUploadBuffer(
@@ -549,6 +641,8 @@ namespace HIKARI::MESHRENDERER {
                         reinterpret_cast<void**>(&frame.jointPaletteMapped))) {
                     return false;
                 }
+                frame.objectDataState = D3D12_RESOURCE_STATE_COMMON;
+                frame.materialDataState = D3D12_RESOURCE_STATE_COMMON;
 
                 const UINT objectDataSrvIndex =
                     GFX::DESCRIPTOR::ToFrameIndex(
@@ -713,10 +807,39 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceGpuSceneCapacity = gpuSceneStats.capacity;
             g.debugStats.surfaceGpuSceneRequestedInstanceCount = gpuSceneStats.requestedInstanceCount;
             g.debugStats.surfaceGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
+            g.debugStats.surfaceGpuSceneCommittedInstanceCount = gpuSceneStats.committedInstanceCount;
+            g.debugStats.surfaceGpuSceneCommittedBytes = gpuSceneStats.committedBytes;
             g.debugStats.surfaceGpuSceneOverflowInstanceCount = gpuSceneStats.overflowInstanceCount;
             g.debugStats.surfaceGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
+            g.debugStats.surfaceGpuSceneMaterialPatchChangedCount =
+                gpuSceneStats.materialPatchChangedCount;
+            g.debugStats.surfaceGpuSceneMaterialPatchUnchangedCount =
+                gpuSceneStats.materialPatchUnchangedCount;
             g.debugStats.surfaceGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.surfaceGpuSceneBufferReady = gpuSceneStats.initialized;
+        }
+
+        void CommitActiveMaterialDataFrame(ID3D12GraphicsCommandList* commandList) {
+            MeshRendererFrameResources& frame =
+                g.frameResources[g.activeFrameResourceIndex % GFX::kFrameResourceCount];
+            const UINT64 materialBytes =
+                static_cast<UINT64>(sizeof(MaterialGpuData)) *
+                static_cast<UINT64>(
+                    (std::min)(
+                        static_cast<size_t>(g.materialDataFrameTable.count),
+                        static_cast<size_t>(kMaxMaterialDataCount)));
+            if (materialBytes == 0u) {
+                return;
+            }
+
+            CommitMappedBufferToGpu(
+                commandList,
+                frame.materialDataUploadBuffer.Get(),
+                frame.materialDataBuffer.Get(),
+                frame.materialDataState,
+                materialBytes);
+            g.debugStats.materialDataGpuUploadBytes += static_cast<size_t>(materialBytes);
+            ++g.debugStats.materialDataGpuUploadCallCount;
         }
 
         void PrepareSurfaceGpuSceneMaterialFrame() {
@@ -764,6 +887,7 @@ namespace HIKARI::MESHRENDERER {
             prepareMaterialSources(
                 shadow.traditionalIndirect.gpuSceneBaseIndex,
                 shadow.traditionalIndirect.materialSources);
+            CommitActiveMaterialDataFrame(SERVICES::gCtx.cmdList);
             g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
         }
 
@@ -902,6 +1026,11 @@ namespace HIKARI::MESHRENDERER {
             workContext.frame = &g.gpuDrivenFrame;
             workContext.passMask = passMask;
             workContext.collectCounterReadback = collectCounterReadback;
+            const RENDER3D::GeometryPipelineMode geometryMode =
+                RENDER3D::GetRenderQualitySettings().geometryPipeline;
+            workContext.emitTraditionalDrawArgs =
+                geometryMode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
+                geometryMode == RENDER3D::GeometryPipelineMode::AutoFallback;
             if (depthPyramid != nullptr &&
                 depthPyramid->valid &&
                 depthPyramid->pyramidSrv.ptr != 0 &&
@@ -937,9 +1066,9 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.psoReady &&
                 clusterCullStats.inputBufferReady &&
                 clusterCullStats.visibleRangeBufferReady &&
-                clusterCullStats.drawArgumentBufferReady &&
                 clusterCullStats.counterBufferReady;
             g.debugStats.clusterGpuCullDrawArgsReady =
+                clusterCullStats.traditionalDrawArgsEmitted &&
                 clusterCullStats.drawArgumentBufferReady;
             g.debugStats.clusterGpuCullCommandSignatureReady =
                 clusterCullStats.drawCommandSignatureReady;
@@ -1334,12 +1463,27 @@ namespace HIKARI::MESHRENDERER {
                 range->commandCount == 0) {
                 return false;
             }
+            const size_t commandBucketCapacity = range->commandBucketCapacity;
+            const size_t commandBucketCount = range->commandBucketCount;
+            const bool staticBucketLayoutReady =
+                commandBucketCapacity != 0 &&
+                commandBucketCount != 0 &&
+                range->argumentBucketStride != 0 &&
+                range->counterBucketStride != 0;
+            const bool skinnedBucketLayoutReady =
+                commandBucketCapacity != 0 &&
+                commandBucketCount != 0 &&
+                range->skinnedArgumentBucketStride != 0 &&
+                range->counterBucketStride != 0;
             const bool hasStaticStream =
                 range->argumentBuffer != nullptr &&
-                range->commandSignature != nullptr;
+                range->commandSignature != nullptr &&
+                staticBucketLayoutReady &&
+                range->staticCommandCount != 0;
             const bool hasSkinnedStream =
                 range->skinnedArgumentBuffer != nullptr &&
                 range->skinnedCommandSignature != nullptr &&
+                skinnedBucketLayoutReady &&
                 range->skinnedCommandCount != 0;
             if (!hasStaticStream && !hasSkinnedStream) {
                 return false;
@@ -1360,14 +1504,16 @@ namespace HIKARI::MESHRENDERER {
                 passKind == MeshDrawPassKind::GeometryAux
                     ? g.pipelines.geometryPso.Get()
                     : g.pipelines.pso.Get();
-            const size_t commandBucketCount =
-                range->commandBucketCount != 0
-                    ? range->commandBucketCount
-                    : 1u;
-            const UINT maxCommandCount = static_cast<UINT>(
-                (std::min)(
-                    range->commandCount,
-                    static_cast<size_t>((std::numeric_limits<UINT>::max)())));
+            const size_t uintMaxCommandCount =
+                static_cast<size_t>((std::numeric_limits<UINT>::max)());
+            const size_t staticCommandLimit =
+                (std::min)(range->staticCommandCount, commandBucketCapacity);
+            const size_t skinnedCommandLimit =
+                (std::min)(range->skinnedCommandCount, commandBucketCapacity);
+            const UINT maxStaticCommandCount = static_cast<UINT>(
+                (std::min)(staticCommandLimit, uintMaxCommandCount));
+            const UINT maxSkinnedCommandCount = static_cast<UINT>(
+                (std::min)(skinnedCommandLimit, uintMaxCommandCount));
             bool executed = false;
             if (hasStaticStream && pso != nullptr) {
                 BindPipelineState(drawCtx.binding, pso);
@@ -1375,7 +1521,7 @@ namespace HIKARI::MESHRENDERER {
                 for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
                     SERVICES::gCtx.cmdList->ExecuteIndirect(
                         range->commandSignature,
-                        maxCommandCount,
+                        maxStaticCommandCount,
                         range->argumentBuffer,
                         range->argumentBufferOffset +
                             static_cast<UINT64>(bucketIndex) *
@@ -1423,7 +1569,7 @@ namespace HIKARI::MESHRENDERER {
                 for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
                     SERVICES::gCtx.cmdList->ExecuteIndirect(
                         range->skinnedCommandSignature,
-                        maxCommandCount,
+                        maxSkinnedCommandCount,
                         range->skinnedArgumentBuffer,
                         range->skinnedArgumentBufferOffset +
                             static_cast<UINT64>(bucketIndex) *
@@ -1436,8 +1582,10 @@ namespace HIKARI::MESHRENDERER {
                 executed = true;
             }
 
-            g.debugStats.gpuDrivenSkinnedCommandCount += range->commandCount;
-            g.debugStats.gpuDrivenSkinnedSourceRecordCount += range->recordCount;
+            g.debugStats.gpuDrivenSkinnedCommandCount +=
+                range->skinnedCommandCount;
+            g.debugStats.gpuDrivenSkinnedSourceRecordCount +=
+                range->skinnedCommandCount;
             return executed;
         }
 
@@ -1488,6 +1636,7 @@ namespace HIKARI::MESHRENDERER {
                 }
                 result.gpuBackendExecuted = true;
                 result.executedGpuBackend = backend;
+                break;
             }
             return result;
         }
@@ -1516,6 +1665,7 @@ namespace HIKARI::MESHRENDERER {
                 }
                 result.gpuBackendExecuted = true;
                 result.executedGpuBackend = backend;
+                break;
             }
             return result;
         }

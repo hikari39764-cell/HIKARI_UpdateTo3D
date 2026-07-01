@@ -7,10 +7,12 @@
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
+#include "HIKARI_Services.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
@@ -606,6 +608,7 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Game View", mainNode);
                 ImGui::DockBuilderDockWindow("Scene Workspace", leftNode);
                 ImGui::DockBuilderDockWindow("Environment", rightEnvironmentNode);
+                ImGui::DockBuilderDockWindow("Quality", rightEnvironmentNode);
                 ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Lighting Bake", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
@@ -668,8 +671,8 @@ namespace HIKARI {
             DrawGameViewportWindow(scene, false);
         } else {
             EDITOR::ClearGameViewportInputRect();
+            SERVICES::SetEditorGameViewportSize(0, 0, false);
             scene.SetViewportGizmoInteracting(false);
-            POST::PostSystem::SetSceneCaptureSize(0, 0);
         }
         if (context_.windows.authoring.showSceneWorkspace) {
             DrawSceneWorkspaceWindow(scene);
@@ -768,6 +771,12 @@ namespace HIKARI {
                 context_.sceneDirty = true;
             }
         }
+        if (context_.windows.resources.showQuality) {
+            if (qualityPanel_.Draw(scene.GetSceneEnvironment())) {
+                scene.ApplyEnvironmentRuntimeChanges();
+                context_.sceneDirty = true;
+            }
+        }
         if (context_.windows.resources.showLightingBake) {
             lightingBakePanel_.Draw(scene, context_.windows.resources.showLightingBake);
         }
@@ -810,6 +819,7 @@ namespace HIKARI {
                 context_.windows.viewport.showGameView = open;
             }
             EDITOR::ClearGameViewportInputRect();
+            SERVICES::SetEditorGameViewportSize(0, 0, false);
             scene.SetViewportGizmoInteracting(false);
             ImGui::End();
             ImGui::PopStyleVar();
@@ -840,22 +850,27 @@ namespace HIKARI {
                 ImGui::TextDisabled("%s", scene.GetSceneId().c_str());
                 ImGui::SameLine();
 
-                ImGui::SetNextItemWidth(86.0f);
-                const char* scaleLabel = "1.00x";
-                if (context_.windows.viewport.gameViewResolutionScale <= 0.51f) {
-                    scaleLabel = "0.50x";
-                } else if (context_.windows.viewport.gameViewResolutionScale <= 0.76f) {
-                    scaleLabel = "0.75x";
-                }
-                if (ImGui::BeginCombo("Scale", scaleLabel, ImGuiComboFlags_NoArrowButton)) {
-                    if (ImGui::Selectable("0.50x", context_.windows.viewport.gameViewResolutionScale == 0.5f)) {
-                        context_.windows.viewport.gameViewResolutionScale = 0.5f;
-                    }
-                    if (ImGui::Selectable("0.75x", context_.windows.viewport.gameViewResolutionScale == 0.75f)) {
-                        context_.windows.viewport.gameViewResolutionScale = 0.75f;
-                    }
-                    if (ImGui::Selectable("1.00x", context_.windows.viewport.gameViewResolutionScale == 1.0f)) {
-                        context_.windows.viewport.gameViewResolutionScale = 1.0f;
+                RENDER3D::RenderQualitySettings qualitySettings = RENDER3D::GetRenderQualitySettings();
+                ImGui::SetNextItemWidth(118.0f);
+                if (ImGui::BeginCombo(
+                    "Render",
+                    RENDER3D::RenderResolutionPresetLabel(qualitySettings.sceneResolution),
+                    ImGuiComboFlags_NoArrowButton)) {
+                    constexpr RENDER3D::RenderResolutionPreset presets[] = {
+                        RENDER3D::RenderResolutionPreset::Viewport,
+                        RENDER3D::RenderResolutionPreset::P720,
+                        RENDER3D::RenderResolutionPreset::P1080,
+                        RENDER3D::RenderResolutionPreset::P1440,
+                    };
+                    for (RENDER3D::RenderResolutionPreset preset : presets) {
+                        const bool selected = qualitySettings.sceneResolution == preset;
+                        if (ImGui::Selectable(RENDER3D::RenderResolutionPresetLabel(preset), selected)) {
+                            qualitySettings.sceneResolution = preset;
+                            RENDER3D::SetRenderQualitySettings(qualitySettings);
+                        }
+                        if (selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
                     }
                     ImGui::EndCombo();
                 }
@@ -882,12 +897,10 @@ namespace HIKARI {
         const bool gameViewFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         HandleTransformGizmoShortcuts(context_.transformGizmo, gameViewFocused);
         EDITOR::SetGameViewportInputRect(imageOrigin.x, imageOrigin.y, imageSize.x, imageSize.y, gameViewFocused);
-
-        const float resolutionScale = std::clamp(context_.windows.viewport.gameViewResolutionScale, 0.5f, 1.0f);
-        context_.windows.viewport.gameViewResolutionScale = resolutionScale;
-        const int captureWidth = (std::max)(16, static_cast<int>(imageSize.x * resolutionScale + 0.5f));
-        const int captureHeight = (std::max)(16, static_cast<int>(imageSize.y * resolutionScale + 0.5f));
-        POST::PostSystem::SetSceneCaptureSize(captureWidth, captureHeight);
+        SERVICES::SetEditorGameViewportSize(
+            static_cast<int>(imageSize.x + 0.5f),
+            static_cast<int>(imageSize.y + 0.5f),
+            true);
 
         auto drawTransformGizmoOverlay = [&]() {
             bool gizmoCapture = false;

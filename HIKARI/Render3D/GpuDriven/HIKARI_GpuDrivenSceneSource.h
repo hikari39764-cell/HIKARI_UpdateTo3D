@@ -31,6 +31,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const std::vector<std::vector<MATH::Mat4>>* jointPalettes = nullptr;
         uint32_t gpuSceneBaseIndex = 0;
         uint32_t gpuSceneInstanceCount = 0;
+        uint32_t staticCommandCount = 0;
+        uint32_t skinnedCommandCount = 0;
 
         void Reset();
         bool HasCommands() const;

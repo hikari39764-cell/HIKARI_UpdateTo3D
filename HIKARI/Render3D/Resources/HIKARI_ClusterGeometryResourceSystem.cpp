@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <DirectXPackedVector.h>
 #include <d3dx12.h>
 
 #include "Gfx/HIKARI_DXCheck.h"
@@ -28,11 +29,16 @@ namespace HIKARI::RENDER3D {
         using ClusterGeometryGpuSurfaceSection = CLUSTER::ClusterGeometryGpuSurfaceSection;
         using ClusterGeometryGpuCluster = CLUSTER::ClusterGeometryGpuCluster;
         using ClusterGeometryGpuPage = CLUSTER::ClusterGeometryGpuPage;
-        using ClusterGeometryGpuVertex = CLUSTER::ClusterGeometryGpuVertex;
+        using ClusterGeometryGpuVertexPosition = CLUSTER::ClusterGeometryGpuVertexPosition;
+        using ClusterGeometryGpuVertexAttributes = CLUSTER::ClusterGeometryGpuVertexAttributes;
         using ClusterGeometryGpuMeshletPrimitive = CLUSTER::ClusterGeometryGpuMeshletPrimitive;
         using ClusterGeometrySurfaceRange = CLUSTER::ClusterGeometrySurfaceRange;
         using ClusterGeometrySurfaceLodRange = CLUSTER::ClusterGeometrySurfaceLodRange;
         using ClusterGeometrySurfaceSection = CLUSTER::ClusterGeometrySurfaceSection;
+
+        static_assert(
+            CLUSTER::kHcmeshMaxVerticesPerMeshlet <= 256u,
+            "Packed meshlet primitive indices require 8-bit local vertex indices.");
 
         struct PackedClusterGeometry {
             std::vector<uint8_t> geometryBytes{};
@@ -63,6 +69,22 @@ namespace HIKARI::RENDER3D {
 
         uint32_t AlignUp(uint32_t value, uint32_t alignment) {
             return (value + alignment - 1u) & ~(alignment - 1u);
+        }
+
+        uint16_t PackSnorm16(float value) {
+            const float clamped = std::clamp(value, -1.0f, 1.0f);
+            const int32_t quantized =
+                static_cast<int32_t>(std::round(clamped * 32767.0f));
+            return static_cast<uint16_t>(
+                static_cast<int16_t>(std::clamp(quantized, -32767, 32767)));
+        }
+
+        uint16_t PackHalf16(float value) {
+            return static_cast<uint16_t>(DirectX::PackedVector::XMConvertFloatToHalf(value));
+        }
+
+        uint32_t PackPair16(uint16_t low, uint16_t high) {
+            return static_cast<uint32_t>(low) | (static_cast<uint32_t>(high) << 16u);
         }
 
         uint64_t PackHandle(ClusterGeometryResourceHandle handle) {
@@ -319,20 +341,34 @@ namespace HIKARI::RENDER3D {
             const CLUSTER::MeshletPrimitive& source) {
 
             ClusterGeometryGpuMeshletPrimitive gpu{};
-            gpu.i0 = source.i0;
-            gpu.i1 = source.i1;
-            gpu.i2 = source.i2;
-            gpu.reserved0 = source.reserved0;
+            gpu.packedIndices =
+                (source.i0 & 0xffu) |
+                ((source.i1 & 0xffu) << 8u) |
+                ((source.i2 & 0xffu) << 16u) |
+                ((source.reserved0 & 0xffu) << 24u);
             return gpu;
         }
 
-        ClusterGeometryGpuVertex ToGpuVertex(const CLUSTER::ClusterVertex& source) {
-            ClusterGeometryGpuVertex gpu{};
+        ClusterGeometryGpuVertexPosition ToGpuVertexPosition(const CLUSTER::ClusterVertex& source) {
+            ClusterGeometryGpuVertexPosition gpu{};
             gpu.position = { source.position.x, source.position.y, source.position.z, 1.0f };
-            gpu.normal = { source.normal.x, source.normal.y, source.normal.z, 0.0f };
-            gpu.tangent = source.tangent;
-            gpu.uv01 = { source.uv0.x, source.uv0.y, source.uv1.x, source.uv1.y };
-            gpu.color = source.color;
+            return gpu;
+        }
+
+        ClusterGeometryGpuVertexAttributes ToGpuVertexAttributes(const CLUSTER::ClusterVertex& source) {
+            ClusterGeometryGpuVertexAttributes gpu{};
+            gpu.normalXY =
+                PackPair16(PackSnorm16(source.normal.x), PackSnorm16(source.normal.y));
+            gpu.normalZ_TangentW =
+                PackPair16(PackSnorm16(source.normal.z), PackSnorm16(source.tangent.w));
+            gpu.tangentXY =
+                PackPair16(PackSnorm16(source.tangent.x), PackSnorm16(source.tangent.y));
+            gpu.tangentZ_Uv0X =
+                PackPair16(PackSnorm16(source.tangent.z), PackHalf16(source.uv0.x));
+            gpu.uv0Y_Uv1X =
+                PackPair16(PackHalf16(source.uv0.y), PackHalf16(source.uv1.x));
+            gpu.uv1Y_Reserved0 =
+                PackPair16(PackHalf16(source.uv1.y), 0u);
             return gpu;
         }
 
@@ -393,12 +429,17 @@ namespace HIKARI::RENDER3D {
 
             geometryHeader.vertexOffsetBytes = AlignSection(packed.geometryBytes);
             for (const CLUSTER::ClusterVertex& vertex : asset.packedVertices) {
-                AppendPod(packed.geometryBytes, ToGpuVertex(vertex));
+                AppendPod(packed.geometryBytes, ToGpuVertexPosition(vertex));
+            }
+
+            AlignSection(packed.geometryBytes);
+            for (const CLUSTER::ClusterVertex& vertex : asset.packedVertices) {
+                AppendPod(packed.geometryBytes, ToGpuVertexAttributes(vertex));
             }
 
             geometryHeader.indexOffsetBytes = AlignSection(packed.geometryBytes);
-            // GPU側では cluster 局所 index ではなく、packed vertex への直接 index として扱う。
-            std::vector<uint32_t> gpuIndices(asset.packedIndices.size(), 0u);
+            // Meshlet path resolves vertices by cluster.firstVertex + local index.
+            std::vector<uint16_t> gpuIndices(asset.packedIndices.size(), 0u);
             for (const CLUSTER::MeshCluster& cluster : asset.clusters) {
                 const uint32_t indexEnd = cluster.firstIndex + cluster.indexCount;
                 if (indexEnd > asset.packedIndices.size()) {
@@ -407,10 +448,10 @@ namespace HIKARI::RENDER3D {
                 for (uint32_t indexOffset = 0; indexOffset < cluster.indexCount; ++indexOffset) {
                     const uint32_t sourceIndex = cluster.firstIndex + indexOffset;
                     gpuIndices[sourceIndex] =
-                        cluster.firstVertex + asset.packedIndices[sourceIndex];
+                        static_cast<uint16_t>(asset.packedIndices[sourceIndex] & 0xffffu);
                 }
             }
-            for (const uint32_t index : gpuIndices) {
+            for (const uint16_t index : gpuIndices) {
                 AppendPod(packed.geometryBytes, index);
             }
 
@@ -826,6 +867,7 @@ namespace HIKARI::RENDER3D {
 
         ++state.stats.loadedCount;
         ++state.stats.upgradedVirtualHandleCount;
+        CLUSTER::GetClusteredGeometryManager().Invalidate(hcmeshPath);
         RebuildStats();
         return handle;
     }

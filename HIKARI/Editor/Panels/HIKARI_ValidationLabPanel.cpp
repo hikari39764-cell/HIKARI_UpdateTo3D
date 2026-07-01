@@ -102,9 +102,7 @@ namespace HIKARI {
                 meshStats.meshletBackendDispatchArgumentBufferReady &&
                 meshStats.meshletBackendDispatchCommandSignatureReady;
             const bool clusterReady =
-                meshStats.clusterGpuCullReady &&
-                meshStats.clusterGpuCullDrawArgsReady &&
-                meshStats.clusterGpuCullCommandSignatureReady;
+                meshStats.clusterGpuCullReady;
             const bool hasMainlineWork =
                 registryStats.forwardOpaqueResidentRecordCount > 0 ||
                 meshStats.clusterGpuCullSubmittedInstanceCount > 0 ||
@@ -165,6 +163,15 @@ namespace HIKARI {
                 meshStats.surfaceGpuSceneUploadedInstanceCount,
                 meshStats.surfaceGpuSceneRequestedInstanceCount,
                 meshStats.surfaceGpuSceneOverflowInstanceCount);
+            ImGui::Text("GPU Scene Committed / KB / MaterialPatch Changed / Same: %zu / %zu / %zu / %zu",
+                meshStats.surfaceGpuSceneCommittedInstanceCount,
+                meshStats.surfaceGpuSceneCommittedBytes / 1024u,
+                meshStats.surfaceGpuSceneMaterialPatchChangedCount,
+                meshStats.surfaceGpuSceneMaterialPatchUnchangedCount);
+            ImGui::Text("MaterialData CPU Writes / GPU Copy KB / Copy Calls: %zu / %zu / %zu",
+                meshStats.materialDataWriteCount,
+                meshStats.materialDataGpuUploadBytes / 1024u,
+                meshStats.materialDataGpuUploadCallCount);
             ImGui::Text("Worklist Passes / Cluster Passes / Instances / Cluster Instances: %zu / %zu / %zu / %zu",
                 meshStats.gpuDrivenWorklistPassCount,
                 meshStats.gpuDrivenWorklistClusterPassCount,

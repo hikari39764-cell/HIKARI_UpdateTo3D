@@ -129,6 +129,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return &slots_[activeSlotIndex_ % GFX::kFrameResourceCount];
     }
 
+    void SurfaceGpuSceneFrameBuffer::MarkDirtyRange(
+        FrameSlot& slot,
+        size_t firstInstance,
+        size_t endInstance) {
+
+        if (firstInstance >= endInstance) {
+            return;
+        }
+
+        if (!slot.dirty) {
+            slot.dirtyFirstInstance = firstInstance;
+            slot.dirtyEndInstance = endInstance;
+        } else {
+            slot.dirtyFirstInstance = (std::min)(slot.dirtyFirstInstance, firstInstance);
+            slot.dirtyEndInstance = (std::max)(slot.dirtyEndInstance, endInstance);
+        }
+        slot.dirty = true;
+    }
+
     void SurfaceGpuSceneFrameBuffer::BeginFrame(uint32_t frameIndex) {
         activeSlotIndex_ = frameIndex % GFX::kFrameResourceCount;
         FrameSlot* slot = ActiveSlot();
@@ -145,6 +164,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         if (slot != nullptr) {
             slot->cursor = 0;
             slot->dirty = false;
+            slot->dirtyFirstInstance = 0;
+            slot->dirtyEndInstance = 0;
         }
     }
 
@@ -157,6 +178,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             slot->layoutVersion = 0;
             slot->sourceVersion = 0;
             slot->dirty = false;
+            slot->dirtyFirstInstance = 0;
+            slot->dirtyEndInstance = 0;
         }
 
         const size_t capacity = stats_.capacity;
@@ -225,12 +248,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             capacity_ > slot->cursor ? capacity_ - slot->cursor : 0;
         const size_t uploadCount = (std::min)(count, remainingCapacity);
         if (uploadCount > 0) {
+            const size_t firstUploadedInstance = slot->cursor;
             std::memcpy(
                 slot->mapped + slot->cursor,
                 instances,
                 sizeof(RUNTIME::SurfaceGpuSceneInstance) * uploadCount);
             slot->cursor += uploadCount;
-            slot->dirty = true;
+            MarkDirtyRange(*slot, firstUploadedInstance, slot->cursor);
             stats_.uploadedInstanceCount += uploadCount;
         }
         if (uploadCount < count) {
@@ -270,7 +294,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.uploadedInstanceCount =
             (std::max)(stats_.uploadedInstanceCount, firstInstance + count);
         slot->cursor = (std::max)(slot->cursor, firstInstance + count);
-        slot->dirty = true;
+        MarkDirtyRange(*slot, firstInstance, firstInstance + count);
         return true;
     }
 
@@ -286,8 +310,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return false;
         }
 
+        ++stats_.materialPatchCount;
+        if (slot->mapped[instanceIndex].materialDataIndex == materialDataIndex) {
+            ++stats_.materialPatchUnchangedCount;
+            return true;
+        }
+
         slot->mapped[instanceIndex].materialDataIndex = materialDataIndex;
-        slot->dirty = true;
+        MarkDirtyRange(*slot, instanceIndex, instanceIndex + 1);
+        ++stats_.materialPatchChangedCount;
         return true;
     }
 
@@ -332,9 +363,31 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return;
         }
 
+        const size_t dirtyFirst =
+            slot->dirtyEndInstance > slot->dirtyFirstInstance
+                ? slot->dirtyFirstInstance
+                : 0u;
+        const size_t dirtyEnd =
+            slot->dirtyEndInstance > slot->dirtyFirstInstance
+                ? slot->dirtyEndInstance
+                : stats_.uploadedInstanceCount;
+        const size_t clampedDirtyFirst =
+            (std::min)(dirtyFirst, stats_.uploadedInstanceCount);
+        const size_t clampedDirtyEnd =
+            (std::min)(dirtyEnd, stats_.uploadedInstanceCount);
+        if (clampedDirtyFirst >= clampedDirtyEnd) {
+            slot->dirty = false;
+            slot->dirtyFirstInstance = 0;
+            slot->dirtyEndInstance = 0;
+            return;
+        }
+
+        const UINT64 copyOffset =
+            static_cast<UINT64>(sizeof(RUNTIME::SurfaceGpuSceneInstance)) *
+            static_cast<UINT64>(clampedDirtyFirst);
         const UINT64 copyBytes =
             static_cast<UINT64>(sizeof(RUNTIME::SurfaceGpuSceneInstance)) *
-            static_cast<UINT64>(stats_.uploadedInstanceCount);
+            static_cast<UINT64>(clampedDirtyEnd - clampedDirtyFirst);
         if (copyBytes == 0u) {
             return;
         }
@@ -350,10 +403,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         commandList->CopyBufferRegion(
             slot->defaultBuffer.Get(),
-            0,
+            copyOffset,
             slot->uploadBuffer.Get(),
-            0,
+            copyOffset,
             copyBytes);
+        stats_.committedInstanceCount += clampedDirtyEnd - clampedDirtyFirst;
+        stats_.committedBytes += static_cast<size_t>(copyBytes);
 
         const D3D12_RESOURCE_STATES shaderState =
             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
@@ -365,6 +420,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         commandList->ResourceBarrier(1, &toShader);
         slot->defaultState = shaderState;
         slot->dirty = false;
+        slot->dirtyFirstInstance = 0;
+        slot->dirtyEndInstance = 0;
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE SurfaceGpuSceneFrameBuffer::GetSrv() const {

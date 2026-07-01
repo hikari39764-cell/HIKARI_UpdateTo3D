@@ -48,6 +48,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         uint32_t gpuSceneBaseIndex = 0;
         size_t commandCount = 0;
+        size_t staticCommandCount = 0;
         size_t skinnedCommandCount = 0;
         size_t visibleCommandCount = 0;
         size_t visibleCommandOverflowCount = 0;

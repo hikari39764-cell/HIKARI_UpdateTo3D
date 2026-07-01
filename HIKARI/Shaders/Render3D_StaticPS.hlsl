@@ -48,8 +48,16 @@ cbuffer LightCB : register(b2)
     float4 gFogColorDensity;
     float4 gFogParams;
     uint gDebugView;
-    float3 gDebugPadding;
+    float gForwardCostMode;
+    float2 gDebugPadding;
 };
+
+static const uint HIKARI_FORWARD_COST_FULL = 0u;
+static const uint HIKARI_FORWARD_COST_ALBEDO_ONLY = 1u;
+static const uint HIKARI_FORWARD_COST_NO_NORMAL_MAP = 2u;
+static const uint HIKARI_FORWARD_COST_NO_SHADOW = 3u;
+static const uint HIKARI_FORWARD_COST_NO_SSAO = 4u;
+static const uint HIKARI_FORWARD_COST_NO_MATERIAL_EXTRAS = 5u;
 
 cbuffer ShadowCB : register(b4)
 {
@@ -488,15 +496,13 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint 
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
-    float3 n = ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv, input.uv1);
-    float3 geometricNormal = normalize(input.normalWS);
-    float3 l = normalize(-gDirectionalDir.xyz);
-    float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
-#if !HIKARI_USE_COOK_TORRANCE_PBR
-    float3 h = normalize(l + v);
-#endif
-
-    float ndotl = saturate(dot(n, l));
+    const uint forwardCostMode = (uint)(gForwardCostMode + 0.5f);
+    const bool costAlbedoOnly = forwardCostMode == HIKARI_FORWARD_COST_ALBEDO_ONLY;
+    const bool costNoNormalMap = forwardCostMode == HIKARI_FORWARD_COST_NO_NORMAL_MAP;
+    const bool costNoShadow = forwardCostMode == HIKARI_FORWARD_COST_NO_SHADOW;
+    const bool costNoSsao = forwardCostMode == HIKARI_FORWARD_COST_NO_SSAO;
+    const bool costNoMaterialExtras =
+        forwardCostMode == HIKARI_FORWARD_COST_NO_MATERIAL_EXTRAS;
 
     float4 albedo = materialData.baseColor;
     if (materialData.hasBaseColorTexture != 0)
@@ -514,23 +520,111 @@ float4 main(PSInput input) : SV_TARGET
         discard;
     }
 
+    if (gDebugView == 4 || costAlbedoOnly)
+    {
+        return float4(albedo.rgb, albedo.a);
+    }
+    if (gDebugView == 11)
+    {
+        float sceneDepth = gSceneDepthTex.Load(int3(int2(input.position.xy), 0)).r;
+        return float4(sceneDepth.xxx, albedo.a);
+    }
+    if (gDebugView == 12)
+    {
+        float2 screenUv = input.position.xy * gScreenParams.zw;
+        return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
+    }
+
+    float4 geometryDebugColor;
+    if (HikariTryResolveGeometryDebugView(
+        gDebugView,
+        input.debugClusterId,
+        input.debugSurfaceId,
+        input.debugLodIndex,
+        input.debugDrawBucket,
+        albedo.a,
+        geometryDebugColor))
+    {
+        return geometryDebugColor;
+    }
+
+    float3 geometricNormal = normalize(input.normalWS);
+    float3 n = costNoNormalMap
+        ? geometricNormal
+        : ResolveShadingNormal(materialData, input.normalWS, input.tangentWS, input.uv, input.uv1);
+    if (gDebugView == 1)
+    {
+        return float4(normalize(n) * 0.5f + 0.5f, albedo.a);
+    }
+    if (gDebugView == 2)
+    {
+        return float4(normalize(input.tangentWS.xyz) * 0.5f + 0.5f, albedo.a);
+    }
+
+    float3 l = normalize(-gDirectionalDir.xyz);
+    float3 v = normalize(gCameraPos.xyz - input.worldPosWS);
+#if !HIKARI_USE_COOK_TORRANCE_PBR
+    float3 h = normalize(l + v);
+#endif
+
+    float ndotl = saturate(dot(n, l));
+    if (gDebugView == 9)
+    {
+        return float4(ndotl.xxx, albedo.a);
+    }
+
     float metallic = 0.0f;
     float roughness = 1.0f;
     float occlusion = 1.0f;
     float3 specularColor = 1.0f.xxx;
     float specularFactor = 1.0f;
-    ResolvePbrInputs(materialData, input.uv, input.uv1, metallic, roughness, occlusion);
-    ResolveSpecularInputs(materialData, input.uv, input.uv1, specularColor, specularFactor);
-    ApplyPbrMaterialCompatibility(materialData, metallic, roughness, specularColor, specularFactor);
+    if (costNoMaterialExtras)
+    {
+        metallic = saturate(materialData.pbrParams.x);
+        roughness = clamp(materialData.pbrParams.y, 0.04f, 1.0f);
+        occlusion = 1.0f;
+        specularColor = max(0.0f.xxx, materialData.specularParams.rgb);
+        specularFactor = max(0.0f, materialData.specularParams.w);
+    }
+    else
+    {
+        ResolvePbrInputs(materialData, input.uv, input.uv1, metallic, roughness, occlusion);
+        ResolveSpecularInputs(materialData, input.uv, input.uv1, specularColor, specularFactor);
+        ApplyPbrMaterialCompatibility(materialData, metallic, roughness, specularColor, specularFactor);
+    }
+    if (gDebugView == 5)
+    {
+        return float4(roughness.xxx, albedo.a);
+    }
+    if (gDebugView == 6)
+    {
+        return float4(metallic.xxx, albedo.a);
+    }
+    if (gDebugView == 7)
+    {
+        return float4(occlusion.xxx, albedo.a);
+    }
+
     float screenAo = 1.0f;
-    if (gSsaoEnabled > 0.5f)
+    if (!costNoSsao && gSsaoEnabled > 0.5f)
     {
         screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
     }
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
-    float3 emissive = ((materialData.materialFlags & MATERIAL_EMISSIVE) != 0)
+    float shadowFactor = costNoShadow
+        ? 1.0f
+        : SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+    if (gDebugView == 8)
+    {
+        return float4(shadowFactor.xxx, albedo.a);
+    }
+
+    float3 emissive = (!costNoMaterialExtras && (materialData.materialFlags & MATERIAL_EMISSIVE) != 0)
         ? ResolveEmissive(materialData, input.uv, input.uv1)
         : 0.0f.xxx;
+    if (gDebugView == 10)
+    {
+        return float4(emissive, albedo.a);
+    }
 
     float3 shadedColor = albedo.rgb;
     if ((materialData.materialFlags & MATERIAL_UNLIT) == 0)
@@ -585,67 +679,9 @@ float4 main(PSInput input) : SV_TARGET
         shadedColor = albedo.rgb * lit;
 #endif
     }
-    if (gDebugView == 1)
-    {
-        return float4(normalize(n) * 0.5f + 0.5f, albedo.a);
-    }
-    if (gDebugView == 2)
-    {
-        return float4(normalize(input.tangentWS.xyz) * 0.5f + 0.5f, albedo.a);
-    }
     if (gDebugView == 3)
     {
         return float4(ApplyFog(shadedColor, input.worldPosWS), albedo.a);
-    }
-    if (gDebugView == 4)
-    {
-        return float4(albedo.rgb, albedo.a);
-    }
-    if (gDebugView == 5)
-    {
-        return float4(roughness.xxx, albedo.a);
-    }
-    if (gDebugView == 6)
-    {
-        return float4(metallic.xxx, albedo.a);
-    }
-    if (gDebugView == 7)
-    {
-        return float4(occlusion.xxx, albedo.a);
-    }
-    if (gDebugView == 8)
-    {
-        return float4(shadowFactor.xxx, albedo.a);
-    }
-    if (gDebugView == 9)
-    {
-        return float4(ndotl.xxx, albedo.a);
-    }
-    if (gDebugView == 10)
-    {
-        return float4(emissive, albedo.a);
-    }
-    if (gDebugView == 11)
-    {
-        float sceneDepth = gSceneDepthTex.Load(int3(int2(input.position.xy), 0)).r;
-        return float4(sceneDepth.xxx, albedo.a);
-    }
-    if (gDebugView == 12)
-    {
-        float2 screenUv = input.position.xy * gScreenParams.zw;
-        return float4(gSceneColorTex.Sample(gLinearWrap, saturate(screenUv)).rgb, albedo.a);
-    }
-    float4 geometryDebugColor;
-    if (HikariTryResolveGeometryDebugView(
-        gDebugView,
-        input.debugClusterId,
-        input.debugSurfaceId,
-        input.debugLodIndex,
-        input.debugDrawBucket,
-        albedo.a,
-        geometryDebugColor))
-    {
-        return geometryDebugColor;
     }
 
     float3 finalColor = shadedColor + emissive;

@@ -1,5 +1,6 @@
 #include "HIKARI_Win32Window.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <shellapi.h>
@@ -30,6 +31,7 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
     hInstance_ = GetModuleHandleW(nullptr);
     width_ = width;
     height_ = height;
+    resizable_ = resizable;
 
     WNDCLASSW wc{};
     wc.lpfnWndProc = StaticWndProc;
@@ -57,6 +59,7 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
         style &= ~WS_THICKFRAME;
         style &= ~WS_MAXIMIZEBOX;
     }
+    windowedStyle_ = style;
 
     RECT rect{ 0, 0, width, height };
     AdjustWindowRect(&rect, style, FALSE);
@@ -93,6 +96,127 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
     HIKARI_LOG_INFO("Window shown.");
     running_ = true;
     HIKARI_LOG_INFO("Win32Window initialization completed.");
+    return true;
+}
+
+bool Win32Window::ApplyWindowMode(WindowMode mode, int clientWidth, int clientHeight) {
+    if (!hwnd_) {
+        return false;
+    }
+
+    clientWidth = (std::max)(clientWidth, 16);
+    clientHeight = (std::max)(clientHeight, 16);
+
+    auto getMonitorInfo = [&]() -> MONITORINFO {
+        HMONITOR monitor = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo{};
+        monitorInfo.cbSize = sizeof(MONITORINFO);
+        if (!GetMonitorInfoW(monitor, &monitorInfo)) {
+            monitorInfo.rcMonitor = { 0, 0, clientWidth, clientHeight };
+            monitorInfo.rcWork = monitorInfo.rcMonitor;
+        }
+        return monitorInfo;
+    };
+
+    auto clampWindowRectToWorkArea = [](const RECT& work, int windowWidth, int windowHeight, POINT desiredCenter) {
+        const int workWidth = work.right - work.left;
+        const int workHeight = work.bottom - work.top;
+        int x = desiredCenter.x - windowWidth / 2;
+        int y = desiredCenter.y - windowHeight / 2;
+
+        if (windowWidth <= workWidth) {
+            const int minX = static_cast<int>(work.left);
+            const int maxX = static_cast<int>(work.right) - windowWidth;
+            x = (std::max)(minX, (std::min)(x, maxX));
+        } else {
+            x = static_cast<int>(work.left);
+        }
+
+        if (windowHeight <= workHeight) {
+            const int minY = static_cast<int>(work.top);
+            const int maxY = static_cast<int>(work.bottom) - windowHeight;
+            y = (std::max)(minY, (std::min)(y, maxY));
+        } else {
+            y = static_cast<int>(work.top);
+        }
+
+        return POINT{ x, y };
+    };
+
+    if (mode == WindowMode::Windowed) {
+        DWORD style = WS_OVERLAPPEDWINDOW;
+        if (!resizable_) {
+            style &= ~WS_THICKFRAME;
+            style &= ~WS_MAXIMIZEBOX;
+        }
+        windowedStyle_ = style;
+
+        RECT rect{ 0, 0, clientWidth, clientHeight };
+        AdjustWindowRect(&rect, style, FALSE);
+        const int windowWidth = rect.right - rect.left;
+        const int windowHeight = rect.bottom - rect.top;
+
+        const MONITORINFO monitorInfo = getMonitorInfo();
+        POINT desiredCenter{
+            (monitorInfo.rcWork.left + monitorInfo.rcWork.right) / 2,
+            (monitorInfo.rcWork.top + monitorInfo.rcWork.bottom) / 2,
+        };
+
+        if (windowMode_ == WindowMode::Windowed) {
+            RECT currentRect{};
+            if (GetWindowRect(hwnd_, &currentRect)) {
+                desiredCenter.x = (currentRect.left + currentRect.right) / 2;
+                desiredCenter.y = (currentRect.top + currentRect.bottom) / 2;
+            }
+        } else if (windowedPlacement_.rcNormalPosition.right > windowedPlacement_.rcNormalPosition.left &&
+            windowedPlacement_.rcNormalPosition.bottom > windowedPlacement_.rcNormalPosition.top) {
+            desiredCenter.x =
+                (windowedPlacement_.rcNormalPosition.left + windowedPlacement_.rcNormalPosition.right) / 2;
+            desiredCenter.y =
+                (windowedPlacement_.rcNormalPosition.top + windowedPlacement_.rcNormalPosition.bottom) / 2;
+        }
+
+        const POINT target =
+            clampWindowRectToWorkArea(monitorInfo.rcWork, windowWidth, windowHeight, desiredCenter);
+
+        SetWindowLongPtrW(hwnd_, GWL_STYLE, static_cast<LONG_PTR>(style));
+        ShowWindow(hwnd_, SW_RESTORE);
+        const BOOL moved = SetWindowPos(
+            hwnd_,
+            HWND_NOTOPMOST,
+            target.x,
+            target.y,
+            windowWidth,
+            windowHeight,
+            SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+        if (!moved) {
+            return false;
+        }
+        windowMode_ = mode;
+        return true;
+    }
+
+    if (windowMode_ == WindowMode::Windowed) {
+        windowedPlacement_.length = sizeof(WINDOWPLACEMENT);
+        GetWindowPlacement(hwnd_, &windowedPlacement_);
+    }
+
+    const MONITORINFO monitorInfo = getMonitorInfo();
+
+    SetWindowLongPtrW(hwnd_, GWL_STYLE, static_cast<LONG_PTR>(WS_POPUP | WS_VISIBLE));
+    const RECT& target = monitorInfo.rcMonitor;
+    const BOOL moved = SetWindowPos(
+        hwnd_,
+        mode == WindowMode::Fullscreen ? HWND_TOPMOST : HWND_TOP,
+        target.left,
+        target.top,
+        target.right - target.left,
+        target.bottom - target.top,
+        SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    if (!moved) {
+        return false;
+    }
+    windowMode_ = mode;
     return true;
 }
 

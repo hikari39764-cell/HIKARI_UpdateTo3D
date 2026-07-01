@@ -414,6 +414,19 @@ namespace HIKARI {
                     s.gpuRegistry.forwardDepthAwareGpuSceneStats.instanceCount,
                     s.gpuRegistry.forwardTransparentGpuSceneStats.instanceCount,
                     s.shadow.shadowGpuSceneUploadedInstanceCount);
+                MetricRow("GPU Scene Uploaded / Committed / Commit KB / Overflow", "%zu / %zu / %zu / %zu",
+                    s.mesh.surfaceGpuSceneUploadedInstanceCount,
+                    s.mesh.surfaceGpuSceneCommittedInstanceCount,
+                    s.mesh.surfaceGpuSceneCommittedBytes / 1024u,
+                    s.mesh.surfaceGpuSceneOverflowInstanceCount);
+                MetricRow("GPU Scene Material Patch Changed / Same / Failed", "%zu / %zu / %zu",
+                    s.mesh.surfaceGpuSceneMaterialPatchChangedCount,
+                    s.mesh.surfaceGpuSceneMaterialPatchUnchangedCount,
+                    s.mesh.surfaceGpuSceneMaterialPatchFailCount);
+                MetricRow("MaterialData CPU Writes / GPU Copy KB / Calls", "%zu / %zu / %zu",
+                    s.mesh.materialDataWriteCount,
+                    s.mesh.materialDataGpuUploadBytes / 1024u,
+                    s.mesh.materialDataGpuUploadCallCount);
                 MetricRow("DepthPrepass Occluders / Opaque / Uploaded", "%u / %u / %zu",
                     s.gpuRegistry.depthPrepassOccluderRecordCount,
                     s.gpuRegistry.forwardOpaqueResidentRecordCount,
@@ -554,9 +567,11 @@ namespace HIKARI {
             if (ImGui::BeginTable("ReadinessTable", 3, ImGuiTableFlags_SizingStretchSame)) {
                 ImGui::TableNextColumn();
                 TextStatus("GPU Scene", s.mesh.surfaceGpuSceneSrvValid && s.mesh.surfaceGpuSceneBufferReady);
-                TextStatus("Indirect Args", s.mesh.traditionalCommandStreamArgumentBufferReady && s.mesh.traditionalCommandStreamCommandSignatureReady);
+                TextStatus("Meshlet Args",
+                    s.mesh.meshletBackendDispatchArgumentBufferReady &&
+                    s.mesh.meshletBackendDispatchCommandSignatureReady);
                 ImGui::TableNextColumn();
-                TextStatus("Cluster Cull", s.mesh.clusterGpuCullReady && s.mesh.clusterGpuCullDrawArgsReady);
+                TextStatus("Cluster Cull", s.mesh.clusterGpuCullReady);
                 TextStatus("Meshlet Draw",
                     s.mesh.meshletBackendPipelineReady &&
                     s.mesh.meshletBackendDispatchArgumentBufferReady &&
