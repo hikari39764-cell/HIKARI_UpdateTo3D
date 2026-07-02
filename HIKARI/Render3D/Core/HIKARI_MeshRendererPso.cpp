@@ -584,6 +584,30 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPsoDesc = psoDesc;
+        depthPsoDesc.PS = {};
+        depthPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        depthPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        depthPsoDesc.DepthStencilState.DepthEnable = TRUE;
+        depthPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthPsoDesc.NumRenderTargets = 0;
+        for (DXGI_FORMAT& format : depthPsoDesc.RTVFormats) {
+            format = DXGI_FORMAT_UNKNOWN;
+        }
+        depthPsoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        if (FAILED(device->CreateGraphicsPipelineState(&depthPsoDesc, IID_PPV_ARGS(store.depthPso.GetAddressOf())))) {
+            return false;
+        }
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC depthSkinnedPsoDesc = depthPsoDesc;
+        depthSkinnedPsoDesc.pRootSignature = store.skinnedRootSig.Get();
+        depthSkinnedPsoDesc.VS = { store.skinnedVsBlob->GetBufferPointer(), store.skinnedVsBlob->GetBufferSize() };
+        depthSkinnedPsoDesc.InputLayout = { skinnedInputElements, static_cast<UINT>(std::size(skinnedInputElements)) };
+        if (FAILED(device->CreateGraphicsPipelineState(&depthSkinnedPsoDesc, IID_PPV_ARGS(store.depthSkinnedPso.GetAddressOf())))) {
+            return false;
+        }
+
         D3D12_GRAPHICS_PIPELINE_STATE_DESC geometryPsoDesc = psoDesc;
         geometryPsoDesc.PS = { store.geometryPsBlob->GetBufferPointer(), store.geometryPsBlob->GetBufferSize() };
         geometryPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -615,6 +639,8 @@ namespace HIKARI::MESHRENDERER {
         store.vsBlobCache.clear();
         store.pso.Reset();
         store.skinnedPso.Reset();
+        store.depthPso.Reset();
+        store.depthSkinnedPso.Reset();
         store.geometryPso.Reset();
         store.geometrySkinnedPso.Reset();
         store.rootSig.Reset();
@@ -631,6 +657,10 @@ namespace HIKARI::MESHRENDERER {
 
     ID3D12RootSignature* GetSkinnedRootSignature(MeshPipelineStore& store) {
         return store.skinnedRootSig.Get();
+    }
+
+    ID3D12PipelineState* GetDepthPso(MeshPipelineStore& store, bool skinned) {
+        return skinned ? store.depthSkinnedPso.Get() : store.depthPso.Get();
     }
 
     ID3D12PipelineState* GetGeometryPso(MeshPipelineStore& store, bool skinned) {

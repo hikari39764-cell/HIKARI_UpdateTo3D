@@ -59,6 +59,10 @@ static const uint HIKARI_FORWARD_COST_NO_SHADOW = 3u;
 static const uint HIKARI_FORWARD_COST_NO_SSAO = 4u;
 static const uint HIKARI_FORWARD_COST_NO_MATERIAL_EXTRAS = 5u;
 
+#ifndef HIKARI_FORWARD_COST_MODE_STATIC
+#define HIKARI_FORWARD_COST_MODE_STATIC 255
+#endif
+
 cbuffer ShadowCB : register(b4)
 {
     float4x4 gShadowLightViewProj;
@@ -123,7 +127,8 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSsaoEnabled gAoParams.x
 #define gSsaoDiffuseStrength gAoParams.y
 #define gSsaoSpecularStrength gAoParams.z
-#define gLightProbeEnabled gLightProbeVolumeOrigin.w
+#define gLightProbeSamplingMode gLightProbeVolumeOrigin.w
+#define gLightProbeEnabled ((gLightProbeSamplingMode > 0.5f) ? 1.0f : 0.0f)
 #define gLightProbeOrigin gLightProbeVolumeOrigin.xyz
 #define gLightProbeSpacing gLightProbeVolumeSpacing.xyz
 #define gLightProbeIntensity gLightProbeVolumeSpacing.w
@@ -496,7 +501,11 @@ float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint 
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
+#if HIKARI_FORWARD_COST_MODE_STATIC != 255
+    static const uint forwardCostMode = HIKARI_FORWARD_COST_MODE_STATIC;
+#else
     const uint forwardCostMode = (uint)(gForwardCostMode + 0.5f);
+#endif
     const bool costAlbedoOnly = forwardCostMode == HIKARI_FORWARD_COST_ALBEDO_ONLY;
     const bool costNoNormalMap = forwardCostMode == HIKARI_FORWARD_COST_NO_NORMAL_MAP;
     const bool costNoShadow = forwardCostMode == HIKARI_FORWARD_COST_NO_SHADOW;

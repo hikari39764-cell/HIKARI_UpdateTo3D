@@ -851,22 +851,6 @@ bool HikariClusterCullTryHzbOccluded(
         return false;
     }
 
-    uint hzbAllowedIndex = 0u;
-    gClusterCullCounters.InterlockedAdd(
-        HIKARI_CLUSTER_CULL_COUNTER_HZB_ALLOWED_COUNT,
-        1,
-        hzbAllowedIndex);
-    if (gClusterCullHzbTestBudget != 0u &&
-        hzbAllowedIndex >= gClusterCullHzbTestBudget)
-    {
-        HikariClusterCullAddDebugCounter(
-            HIKARI_CLUSTER_CULL_COUNTER_HZB_BUDGET_SKIPPED_COUNT,
-            1);
-        HikariClusterCullHistoryResetVisible(occlusionKey);
-        return false;
-    }
-    
-
     HikariClusterCullHzbQuery query;
     uint queryRejectReason =
         HikariClusterCullBuildHzbQuery(world, boundsMin, boundsMax, query);
@@ -918,6 +902,22 @@ bool HikariClusterCullTryHzbOccluded(
             return false;
         }
     }
+
+    uint hzbAllowedIndex = 0u;
+    gClusterCullCounters.InterlockedAdd(
+        HIKARI_CLUSTER_CULL_COUNTER_HZB_ALLOWED_COUNT,
+        1,
+        hzbAllowedIndex);
+    if (gClusterCullHzbTestBudget != 0u &&
+        hzbAllowedIndex >= gClusterCullHzbTestBudget)
+    {
+        HikariClusterCullAddDebugCounter(
+            HIKARI_CLUSTER_CULL_COUNTER_HZB_BUDGET_SKIPPED_COUNT,
+            1);
+        HikariClusterCullHistoryResetVisible(occlusionKey);
+        return false;
+    }
+
     tested = true;
     uint mipLevel = HikariClusterCullSelectHzbMip(query.maxExtentPixels);
     float maxHzbDepth =

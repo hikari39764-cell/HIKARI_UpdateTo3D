@@ -37,6 +37,8 @@ public:
     size_t GetPendingDeferredReleaseCount() const;
     bool IsFenceComplete(uint64_t fenceValue) const;
     bool IsDeviceLost() const { return deviceLost_; }
+    void SetVSyncEnabled(bool enabled) { vSyncEnabled_ = enabled; }
+    bool IsVSyncEnabled() const { return vSyncEnabled_; }
 
     Context BuildContext() const;
 
@@ -81,6 +83,7 @@ private:
     uint32_t frameIndex_{};
     bool deviceLost_ = false;
     bool frameOpen_ = false;
+    bool vSyncEnabled_ = false;
 };
 
 } // namespace HIKARI::GFX

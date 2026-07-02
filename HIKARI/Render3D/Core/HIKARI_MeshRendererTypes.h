@@ -284,6 +284,7 @@ namespace HIKARI::MESHRENDERER {
         size_t primitiveSkinnedMeshCacheMissCount = 0;
         size_t materialTextureCacheHitCount = 0;
         size_t materialTextureCacheMissCount = 0;
+        size_t materialTextureLoadDeferredCount = 0;
         size_t psoCacheHitCount = 0;
         size_t psoCacheMissCount = 0;
         size_t materialFxProfileCacheHitCount = 0;

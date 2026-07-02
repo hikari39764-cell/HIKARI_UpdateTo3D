@@ -482,7 +482,7 @@ bool Dx12Core::EndFrame() {
     }
     ID3D12CommandList* lists[] = { cmdList_.Get() };
     queue_->ExecuteCommandLists(1, lists);
-    hr = swapChain_->Present(1, 0);
+    hr = swapChain_->Present(vSyncEnabled_ ? 1u : 0u, 0);
     if (FAILED(hr)) {
         frameOpen_ = false;
         HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame Present");

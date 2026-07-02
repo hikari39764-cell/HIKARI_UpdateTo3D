@@ -132,6 +132,17 @@ float3 HikariEvaluateLightProbeVolumeDiffuse(float3 worldPos, float3 n)
         (gLightProbeCountY > 1u) ? saturate(gridCoord.y - (float)y0) : 0.0f,
         saturate(gridCoord.z - (float)z0));
 
+    if (gLightProbeCountY <= 1u)
+    {
+        float3 c00 = HikariSampleLightProbeCorner(uint3(x0, y0, z0), n);
+        float3 c10 = HikariSampleLightProbeCorner(uint3(x1, y0, z0), n);
+        float3 c01 = HikariSampleLightProbeCorner(uint3(x0, y0, z1), n);
+        float3 c11 = HikariSampleLightProbeCorner(uint3(x1, y0, z1), n);
+        float3 cx0 = lerp(c00, c10, f.x);
+        float3 cx1 = lerp(c01, c11, f.x);
+        return lerp(cx0, cx1, f.z);
+    }
+
     float3 c000 = HikariSampleLightProbeCorner(uint3(x0, y0, z0), n);
     float3 c100 = HikariSampleLightProbeCorner(uint3(x1, y0, z0), n);
     float3 c010 = HikariSampleLightProbeCorner(uint3(x0, y1, z0), n);
@@ -150,6 +161,65 @@ float3 HikariEvaluateLightProbeVolumeDiffuse(float3 worldPos, float3 n)
     return lerp(cxy0, cxy1, f.z);
 }
 
+float3 HikariEvaluateLightProbeVolumeDiffuseNearest(float3 worldPos, float3 n)
+{
+    if (gLightProbeEnabled < 0.5f ||
+        gLightProbeProbeCount == 0u ||
+        gLightProbeCountX < 1u ||
+        gLightProbeCountY < 1u ||
+        gLightProbeCountZ < 1u)
+    {
+        return 0.0f.xxx;
+    }
+
+    float3 gridCoord = (worldPos - gLightProbeOrigin) / max(gLightProbeSpacing, float3(0.0001f, 0.0001f, 0.0001f));
+    uint x = (uint)min(floor(clamp(gridCoord.x, 0.0f, (float)(gLightProbeCountX - 1u)) + 0.5f), (float)(gLightProbeCountX - 1u));
+    uint y = (uint)min(floor(clamp(gridCoord.y, 0.0f, (float)(gLightProbeCountY - 1u)) + 0.5f), (float)(gLightProbeCountY - 1u));
+    uint z = (uint)min(floor(clamp(gridCoord.z, 0.0f, (float)(gLightProbeCountZ - 1u)) + 0.5f), (float)(gLightProbeCountZ - 1u));
+    return HikariSampleLightProbeCorner(uint3(x, y, z), n);
+}
+
+float3 HikariEvaluateLightProbeVolumeDiffuseFastSmooth(float3 worldPos, float3 n)
+{
+    if (gLightProbeEnabled < 0.5f ||
+        gLightProbeProbeCount == 0u ||
+        gLightProbeCountX < 1u ||
+        gLightProbeCountY < 1u ||
+        gLightProbeCountZ < 1u)
+    {
+        return 0.0f.xxx;
+    }
+
+    if (gLightProbeCountX < 2u || gLightProbeCountZ < 2u)
+    {
+        return HikariEvaluateLightProbeVolumeDiffuseNearest(worldPos, n);
+    }
+
+    float3 gridCoord = (worldPos - gLightProbeOrigin) / max(gLightProbeSpacing, float3(0.0001f, 0.0001f, 0.0001f));
+    gridCoord.x = clamp(gridCoord.x, 0.0f, (float)(gLightProbeCountX - 1u));
+    gridCoord.y = clamp(gridCoord.y, 0.0f, (float)(gLightProbeCountY - 1u));
+    gridCoord.z = clamp(gridCoord.z, 0.0f, (float)(gLightProbeCountZ - 1u));
+
+    uint x0 = (uint)min(floor(gridCoord.x), (float)(gLightProbeCountX - 2u));
+    uint z0 = (uint)min(floor(gridCoord.z), (float)(gLightProbeCountZ - 2u));
+    uint x1 = min(x0 + 1u, gLightProbeCountX - 1u);
+    uint z1 = min(z0 + 1u, gLightProbeCountZ - 1u);
+    uint y = (uint)min(floor(gridCoord.y + 0.5f), (float)(gLightProbeCountY - 1u));
+
+    float2 f = float2(
+        saturate(gridCoord.x - (float)x0),
+        saturate(gridCoord.z - (float)z0));
+    f = f * f * (float2(3.0f, 3.0f) - 2.0f * f);
+
+    float3 c00 = HikariSampleLightProbeCorner(uint3(x0, y, z0), n);
+    float3 c10 = HikariSampleLightProbeCorner(uint3(x1, y, z0), n);
+    float3 c01 = HikariSampleLightProbeCorner(uint3(x0, y, z1), n);
+    float3 c11 = HikariSampleLightProbeCorner(uint3(x1, y, z1), n);
+    float3 cx0 = lerp(c00, c10, f.x);
+    float3 cx1 = lerp(c01, c11, f.x);
+    return lerp(cx0, cx1, f.y);
+}
+
 float3 HikariBlendLightProbeDiffuse(float3 fallbackDiffuse, float3 worldPos, float3 n)
 {
     if (gLightProbeEnabled < 0.5f || gLightProbeIntensity <= 0.0001f)
@@ -157,7 +227,15 @@ float3 HikariBlendLightProbeDiffuse(float3 fallbackDiffuse, float3 worldPos, flo
         return fallbackDiffuse;
     }
 
-    float3 localDiffuse = HikariEvaluateLightProbeVolumeDiffuse(worldPos, n);
+    float3 localDiffuse = 0.0f.xxx;
+    if (gLightProbeSamplingMode > 1.5f)
+    {
+        localDiffuse = HikariEvaluateLightProbeVolumeDiffuseFastSmooth(worldPos, n);
+    }
+    else
+    {
+        localDiffuse = HikariEvaluateLightProbeVolumeDiffuse(worldPos, n);
+    }
     return lerp(fallbackDiffuse, localDiffuse, saturate(gLightProbeIntensity));
 }
 

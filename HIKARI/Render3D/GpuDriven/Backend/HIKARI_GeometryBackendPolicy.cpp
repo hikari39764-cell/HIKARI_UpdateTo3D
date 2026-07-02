@@ -15,15 +15,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
         }
 
-        GeometryBackendPolicy MakePolicyFromQualitySettings(bool forceMeshShaderForPass) {
+        GeometryBackendPolicy MakePolicyFromQualitySettings() {
             GeometryBackendPolicy policy{};
             policy.preferred = GeometryBackendKind::GpuDrivenMeshShader;
             policy.secondary = GeometryBackendKind::GpuDrivenTraditionalVsPs;
             policy.forcePreferredOnly = true;
-
-            if (forceMeshShaderForPass) {
-                return policy;
-            }
 
             switch (RENDER3D::GetRenderQualitySettings().geometryPipeline) {
             case RENDER3D::GeometryPipelineMode::TraditionalVsPs:
@@ -65,9 +61,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     GeometryBackendPolicy ResolveGeometryBackendPolicy(GpuDrivenPassKind pass) {
-        const bool forceMeshShader =
-            pass == GpuDrivenPassKind::DepthPrepass;
-        GeometryBackendPolicy policy = MakePolicyFromQualitySettings(forceMeshShader);
+        GeometryBackendPolicy policy = MakePolicyFromQualitySettings();
 
         switch (pass) {
         case GpuDrivenPassKind::ForwardOpaque:

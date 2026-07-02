@@ -317,8 +317,6 @@ namespace HIKARI {
 			// ----  ESC で終了用 ----
 			BindButtonsIL("CloseProgram", { KeyCodeFromString("Esc") });
 
-			// ---- P で ParticleLab を開く用 ----
-			BindButtonsIL("OpenParticleLab", { KeyCodeFromString("P") });
 			BindButtonsIL("ToggleEditorUI", { KeyCodeFromString("F1") });
 			BindButtonsIL("PlayTestVfx", { KeyCodeFromString("Space") });
 			BindButtonsIL("PlaySceneScan", { KeyCodeFromString("V") });
@@ -339,7 +337,6 @@ namespace HIKARI {
 			SetLayerActions("Debug", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
-				"OpenParticleLab",
 				"ToggleEditorUI",
 				"PlayTestVfx",
 				"PlaySceneScan"
@@ -347,7 +344,6 @@ namespace HIKARI {
 			SetLayerActions("Gameplay", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
-				"OpenParticleLab",
 				"ToggleEditorUI",
 				"PlayTestVfx",
 				"PlaySceneScan"

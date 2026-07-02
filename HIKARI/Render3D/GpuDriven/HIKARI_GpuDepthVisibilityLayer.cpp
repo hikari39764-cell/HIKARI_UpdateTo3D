@@ -21,6 +21,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         template <typename T>
+		// GPU による遅延解放を行うために、ComPtr を退避キューに登録する
         void RetireD3D12Object(Microsoft::WRL::ComPtr<T>& object, const char* debugName) {
             if (object == nullptr) {
                 return;
@@ -43,7 +44,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             retired.Reset();
         }
-
+		// 深度バッファの SRV デスクリプタを作成する。リソースが nullptr の場合は無効な RenderResourceView を返す。
         RenderResourceView CreateVisibilityDepthSrvDescriptor(
             ID3D12Resource* resource,
             DXGI_FORMAT format) {
@@ -69,7 +70,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return view;
         }
     }
-
+	//  フレームのリセット処理。PSO やリソースの状態を保持する。
     void GpuDepthVisibilityLayer::ResetFrame() {
         const D3D12_GPU_DESCRIPTOR_HANDLE visibilityDepthSrv = visibilityDepthSrv_.gpu;
         depthPyramid_.ResetFrame();
@@ -90,7 +91,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         PublishDepthPyramidStats(pyramidView);
         stats_.hzbBuilt = false;
     }
-
+	// 深度リソースを解放する。SRV デスクリプタと DSV デスクリプタも解放する。
     void GpuDepthVisibilityLayer::Release() {
         depthPyramid_.Release();
         ReleaseDepthResource();
@@ -98,7 +99,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         depthHeight_ = 0;
         stats_ = {};
     }
-
+	// 深度プリパスの書き込み状態を記録する。書き込まれた場合は true、そうでない場合は false を設定する。
     void GpuDepthVisibilityLayer::RecordDepthPrepass(bool written) {
         stats_.depthPrepassWritten = written;
     }
@@ -125,7 +126,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.visibilityDepthSrv = visibilityDepthSrv_.gpu;
         return visibilityDsv_;
     }
-
+	// 深度プリパスの結果から深度ピラミッドを構築する。視錐台行列を指定することで、深度ピラミッドのビュー行列を設定する、共有リリースキューを使用して、GPU による遅延解放を行う。
     bool GpuDepthVisibilityLayer::BuildDepthPyramidFromVisibilityPrepass(
         ID3D12GraphicsCommandList* cmd,
         uint32_t width,
@@ -168,7 +169,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         PublishDepthPyramidStats(depthPyramid_.GetCurrentView());
         return built;
     }
-
+	// 深度 SRV から深度ピラミッドを構築する。視錐台行列を指定することで、深度ピラミッドのビュー行列を設定する。
     bool GpuDepthVisibilityLayer::BuildDepthPyramidFromDepthSrv(
         ID3D12GraphicsCommandList* cmd,
         uint32_t width,
@@ -206,7 +207,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         PublishDepthPyramidStats(depthPyramid_.GetCurrentView());
         return true;
     }
-
+	//  深度リソースを確保する。指定された幅と高さに基づいて、深度テクスチャ、DSV ヒープ、SRV デスクリプタを作成する。すでに同じサイズのリソースが存在する場合は、再利用する。
     bool GpuDepthVisibilityLayer::EnsureDepthResource(uint32_t width, uint32_t height) {
         width = std::max(1u, width);
         height = std::max(1u, height);
@@ -298,7 +299,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             std::to_string(depthHeight_));
         return true;
     }
-
+	// 深度リソースを解放する。SRV デスクリプタと DSV デスクリプタも解放する。
     void GpuDepthVisibilityLayer::ReleaseDepthResource() {
         DEPTH::RetireDepthPyramidTransientDescriptor(
             visibilityDepthSrv_,
@@ -311,7 +312,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         depthWidth_ = 0;
         depthHeight_ = 0;
     }
-
+	// 深度リソースの状態を遷移させる。指定された次の状態に遷移する。すでに同じ状態の場合は何もしない。
     void GpuDepthVisibilityLayer::TransitionDepth(
         ID3D12GraphicsCommandList* cmd,
         D3D12_RESOURCE_STATES nextState) {
@@ -331,10 +332,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         cmd->ResourceBarrier(1, &barrier);
         visibilityDepthState_ = nextState;
     }
-
+	// 深度ピラミッドの統計情報を公開する。深度ピラミッドのビューを指定することで、統計情報を更新する。
     void GpuDepthVisibilityLayer::PublishDepthPyramidStats(
         const DEPTH::DepthPyramidView& view) {
-
+		// 深度ピラミッドの統計情報を更新する。ビューが有効でない場合は、統計情報をリセットする。
         const DEPTH::DepthPyramidStats& pyramidStats = depthPyramid_.GetStats();
         stats_.depthPyramid = view;
         stats_.hzbBuilt = view.valid;

@@ -519,12 +519,6 @@
     <ClCompile Include="HIKARI\HIKARI_Input.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Particle.cpp">
-      <Filter>Source Files\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp">
-      <Filter>Source Files\Core</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp">
       <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
@@ -1285,9 +1279,6 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp">
-      <Filter>Source Files\Render3D\Pipeline</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
@@ -1378,6 +1369,7 @@
     <ClCompile Include="HIKARI\Tools\Geometry\HIKARI_MeshLodGenerator.cpp">
       <Filter>Source Files\Tools\Geometry</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -1914,12 +1906,6 @@
     <ClInclude Include="HIKARI\HIKARI_Input.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Particle.h">
-      <Filter>Header Files\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_ParticleLab.h">
-      <Filter>Header Files\Core</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostChain.h">
       <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
@@ -2106,9 +2092,6 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
-    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h">
-      <Filter>Header Files\Render3D\Pipeline</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
@@ -2196,6 +2179,7 @@
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.h">
       <Filter>Header Files\Render3D\Material</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">
@@ -2203,9 +2187,6 @@
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
-    </None>
-    <None Include="HIKARI\Tools\Baking\README_LightingBake.md">
-      <Filter>Project\Tools\Baking</Filter>
     </None>
     <None Include="HIKARI\Icon\hikari_asset_icons.png">
       <Filter>Project\Icons</Filter>
@@ -2246,6 +2227,12 @@
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_GpuDrivenWaterDeform.hlsli">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshletForwardMSCommon.hlsli">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletMSCommon.hlsli">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
@@ -2283,6 +2270,9 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletFxMS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl">

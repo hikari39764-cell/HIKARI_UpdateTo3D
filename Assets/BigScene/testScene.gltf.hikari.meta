@@ -2043,7 +2043,7 @@
   "importSettings": {
     "clusterGeometry": {
       "enabled": true,
-      "largeSurfaceTargetExtent": 5.0,
+      "largeSurfaceTargetExtent": 0.75,
       "largeTriangleMaxEdgeLength": 3.0,
       "largeTriangleMaxGeneratedTriangles": 16384,
       "largeTriangleMaxSubdivisions": 4,

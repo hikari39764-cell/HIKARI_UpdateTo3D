@@ -119,6 +119,7 @@ namespace HIKARI {
             ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
             ImGui::Text("PSO Cache Hit / Miss: %zu / %zu", meshStats.psoCacheHitCount, meshStats.psoCacheMissCount);
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
+            ImGui::Text("Texture Loads Deferred: %zu", meshStats.materialTextureLoadDeferredCount);
             ImGui::Text("NormalMapped Primitives: %zu", meshStats.normalMappedPrimitiveCount);
             ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu", meshStats.normalTextureCacheHitCount, meshStats.normalTextureCacheMissCount);
             ImGui::TreePop();

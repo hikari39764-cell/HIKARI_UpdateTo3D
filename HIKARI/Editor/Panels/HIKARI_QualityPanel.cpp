@@ -266,6 +266,29 @@ namespace HIKARI {
             return changed;
         }
 
+        bool DrawLightProbeVolumeSamplingCombo(RENDER3D::LightProbeVolumeSamplingMode& mode) {
+            bool changed = false;
+            if (ImGui::BeginCombo("Light Probe Sampling", RENDER3D::LightProbeVolumeSamplingModeLabel(mode))) {
+                const RENDER3D::LightProbeVolumeSamplingMode modes[] = {
+                    RENDER3D::LightProbeVolumeSamplingMode::FastSmooth,
+                    RENDER3D::LightProbeVolumeSamplingMode::FullTrilinear,
+                    RENDER3D::LightProbeVolumeSamplingMode::Off,
+                };
+                for (RENDER3D::LightProbeVolumeSamplingMode candidate : modes) {
+                    const bool selected = mode == candidate;
+                    if (ImGui::Selectable(RENDER3D::LightProbeVolumeSamplingModeLabel(candidate), selected)) {
+                        mode = candidate;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        }
+
         void DrawRenderSettings() {
             RENDER3D::RenderQualitySettings settings =
                 RENDER3D::GetRenderQualitySettings();
@@ -278,6 +301,7 @@ namespace HIKARI {
                 }
                 changed |= DrawResolutionPresetCombo("Window Size", settings.windowSize, false);
                 changed |= DrawWindowModeCombo(settings.windowMode);
+                changed |= ImGui::Checkbox("VSync", &settings.vSync);
                 int captureWidth = 0;
                 int captureHeight = 0;
                 POST::PostSystem::GetSceneCaptureSize(captureWidth, captureHeight);
@@ -293,6 +317,7 @@ namespace HIKARI {
             if (ImGui::TreeNodeEx("Pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
                 changed |= DrawGeometryPipelineCombo(settings.geometryPipeline);
                 changed |= DrawForwardCostModeCombo(settings.forwardCostMode);
+                changed |= DrawLightProbeVolumeSamplingCombo(settings.lightProbeVolumeSampling);
                 ImGui::TreePop();
             }
 

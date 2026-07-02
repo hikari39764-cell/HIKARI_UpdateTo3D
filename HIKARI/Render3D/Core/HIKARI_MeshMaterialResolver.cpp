@@ -41,11 +41,27 @@ namespace HIKARI::MESHRENDERER {
         fallbacks_ = fallbacks;
     }
 
+    void MeshMaterialResolver::BeginFrame(size_t maxTextureLoads) {
+        textureLoadBudgetRemaining_ = maxTextureLoads;
+    }
+
     void MeshMaterialResolver::ClearCache() {
         for (const auto& entry : materialTextureCache_) {
             RENDER3D::ReleaseTextureResource(entry.second);
         }
         materialTextureCache_.clear();
+    }
+
+    bool MeshMaterialResolver::TryAcquireTextureLoadBudget(MeshRendererDebugStats* stats) {
+        if (textureLoadBudgetRemaining_ == 0) {
+            if (stats != nullptr) {
+                ++stats->materialTextureLoadDeferredCount;
+            }
+            return false;
+        }
+
+        --textureLoadBudgetRemaining_;
+        return true;
     }
 
     ResolvedMaterialTextures MeshMaterialResolver::Resolve(
@@ -102,6 +118,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.whiteTexture;
+        }
         if (stats != nullptr) {
             ++stats->materialTextureCacheMissCount;
         }
@@ -147,6 +166,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.normalTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.normalTexture;
+        }
         if (stats != nullptr) {
             ++stats->normalTextureCacheMissCount;
         }
@@ -192,6 +214,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.blackTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.blackTexture;
+        }
         if (stats != nullptr) {
             ++stats->emissiveTextureCacheMissCount;
         }
@@ -240,6 +265,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.whiteTexture;
+        }
         if (stats != nullptr) {
             ++stats->metallicRoughnessTextureCacheMissCount;
         }
@@ -293,6 +321,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.whiteTexture;
+        }
         if (stats != nullptr) {
             ++stats->occlusionTextureCacheMissCount;
         }
@@ -337,6 +368,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.whiteTexture;
+        }
         if (stats != nullptr) {
             ++stats->materialTextureCacheMissCount;
         }
@@ -376,6 +410,9 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        if (!TryAcquireTextureLoadBudget(stats)) {
+            return fallbacks_.whiteTexture;
+        }
         if (stats != nullptr) {
             ++stats->materialTextureCacheMissCount;
         }

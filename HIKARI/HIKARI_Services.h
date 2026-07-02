@@ -9,8 +9,6 @@
 #include "HIKARI_Anim.h"
 #include "HIKARI_Input.h"
 #include "Core/HIKARI_TimeService.h"
-#include "HIKARI_Particle.h"
-#include "HIKARI_ParticleLab.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
@@ -220,6 +218,9 @@ namespace HIKARI {
             const RENDER3D::RenderResolution resolution =
                 ResolveFrameSceneCaptureResolution();
             HIKARI::POST::PostSystem::SetSceneCaptureSize(
+                resolution.width,
+                resolution.height);
+            HIKARI::DX::DxRenderer::SetScreenSize(
                 resolution.width,
                 resolution.height);
         }
@@ -592,6 +593,7 @@ namespace HIKARI {
 #endif
             }
 
+            gCore.SetVSyncEnabled(RENDER3D::GetRenderQualitySettings().vSync);
             if (!gCore.EndFrame()) {
                 gGpuFrameReady = false;
                 HIKARI_LOG_ERROR("D3D12 EndFrame failed; stopping GPU frame loop.");
