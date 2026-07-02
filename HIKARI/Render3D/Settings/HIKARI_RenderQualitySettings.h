@@ -32,6 +32,12 @@ namespace HIKARI::RENDER3D {
         NoMaterialExtras,
     };
 
+    enum class LightProbeVolumeSamplingMode : uint8_t {
+        FastSmooth = 0,
+        FullTrilinear,
+        Off,
+    };
+
     struct RenderResolution {
         int width = 0;
         int height = 0;
@@ -43,7 +49,10 @@ namespace HIKARI::RENDER3D {
         WindowPresentationMode windowMode = WindowPresentationMode::Windowed;
         GeometryPipelineMode geometryPipeline = GeometryPipelineMode::MeshShader;
         ForwardShadingCostMode forwardCostMode = ForwardShadingCostMode::Full;
+        LightProbeVolumeSamplingMode lightProbeVolumeSampling =
+            LightProbeVolumeSamplingMode::FastSmooth;
         float viewportScale = 1.0f;
+        bool vSync = false;
     };
 
     RenderQualitySettings& GetRenderQualitySettings();
@@ -53,6 +62,7 @@ namespace HIKARI::RENDER3D {
     const char* WindowPresentationModeLabel(WindowPresentationMode mode);
     const char* GeometryPipelineModeLabel(GeometryPipelineMode mode);
     const char* ForwardShadingCostModeLabel(ForwardShadingCostMode mode);
+    const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode);
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset);
     RenderResolution ResolveFixedRenderResolution(RenderResolutionPreset preset);

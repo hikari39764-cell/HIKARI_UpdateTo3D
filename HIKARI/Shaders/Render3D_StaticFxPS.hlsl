@@ -120,7 +120,8 @@ cbuffer SkyEnvironmentCB : register(b5)
 #define gSsaoEnabled gAoParams.x
 #define gSsaoDiffuseStrength gAoParams.y
 #define gSsaoSpecularStrength gAoParams.z
-#define gLightProbeEnabled gLightProbeVolumeOrigin.w
+#define gLightProbeSamplingMode gLightProbeVolumeOrigin.w
+#define gLightProbeEnabled ((gLightProbeSamplingMode > 0.5f) ? 1.0f : 0.0f)
 #define gLightProbeOrigin gLightProbeVolumeOrigin.xyz
 #define gLightProbeSpacing gLightProbeVolumeSpacing.xyz
 #define gLightProbeIntensity gLightProbeVolumeSpacing.w

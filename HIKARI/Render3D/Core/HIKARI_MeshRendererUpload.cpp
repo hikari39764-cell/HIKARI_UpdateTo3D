@@ -240,13 +240,30 @@ namespace HIKARI::MESHRENDERER {
             0.0f
         };
         const bool lightProbeValid = RENDER3D::LIGHTPROBE::IsValid();
+        const RENDER3D::LightProbeVolumeSamplingMode lightProbeSampling =
+            RENDER3D::GetRenderQualitySettings().lightProbeVolumeSampling;
+        float lightProbeSamplingMode = 0.0f;
+        if (lightProbeValid) {
+            switch (lightProbeSampling) {
+            case RENDER3D::LightProbeVolumeSamplingMode::FullTrilinear:
+                lightProbeSamplingMode = 1.0f;
+                break;
+            case RENDER3D::LightProbeVolumeSamplingMode::FastSmooth:
+                lightProbeSamplingMode = 2.0f;
+                break;
+            case RENDER3D::LightProbeVolumeSamplingMode::Off:
+            default:
+                lightProbeSamplingMode = 0.0f;
+                break;
+            }
+        }
         const RENDER3D::LIGHTPROBE::LightProbeVolumeRuntimeData& lightProbe =
             RENDER3D::LIGHTPROBE::GetRuntimeData();
         out.lightProbeVolumeOrigin = {
             lightProbe.origin.x,
             lightProbe.origin.y,
             lightProbe.origin.z,
-            lightProbeValid ? 1.0f : 0.0f
+            lightProbeSamplingMode
         };
         out.lightProbeVolumeSpacing = {
             std::max(0.0001f, lightProbe.spacing.x),

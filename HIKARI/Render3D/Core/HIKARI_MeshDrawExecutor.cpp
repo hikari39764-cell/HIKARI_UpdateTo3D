@@ -62,7 +62,7 @@ namespace HIKARI::MESHRENDERER {
             data.hasMetallicRoughnessTexture = obj.hasMetallicRoughnessTexture;
             data.hasOcclusionTexture = obj.hasOcclusionTexture;
             data.occlusionStrength = obj.occlusionStrength;
-            data.materialDataIndex = materialDataIndex;
+            data.materialDataIndex = materialDataIndex; 
             data.pbrPadding[0] = obj.pbrPadding[0];
             data.pbrPadding[1] = obj.pbrPadding[1];
             for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {

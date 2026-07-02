@@ -282,8 +282,6 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ShaderCompiler.cpp" />
     <ClCompile Include="HIKARI\HIKARI_Input.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_Particle.cpp" />
-    <ClCompile Include="HIKARI\HIKARI_ParticleLab.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp" />
@@ -891,8 +889,6 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_ShaderCompiler.h" />
     <ClInclude Include="HIKARI\HIKARI_Input.h" />
-    <ClInclude Include="HIKARI\HIKARI_Particle.h" />
-    <ClInclude Include="HIKARI\HIKARI_ParticleLab.h" />
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostChain.h" />
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostCommon.h" />
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostEffect.h" />
@@ -924,11 +920,12 @@
   <ItemGroup>
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
-    <None Include="HIKARI\Tools\Baking\README_LightingBake.md" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_GpuDrivenWaterDeform.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshletForwardMSCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletMSCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_PbrCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_RenderDescriptorLayout.hlsli" />
@@ -951,6 +948,7 @@
     <None Include="HIKARI\Shaders\Render3D_MeshletDepthPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_MeshletFxMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl" />

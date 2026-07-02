@@ -485,7 +485,21 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
 
 
-void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
+        void DxRenderer::UpdateContext(const GFX::Context& ctx)
+        {
+            g_ctx = ctx;
+            SetScreenSize(ctx.backBufferWidth, ctx.backBufferHeight);
+        }
+
+        void DxRenderer::SetScreenSize(int width, int height)
+        {
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+
+            g_screenW = static_cast<float>(width);
+            g_screenH = static_cast<float>(height);
+        }
 
         void DxRenderer::Finalize()
         {
@@ -793,7 +807,8 @@ void DxRenderer::UpdateContext(const GFX::Context& ctx) { g_ctx = ctx; }
             cb.screenSize[0] = g_screenW;
             cb.screenSize[1] = g_screenH;
             D3D12_GPU_VIRTUAL_ADDRESS gpuCB;
-            memcpy(ActiveUploadCB().Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
+            const UINT cbSizeAligned = (sizeof(cb) + 255) & ~255u;
+            memcpy(ActiveUploadCB().Allocate(cbSizeAligned, gpuCB), &cb, sizeof(cb));
 
             cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
 

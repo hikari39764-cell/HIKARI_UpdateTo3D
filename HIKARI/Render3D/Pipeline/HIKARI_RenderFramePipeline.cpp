@@ -110,7 +110,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 environment);
         }
         else {
-            RENDER3D::DEPTH::ResetDepthPyramidFrameResources();
+            RENDER3D::DEPTH::BeginDepthPyramidFrame();
             RENDER3D::SCREENSPACE::EnsureScreenSpaceFallbacks(RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState());
             screenResult.fallbackAoTextureHandle =
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState().fallbackAoTextureHandle;

@@ -83,7 +83,20 @@ namespace HIKARI {
                 TextureColorSpace colorSpace)
             {
                 // 同じ論理名でも、実体ファイルが違う場合は別 GPU resource として扱う。
-                return name + "|" + NormalizeTextureCachePath(path) + ColorSpaceSuffix(colorSpace);
+                const bool isCubemap = name.rfind("cube:", 0) == 0;
+                const char* dimensionPrefix = isCubemap ? "cube" : "tex";
+                const std::string normalizedPath = NormalizeTextureCachePath(path);
+                if (!normalizedPath.empty()) {
+                    return std::string(dimensionPrefix) +
+                        "|path:" +
+                        normalizedPath +
+                        ColorSpaceSuffix(colorSpace);
+                }
+
+                return std::string(dimensionPrefix) +
+                    "|name:" +
+                    ToLowerCopy(name) +
+                    ColorSpaceSuffix(colorSpace);
             }
 
             bool ContainsAny(const std::string& text, std::initializer_list<const char*> needles)
@@ -511,11 +524,16 @@ namespace HIKARI {
 
         void DxTextureManager::InvalidateTextureCacheByName(const std::string& name)
         {
-            const std::string texturePrefix = name + "|";
-            const std::string cubemapPrefix = "cube:" + name + "|";
+            const std::string normalizedName = ToLowerCopy(name);
+            const std::string texturePrefix = "tex|name:" + normalizedName + "|";
+            const std::string cubemapPrefix = "cube|name:" + normalizedName + "|";
+            const std::string legacyTexturePrefix = name + "|";
+            const std::string legacyCubemapPrefix = "cube:" + name + "|";
             for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
                 if (it->first.rfind(texturePrefix, 0) == 0 ||
-                    it->first.rfind(cubemapPrefix, 0) == 0) {
+                    it->first.rfind(cubemapPrefix, 0) == 0 ||
+                    it->first.rfind(legacyTexturePrefix, 0) == 0 ||
+                    it->first.rfind(legacyCubemapPrefix, 0) == 0) {
                     it = nameToHandle_.erase(it);
                 } else {
                     ++it;
@@ -530,9 +548,11 @@ namespace HIKARI {
                 return;
             }
 
-            const std::string pathNeedle = "|" + normalizedPath + "|";
+            const std::string pathNeedle = "|path:" + normalizedPath + "|";
+            const std::string legacyPathNeedle = "|" + normalizedPath + "|";
             for (auto it = nameToHandle_.begin(); it != nameToHandle_.end();) {
-                if (it->first.find(pathNeedle) != std::string::npos) {
+                if (it->first.find(pathNeedle) != std::string::npos ||
+                    it->first.find(legacyPathNeedle) != std::string::npos) {
                     it = nameToHandle_.erase(it);
                 } else {
                     ++it;

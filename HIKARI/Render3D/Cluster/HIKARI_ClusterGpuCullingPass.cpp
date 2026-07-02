@@ -1,6 +1,7 @@
 ﻿#include "Render3D/Cluster/HIKARI_ClusterGpuCullingPass.h"
 
 #include <algorithm>
+#include <array>
 #include <iterator>
 
 #include <d3dx12.h>
@@ -1587,7 +1588,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             commandList->ResourceBarrier(1, &barrier);
             visibleClusterListBufferState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         }
-        if (drawArgumentBufferState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+        if (emitTraditionalDrawArgs &&
+            drawArgumentBufferState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
             auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
                 drawArgumentBuffer_.Get(),
                 drawArgumentBufferState_,
@@ -1737,16 +1739,24 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 0);
         }
 
-        D3D12_RESOURCE_BARRIER barriers[] = {
-            CD3DX12_RESOURCE_BARRIER::UAV(pageTaskBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(visibleRangeBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(visibleClusterListBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(counterBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(drawArgumentBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(meshletDispatchArgumentBuffer_.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(occlusionHistoryBuffer_.Get()),
+        std::array<D3D12_RESOURCE_BARRIER, 7> barriers{};
+        UINT barrierCount = 0;
+        const auto addUavBarrier = [&](ID3D12Resource* resource) {
+            if (resource != nullptr && barrierCount < barriers.size()) {
+                barriers[barrierCount++] =
+                    CD3DX12_RESOURCE_BARRIER::UAV(resource);
+            }
         };
-        commandList->ResourceBarrier(static_cast<UINT>(std::size(barriers)), barriers);
+        addUavBarrier(pageTaskBuffer_.Get());
+        addUavBarrier(visibleRangeBuffer_.Get());
+        addUavBarrier(visibleClusterListBuffer_.Get());
+        addUavBarrier(counterBuffer_.Get());
+        if (emitTraditionalDrawArgs) {
+            addUavBarrier(drawArgumentBuffer_.Get());
+        }
+        addUavBarrier(meshletDispatchArgumentBuffer_.Get());
+        addUavBarrier(occlusionHistoryBuffer_.Get());
+        commandList->ResourceBarrier(barrierCount, barriers.data());
 
         {
             GFX::PIX::ScopedGpuEvent meshletFinalizePix(
@@ -1775,32 +1785,41 @@ namespace HIKARI::RENDER3D::CLUSTER {
             QueueCounterReadback(commandList);
         }
 
-        D3D12_RESOURCE_BARRIER readyBarriers[] = {
+        std::array<D3D12_RESOURCE_BARRIER, 5> readyBarriers{};
+        UINT readyBarrierCount = 0;
+        readyBarriers[readyBarrierCount++] =
             CD3DX12_RESOURCE_BARRIER::Transition(
                 visibleRangeBuffer_.Get(),
                 visibleRangeBufferState_,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        readyBarriers[readyBarrierCount++] =
             CD3DX12_RESOURCE_BARRIER::Transition(
                 visibleClusterListBuffer_.Get(),
                 visibleClusterListBufferState_,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                drawArgumentBuffer_.Get(),
-                drawArgumentBufferState_,
-                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT),
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        if (emitTraditionalDrawArgs) {
+            readyBarriers[readyBarrierCount++] =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    drawArgumentBuffer_.Get(),
+                    drawArgumentBufferState_,
+                    D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+        }
+        readyBarriers[readyBarrierCount++] =
             CD3DX12_RESOURCE_BARRIER::Transition(
                 meshletDispatchArgumentBuffer_.Get(),
                 meshletDispatchArgumentBufferState_,
-                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT),
+                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+        readyBarriers[readyBarrierCount++] =
             CD3DX12_RESOURCE_BARRIER::Transition(
                 counterBuffer_.Get(),
                 counterBufferState_,
-                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT),
-        };
-        commandList->ResourceBarrier(static_cast<UINT>(std::size(readyBarriers)), readyBarriers);
+                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+        commandList->ResourceBarrier(readyBarrierCount, readyBarriers.data());
         visibleRangeBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         visibleClusterListBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        drawArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+        if (emitTraditionalDrawArgs) {
+            drawArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+        }
         meshletDispatchArgumentBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
         counterBufferState_ = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
 

@@ -6,7 +6,7 @@ namespace HIKARI {
     void SpineDxTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
         const std::string p = path.buffer();
 
-        int handle = HIKARI::DXTEX::DxTextureManager::LoadTexture(p, p);
+        int handle = HIKARI::DXTEX::DxTextureManager::LoadTextureSrgb("spine:" + p, p);
         if (handle < 0) {
             return;
         }
@@ -21,12 +21,14 @@ namespace HIKARI {
         tex->width = static_cast<int>(w);
         tex->height = static_cast<int>(h);
 
-
+        page.width = tex->width;
+        page.height = tex->height;
         page.texture = tex;
     }
 
     void SpineDxTextureLoader::unload(void* textureObject) {
-        (void)textureObject;
+        SpineTexture* tex = static_cast<SpineTexture*>(textureObject);
+        delete tex;
     }
 
 } // namespace HIKARI

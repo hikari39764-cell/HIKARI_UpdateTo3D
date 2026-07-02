@@ -104,7 +104,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             result.hzbBuilt = true;
             result.depthPyramidBuilt = true;
             result.depthPyramid = view;
-            DEPTH::PublishDepthPyramidView(view);
+            DEPTH::PublishFrameDepthPyramid(view);
         }
 
         void ClearFrozenCullingDepthStats(ScreenSpaceRuntimeState& state) {
@@ -158,7 +158,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const SceneEnvironment& environment) {
 
         ScreenSpaceFrameResult result{};
-        DEPTH::ResetDepthPyramidFrameResources();
+        DEPTH::BeginDepthPyramidFrame();
         const bool fallbackReady = EnsureScreenSpaceFallbacks(state);
         if (fallbackReady) {
             result.fallbackAoTextureResource = state.fallbackAoTextureResource;

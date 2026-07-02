@@ -26,6 +26,11 @@ namespace HIKARI::RENDER3D {
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
             gRenderQualitySettings.forwardCostMode = ForwardShadingCostMode::Full;
         }
+        if (static_cast<uint8_t>(gRenderQualitySettings.lightProbeVolumeSampling) >
+            static_cast<uint8_t>(LightProbeVolumeSamplingMode::Off)) {
+            gRenderQualitySettings.lightProbeVolumeSampling =
+                LightProbeVolumeSamplingMode::FastSmooth;
+        }
     }
 
     const char* RenderResolutionPresetLabel(RenderResolutionPreset preset) {
@@ -64,6 +69,15 @@ namespace HIKARI::RENDER3D {
         case ForwardShadingCostMode::NoShadow: return "No Shadow";
         case ForwardShadingCostMode::NoSsao: return "No SSAO";
         case ForwardShadingCostMode::NoMaterialExtras: return "No Material Extras";
+        default: return "Unknown";
+        }
+    }
+
+    const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode) {
+        switch (mode) {
+        case LightProbeVolumeSamplingMode::FastSmooth: return "Fast Smooth";
+        case LightProbeVolumeSamplingMode::FullTrilinear: return "Full Trilinear";
+        case LightProbeVolumeSamplingMode::Off: return "Off";
         default: return "Unknown";
         }
     }

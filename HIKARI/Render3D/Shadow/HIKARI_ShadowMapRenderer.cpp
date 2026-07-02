@@ -1535,13 +1535,23 @@ namespace HIKARI::SHADOW {
                 return 0.0f;
             }
 
-            constexpr float kAnchorGridFraction = 1.0f / 8.0f;
-            constexpr float kMinGridTexels = 64.0f;
+            constexpr float kSnapTexels = 2.0f;
             const float texelWorldSize =
                 orthoSize / static_cast<float>((std::max)(1u, g.resolution));
+            return (std::max)(texelWorldSize * kSnapTexels, 0.0001f);
+        }
+
+        float ResolveShadowDepthSpan(
+            const SceneEnvironment& environment,
+            float orthoSize) {
+
+            const float configuredFar =
+                (std::max)(0.01f, environment.directionalShadow.farPlane);
+            const float configuredDistance =
+                (std::max)(1.0f, environment.directionalShadow.shadowDistance);
             return (std::max)(
-                orthoSize * kAnchorGridFraction,
-                texelWorldSize * kMinGridTexels);
+                configuredFar,
+                (std::max)(configuredDistance * 2.0f, orthoSize * 1.5f));
         }
 
         MATH::Vec3 ResolveLightDirection(const SceneEnvironment& environment) {
@@ -1574,7 +1584,8 @@ namespace HIKARI::SHADOW {
 
             const float orthoSize = std::max(1.0f, environment.directionalShadow.orthoSize);
             const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
-            const float farPlane = std::max(nearPlane + 0.01f, environment.directionalShadow.farPlane);
+            const float depthSpan = ResolveShadowDepthSpan(environment, orthoSize);
+            const float farPlane = std::max(nearPlane + 0.01f, depthSpan);
             const float anchorGrid = ResolveShadowAnchorGrid(environment, orthoSize);
 
             const MATH::Vec3 cameraCenter = camera.GetPosition();
@@ -1592,8 +1603,7 @@ namespace HIKARI::SHADOW {
                     lightDir * snappedZ;
             }
 
-            const float lightDistance =
-                std::max(1.0f, environment.directionalShadow.shadowDistance);
+            const float lightDistance = std::max(1.0f, farPlane * 0.5f);
             const MATH::Vec3 lightPos = anchor - lightDir * lightDistance;
             frame.view = MATH::Mat4::LookAtRH(lightPos, anchor, actualUp);
             frame.viewProj =
@@ -1652,7 +1662,8 @@ namespace HIKARI::SHADOW {
             const MATH::Vec3 actualUp = frame.up;
             const float half = std::max(1.0f, environment.directionalShadow.orthoSize) * 0.5f;
             const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
-            const float farPlane = std::max(nearPlane + 0.01f, environment.directionalShadow.farPlane);
+            const float farPlane =
+                std::max(nearPlane + 0.01f, ResolveShadowDepthSpan(environment, half * 2.0f));
             const MATH::Vec3 nearCenter = lightPos + forward * nearPlane;
             const MATH::Vec3 farCenter = lightPos + forward * farPlane;
 
@@ -1989,7 +2000,8 @@ namespace HIKARI::SHADOW {
         g.debugStats.pcfRadius = environment.directionalShadow.pcfRadius;
         g.debugStats.orthoSize = environment.directionalShadow.orthoSize;
         g.debugStats.nearPlane = environment.directionalShadow.nearPlane;
-        g.debugStats.farPlane = environment.directionalShadow.farPlane;
+        g.debugStats.farPlane =
+            ResolveShadowDepthSpan(environment, std::max(1.0f, environment.directionalShadow.orthoSize));
         g.debugStats.depthBias = environment.directionalShadow.depthBias;
         g.debugStats.normalBias = environment.directionalShadow.normalBias;
         g.debugStats.strength = environment.directionalShadow.strength;

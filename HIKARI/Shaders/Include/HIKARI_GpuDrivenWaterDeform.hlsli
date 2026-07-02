@@ -5,6 +5,12 @@
 #define HIKARI_GPU_DRIVEN_WATER_ITERATIONS 30
 #endif
 
+#ifndef HIKARI_GPU_DRIVEN_ENABLE_WATER_DEFORM
+#define HIKARI_GPU_DRIVEN_ENABLE_WATER_DEFORM 1
+#endif
+
+#if HIKARI_GPU_DRIVEN_ENABLE_WATER_DEFORM
+
 float2 HikariWaterWaveDx(
     float2 position,
     float2 direction,
@@ -112,5 +118,17 @@ void HikariApplyGpuDrivenWaterDeform(
     localNormal =
         HikariWaterNormalLocal(localXZ, time, waveSpeed, waveHeight, waveScale, drag);
 }
+
+#else
+
+void HikariApplyGpuDrivenWaterDeform(
+    HikariSurfaceGpuSceneInstance instance,
+    float time,
+    inout float3 localPosition,
+    inout float3 localNormal)
+{
+}
+
+#endif
 
 #endif

@@ -18,6 +18,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "HIKARI_Services.h"
 
 namespace HIKARI::RENDER3D::LIGHTPROBE {
@@ -41,6 +42,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
         ID3D12Device* gSrvDevice = nullptr;
         ID3D12DescriptorHeap* gSrvHeap = nullptr;
         bool gHasValidSrvDescriptor = false;
+        bool gSrvDescriptorIsNull = false;
         int gSamplingSuppressDepth = 0;
 
         void SetMessage(std::string* outMessage, std::string message) {
@@ -84,6 +86,28 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
             gSrvDevice = nullptr;
             gSrvHeap = nullptr;
             gHasValidSrvDescriptor = false;
+            gSrvDescriptorIsNull = false;
+        }
+
+        void RetireResource(
+            Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
+            const char* debugName) {
+
+            if (resource == nullptr) {
+                return;
+            }
+
+            IUnknown* raw = resource.Detach();
+            GFX::RetireD3D12ObjectForCurrentFrame(
+                raw,
+                debugName != nullptr ? debugName : "LightProbeVolume resource");
+        }
+
+        void RetireGpuBuffers() {
+            RetireResource(gShBuffer, "LightProbeVolume SH buffer");
+            RetireResource(gUploadBuffer, "LightProbeVolume upload buffer");
+            gShCoeffElementCount = 0;
+            gBufferDevice = nullptr;
         }
 
         bool IsSrvContextCurrent() {
@@ -114,6 +138,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
             gSrvDevice = device;
             gSrvHeap = heap;
             gHasValidSrvDescriptor = gShBufferSrv.ptr != 0;
+            gSrvDescriptorIsNull = gHasValidSrvDescriptor;
             return gHasValidSrvDescriptor;
         }
 
@@ -143,6 +168,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
             gSrvDevice = device;
             gSrvHeap = heap;
             gHasValidSrvDescriptor = gShBufferSrv.ptr != 0;
+            gSrvDescriptorIsNull = false;
             return gHasValidSrvDescriptor;
         }
 
@@ -156,7 +182,15 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 return false;
             }
 
+            if (!gData.enabled) {
+                if (!IsSrvContextCurrent() || !gSrvDescriptorIsNull) {
+                    WriteNullSrv();
+                }
+                return false;
+            }
+
             if (!gShBuffer || gShCoeffElementCount == 0u) {
+                WriteNullSrv();
                 // Resize や heap 再作成後でも t14 に安全な descriptor を用意する。
                 WriteNullSrv();
                 return false;
@@ -313,6 +347,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
                 }
             }
 
+            RetireGpuBuffers();
             gShBuffer = std::move(shBuffer);
             gUploadBuffer = std::move(uploadBuffer);
             gShCoeffElementCount = static_cast<uint32_t>(payload.size());
@@ -355,11 +390,8 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
 
     void Reset() {
         gData = {};
-        gShBuffer.Reset();
-        gUploadBuffer.Reset();
+        RetireGpuBuffers();
         gCpuPayload.clear();
-        gShCoeffElementCount = 0;
-        gBufferDevice = nullptr;
         WriteNullSrv();
         RefreshValidity();
     }
@@ -399,6 +431,11 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
 
     void SetLightProbeVolumeEnabled(bool enabled) {
         gData.enabled = enabled;
+        if (!enabled) {
+            gData.valid = false;
+            WriteNullSrv();
+            return;
+        }
         RefreshValidity();
     }
 

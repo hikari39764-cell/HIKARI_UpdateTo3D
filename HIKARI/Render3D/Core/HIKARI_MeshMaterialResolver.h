@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 
@@ -32,6 +33,7 @@ namespace HIKARI::MESHRENDERER {
     class MeshMaterialResolver {
     public:
         void SetFallbacks(const MeshMaterialResolverFallbacks& fallbacks);
+        void BeginFrame(size_t maxTextureLoads);
         void ClearCache();
 
         ResolvedMaterialTextures Resolve(
@@ -79,9 +81,12 @@ namespace HIKARI::MESHRENDERER {
             const MaterialAsset* materialAsset,
             MeshRendererDebugStats* stats);
 
+        bool TryAcquireTextureLoadBudget(MeshRendererDebugStats* stats);
+
     private:
         MeshMaterialResolverFallbacks fallbacks_{};
         std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache_;
+        size_t textureLoadBudgetRemaining_ = 0;
     };
 
 } // namespace HIKARI::MESHRENDERER

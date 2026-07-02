@@ -23,7 +23,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         constexpr DXGI_FORMAT kDepthPyramidFormat = DXGI_FORMAT_R32_FLOAT;
         constexpr uint32_t kDepthPyramidThreadGroupSize = 8u;
         constexpr uint32_t kDepthPyramidMaxMipCount = 16u;
-
+		// 8x8 のスレッドグループで処理するため、幅と高さを 8 の倍数に丸める
         uint32_t ComputeMipCount(uint32_t width, uint32_t height) {
             uint32_t mipCount = 0;
             width = std::max(1u, (std::max(1u, width) + 1u) / 2u);
@@ -38,11 +38,11 @@ namespace HIKARI::RENDER3D::DEPTH {
             }
             return std::max(1u, mipCount);
         }
-
+		// 整数の除算を切り上げる
         uint32_t DivRoundUp(uint32_t value, uint32_t divisor) {
             return (value + divisor - 1u) / divisor;
         }
-
+        // 現在のフレームの退避フェンス値を取得する
         uint64_t CurrentRetireFenceValue() {
             return SERVICES::gCtx.currentFrameRetireFenceValue != 0
                 ? SERVICES::gCtx.currentFrameRetireFenceValue
@@ -50,6 +50,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         }
 
         template <typename T>
+		// GPU による遅延解放を行うために、ComPtr を退避キューに登録する
         void RetireD3D12Object(Microsoft::WRL::ComPtr<T>& object, const char* debugName) {
             if (object == nullptr) {
                 return;
@@ -72,7 +73,7 @@ namespace HIKARI::RENDER3D::DEPTH {
 
             retired.Reset();
         }
-
+		// デスクリプタアロケータの状態を保持する構造体
         struct DescriptorState {
             GFX::Context context{};
             GFX::DescriptorAllocator allocator{};
@@ -84,7 +85,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             static DescriptorState state{};
             return state;
         }
-
+		// デスクリプタアロケータを初期化する。すでに初期化済みの場合は何もしない。
         bool EnsureDescriptorAllocator() {
             DescriptorState& state = Descriptors();
             ID3D12Device* device = SERVICES::gCtx.device;
@@ -106,7 +107,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             }
             return true;
         }
-
+		// デスクリプタを解放する。すでに解放済みの場合は何もしない。
         void FreeDescriptor(RenderResourceView view) {
             if (view.descriptorIndex == UINT32_MAX) {
                 return;
@@ -122,7 +123,7 @@ namespace HIKARI::RENDER3D::DEPTH {
 
             state.allocator.Free(slot);
         }
-
+		// テクスチャ 2D の SRV デスクリプタを作成する。リソースが nullptr または mipLevels が 0 の場合は無効な RenderResourceView を返す。
         RenderResourceView CreateTexture2DSrvDescriptor(
             ID3D12Resource* resource,
             DXGI_FORMAT format,
@@ -149,7 +150,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             SERVICES::gCtx.device->CreateShaderResourceView(resource, &srvDesc, view.cpu);
             return view;
         }
-
+		// テクスチャ 2D の UAV デスクリプタを作成する。リソースが nullptr の場合は無効な RenderResourceView を返す。
         RenderResourceView CreateTexture2DUavDescriptor(
             ID3D12Resource* resource,
             DXGI_FORMAT format,
@@ -198,7 +199,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             slot.index);
         return view;
     }
-
+	// デスクリプタを退避キューに登録して、GPU が使用し終わった後に解放する。すでに無効な RenderResourceView の場合は何もしない。
     void RetireDepthPyramidTransientDescriptor(
         RenderResourceView view,
         const char* debugName) {
@@ -221,7 +222,7 @@ namespace HIKARI::RENDER3D::DEPTH {
 
         FreeDescriptor(view);
     }
-
+	// フレームのリセット処理。PSO やリソースの状態を保持する。
     void DepthPyramidLayer::ResetFrame() {
         const bool psoReady = rootSignature_ != nullptr && pipelineState_ != nullptr;
         const bool resourcesReady = texture_ != nullptr && pyramidSrv_.IsValid() && !mips_.empty();
@@ -240,7 +241,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         currentView_ = {};
         stats_ = {};
     }
-
+	// 深度ピラミッドを構築する。共有sourceDepthSrv から mip0 を構築し、順次 mip1, mip2... を構築する。
     bool DepthPyramidLayer::BuildFromDepthSrv(const DepthPyramidBuildDesc& desc) {
         stats_.buildRequested = true;
         stats_.built = false;
@@ -279,7 +280,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         D3D12_GPU_DESCRIPTOR_HANDLE sourceSrv = desc.sourceDepthSrv;
         uint32_t sourceWidth = std::max(1u, desc.sourceWidth);
         uint32_t sourceHeight = std::max(1u, desc.sourceHeight);
-
+		// mip0 は sourceDepthSrv から構築するため、mip0 の UAV は使用しない
         for (uint32_t mipIndex = 0; mipIndex < static_cast<uint32_t>(mips_.size()); ++mipIndex) {
             MipView& mip = mips_[mipIndex];
             TransitionMip(
@@ -320,7 +321,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         PublishCurrentView(desc);
         return true;
     }
-
+	// パイプラインステートオブジェクトとルートシグネチャを作成する。すでに作成済みの場合は何もしない。
     bool DepthPyramidLayer::EnsurePipeline() {
         if (rootSignature_ != nullptr && pipelineState_ != nullptr) {
             stats_.psoReady = true;
@@ -348,7 +349,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         ranges[1].BaseShaderRegister = 0;
         ranges[1].OffsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
+		// ルートパラメータを定義する。ルートパラメータは、シェーダーで使用する定数バッファやデスクリプタテーブルを指定する。
         std::array<D3D12_ROOT_PARAMETER, 3> params{};
         params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
         params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -412,7 +413,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         stats_.psoReady = true;
         return true;
     }
-
+	// 深度ピラミッドのリソースを確保する。すでに確保済みの場合は何もしない。
     bool DepthPyramidLayer::EnsureResources(uint32_t sourceWidth, uint32_t sourceHeight) {
         sourceWidth = std::max(1u, sourceWidth);
         sourceHeight = std::max(1u, sourceHeight);
@@ -478,6 +479,7 @@ namespace HIKARI::RENDER3D::DEPTH {
 
         uint32_t mipWidth = mip0Width;
         uint32_t mipHeight = mip0Height;
+		// 各 mip レベルの SRV と UAV を作成する
         for (uint32_t mipIndex = 0; mipIndex < mipCount; ++mipIndex) {
             MipView mip{};
             mip.width = mipWidth;
@@ -521,7 +523,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             std::to_string(mips_.size()));
         return stats_.resourcesReady;
     }
-
+	// 深度ピラミッドのリソースを解放する。SRV と UAV のデスクリプタも解放する。
     void DepthPyramidLayer::ReleaseResources() {
         RetireDepthPyramidTransientDescriptor(pyramidSrv_, "DepthPyramid.PyramidSRV");
         pyramidSrv_ = {};
@@ -536,7 +538,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         sourceHeight_ = 0;
         currentView_ = {};
     }
-
+	// 指定した mip レベルのリソース状態を遷移させる。すでに指定した状態の場合は何もしない。
     void DepthPyramidLayer::TransitionMip(
         ID3D12GraphicsCommandList* cmd,
         uint32_t mipIndex,
@@ -561,7 +563,7 @@ namespace HIKARI::RENDER3D::DEPTH {
         cmd->ResourceBarrier(1, &barrier);
         mip.state = nextState;
     }
-
+	// 深度ピラミッドの現在のビューを公開する。ビューは、SRV と UAV のデスクリプタ、幅、高さ、mip レベル数などの情報を含む。
     void DepthPyramidLayer::PublishCurrentView(const DepthPyramidBuildDesc& desc) {
         DepthPyramidView view{};
         view.valid =

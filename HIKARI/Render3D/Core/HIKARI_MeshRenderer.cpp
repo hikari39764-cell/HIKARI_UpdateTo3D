@@ -47,6 +47,7 @@ namespace HIKARI::MESHRENDERER {
 
     namespace {
         MeshRendererState g;
+        constexpr size_t kMaxMaterialTextureGpuLoadsPerFrame = 2;
 
         bool IsGpuDrivenCullingDebugFreezeActiveInternal() {
             return
@@ -352,6 +353,14 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
+        bool ShouldUseGpuDrivenTraditionalIndirectStreams() {
+            const RENDER3D::GeometryPipelineMode mode =
+                RENDER3D::GetRenderQualitySettings().geometryPipeline;
+            return
+                mode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
+                mode == RENDER3D::GeometryPipelineMode::AutoFallback;
+        }
+
         void CopyOwnedTraditionalIndirectStreamsFromSceneSource() {
             for (size_t passIndex = 0;
                 passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
@@ -362,7 +371,16 @@ namespace HIKARI::MESHRENDERER {
                 RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
                     g.gpuDrivenSceneSource.passes[passIndex];
                 (void)owned.CopyFrom(pass.traditionalIndirect);
-                owned.AttachTo(pass);
+            }
+        }
+
+        void AttachOwnedTraditionalIndirectStreamsToSceneSource() {
+            for (size_t passIndex = 0;
+                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
+                ++passIndex) {
+
+                gOwnedTraditionalIndirectStreams[passIndex].AttachTo(
+                    g.gpuDrivenSceneSource.passes[passIndex]);
             }
         }
 
@@ -373,7 +391,12 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        void HydrateGpuDrivenTraditionalIndirectStreams() {
+        void RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline() {
+            if (!ShouldUseGpuDrivenTraditionalIndirectStreams()) {
+                AttachOwnedTraditionalIndirectStreamsToSceneSource();
+                return;
+            }
+
             for (size_t passIndex = 0;
                 passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
                 ++passIndex) {
@@ -1303,7 +1326,9 @@ namespace HIKARI::MESHRENDERER {
                 GetStaticRootSignature(g.pipelines) != nullptr &&
                 GetSkinnedRootSignature(g.pipelines) != nullptr &&
                 g.pipelines.pso != nullptr &&
-                g.pipelines.skinnedPso != nullptr;
+                g.pipelines.skinnedPso != nullptr &&
+                g.pipelines.depthPso != nullptr &&
+                g.pipelines.depthSkinnedPso != nullptr;
             g.gpuDrivenLayer.SetBackendAvailability(availability);
         }
 
@@ -1500,10 +1525,12 @@ namespace HIKARI::MESHRENDERER {
             BindSurfaceGpuSceneBuffer(drawCtx.binding, drawCtx.surfaceGpuSceneSrv);
             BindObjectDataIndex(drawCtx.binding, 0u);
             BindMaterialDataIndex(drawCtx.binding, 0u);
-            ID3D12PipelineState* pso =
-                passKind == MeshDrawPassKind::GeometryAux
-                    ? g.pipelines.geometryPso.Get()
-                    : g.pipelines.pso.Get();
+            ID3D12PipelineState* pso = g.pipelines.pso.Get();
+            if (passKind == MeshDrawPassKind::GeometryAux) {
+                pso = g.pipelines.geometryPso.Get();
+            } else if (passKind == MeshDrawPassKind::DepthPrepass) {
+                pso = g.pipelines.depthPso.Get();
+            }
             const size_t uintMaxCommandCount =
                 static_cast<size_t>((std::numeric_limits<UINT>::max)());
             const size_t staticCommandLimit =
@@ -1534,10 +1561,12 @@ namespace HIKARI::MESHRENDERER {
                 executed = true;
             }
 
-            ID3D12PipelineState* skinnedPso =
-                passKind == MeshDrawPassKind::GeometryAux
-                    ? g.pipelines.geometrySkinnedPso.Get()
-                    : g.pipelines.skinnedPso.Get();
+            ID3D12PipelineState* skinnedPso = g.pipelines.skinnedPso.Get();
+            if (passKind == MeshDrawPassKind::GeometryAux) {
+                skinnedPso = g.pipelines.geometrySkinnedPso.Get();
+            } else if (passKind == MeshDrawPassKind::DepthPrepass) {
+                skinnedPso = g.pipelines.depthSkinnedPso.Get();
+            }
             if (hasSkinnedStream &&
                 skinnedPso != nullptr &&
                 drawCtx.skinnedRootSig != nullptr) {
@@ -1652,9 +1681,6 @@ namespace HIKARI::MESHRENDERER {
             for (size_t i = 0; i < plan.gpuBackendCount; ++i) {
                 const RENDER3D::GPUDRIVEN::GeometryBackendKind backend =
                     plan.gpuBackends[i];
-                if (backend == RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs) {
-                    continue;
-                }
                 if (!ExecuteGeometryBackend(
                     backend,
                     pass,
@@ -1974,6 +2000,7 @@ namespace HIKARI::MESHRENDERER {
         }
         g.gpuDrivenSceneSource = *source;
         CopyOwnedTraditionalIndirectStreamsFromSceneSource();
+        AttachOwnedTraditionalIndirectStreamsToSceneSource();
     }
 
     void SetGpuDrivenCullingDebugFreezeEnabled(bool enabled) {
@@ -2006,6 +2033,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
+        g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
         if (!PrepareMeshFrame(camera, environment, debugView)) {
             return false;
         }
@@ -2024,7 +2052,7 @@ namespace HIKARI::MESHRENDERER {
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         if (HasGpuDrivenSceneSource()) {
-            HydrateGpuDrivenTraditionalIndirectStreams();
+            RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
             PrepareGpuDrivenFrameState();
         } else {
             ResetGpuDrivenFrameState();
@@ -2050,6 +2078,7 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
+        g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
         // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
         if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
             return false;
@@ -2069,7 +2098,7 @@ namespace HIKARI::MESHRENDERER {
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         if (HasGpuDrivenSceneSource()) {
-            HydrateGpuDrivenTraditionalIndirectStreams();
+            RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
             PrepareGpuDrivenFrameState();
         } else {
             ResetGpuDrivenFrameState();

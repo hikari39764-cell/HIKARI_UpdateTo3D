@@ -77,7 +77,9 @@ namespace HIKARI::RENDER3D::LIGHTING {
 
         LightingRuntimeLoadResult result{};
         result.runtimeData.source = LightingRuntimeSource::None;
-        LIGHTPROBE::Reset();
+        if (!request.lightProbeVolumeEnabled) {
+            LIGHTPROBE::SetLightProbeVolumeEnabled(false);
+        }
 
         const bool manifestLoaded = request.preferBakeManifest
             ? TryLoadBakeManifest(request, result.runtimeData, result.messages)
@@ -180,7 +182,7 @@ namespace HIKARI::RENDER3D::LIGHTING {
                         std::to_string(runtimeData.bakedLightProbeCount) +
                         " path=" + volumeRecord->shDataPath);
                 } else {
-                    LIGHTPROBE::Reset();
+                    LIGHTPROBE::SetLightProbeVolumeEnabled(false);
                     AppendMessage(messages, "[LightingRuntimeLoader][LightProbe][WARN] " + lightProbeMessage);
                     HIKARI_LOG_WARN("[LightingRuntimeLoader][LightProbe][WARN] failed to load HLPV path=" +
                         volumeRecord->shDataPath +

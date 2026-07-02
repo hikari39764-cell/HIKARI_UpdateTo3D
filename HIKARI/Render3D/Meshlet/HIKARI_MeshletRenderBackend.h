@@ -9,8 +9,12 @@
 
 #include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 namespace HIKARI::RENDER3D::MESHLET {
+
+    constexpr size_t kForwardOpaquePipelineVariantCount =
+        static_cast<size_t>(ForwardShadingCostMode::NoMaterialExtras) + 1u;
 
     enum class MeshletPipelineKind : uint32_t {
         ForwardOpaque,
@@ -80,6 +84,8 @@ namespace HIKARI::RENDER3D::MESHLET {
     public:
         using PipelineBucketArray =
             std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, GPUDRIVEN::kGpuDrivenCommandBucketCount>;
+        using ForwardPipelineVariantArray =
+            std::array<PipelineBucketArray, kForwardOpaquePipelineVariantCount>;
 
         bool Initialize(ID3D12Device* device, ID3D12RootSignature* rootSignature);
         bool Initialize(
@@ -96,7 +102,7 @@ namespace HIKARI::RENDER3D::MESHLET {
             GPUDRIVEN::GpuDrivenCommandBucket bucket) const;
 
     private:
-        PipelineBucketArray forwardPipelineStates_{};
+        ForwardPipelineVariantArray forwardPipelineStates_{};
         PipelineBucketArray depthAwarePipelineStates_{};
         PipelineBucketArray transparentPipelineStates_{};
         PipelineBucketArray shadowPipelineStates_{};

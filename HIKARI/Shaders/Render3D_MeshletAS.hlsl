@@ -368,27 +368,32 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         HikariMeshCluster cluster =
             HikariLoadMeshCluster(metadata, header, clusterValid ? clusterIndex : 0u);
 
-        float4 worldSphere = HikariMeshletAsBuildWorldSphere(
-            instance.clusterWorld,
-            cluster.sphereCenterRadius,
-            cluster.boundsMin,
-            cluster.boundsMax);
         clusterValid =
             clusterValid &&
             cluster.indexCount != 0u &&
-            cluster.surfaceIndex == visible.clusterSurfaceIndex &&
-            HikariMeshletAsSphereVisible(worldSphere);
-
-        bool canConeCull =
-            visible.drawBucket != HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED &&
-            (visible.flags & (
-                HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED |
-                HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT |
-                HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED)) == 0u;
-        if (clusterValid && canConeCull &&
-            HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster, worldSphere))
+            cluster.surfaceIndex == visible.clusterSurfaceIndex;
+        if (clusterValid && !preculledRange)
         {
-            clusterValid = false;
+            HikariSurfaceGpuSceneInstance instance =
+                gSurfaceGpuSceneBuffer[visible.gpuSceneInstanceIndex];
+            float4 worldSphere = HikariMeshletAsBuildWorldSphere(
+                instance.clusterWorld,
+                cluster.sphereCenterRadius,
+                cluster.boundsMin,
+                cluster.boundsMax);
+            clusterValid = HikariMeshletAsSphereVisible(worldSphere);
+
+            bool canConeCull =
+                visible.drawBucket != HIKARI_CLUSTER_DRAW_BUCKET_DOUBLE_SIDED &&
+                (visible.flags & (
+                    HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED |
+                    HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT |
+                    HIKARI_SURFACE_GPU_SCENE_FLAG_DOUBLE_SIDED)) == 0u;
+            if (clusterValid && canConeCull &&
+                HikariMeshletAsConeBackfacing(instance.clusterWorld, cluster, worldSphere))
+            {
+                clusterValid = false;
+            }
         }
 
         if (clusterValid)

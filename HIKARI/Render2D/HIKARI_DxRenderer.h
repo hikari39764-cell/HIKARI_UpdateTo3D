@@ -30,6 +30,7 @@ namespace HIKARI {
         public:
             static void Init(const GFX::Context& ctx);
             static void UpdateContext(const GFX::Context& ctx);
+            static void SetScreenSize(int width, int height);
             static void Finalize();
 
             static void BeginFrame();
