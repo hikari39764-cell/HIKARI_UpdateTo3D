@@ -1,4 +1,4 @@
-﻿#include "HIKARI_Camera.h"
+#include "Render2D/HIKARI_Camera.h"
 #include "HIKARI_Input.h"
 #include <cmath>
 #include <string>
@@ -81,36 +81,36 @@ namespace HIKARI {
             if (!gDebugControlEnabled) return;
             if (!HINPUT::IsLayerActive(gDebugLayerName)) return;
 
-            // --- 1. 拖拽平移 (关键修改：屏幕空间 -> 世界空间) ---
+            // --- 1. ??平移 (??修改：屏幕空? -> 世界空?) ---
             const bool dragging = HINPUT::IsDown(gDebugActions.dragButton);
 
-            // 获取原始鼠标移动量
+            // ?取原始鼠?移?量
             float rawDragX = dragging ? HINPUT::GetAxis(gDebugActions.dragAxisX) : 0.0f;
             float rawDragY = dragging ? HINPUT::GetAxis(gDebugActions.dragAxisY) : 0.0f;
 
             if (std::fabs(rawDragX) > 0.0001f || std::fabs(rawDragY) > 0.0001f) {
-                // 计算当前旋转角度的 sin/cos
+                // ?算当前旋?角度的 sin/cos
                 float c = std::cos(gState.rotation);
                 float s = std::sin(gState.rotation);
 
-                // 【核心修复】旋转向量
-                // 当相机旋转后，屏幕的"上"不再是地图的"上"。
-                // 我们需要把屏幕的移动量逆向旋转回世界坐标系。
+                // 【核心修?】旋?向量
+                // 当相机旋?后，屏幕的"上"不再是地?的"上"。
+                // 我?需要把屏幕的移?量逆向旋?回世界坐?系。
                 float worldMoveX = rawDragX * c - rawDragY * s;
                 float worldMoveY = rawDragX * s + rawDragY * c;
 
-                // 【核心修复】Pitch 深度补偿
-                // 当视角变平时(Pitch小)，屏幕上垂直移动 1 像素代表在地面上移动了很远。
-                // 除以 pitch 可以统一手感。
+                // 【核心修?】Pitch 深度??
+                // 当?角?平?(Pitch小)，屏幕上垂直移? 1 像素代表在地面上移?了很?。
+                // 除以 pitch 可以?一手感。
                 float p = (gState.pitch < 0.1f) ? 0.1f : gState.pitch;
                 worldMoveY /= p;
 
-                // 应用移动
+                // ?用移?
                 gState.position.x -= worldMoveX / gState.scale.x;
                 gState.position.y -= worldMoveY / gState.scale.y;
             }
 
-            // --- 2. 缩放 (保持不变) ---
+            // --- 2. ?放 (保持不?) ---
             float zoomInput = HINPUT::GetAxis(gDebugActions.zoomAxis);
             if (std::fabs(zoomInput) > 0.0001f) {
                 float factor = 1.0f + zoomInput * gDebugZoomStep;
@@ -119,7 +119,7 @@ namespace HIKARI {
                 gState.scale.y = Clamp(gState.scale.y * factor, gDebugZoomMin, gDebugZoomMax);
             }
 
-            // --- 3. 旋转视角 (保持不变) ---
+            // --- 3. 旋??角 (保持不?) ---
             const bool looking = HINPUT::IsDown(gDebugActions.lookButton);
             if (looking) {
                 Vector2 delta = HINPUT::GetMouseDelta();
@@ -130,7 +130,7 @@ namespace HIKARI {
                     const float rotSpeed = 0.003f;
                     const float pitchSpeed = 0.003f;
 
-                    // 1. 旋转 (Yaw)
+                    // 1. 旋? (Yaw)
                     gState.rotation += lookX * rotSpeed;
 
                     // 2. 俯仰 (Pitch)

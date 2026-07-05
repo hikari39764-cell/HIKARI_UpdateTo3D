@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 #include <string>
 #include <vector>
-#include "HIKARI_Utility.h"
+#include "Core/HIKARI_Utility.h"
 namespace HIKARI {
     namespace HINPUT {
 
@@ -25,7 +25,7 @@ namespace HIKARI {
         bool IsLayerActive(const std::string& name);
 
 
-        // —— 初期化 / フレーム更新 —— //
+        // ?? 初期化 / フレーム更新 ?? //
         void Init(const char* jsonPath = nullptr);
         void SetBackend(BackendType backend);
         BackendType GetBackend();
@@ -33,7 +33,7 @@ namespace HIKARI {
         void SetExternalMouseWheelDelta(float delta);
         void Update(float dt);
 
-        // —— 照会 —— //
+        // ?? 照会 ?? //
         float GetAxis(const std::string& action);
         bool  IsPressed(const std::string& action); // このフレームで押された
         bool  IsDown(const std::string& action);    // 押し続けている
@@ -41,13 +41,13 @@ namespace HIKARI {
         float HeldTime(const std::string& action);  // 押されていた累計時間
         bool  IsRepeated(const std::string& action);// 連打（初回を含む）
 
-        // —— ダブルタップ / 入力バッファ —— //
+        // ?? ダブルタップ / 入力バッファ ?? //
         bool  IsDoubleTapped(const std::string& action, float window);
         void  OpenBuffer(const std::string& action, float seconds);
         bool  ConsumeBuffer(const std::string& action);
         bool  Buffered(const std::string& action);
 
-        // —— バインド —— //
+        // ?? バインド ?? //
         enum class MouseButton { Left = 0, Right = 1, Middle = 2 };
 
         struct AxisBinding {
@@ -75,7 +75,7 @@ namespace HIKARI {
         void  BindAxis(const std::string& action, const std::vector<AxisBinding>& pairs, bool clamp01 = true);
         void  BindMouseButtons(const std::string& action, const std::vector<MouseButton>& buttons);
 
-        // —— ゲームパッド —— //
+        // ?? ゲームパッド ?? //
         void  BindAxisPadLeft(const std::string& actionX, const std::string& actionY);
         void  SetPadDeadZone(float deadZone);
         void  SetActiveGamepad(int index);
@@ -85,15 +85,15 @@ namespace HIKARI {
         Vector2 GetPadLeftStick();
         bool    HasPadLeftStickInput();
 
-        // —— 振動関連 —— //
+        // ?? 振動関連 ?? //
         void  SetPadVibration(float leftMotor, float rightMotor, float seconds = 0.0f);
         void  StopPadVibration();
         bool  IsPadVibrating();
 
-        // —— 統一された移動方向（正規化済み、優先はゲームパッド）—— //
+        // ?? 統一された移動方向（正規化済み、優先はゲームパッド）?? //
         Vector2 GetMoveVectorNormalized();
 
-        // —— マウス —— //
+        // ?? マウス ?? //
         Vector2 GetMousePosition();
         Vector2 GetMouseDelta();
         float   GetMouseWheelDelta();

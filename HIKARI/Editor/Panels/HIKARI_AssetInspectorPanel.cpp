@@ -16,7 +16,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
-#include "Editor/HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 
 #if defined(HIKARI_WITH_EDITOR)

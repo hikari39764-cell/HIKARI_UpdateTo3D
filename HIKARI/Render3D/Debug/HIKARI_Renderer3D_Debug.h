@@ -5,12 +5,12 @@
 #include <cstdint>
 
 #include "Render2D/HIKARI_Transform2D.h"
-#include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI::RENDERER3D::DEBUG {
 
-    // Editor overlay 用の 3D debug primitive。
+    // Editor overlay 3D debug primitive.
     enum class DebugDepthMode {
         DepthTest,
         XRay

@@ -1,7 +1,7 @@
-﻿// --- START OF FILE HIKARI_DxRenderer.cpp ---
+// --- START OF FILE HIKARI_DxRenderer.cpp ---
 
-#include "HIKARI_DxRenderer.h"
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_DxRenderer.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "Gfx/HIKARI_DynamicUploadBuffer.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 
@@ -64,11 +64,11 @@ namespace HIKARI {
                 float softness;
             };
 
-            // 全局存储当前的 Mask 参数
+            // 全局存?当前的 Mask 参数
             static MaskCB g_currentMaskParams = { {0.0f, 0.0f}, 0.0f, 0.0f };
 
             // =========================================================
-            // Helper: RGBA → Float (0〜1)
+            // Helper: RGBA → Float (0?1)
             // =========================================================
 
             static void DecodeRGBA(uint32_t rgba, float& r, float& g, float& b, float& a)
@@ -81,7 +81,7 @@ namespace HIKARI {
 
             static D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode)
             {
-                // ... (保持原有的 MakeBlendDesc 代码不变) ...
+                // ... (保持原有的 MakeBlendDesc 代?不?) ...
                 D3D12_BLEND_DESC desc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
                 auto& rt = desc.RenderTarget[0];
 
@@ -216,12 +216,12 @@ float4 main(PS_IN input) : SV_TARGET
     float4 texCol = tex0.Sample(smp, input.uv);
     float4 finalColor = texCol * input.col;
 
-    // 1. 计算当前像素到玩家的距离
+    // 1. ?算当前像素到玩家的距?
     float dist = distance(input.pos.xy, playerPos);
 
-    // 2. 计算渐变 Alpha
-    // 从 0.0 (中心) 到 radius (边缘) 生成 0.0 -> 1.0 的平滑过渡
-    // 这样中心就是完全透明的，越往外越不透明
+    // 2. ?算?? Alpha
+    // 从 0.0 (中心) 到 radius (??) 生成 0.0 -> 1.0 的平滑?渡
+    // ??中心就是完全透明的，越往外越不透明
     float alphaFactor = smoothstep(0.0f, radius, dist);
 
     finalColor.a *= alphaFactor;
@@ -435,20 +435,20 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 }
 
                 // === [新增] PSO: Mask ===
-                // 编译 Mask PS
+                // ?? Mask PS
                 ComPtr<ID3DBlob> psMask = CompileShader(kMaskPS, "main", "ps_6_0");
 
                 D3D12_GRAPHICS_PIPELINE_STATE_DESC maskDesc = baseDesc;
                 maskDesc.pRootSignature = rootSigMask_.Get(); // 使用新的 RS
                 maskDesc.PS = CD3DX12_SHADER_BYTECODE(psMask.Get()); // 使用 Mask PS
-                maskDesc.BlendState = MakeBlendDesc(BlendMode::StraightAlpha); // 使用标准透明混合
+                maskDesc.BlendState = MakeBlendDesc(BlendMode::StraightAlpha); // 使用?准透明混合
 
                 HRESULT hr = device->CreateGraphicsPipelineState(&maskDesc, IID_PPV_ARGS(&psoMask_));
                 (void)hr;
                 assert(SUCCEEDED(hr));
             }
 
-            // === PSO: Line (保持不变) ===
+            // === PSO: Line (保持不?) ===
             {
                 ComPtr<ID3DBlob> vs = CompileShader(kLineVS, "main", "vs_6_0");
                 ComPtr<ID3DBlob> ps = CompileShader(kLinePS, "main", "ps_6_0");
@@ -521,7 +521,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
         void DxRenderer::EndFrame()
         {
-            // 目前是即时绘制，所以这里不做任何事
+            // 目前是即??制，所以?里不做任何事
         }
 
 
@@ -548,7 +548,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
             auto* cmd = g_ctx.cmdList;
 
-            // 选 PSO
+            // ? PSO
             size_t blendIdx = static_cast<size_t>(currentBlendMode_);
             if (blendIdx >= static_cast<size_t>(BlendMode::Count)) {
                 blendIdx = 0;
@@ -562,7 +562,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             cmd->SetGraphicsRootSignature(rootSig_.Get());
             cmd->SetPipelineState(pso);
 
-            // 颜色 tint
+            // ?色 tint
             float r, g, b, a;
             DecodeRGBA(color, r, g, b, a);
 
@@ -593,14 +593,14 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
             // 【修改前】 memcpy(g_uploadCB.Allocate(sizeof(cb), gpuCB), &cb, sizeof(cb));
 
-            // 【修改后】 强制 256 字节对齐
+            // 【修改后】 ?制 256 字???
             UINT cbSizeAligned = (sizeof(cb) + 255) & ~255;
             memcpy(ActiveUploadCB().Allocate(cbSizeAligned, gpuCB), &cb, sizeof(cb));
 
             cmd->SetGraphicsRootConstantBufferView(0, gpuCB);
 
 
-            // 纹理 SRV
+            // ?理 SRV
             ID3D12DescriptorHeap* heap =
                 HIKARI::DXTEX::DxTextureManager::GetSrvHeap();
             cmd->SetDescriptorHeaps(1, &heap);
@@ -642,7 +642,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         }
 
         // =========================================================
-        // [新增] Mask 参数更新与绘制
+        // [新增] Mask 参数更新与?制
         // =========================================================
 
         void DxRenderer::UpdateMaskParams(float screenX, float screenY, float radius, float softness)
@@ -661,7 +661,7 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             int texHandle,
             uint32_t color)
         {
-            // 构造顶点数据
+            // ?造?点数据
             MeshVertex verts[4] = {
                 { x0, y0, u0, v0, 0,0,0,0 },
                 { x1, y1, u1, v1, 0,0,0,0 },
@@ -672,15 +672,15 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
             auto* cmd = g_ctx.cmdList;
 
-            // 1. 切换到 Mask 专用的 RootSig 和 PSO
+            // 1. 切?到 Mask ?用的 RootSig 和 PSO
             cmd->SetGraphicsRootSignature(rootSigMask_.Get());
             cmd->SetPipelineState(psoMask_.Get());
 
-            // 颜色解析
+            // ?色解析
             float r, g, b, a;
             DecodeRGBA(color, r, g, b, a);
 
-            // 2. Upload Vertex Buffer (和普通绘制一样)
+            // 2. Upload Vertex Buffer (和普通?制一?)
             D3D12_GPU_VIRTUAL_ADDRESS gpuVB;
             MeshVertex* vb = (MeshVertex*)ActiveUploadVB().Allocate(
                 sizeof(MeshVertex) * vertexCount, gpuVB);
@@ -714,13 +714,13 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             memcpy(ActiveUploadCB().Allocate(maskSizeAligned, gpuMaskCB), &g_currentMaskParams, sizeof(MaskCB));
             cmd->SetGraphicsRootConstantBufferView(2, gpuMaskCB);
 
-            // 5. 绑定纹理 SRV (t0)
+            // 5. ?定?理 SRV (t0)
             ID3D12DescriptorHeap* heap = HIKARI::DXTEX::DxTextureManager::GetSrvHeap();
             cmd->SetDescriptorHeaps(1, &heap);
             auto gpuHandle = HIKARI::DXTEX::DxTextureManager::GetSrvGpuHandle(texHandle);
             cmd->SetGraphicsRootDescriptorTable(1, gpuHandle); // RootParam[1]
 
-            // 6. 绘制
+            // 6. ?制
             cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             cmd->IASetVertexBuffers(0, 1, &vbv);
             cmd->DrawInstanced(vertexCount, 1, 0, 0);

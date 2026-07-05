@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 

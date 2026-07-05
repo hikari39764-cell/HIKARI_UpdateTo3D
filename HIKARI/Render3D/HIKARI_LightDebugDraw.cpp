@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <cmath>
 #include <numbers>
-#include "HIKARI_Renderer3D_Debug.h"
-#include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI::LIGHTDEBUGDRAW {
 
@@ -90,7 +90,7 @@ namespace HIKARI::LIGHTDEBUGDRAW {
             }
             ++rangeSphereCount;
 
-            // Upload 上限に合わせて range 表示を抑える。
+            // Limit range display to the upload budget.
             for (int axis = 0; axis < 3; ++axis) {
                 for (int i = 0; i < kSegments; ++i) {
                     const float t0 = (static_cast<float>(i) / static_cast<float>(kSegments)) * (2.0f * std::numbers::pi_v<float>);

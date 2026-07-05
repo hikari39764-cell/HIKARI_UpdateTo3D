@@ -1,6 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "Matrix3x3.h"
-#include "HIKARI_Math3D.h"
+#include "Render3D/HIKARI_Math3D.h"
 
 namespace HIKARI {
 

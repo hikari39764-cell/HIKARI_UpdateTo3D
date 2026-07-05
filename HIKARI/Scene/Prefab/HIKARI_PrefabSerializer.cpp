@@ -4,6 +4,7 @@
 
 #include <json.hpp>
 
+#include "Core/HIKARI_JsonRead.h"
 #include "HIKARI_PrefabDocument.h"
 
 namespace HIKARI {
@@ -13,17 +14,6 @@ namespace HIKARI {
     namespace {
         json ToVec3(const MATH::Vec3& v) {
             return json::array({ v.x, v.y, v.z });
-        }
-
-        MATH::Vec3 FromVec3(const json& in, const MATH::Vec3& fallback) {
-            if (!in.is_array() || in.size() < 3) {
-                return fallback;
-            }
-            return {
-                in[0].is_number() ? in[0].get<float>() : fallback.x,
-                in[1].is_number() ? in[1].get<float>() : fallback.y,
-                in[2].is_number() ? in[2].get<float>() : fallback.z
-            };
         }
 
         void SerializeObject(const SceneObjectData& object, json& out) {
@@ -62,9 +52,9 @@ namespace HIKARI {
 
             if (node.contains("transform") && node["transform"].is_object()) {
                 const json& transform = node["transform"];
-                object.transform.position = FromVec3(transform.value("position", json::array()), object.transform.position);
-                object.transform.rotationEulerDeg = FromVec3(transform.value("rotationEulerDeg", json::array()), object.transform.rotationEulerDeg);
-                object.transform.scale = FromVec3(transform.value("scale", json::array()), object.transform.scale);
+                object.transform.position = JSONREAD::Vec3Or(transform.value("position", json::array()), object.transform.position);
+                object.transform.rotationEulerDeg = JSONREAD::Vec3Or(transform.value("rotationEulerDeg", json::array()), object.transform.rotationEulerDeg);
+                object.transform.scale = JSONREAD::Vec3Or(transform.value("scale", json::array()), object.transform.scale);
             }
 
             object.components.clear();

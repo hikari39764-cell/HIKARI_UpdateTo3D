@@ -1,6 +1,6 @@
-﻿#include "HIKARI_PostSystem.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Vfx/Post/HIKARI_PostEffect.h"
-#include "HIKARI_Utility.h"
+#include "Core/HIKARI_Utility.h"
 #include <algorithm>
 #include <cassert>
 #include <sstream>

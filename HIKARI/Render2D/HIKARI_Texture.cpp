@@ -1,5 +1,5 @@
-#include "HIKARI_Texture.h"
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_Texture.h"
+#include "Render2D/HIKARI_DxTexture.h"
 
 
 namespace HIKARI {
@@ -50,7 +50,7 @@ namespace HIKARI {
 
 			for (auto& e : gEntries) {
 
-				//// Novice â€šÃˆ
+				//// Novice â€šÃˁE
 				//if (e.handle < 0) {
 				//	e.handle = Novice::LoadTexture(e.path.c_str());
 				//	if (e.handle < 0) {
@@ -58,7 +58,7 @@ namespace HIKARI {
 				//	}
 				//}
 
-				// DX â€šÃˆ
+				// DX â€šÃˁE
 				if (e.dxHandle < 0) {
 					int dxH = HIKARI::DXTEX::DxTextureManager::LoadTexture(e.name, e.path);
 					if (dxH < 0) {

@@ -1,5 +1,5 @@
 #pragma once
-#include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
 
 namespace HIKARI {
 

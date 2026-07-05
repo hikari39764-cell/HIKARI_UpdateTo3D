@@ -1,6 +1,8 @@
 #ifndef HIKARI_MESH_MATERIAL_DATA_INCLUDED
 #define HIKARI_MESH_MATERIAL_DATA_INCLUDED
 
+#include "Include/Contracts/HIKARI_ShaderResourceBindings.hlsli"
+
 // Keep this layout in sync with C++ MaterialGpuData.
 struct HikariMeshMaterialData
 {
@@ -189,7 +191,7 @@ float2 HikariResolveMaterialUv(HikariMeshMaterialData materialData, uint slot, f
 
 #if defined(HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING)
 static const uint HIKARI_INVALID_TEXTURE_DESCRIPTOR_INDEX = 0xffffffffu;
-static const uint HIKARI_MATERIAL_TEXTURE_POOL_COUNT = 3968u;
+static const uint HIKARI_MATERIAL_TEXTURE_POOL_COUNT = HIKARI_SHADER_USER_SRV_COUNT;
 
 // 材質テクスチャは descriptor index で SRV プールから参照する。
 Texture2D gMaterialTexturePool[HIKARI_MATERIAL_TEXTURE_POOL_COUNT] : register(t20);

@@ -1,5 +1,5 @@
 #include "HIKARI_Dx12Core.h"
-#include "../HIKARI_Utility.h"
+#include "Core/HIKARI_Utility.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>

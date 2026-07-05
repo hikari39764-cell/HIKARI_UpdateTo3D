@@ -1,5 +1,5 @@
 #include "HIKARI_DebugMenuBar.h"
-#include "HIKARI_DebugWindowState.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Export/HIKARI_GameExporter.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"

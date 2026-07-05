@@ -1,4 +1,4 @@
-#include "Render3D/HIKARI_SkyManager.h"
+#include "Render3D/Lighting/HIKARI_SkyManager.h"
 
 namespace HIKARI {
 

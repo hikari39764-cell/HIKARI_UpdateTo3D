@@ -1,5 +1,5 @@
 #pragma once
-#include "HIKARI_Renderer3D_Debug.h"
+#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 
 namespace HIKARI::RENDERER3D {
 

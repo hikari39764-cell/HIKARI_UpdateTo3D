@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "Core/HIKARI_FrameContext.h"
-#include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Scene/Components/HIKARI_CameraFollowComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"

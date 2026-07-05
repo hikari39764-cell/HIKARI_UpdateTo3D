@@ -1,4 +1,4 @@
-#include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
 
 #include <utility>
 

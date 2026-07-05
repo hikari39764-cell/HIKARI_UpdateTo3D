@@ -1,4 +1,4 @@
-﻿#include "HIKARI_DocumentSceneBase.h"
+#include "HIKARI_DocumentSceneBase.h"
 
 #include <array>
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <unordered_set>
 
 #include "HIKARI_3D.h"
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_Logger.h"

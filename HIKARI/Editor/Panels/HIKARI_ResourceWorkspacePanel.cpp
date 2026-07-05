@@ -7,7 +7,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
-#include "Editor/HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_SceneDocument.h"
 

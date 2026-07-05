@@ -24,7 +24,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
-#include "HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Platform/HIKARI_Win32Window.h"
 #include "Project/HIKARI_ProjectSettings.h"
 
@@ -273,7 +273,7 @@ namespace HIKARI {
                 data.materialName = "New Material";
             }
 
-            // Material Asset 縺ｯ Texture 縺ｮ GUID 繧剃ｿ晄戟縺励∝ｮ滄圀縺ｮ HTEX 縺ｯ runtime builder 縺瑚ｧ｣豎ｺ縺吶ｋ縲・
+            // Material Asset 邵ｺ・ｯ Texture 邵ｺ・ｮ GUID 郢ｧ蜑・ｽｿ譎・亜邵ｺ蜉ｱﾂ竏晢ｽｮ貊・怙邵ｺ・ｮ HTEX 邵ｺ・ｯ runtime builder 邵ｺ迹夲ｽｧ・｣雎趣ｽｺ邵ｺ蜷ｶ・狗ｸｲ繝ｻ
             if (!SavePbrMaterialAssetData(absoluteMaterialPath, data, outError)) {
                 return false;
             }
@@ -971,7 +971,7 @@ namespace HIKARI {
                 return std::string(text);
             }
 
-            // 繧ｰ繝ｪ繝・ラ縺ｧ縺ｯ蜷榊燕縺縺代ｒ遏ｭ縺剰｡ｨ遉ｺ縺励∬ｩｳ邏ｰ縺ｯ繝・・繝ｫ繝√ャ繝怜・縺ｫ莉ｻ縺帙ｋ縲・
+            // 郢ｧ・ｰ郢晢ｽｪ郢昴・繝ｩ邵ｺ・ｧ邵ｺ・ｯ陷ｷ讎顔√邵ｺ・ｰ邵ｺ莉｣・帝￥・ｭ邵ｺ蜑ｰ・｡・ｨ驕会ｽｺ邵ｺ蜉ｱﾂ竏ｬ・ｩ・ｳ驍擾ｽｰ邵ｺ・ｯ郢昴・繝ｻ郢晢ｽｫ郢昶・繝｣郢晄懊・邵ｺ・ｫ闔会ｽｻ邵ｺ蟶呻ｽ狗ｸｲ繝ｻ
             constexpr const char* kSuffix = "...";
             std::vector<size_t> utf8Ends{};
             for (size_t i = 0; i < text.size();) {
@@ -1195,7 +1195,7 @@ namespace HIKARI {
             const std::filesystem::path oldSource = (assetDatabase.GetProjectRoot() / record.sourcePath).lexically_normal();
             const std::filesystem::path desiredSource = (oldSource.parent_path() / (cleanName + ".scene.json")).lexically_normal();
 
-            // 蜷悟錐繝ｪ繝阪・繝縺ｧ縺ｯ繝輔ぃ繧､繝ｫ繧貞虚縺九＆縺壹∬｡ｨ遉ｺ蜷阪□縺大酔譛溘☆繧九・
+            // 陷ｷ謔滄倹郢晢ｽｪ郢晞亂繝ｻ郢晢｣ｰ邵ｺ・ｧ邵ｺ・ｯ郢晁ｼ斐＜郢ｧ・､郢晢ｽｫ郢ｧ雋櫁劒邵ｺ荵晢ｼ・ｸｺ螢ｹﾂ竏ｬ・｡・ｨ驕会ｽｺ陷ｷ髦ｪ笆｡邵ｺ螟ｧ驟碑ｭ帶ｺ倪・郢ｧ荵敖繝ｻ
             if (IsSameFilePath(oldSource, desiredSource)) {
                 if (!UpdateSceneJsonSceneName(oldSource, cleanName, outError)) {
                     LogSceneAssetWarn("rename failed: " + outError);
@@ -1223,7 +1223,7 @@ namespace HIKARI {
 
             bool movedScene = false;
             bool movedMeta = false;
-            // 遘ｻ蜍暮比ｸｭ縺ｧ螟ｱ謨励＠縺溷ｴ蜷医・縲∝庄閭ｽ縺ｪ遽・峇縺ｧ蜈・・驟咲ｽｮ縺ｸ謌ｻ縺吶・
+            // 驕假ｽｻ陷肴坩ﾂ豈費ｽｸ・ｭ邵ｺ・ｧ陞滂ｽｱ隰ｨ蜉ｱ・邵ｺ貅ｷ・ｰ・ｴ陷ｷ蛹ｻ繝ｻ邵ｲ竏晏ｺ・妙・ｽ邵ｺ・ｪ驕ｽ繝ｻ蟲・ｸｺ・ｧ陷医・繝ｻ鬩溷調・ｽ・ｮ邵ｺ・ｸ隰鯉ｽｻ邵ｺ蜷ｶﾂ繝ｻ
             if (!MoveFileSafe(oldSource, newSource, outError)) {
                 outError = "Scene rename failed: " + outError;
                 LogSceneAssetWarn("rename failed: " + outError);
@@ -1338,7 +1338,7 @@ namespace HIKARI {
                 }
             }
 
-            // Startup Scene 繧貞炎髯､縺励◆蝣ｴ蜷医・縲￣rojectSettings 縺ｮ蜿ら・繧ょ酔譎ゅ↓螟悶☆縲・
+            // Startup Scene 郢ｧ雋樒ｎ鬮ｯ・､邵ｺ蜉ｱ笳・撻・ｴ陷ｷ蛹ｻ繝ｻ邵ｲ・｣rojectSettings 邵ｺ・ｮ陷ｿ繧峨・郢ｧ繧・・隴弱ｅ竊楢棔謔ｶ笘・ｸｲ繝ｻ
             ProjectSettingsService settings{};
             settings.Load(assetDatabase.GetProjectRoot());
             if (settings.GetSettings().startupSceneGuid == record.guid) {
@@ -2239,7 +2239,7 @@ namespace HIKARI {
             ImGui::OpenPopup("AssetBrowserCreateMenu");
         }
         if (ImGui::BeginPopup("AssetBrowserCreateMenu")) {
-            // 菴懈・邉ｻ縺ｯ繝｡繧､繝ｳ繝舌・縺九ｉ騾・′縺励√さ繝ｳ繝・Φ繝・伜沺縺ｮ譁・ц謫堺ｽ懊→縺励※謇ｱ縺・・
+            // 闖ｴ諛医・驍会ｽｻ邵ｺ・ｯ郢晢ｽ｡郢ｧ・､郢晢ｽｳ郢晁・繝ｻ邵ｺ荵晢ｽ蛾ｨｾ繝ｻ窶ｲ邵ｺ蜉ｱﾂ竏壹＆郢晢ｽｳ郢昴・ﾎｦ郢昴・・ｰ莨懈ｲｺ邵ｺ・ｮ隴√・ﾑ・ｬｫ蝣ｺ・ｽ諛岩・邵ｺ蜉ｱ窶ｻ隰・ｽｱ邵ｺ繝ｻﾂ繝ｻ
             if (ImGui::MenuItem("Folder")) {
                 CreateFolderFromBrowser(assetDatabase, currentDirectory_, lastOperationMessage_);
             }

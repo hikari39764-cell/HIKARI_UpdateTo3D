@@ -1,12 +1,12 @@
-#include "HIKARI_Renderer.h"
+#include "Render2D/HIKARI_Renderer.h"
 #include <cmath>
-#include "HIKARI_DxRenderer.h"
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_DxRenderer.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "Windows.h"
 #include <algorithm>
 #undef max
 #undef min
-// ===== 内部ツール =====
+// ===== 蜀・Κ繝・・繝ｫ =====
 namespace {
 
     using namespace HIKARI;
@@ -65,7 +65,7 @@ namespace {
 
     static inline int EnsureWhiteTexture() {
         if (gWhiteTexHandle < 0) {
-            // 用 DX 纹理管理器载入 1x1 白贴图
+            // 逕ｨ DX 郤ｹ逅・ｮ｡逅・勣霓ｽ蜈･ 1x1 逋ｽ雍ｴ蝗ｾ
             gWhiteTexHandle = HIKARI::DXTEX::DxTextureManager::LoadTexture(
                 "Renderer_White1x1",
                 gWhiteTexPath
@@ -92,9 +92,9 @@ namespace {
     {
         Matrix3x3 world = Matrix3x3::MakeIdentity();
 
-        // [修复]：移除了 MeshQuad 的跳过逻辑
-        // 以前：if (cmd.type != CommandType::Line && cmd.type != CommandType::MeshQuad ...
-        // 现在：必须允许 MeshQuad 计算 World 矩阵，否则 Spine 无法跟随 Transform 移动
+        // [菫ｮ螟江・夂ｧｻ髯､莠・MeshQuad 逧・ｷｳ霑・ｻ霎・
+        // 莉･蜑搾ｼ喨f (cmd.type != CommandType::Line && cmd.type != CommandType::MeshQuad ...
+        // 邇ｰ蝨ｨ・壼ｿ・｡ｻ蜈∬ｮｸ MeshQuad 隶｡邂・World 遏ｩ髦ｵ・悟凄蛻・Spine 譌豕戊ｷ滄囂 Transform 遘ｻ蜉ｨ
         if (cmd.type != CommandType::Line && cmd.type != CommandType::DeformGrid) {
             world = cmd.transform.ToWorld(cmd.width, cmd.height);
         }
@@ -147,8 +147,8 @@ namespace {
         }
         case CommandType::Box:
         {
-            // Wireframe Box: 画4条线
-            // Fill Box: 之前我们在 Push 阶段偷懒转成了 Sprite，所以这里只处理 Wireframe
+            // Wireframe Box: 逕ｻ4譚｡郤ｿ
+            // Fill Box: 荵句燕謌台ｻｬ蝨ｨ Push 髦ｶ谿ｵ蛛ｷ諛定ｽｬ謌蝉ｺ・Sprite・梧園莉･霑咎㈹蜿ｪ螟・炊 Wireframe
             if (cmd.fillMode == HIKARI::RENDERER::FillMode::Wireframe) {
                 Vector2 pLT{ 0.0f, 0.0f };
                 Vector2 pRT{ cmd.width, 0.0f };
@@ -169,8 +169,8 @@ namespace {
         }
         case CommandType::Triangle:
         {
-            // p0, p1, p2 是相对于 Transform 的局部坐标
-            // 原接口是 DrawTriangle(t, p0, p1, p2)
+            // p0, p1, p2 譏ｯ逶ｸ蟇ｹ莠・Transform 逧・ｱ驛ｨ蝮先・
+            // 蜴滓磁蜿｣譏ｯ DrawTriangle(t, p0, p1, p2)
             Vector2 a = TransformPoint(cmd.p0, m);
             Vector2 b = TransformPoint(cmd.p1, m);
             Vector2 c = TransformPoint(cmd.p2, m);
@@ -180,14 +180,14 @@ namespace {
                 HIKARI::DX::DxRenderer::DrawLine(b.x, b.y, c.x, c.y, cmd.rgba);
                 HIKARI::DX::DxRenderer::DrawLine(c.x, c.y, a.x, a.y, cmd.rgba);
             } else {
-                // Fill Triangle: 使用白图画 Mesh
+                // Fill Triangle: 菴ｿ逕ｨ逋ｽ蝗ｾ逕ｻ Mesh
                 if (cmd.dxHandle >= 0) {
-                    // 利用简并四边形画三角形 (v3 = v2)
+                    // 蛻ｩ逕ｨ邂蟷ｶ蝗幄ｾｹ蠖｢逕ｻ荳芽ｧ貞ｽ｢ (v3 = v2)
                     HIKARI::DX::DxRenderer::DrawMeshQuad(
                         a.x, a.y, 0, 0,
                         b.x, b.y, 1, 0,
                         c.x, c.y, 0, 1,
-                        c.x, c.y, 1, 1, // 重复点
+                        c.x, c.y, 1, 1, // 驥榊､咲せ
                         cmd.dxHandle, cmd.rgba
                     );
                 }
@@ -196,7 +196,7 @@ namespace {
         }
         case CommandType::Ellipse:
         {
-            const int kSegments = 32; // 稍微降低一点段数以提高性能
+            const int kSegments = 32; // 遞榊ｾｮ髯堺ｽ惹ｸ轤ｹ谿ｵ謨ｰ莉･謠宣ｫ俶ｧ閭ｽ
             float cx = cmd.width * 0.5f;
             float cy = cmd.height * 0.5f;
             float rx = cmd.radiusX;
@@ -236,9 +236,9 @@ namespace {
         {
             if (cmd.dxHandle < 0) return;
 
-            // 这里使用计算好的 m 矩阵 (World * View) 进行变换
-            // DrawMeshQuadHandleUV_Local 传入了 transform，所以 m 包含了该 transform
-            // DrawMeshQuadHandleUV_Vertices 传入了 Identity，所以 m 仅包含 View
+            // 霑咎㈹菴ｿ逕ｨ隶｡邂怜･ｽ逧・m 遏ｩ髦ｵ (World * View) 霑幄｡悟序謐｢
+            // DrawMeshQuadHandleUV_Local 莨蜈･莠・transform・梧園莉･ m 蛹・性莠・ｯ･ transform
+            // DrawMeshQuadHandleUV_Vertices 莨蜈･莠・Identity・梧園莉･ m 莉・桁蜷ｫ View
             Vector2 lt = TransformPoint(cmd.p0, m); // p0=lt
             Vector2 rt = TransformPoint(cmd.p1, m); // p1=rt
             Vector2 lb = TransformPoint(cmd.p2, m); // p2=lb
@@ -264,7 +264,7 @@ namespace {
             int vertexCount = grid.cols * grid.rows;
             if (grid.positions.size() != vertexCount) return;
 
-            static std::vector<Vector2> tempTransformed; // 避免反复分配内存
+            static std::vector<Vector2> tempTransformed; // 驕ｿ蜈榊渚螟榊・驟榊・蟄・
             if (tempTransformed.size() < vertexCount) tempTransformed.resize(vertexCount);
 
             for (int i = 0; i < vertexCount; ++i) {
@@ -375,18 +375,18 @@ namespace HIKARI {
         void SetWhiteTexturePath(const char* pathRGBA1x1) {
             if (pathRGBA1x1 && pathRGBA1x1[0] != '\0') {
                 gWhiteTexPath = pathRGBA1x1;
-                gWhiteTexHandle = -1; // 次回利用時に再ロードさせる
+                gWhiteTexHandle = -1; // 谺｡蝗槫茜逕ｨ譎ゅ↓蜀阪Ο繝ｼ繝峨＆縺帙ｋ
             }
         }
 
         void SetOcclusionSource(Vector2 screenPos, float radius) {
             gOcclusionScreenPos = screenPos;
             gOcclusionRadius = radius;
-            // 同时更新底层
+            // 蜷梧慮譖ｴ譁ｰ蠎募ｱ・
             HIKARI::DX::DxRenderer::UpdateMaskParams(screenPos.x, screenPos.y, radius, 40.0f);
         }
 
-        // ---- 基本的な線描画 ----
+        // ---- 蝓ｺ譛ｬ逧・↑邱壽緒逕ｻ ----
         void DrawLine(Vector2 p0, Vector2 p1, CameraMode cam, unsigned int rgba) {
             RenderCommand cmd;
             cmd.type = CommandType::Line;
@@ -514,7 +514,7 @@ namespace HIKARI {
             gRenderList.push_back(cmd);
         }
 
-        // ---- スプライト：名前指定
+        // ---- 繧ｹ繝励Λ繧､繝茨ｼ壼錐蜑肴欠螳・
 
         void DrawSprite(const std::string& textureName, const HIKARI::Transform2D& t, float width, float height, CameraMode cam, unsigned int rgba)
         {
@@ -522,7 +522,7 @@ namespace HIKARI {
             if (handle < 0) return;
 
             RenderCommand cmd;
-            cmd.type = CommandType::Sprite; // <--- 标记类型
+            cmd.type = CommandType::Sprite; // <--- 譬・ｮｰ邀ｻ蝙・
             cmd.layer = gCurrentLayer;
             cmd.sortY = t.position.y;
             cmd.orderIndex = gSubmissionCount++;
@@ -543,14 +543,14 @@ namespace HIKARI {
             gRenderList.push_back(cmd);
         }
 
-        // ---- スプライト：名前指定 + UV ----
+        // ---- 繧ｹ繝励Λ繧､繝茨ｼ壼錐蜑肴欠螳・+ UV ----
         void DrawSprite(const std::string& textureName, const HIKARI::Transform2D& t, float width, float height, const SpriteUV& uv, CameraMode cam, unsigned int rgba)
         {
             int handle = HIKARI::TEXTURE::GetDxHandle(textureName);
             if (handle < 0) return;
 
             RenderCommand cmd;
-            cmd.type = CommandType::Sprite; // <--- 标记类型
+            cmd.type = CommandType::Sprite; // <--- 譬・ｮｰ邀ｻ蝙・
             cmd.layer = gCurrentLayer;
             cmd.sortY = t.position.y;
             cmd.orderIndex = gSubmissionCount++;
@@ -576,7 +576,7 @@ namespace HIKARI {
             int handle = HIKARI::TEXTURE::GetDxHandle(textureName);
             if (handle < 0) return;
 
-            // 获取纹理尺寸以计算 UV
+            // 闔ｷ蜿也ｺｹ逅・ｰｺ蟇ｸ莉･隶｡邂・UV
             UINT texW = 0, texH = 0;
             HIKARI::DXTEX::DxTextureManager::GetTextureSize(handle, texW, texH);
             if (texW == 0 || texH == 0) return;
@@ -592,7 +592,7 @@ namespace HIKARI {
             cmd.width = dstW;
             cmd.height = dstH;
 
-            // 计算 UV
+            // 隶｡邂・UV
             cmd.uv.u0 = (float)srcX / texW;
             cmd.uv.v0 = (float)srcY / texH;
             cmd.uv.u1 = (float)(srcX + srcW) / texW;
@@ -656,29 +656,29 @@ namespace HIKARI {
             int handle = HIKARI::TEXTURE::GetDxHandle(textureName);
             if (handle < 0) return;
 
-            // Transformのコピーを作成し、ビルボード計算を適用
+            // Transform縺ｮ繧ｳ繝斐・繧剃ｽ懈・縺励√ン繝ｫ繝懊・繝芽ｨ育ｮ励ｒ驕ｩ逕ｨ
             HIKARI::Transform2D tt = t;
 
             if (billboard && cam == CameraMode::Inherit) {
-                // 1) カメラの回転を打ち消す（常に正面を向く）
+                // 1) 繧ｫ繝｡繝ｩ縺ｮ蝗櫁ｻ｢繧呈遠縺｡豸医☆・亥ｸｸ縺ｫ豁｣髱｢繧貞髄縺擾ｼ・
                 tt.rotation -= HIKARI::CAMERA::GetRotation();
-                // 2) カメラのピッチ角によるY軸の縮みを補正
+                // 2) 繧ｫ繝｡繝ｩ縺ｮ繝斐ャ繝∬ｧ偵↓繧医ｋY霆ｸ縺ｮ邵ｮ縺ｿ繧定｣懈ｭ｣
                 tt.scale.y *= HIKARI::CAMERA::GetBillboardScaleY();
             }
 
             RenderCommand cmd;
             cmd.type = CommandType::Sprite;
             cmd.layer = gCurrentLayer;
-            // ソート順は足元のY座標
+            // 繧ｽ繝ｼ繝磯・・雜ｳ蜈・・Y蠎ｧ讓・
             cmd.sortY = t.position.y;
             cmd.orderIndex = gSubmissionCount++;
 
             cmd.dxHandle = handle;
-            cmd.transform = tt; // 補正後のTransformを渡す
+            cmd.transform = tt; // 陬懈ｭ｣蠕後・Transform繧呈ｸ｡縺・
             cmd.width = width;
             cmd.height = height;
 
-            // UVは全体
+            // UV縺ｯ蜈ｨ菴・
             cmd.uv.u0 = 0.0f; cmd.uv.v0 = 0.0f;
             cmd.uv.u1 = 1.0f; cmd.uv.v1 = 1.0f;
 
@@ -705,7 +705,7 @@ namespace HIKARI {
             HIKARI::DXTEX::DxTextureManager::GetTextureSize(handle, texW, texH);
             if (texW == 0 || texH == 0) return;
 
-            // Transformのコピーを作成し、ビルボード計算を適用
+            // Transform縺ｮ繧ｳ繝斐・繧剃ｽ懈・縺励√ン繝ｫ繝懊・繝芽ｨ育ｮ励ｒ驕ｩ逕ｨ
             HIKARI::Transform2D tt = t;
 
             if (billboard && cam == CameraMode::Inherit) {
@@ -720,11 +720,11 @@ namespace HIKARI {
             cmd.orderIndex = gSubmissionCount++;
 
             cmd.dxHandle = handle;
-            cmd.transform = tt; // 補正後のTransform
+            cmd.transform = tt; // 陬懈ｭ｣蠕後・Transform
             cmd.width = dstW;
             cmd.height = dstH;
 
-            // UV計算
+            // UV險育ｮ・
             cmd.uv.u0 = (float)srcX / texW;
             cmd.uv.v0 = (float)srcY / texH;
             cmd.uv.u1 = (float)(srcX + srcW) / texW;
@@ -733,7 +733,7 @@ namespace HIKARI {
             cmd.camMode = cam;
             cmd.rgba = (rgba == 0xFFFFFFFF ? gDefaultColor : rgba);
 
-            // シェーダー切り替え用フラグを設定
+            // 繧ｷ繧ｧ繝ｼ繝繝ｼ蛻・ｊ譖ｿ縺育畑繝輔Λ繧ｰ繧定ｨｭ螳・
             cmd.useMaskShader = useMaskShader;
 
             gRenderList.push_back(cmd);
@@ -767,11 +767,11 @@ namespace HIKARI {
                 c = std::cos(camRot);
             }
 
-            // 辅助函数
+            // 霎・勧蜃ｽ謨ｰ
             auto calculateOffset = [&](int i) -> Vector2 {
                 Vector2 offset{ 0.0f, 0.0f };
 
-                // 厚度偏移 
+                // 蜴壼ｺｦ蛛冗ｧｻ
                 float totalYOffset = 0.0f;
                 if (cfg.depthMode == SpritePileDepthMode::Pure2D_YStep) {
                     if (cfg.yStepPx != 0.0f) {
@@ -796,13 +796,13 @@ namespace HIKARI {
                 return offset;
                 };
 
-            // 实际绘制函数
+            // 螳樣刔扈伜宛蜃ｽ謨ｰ
             auto drawCmd = [&](int srcX, int srcY, const HIKARI::Transform2D& drawT) {
                 int handle = HIKARI::TEXTURE::GetDxHandle(strip.textureName);
                 if (handle < 0) return;
 
-                // 排序永远用物体脚底的 Y。
-                // baseZ 用作“排序补偿”（例如跳跃：视觉上 y 往上抬，但排序仍按脚底 y）。
+                // 謗貞ｺ乗ｰｸ霑懃畑迚ｩ菴楢・蠎慕噪 Y縲・
+                // baseZ 逕ｨ菴懌懈賜蠎剰｡･蛛ｿ窶晢ｼ井ｾ句ｦりｷｳ霍・ｼ夊ｧ・ｧ我ｸ・y 蠕荳頑堪・御ｽ・賜蠎丈ｻ肴潔閼壼ｺ・y・峨・
                 float pileSortY = baseT.position.y + baseZ;
 
                 PushSpriteRectHandleEx(
@@ -878,7 +878,7 @@ namespace HIKARI {
             }
         }
 
-        // ---- スプライト：ハンドル指定 ----
+        // ---- 繧ｹ繝励Λ繧､繝茨ｼ壹ワ繝ｳ繝峨Ν謖・ｮ・----
         void DrawSpriteHandle(int textureHandle,
             const HIKARI::Transform2D& t,
             float width, float height,
@@ -897,7 +897,7 @@ namespace HIKARI {
             cmd.transform = t;
             cmd.width = width;
             cmd.height = height;
-            // 默认 UV 全图
+            // 鮟倩ｮ､ UV 蜈ｨ蝗ｾ
             cmd.uv = { 0.0f, 0.0f, 1.0f, 1.0f };
 
             cmd.camMode = cam;
@@ -906,7 +906,7 @@ namespace HIKARI {
             gRenderList.push_back(cmd);
         }
 
-        // ---- スプライト：ハンドル指定 ----
+        // ---- 繧ｹ繝励Λ繧､繝茨ｼ壹ワ繝ｳ繝峨Ν謖・ｮ・----
         void DrawSpriteRectHandle(int textureHandle,
             int srcX, int srcY, int srcW, int srcH,
             const HIKARI::Transform2D& t,
@@ -931,7 +931,7 @@ namespace HIKARI {
             cmd.width = dstW;
             cmd.height = dstH;
 
-            // UV 计算
+            // UV 隶｡邂・
             cmd.uv.u0 = (float)srcX / texW;
             cmd.uv.v0 = (float)srcY / texH;
             cmd.uv.u1 = (float)(srcX + srcW) / texW;
@@ -944,7 +944,7 @@ namespace HIKARI {
         }
 
         // =========================================================
-        // DeformGrid 描画（DXハンドル版）
+        // DeformGrid 謠冗判・・X繝上Φ繝峨Ν迚茨ｼ・
         // =========================================================
         void DrawDeformGridHandle(
             int dxHandle,
@@ -959,17 +959,17 @@ namespace HIKARI {
             RenderCommand cmd;
             cmd.type = CommandType::DeformGrid;
             cmd.layer = gCurrentLayer;
-            // 排序深度：简单取第一个点的 Y 坐标
+            // 謗貞ｺ乗ｷｱ蠎ｦ・夂ｮ蜊募叙隨ｬ荳荳ｪ轤ｹ逧・Y 蝮先・
             cmd.sortY = grid.positions[0].y;
             cmd.orderIndex = gSubmissionCount++;
 
             cmd.dxHandle = dxHandle;
-            // DeformGrid 的 positions 通常是世界坐标，Transform 设为 Identity
+            // DeformGrid 逧・positions 騾壼ｸｸ譏ｯ荳也阜蝮先・ｼ卦ransform 隶ｾ荳ｺ Identity
             cmd.transform = HIKARI::Transform2D();
             cmd.width = 0;
             cmd.height = 0;
 
-            // 拷贝网格数据
+            // 諡ｷ雍晉ｽ第ｼ謨ｰ謐ｮ
             cmd.gridData = grid;
 
             cmd.camMode = cam;
@@ -979,7 +979,7 @@ namespace HIKARI {
         }
 
         // =========================================================
-        // DeformGrid 描画（テクスチャ名版）
+        // DeformGrid 謠冗判・医ユ繧ｯ繧ｹ繝√Ε蜷咲沿・・
         // =========================================================
         void DrawDeformGrid(const std::string& textureName, const DeformGrid& grid, CameraMode cam, unsigned int rgba)
         {
@@ -988,7 +988,7 @@ namespace HIKARI {
         }
 
         // =========================================================
-        // MeshQuad 
+        // MeshQuad
         // =========================================================
 
         void DrawMeshQuadHandleUV_Local(
@@ -1000,17 +1000,17 @@ namespace HIKARI {
             float u_lb, float v_lb, float u_rb, float v_rb,
             CameraMode cam,
             unsigned int rgba,
-            bool billboard // <--- 新增参数
+            bool billboard // <--- 譁ｰ蠅槫盾謨ｰ
         )
         {
             if (textureHandle < 0) return;
 
-            // [核心修改] 处理广告牌逻辑
+            // [譬ｸ蠢・ｿｮ謾ｹ] 螟・炊蟷ｿ蜻顔煙騾ｻ霎・
             HIKARI::Transform2D tt = t;
             if (billboard && cam == CameraMode::Inherit) {
-                // 1. 抵消摄像机旋转，始终面向屏幕
+                // 1. 謚ｵ豸域槍蜒乗惻譌玖ｽｬ・悟ｧ狗ｻ磯擇蜷大ｱ丞ｹ・
                 tt.rotation -= HIKARI::CAMERA::GetRotation();
-                // 2. 修正 2.5D 透视下的 Y 轴压扁
+                // 2. 菫ｮ豁｣ 2.5D 騾剰ｧ・ｸ狗噪 Y 霓ｴ蜴区堰
                 tt.scale.y *= HIKARI::CAMERA::GetBillboardScaleY();
             }
 
@@ -1022,13 +1022,13 @@ namespace HIKARI {
 
             cmd.dxHandle = textureHandle;
 
-            // 将修正后的 Transform 存入指令
+            // 蟆・ｿｮ豁｣蜷守噪 Transform 蟄伜・謖・ｻ､
             cmd.transform = tt;
 
-            // 存入4个局部顶点 (相对于 Spine 原点的坐标)
+            // 蟄伜・4荳ｪ螻驛ｨ鬘ｶ轤ｹ (逶ｸ蟇ｹ莠・Spine 蜴溽せ逧・攝譬・
             cmd.p0 = ltLocal; cmd.p1 = rtLocal; cmd.p2 = lbLocal; cmd.p3 = rbLocal;
 
-            // 存入4组UV
+            // 蟄伜・4扈ФV
             cmd.u_lt = u_lt; cmd.v_lt = v_lt;
             cmd.u_rt = u_rt; cmd.v_rt = v_rt;
             cmd.u_lb = u_lb; cmd.v_lb = v_lb;
@@ -1037,7 +1037,7 @@ namespace HIKARI {
             cmd.camMode = cam;
             cmd.rgba = (rgba == 0xFFFFFFFF ? gDefaultColor : rgba);
 
-            // 这里的 width/height 仅用于 pivot 计算，Mesh 模式下通常不重要，设为 1 即可
+            // 霑咎㈹逧・width/height 莉・畑莠・pivot 隶｡邂暦ｼ勲esh 讓｡蠑丈ｸ矩壼ｸｸ荳埼㍾隕・ｼ瑚ｮｾ荳ｺ 1 蜊ｳ蜿ｯ
             cmd.width = 1.0f;
             cmd.height = 1.0f;
 
@@ -1090,18 +1090,18 @@ namespace HIKARI {
             RenderCommand cmd;
             cmd.type = CommandType::MeshQuad;
             cmd.layer = gCurrentLayer;
-            // 排序深度：取底部两点的最大 Y (最靠近相机的点)
+            // 謗貞ｺ乗ｷｱ蠎ｦ・壼叙蠎暮Κ荳､轤ｹ逧・怙螟ｧ Y (譛髱霑醍嶌譛ｺ逧・せ)
             cmd.sortY = (lb.y > rb.y) ? lb.y : rb.y;
             cmd.orderIndex = gSubmissionCount++;
 
             cmd.dxHandle = textureHandle;
-            // 顶点已经是世界坐标了，不需要再变换，Transform 设为 Identity
+            // 鬘ｶ轤ｹ蟾ｲ扈乗弍荳也阜蝮先・ｺ・ｼ御ｸ埼怙隕∝・蜿俶困・卦ransform 隶ｾ荳ｺ Identity
             cmd.transform = HIKARI::Transform2D();
 
-            // 存入4个顶点
+            // 蟄伜・4荳ｪ鬘ｶ轤ｹ
             cmd.p0 = lt; cmd.p1 = rt; cmd.p2 = lb; cmd.p3 = rb;
 
-            // 存入4组UV
+            // 蟄伜・4扈ФV
             cmd.u_lt = u_lt; cmd.v_lt = v_lt;
             cmd.u_rt = u_rt; cmd.v_rt = v_rt;
             cmd.u_lb = u_lb; cmd.v_lb = v_lb;
@@ -1153,7 +1153,7 @@ namespace HIKARI {
             );
         }
 
-        // フレーム + MeshQuad 変形版
+        // 繝輔Ξ繝ｼ繝 + MeshQuad 螟牙ｽ｢迚・
         void DrawSpriteFrameEx(
             const std::string& textureName,
             const SpriteSheetInfo& sheet,
@@ -1170,7 +1170,7 @@ namespace HIKARI {
                 return;
             }
 
-            // 1) まずは通常のフレーム計算（どのコマを使うか）
+            // 1) 縺ｾ縺壹・騾壼ｸｸ縺ｮ繝輔Ξ繝ｼ繝險育ｮ暦ｼ医←縺ｮ繧ｳ繝槭ｒ菴ｿ縺・°・・
             int col = frameIndex % sheet.columns;
             int row = frameIndex / sheet.columns;
 
@@ -1179,7 +1179,7 @@ namespace HIKARI {
             int srcW = sheet.frameWidth;
             int srcH = sheet.frameHeight;
 
-            // 2) DX テクスチャハンドル＆サイズ取得
+            // 2) DX 繝・け繧ｹ繝√Ε繝上Φ繝峨Ν・・し繧､繧ｺ蜿門ｾ・
             int dxHandle = HIKARI::TEXTURE::GetDxHandle(textureName);
             if (dxHandle < 0) {
                 return;
@@ -1191,14 +1191,14 @@ namespace HIKARI {
                 return;
             }
 
-            // 3) このフレームがテクスチャ全体のどの範囲か（ベース UV）
+            // 3) 縺薙・繝輔Ξ繝ｼ繝縺後ユ繧ｯ繧ｹ繝√Ε蜈ｨ菴薙・縺ｩ縺ｮ遽・峇縺具ｼ医・繝ｼ繧ｹ UV・・
             float baseU0 = static_cast<float>(srcX) / static_cast<float>(texW);
             float baseV0 = static_cast<float>(srcY) / static_cast<float>(texH);
             float baseU1 = static_cast<float>(srcX + srcW) / static_cast<float>(texW);
             float baseV1 = static_cast<float>(srcY + srcH) / static_cast<float>(texH);
 
-            // 4) deform.uv は「フレーム内」でのローカル UV（0～1）として解釈
-            //    例: uv={0,0,1,1} → フレーム全体
+            // 4) deform.uv 縺ｯ縲後ヵ繝ｬ繝ｼ繝蜀・阪〒縺ｮ繝ｭ繝ｼ繧ｫ繝ｫ UV・・・・・峨→縺励※隗｣驥・
+            //    萓・ uv={0,0,1,1} 竊・繝輔Ξ繝ｼ繝蜈ｨ菴・
             auto lerp = [](float a, float b, float t) {
                 return a + (b - a) * t;
                 };
@@ -1208,7 +1208,7 @@ namespace HIKARI {
             float u1 = lerp(baseU0, baseU1, deform.uv.u1);
             float v1 = lerp(baseV0, baseV1, deform.uv.v1);
 
-            // 5) ローカル頂点（フレームサイズを基準にした矩形）＋オフセット
+            // 5) 繝ｭ繝ｼ繧ｫ繝ｫ鬆らせ・医ヵ繝ｬ繝ｼ繝繧ｵ繧､繧ｺ繧貞渕貅悶↓縺励◆遏ｩ蠖｢・会ｼ九が繝輔そ繝・ヨ
             float w = static_cast<float>(srcW);
             float h = static_cast<float>(srcH);
 
@@ -1226,17 +1226,17 @@ namespace HIKARI {
             rbLocal.x += deform.offsetRB.x;
             rbLocal.y += deform.offsetRB.y;
 
-            // 6) Transform2D + Camera を使って MeshQuad 描画
+            // 6) Transform2D + Camera 繧剃ｽｿ縺｣縺ｦ MeshQuad 謠冗判
             unsigned int c = (rgba == 0xFFFFFFFF ? GetDefaultColor() : rgba);
 
             DrawMeshQuadHandleUV_Local(
                 dxHandle,
                 t,
                 ltLocal, rtLocal, lbLocal, rbLocal,
-                u0, v0,   // 左上
-                u1, v0,   // 右上
-                u0, v1,   // 左下
-                u1, v1,   // 右下
+                u0, v0,   // 蟾ｦ荳・
+                u1, v0,   // 蜿ｳ荳・
+                u0, v1,   // 蟾ｦ荳・
+                u1, v1,   // 蜿ｳ荳・
                 cam,
                 c
             );

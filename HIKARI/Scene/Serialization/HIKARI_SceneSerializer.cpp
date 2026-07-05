@@ -7,6 +7,7 @@
 
 #include <json.hpp>
 
+#include "Core/HIKARI_JsonRead.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 namespace HIKARI {
@@ -31,17 +32,6 @@ namespace HIKARI {
                 in[1].is_number() ? in[1].get<float>() : fallback.y,
                 in[2].is_number() ? in[2].get<float>() : fallback.z,
                 in[3].is_number() ? in[3].get<float>() : fallback.w
-            };
-        }
-
-        MATH::Vec3 FromVec3(const json& in, const MATH::Vec3& fallback) {
-            if (!in.is_array() || in.size() < 3) {
-                return fallback;
-            }
-            return {
-                in[0].is_number() ? in[0].get<float>() : fallback.x,
-                in[1].is_number() ? in[1].get<float>() : fallback.y,
-                in[2].is_number() ? in[2].get<float>() : fallback.z
             };
         }
 
@@ -277,7 +267,7 @@ namespace HIKARI {
         void DeserializeEnvironment(const json& in, SceneEnvironment& environment) {
             if (in.contains("ambient")) {
                 const json& ambient = in["ambient"];
-                environment.ambient.color = FromVec3(ambient.value("color", json::array()), environment.ambient.color);
+                environment.ambient.color = JSONREAD::Vec3Or(ambient.value("color", json::array()), environment.ambient.color);
                 environment.ambient.intensity = ambient.value("intensity", environment.ambient.intensity);
                 environment.ambient.useSkyColor = ambient.value("useSkyColor", environment.ambient.useSkyColor);
                 environment.ambient.skyBlend = ambient.value("skyBlend", environment.ambient.skyBlend);
@@ -286,9 +276,9 @@ namespace HIKARI {
             if (in.contains("directional")) {
                 const json& directional = in["directional"];
                 environment.directional.enabled = directional.value("enabled", environment.directional.enabled);
-                environment.directional.direction = FromVec3(directional.value("direction", json::array()), environment.directional.direction);
+                environment.directional.direction = JSONREAD::Vec3Or(directional.value("direction", json::array()), environment.directional.direction);
                 environment.directional.intensity = directional.value("intensity", environment.directional.intensity);
-                environment.directional.color = FromVec3(directional.value("color", json::array()), environment.directional.color);
+                environment.directional.color = JSONREAD::Vec3Or(directional.value("color", json::array()), environment.directional.color);
             }
 
             if (in.contains("directionalShadow") && in["directionalShadow"].is_object()) {
@@ -314,9 +304,9 @@ namespace HIKARI {
                 for (const json& node : in["pointLights"]) {
                     PointLight pointLight{};
                     pointLight.enabled = node.value("enabled", pointLight.enabled);
-                    pointLight.position = FromVec3(node.value("position", json::array()), pointLight.position);
+                    pointLight.position = JSONREAD::Vec3Or(node.value("position", json::array()), pointLight.position);
                     pointLight.range = node.value("range", pointLight.range);
-                    pointLight.color = FromVec3(node.value("color", json::array()), pointLight.color);
+                    pointLight.color = JSONREAD::Vec3Or(node.value("color", json::array()), pointLight.color);
                     pointLight.intensity = node.value("intensity", pointLight.intensity);
                     environment.pointLights.push_back(pointLight);
                 }
@@ -330,11 +320,11 @@ namespace HIKARI {
                 environment.sky.scale = sky.value("scale", environment.sky.scale);
                 environment.sky.yaw = sky.value("yaw", environment.sky.yaw);
                 environment.sky.exposure = sky.value("exposure", environment.sky.exposure);
-                environment.sky.tint = FromVec3(sky.value("tint", json::array()), environment.sky.tint);
+                environment.sky.tint = JSONREAD::Vec3Or(sky.value("tint", json::array()), environment.sky.tint);
                 environment.sky.followCamera = sky.value("followCamera", environment.sky.followCamera);
-                environment.sky.zenithColor = FromVec3(sky.value("zenithColor", json::array()), environment.sky.zenithColor);
-                environment.sky.horizonColor = FromVec3(sky.value("horizonColor", json::array()), environment.sky.horizonColor);
-                environment.sky.groundColor = FromVec3(sky.value("groundColor", json::array()), environment.sky.groundColor);
+                environment.sky.zenithColor = JSONREAD::Vec3Or(sky.value("zenithColor", json::array()), environment.sky.zenithColor);
+                environment.sky.horizonColor = JSONREAD::Vec3Or(sky.value("horizonColor", json::array()), environment.sky.horizonColor);
+                environment.sky.groundColor = JSONREAD::Vec3Or(sky.value("groundColor", json::array()), environment.sky.groundColor);
                 environment.sky.horizonPower = sky.value("horizonPower", environment.sky.horizonPower);
                 environment.sky.showSunDisk = sky.value("showSunDisk", environment.sky.showSunDisk);
                 environment.sky.sunDiskIntensity = sky.value("sunDiskIntensity", environment.sky.sunDiskIntensity);
@@ -348,7 +338,7 @@ namespace HIKARI {
                 const json& probe = in["reflectionProbe"];
                 environment.reflectionProbe.enabled = probe.value("enabled", environment.reflectionProbe.enabled);
                 environment.reflectionProbe.sourceCubemapAsset = probe.value("sourceCubemapAsset", environment.reflectionProbe.sourceCubemapAsset);
-                environment.reflectionProbe.position = FromVec3(probe.value("position", json::array()), environment.reflectionProbe.position);
+                environment.reflectionProbe.position = JSONREAD::Vec3Or(probe.value("position", json::array()), environment.reflectionProbe.position);
                 environment.reflectionProbe.radius = probe.value("radius", environment.reflectionProbe.radius);
                 environment.reflectionProbe.intensity = probe.value("intensity", environment.reflectionProbe.intensity);
                 environment.reflectionProbe.influenceShape = ParseReflectionProbeInfluenceShape(
@@ -364,16 +354,16 @@ namespace HIKARI {
                 const bool hasProjectionBoxCenter = probe.contains("projectionBoxCenter");
                 const bool hasProjectionBoxSize = probe.contains("projectionBoxSize");
 
-                environment.reflectionProbe.influenceBoxCenter = FromVec3(
+                environment.reflectionProbe.influenceBoxCenter = JSONREAD::Vec3Or(
                     probe.value("influenceBoxCenter", json::array()),
                     hasInfluenceBoxCenter ? environment.reflectionProbe.influenceBoxCenter : environment.reflectionProbe.position);
-                environment.reflectionProbe.influenceBoxSize = FromVec3(
+                environment.reflectionProbe.influenceBoxSize = JSONREAD::Vec3Or(
                     probe.value("influenceBoxSize", json::array()),
                     hasInfluenceBoxSize ? environment.reflectionProbe.influenceBoxSize : radiusBoxSize);
-                environment.reflectionProbe.projectionBoxCenter = FromVec3(
+                environment.reflectionProbe.projectionBoxCenter = JSONREAD::Vec3Or(
                     probe.value("projectionBoxCenter", json::array()),
                     hasProjectionBoxCenter ? environment.reflectionProbe.projectionBoxCenter : environment.reflectionProbe.position);
-                environment.reflectionProbe.projectionBoxSize = FromVec3(
+                environment.reflectionProbe.projectionBoxSize = JSONREAD::Vec3Or(
                     probe.value("projectionBoxSize", json::array()),
                     hasProjectionBoxSize ? environment.reflectionProbe.projectionBoxSize : radiusBoxSize);
                 environment.reflectionProbe.blendDistance = probe.value("blendDistance", environment.reflectionProbe.blendDistance);
@@ -419,7 +409,7 @@ namespace HIKARI {
             if (in.contains("fog") && in["fog"].is_object()) {
                 const json& fog = in["fog"];
                 environment.fog.enabled = fog.value("enabled", environment.fog.enabled);
-                environment.fog.color = FromVec3(fog.value("color", json::array()), environment.fog.color);
+                environment.fog.color = JSONREAD::Vec3Or(fog.value("color", json::array()), environment.fog.color);
                 environment.fog.density = fog.value("density", environment.fog.density);
                 environment.fog.startDistance = fog.value("startDistance", environment.fog.startDistance);
                 environment.fog.endDistance = fog.value("endDistance", environment.fog.endDistance);
@@ -468,8 +458,7 @@ namespace HIKARI {
             LightProbeVolumeSettings lightProbe = settings.lightProbeVolume;
             ClampLightProbeVolumeSettings(lightProbe);
 
-            // Bake 用の authoring 設定は SceneDocument 側に持たせる。
-            out["lightProbeVolume"]["enabled"] = lightProbe.enabled;
+            // Bake 逕ｨ縺ｮ authoring 險ｭ螳壹・ SceneDocument 蛛ｴ縺ｫ謖√◆縺帙ｋ縲・            out["lightProbeVolume"]["enabled"] = lightProbe.enabled;
             out["lightProbeVolume"]["origin"] = ToVec3(lightProbe.origin);
             out["lightProbeVolume"]["size"] = ToVec3(lightProbe.size);
             out["lightProbeVolume"]["count"] = json::array({
@@ -492,8 +481,8 @@ namespace HIKARI {
                 const json& lightProbe = in["lightProbeVolume"];
                 LightProbeVolumeSettings& out = settings.lightProbeVolume;
                 out.enabled = lightProbe.value("enabled", out.enabled);
-                out.origin = FromVec3(lightProbe.value("origin", json::array()), out.origin);
-                out.size = FromVec3(lightProbe.value("size", json::array()), out.size);
+                out.origin = JSONREAD::Vec3Or(lightProbe.value("origin", json::array()), out.origin);
+                out.size = JSONREAD::Vec3Or(lightProbe.value("size", json::array()), out.size);
                 if (lightProbe.contains("count") && lightProbe["count"].is_array() && lightProbe["count"].size() >= 3) {
                     const json& count = lightProbe["count"];
                     const auto readCount = [](const json& value, uint32_t fallback) {
@@ -623,9 +612,9 @@ namespace HIKARI {
 
                 if (node.contains("transform") && node["transform"].is_object()) {
                     const json& transform = node["transform"];
-                    objectData.transform.position = FromVec3(transform.value("position", json::array()), objectData.transform.position);
-                    objectData.transform.rotationEulerDeg = FromVec3(transform.value("rotationEulerDeg", json::array()), objectData.transform.rotationEulerDeg);
-                    objectData.transform.scale = FromVec3(transform.value("scale", json::array()), objectData.transform.scale);
+                    objectData.transform.position = JSONREAD::Vec3Or(transform.value("position", json::array()), objectData.transform.position);
+                    objectData.transform.rotationEulerDeg = JSONREAD::Vec3Or(transform.value("rotationEulerDeg", json::array()), objectData.transform.rotationEulerDeg);
+                    objectData.transform.scale = JSONREAD::Vec3Or(transform.value("scale", json::array()), objectData.transform.scale);
                 }
 
                 if (node.contains("components") && node["components"].is_array()) {

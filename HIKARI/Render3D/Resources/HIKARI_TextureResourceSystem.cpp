@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "Render3D/Resources/HIKARI_RenderResourceSystem.h"
 
 namespace HIKARI::RENDER3D {
@@ -11,7 +11,7 @@ namespace HIKARI::RENDER3D {
     namespace {
 
         struct TextureResourceSystemState {
-            // D3D12 descriptor は texture backend 側に残し、resource pool は RenderResourceSystem が所有する。
+            // Keep D3D12 descriptors in the texture backend; render resources are owned by RenderResourceSystem.
             std::unordered_map<uint64_t, int> backendByResource{};
             std::unordered_map<int, TextureResourceHandle> resourceByBackend{};
         };
@@ -148,8 +148,6 @@ namespace HIKARI::RENDER3D {
 
             return RegisterTextureResourceFromBackendHandle(backendHandle);
 
-            // 旧 int handle 経路が残る間だけ、backend handle を resource pool に橋渡しする。
-            return RegisterTextureResourceFromBackendHandle(backendHandle);
         }
 
     } // namespace

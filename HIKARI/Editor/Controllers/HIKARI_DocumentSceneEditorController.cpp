@@ -1,4 +1,4 @@
-#include "Editor/HIKARI_DocumentSceneEditorController.h"
+#include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
 
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
@@ -724,7 +724,7 @@ namespace HIKARI {
 
             if (resourceWorkspacePanel_.ConsumeRefreshCurrentSceneResourcesRequested()) {
                 EDITOR::ClearMaterialTextureSlotPreviewCache();
-                // 現在の SceneDocument に出てくる依孁Eresource をまとめて張り直す、E
+                // 迴ｾ蝨ｨ縺ｮ SceneDocument 縺ｫ蜃ｺ縺ｦ縺上ｋ萓晏ｭ・resource 繧偵∪縺ｨ繧√※蠑ｵ繧顔峩縺吶・
                 applyRefreshReport(refreshService.RefreshCurrentSceneResources(scene));
             }
 
@@ -924,7 +924,7 @@ namespace HIKARI {
                 gizmoCapture = gizmoResult.interacting;
 
                 if (gizmoResult.changed) {
-                    // Runtime Transform と SceneDocument の TRS を同時に更新する、E
+                    // Runtime Transform 縺ｨ SceneDocument 縺ｮ TRS 繧貞酔譎ゅ↓譖ｴ譁ｰ縺吶ｋ縲・
                     if (SceneObjectData* documentObject =
                         selectionSync_.FindDocumentObjectByRuntime(scene, context_.selection.selectedObject)) {
                         documentObject->transform = gizmoResult.transform;
@@ -1090,7 +1090,7 @@ namespace HIKARI {
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
-            // Drop target は viewport image の直後に登録し、後続の overlay item に奪わせない。
+            // Drop target 縺ｯ viewport image 縺ｮ逶ｴ蠕後↓逋ｻ骭ｲ縺励∝ｾ檎ｶ壹・ overlay item 縺ｫ螂ｪ繧上○縺ｪ縺・・
             HandleGameViewportAssetDrop(scene);
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
@@ -1103,7 +1103,7 @@ namespace HIKARI {
             drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
             drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
-            // Dummy が viewport 全体の hit rect になるため、overlay 描画前に drop target にする。
+            // Dummy 縺・viewport 蜈ｨ菴薙・ hit rect 縺ｫ縺ｪ繧九◆繧√｛verlay 謠冗判蜑阪↓ drop target 縺ｫ縺吶ｋ縲・
             HandleGameViewportAssetDrop(scene);
             drawTransformGizmoOverlay();
             DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);

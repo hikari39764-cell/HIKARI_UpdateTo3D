@@ -1,6 +1,6 @@
 #include "HIKARI_StatsPanel.h"
-#include "HIKARI_EditorSelection.h"
-#include "HIKARI_DxTexture.h"
+#include "Editor/HIKARI_EditorContext.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"

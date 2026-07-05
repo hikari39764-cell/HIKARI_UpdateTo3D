@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <d3d12.h>
 #include <DirectXMath.h>
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_ModelAsset.h"
-#include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_Transform3D.h"
 #include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
@@ -45,6 +45,7 @@ namespace HIKARI::MESHRENDERER {
     bool RenderGeometryAuxPass(
         RENDER3D::SCREENSPACE::ScreenSpaceGeometryAux& geometryAux,
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
+    bool HasDepthPrepassWork();
     bool RenderDepthPrepass(D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv);
     bool FinalizeGpuDrivenVisibilityWithoutDepth();
     bool FinalizeGpuDrivenVisibilityFromDepth(

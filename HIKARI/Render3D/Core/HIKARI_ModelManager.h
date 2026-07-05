@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "Render3D/Core/HIKARI_MaterialTextureUsage.h"
-#include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
 
 namespace HIKARI {
 

@@ -1594,9 +1594,6 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h">
-      <Filter>Header Files\Editor</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -1677,9 +1674,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h">
-      <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h">
       <Filter>Header Files\Editor\Controllers</Filter>
@@ -1842,9 +1836,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h">
       <Filter>Header Files\App</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h">
-      <Filter>Header Files\Render3D\Animation</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\HIKARI_Anim.h">
       <Filter>Header Files\Legacy</Filter>
@@ -2183,6 +2174,9 @@
       <Filter>Header Files\Render3D\Material</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">
@@ -2194,10 +2188,43 @@
     <None Include="HIKARI\Icon\hikari_asset_icons.png">
       <Filter>Project\Icons</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterGpuData.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshMaterialData.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshObjectData.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenWaterDeform.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletDraw.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletForwardMSCommon.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletMSCommon.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli">
@@ -2222,6 +2249,27 @@
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_FxWaterPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueAlbedoOnlyPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueFullPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoMaterialExtrasPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoNormalMapPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoShadowPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoSsaoPS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaquePS.hlsl">
@@ -2281,6 +2329,9 @@
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Render3D_MeshletShadowPS.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl">
       <Filter>Project\Shaders\Render3D</Filter>
     </None>
@@ -2337,6 +2388,9 @@
     </None>
     <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl">
       <Filter>Project\Shaders\Post</Filter>
+    </None>
+    <None Include="Tools\ShaderCheck\Compile-HikariShaders.ps1">
+      <Filter>Project\Tools</Filter>
     </None>
   </ItemGroup>
 </Project>

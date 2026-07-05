@@ -112,6 +112,61 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             state.frozenCullingDepthStats = {};
             state.frozenCullingDepthStatsValid = false;
         }
+
+        // History HZB が使えないフレームでも遮蔽剔除を丸ごと失わないよう、
+        // occluder のみの depth prepass から当該フレームの depth pyramid を構築し、
+        // GPU-driven visibility を確定する。pyramid が成立したら true を返す。
+        bool BuildDepthVisibilityFromOccluderPrepass(
+            ScreenSpaceRuntimeState& state,
+            const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
+            const MESHRENDERER::CameraCB& cullingCameraCb,
+            ScreenSpaceFrameResult& result) {
+
+            bool depthWritten = false;
+            if (MESHRENDERER::HasDepthPrepassWork()) {
+                const D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
+                    state.depthVisibility.BeginDepthPrepass(
+                        context.cmd,
+                        context.width,
+                        context.height);
+                depthWritten =
+                    visibilityDsv.ptr != 0 &&
+                    MESHRENDERER::RenderDepthPrepass(visibilityDsv);
+            }
+            result.depthPrepassWritten = depthWritten;
+            state.depthVisibility.RecordDepthPrepass(depthWritten);
+            if (depthWritten) {
+                result.hzbBuilt =
+                    state.depthVisibility.BuildDepthPyramidFromVisibilityPrepass(
+                        context.cmd,
+                        context.width,
+                        context.height,
+                        cullingCameraCb.viewProj);
+            }
+
+            context.renderTargetAccess.Rebind();
+            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& currentDepthStats =
+                state.depthVisibility.GetStats();
+            state.depthVisibilityValid =
+                IsDepthPyramidStatsUsable(
+                    currentDepthStats,
+                    context.width,
+                    context.height);
+            state.depthVisibilityViewProjValid = state.depthVisibilityValid;
+            state.depthVisibilityViewProj = cullingCameraCb.viewProj;
+            if (!state.depthVisibilityValid) {
+                (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
+                return false;
+            }
+
+            PublishFrameDepthPyramid(
+                result,
+                currentDepthStats.depthPyramid,
+                DEPTH::DepthPyramidViewKind::CurrentFrame);
+            (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
+                currentDepthStats);
+            return true;
+        }
     }
 
     ScreenSpaceRuntimeState& GetScreenSpaceRuntimeState() {
@@ -232,47 +287,15 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                     state.frozenCullingDepthStats);
             } else {
-                D3D12_CPU_DESCRIPTOR_HANDLE visibilityDsv =
-                    state.depthVisibility.BeginDepthPrepass(
-                        context.cmd,
-                        context.width,
-                        context.height);
-                const bool depthWritten =
-                    visibilityDsv.ptr != 0 &&
-                    MESHRENDERER::RenderDepthPrepass(visibilityDsv);
-                result.depthPrepassWritten = depthWritten;
-                state.depthVisibility.RecordDepthPrepass(depthWritten);
-                if (depthWritten) {
-                    result.hzbBuilt =
-                        state.depthVisibility.BuildDepthPyramidFromVisibilityPrepass(
-                            context.cmd,
-                            context.width,
-                            context.height,
-                            cullingCameraCb.viewProj);
-                }
-
-                context.renderTargetAccess.Rebind();
-                const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& currentDepthStats =
-                    state.depthVisibility.GetStats();
-                state.depthVisibilityValid =
-                    IsDepthPyramidStatsUsable(
-                        currentDepthStats,
-                        context.width,
-                        context.height);
-                state.depthVisibilityViewProjValid = state.depthVisibilityValid;
-                state.depthVisibilityViewProj = cullingCameraCb.viewProj;
-                if (state.depthVisibilityValid) {
-                    PublishFrameDepthPyramid(
-                        result,
-                        currentDepthStats.depthPyramid,
-                        DEPTH::DepthPyramidViewKind::CurrentFrame);
-                    state.frozenCullingDepthStats = currentDepthStats;
+                if (BuildDepthVisibilityFromOccluderPrepass(
+                    state,
+                    context,
+                    cullingCameraCb,
+                    result)) {
+                    state.frozenCullingDepthStats = state.depthVisibility.GetStats();
                     state.frozenCullingDepthStatsValid = true;
-                    (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
-                        currentDepthStats);
                 } else {
                     ClearFrozenCullingDepthStats(state);
-                    (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
                 }
             }
         } else if (depthVisibilityAllowedThisFrame &&
@@ -293,10 +316,15 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                 historyDepthStats);
         } else {
+            // History pyramid が視点変化や resize で使えないフレーム。
+            // 以前はここで遮蔽剔除なしに落としていたが、occluder prepass から
+            // 当該フレームの pyramid を作って剔除を維持する。
             ClearFrozenCullingDepthStats(state);
-            state.depthVisibilityValid = false;
-            state.depthVisibilityViewProjValid = false;
-            (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
+            (void)BuildDepthVisibilityFromOccluderPrepass(
+                state,
+                context,
+                cullingCameraCb,
+                result);
         }
 
         const float depthVisibilityMs =

@@ -1,4 +1,4 @@
-#include "Render3D/HIKARI_ModelManager.h"
+#include "Render3D/Core/HIKARI_ModelManager.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -18,7 +18,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_AssimpModelLoader.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
-#include "Render3D/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "HIKARI_Services.h"
 
@@ -137,7 +137,7 @@ namespace HIKARI {
             }
 
             std::vector<RENDER3D::TextureResourceHandle> releasedResources{};
-            // Model reload 時に古い material slot の texture resource を deferred release へ渡す。
+            // Model reload 譎ゅ↓蜿､縺・material slot 縺ｮ texture resource 繧・deferred release 縺ｸ貂｡縺吶・
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::BaseColor)), releasedResources);
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Normal)), releasedResources);
             ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness)), releasedResources);
@@ -886,7 +886,7 @@ namespace HIKARI {
             return false;
         }
 
-        // Asset entry 自体は保持し、中身だけを捨てて同じ id に再ロードする。
+        // Asset entry 閾ｪ菴薙・菫晄戟縺励∽ｸｭ霄ｫ縺縺代ｒ謐ｨ縺ｦ縺ｦ蜷後§ id 縺ｫ蜀阪Ο繝ｼ繝峨☆繧九・
         UnloadAsset(name);
         return LoadAssetNow(name);
     }
@@ -1098,7 +1098,7 @@ namespace HIKARI {
         runtimeMaterial.SetFeatureBits(source.featureBits);
         runtimeMaterial.SetShaderProfileId(source.shaderProfileId);
 
-        // 実行時 Material は、元パスと解決済み cooked パスを両方保持する。
+        // 螳溯｡梧凾 Material 縺ｯ縲∝・繝代せ縺ｨ隗｣豎ｺ貂医∩ cooked 繝代せ繧剃ｸ｡譁ｹ菫晄戟縺吶ｋ縲・
         runtimeMaterial.SetTextureSlot(ModelTextureUsage::BaseColor, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_baseColor",
@@ -1150,7 +1150,7 @@ namespace HIKARI {
             }
         };
 
-        // 構造化描画は ModelAsset の texture 配列から SRV を引くため、ここで cooked パスへ寄せる。
+        // 讒矩蛹匁緒逕ｻ縺ｯ ModelAsset 縺ｮ texture 驟榊・縺九ｉ SRV 繧貞ｼ輔￥縺溘ａ縲√％縺薙〒 cooked 繝代せ縺ｸ蟇・○繧九・
         for (const MaterialAsset& material : asset.materials) {
             resolveSlot(material.baseColorTexture, ModelTextureUsage::BaseColor);
             resolveSlot(material.normalTexture, ModelTextureUsage::Normal);
@@ -1252,7 +1252,7 @@ namespace HIKARI {
         std::vector<VertexStatic3D> legacyVertices;
         std::vector<uint32_t> legacyIndices;
 
-        // HMODEL は CPU データを保持し、実行時だけ従来の Mesh/Material へ橋渡しする。
+        // HMODEL 縺ｯ CPU 繝・・繧ｿ繧剃ｿ晄戟縺励∝ｮ溯｡梧凾縺縺大ｾ捺擂縺ｮ Mesh/Material 縺ｸ讖区ｸ｡縺励☆繧九・
         for (const MeshAsset& meshAsset : asset.meshes) {
             for (const MeshPrimitive& primitive : meshAsset.primitives) {
                 const uint32_t baseVertex = static_cast<uint32_t>(legacyVertices.size());
@@ -1678,8 +1678,8 @@ namespace HIKARI {
                     MATERIAL_POLICY::HasThinTransparentCue(baseColorTexturePath)) {
                     mat.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
                 }
-                // Opaque の doubleSided は cluster の背面 cone culling を殺しやすい。
-                // MaterialAsset には元の意図を保持し、実行時の有効化は MATERIAL_POLICY に任せる。
+                // Opaque 縺ｮ doubleSided 縺ｯ cluster 縺ｮ閭碁擇 cone culling 繧呈ｮｺ縺励ｄ縺吶＞縲・
+                // MaterialAsset 縺ｫ縺ｯ蜈・・諢丞峙繧剃ｿ晄戟縺励∝ｮ溯｡梧凾縺ｮ譛牙柑蛹悶・ MATERIAL_POLICY 縺ｫ莉ｻ縺帙ｋ縲・
                 mat.doubleSided = importedDoubleSided;
 
                 if (matNode.contains("extensions") && matNode["extensions"].is_object()) {

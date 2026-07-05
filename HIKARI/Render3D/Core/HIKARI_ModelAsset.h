@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "Assets/HIKARI_AssetTypes.h"
-#include "Render3D/HIKARI_Material.h"
+#include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/HIKARI_Transform3D.h"
