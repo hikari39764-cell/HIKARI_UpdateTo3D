@@ -66,14 +66,12 @@ namespace HIKARI {
         }
 
         const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
-        const MODELRENDERER::ModelRendererFrameStats& modelFrameStats = modelStats.frame;
         const MODELRENDERER::ModelRendererCacheStats& modelCacheStats = modelStats.cache;
         const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneRenderCacheStats =
             RenderSubmissionSystem::GetSceneRenderCacheStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
         if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
-            ImGui::Text("Submitted Model Items: %u", modelFrameStats.submittedModelItemCount);
             if (ImGui::TreeNodeEx("RenderModel Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Text("Requests: %u", modelCacheStats.renderModelCacheRequestCount);
                 ImGui::Text("Hits / Misses: %u / %u",
@@ -82,17 +80,6 @@ namespace HIKARI {
                 ImGui::Text("Cached Models: %u", modelCacheStats.renderModelCachedModelCount);
                 ImGui::Text("Cached Surfaces: %u", modelCacheStats.renderModelCachedSurfaceCount);
                 ImGui::Text("Invalid Cached Models: %u", modelCacheStats.renderModelCacheInvalidCount);
-                ImGui::TreePop();
-            }
-            if (ImGui::TreeNodeEx("RenderModel Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Valid / Invalid Requests: %u / %u",
-                    modelFrameStats.renderModelValidRequestCount,
-                    modelFrameStats.renderModelInvalidRequestCount);
-                ImGui::Text("Requested Surfaces: %u", modelFrameStats.renderModelRequestedSurfaceCount);
-                ImGui::Text("Structured Nodes Submitted / Culled: %u / %u",
-                    modelFrameStats.structuredNodeSubmittedCount,
-                    modelFrameStats.structuredNodeCulledCount);
-                ImGui::Text("Structured Missing Bounds: %u", modelFrameStats.structuredCullBoundsMissingCount);
                 ImGui::TreePop();
             }
             if (ImGui::TreeNodeEx("Scene Render Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -114,8 +101,7 @@ namespace HIKARI {
                     sceneRenderCacheStats.renderModelInvalidCount);
                 ImGui::TreePop();
             }
-            ImGui::Text("Static / Skinned Draw Items: %zu / %zu", meshStats.staticDrawItemCount, meshStats.skinnedDrawItemCount);
-            ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu", meshStats.wireDrawItemCount, meshStats.wireGpuDrawCount);
+            ImGui::Text("Wire GPU Draws: %zu", meshStats.wireGpuDrawCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
             ImGui::Text("PSO Cache Hit / Miss: %zu / %zu", meshStats.psoCacheHitCount, meshStats.psoCacheMissCount);
             ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
@@ -178,9 +164,11 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Animation / Skinning")) {
-            ImGui::Text("Animated Local Builds: %u", modelFrameStats.animatedLocalBuildCount);
-            ImGui::Text("Pose Updated / Reused: %u / %u", modelCacheStats.poseUpdatedCount, modelCacheStats.poseReusedCount);
-            ImGui::Text("Joint Palette Builds: %u", modelFrameStats.jointPaletteBuildCount);
+            ImGui::Text("GPU Driven Skinned Commands: %zu", meshStats.gpuDrivenSkinnedCommandCount);
+            ImGui::Text("GPU Driven Skinned Records: %zu / %zu / %zu",
+                meshStats.gpuDrivenSkinnedSourceRecordCount,
+                meshStats.gpuDrivenSkinnedSubmittedRecordCount,
+                meshStats.gpuDrivenSkinnedSkippedRecordCount);
             ImGui::Text("Uploaded Joints: %zu", meshStats.uploadedJointCount);
             ImGui::TreePop();
         }

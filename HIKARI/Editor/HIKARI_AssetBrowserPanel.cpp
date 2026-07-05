@@ -730,6 +730,13 @@ namespace HIKARI {
                 cluster["profile"] = ModelGeometryProfileItems[profile];
                 cluster["partitionLargeSurfaces"] = true;
                 cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
+                cluster["partitionMinClusterEstimate"] = profile == 1 ? 4 : 16;
+                cluster["compactUnderfilledClusters"] = true;
+                cluster["minClusterOccupancyRatio"] = 0.75f;
+                cluster["maxNormalBucketClusterOverhead"] = 1.20f;
+                cluster["clusterMergeNormalMinDot"] = 0.20f;
+                cluster["normalBucketCoherentGroupMinDot"] = 0.35f;
+                cluster["normalBucketQualityBonusRatio"] = 0.15f;
                 dirty = true;
             }
 
@@ -743,7 +750,7 @@ namespace HIKARI {
 
             float qualityBias = cluster.value("lodQualityBias", 1.0f);
             if (ImGui::InputFloat("LOD Quality Bias", &qualityBias)) {
-                cluster["lodQualityBias"] = (std::max)(0.25f, (std::min)(qualityBias, 4.0f));
+                cluster["lodQualityBias"] = (std::max)(0.50f, (std::min)(qualityBias, 4.0f));
                 dirty = true;
             }
 
@@ -755,7 +762,8 @@ namespace HIKARI {
 
             float extent = cluster.value("largeSurfaceTargetExtent", defaultPartitionExtent);
             if (ImGui::InputFloat("Partition Target Extent", &extent)) {
-                cluster["largeSurfaceTargetExtent"] = (std::max)(0.75f, (std::min)(extent, 64.0f));
+                cluster["largeSurfaceTargetExtent"] =
+                    (std::max)(characterProfile ? 1.0f : 2.0f, (std::min)(extent, 64.0f));
                 dirty = true;
             }
 

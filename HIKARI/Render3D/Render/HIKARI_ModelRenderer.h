@@ -4,10 +4,9 @@
 #include <cstdint>
 
 #include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_SceneEnvironment.h"
+#include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
-#include "HIKARI_ModelRenderItem.h"
 
 namespace HIKARI::MODELRENDERER {
 
@@ -21,37 +20,7 @@ namespace HIKARI::MODELRENDERER {
     const char* ToString(ModelRendererFrameKind kind);
 
     struct ModelRendererFrameStats {
-        uint32_t submittedModelItemCount = 0;
-        uint32_t structuredModelCount = 0;
-        uint32_t structuredNodeSubmittedCount = 0;
-        uint32_t structuredNodeCulledCount = 0;
-        uint32_t structuredCullBoundsMissingCount = 0;
-
-        uint32_t renderModelValidRequestCount = 0;
-        uint32_t renderModelInvalidRequestCount = 0;
-        uint32_t renderModelRequestedSurfaceCount = 0;
-
-        uint32_t skinnedNodeCount = 0;
-        uint32_t builtPaletteCount = 0;
-        uint32_t totalJointMatrixCount = 0;
-        uint32_t skeletonDebugLineCount = 0;
-
-        uint32_t animatedLocalBuildCount = 0;
-        uint32_t sampledChannelCount = 0;
-        uint32_t sampledKeySearchCount = 0;
-        uint32_t nodeGlobalMatrixBuildCount = 0;
-        uint32_t nodeGlobalMatrixCount = 0;
-        uint32_t jointPaletteBuildCount = 0;
-        uint32_t jointPaletteMatrixCount = 0;
-        uint32_t lodNearCount = 0;
-        uint32_t lodMidCount = 0;
-        uint32_t lodFarCount = 0;
-        uint32_t lodVeryFarCount = 0;
-
-        int lastSkinIndex = -1;
-        uint32_t lastPaletteJointCount = 0;
-        bool hasFirstJointMatrix = false;
-        MATH::Mat4 firstJointMatrix{};
+        uint32_t reserved = 0;
     };
 
     struct ModelRendererCacheStats {
@@ -61,15 +30,6 @@ namespace HIKARI::MODELRENDERER {
         uint32_t renderModelCacheInvalidCount = 0;
         uint32_t renderModelCachedModelCount = 0;
         uint32_t renderModelCachedSurfaceCount = 0;
-
-        uint32_t poseCacheHitCount = 0;
-        uint32_t poseCacheMissCount = 0;
-        uint32_t poseUpdatedCount = 0;
-        uint32_t poseReusedCount = 0;
-        uint32_t expandedMeshCacheHitCount = 0;
-        uint32_t expandedMeshCacheMissCount = 0;
-        uint32_t jointPaletteCacheHitCount = 0;
-        uint32_t jointPaletteCacheMissCount = 0;
     };
 
     struct ModelRendererDebugStats {
@@ -81,7 +41,6 @@ namespace HIKARI::MODELRENDERER {
     void Reset();
     void ResetModelRendererFrameStats();
     void BeginModelRendererFrame(ModelRendererFrameKind kind);
-    void SubmitModel(const ModelRenderItem& item);
     void RenderAll(
         const Camera3D& camera,
         const SceneEnvironment& environment,

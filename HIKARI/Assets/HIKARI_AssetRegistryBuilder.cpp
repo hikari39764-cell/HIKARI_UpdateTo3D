@@ -242,14 +242,14 @@ namespace HIKARI {
             }
             options.buildClusterGeometry = ReadClusterBool(settings, cluster, "enabled", true);
             options.maxLodCount = ReadClusterUint(settings, cluster, "maxLodCount", options.maxLodCount, 1u, 5u);
-            options.lodQualityBias = ReadClusterFloat(settings, cluster, "lodQualityBias", options.lodQualityBias, 0.25f, 4.0f);
+            options.lodQualityBias = ReadClusterFloat(settings, cluster, "lodQualityBias", options.lodQualityBias, 0.50f, 4.0f);
             options.partitionLargeSurfaces = ReadClusterBool(settings, cluster, "partitionLargeSurfaces", options.partitionLargeSurfaces);
             options.largeSurfaceTargetExtent = ReadClusterFloat(
                 settings,
                 cluster,
                 "largeSurfaceTargetExtent",
                 options.largeSurfaceTargetExtent,
-                0.75f,
+                options.profile == ModelGeometryCookProfile::Character ? 1.0f : 2.0f,
                 64.0f);
             options.lockPartitionBorders = ReadClusterBool(settings, cluster, "lockPartitionBorders", options.lockPartitionBorders);
             return options;

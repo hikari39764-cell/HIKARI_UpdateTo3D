@@ -274,9 +274,6 @@ namespace HIKARI::MESHRENDERER {
         size_t uploadedJointCount = 0;
         size_t maxJointCount = 0;
         size_t lastSkinnedVertexCount = 0;
-        size_t staticDrawItemCount = 0;
-        size_t skinnedDrawItemCount = 0;
-        size_t wireDrawItemCount = 0;
         size_t wireGpuDrawCount = 0;
         size_t primitiveMeshCacheHitCount = 0;
         size_t primitiveMeshCacheMissCount = 0;

@@ -100,6 +100,21 @@ namespace HIKARI {
             return true;
         }
 
+        bool ProceduralSettingsEqual(const ProceduralModelSettings& lhs, const ProceduralModelSettings& rhs) {
+            return
+                lhs.kind == rhs.kind &&
+                lhs.width == rhs.width &&
+                lhs.height == rhs.height &&
+                lhs.depth == rhs.depth &&
+                lhs.segmentsX == rhs.segmentsX &&
+                lhs.segmentsY == rhs.segmentsY &&
+                lhs.segmentsZ == rhs.segmentsZ &&
+                lhs.sphereSlices == rhs.sphereSlices &&
+                lhs.sphereStacks == rhs.sphereStacks &&
+                lhs.doubleSided == rhs.doubleSided &&
+                lhs.generateTangents == rhs.generateTangents;
+        }
+
 #if defined(HIKARI_ENABLE_IMGUI)
         const char* ToAlphaModeText(AlphaMode mode) {
             switch (mode) {
@@ -184,6 +199,87 @@ namespace HIKARI {
             return changed;
         }
 #endif
+
+        bool DrawMaterialFxParamInspector(
+            IInspectorBuilder& builder,
+            const VFX::ParamDesc& param,
+            size_t paramIndex,
+            DirectX::XMFLOAT4& slotValue) {
+
+            if (param.ref.channel >= 4) {
+                return false;
+            }
+
+            float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
+            const std::string baseLabel =
+                param.label.empty()
+                    ? (param.key.empty() ? ("Param " + std::to_string(paramIndex)) : param.key)
+                    : param.label;
+            const std::string idSuffix =
+                "##MaterialFxBuildInspector_" + std::to_string(paramIndex);
+
+            bool changed = false;
+            auto editFloat = [&](const char* channelName, uint8_t channel) {
+                if (channel >= 4) {
+                    return;
+                }
+                float nextValue = value[channel];
+                if (builder.Float(baseLabel + " " + channelName + idSuffix, nextValue)) {
+                    value[channel] = nextValue;
+                    changed = true;
+                }
+            };
+
+            switch (param.type) {
+            case VFX::ParamType::Float:
+                editFloat("", param.ref.channel);
+                break;
+            case VFX::ParamType::Float2:
+                if (param.ref.channel <= 2) {
+                    float x = value[param.ref.channel];
+                    float y = value[param.ref.channel + 1u];
+                    if (builder.Vec2(baseLabel + idSuffix, x, y)) {
+                        value[param.ref.channel] = x;
+                        value[param.ref.channel + 1u] = y;
+                        changed = true;
+                    }
+                }
+                break;
+            case VFX::ParamType::Float3:
+            case VFX::ParamType::Color3:
+                if (param.ref.channel <= 1) {
+                    editFloat("X", param.ref.channel);
+                    editFloat("Y", static_cast<uint8_t>(param.ref.channel + 1u));
+                    editFloat("Z", static_cast<uint8_t>(param.ref.channel + 2u));
+                }
+                break;
+            case VFX::ParamType::Float4:
+            case VFX::ParamType::Color:
+            case VFX::ParamType::Color4:
+                if (param.ref.channel == 0) {
+                    editFloat("X", 0);
+                    editFloat("Y", 1);
+                    editFloat("Z", 2);
+                    editFloat("W", 3);
+                }
+                break;
+            case VFX::ParamType::Toggle: {
+                bool enabled = value[param.ref.channel] >= 0.5f;
+                if (builder.Bool(baseLabel + idSuffix, enabled)) {
+                    value[param.ref.channel] = enabled ? 1.0f : 0.0f;
+                    changed = true;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+
+            if (changed) {
+                slotValue = { value[0], value[1], value[2], value[3] };
+            }
+            return changed;
+        }
 
         const char* ToStateText(ModelAsset::State state) {
             switch (state) {
@@ -689,6 +785,15 @@ namespace HIKARI {
     }
 
     void ModelComponent::BuildInspector(IInspectorBuilder& builder) {
+        const bool oldVisible = visible_;
+        const bool oldCastShadow = castShadow_;
+        const bool oldReceiveShadow = receiveShadow_;
+        const bool oldRenderStatic = renderStatic_;
+        const ModelSourceKind oldSourceKind = sourceKind_;
+        const ProceduralModelSettings oldProcedural = procedural_;
+        const std::string oldAssetId = assetId_;
+        const uint32_t oldPostGroupMask = postGroupMask_;
+
         builder.Bool("Visible", visible_);
         builder.Bool("Cast Shadow", castShadow_);
         builder.Bool("Receive Shadow", receiveShadow_);
@@ -741,10 +846,90 @@ namespace HIKARI {
         if (builder.String("Material FX Profile##BuildInspector", materialFxProfileId)) {
             SetMaterialFxProfileId(std::move(materialFxProfileId));
         }
+        if (!materialFxProfileId_.empty()) {
+            MaterialFxProfile profile{};
+            if (MaterialFxProfile::LoadById(materialFxProfileId_, profile)) {
+                DirectX::XMFLOAT4 visibleFxValues[VFX::kMaterialFxUserCount]{};
+                if (materialFxValuesInitialized_) {
+                    for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                        visibleFxValues[i] = materialFxParamValues_[i];
+                    }
+                } else {
+                    profile.CopyValuesTo(visibleFxValues);
+                }
+
+                bool materialFxChanged = false;
+                for (size_t paramIndex = 0; paramIndex < profile.params.size(); ++paramIndex) {
+                    const VFX::ParamDesc& param = profile.params[paramIndex];
+                    const size_t slot = param.ref.slot;
+                    if (slot >= std::size(visibleFxValues) || param.ref.channel >= 4) {
+                        continue;
+                    }
+                    DirectX::XMFLOAT4 slotValue = visibleFxValues[slot];
+                    if (DrawMaterialFxParamInspector(builder, param, paramIndex, slotValue)) {
+                        visibleFxValues[slot] = slotValue;
+                        materialFxChanged = true;
+                    }
+                }
+
+                if (materialFxChanged) {
+                    for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
+                        materialFxParamValues_[i] = visibleFxValues[i];
+                    }
+                    materialFxValuesInitialized_ = true;
+                    NotifyRenderStateDirty();
+                }
+            }
+        }
+
+        if (oldVisible != visible_ ||
+            oldCastShadow != castShadow_ ||
+            oldReceiveShadow != receiveShadow_ ||
+            oldRenderStatic != renderStatic_ ||
+            oldSourceKind != sourceKind_ ||
+            !ProceduralSettingsEqual(oldProcedural, procedural_) ||
+            oldAssetId != assetId_ ||
+            oldPostGroupMask != postGroupMask_) {
+
+            NotifyRenderStateDirty();
+        }
     }
 
     void ModelComponent::RenderImGui() {
 #if defined(HIKARI_ENABLE_IMGUI)
+        const bool oldVisible = visible_;
+        const bool oldShowSkeletonDebug = showSkeletonDebug_;
+        const bool oldSkeletonDebugXRay = skeletonDebugXRay_;
+        const bool oldCastShadow = castShadow_;
+        const bool oldReceiveShadow = receiveShadow_;
+        const bool oldRenderStatic = renderStatic_;
+        const ModelSourceKind oldSourceKind = sourceKind_;
+        const ProceduralModelSettings oldProcedural = procedural_;
+        const ModelRenderDebugMode oldDebugRenderMode = debugRenderMode_;
+        const uint32_t oldWireColor = wireColor_;
+        const uint32_t oldMaxWireLines = maxWireLines_;
+        const bool oldWirePerPrimitiveColor = wirePerPrimitiveColor_;
+        const uint32_t oldPostGroupMask = postGroupMask_;
+
+        const auto notifyIfRenderStateChanged = [&]() {
+            if (oldVisible != visible_ ||
+                oldShowSkeletonDebug != showSkeletonDebug_ ||
+                oldSkeletonDebugXRay != skeletonDebugXRay_ ||
+                oldCastShadow != castShadow_ ||
+                oldReceiveShadow != receiveShadow_ ||
+                oldRenderStatic != renderStatic_ ||
+                oldSourceKind != sourceKind_ ||
+                !ProceduralSettingsEqual(oldProcedural, procedural_) ||
+                oldDebugRenderMode != debugRenderMode_ ||
+                oldWireColor != wireColor_ ||
+                oldMaxWireLines != maxWireLines_ ||
+                oldWirePerPrimitiveColor != wirePerPrimitiveColor_ ||
+                oldPostGroupMask != postGroupMask_) {
+
+                NotifyRenderStateDirty();
+            }
+        };
+
         if (ImGui::TreeNodeEx("Model Source")) {
             int sourceKind = static_cast<int>(sourceKind_);
             const char* sourceNames[] = { "Asset", "Procedural" };
@@ -792,6 +977,7 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNodeEx("Material FX / Post")) {
+            bool materialFxChanged = false;
             ImGui::Checkbox("Visible", &visible_);
             int postMask = static_cast<int>(postGroupMask_);
             if (ImGui::InputInt("Post Group Mask", &postMask)) {
@@ -823,6 +1009,7 @@ namespace HIKARI {
                         profile.CopyValuesTo(materialFxParamValues_);
                         profile.CopyValuesTo(visibleFxValues);
                         materialFxValuesInitialized_ = true;
+                        materialFxChanged = true;
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Reload Material FX Profile##MaterialFx")) {
@@ -859,6 +1046,7 @@ namespace HIKARI {
                                 visibleFxValues[slot] = slotValue;
                                 ensureWritableFxValues();
                                 materialFxParamValues_[slot] = slotValue;
+                                materialFxChanged = true;
                             }
                             ImGui::PopID();
                         }
@@ -872,10 +1060,16 @@ namespace HIKARI {
             if (ImGui::TreeNode("Advanced Raw Material FX Block (4x float4)##MaterialFxRawBlock")) {
                 for (size_t i = 0; i < std::size(materialFxParamValues_); ++i) {
                     ImGui::PushID(static_cast<int>(i));
-                    ImGui::InputFloat4("Param", &materialFxParamValues_[i].x);
+                    if (ImGui::InputFloat4("Param", &materialFxParamValues_[i].x)) {
+                        materialFxValuesInitialized_ = true;
+                        materialFxChanged = true;
+                    }
                     ImGui::PopID();
                 }
                 ImGui::TreePop();
+            }
+            if (materialFxChanged) {
+                NotifyRenderStateDirty();
             }
             ImGui::TreePop();
         }
@@ -921,11 +1115,13 @@ namespace HIKARI {
 
         if (asset_ == nullptr && sourceKind_ == ModelSourceKind::Asset) {
             ImGui::TextUnformatted("Asset: <none>");
+            notifyIfRenderStateChanged();
             return;
         }
 
         if (asset_ == nullptr) {
             ImGui::TextUnformatted("Procedural asset is generated at render submission time.");
+            notifyIfRenderStateChanged();
             return;
         }
 
@@ -1088,71 +1284,34 @@ namespace HIKARI {
         }
 
         const MODELRENDERER::ModelRendererDebugStats& rendererStats = MODELRENDERER::GetDebugStats();
-        const MODELRENDERER::ModelRendererFrameStats& rendererFrameStats = rendererStats.frame;
         const MODELRENDERER::ModelRendererCacheStats& rendererCacheStats = rendererStats.cache;
         const MESHRENDERER::MeshRendererDebugStats& meshRendererStats = MESHRENDERER::GetDebugStats();
 
         if (ImGui::TreeNode("Runtime Skinning")) {
-            ImGui::Text("Joint Palette Built: %s", rendererFrameStats.builtPaletteCount > 0 ? "Yes" : "No");
-            ImGui::Text("Skinned Nodes Rendered: %u", rendererFrameStats.skinnedNodeCount);
-            ImGui::Text("Built Palettes: %u", rendererFrameStats.builtPaletteCount);
-            ImGui::Text("Total Joint Matrices: %u", rendererFrameStats.totalJointMatrixCount);
-            ImGui::Text("Last Skin Index: %d", rendererFrameStats.lastSkinIndex);
-            ImGui::Text("Last Palette Joint Count: %u", rendererFrameStats.lastPaletteJointCount);
+            ImGui::Text("GPU Driven Skinned Commands: %zu", meshRendererStats.gpuDrivenSkinnedCommandCount);
+            ImGui::Text("GPU Driven Skinned Records: %zu / %zu / %zu",
+                meshRendererStats.gpuDrivenSkinnedSourceRecordCount,
+                meshRendererStats.gpuDrivenSkinnedSubmittedRecordCount,
+                meshRendererStats.gpuDrivenSkinnedSkippedRecordCount);
             ImGui::Text("Skinned GPU Draws: %zu", meshRendererStats.skinnedGpuDrawCount);
             ImGui::Text("Skinned Fallbacks: %zu", meshRendererStats.skinnedFallbackCount);
             ImGui::Text("Uploaded Joints: %zu", meshRendererStats.uploadedJointCount);
             ImGui::Text("Max Joint Count: %zu", meshRendererStats.maxJointCount);
             ImGui::Text("Last Skinned Vertex Count: %zu", meshRendererStats.lastSkinnedVertexCount);
-            if (rendererFrameStats.hasFirstJointMatrix) {
-                const MATH::Mat4& m = rendererFrameStats.firstJointMatrix;
-                ImGui::Text("First Joint Matrix:");
-                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0]);
-                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1]);
-                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][2], m.m[1][2], m.m[2][2], m.m[3][2]);
-                ImGui::Text("[%.3f %.3f %.3f %.3f]", m.m[0][3], m.m[1][3], m.m[2][3], m.m[3][3]);
-            }
             ImGui::TreePop();
         }
 
         if (ImGui::TreeNode("Performance Stats")) {
             ImGui::TextUnformatted("ModelRenderer:");
             ImGui::Text("Frame Kind: %s", MODELRENDERER::ToString(rendererStats.frameKind));
-            ImGui::Text("Submitted Model Items: %u", rendererFrameStats.submittedModelItemCount);
-            ImGui::Text("Structured Models: %u", rendererFrameStats.structuredModelCount);
-            ImGui::Text("Animated Local Builds: %u", rendererFrameStats.animatedLocalBuildCount);
-            ImGui::Text("Sampled Channels: %u", rendererFrameStats.sampledChannelCount);
-            ImGui::Text("Sampled Key Searches: %u", rendererFrameStats.sampledKeySearchCount);
-            ImGui::Text("Node Global Matrix Builds: %u", rendererFrameStats.nodeGlobalMatrixBuildCount);
-            ImGui::Text("Node Global Matrix Count: %u", rendererFrameStats.nodeGlobalMatrixCount);
-            ImGui::Text("Joint Palette Builds: %u", rendererFrameStats.jointPaletteBuildCount);
-            ImGui::Text("Joint Palette Matrix Count: %u", rendererFrameStats.jointPaletteMatrixCount);
-            ImGui::Text("Expanded Mesh Cache Hit / Miss: %u / %u",
-                rendererCacheStats.expandedMeshCacheHitCount,
-                rendererCacheStats.expandedMeshCacheMissCount);
-            ImGui::Text("Skeleton Debug Lines: %u", rendererFrameStats.skeletonDebugLineCount);
-            ImGui::Text("Pose Cache Hit / Miss: %u / %u",
-                rendererCacheStats.poseCacheHitCount,
-                rendererCacheStats.poseCacheMissCount);
-            ImGui::Text("Pose Updated / Reused: %u / %u",
-                rendererCacheStats.poseUpdatedCount,
-                rendererCacheStats.poseReusedCount);
-            ImGui::Text("Animation LOD Near / Mid / Far / Very Far: %u / %u / %u / %u",
-                rendererFrameStats.lodNearCount,
-                rendererFrameStats.lodMidCount,
-                rendererFrameStats.lodFarCount,
-                rendererFrameStats.lodVeryFarCount);
-            ImGui::Text("Joint Palette Cache Hit / Miss: %u / %u",
-                rendererCacheStats.jointPaletteCacheHitCount,
-                rendererCacheStats.jointPaletteCacheMissCount);
+            ImGui::Text("RenderModel Cache Requests: %u", rendererCacheStats.renderModelCacheRequestCount);
+            ImGui::Text("RenderModel Cache Hit / Miss: %u / %u",
+                rendererCacheStats.renderModelCacheHitCount,
+                rendererCacheStats.renderModelCacheMissCount);
 
             ImGui::Separator();
             ImGui::TextUnformatted("MeshRenderer:");
-            ImGui::Text("Static Draw Items: %zu", meshRendererStats.staticDrawItemCount);
-            ImGui::Text("Skinned Draw Items: %zu", meshRendererStats.skinnedDrawItemCount);
-            ImGui::Text("Wire Draw Items / GPU Draws: %zu / %zu",
-                meshRendererStats.wireDrawItemCount,
-                meshRendererStats.wireGpuDrawCount);
+            ImGui::Text("Wire GPU Draws: %zu", meshRendererStats.wireGpuDrawCount);
             ImGui::Text("Primitive Mesh Cache Hit / Miss: %zu / %zu",
                 meshRendererStats.primitiveMeshCacheHitCount,
                 meshRendererStats.primitiveMeshCacheMissCount);
@@ -1203,6 +1362,7 @@ namespace HIKARI {
             }
             ImGui::TreePop();
         }
+        notifyIfRenderStateChanged();
 #endif
     }
 

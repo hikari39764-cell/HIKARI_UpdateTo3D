@@ -63,7 +63,9 @@ namespace HIKARI::RENDER3D::PIPELINE {
             if (screenResult.depthPyramid.valid) {
                 resources.depthPyramid = screenResult.depthPyramid;
             } else if (const RENDER3D::DEPTH::DepthPyramidView* depthPyramid =
-                RENDER3D::DEPTH::TryGetFrameDepthPyramidView()) {
+                RENDER3D::DEPTH::TryGetFrameDepthPyramidView(
+                    RENDER3D::DEPTH::DepthPyramidSourceKind::SceneDepth,
+                    RENDER3D::DEPTH::DepthPyramidViewKind::CurrentFrame)) {
                 resources.depthPyramid = *depthPyramid;
             }
             resources.fallbackAoTextureHandle = screenResult.fallbackAoTextureHandle;
@@ -110,7 +112,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 environment);
         }
         else {
-            RENDER3D::DEPTH::BeginDepthPyramidFrame();
+            RENDER3D::DEPTH::BeginDepthPyramidFrame(SERVICES::gCtx.frameIndex);
             RENDER3D::SCREENSPACE::EnsureScreenSpaceFallbacks(RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState());
             screenResult.fallbackAoTextureHandle =
                 RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState().fallbackAoTextureHandle;

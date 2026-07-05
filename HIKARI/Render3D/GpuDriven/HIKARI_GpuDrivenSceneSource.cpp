@@ -11,6 +11,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         instances = nullptr;
         materialSources = nullptr;
         jointPalettes = nullptr;
+        bucketVariants = nullptr;
         gpuSceneBaseIndex = 0;
         gpuSceneInstanceCount = 0;
         staticCommandCount = 0;
@@ -24,6 +25,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             instances == nullptr ||
             materialSources == nullptr ||
             jointPalettes == nullptr ||
+            bucketVariants == nullptr ||
+            bucketVariants->empty() ||
             commands->empty()) {
             return false;
         }

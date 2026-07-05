@@ -46,6 +46,7 @@ namespace HIKARI {
         static void SetAssetContext(
             const AssetRegistry* assetRegistry,
             std::filesystem::path projectRoot);
+        static void InvalidateSceneResources(bool clearProceduralCache);
         static RenderSubmissionRouteMode GetRouteMode();
         static const RenderSubmissionDebugStats& GetDebugStats();
         static const RENDER3D::RUNTIME::SceneRenderCache& GetSceneRenderCache();

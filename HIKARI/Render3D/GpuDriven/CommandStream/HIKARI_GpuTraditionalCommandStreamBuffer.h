@@ -11,7 +11,6 @@
 
 #include "Gfx/HIKARI_GfxContext.h"
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenPass.h"
 #include "Render3D/Runtime/HIKARI_SurfaceDrawPlan.h"
 
@@ -21,6 +20,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     constexpr size_t kDefaultGpuTraditionalCommandCapacity = 4096u;
     constexpr UINT kGpuTraditionalCommandStreamRootConstantCount = 4u;
+
+    constexpr size_t kGpuTraditionalCommandBucketCount = 32u;
+
     struct GpuTraditionalCommandArgument {
         D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
         D3D12_INDEX_BUFFER_VIEW indexBuffer{};
@@ -103,22 +105,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         ID3D12CommandSignature* GetSkinnedCommandSignature() const;
         UINT64 GetCommandCounterOffset() const;
         UINT64 GetCommandCounterOffset(GpuDrivenPassKind pass) const;
-        UINT64 GetCommandCounterOffset(
-            GpuDrivenPassKind pass,
-            GpuDrivenCommandBucket bucket) const;
         UINT64 GetSkinnedCommandCounterOffset() const;
         UINT64 GetSkinnedCommandCounterOffset(GpuDrivenPassKind pass) const;
-        UINT64 GetSkinnedCommandCounterOffset(
-            GpuDrivenPassKind pass,
-            GpuDrivenCommandBucket bucket) const;
         UINT64 GetArgumentBufferOffset(GpuDrivenPassKind pass) const;
-        UINT64 GetArgumentBufferOffset(
-            GpuDrivenPassKind pass,
-            GpuDrivenCommandBucket bucket) const;
         UINT64 GetSkinnedArgumentBufferOffset(GpuDrivenPassKind pass) const;
-        UINT64 GetSkinnedArgumentBufferOffset(
-            GpuDrivenPassKind pass,
-            GpuDrivenCommandBucket bucket) const;
         UINT64 GetArgumentBucketStride() const;
         UINT64 GetSkinnedArgumentBucketStride() const;
         UINT64 GetCounterBucketStride() const;
@@ -192,7 +182,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATE_COMMON;
         std::array<FrameResources, GFX::kFrameResourceCount> frameResources_{};
         uint32_t activeFrameResourceIndex_ = 0;
-        std::unordered_map<uint32_t, size_t> payloadIndexByGpuSceneInstance_{};
+        std::unordered_map<uint64_t, size_t> payloadIndexByCommandKey_{};
         GpuTraditionalCommandStreamStats stats_{};
     };
 

@@ -791,6 +791,7 @@ namespace HIKARI {
         const bool okRegistry = assetRegistryBuilder.AppendToRegistry(assetDatabase_, assetRegistry_);
 
         ConfigureModelTextureResolver();
+        RenderSubmissionSystem::InvalidateSceneResources(false);
         return okDatabase && okRegistry;
     }
     void DocumentSceneBase::ConfigureModelTextureResolver() {
@@ -939,6 +940,9 @@ namespace HIKARI {
         RuntimeSceneContext::SetCurrentWorld(&world_);
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
+        if (built) {
+            RenderSubmissionSystem::InvalidateSceneResources(true);
+        }
         return built;
     }
     bool DocumentSceneBase::RequestOpenSceneAsset(const AssetGuid& sceneGuid) {
@@ -1038,6 +1042,7 @@ namespace HIKARI {
         sceneId_ = "TransientScene";
         currentSceneAssetGuid_ = {};
         sceneDocumentDirty_ = false;
+        RenderSubmissionSystem::InvalidateSceneResources(true);
         return true;
     }
     bool DocumentSceneBase::HasUnsavedSceneChanges() const {
@@ -1132,7 +1137,11 @@ namespace HIKARI {
             return false;
         }
 
-        return modelManager_.ReloadAssetNow(modelId.value);
+        const bool reloaded = modelManager_.ReloadAssetNow(modelId.value);
+        if (reloaded) {
+            RenderSubmissionSystem::InvalidateSceneResources(false);
+        }
+        return reloaded;
     }
 
     int DocumentSceneBase::RebindModelComponents() {
@@ -1161,6 +1170,9 @@ namespace HIKARI {
             });
 
         RebuildMaterialOverrides();
+        if (reboundCount > 0) {
+            RenderSubmissionSystem::InvalidateSceneResources(false);
+        }
         return reboundCount;
     }
 

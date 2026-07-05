@@ -40,6 +40,10 @@ namespace HIKARI {
     }
 
     namespace {
+        std::filesystem::path NormalizeProjectRoot(std::filesystem::path projectRoot) {
+            return projectRoot.empty() ? std::filesystem::path{} : projectRoot.lexically_normal();
+        }
+
         const ModelAsset* ResolveDebugModelAsset(ModelComponent& model) {
             if (model.GetSourceKind() == ModelSourceKind::Procedural) {
                 return PROCEDURAL::GetOrCreateModel(model.GetProceduralSettings());
@@ -89,9 +93,30 @@ namespace HIKARI {
         const AssetRegistry* assetRegistry,
         std::filesystem::path projectRoot) {
 
+        std::filesystem::path normalizedProjectRoot = NormalizeProjectRoot(std::move(projectRoot));
+        const bool assetContextChanged = sAssetRegistry_ != assetRegistry;
+        const bool projectRootChanged = sProjectRoot_ != normalizedProjectRoot;
+        if (!assetContextChanged && !projectRootChanged) {
+            return;
+        }
+
         sAssetRegistry_ = assetRegistry;
-        sProjectRoot_ = std::move(projectRoot);
+        sProjectRoot_ = std::move(normalizedProjectRoot);
+        InvalidateSceneResources(projectRootChanged);
+    }
+
+    void RenderSubmissionSystem::InvalidateSceneResources(bool clearProceduralCache) {
+        MODELRENDERER::GetRenderModelCache().Clear();
+        sSceneRenderCache_.Clear();
+        sGpuSceneRegistry_.Clear();
+        sGpuSceneRegistryValid_ = false;
         sGpuDrivenSceneSyncInitialized_ = false;
+        MESHRENDERER::InvalidateMaterialFxPipelineCache();
+        MESHRENDERER::SetGpuDrivenSceneSource(nullptr);
+        SHADOW::SetGpuDrivenSceneSource(nullptr);
+        if (clearProceduralCache) {
+            PROCEDURAL::ClearCache();
+        }
     }
 
     RenderSubmissionRouteMode RenderSubmissionSystem::GetRouteMode() {

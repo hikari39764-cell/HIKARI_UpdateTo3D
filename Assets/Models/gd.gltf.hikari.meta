@@ -53,7 +53,7 @@
     "unitScale": 1.0
   },
   "importerId": "ModelImporter",
-  "importerVersion": 24,
+  "importerVersion": 31,
   "metaVersion": 1,
   "sourcePath": "Assets/Models/gd.gltf",
   "type": "Model"

@@ -152,27 +152,84 @@ struct PSInput
 
 float SampleSceneDepth(float4 svPosition)
 {
-    int2 pixel = int2(svPosition.xy);
+    uint depthWidth = 1u;
+    uint depthHeight = 1u;
+    gSceneDepth.GetDimensions(depthWidth, depthHeight);
+
+    int2 pixel = int2(floor(svPosition.xy));
+    pixel = clamp(
+        pixel,
+        int2(0, 0),
+        int2(max(int(depthWidth) - 1, 0), max(int(depthHeight) - 1, 0)));
     return gSceneDepth.Load(int3(pixel, 0)).r;
 }
 
-float ComputeRawWaterDepthDiff(float4 svPosition)
+bool IsWaterPixelOccludedByOpaqueDepth(float4 svPosition)
 {
-    float sceneDepth = SampleSceneDepth(svPosition);
-    float waterDepth = svPosition.z;
+    const float sceneDepth = SampleSceneDepth(svPosition);
+    if (sceneDepth >= 0.9999f)
+    {
+        return false;
+    }
 
-    return max(0.0f, sceneDepth - waterDepth);
+    const float waterDepth = saturate(svPosition.z);
+    return sceneDepth + 1e-5f < waterDepth;
 }
 
-float ComputeWaterDepthFactor(float4 svPosition, HikariMeshObjectData waterObjectData)
+float2 ComputeScreenUv(float4 svPosition)
 {
-    float rawDiff = ComputeRawWaterDepthDiff(svPosition);
+    return svPosition.xy * gScreenParams.zw;
+}
 
+float3 ReconstructWorldFromDepth(float2 uv, float depth)
+{
+    float2 ndc = uv * 2.0f - 1.0f;
+    ndc.y = -ndc.y;
+    float4 world = mul(gInvViewProj, float4(ndc, depth, 1.0f));
+    return world.xyz / max(abs(world.w), 1e-5f);
+}
+
+float ComputeRawWaterDepthDiff(float4 svPosition, float3 waterWorldPos)
+{
+    float sceneDepth = SampleSceneDepth(svPosition);
+    if (sceneDepth >= 0.9999f)
+    {
+        return 1.0f;
+    }
+
+    float2 uv = ComputeScreenUv(svPosition);
+    float3 sceneWorld = ReconstructWorldFromDepth(uv, sceneDepth);
+    float3 viewVector = waterWorldPos - gCameraPos.xyz;
+    float viewLength = max(length(viewVector), 1e-4f);
+    float3 viewDir = viewVector / viewLength;
+    float viewDepthDiff = dot(sceneWorld - waterWorldPos, viewDir);
+
+    return max(0.0f, viewDepthDiff * 0.0125f);
+}
+
+float ResolveWaterDepthScale(HikariMeshObjectData waterObjectData)
+{
     float depthScale = gWaterDepthScale;
     if (depthScale <= 0.0001f)
     {
         depthScale = 80.0f;
     }
+    return depthScale;
+}
+
+float ResolveWaterDepthBlend(HikariMeshObjectData waterObjectData)
+{
+    return saturate(gWaterDepthBlend);
+}
+
+float ComputeWaterDepthFactor(
+    float4 svPosition,
+    float3 waterWorldPos,
+    HikariMeshObjectData waterObjectData)
+{
+    float rawDiff = ComputeRawWaterDepthDiff(svPosition, waterWorldPos);
+
+    float depthScale = ResolveWaterDepthScale(waterObjectData);
 
     float depthBias = gWaterDepthBias;
 
@@ -190,6 +247,8 @@ float ComputeWaterDepthFactor(float4 svPosition, HikariMeshObjectData waterObjec
 
 float ComputeWaterAlpha(float depthFactor, float fresnel, HikariMeshObjectData waterObjectData)
 {
+    const float alphaDepthFactor = depthFactor * ResolveWaterDepthBlend(waterObjectData);
+
     float shallowAlpha = gWaterAlphaShallow;
     if (shallowAlpha <= 0.0001f)
     {
@@ -210,7 +269,7 @@ float ComputeWaterAlpha(float depthFactor, float fresnel, HikariMeshObjectData w
 
     float minAlpha = gWaterAlphaMin;
 
-    float waterAlpha = lerp(shallowAlpha, deepAlpha, depthFactor);
+    float waterAlpha = lerp(shallowAlpha, deepAlpha, alphaDepthFactor);
     waterAlpha += fresnel * alphaFresnel;
     waterAlpha = max(waterAlpha, minAlpha);
 
@@ -278,18 +337,18 @@ float ComputeWaterFoam(
     float3 worldPosWS,
     HikariMeshObjectData waterObjectData)
 {
-    float rawDiff = ComputeRawWaterDepthDiff(svPosition);
+    float rawDiff = ComputeRawWaterDepthDiff(svPosition, worldPosWS);
+
+    float foamStrength = gWaterFoamStrength;
+    if (foamStrength <= 0.0001f)
+    {
+        return 0.0f;
+    }
 
     float foamWidth = gWaterFoamWidth;
     if (foamWidth <= 0.00001f)
     {
         foamWidth = 0.003f;
-    }
-
-    float foamStrength = gWaterFoamStrength;
-    if (foamStrength <= 0.0001f)
-    {
-        foamStrength = 0.6f;
     }
 
     float foamPower = gWaterFoamPower;
@@ -343,29 +402,38 @@ float2 ComputeWaterSceneColorDistortion(
         gTimeParams.x * detailSpeed);
 
     float2 normalOffset = normalWS.xz * 0.6f + waveGrad * 0.4f;
-    return normalOffset * refractionStrength;
+    float2 uvOffset = normalOffset * refractionStrength;
+
+    // Treat saved refraction values as artistic strength, but keep screen-space
+    // sampling local. Large UV offsets pull unrelated opaque geometry through the
+    // water when another plane exists below it.
+    float2 maxUvOffset = gScreenParams.zw * 8.0f;
+    return clamp(uvOffset, -maxUvOffset, maxUvOffset);
 }
 
 float ComputeWaterSceneColorCoverageMask(
     float4 svPosition,
+    float3 worldPosWS,
     HikariMeshObjectData waterObjectData)
 {
+    const float depthBlend = ResolveWaterDepthBlend(waterObjectData);
+    if (depthBlend <= 0.0001f)
+    {
+        return 0.0f;
+    }
+
     float sceneDepth = SampleSceneDepth(svPosition);
-    float rawDiff = max(0.0f, sceneDepth - svPosition.z);
+    float rawDiff = ComputeRawWaterDepthDiff(svPosition, worldPosWS);
 
     if (sceneDepth >= 0.9999f || rawDiff <= 0.000001f)
     {
         return 0.0f;
     }
 
-    float depthScale = gWaterDepthScale;
-    if (depthScale <= 0.0001f)
-    {
-        depthScale = 80.0f;
-    }
+    float depthScale = ResolveWaterDepthScale(waterObjectData);
 
-    float behindWaterMask = saturate(rawDiff * depthScale * 12.0f);
-    return behindWaterMask;
+    float scaledDepth = rawDiff * depthScale + gWaterDepthBias;
+    return smoothstep(0.08f, 0.85f, scaledDepth) * depthBlend;
 }
 
 float ComputeWaterSceneColorRefractionMask(float coverageMask, float depthFactor, float fresnel)
@@ -394,15 +462,13 @@ float3 ApplyWaterSceneColorRefraction(
         return waterColor;
     }
 
-    float coverageMask = ComputeWaterSceneColorCoverageMask(svPosition, waterObjectData);
+    float coverageMask =
+        ComputeWaterSceneColorCoverageMask(svPosition, worldPosWS, waterObjectData);
     if (coverageMask <= 0.0001f)
     {
         return waterColor;
     }
 
-    // Alpha coverage is separate from visual refraction strength:
-    // if something is behind the water, the shader must cover the original
-    // undistorted framebuffer and provide the through-water result itself.
     refractionCoverage = coverageMask;
 
     float refractionMask = ComputeWaterSceneColorRefractionMask(coverageMask, depthFactor, fresnel);
@@ -571,7 +637,7 @@ float3 SampleSkyEnvironment(float3 dir)
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshObjectData waterObjectData =
-        HikariGetMeshObjectDataForPixel(input.objectDataIndex, input.surfaceGpuSceneIndex);
+        HikariGetMeshObjectDataForSurfaceIndex(input.objectDataIndex, input.surfaceGpuSceneIndex);
 
 #if WATER_DEBUG_SCENE_DEPTH
     float sceneDepth = SampleSceneDepth(input.position);
@@ -580,9 +646,12 @@ float4 main(PSInput input) : SV_TARGET
 #endif
 
 #if WATER_DEBUG_DEPTH_DIFF
-    float depthFactor = ComputeWaterDepthFactor(input.position, waterObjectData);
+    float depthFactor =
+        ComputeWaterDepthFactor(input.position, input.worldPosWS, waterObjectData);
     return float4(depthFactor.xxx, 1.0f);
 #endif
+
+    clip(IsWaterPixelOccludedByOpaqueDepth(input.position) ? -1.0f : 1.0f);
 
     float3 n = normalize(input.normalWS);
 
@@ -646,13 +715,10 @@ float4 main(PSInput input) : SV_TARGET
     float shallowMix = saturate(n.y);
     float oldNormalShallow = shallowMix * 0.20f;
 
-    float depthFactor = ComputeWaterDepthFactor(input.position, waterObjectData);
+    float depthFactor =
+        ComputeWaterDepthFactor(input.position, input.worldPosWS, waterObjectData);
 
-    float depthBlend = gWaterDepthBlend;
-    if (depthBlend <= 0.0001f)
-    {
-        depthBlend = 1.0f;
-    }
+    float depthBlend = ResolveWaterDepthBlend(waterObjectData);
 
     float3 depthWaterColor = lerp(shallowColor, waterColor, depthFactor);
     float3 normalWaterColor = lerp(waterColor, shallowColor, oldNormalShallow);
@@ -704,7 +770,8 @@ float4 main(PSInput input) : SV_TARGET
 
 #if WATER_DEBUG_REFRACTION_COVERAGE
     {
-        float coverage = ComputeWaterSceneColorCoverageMask(input.position, waterObjectData);
+        float coverage =
+            ComputeWaterSceneColorCoverageMask(input.position, input.worldPosWS, waterObjectData);
         return float4(coverage.xxx, 1.0f);
     }
 #endif
@@ -762,7 +829,8 @@ float4 main(PSInput input) : SV_TARGET
     color = lerp(color, foamColor, foam);
 
     float waterAlpha = ComputeWaterAlpha(depthFactor, fresnel, waterObjectData);
-    waterAlpha = lerp(waterAlpha, 1.0f, refractionCoverage);
+    float refractionAlpha = saturate(waterAlpha + refractionCoverage * 0.28f);
+    waterAlpha = lerp(waterAlpha, refractionAlpha, refractionCoverage);
     waterAlpha = saturate(waterAlpha + foam * 0.35f);
 
 #if WATER_DEBUG_ALPHA

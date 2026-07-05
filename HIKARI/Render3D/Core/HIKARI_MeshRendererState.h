@@ -82,7 +82,6 @@ namespace HIKARI::MESHRENDERER {
         SkyEnvironmentCB* skyEnvironmentMapped = nullptr;
         JointPaletteCB* jointPaletteMapped = nullptr;
 
-        std::vector<DrawItem> drawItems;
         MeshRendererDebugStats debugStats;
 
         RENDER3D::TextureResourceHandle fallbackTextureResource{};

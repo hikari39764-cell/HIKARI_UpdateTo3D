@@ -204,13 +204,13 @@ namespace HIKARI {
         }
 
         float ApplyLodQualityBiasToRatio(float ratio, float qualityBias) {
-            const float safeBias = (std::max)(0.25f, (std::min)(qualityBias, 4.0f));
+            const float safeBias = (std::max)(0.50f, (std::min)(qualityBias, 4.0f));
             const float reduction = (1.0f - ratio) / safeBias;
             return (std::max)(0.05f, (std::min)(1.0f - reduction, 0.95f));
         }
 
         float ApplyLodQualityBiasToError(float error, float qualityBias) {
-            const float safeBias = (std::max)(0.25f, (std::min)(qualityBias, 4.0f));
+            const float safeBias = (std::max)(0.50f, (std::min)(qualityBias, 4.0f));
             return (std::max)(0.0001f, (std::min)(error / safeBias, 0.12f));
         }
 
@@ -245,13 +245,14 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMaxDepth = 5u;
                 cook.largeSurfacePartitionMaxExtent = 1.25f;
                 cook.lockPartitionBorders = true;
+                cook.minPartitionClusterEstimate = 4u;
                 cook.subdivideLargeStaticTriangles = false;
             } else {
                 cook.maxSurfaceLodCount = 5u;
                 cook.maxClustersPerPage = 64u;
                 cook.maxTrianglesPerCluster = 64u;
                 cook.maxVerticesPerCluster = 128u;
-                cook.minTrianglesPerCluster = 24u;
+                cook.minTrianglesPerCluster = 32u;
                 cook.lod1TriangleRatio = 0.30f;
                 cook.lod2TriangleRatio = 0.30f;
                 cook.lod3TriangleRatio = 0.14f;
@@ -272,15 +273,22 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMaxExtent = 3.0f;
                 cook.lockPartitionBorders = true;
                 cook.balancePlanarStaticSurfaces = true;
+                cook.minPartitionClusterEstimate = 16u;
                 cook.planarStaticSurfaceMinPartitionExtent = 5.0f;
                 cook.planarStaticSurfaceMinTrianglesPerChunk = 1024u;
                 cook.planarStaticSurfaceMaxDepth = 4u;
-                cook.subdivideLargeStaticTriangles = true;
+                cook.subdivideLargeStaticTriangles = false;
                 cook.largeStaticTriangleMaxEdgeLength = 3.0f;
                 cook.largeStaticTriangleMaxSubdivisions = 4u;
                 cook.largeStaticTriangleMaxGeneratedTriangles = 16384u;
-                cook.meshletConeWeight = 0.65f;
-                cook.meshletSplitFactor = 1.25f;
+                cook.meshletConeWeight = 0.35f;
+                cook.meshletSplitFactor = 2.0f;
+                cook.compactUnderfilledClusterGroups = true;
+                cook.minClusterOccupancyRatio = 0.75f;
+                cook.maxNormalBucketClusterOverhead = 1.20f;
+                cook.clusterMergeNormalMinDot = 0.20f;
+                cook.normalBucketCoherentGroupMinDot = 0.35f;
+                cook.normalBucketQualityBonusRatio = 0.15f;
             }
 
             const float qualityBias = ReadClusterFloat(
@@ -288,7 +296,7 @@ namespace HIKARI {
                 cluster,
                 "lodQualityBias",
                 1.0f,
-                0.25f,
+                0.50f,
                 4.0f);
             cook.maxSurfaceLodCount = ReadClusterUint(
                 settings,
@@ -319,6 +327,13 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMinTrianglesPerChunk,
                 16u,
                 32768u);
+            cook.minPartitionClusterEstimate = ReadClusterUint(
+                settings,
+                cluster,
+                "partitionMinClusterEstimate",
+                cook.minPartitionClusterEstimate,
+                1u,
+                128u);
             cook.largeSurfacePartitionMaxDepth = ReadClusterUint(
                 settings,
                 cluster,
@@ -331,7 +346,7 @@ namespace HIKARI {
                 cluster,
                 "largeSurfaceTargetExtent",
                 cook.largeSurfacePartitionMaxExtent,
-                0.75f,
+                profile == ModelGeometryCookProfile::Character ? 1.0f : 2.0f,
                 64.0f);
             cook.lockPartitionBorders = ReadClusterBool(
                 settings,
@@ -399,14 +414,14 @@ namespace HIKARI {
                 cluster,
                 "maxTrianglesPerCluster",
                 cook.maxTrianglesPerCluster,
-                16u,
-                128u);
+                profile == ModelGeometryCookProfile::Scene ? 32u : 16u,
+                RENDER3D::CLUSTER::kHcmeshMaxTrianglesPerCluster);
             cook.minTrianglesPerCluster = ReadClusterUint(
                 settings,
                 cluster,
                 "minTrianglesPerCluster",
                 cook.minTrianglesPerCluster,
-                1u,
+                profile == ModelGeometryCookProfile::Scene ? 32u : 1u,
                 cook.maxTrianglesPerCluster);
             cook.maxVerticesPerCluster = ReadClusterUint(
                 settings,
@@ -414,7 +429,7 @@ namespace HIKARI {
                 "maxVerticesPerCluster",
                 cook.maxVerticesPerCluster,
                 32u,
-                256u);
+                RENDER3D::CLUSTER::kHcmeshMaxVerticesPerCluster);
             cook.meshletConeWeight = ReadClusterFloat(
                 settings,
                 cluster,
@@ -427,8 +442,48 @@ namespace HIKARI {
                 cluster,
                 "meshletSplitFactor",
                 cook.meshletSplitFactor,
-                0.0f,
+                profile == ModelGeometryCookProfile::Scene ? 2.0f : 0.0f,
                 8.0f);
+            cook.compactUnderfilledClusterGroups = ReadClusterBool(
+                settings,
+                cluster,
+                "compactUnderfilledClusters",
+                cook.compactUnderfilledClusterGroups);
+            cook.minClusterOccupancyRatio = ReadClusterFloat(
+                settings,
+                cluster,
+                "minClusterOccupancyRatio",
+                cook.minClusterOccupancyRatio,
+                0.25f,
+                1.0f);
+            cook.maxNormalBucketClusterOverhead = ReadClusterFloat(
+                settings,
+                cluster,
+                "maxNormalBucketClusterOverhead",
+                cook.maxNormalBucketClusterOverhead,
+                1.0f,
+                2.0f);
+            cook.clusterMergeNormalMinDot = ReadClusterFloat(
+                settings,
+                cluster,
+                "clusterMergeNormalMinDot",
+                cook.clusterMergeNormalMinDot,
+                -1.0f,
+                0.99f);
+            cook.normalBucketCoherentGroupMinDot = ReadClusterFloat(
+                settings,
+                cluster,
+                "normalBucketCoherentGroupMinDot",
+                cook.normalBucketCoherentGroupMinDot,
+                -1.0f,
+                0.99f);
+            cook.normalBucketQualityBonusRatio = ReadClusterFloat(
+                settings,
+                cluster,
+                "normalBucketQualityBonusRatio",
+                cook.normalBucketQualityBonusRatio,
+                0.0f,
+                1.0f);
 
             cook.lod1TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod1TriangleRatio, qualityBias);
             cook.lod2TriangleRatio = ApplyLodQualityBiasToRatio(cook.lod2TriangleRatio, qualityBias);
@@ -677,6 +732,7 @@ namespace HIKARI {
                     { "largeSurfacePartitionMaxDepth", clusterSettings->largeSurfacePartitionMaxDepth },
                     { "lockPartitionBorders", clusterSettings->lockPartitionBorders },
                     { "balancePlanarStaticSurfaces", clusterSettings->balancePlanarStaticSurfaces },
+                    { "partitionMinClusterEstimate", clusterSettings->minPartitionClusterEstimate },
                     { "planarSurfaceMinPartitionExtent", clusterSettings->planarStaticSurfaceMinPartitionExtent },
                     { "planarSurfaceMinTrianglesPerChunk", clusterSettings->planarStaticSurfaceMinTrianglesPerChunk },
                     { "planarSurfaceMaxDepth", clusterSettings->planarStaticSurfaceMaxDepth },
@@ -684,8 +740,17 @@ namespace HIKARI {
                     { "largeTriangleMaxEdgeLength", clusterSettings->largeStaticTriangleMaxEdgeLength },
                     { "largeTriangleMaxSubdivisions", clusterSettings->largeStaticTriangleMaxSubdivisions },
                     { "largeTriangleMaxGeneratedTriangles", clusterSettings->largeStaticTriangleMaxGeneratedTriangles },
+                    { "maxTriangleInflationRatio", clusterSettings->maxTriangleInflationRatio },
+                    { "maxVertexInflationRatio", clusterSettings->maxVertexInflationRatio },
+                    { "minAverageTrianglesPerClusterWarning", clusterSettings->minAverageTrianglesPerClusterWarning },
                     { "meshletConeWeight", clusterSettings->meshletConeWeight },
                     { "meshletSplitFactor", clusterSettings->meshletSplitFactor },
+                    { "compactUnderfilledClusters", clusterSettings->compactUnderfilledClusterGroups },
+                    { "minClusterOccupancyRatio", clusterSettings->minClusterOccupancyRatio },
+                    { "maxNormalBucketClusterOverhead", clusterSettings->maxNormalBucketClusterOverhead },
+                    { "clusterMergeNormalMinDot", clusterSettings->clusterMergeNormalMinDot },
+                    { "normalBucketCoherentGroupMinDot", clusterSettings->normalBucketCoherentGroupMinDot },
+                    { "normalBucketQualityBonusRatio", clusterSettings->normalBucketQualityBonusRatio },
                     { "buildNormalCone", clusterSettings->buildNormalCone },
                 };
             }
@@ -695,6 +760,8 @@ namespace HIKARI {
                     messages.push_back(message);
                 }
                 clusterJson["summary"] = {
+                    { "sourceStaticTriangles", clusteredReport->sourceStaticTriangleCount },
+                    { "sourceStaticVertices", clusteredReport->sourceStaticVertexCount },
                     { "surfaces", clusteredReport->surfaceCount },
                     { "surfaceLodRanges", clusteredReport->surfaceLodRangeCount },
                     { "surfaceSections", clusteredReport->surfaceSectionCount },
@@ -724,8 +791,13 @@ namespace HIKARI {
                     { "unsupportedFeatures", clusteredReport->unsupportedFeatureCount },
                     { "partitionedSurfaces", clusteredReport->partitionedSurfaceCount },
                     { "partitionedSurfaceChunks", clusteredReport->partitionedSurfaceChunkCount },
+                    { "rejectedPartitionedSurfaces", clusteredReport->rejectedPartitionedSurfaceCount },
                     { "normalPartitionedSurfaces", clusteredReport->normalPartitionedSurfaceCount },
                     { "normalPartitionedSurfaceChunks", clusteredReport->normalPartitionedChunkCount },
+                    { "acceptedNormalBucketGroups", clusteredReport->acceptedNormalBucketGroupCount },
+                    { "rejectedNormalBucketGroups", clusteredReport->rejectedNormalBucketGroupCount },
+                    { "compactedClusterGroups", clusteredReport->compactedClusterGroupCount },
+                    { "mergedClusterGroups", clusteredReport->mergedClusterGroupCount },
                     { "planarPartitionedSurfaces", clusteredReport->planarPartitionedSurfaceCount },
                     { "planarPartitionedSurfaceChunks", clusteredReport->planarPartitionedChunkCount },
                     { "planarPartitionCoarsenedSurfaces", clusteredReport->planarPartitionCoarsenedSurfaceCount },
@@ -737,7 +809,19 @@ namespace HIKARI {
                     { "singleTriangleClusters", clusteredReport->singleTriangleClusterCount },
                     { "lowTriangleClusters", clusteredReport->lowTriangleClusterCount },
                     { "maxTrianglesPerClusterObserved", clusteredReport->maxTrianglesPerClusterObserved },
+                    { "packedGeometryBytes", clusteredReport->packedGeometryByteSize },
+                    { "packedMetadataBytes", clusteredReport->packedMetadataByteSize },
+                    { "packedTotalBytes", clusteredReport->packedTotalByteSize },
+                    { "fallbackIndexBytes", clusteredReport->fallbackIndexByteSize },
+                    { "meshletPrimitiveBytes", clusteredReport->meshletPrimitiveByteSize },
+                    { "packedVertexPositionBytes", clusteredReport->packedVertexPositionByteSize },
+                    { "packedVertexAttributeBytes", clusteredReport->packedVertexAttributeByteSize },
                     { "averageTrianglesPerCluster", clusteredReport->averageTrianglesPerCluster },
+                    { "triangleInflationRatio", clusteredReport->triangleInflationRatio },
+                    { "vertexInflationRatio", clusteredReport->vertexInflationRatio },
+                    { "triangleBudgetExceeded", clusteredReport->triangleBudgetExceeded },
+                    { "vertexBudgetExceeded", clusteredReport->vertexBudgetExceeded },
+                    { "clusterOccupancyWarning", clusteredReport->clusterOccupancyWarning },
                     { "normalConeCutoffMin", clusteredReport->normalConeCutoffMin },
                     { "normalConeCutoffAverage", clusteredReport->normalConeCutoffAverage },
                     { "normalConeCutoffMax", clusteredReport->normalConeCutoffMax },
@@ -1113,7 +1197,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 28;
+        return 31;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -1149,14 +1233,22 @@ namespace HIKARI {
                 { "largeSurfaceTargetExtent", 3.0f },
                 { "lockPartitionBorders", true },
                 { "balancePlanarStaticSurfaces", true },
+                { "partitionMinClusterEstimate", 16 },
                 { "planarSurfaceMinPartitionExtent", 5.0f },
                 { "planarSurfaceMinTrianglesPerChunk", 1024 },
                 { "planarSurfaceMaxDepth", 4 },
-                { "subdivideLargeTriangles", true },
+                { "subdivideLargeTriangles", false },
                 { "largeTriangleMaxEdgeLength", 3.0f },
                 { "largeTriangleMaxSubdivisions", 4 },
                 { "largeTriangleMaxGeneratedTriangles", 16384 },
-                { "meshletSplitFactor", 1.25f },
+                { "meshletConeWeight", 0.35f },
+                { "meshletSplitFactor", 2.0f },
+                { "compactUnderfilledClusters", true },
+                { "minClusterOccupancyRatio", 0.75f },
+                { "maxNormalBucketClusterOverhead", 1.20f },
+                { "clusterMergeNormalMinDot", 0.20f },
+                { "normalBucketCoherentGroupMinDot", 0.35f },
+                { "normalBucketQualityBonusRatio", 0.15f },
             } },
         }.dump(2);
         return meta;

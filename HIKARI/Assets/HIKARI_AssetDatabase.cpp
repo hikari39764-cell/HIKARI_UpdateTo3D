@@ -10,7 +10,6 @@
 
 #include <json.hpp>
 
-#include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Core/HIKARI_Logger.h"
 #include "Importers/HIKARI_MaterialImporter.h"
@@ -817,27 +816,24 @@ namespace HIKARI {
             return info;
         }
 
-        RENDER3D::CLUSTER::ClusteredGeometryAsset asset{};
+        ASSETS::GEOMETRY::HcmeshFileInfo hcmeshInfo{};
         std::string message{};
-        if (!ASSETS::GEOMETRY::ReadHcmeshFile(hcmeshPath, asset, message)) {
+        if (!ASSETS::GEOMETRY::InspectHcmeshFile(hcmeshPath, hcmeshInfo, message)) {
             info.state = ClusteredGeometryArtifactState::Invalid;
             info.message = message.empty() ? "HCMESH read failed" : message;
             return info;
         }
 
-        const ASSETS::GEOMETRY::ClusteredGeometryValidationResult validation =
-            ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(asset);
-        info.validationValid = validation.valid;
-        info.invalidSurfaceCount = validation.invalidSurfaceCount;
-        info.invalidClusterCount = validation.invalidClusterCount;
-        info.invalidPageCount = validation.invalidPageCount;
-        info.invalidBoundsCount = validation.invalidBoundsCount;
-        info.invalidMaterialCount = validation.invalidMaterialCount;
-        info.validationMessages = validation.messages;
-
-        if (!validation.valid) {
+        info.validationValid = hcmeshInfo.valid;
+        if (!hcmeshInfo.valid ||
+            hcmeshInfo.surfaceCount == 0u ||
+            hcmeshInfo.clusterCount == 0u ||
+            hcmeshInfo.vertexCount == 0u ||
+            hcmeshInfo.meshletPrimitiveCount == 0u ||
+            hcmeshInfo.geometryByteSize == 0u ||
+            hcmeshInfo.metadataByteSize == 0u) {
             info.state = ClusteredGeometryArtifactState::Invalid;
-            info.message = validation.messages.empty() ? "HCMESH validation failed" : validation.messages.front();
+            info.message = "HCMESH v14 packed artifact is empty or incomplete";
             return info;
         }
 

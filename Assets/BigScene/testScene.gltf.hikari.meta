@@ -2043,12 +2043,12 @@
   "importSettings": {
     "clusterGeometry": {
       "enabled": true,
-      "largeSurfaceTargetExtent": 0.75,
+      "largeSurfaceTargetExtent": 2.0,
       "largeTriangleMaxEdgeLength": 3.0,
       "largeTriangleMaxGeneratedTriangles": 16384,
       "largeTriangleMaxSubdivisions": 4,
       "lockPartitionBorders": true,
-      "lodQualityBias": 0.25,
+      "lodQualityBias": 0.5,
       "maxLodCount": 5,
       "meshletSplitFactor": 1.25,
       "partitionLargeSurfaces": true,
@@ -2065,7 +2065,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 28,
+  "importerVersion": 31,
   "metaVersion": 1,
   "sourcePath": "Assets/BigScene/testscene.gltf",
   "type": "Model"

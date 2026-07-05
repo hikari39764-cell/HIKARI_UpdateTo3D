@@ -39,6 +39,7 @@ namespace HIKARI::MESHRENDERER {
 
     bool InitializeMeshPipelines(ID3D12Device* device, MeshPipelineStore& store);
     void ShutdownMeshPipelines(MeshPipelineStore& store);
+    void InvalidateMeshPipelineVariants(MeshPipelineStore& store);
 
     ID3D12RootSignature* GetStaticRootSignature(MeshPipelineStore& store);
     ID3D12RootSignature* GetSkinnedRootSignature(MeshPipelineStore& store);

@@ -30,11 +30,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t kClusterCullMergeClusterGapLimit = 3u;
         constexpr float kClusterCullLodTargetErrorNdc = 0.0100f;
         constexpr uint32_t kClusterCullPageTaskGroupSize = 4u;
-        constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 10u;
+        constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 4u;
         constexpr DXGI_FORMAT kClusterCullHzbFallbackFormat = DXGI_FORMAT_R32_FLOAT;
         constexpr float kClusterCullHzbDepthBias = 0.0005f;
         constexpr float kClusterCullHzbMaxScreenRadiusPixels = 4096.0f;
-        constexpr uint32_t kClusterCullHzbTestBudget = 12000u;
+        constexpr uint32_t kClusterCullHzbTestBudget = 16000u;
         constexpr size_t kClusterCullOcclusionHistoryMinCapacity = 65536u;
         constexpr size_t kClusterCullOcclusionHistoryMaxCapacity = 1048576u;
         constexpr size_t kClusterCullOcclusionHistoryEntryBytes = sizeof(uint32_t) * 2u;
@@ -73,7 +73,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
             retired.Reset();
         }
-
+		// 固定サイズのSRV（Shader Resource View）ディスクリプタを取得します
         RenderResourceView FixedSrvHeapView(ID3D12Device* device, UINT descriptorIndex) {
             RenderResourceView view{};
             ID3D12DescriptorHeap* heap = SERVICES::gCtx.srvHeap;
@@ -90,7 +90,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             view.gpu = GFX::DESCRIPTOR::GpuAt(heap, descriptorSize, descriptorIndex);
             return view;
         }
-
+		// 固定サイズの2DテクスチャのSRV（Shader Resource View）ディスクリプタを作成します
         RenderResourceView CreateFixedTexture2DSrvDescriptor(
             ID3D12Device* device,
             ID3D12Resource* resource,
@@ -130,7 +130,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             }
             return pow2;
         }
-
+		// デバッグログに警告メッセージを出力します
         void ReportWarning(const char* message) {
             if (message == nullptr) {
                 return;
@@ -156,7 +156,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             const size_t index = static_cast<size_t>(passKind);
             return index < kClusterGpuCullingPassKindCount ? index : 0u;
         }
-
+		// ComputePipelineStateの作成を行います
         bool CreateComputePipelineState(
             ID3D12Device* device,
             ID3D12RootSignature* rootSignature,
@@ -199,7 +199,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
     }
-
+	// ClusterGpuCullingPassの初期化を行います   
     bool ClusterGpuCullingPass::Initialize(
         ID3D12Device* device,
         ID3D12RootSignature* drawRootSignature,
@@ -249,7 +249,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.threadGroupSize = kThreadGroupSize;
         return true;
     }
-
+	// ClusterGpuCullingPassのリソースをリセットし、関連するD3D12オブジェクトを解放します。
     void ClusterGpuCullingPass::Reset() {
         constantsMapped_ = nullptr;
         counterResetMapped_ = nullptr;
@@ -331,7 +331,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             stats_.gpuCounterReadbackValid = false;
         }
     }
-
+	// 現在のフレームリソースをバインドします
     void ClusterGpuCullingPass::BindFrameResources(uint32_t frameIndex) {
         activeFrameResourceIndex_ = frameIndex % GFX::kFrameResourceCount;
         FrameResources& frame = frameResources_[activeFrameResourceIndex_];
@@ -356,7 +356,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         dispatchArgumentBufferState_ = frame.dispatchArgumentBufferState;
         counterBufferState_ = frame.counterBufferState;
     }
-
+	// 現在のフレームリソースの状態を保存します
     void ClusterGpuCullingPass::StoreActiveFrameResourceStates() {
         FrameResources& frame = frameResources_[activeFrameResourceIndex_ % GFX::kFrameResourceCount];
         frame.pageTaskBufferState = pageTaskBufferState_;
@@ -367,7 +367,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         frame.dispatchArgumentBufferState = dispatchArgumentBufferState_;
         frame.counterBufferState = counterBufferState_;
     }
-
+	// ClusterGpuCullingPassのパイプラインが正しく初
     bool ClusterGpuCullingPass::EnsurePipeline(ID3D12Device* device) {
         if (rootSignature_ != nullptr &&
             expandPageTasksPipelineState_ != nullptr &&

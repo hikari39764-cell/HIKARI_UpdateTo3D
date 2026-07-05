@@ -8,6 +8,7 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Core/HIKARI_MeshRendererRootParams.h"
@@ -151,7 +152,7 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FillMode = wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
-            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_NONE;
+            psoDesc.RasterizerState.CullMode = key.doubleSided ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
             psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
             psoDesc.DepthStencilState.DepthEnable = key.depthTest ? TRUE : FALSE;
             psoDesc.DepthStencilState.DepthWriteMask = key.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -163,6 +164,34 @@ namespace HIKARI::MESHRENDERER {
             psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             psoDesc.SampleDesc.Count = 1;
             return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(outPso)));
+        }
+
+        template <typename PipelineCache>
+        void RetirePipelineCache(PipelineCache& cache, const char* debugName) {
+            for (auto& entry : cache) {
+                ComPtr<ID3D12PipelineState>& pso = entry.second;
+                if (pso == nullptr) {
+                    continue;
+                }
+
+                ID3D12PipelineState* retired = pso.Detach();
+                GFX::RetireD3D12ObjectForCurrentFrame(
+                    retired,
+                    debugName != nullptr ? debugName : "MeshRenderer.VariantPSO");
+            }
+            cache.clear();
+        }
+
+        template <typename T>
+        void RetireD3D12Object(ComPtr<T>& object, const char* debugName) {
+            if (object == nullptr) {
+                return;
+            }
+
+            T* retired = object.Detach();
+            GFX::RetireD3D12ObjectForCurrentFrame(
+                retired,
+                debugName != nullptr ? debugName : "MeshRenderer.D3D12Object");
         }
     }
 
@@ -631,24 +660,31 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void ShutdownMeshPipelines(MeshPipelineStore& store) {
-        store.variantPsoCache.clear();
-        store.skinnedVariantPsoCache.clear();
-        store.wireVariantPsoCache.clear();
-        store.skinnedWireVariantPsoCache.clear();
-        store.psBlobCache.clear();
-        store.vsBlobCache.clear();
-        store.pso.Reset();
-        store.skinnedPso.Reset();
-        store.depthPso.Reset();
-        store.depthSkinnedPso.Reset();
-        store.geometryPso.Reset();
-        store.geometrySkinnedPso.Reset();
-        store.rootSig.Reset();
-        store.skinnedRootSig.Reset();
+        InvalidateMeshPipelineVariants(store);
+        RetireD3D12Object(store.pso, "MeshRenderer.StaticPSO");
+        RetireD3D12Object(store.skinnedPso, "MeshRenderer.SkinnedPSO");
+        RetireD3D12Object(store.depthPso, "MeshRenderer.DepthPSO");
+        RetireD3D12Object(store.depthSkinnedPso, "MeshRenderer.DepthSkinnedPSO");
+        RetireD3D12Object(store.geometryPso, "MeshRenderer.GeometryPSO");
+        RetireD3D12Object(store.geometrySkinnedPso, "MeshRenderer.GeometrySkinnedPSO");
+        RetireD3D12Object(store.rootSig, "MeshRenderer.StaticRootSignature");
+        RetireD3D12Object(store.skinnedRootSig, "MeshRenderer.SkinnedRootSignature");
         store.vsBlob.Reset();
         store.skinnedVsBlob.Reset();
         store.psBlob.Reset();
         store.geometryPsBlob.Reset();
+    }
+
+    void InvalidateMeshPipelineVariants(MeshPipelineStore& store) {
+        RetirePipelineCache(store.variantPsoCache, "MeshRenderer.StaticVariantPSO");
+        RetirePipelineCache(store.skinnedVariantPsoCache, "MeshRenderer.SkinnedVariantPSO");
+        RetirePipelineCache(store.wireVariantPsoCache, "MeshRenderer.WireVariantPSO");
+        RetirePipelineCache(store.skinnedWireVariantPsoCache, "MeshRenderer.SkinnedWireVariantPSO");
+        store.psBlobCache.clear();
+        store.vsBlobCache.clear();
+        if (store.psBlob) {
+            store.psBlobCache["StaticLit"] = store.psBlob;
+        }
     }
 
     ID3D12RootSignature* GetStaticRootSignature(MeshPipelineStore& store) {
@@ -686,6 +722,17 @@ namespace HIKARI::MESHRENDERER {
                 ? CreateSkinnedVariantPipeline(store, device, key, wireframe, variantPso.GetAddressOf())
                 : CreateVariantPipeline(store, device, key, wireframe, variantPso.GetAddressOf());
             if (!created) {
+                DEBUGLOG::PushRenderError(
+                    std::string("[MeshRenderer][MaterialFx][WARN] Variant PSO create failed; fallback used. vs=") +
+                    (key.vertexShaderId.empty() ? "<default>" : key.vertexShaderId) +
+                    " ps=" +
+                    ((!key.pixelShaderId.empty() ? key.pixelShaderId : key.shaderId).empty()
+                        ? "<default>"
+                        : (!key.pixelShaderId.empty() ? key.pixelShaderId : key.shaderId)) +
+                    " skinned=" +
+                    (skinned ? "yes" : "no") +
+                    " wireframe=" +
+                    (wireframe ? "yes" : "no"));
                 variantPso = skinned ? (store.skinnedPso ? store.skinnedPso : store.pso) : store.pso;
             }
             found = cache.emplace(key, std::move(variantPso)).first;
