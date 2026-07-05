@@ -7,16 +7,34 @@
 
 #include "Assets/HIKARI_AssetGuid.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Shaders/Include/HIKARI_ClusterGeometryConfig.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
 
     constexpr uint32_t kInvalidClusterIndex = (std::numeric_limits<uint32_t>::max)();
-    constexpr uint32_t kHcmeshMaxTrianglesPerCluster = 64u;
-    constexpr uint32_t kHcmeshMaxVerticesPerCluster = 128u;
-    constexpr uint32_t kHcmeshMaxClustersPerPage = 64u;
+    constexpr uint32_t kHcmeshMaxTrianglesPerCluster =
+        HIKARI_CLUSTER_GEOMETRY_CONFIG_MAX_MESHLET_TRIANGLES;
+    constexpr uint32_t kHcmeshMaxVerticesPerCluster =
+        HIKARI_CLUSTER_GEOMETRY_CONFIG_MAX_MESHLET_VERTICES;
+    constexpr uint32_t kHcmeshMaxClustersPerPage =
+        HIKARI_CLUSTER_GEOMETRY_CONFIG_AS_CLUSTER_PAYLOAD;
     constexpr uint32_t kHcmeshMaxTrianglesPerMeshlet = kHcmeshMaxTrianglesPerCluster;
     constexpr uint32_t kHcmeshMaxVerticesPerMeshlet = kHcmeshMaxVerticesPerCluster;
     constexpr uint32_t kHcmeshMaxMeshletsPerPage = kHcmeshMaxClustersPerPage;
+
+    static_assert(
+        kHcmeshMaxVerticesPerCluster <= 256u,
+        "meshlet primitive は 8bit local index で頂点を参照する");
+    static_assert(
+        kHcmeshMaxTrianglesPerCluster >= kHcmeshMaxVerticesPerCluster,
+        "meshlet は三角形出力が律速になる構成 (三角形数 >= 頂点数) を保つ");
+    static_assert(
+        HIKARI_CLUSTER_GEOMETRY_CONFIG_MESHLET_MS_THREAD_COUNT >=
+            kHcmeshMaxTrianglesPerCluster &&
+        HIKARI_CLUSTER_GEOMETRY_CONFIG_MESHLET_MS_THREAD_COUNT >=
+            kHcmeshMaxVerticesPerCluster &&
+        (HIKARI_CLUSTER_GEOMETRY_CONFIG_MESHLET_MS_THREAD_COUNT % 32u) == 0u,
+        "MS thread 数は max(頂点, 三角形) 以上の wave 倍数にする");
 
     enum class ClusterSurfaceFlags : uint32_t {
         None = 0,

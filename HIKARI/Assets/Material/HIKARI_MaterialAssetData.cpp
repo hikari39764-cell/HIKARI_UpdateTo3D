@@ -5,40 +5,11 @@
 
 #include <json.hpp>
 
+#include "Core/HIKARI_JsonRead.h"
+
 namespace HIKARI {
 
     namespace {
-        float NumberOr(const nlohmann::json& node, size_t index, float fallback) {
-            if (!node.is_array() || node.size() <= index || !node[index].is_number()) {
-                return fallback;
-            }
-            return node[index].get<float>();
-        }
-
-        MATH::Vec3 ReadVec3(const nlohmann::json& node, const MATH::Vec3& fallback) {
-            return {
-                NumberOr(node, 0, fallback.x),
-                NumberOr(node, 1, fallback.y),
-                NumberOr(node, 2, fallback.z)
-            };
-        }
-
-        MATH::Vec4 ReadVec4(const nlohmann::json& node, const MATH::Vec4& fallback) {
-            return {
-                NumberOr(node, 0, fallback.x),
-                NumberOr(node, 1, fallback.y),
-                NumberOr(node, 2, fallback.z),
-                NumberOr(node, 3, fallback.w)
-            };
-        }
-
-        MATH::Vec2 ReadVec2(const nlohmann::json& node, const MATH::Vec2& fallback) {
-            return {
-                NumberOr(node, 0, fallback.x),
-                NumberOr(node, 1, fallback.y)
-            };
-        }
-
         nlohmann::json WriteVec2(const MATH::Vec2& value) {
             return nlohmann::json::array({ value.x, value.y });
         }
@@ -59,8 +30,8 @@ namespace HIKARI {
             slot.useTexture = node.value("useTexture", false);
             slot.textureAssetGuid.value = node.value("textureAssetGuid", std::string{});
             slot.texCoord = std::clamp(node.value("texCoord", slot.texCoord), 0, 1);
-            slot.uvScale = ReadVec2(node.value("uvScale", nlohmann::json::array()), slot.uvScale);
-            slot.uvOffset = ReadVec2(node.value("uvOffset", nlohmann::json::array()), slot.uvOffset);
+            slot.uvScale = JSONREAD::Vec2Or(node.value("uvScale", nlohmann::json::array()), slot.uvScale);
+            slot.uvOffset = JSONREAD::Vec2Or(node.value("uvOffset", nlohmann::json::array()), slot.uvOffset);
             slot.uvRotation = node.value("uvRotation", slot.uvRotation);
             return slot;
         }
@@ -83,7 +54,7 @@ namespace HIKARI {
 
             if (auto baseColor = root.find("baseColor"); baseColor != root.end() && baseColor->is_object()) {
                 data.baseColorTexture = ReadSlot(*baseColor);
-                data.baseColorFactor = ReadVec4(baseColor->value("factor", nlohmann::json::array()), data.baseColorFactor);
+                data.baseColorFactor = JSONREAD::Vec4Or(baseColor->value("factor", nlohmann::json::array()), data.baseColorFactor);
             }
             if (auto normal = root.find("normal"); normal != root.end() && normal->is_object()) {
                 data.normalTexture = ReadSlot(*normal);
@@ -100,7 +71,7 @@ namespace HIKARI {
             }
             if (auto emissive = root.find("emissive"); emissive != root.end() && emissive->is_object()) {
                 data.emissiveTexture = ReadSlot(*emissive);
-                data.emissiveFactor = ReadVec3(emissive->value("factor", nlohmann::json::array()), data.emissiveFactor);
+                data.emissiveFactor = JSONREAD::Vec3Or(emissive->value("factor", nlohmann::json::array()), data.emissiveFactor);
                 data.emissiveStrength = emissive->value("strength", data.emissiveStrength);
             }
             if (auto specular = root.find("specular"); specular != root.end() && specular->is_object()) {
@@ -109,7 +80,7 @@ namespace HIKARI {
             }
             if (auto specularColor = root.find("specularColor"); specularColor != root.end() && specularColor->is_object()) {
                 data.specularColorTexture = ReadSlot(*specularColor);
-                data.specularColorFactor = ReadVec3(
+                data.specularColorFactor = JSONREAD::Vec3Or(
                     specularColor->value("factor", nlohmann::json::array()),
                     data.specularColorFactor);
             }

@@ -1,8 +1,8 @@
 #include "HIKARI_InspectorPanel.h"
-#include "HIKARI_ImGuiInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_ImGuiInspectorBuilder.h"
 #include <string>
 #include "Render3D/HIKARI_Math3D.h"
-#include "HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #if defined(HIKARI_WITH_EDITOR)
@@ -73,7 +73,7 @@ namespace HIKARI {
             gRotationEditor.eulerDeg = runtimeEulerDeg;
             gRotationEditor.editing = false;
         } else if (!gRotationEditor.editing) {
-            // Gizmo縺ｪ縺ｩ螟夜Κ謫堺ｽ懊・Quaternion繧棚nspector陦ｨ遉ｺ縺ｸ蜿肴丐縺吶ｋ縲・            gRotationEditor.eulerDeg = runtimeEulerDeg;
+            // Gizmo邵ｺ・ｪ邵ｺ・ｩ陞溷､慚夊ｬｫ蝣ｺ・ｽ諛翫・Quaternion郢ｧ譽嗜spector髯ｦ・ｨ驕会ｽｺ邵ｺ・ｸ陷ｿ閧ｴ荳千ｸｺ蜷ｶ・狗ｸｲ繝ｻ            gRotationEditor.eulerDeg = runtimeEulerDeg;
         }
         if (ImGui::DragFloat3("Rotation Euler (deg)", &gRotationEditor.eulerDeg.x, 0.1f)) {
             transform.rotation = QuatFromEulerDegrees(gRotationEditor.eulerDeg);

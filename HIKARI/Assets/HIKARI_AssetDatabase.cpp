@@ -833,7 +833,7 @@ namespace HIKARI {
             hcmeshInfo.geometryByteSize == 0u ||
             hcmeshInfo.metadataByteSize == 0u) {
             info.state = ClusteredGeometryArtifactState::Invalid;
-            info.message = "HCMESH v14 packed artifact is empty or incomplete";
+            info.message = "HCMESH packed artifact is empty or incomplete";
             return info;
         }
 

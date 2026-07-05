@@ -1,11 +1,11 @@
-﻿// --- START OF FILE HIKARI_DxRenderer.h ---
+// --- START OF FILE HIKARI_DxRenderer.h ---
 
 #pragma once
 #include <cstddef>
 #include <cstdint>
 #include <wrl.h>
 #include <d3d12.h>
-#include "HIKARI_Utility.h"
+#include "Core/HIKARI_Utility.h"
 #include "Gfx/HIKARI_GfxContext.h"
 namespace HIKARI {
     namespace DX {
@@ -69,13 +69,13 @@ namespace HIKARI {
                 uint32_t color = 0xFFFFFFFF);
 
             // ==========================================
-            // [新增] 遮罩相关接口
+            // [新增] 遮罩相?接口
             // ==========================================
 
             // 更新遮罩参数 (玩家屏幕位置, 半径, 羽化)
             static void UpdateMaskParams(float screenX, float screenY, float radius, float softness);
 
-            // 使用遮罩 Shader 绘制 Quad
+            // 使用遮罩 Shader ?制 Quad
             static void DrawMeshQuadMasked(
                 float x0, float y0, float u0, float v0,
                 float x1, float y1, float u1, float v1,
@@ -105,10 +105,10 @@ namespace HIKARI {
             static BlendMode currentBlendMode_;
 
             // ==========================================
-            // [新增] 遮罩相关私有资源
+            // [新增] 遮罩相?私有?源
             // ==========================================
-            static Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSigMask_; // 专用的 RootSig (带 b1 参数)
-            static Microsoft::WRL::ComPtr<ID3D12PipelineState> psoMask_;     // 专用的 PSO
+            static Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSigMask_; // ?用的 RootSig (? b1 参数)
+            static Microsoft::WRL::ComPtr<ID3D12PipelineState> psoMask_;     // ?用的 PSO
         };
 
     } // namespace DX

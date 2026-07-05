@@ -9,8 +9,8 @@
 
 #include "Core/HIKARI_FrameContext.h"
 #include "HIKARI_Input.h"
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_ModelAsset.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"

@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 #include <string>
-#include "HIKARI_Transform2D.h"
-#include "HIKARI_Renderer.h"
+#include "Render2D/HIKARI_Transform2D.h"
+#include "Render2D/HIKARI_Renderer.h"
 
 #include <spine/Atlas.h>
 #include <spine/Skeleton.h>

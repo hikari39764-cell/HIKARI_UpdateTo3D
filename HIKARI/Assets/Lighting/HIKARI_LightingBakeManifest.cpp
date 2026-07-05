@@ -6,32 +6,14 @@
 
 #include <json.hpp>
 
+#include "Core/HIKARI_JsonRead.h"
+
 namespace HIKARI::ASSETS::LIGHTING {
 
     namespace {
 
         nlohmann::json ToJson(const MATH::Vec3& value) {
             return nlohmann::json::array({ value.x, value.y, value.z });
-        }
-
-        MATH::Vec3 ReadVec3(const nlohmann::json& node) {
-            if (node.is_array() && node.size() >= 3) {
-                return MATH::Vec3{
-                    node[0].get<float>(),
-                    node[1].get<float>(),
-                    node[2].get<float>()
-                };
-            }
-
-            if (node.is_object()) {
-                return MATH::Vec3{
-                    node.value("x", 0.0f),
-                    node.value("y", 0.0f),
-                    node.value("z", 0.0f)
-                };
-            }
-
-            return MATH::Vec3{};
         }
 
         std::string NormalizeInfluenceShape(std::string value) {
@@ -55,22 +37,22 @@ namespace HIKARI::ASSETS::LIGHTING {
 
             record.id = node.value("id", std::string{});
             record.name = node.value("name", std::string{});
-            record.position = ReadVec3(node.value("position", nlohmann::json::array()));
+            record.position = JSONREAD::Vec3Or(node.value("position", nlohmann::json::array()), {});
             record.radius = node.value("radius", 0.0f);
             record.intensity = node.value("intensity", 1.0f);
             record.influenceShape = NormalizeInfluenceShape(node.value("influenceShape", std::string{ "Sphere" }));
             record.influenceBoxCenter = node.contains("influenceBoxCenter")
-                ? ReadVec3(node["influenceBoxCenter"])
+                ? JSONREAD::Vec3Or(node["influenceBoxCenter"], {})
                 : record.position;
             record.influenceBoxSize = node.contains("influenceBoxSize")
-                ? ReadVec3(node["influenceBoxSize"])
+                ? JSONREAD::Vec3Or(node["influenceBoxSize"], {})
                 : RadiusBoxSize(record.radius);
             record.projectionShape = NormalizeProjectionShape(node.value("projectionShape", std::string{ "Infinite" }));
             record.projectionBoxCenter = node.contains("projectionBoxCenter")
-                ? ReadVec3(node["projectionBoxCenter"])
+                ? JSONREAD::Vec3Or(node["projectionBoxCenter"], {})
                 : record.position;
             record.projectionBoxSize = node.contains("projectionBoxSize")
-                ? ReadVec3(node["projectionBoxSize"])
+                ? JSONREAD::Vec3Or(node["projectionBoxSize"], {})
                 : RadiusBoxSize(record.radius);
             record.blendDistance = node.value("blendDistance", 1.0f);
             record.priority = node.value("priority", 0);
@@ -90,9 +72,9 @@ namespace HIKARI::ASSETS::LIGHTING {
             record.id = node.value("id", std::string{});
             record.name = node.value("name", std::string{});
             record.type = node.value("type", std::string{ "VolumeGrid" });
-            record.position = ReadVec3(node.value("position", nlohmann::json::array()));
-            record.origin = ReadVec3(node.value("origin", nlohmann::json::array()));
-            record.size = ReadVec3(node.value("size", nlohmann::json::array()));
+            record.position = JSONREAD::Vec3Or(node.value("position", nlohmann::json::array()), {});
+            record.origin = JSONREAD::Vec3Or(node.value("origin", nlohmann::json::array()), {});
+            record.size = JSONREAD::Vec3Or(node.value("size", nlohmann::json::array()), {});
             record.countX = node.value("countX", 0u);
             record.countY = node.value("countY", 0u);
             record.countZ = node.value("countZ", 0u);

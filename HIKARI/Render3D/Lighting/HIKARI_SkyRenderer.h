@@ -3,10 +3,10 @@
 #include <d3d12.h>
 #include <string>
 
-#include "Render3D/HIKARI_Camera3D.h"
-#include "Render3D/HIKARI_ModelManager.h"
-#include "Render3D/HIKARI_SceneEnvironment.h"
-#include "Render3D/HIKARI_SkyManager.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::SKYRENDERER {

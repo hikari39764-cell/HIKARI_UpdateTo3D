@@ -737,7 +737,6 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
-    <ClInclude Include="HIKARI\Editor\HIKARI_EditorSelection.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h" />
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
@@ -793,7 +792,6 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h" />
-    <ClInclude Include="HIKARI\Editor\HIKARI_DebugWindowState.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
@@ -858,6 +856,7 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ValidationLabPanel.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeReport.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.h" />
     <ClInclude Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.h" />
@@ -868,7 +867,6 @@
     <ClInclude Include="ThirdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="ThirdParty\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="HIKARI\App\HIKARI_EngineApp.h" />
-    <ClInclude Include="HIKARI\Render3D\Animation\HIKARI_Animator.h" />
     <ClInclude Include="HIKARI\HIKARI_Anim.h" />
     <ClInclude Include="HIKARI\HIKARI_Bgm.h" />
     <ClInclude Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.h" />
@@ -922,8 +920,19 @@
     <None Include="input.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />
+    <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterGpuData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_DebugViewCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshMaterialData.hlsli" />
+    <None Include="HIKARI\Shaders\Include\HIKARI_MeshObjectData.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenWaterDeform.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletDraw.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletForwardMSCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletMSCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletDraw.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_GpuDrivenWaterDeform.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshletForwardMSCommon.hlsli" />
@@ -935,6 +944,13 @@
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_FxWaterPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueAlbedoOnlyPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueFullPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoMaterialExtrasPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoNormalMapPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoShadowPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoSsaoPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaquePS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\HIKARI_ClusterCullCommon.hlsli" />
@@ -951,6 +967,7 @@
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletFxMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_MeshletShadowPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_SkyVS.hlsl" />
@@ -970,6 +987,7 @@
     <None Include="HIKARI\Shaders\Post_SSAOPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_SSAOBlurPS.hlsl" />
     <None Include="HIKARI\Shaders\Post_ToneMappingPS.hlsl" />
+    <None Include="Tools\ShaderCheck\Compile-HikariShaders.ps1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="ThirdParty\DirectXTex\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

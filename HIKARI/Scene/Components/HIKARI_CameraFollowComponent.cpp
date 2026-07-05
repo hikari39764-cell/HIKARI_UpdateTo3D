@@ -2,25 +2,12 @@
 
 #include <algorithm>
 
+#include "Core/HIKARI_JsonRead.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 
 namespace HIKARI {
 
     namespace {
-        MATH::Vec3 ReadVec3(const nlohmann::json& node, const MATH::Vec3& fallback) {
-            MATH::Vec3 value = fallback;
-            if (node.is_array() && node.size() >= 3) {
-                value.x = node[0].is_number() ? node[0].get<float>() : value.x;
-                value.y = node[1].is_number() ? node[1].get<float>() : value.y;
-                value.z = node[2].is_number() ? node[2].get<float>() : value.z;
-            } else if (node.is_object()) {
-                value.x = node.value("x", value.x);
-                value.y = node.value("y", value.y);
-                value.z = node.value("z", value.z);
-            }
-            return value;
-        }
-
         nlohmann::json ToJson(const MATH::Vec3& value) {
             return nlohmann::json::array({ value.x, value.y, value.z });
         }
@@ -41,10 +28,10 @@ namespace HIKARI {
         targetObjectId_.value = in.value("targetObjectId", targetObjectId_.value);
         useOwnerAsFallbackTarget_ = in.value("useOwnerAsFallbackTarget", useOwnerAsFallbackTarget_);
         if (in.contains("offset")) {
-            offset_ = ReadVec3(in["offset"], offset_);
+            offset_ = JSONREAD::Vec3Or(in["offset"], offset_);
         }
         if (in.contains("lookAtOffset")) {
-            lookAtOffset_ = ReadVec3(in["lookAtOffset"], lookAtOffset_);
+            lookAtOffset_ = JSONREAD::Vec3Or(in["lookAtOffset"], lookAtOffset_);
         }
         followSmooth_ = in.value("followSmooth", followSmooth_);
         lookSmooth_ = in.value("lookSmooth", lookSmooth_);

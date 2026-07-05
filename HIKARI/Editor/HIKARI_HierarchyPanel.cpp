@@ -1,5 +1,5 @@
 #include "HIKARI_HierarchyPanel.h"
-#include "HIKARI_EditorSelection.h"
+#include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"

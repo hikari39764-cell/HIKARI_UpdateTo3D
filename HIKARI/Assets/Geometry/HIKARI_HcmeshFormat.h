@@ -11,7 +11,9 @@
 namespace HIKARI::ASSETS::GEOMETRY {
 
     constexpr uint32_t kHcmeshMagic = 0x48434D48u; // HCMH
-    constexpr uint32_t kHcmeshVersion = 14u;
+    // 15: cluster 寸法を 124tri/64vert に変更し、GPU blob v11 (position float3 /
+    //     attributes 24B) を格納する。旧版ファイルは検証で invalid になり再 cook される。
+    constexpr uint32_t kHcmeshVersion = 15u;
     constexpr uint32_t kHcmeshChunkAlignment = 16u;
 
     enum class HcmeshChunkKind : uint32_t {

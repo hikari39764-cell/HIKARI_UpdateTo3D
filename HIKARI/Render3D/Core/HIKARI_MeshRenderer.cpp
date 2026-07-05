@@ -2102,6 +2102,11 @@ namespace HIKARI::MESHRENDERER {
         return RenderGeometryAuxPassInternal(geometryAux, sceneDsv);
     }
 
+    bool HasDepthPrepassWork() {
+        return HasGpuDrivenPassSource(
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass);
+    }
+
     bool RenderDepthPrepass(D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv) {
         return RenderDepthPrepassInternal(sceneDsv);
     }

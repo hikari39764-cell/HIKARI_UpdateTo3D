@@ -1,4 +1,4 @@
-#include "Editor/HIKARI_DocumentToolbarController.h"
+#include "Editor/Controllers/HIKARI_DocumentToolbarController.h"
 
 #include <cstdio>
 

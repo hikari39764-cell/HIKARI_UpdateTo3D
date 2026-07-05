@@ -4,7 +4,7 @@
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
-#include "Editor/HIKARI_EnvironmentPanel.h"
+#include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
 #include "Editor/Panels/HIKARI_LightingBakePanel.h"
@@ -15,7 +15,7 @@
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
-#include "Editor/HIKARI_DocumentToolbarController.h"
+#include "Editor/Controllers/HIKARI_DocumentToolbarController.h"
 #include "Editor/HIKARI_TimePanel.h"
 #include "Assets/HIKARI_AssetGuid.h"
 

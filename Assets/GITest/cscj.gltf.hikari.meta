@@ -210,7 +210,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 29,
+  "importerVersion": 31,
   "metaVersion": 1,
   "sourcePath": "Assets/GITest/cscj.gltf",
   "type": "Model"

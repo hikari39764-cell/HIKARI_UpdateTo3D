@@ -1,10 +1,10 @@
-﻿#pragma once
+#pragma once
 #include <vector>
 #include <stack> 
 #include <string>
 #include <memory>
 #include <DirectXMath.h>
-#include "HIKARI_RenderTarget2D.h"
+#include "Render2D/HIKARI_RenderTarget2D.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
 #include "Vfx/Post/HIKARI_PostCommon.h"
 #include "Vfx/Post/HIKARI_PostChain.h"
@@ -65,7 +65,7 @@ namespace HIKARI {
             static void SetTransitionState(const TransitionVisualState& state);
             static void ClearTransitionState();
 
-            // --- 场景捕获 ---
+            // --- ?景捕? ---
             static void BeginSceneCapture();
             static bool HasCurrentRenderTarget();
             static D3D12_GPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDepthSrv();
@@ -73,7 +73,7 @@ namespace HIKARI {
             static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDsv();
             static bool BeginCurrentRenderTargetDepthRead();
             static void EndCurrentRenderTargetDepthRead();
-            static void EndSceneCaptureAndPresent(); // 这里会自动应用光照合成
+            static void EndSceneCaptureAndPresent(); // ?里会自??用光照合成
             static bool EndSceneCaptureToEditorViewport();
             static bool IsSceneCaptureActive();
             static void SetSceneCaptureSize(int width, int height);
@@ -93,18 +93,18 @@ namespace HIKARI {
             static int GetSceneColorWidth();
             static int GetSceneColorHeight();
 
-            // --- 光照系统  ---
-            // 设置环境光颜色 (R,G,B), 0.0=全黑, 1.0=全亮
+            // --- 光照系?  ---
+            // ?置?境光?色 (R,G,B), 0.0=全黑, 1.0=全亮
             static void SetAmbientColor(float r, float g, float b);
 
-            // 开始绘制光照贴图 (在这之后绘制 Sprite 光源)
+            // ?始?制光照?? (在?之后?制 Sprite 光源)
             static void BeginLightCapture();
 
-            // 结束绘制光照贴图
+            // ?束?制光照??
             static void EndLightCapture();
 
 
-            // --- 图层系统 ---
+            // --- ??系? ---
             static void BeginLayer(PostChain& chain, float r = 0, float g = 0, float b = 0, float a = 0);
             static void EndLayer(BlendOption blendMode = BlendOption::Alpha);
 
@@ -138,7 +138,7 @@ namespace HIKARI {
             static D3D12_CPU_DESCRIPTOR_HANDLE sceneColorSrvCpu_;
             static D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrvGpu_;
 
-            // [新增] 专门用于画光的 RT
+            // [新增] ??用于画光的 RT
             static RenderTarget2D lightRT_;
             static float ambientColor_[3];
             static float lightRTClearColor_[3];

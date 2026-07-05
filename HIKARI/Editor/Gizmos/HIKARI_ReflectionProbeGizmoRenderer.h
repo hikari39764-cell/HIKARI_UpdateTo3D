@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Editor/HIKARI_EditorContext.h"
-#include "Render3D/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 
 namespace HIKARI::EDITOR {

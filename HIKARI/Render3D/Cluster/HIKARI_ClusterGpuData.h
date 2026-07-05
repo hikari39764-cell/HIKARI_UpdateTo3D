@@ -7,7 +7,8 @@
 namespace HIKARI::RENDER3D::CLUSTER {
 
     constexpr uint32_t kClusterGeometryGpuMagic = 0x534c4348u; // HCLS
-    constexpr uint32_t kClusterGeometryGpuVersion = 10u;
+    // 11: vertex position float4->float3 / attributes 32B->24B に縮小。
+    constexpr uint32_t kClusterGeometryGpuVersion = 11u;
     constexpr uint32_t kClusterGeometryGpuSectionAlignment = 16u;
 
     struct ClusterGeometryGpuHeader {
@@ -162,7 +163,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
     };
 
     struct ClusterGeometryGpuVertexPosition {
-        MATH::Vec4 position{};
+        MATH::Vec3 position{};
     };
 
     struct ClusterGeometryGpuVertexAttributes {
@@ -172,8 +173,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t tangentZ_Uv0X = 0;
         uint32_t uv0Y_Uv1X = 0;
         uint32_t uv1Y_Reserved0 = 0;
-        uint32_t reserved1 = 0;
-        uint32_t reserved2 = 0;
     };
 
     struct ClusterGeometryGpuMeshletPrimitive {
@@ -268,10 +267,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
     static_assert((sizeof(ClusterGeometrySurfaceSection) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuCluster) % kClusterGeometryGpuSectionAlignment) == 0);
     static_assert((sizeof(ClusterGeometryGpuPage) % kClusterGeometryGpuSectionAlignment) == 0);
-    static_assert((sizeof(ClusterGeometryGpuVertexPosition) % kClusterGeometryGpuSectionAlignment) == 0);
-    static_assert((sizeof(ClusterGeometryGpuVertexAttributes) % kClusterGeometryGpuSectionAlignment) == 0);
-    static_assert(sizeof(ClusterGeometryGpuVertexPosition) == 16);
-    static_assert(sizeof(ClusterGeometryGpuVertexAttributes) == 32);
+    // 頂点系はセクション先頭だけ 16B 境界に揃え、要素 stride は詰めて格納する。
+    static_assert(sizeof(ClusterGeometryGpuVertexPosition) == 12);
+    static_assert(sizeof(ClusterGeometryGpuVertexAttributes) == 24);
     static_assert(sizeof(ClusterGeometryGpuMeshletPrimitive) == sizeof(uint32_t));
 
 } // namespace HIKARI::RENDER3D::CLUSTER

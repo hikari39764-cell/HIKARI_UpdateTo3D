@@ -301,7 +301,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         ClusterGeometryGpuVertexPosition ToGpuVertexPosition(const ClusterVertex& source) {
             ClusterGeometryGpuVertexPosition gpu{};
-            gpu.position = { source.position.x, source.position.y, source.position.z, 1.0f };
+            gpu.position = { source.position.x, source.position.y, source.position.z };
             return gpu;
         }
 
@@ -408,7 +408,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
             AppendPod(packed.geometryBytes, ToGpuVertexPosition(vertex));
         }
 
-        AlignSection(packed.geometryBytes);
+        // 属性列は position 列の直後に隙間なく続ける。HLSL 側は
+        // vertexOffsetBytes + vertexCount * POSITION_BYTES で属性先頭を導出する
+        // (HikariClusterVertexAttributeOffset) ため、ここに padding を入れてはならない。
         for (const ClusterVertex& vertex : asset.packedVertices) {
             AppendPod(packed.geometryBytes, ToGpuVertexAttributes(vertex));
         }

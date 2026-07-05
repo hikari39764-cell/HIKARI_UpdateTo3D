@@ -1,4 +1,4 @@
-#include "HIKARI_RenderTarget2D.h"
+#include "Render2D/HIKARI_RenderTarget2D.h"
 #include <cassert>
 #include <sstream>
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
@@ -275,7 +275,7 @@ bool RenderTarget2D::CreateResources()
         readOnlyDsvView.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
         device->CreateDepthStencilView(depthTex_.Get(), &readOnlyDsvView, readOnlyDsvHandle_);
 
-        // Capture 専用 RT はメイン SceneDepth SRV を上書きしない。
+        // Capture 蟆ら畑 RT 縺ｯ繝｡繧､繝ｳ SceneDepth SRV 繧剃ｸ頑嶌縺阪＠縺ｪ縺・・
         if (publishDepthSrv_ && context_.srvHeap != nullptr) {
             const UINT srvDescriptorSize =
                 device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "Core/HIKARI_JsonRead.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "HIKARI_Input.h"
 
@@ -12,21 +13,6 @@ namespace HIKARI {
             (void)component;
         }
 
-        MATH::Vec4 ReadVec4(const nlohmann::json& node, const MATH::Vec4& fallback) {
-            MATH::Vec4 value = fallback;
-            if (node.is_array() && node.size() >= 4) {
-                value.x = node[0].is_number() ? node[0].get<float>() : value.x;
-                value.y = node[1].is_number() ? node[1].get<float>() : value.y;
-                value.z = node[2].is_number() ? node[2].get<float>() : value.z;
-                value.w = node[3].is_number() ? node[3].get<float>() : value.w;
-            } else if (node.is_object()) {
-                value.x = node.value("x", value.x);
-                value.y = node.value("y", value.y);
-                value.z = node.value("z", value.z);
-                value.w = node.value("w", value.w);
-            }
-            return value;
-        }
     }
 
     void SceneScanFxComponent::Update(float dt) {
@@ -92,7 +78,7 @@ namespace HIKARI {
         flickerStrength_ = in.value("flickerStrength", flickerStrength_);
         intensity_ = in.value("intensity", intensity_);
         if (in.contains("color")) {
-            color_ = ReadVec4(in["color"], color_);
+            color_ = JSONREAD::Vec4Or(in["color"], color_);
         }
         afterglowStrength_ = in.value("afterglowStrength", afterglowStrength_);
         frontLineStrength_ = in.value("frontLineStrength", frontLineStrength_);

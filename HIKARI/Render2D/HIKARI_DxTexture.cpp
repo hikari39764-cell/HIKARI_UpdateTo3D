@@ -1,4 +1,4 @@
-#include "HIKARI_DxTexture.h"
+#include "Render2D/HIKARI_DxTexture.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -82,7 +82,7 @@ namespace HIKARI {
                 const std::string& path,
                 TextureColorSpace colorSpace)
             {
-                // 同じ論理名でも、実体ファイルが違う場合は別 GPU resource として扱う。
+                // 蜷後§隲也炊蜷阪〒繧ゅ∝ｮ滉ｽ薙ヵ繧｡繧､繝ｫ縺碁＆縺・ｴ蜷医・蛻･ GPU resource 縺ｨ縺励※謇ｱ縺・・
                 const bool isCubemap = name.rfind("cube:", 0) == 0;
                 const char* dimensionPrefix = isCubemap ? "cube" : "tex";
                 const std::string normalizedPath = NormalizeTextureCachePath(path);

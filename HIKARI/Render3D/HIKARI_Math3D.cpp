@@ -1,5 +1,5 @@
 #include "Render3D/HIKARI_Math3D.h"
-#include "HIKARI_MathConfig.h"
+#include "Core/HIKARI_MathConfig.h"
 
 #include <algorithm>
 #include <cassert>
@@ -42,7 +42,7 @@ namespace HIKARI::MATH {
             a[row][row + 4] = 1.0f;
         }
 
-        // 列主記憶の行列を行列式なしで安定して反転する。
+        // Gauss-Jordan elimination with partial pivoting.
         for (int col = 0; col < 4; ++col) {
             int pivot = col;
             float pivotAbs = std::abs(a[col][col]);

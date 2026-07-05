@@ -2,7 +2,7 @@
 
 #include "HIKARI_ComponentDocumentEditor.h"
 #include "HIKARI_DocumentComponentAuthoringService.h"
-#include "HIKARI_ImGuiInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_ImGuiInspectorBuilder.h"
 #include "Scene/Prefab/HIKARI_PrefabRegistry.h"
 #include "Scene/Prefab/HIKARI_PrefabSerializer.h"
 

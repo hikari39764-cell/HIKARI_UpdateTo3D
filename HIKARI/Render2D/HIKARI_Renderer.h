@@ -1,21 +1,21 @@
-﻿#pragma once
+#pragma once
 #include <cstddef>
 #include <string>
-#include <vector>  
+#include <vector>
 #include "Matrix3x3.h"
-#include "HIKARI_Transform2D.h"
-#include "HIKARI_Camera.h"
-#include "HIKARI_Texture.h"
+#include "Render2D/HIKARI_Transform2D.h"
+#include "Render2D/HIKARI_Camera.h"
+#include "Render2D/HIKARI_Texture.h"
 namespace HIKARI {
     namespace RENDERER {
 
         enum class RenderLayer {
             Background = 0, // 地板
-            Shadow = 1, // 阴影 
+            Shadow = 1, // ?影
             Entity = 2, // 角色、物体
             VFX = 3, // 特效
             UI = 4, // 界面
-            Debug = 5  // 线框等
+            Debug = 5  // ?框等
         };
 
 
@@ -257,7 +257,7 @@ namespace HIKARI {
             // 要素数 = cols * rows
             std::vector<Vector2> positions;
 
-            // 各格点に対応する UV（0〜1）
+            // 各格点に対応する UV（0?1）
             // 要素数 = cols * rows
             std::vector<Vector2> uvs;
         };

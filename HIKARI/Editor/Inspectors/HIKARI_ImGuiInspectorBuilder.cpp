@@ -1,4 +1,4 @@
-#include "HIKARI_ImGuiInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_ImGuiInspectorBuilder.h"
 
 #include <algorithm>
 #include <cctype>
@@ -277,7 +277,7 @@ namespace HIKARI {
         const std::string labelText(label);
         const std::string previewText = value.empty() ? std::string("<none>") : value;
         if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
-            // Scene 驕ｷ遘ｻ蜈医・ Scene Asset 縺ｮ GUID 縺ｧ驕ｸ縺ｶ縲・
+            // Scene 鬩包ｽｷ驕假ｽｻ陷亥現繝ｻ Scene Asset 邵ｺ・ｮ GUID 邵ｺ・ｧ鬩包ｽｸ邵ｺ・ｶ邵ｲ繝ｻ
             if (ImGui::Selectable("<none>", value.empty())) {
                 value.clear();
                 changed = true;

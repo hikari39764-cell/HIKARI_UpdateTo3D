@@ -1,4 +1,4 @@
-#include "HIKARI_EnvironmentPanel.h"
+#include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetRegistry.h"
@@ -609,8 +609,8 @@ namespace HIKARI {
             return false;
         }
 
-        // UI 蜈ｨ菴薙・邱ｨ髮・燕蠕後ｒ豈碑ｼ・＠縲￣reset 繧・・蛻玲桃菴懊ｂ縺ｾ縺ｨ繧√※讀懷・縺吶ｋ縲・
-        // 邱ｨ髮・､縺ｯ蜊ｳ譎ゅ↓ runtime 縺ｸ蜿肴丐縺励∬ｩｳ邏ｰ險ｺ譁ｭ縺ｯ log 縺ｸ騾・′縺吶・
+        // UI 陷茨ｽｨ闖ｴ阮吶・驍ｱ・ｨ鬮ｮ繝ｻ辯戊募ｾ鯉ｽ定ｱ育｢托ｽｼ繝ｻ・邵ｲ・｣reset 郢ｧ繝ｻ繝ｻ陋ｻ邇ｲ譯・抄諛奇ｽらｸｺ・ｾ邵ｺ・ｨ郢ｧ竏壺ｻ隶諛ｷ繝ｻ邵ｺ蜷ｶ・狗ｸｲ繝ｻ
+        // 驍ｱ・ｨ鬮ｮ繝ｻﾂ・､邵ｺ・ｯ陷奇ｽｳ隴弱ｅ竊・runtime 邵ｺ・ｸ陷ｿ閧ｴ荳千ｸｺ蜉ｱﾂ竏ｬ・ｩ・ｳ驍擾ｽｰ髫ｪ・ｺ隴・ｽｭ邵ｺ・ｯ log 邵ｺ・ｸ鬨ｾ繝ｻ窶ｲ邵ｺ蜷ｶﾂ繝ｻ
         const SceneEnvironment beforeEdit = environment;
 
         ImGui::SeparatorText("Scene Environment");
@@ -795,7 +795,7 @@ namespace HIKARI {
             if (DrawReflectionProbeInfluenceShapeCombo(probe.influenceShape) &&
                 previousInfluenceShape != ReflectionProbeInfluenceShape::Box &&
                 probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
-                // Shape 螟画峩譎ゅ・ sphere 險ｭ螳壹°繧・box 蛻晄悄蛟､繧剃ｽ懊ｋ縲・
+                // Shape 陞溽判蟲ｩ隴弱ｅ繝ｻ sphere 髫ｪ・ｭ陞ｳ螢ｹﾂｰ郢ｧ繝ｻbox 陋ｻ譎・ｄ陋滂ｽ､郢ｧ蜑・ｽｽ諛奇ｽ狗ｸｲ繝ｻ
                 FitReflectionProbeBoxFromRadius(probe.influenceBoxCenter, probe.influenceBoxSize, probe);
             }
             if (probe.influenceShape == ReflectionProbeInfluenceShape::Box) {
@@ -812,7 +812,7 @@ namespace HIKARI {
             if (DrawReflectionProbeProjectionShapeCombo(probe.projectionShape) &&
                 previousProjectionShape != ReflectionProbeProjectionShape::Box &&
                 probe.projectionShape == ReflectionProbeProjectionShape::Box) {
-                // Projection proxy 繧・capture 菴咲ｽｮ縺九ｉ蛻晄悄蛹悶☆繧九・
+                // Projection proxy 郢ｧ繝ｻcapture 闖ｴ蜥ｲ・ｽ・ｮ邵ｺ荵晢ｽ芽崕譎・ｄ陋ｹ謔ｶ笘・ｹｧ荵敖繝ｻ
                 FitReflectionProbeBoxFromRadius(probe.projectionBoxCenter, probe.projectionBoxSize, probe);
             }
             if (probe.projectionShape == ReflectionProbeProjectionShape::Box) {
@@ -869,7 +869,7 @@ namespace HIKARI {
                 ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.35f, 1.0f), "Render diagnostics contain recent errors.");
             }
 
-            // Debug dump 縺ｯ scene dirty 縺ｫ縺励↑縺・・
+            // Debug dump 邵ｺ・ｯ scene dirty 邵ｺ・ｫ邵ｺ蜉ｱ竊醍ｸｺ繝ｻﾂ繝ｻ
             if (ImGui::Button("Dump Environment Diagnostics")) {
                 RENDER3D::DIAGNOSTICS::LogEnvironmentSnapshot("EnvironmentPanel", &environment);
             }
