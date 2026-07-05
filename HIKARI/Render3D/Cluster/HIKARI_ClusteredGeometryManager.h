@@ -6,7 +6,7 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryAsset.h"
+#include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
 
@@ -32,7 +32,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
     class ClusteredGeometryManager {
     public:
-        const ClusteredGeometryAsset* LoadOrGet(const std::filesystem::path& path);
+        const ASSETS::GEOMETRY::HcmeshFileInfo* LoadOrGet(const std::filesystem::path& path);
         void Invalidate(const std::filesystem::path& path);
         void Clear();
 
@@ -43,7 +43,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         std::string MakeKey(const std::filesystem::path& path) const;
         void RebuildStats();
 
-        std::unordered_map<std::string, std::unique_ptr<ClusteredGeometryAsset>> assets_{};
+        std::unordered_map<std::string, std::unique_ptr<ASSETS::GEOMETRY::HcmeshFileInfo>> assets_{};
         ClusteredGeometryManagerStats stats_{};
         std::string lastMessage_{};
     };

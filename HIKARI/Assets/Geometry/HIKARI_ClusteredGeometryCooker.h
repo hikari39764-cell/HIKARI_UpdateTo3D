@@ -41,6 +41,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         float largeSurfacePartitionMaxExtent = 6.0f;
         bool lockPartitionBorders = true;
         bool balancePlanarStaticSurfaces = true;
+        uint32_t minPartitionClusterEstimate = 8;
         float planarStaticSurfaceMinPartitionExtent = 3.0f;
         uint32_t planarStaticSurfaceMinTrianglesPerChunk = 512;
         uint32_t planarStaticSurfaceMaxDepth = 4;
@@ -49,10 +50,19 @@ namespace HIKARI::ASSETS::GEOMETRY {
         float largeStaticTriangleMaxEdgeLength = 1.0f;
         uint32_t largeStaticTriangleMaxSubdivisions = 8;
         uint32_t largeStaticTriangleMaxGeneratedTriangles = 65536;
+        float maxTriangleInflationRatio = 1.25f;
+        float maxVertexInflationRatio = 1.50f;
+        float minAverageTrianglesPerClusterWarning = 48.0f;
 
         // meshoptimizer の meshlet builder 用。小さすぎる cluster を避けつつ cone culling 用の局所性も残す。
         float meshletConeWeight = 0.35f;
         float meshletSplitFactor = 2.0f;
+        bool compactUnderfilledClusterGroups = true;
+        float minClusterOccupancyRatio = 0.75f;
+        float maxNormalBucketClusterOverhead = 1.20f;
+        float clusterMergeNormalMinDot = 0.20f;
+        float normalBucketCoherentGroupMinDot = 0.35f;
+        float normalBucketQualityBonusRatio = 0.15f;
 
         bool buildAdjacency = true;
         bool buildNormalCone = true;

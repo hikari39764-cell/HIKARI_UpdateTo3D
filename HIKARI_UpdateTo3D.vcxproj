@@ -333,6 +333,7 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrame.cpp" />
@@ -696,7 +697,6 @@
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.h" />
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h" />
-    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h" />
@@ -766,6 +766,7 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryManager.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenFrame.h" />

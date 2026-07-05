@@ -49,7 +49,7 @@ HikariMeshletDepthVertexOut HikariBuildMeshletDepthVertex(
 }
 
 [outputtopology("triangle")]
-[numthreads(128, 1, 1)]
+[numthreads(HIKARI_MESHLET_MS_THREAD_COUNT, 1, 1)]
 void main(
     uint groupIndex : SV_GroupIndex,
     uint3 groupId : SV_GroupID,
@@ -62,14 +62,6 @@ void main(
     SetMeshOutputCounts(resolved.vertexCount, resolved.primitiveCount);
     if (!resolved.valid)
     {
-        if (groupIndex < HIKARI_MESHLET_MAX_VERTICES)
-        {
-            vertices[groupIndex] = HikariBuildEmptyMeshletDepthVertex();
-        }
-        if (groupIndex < HIKARI_MESHLET_MAX_PRIMITIVES)
-        {
-            triangles[groupIndex] = uint3(0u, 0u, 0u);
-        }
         return;
     }
 
@@ -78,25 +70,29 @@ void main(
     HikariSurfaceGpuSceneInstance instance =
         gSurfaceGpuSceneBuffer[resolved.visible.gpuSceneInstanceIndex];
 
-    if (groupIndex < resolved.vertexCount)
+    for (uint vertexSlot = groupIndex;
+         vertexSlot < resolved.vertexCount;
+         vertexSlot += HIKARI_MESHLET_MS_THREAD_COUNT)
     {
         uint vertexIndex = 0u;
-        if (HikariResolveMeshletVertexIndex(resolved, groupIndex, vertexIndex))
+        if (HikariResolveMeshletVertexIndex(resolved, vertexSlot, vertexIndex))
         {
-            vertices[groupIndex] =
+            vertices[vertexSlot] =
                 HikariBuildMeshletDepthVertex(instance, resolved, geometry, vertexIndex);
         }
         else
         {
-            vertices[groupIndex] = HikariBuildEmptyMeshletDepthVertex();
+            vertices[vertexSlot] = HikariBuildEmptyMeshletDepthVertex();
         }
     }
 
-    if (groupIndex < resolved.primitiveCount)
+    for (uint primitiveSlot = groupIndex;
+         primitiveSlot < resolved.primitiveCount;
+         primitiveSlot += HIKARI_MESHLET_MS_THREAD_COUNT)
     {
         uint3 primitive =
-            HikariLoadResolvedMeshletPrimitive(geometry, resolved, groupIndex);
-        triangles[groupIndex] =
+            HikariLoadResolvedMeshletPrimitive(geometry, resolved, primitiveSlot);
+        triangles[primitiveSlot] =
             primitive.x < resolved.vertexCount &&
             primitive.y < resolved.vertexCount &&
             primitive.z < resolved.vertexCount

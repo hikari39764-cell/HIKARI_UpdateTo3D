@@ -1282,6 +1282,9 @@
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.cpp">
+      <Filter>Source Files\Render3D\Cluster</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp">
       <Filter>Source Files\Render3D\Cluster</Filter>
     </ClCompile>
@@ -2005,9 +2008,6 @@
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h">
       <Filter>Header Files\Render3D\Render</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderItem.h">
-      <Filter>Header Files\Render3D\Render</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
@@ -2096,6 +2096,9 @@
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h">
+      <Filter>Header Files\Render3D\Cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.h">
       <Filter>Header Files\Render3D\Cluster</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.h">

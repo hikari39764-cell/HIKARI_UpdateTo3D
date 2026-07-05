@@ -2,16 +2,13 @@
 
 #include <algorithm>
 
-#include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
-#include "Assets/Geometry/HIKARI_HcmeshFormat.h"
-
 namespace HIKARI::RENDER3D::CLUSTER {
 
     namespace {
         ClusteredGeometryManager gManager{};
     }
 
-    const ClusteredGeometryAsset* ClusteredGeometryManager::LoadOrGet(const std::filesystem::path& path) {
+    const ASSETS::GEOMETRY::HcmeshFileInfo* ClusteredGeometryManager::LoadOrGet(const std::filesystem::path& path) {
         ++stats_.requestCount;
         const std::string key = MakeKey(path);
         auto it = assets_.find(key);
@@ -21,28 +18,18 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         ++stats_.missCount;
-        auto asset = std::make_unique<ClusteredGeometryAsset>();
+        auto info = std::make_unique<ASSETS::GEOMETRY::HcmeshFileInfo>();
         std::string message{};
-        if (!ASSETS::GEOMETRY::ReadHcmeshFile(path, *asset, message)) {
+        if (!ASSETS::GEOMETRY::InspectHcmeshFile(path, *info, message)) {
             lastMessage_ = message;
-            assets_[key] = std::move(asset);
-            RebuildStats();
-            return nullptr;
-        }
-
-        const ASSETS::GEOMETRY::ClusteredGeometryValidationResult validation =
-            ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(*asset);
-        if (!validation.valid) {
-            asset->valid = false;
-            lastMessage_ = validation.messages.empty() ? "[HCMESH] validation failed" : validation.messages.front();
-            assets_[key] = std::move(asset);
+            assets_[key] = std::move(info);
             RebuildStats();
             return nullptr;
         }
 
         lastMessage_ = message;
-        const ClusteredGeometryAsset* raw = asset.get();
-        assets_[key] = std::move(asset);
+        const ASSETS::GEOMETRY::HcmeshFileInfo* raw = info.get();
+        assets_[key] = std::move(info);
         RebuildStats();
         return raw;
     }
@@ -80,27 +67,23 @@ namespace HIKARI::RENDER3D::CLUSTER {
         stats_.missCount = misses;
 
         for (const auto& pair : assets_) {
-            const ClusteredGeometryAsset* asset = pair.second.get();
-            if (asset == nullptr || !asset->valid) {
+            const ASSETS::GEOMETRY::HcmeshFileInfo* info = pair.second.get();
+            if (info == nullptr || !info->valid) {
                 ++stats_.invalidAssetCount;
                 continue;
             }
 
             ++stats_.validAssetCount;
-            stats_.surfaceCount += static_cast<uint32_t>(asset->surfaces.size());
-            stats_.surfaceLodRangeCount += static_cast<uint32_t>(asset->surfaceLodRanges.size());
-            stats_.surfaceSectionCount += static_cast<uint32_t>(asset->surfaceSections.size());
-            stats_.clusterCount += static_cast<uint32_t>(asset->clusters.size());
-            stats_.pageCount += static_cast<uint32_t>(asset->pages.size());
-            stats_.totalTriangleCount += asset->totalTriangleCount;
-            stats_.totalVertexCount += asset->totalVertexCount;
+            stats_.surfaceCount += info->surfaceCount;
+            stats_.surfaceLodRangeCount += info->surfaceLodRangeCount;
+            stats_.surfaceSectionCount += info->surfaceSectionCount;
+            stats_.clusterCount += info->clusterCount;
+            stats_.pageCount += info->pageCount;
+            stats_.totalTriangleCount += info->totalTriangleCount;
+            stats_.totalVertexCount += info->totalVertexCount;
             stats_.maxVerticesPerCluster = (std::max)(
                 stats_.maxVerticesPerCluster,
-                CountMaxClusterVertices(*asset));
-            stats_.skippedSkinnedPrimitiveCount += asset->skippedSkinnedPrimitiveCount;
-            stats_.skippedMorphPrimitiveCount += asset->skippedMorphPrimitiveCount;
-            stats_.skippedInvalidPrimitiveCount += asset->skippedInvalidPrimitiveCount;
-            stats_.unsupportedFeatureCount += asset->unsupportedFeatureCount + asset->unsupportedPrimitiveModeCount;
+                info->maxVerticesPerCluster);
         }
     }
 

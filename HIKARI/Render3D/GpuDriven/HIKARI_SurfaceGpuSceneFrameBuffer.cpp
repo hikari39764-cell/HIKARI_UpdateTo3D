@@ -322,6 +322,33 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         return true;
     }
 
+    bool SurfaceGpuSceneFrameBuffer::PatchMaterialDataIndexChecked(
+        size_t instanceIndex,
+        uint32_t materialDataIndex,
+        uint32_t expectedSourceRecordIndex,
+        uint32_t expectedSourceSurfaceInstanceIndex) {
+
+        FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr ||
+            slot->mapped == nullptr ||
+            instanceIndex >= stats_.uploadedInstanceCount ||
+            instanceIndex >= capacity_) {
+            return false;
+        }
+
+        const RUNTIME::SurfaceGpuSceneInstance& instance = slot->mapped[instanceIndex];
+        if (expectedSourceRecordIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
+            instance.sourceRecordIndex != expectedSourceRecordIndex) {
+            return false;
+        }
+        if (expectedSourceSurfaceInstanceIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
+            instance.sourceSurfaceInstanceIndex != expectedSourceSurfaceInstanceIndex) {
+            return false;
+        }
+
+        return PatchMaterialDataIndex(instanceIndex, materialDataIndex);
+    }
+
     bool SurfaceGpuSceneFrameBuffer::HasMaterialDataIndex(size_t instanceIndex) const {
         const FrameSlot* slot = ActiveSlot();
         if (slot == nullptr ||

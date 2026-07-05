@@ -1434,7 +1434,12 @@ void HikariClusterCullEmitDraw(
     visible.meshletPrimitiveOffsetBytes = input.meshletPrimitiveOffsetBytes;
     visible.meshletPrimitiveCount = input.meshletPrimitiveCount;
     visible.geometryClusterCount = input.geometryClusterCount;
-    uint visibleRangeFlags = HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED;
+    const bool contiguousVisibleRange =
+        mergedGapCount == 0u &&
+        visibleClusterCount == clusterCount;
+    uint visibleRangeFlags = contiguousVisibleRange
+        ? HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED
+        : 0u;
     const bool useClusterList =
         clusterListStart != 0xffffffffu &&
         visibleClusterCount <= HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY;
@@ -1452,11 +1457,15 @@ void HikariClusterCullEmitDraw(
     }
     if (useClusterList)
     {
-        visibleRangeFlags |= HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_CLUSTER_LIST;
+        visibleRangeFlags |=
+            HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED |
+            HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_CLUSTER_LIST;
     }
     else if (usePacket)
     {
-        visibleRangeFlags |= HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PACKET;
+        visibleRangeFlags |=
+            HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED |
+            HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PACKET;
     }
     visible.reserved0 = visibleRangeFlags;
     uint visiblePayloadCount = 0u;

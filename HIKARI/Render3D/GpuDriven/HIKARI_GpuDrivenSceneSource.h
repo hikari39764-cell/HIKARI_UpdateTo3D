@@ -8,6 +8,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenFrame.h"
 #include "Render3D/Runtime/HIKARI_SurfaceGpuScene.h"
+#include "Vfx/Common/HIKARI_FxTypes.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
@@ -29,6 +30,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances = nullptr;
         const std::vector<RUNTIME::SurfaceGpuSceneMaterialSource>* materialSources = nullptr;
         const std::vector<std::vector<MATH::Mat4>>* jointPalettes = nullptr;
+        const std::vector<VFX::VariantKey>* bucketVariants = nullptr;
         uint32_t gpuSceneBaseIndex = 0;
         uint32_t gpuSceneInstanceCount = 0;
         uint32_t staticCommandCount = 0;

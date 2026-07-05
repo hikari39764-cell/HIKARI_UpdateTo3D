@@ -337,8 +337,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     : shaderProfile;
             const bool clusterVertexCompatible =
                 shaderRoute.vertexShaderId.empty() ||
-                shaderRoute.vertexShaderId == "Render3D_StaticVS" ||
-                shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
+                shaderRoute.vertexShaderId == "Render3D_StaticVS";
+            const bool usesCustomVertexShader =
+                !shaderRoute.vertexShaderId.empty() &&
+                shaderRoute.vertexShaderId != "Render3D_StaticVS";
             const bool clusterPixelCompatible =
                 pixelShaderId.empty() ||
                 pixelShaderId == "PBR" ||
@@ -350,8 +352,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 pixelShaderId == "Render3D_FxWaterPS";
 
             key.modelKey = modelKey;
+            const bool animatedPoseRecord =
+                record.skinned ||
+                record.hasRuntimeAnimation;
             key.clusterGeometryKey =
-                !record.skinned
+                !animatedPoseRecord
                     ? BuildStableStringKey("cluster-geometry-path", record.clusteredGeometryPath)
                     : 0;
             key.geometryBackend =
@@ -416,13 +421,31 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             key.waterMaterialFx =
                 pixelShaderId == "Render3D_FxWaterPS" ||
                 shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
+            key.materialFxUsesCustomVertexShader =
+                key.materialFx &&
+                usesCustomVertexShader;
+            key.customVertexShader = usesCustomVertexShader;
             key.depthAware = shaderRoute.depthAware;
+            const bool materialFxMeshletCompatible =
+                !key.materialFx ||
+                (!usesCustomVertexShader && !key.depthAware);
             // Mesh shader backend はまぁEstatic opaque / alpha-mask の cluster geometry だけを所有する、E
             key.clusterMainlineEligible =
+                !animatedPoseRecord &&
                 key.geometryBackend == RUNTIME::SurfaceGeometryBackend::ClusterGeometry &&
                 clusterVertexCompatible &&
                 clusterPixelCompatible &&
-                key.objectDataCompatible;
+                key.objectDataCompatible &&
+                materialFxMeshletCompatible &&
+                !key.depthAware &&
+                !key.transparent;
+            if (record.skinned) {
+                key.backendRoute = RUNTIME::SurfaceBackendRoute::SkinnedVsPs;
+            } else if (key.clusterMainlineEligible) {
+                key.backendRoute = RUNTIME::SurfaceBackendRoute::MeshShader;
+            } else {
+                key.backendRoute = RUNTIME::SurfaceBackendRoute::StaticVsPs;
+            }
             return key;
         }
 
@@ -762,8 +785,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 record.key.resourceKeyValid &&
                 record.key.objectDataCompatible &&
                 !record.hasSpecialRenderDebug &&
-                !record.skinned &&
-                record.key.clusterMainlineEligible &&
+                record.key.backendRoute == RUNTIME::SurfaceBackendRoute::MeshShader &&
                 HasValidSubmitPrimitiveTarget(record);
         }
     }
@@ -817,6 +839,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         RUNTIME::SurfaceGpuSceneMaterialSource source{};
         source.model = record.model;
         source.materialOverride = record.materialOverride;
+        source.sourceRecordIndex = instance.sourceRecordIndex;
+        source.sourceSurfaceInstanceIndex = instance.sourceSurfaceInstanceIndex;
         source.materialIndex = record.materialIndex;
         source.materialKey = record.key.materialKey;
         source.world = instance.world;
@@ -847,6 +871,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 continue;
             }
 
+            const uint32_t localInstanceIndex =
+                static_cast<uint32_t>(outInstances.size());
             const GpuSceneSurfaceRecord& record = records[recordIndex];
             RUNTIME::SurfaceGpuSceneInstance instance =
                 BuildGpuSceneInstance(record, recordIndex);
@@ -858,7 +884,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             outInstances.push_back(instance);
-            outMaterialSources.push_back(BuildGpuSceneMaterialSource(record, instance));
+            RUNTIME::SurfaceGpuSceneMaterialSource source =
+                BuildGpuSceneMaterialSource(record, instance);
+            source.localGpuSceneInstanceIndex = localInstanceIndex;
+            outMaterialSources.push_back(source);
             ++stats.instanceCount;
             stats.maxCommandInstanceCount =
                 (std::max)(stats.maxCommandInstanceCount, 1u);

@@ -32,6 +32,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool skinned = false;
         RUNTIME::SurfaceGeometryBackend geometryBackend =
             RUNTIME::SurfaceGeometryBackend::TriangleMesh;
+        RUNTIME::SurfaceBackendRoute backendRoute =
+            RUNTIME::SurfaceBackendRoute::Unsupported;
 
         uint64_t modelKey = 0;
         uint64_t geometryKey = 0;
@@ -48,6 +50,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool clusterMainlineEligible = false;
         bool materialFx = false;
         bool waterMaterialFx = false;
+        bool materialFxUsesCustomVertexShader = false;
+        bool customVertexShader = false;
         bool depthAware = false;
         bool alphaMasked = false;
         bool transparent = false;

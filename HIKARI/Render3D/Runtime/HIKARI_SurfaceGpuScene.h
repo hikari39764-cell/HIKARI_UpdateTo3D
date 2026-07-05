@@ -89,6 +89,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         const ModelAsset* model = nullptr;
         const Material* materialOverride = nullptr;
 
+        uint32_t localGpuSceneInstanceIndex = kInvalidRenderSurfaceIndex;
+        uint32_t sourceRecordIndex = kInvalidRenderSurfaceIndex;
+        uint32_t sourceSurfaceInstanceIndex = kInvalidRenderSurfaceIndex;
         uint32_t materialIndex = 0;
         uint64_t materialKey = 0;
 

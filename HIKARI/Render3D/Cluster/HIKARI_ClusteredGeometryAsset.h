@@ -248,6 +248,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
     };
 
     struct ClusteredGeometryBuildReport {
+        uint32_t sourceStaticTriangleCount = 0;
+        uint32_t sourceStaticVertexCount = 0;
         uint32_t surfaceCount = 0;
         uint32_t surfaceLodRangeCount = 0;
         uint32_t surfaceSectionCount = 0;
@@ -269,8 +271,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t unsupportedFeatureCount = 0;
         uint32_t partitionedSurfaceCount = 0;
         uint32_t partitionedSurfaceChunkCount = 0;
+        uint32_t rejectedPartitionedSurfaceCount = 0;
         uint32_t normalPartitionedSurfaceCount = 0;
         uint32_t normalPartitionedChunkCount = 0;
+        uint32_t acceptedNormalBucketGroupCount = 0;
+        uint32_t rejectedNormalBucketGroupCount = 0;
+        uint32_t compactedClusterGroupCount = 0;
+        uint32_t mergedClusterGroupCount = 0;
         uint32_t planarPartitionedSurfaceCount = 0;
         uint32_t planarPartitionedChunkCount = 0;
         uint32_t planarPartitionCoarsenedSurfaceCount = 0;
@@ -282,10 +289,22 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t singleTriangleClusterCount = 0;
         uint32_t lowTriangleClusterCount = 0;
         uint32_t maxTrianglesPerClusterObserved = 0;
+        uint64_t packedGeometryByteSize = 0;
+        uint64_t packedMetadataByteSize = 0;
+        uint64_t packedTotalByteSize = 0;
+        uint64_t fallbackIndexByteSize = 0;
+        uint64_t meshletPrimitiveByteSize = 0;
+        uint64_t packedVertexPositionByteSize = 0;
+        uint64_t packedVertexAttributeByteSize = 0;
         float averageTrianglesPerCluster = 0.0f;
+        float triangleInflationRatio = 0.0f;
+        float vertexInflationRatio = 0.0f;
         float normalConeCutoffMin = 0.0f;
         float normalConeCutoffAverage = 0.0f;
         float normalConeCutoffMax = 0.0f;
+        bool triangleBudgetExceeded = false;
+        bool vertexBudgetExceeded = false;
+        bool clusterOccupancyWarning = false;
         std::vector<std::string> messages{};
     };
 

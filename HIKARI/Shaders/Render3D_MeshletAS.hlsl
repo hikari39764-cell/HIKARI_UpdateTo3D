@@ -305,6 +305,7 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
         rangeValid &&
         !clusterListRange &&
         !packetRange &&
+        preculledRange &&
         visible.clusterCount > HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD;
     bool directCompactedRange =
         rangeValid &&

@@ -18,6 +18,7 @@ struct VSInput
     float3 normal : NORMAL;
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
     uint instanceId : SV_InstanceID;
 };
 
@@ -28,9 +29,15 @@ struct VSOutput
     float3 normalWS : NORMAL;
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD10;
+    nointerpolation uint materialDataIndex : TEXCOORD2;
     nointerpolation uint receiveShadow : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
+    nointerpolation uint debugClusterId : TEXCOORD6;
+    nointerpolation uint debugSurfaceId : TEXCOORD7;
+    nointerpolation uint debugLodIndex : TEXCOORD8;
+    nointerpolation uint debugDrawBucket : TEXCOORD9;
 };
 
 float2 WaveDx(float2 position, float2 direction, float frequency, float timeShift)
@@ -96,8 +103,9 @@ float3 WaterNormalLocal(float2 localXZ, float time, float waveSpeed, float waveH
 VSOutput main(VSInput input)
 {
     uint objectDataIndex = HikariGetObjectDataAbsoluteIndex(gObjectDataIndex, input.instanceId);
+    uint surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
     HikariMeshObjectData objectData =
-        HikariGetMeshObjectDataForInstance(objectDataIndex, input.instanceId);
+        HikariGetMeshObjectDataForSurfaceIndex(objectDataIndex, surfaceGpuSceneIndex);
 
     float waveSpeed = objectData.fxUser[0].x;
     float waveHeight = objectData.fxUser[0].y;
@@ -126,9 +134,15 @@ VSOutput main(VSInput input)
     output.normalWS = normalize(mul((float3x3)objectData.normalMatrix, normalLocal));
     output.tangentWS = float4(normalize(mul((float3x3)objectData.normalMatrix, input.tangent.xyz)), input.tangent.w);
     output.uv = input.uv;
+    output.uv1 = input.uv1;
+    output.materialDataIndex = objectData.materialDataIndex;
     output.receiveShadow = objectData.receiveShadow;
     output.objectDataIndex = objectDataIndex;
-    output.surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
+    output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
+    output.debugClusterId = 0u;
+    output.debugSurfaceId = 0u;
+    output.debugLodIndex = 0u;
+    output.debugDrawBucket = 0u;
 
     return output;
 }

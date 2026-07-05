@@ -273,8 +273,9 @@ namespace HIKARI::PROCEDURAL {
 
         std::unique_ptr<ModelAsset> BuildModel(const ProceduralModelKey& key) {
             auto model = std::make_unique<ModelAsset>();
-            model->SetName("procedural_model");
-            model->SetSourcePath("procedural");
+            const std::string proceduralId = MakeClusterGuidValue(key);
+            model->SetName(proceduralId);
+            model->SetSourcePath("procedural://" + proceduralId);
             model->SetState(ModelAsset::State::Loaded);
 
             MaterialAsset material{};

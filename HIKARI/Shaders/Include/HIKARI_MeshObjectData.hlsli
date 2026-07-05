@@ -99,8 +99,27 @@ HikariMeshObjectData HikariGetMeshObjectDataForPixel(
     return HikariGetMeshObjectData(objectDataIndex);
 #endif
 }
+
+HikariMeshObjectData HikariGetMeshObjectDataForSurfaceIndex(
+    uint objectDataIndex,
+    uint surfaceGpuSceneIndex)
+{
+    if (gUseSurfaceGpuScene != 0)
+    {
+        return HikariBuildMeshObjectDataFromSurfaceGpuScene(
+            HikariGetSurfaceGpuSceneInstanceAt(surfaceGpuSceneIndex));
+    }
+    return HikariGetMeshObjectData(objectDataIndex);
+}
 #else
 HikariMeshObjectData HikariGetMeshObjectDataForPixel(
+    uint objectDataIndex,
+    uint surfaceGpuSceneIndex)
+{
+    return HikariGetMeshObjectData(objectDataIndex);
+}
+
+HikariMeshObjectData HikariGetMeshObjectDataForSurfaceIndex(
     uint objectDataIndex,
     uint surfaceGpuSceneIndex)
 {

@@ -245,6 +245,7 @@ namespace HIKARI::SHADOW {
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> instances{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
             std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+            std::vector<VFX::VariantKey> bucketVariants{};
             uint32_t gpuSceneBaseIndex = 0;
             uint32_t gpuSceneInstanceCount = 0;
             uint32_t staticCommandCount = 0;
@@ -257,6 +258,7 @@ namespace HIKARI::SHADOW {
                 instances.clear();
                 materialSources.clear();
                 jointPalettes.clear();
+                bucketVariants.clear();
                 gpuSceneBaseIndex = 0;
                 gpuSceneInstanceCount = 0;
                 staticCommandCount = 0;
@@ -282,6 +284,9 @@ namespace HIKARI::SHADOW {
                 if (view.jointPalettes != nullptr) {
                     jointPalettes = *view.jointPalettes;
                 }
+                if (view.bucketVariants != nullptr) {
+                    bucketVariants = *view.bucketVariants;
+                }
                 gpuSceneBaseIndex = view.gpuSceneBaseIndex;
                 gpuSceneInstanceCount = view.gpuSceneInstanceCount;
                 staticCommandCount = view.staticCommandCount;
@@ -304,6 +309,8 @@ namespace HIKARI::SHADOW {
                     materialSources.empty() ? nullptr : &materialSources;
                 pass.traditionalIndirect.jointPalettes =
                     jointPalettes.empty() ? nullptr : &jointPalettes;
+                pass.traditionalIndirect.bucketVariants =
+                    bucketVariants.empty() ? nullptr : &bucketVariants;
                 pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
                 pass.traditionalIndirect.gpuSceneInstanceCount =
                     gpuSceneInstanceCount;
@@ -1717,12 +1724,6 @@ namespace HIKARI::SHADOW {
             PublishShadowCacheStats();
         }
 
-        void CountSkippedNoCastShadow() {
-            if (g.frameEnabled) {
-                ++g.debugStats.skippedNoCastShadowCount;
-            }
-        }
-
         bool UploadShadowGpuSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(
                 g.frameHasShadowWork &&
@@ -2059,57 +2060,6 @@ namespace HIKARI::SHADOW {
         BuildShadowGpuDrivenWorkFrame();
         UploadShadowIndirectDrawFrame();
         SubmitDebugFrustum(environment, camera);
-    }
-
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, bool castShadow) {
-        (void)asset;
-        (void)transform;
-        if (!castShadow) {
-            CountSkippedNoCastShadow();
-        }
-    }
-
-    void SubmitStaticSubmesh(
-        const ModelAsset& asset,
-        const Transform3D& transform,
-        uint32_t meshIndex,
-        uint32_t primitiveIndex,
-        bool castShadow) {
-
-        (void)asset;
-        (void)transform;
-        (void)meshIndex;
-        (void)primitiveIndex;
-        if (!castShadow) {
-            CountSkippedNoCastShadow();
-        }
-    }
-
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, bool castShadow) {
-        (void)asset;
-        (void)transform;
-        (void)jointPalette;
-        if (!castShadow) {
-            CountSkippedNoCastShadow();
-        }
-    }
-
-    void SubmitSkinnedSubmesh(
-        const ModelAsset& asset,
-        const Transform3D& transform,
-        const std::vector<MATH::Mat4>& jointPalette,
-        uint32_t meshIndex,
-        uint32_t primitiveIndex,
-        bool castShadow) {
-
-        (void)asset;
-        (void)transform;
-        (void)jointPalette;
-        (void)meshIndex;
-        (void)primitiveIndex;
-        if (!castShadow) {
-            CountSkippedNoCastShadow();
-        }
     }
 
     void SetGpuDrivenSceneSource(

@@ -545,7 +545,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_GpuDrivenFxWaterPS.hlsl",
+                L"HIKARI/Shaders/Render3D_GpuDrivenOpaqueFullPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 depthAwarePixelShader.GetAddressOf())) {
@@ -553,7 +553,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         }
         if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent) &&
             !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_GpuDrivenStaticFxPS.hlsl",
+                L"HIKARI/Shaders/Render3D_GpuDrivenOpaqueFullPS.hlsl",
                 "main",
                 GFX::ShaderStage::Pixel,
                 transparentPixelShader.GetAddressOf())) {

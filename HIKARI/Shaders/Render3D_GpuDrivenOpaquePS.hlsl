@@ -3,7 +3,7 @@
 // below is diagnostic-only and should not become the production default.
 #ifndef HIKARI_GPU_DRIVEN_OPAQUE_LEAN_DIAGNOSTIC
 #define HIKARI_FORCE_SURFACE_GPU_SCENE_PIXEL 1
-#include "Render3D_StaticPS.hlsl"
+#include "Render3D_StaticFxPS.hlsl"
 #else
 
 // Lightweight GPU-driven opaque path for PS bottleneck isolation.

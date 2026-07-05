@@ -2,19 +2,27 @@
 
 #include <algorithm>
 
+#include "Core/HIKARI_Logger.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
-#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        bool ShouldBuildTraditionalCommandStream() {
-            const RENDER3D::GeometryPipelineMode mode =
-                RENDER3D::GetRenderQualitySettings().geometryPipeline;
-            return mode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
-                mode == RENDER3D::GeometryPipelineMode::AutoFallback;
+        bool HasTraditionalCommandStreamWork(
+            const GpuDrivenSceneSource* source) {
+
+            if (source == nullptr) {
+                return false;
+            }
+
+            for (const GpuDrivenPassSource& pass : source->passes) {
+                if (pass.traditionalIndirect.HasCommands()) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         uint32_t ClampToUint32(size_t value) {
@@ -66,33 +74,66 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : 0u;
         }
 
-        void UploadSceneInstances(
+        // Seed / material patch / meshlet cull は registry が割り当てた
+        // gpuSceneBaseIndex を絶対 index として参照するため、upload も
+        // append ではなく base index へ位置指定で書き込む必要がある。
+        void UploadSceneInstancesAt(
             SurfaceGpuSceneFrameBuffer& buffer,
-            const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances,
-            size_t count) {
+            uint32_t gpuSceneBaseIndex,
+            const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances) {
 
-            if (count == 0u) {
+            if (instances == nullptr || instances->empty()) {
                 return;
             }
-            if (instances != nullptr && !instances->empty()) {
-                buffer.Upload(instances->data(), instances->size());
-                return;
-            }
-            buffer.Upload(nullptr, count);
+            buffer.UpdateRange(
+                gpuSceneBaseIndex,
+                instances->data(),
+                instances->size());
         }
 
         void UploadPassInstances(
             SurfaceGpuSceneFrameBuffer& buffer,
             const GpuDrivenPassSource& pass) {
 
-            UploadSceneInstances(
+            UploadSceneInstancesAt(
                 buffer,
-                pass.instances,
-                CountPrimaryInstances(pass));
-            UploadSceneInstances(
+                pass.gpuSceneBaseIndex,
+                pass.instances);
+            UploadSceneInstancesAt(
                 buffer,
-                pass.traditionalIndirect.instances,
-                pass.traditionalIndirect.gpuSceneInstanceCount);
+                pass.traditionalIndirect.gpuSceneBaseIndex,
+                pass.traditionalIndirect.instances);
+        }
+
+        bool SceneSourceLayoutTilesInstanceBuffer(
+            const GpuDrivenSceneSource& source,
+            size_t sourceInstanceCount) {
+
+            size_t coveredInstanceCount = 0;
+            size_t maxRegionEnd = 0;
+            for (const GpuDrivenPassSource& pass : source.passes) {
+                const size_t primaryCount = CountPrimaryInstances(pass);
+                if (primaryCount != 0u) {
+                    coveredInstanceCount += primaryCount;
+                    maxRegionEnd = (std::max)(
+                        maxRegionEnd,
+                        static_cast<size_t>(pass.gpuSceneBaseIndex) +
+                            primaryCount);
+                }
+                const size_t traditionalCount =
+                    pass.traditionalIndirect.gpuSceneInstanceCount;
+                if (traditionalCount != 0u) {
+                    coveredInstanceCount += traditionalCount;
+                    maxRegionEnd = (std::max)(
+                        maxRegionEnd,
+                        static_cast<size_t>(
+                            pass.traditionalIndirect.gpuSceneBaseIndex) +
+                            traditionalCount);
+                }
+            }
+            return
+                coveredInstanceCount == sourceInstanceCount &&
+                maxRegionEnd == sourceInstanceCount;
         }
 
         bool PatchDirtyPass(
@@ -260,6 +301,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const uint64_t sourceVersion = source.sourceVersion;
         const size_t sourceInstanceCount =
             sceneUploadStats_.sourceInstanceCount;
+        if (!SceneSourceLayoutTilesInstanceBuffer(source, sourceInstanceCount)) {
+            static uint64_t warnedLayoutVersion = ~0ull;
+            if (warnedLayoutVersion != layoutVersion) {
+                warnedLayoutVersion = layoutVersion;
+                HIKARI_LOG_WARN(
+                    "[GpuDrivenLayer] SurfaceGpuScene pass regions do not tile "
+                    "the instance buffer. Absolute instance indices will be "
+                    "wrong for every pass after the first gap/overlap.");
+            }
+        }
         const bool residentLayoutMatches =
             desc.residency != nullptr &&
             desc.residency->resident &&
@@ -377,7 +428,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         commandFrameStats_ = {};
         const bool buildTraditionalStream =
-            ShouldBuildTraditionalCommandStream();
+            HasTraditionalCommandStreamWork(frameSource_);
 
         if (traditionalCommandStreamBuffer_ != nullptr) {
             traditionalCommandStreamBuffer_->BeginFrame(desc.frameIndex);
@@ -470,11 +521,27 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             ResolveGeometryBackendPolicy(pass);
         GeometryBackendExecutionPlan plan{};
 
-        if (IsBackendConsumable(pass, policy.preferred)) {
+        const bool preferredReady =
+            IsBackendConsumable(pass, policy.preferred);
+        const bool secondaryReady =
+            IsBackendConsumable(pass, policy.secondary);
+        const bool sidecarReady =
+            IsBackendConsumable(
+                pass,
+                GeometryBackendKind::GpuDrivenTraditionalVsPs);
+
+        if (preferredReady) {
             plan.AddGpuBackend(policy.preferred);
+            if (policy.preferred ==
+                GeometryBackendKind::GpuDrivenMeshShader &&
+                sidecarReady) {
+                plan.AddGpuBackend(
+                    GeometryBackendKind::GpuDrivenTraditionalVsPs);
+            }
             return plan;
-        } else if (!policy.forcePreferredOnly &&
-            IsBackendConsumable(pass, policy.secondary)) {
+        }
+
+        if (!policy.forcePreferredOnly && secondaryReady) {
             plan.AddGpuBackend(policy.secondary);
         }
         return plan;
@@ -625,7 +692,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     ? frameContext_.backendAvailability.meshShaderGeometryAuxPipelineReady
                     : frameContext_.backendAvailability.meshShaderForwardPipelineReady;
             state.meshShaderConsumable =
-                state.hasSource &&
+                state.sourceInstanceCount != 0 &&
                 state.clusterEligible &&
                 state.visibilityReady &&
                 state.commandBuildReady &&
@@ -741,10 +808,16 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     traditionalCommandStreamBuffer_ != nullptr
                         ? traditionalCommandStreamBuffer_->GetCommandBucketCapacity()
                         : 0u;
-                range.commandBucketCount =
+                const size_t traditionalBucketCapacity =
                     traditionalCommandStreamBuffer_ != nullptr
                         ? traditionalCommandStreamBuffer_->GetCommandBucketCount()
                         : 0u;
+                const size_t traditionalBucketCount =
+                    passSource.traditionalIndirect.bucketVariants != nullptr
+                        ? passSource.traditionalIndirect.bucketVariants->size()
+                        : 0u;
+                range.commandBucketCount =
+                    (std::min)(traditionalBucketCount, traditionalBucketCapacity);
                 range.gpuSceneBaseIndex =
                     passSource.traditionalIndirect.gpuSceneBaseIndex;
                 range.commandCount = state.traditionalIndirectCommandCount;

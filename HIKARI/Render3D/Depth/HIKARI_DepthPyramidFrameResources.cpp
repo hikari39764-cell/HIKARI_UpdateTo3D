@@ -1,5 +1,7 @@
 #include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
 
+#include <utility>
+
 namespace HIKARI::RENDER3D::DEPTH {
 
     namespace {
@@ -8,6 +10,7 @@ namespace HIKARI::RENDER3D::DEPTH {
 
     void DepthPyramidFrameResources::BeginFrame(uint32_t nextFrameIndex) {
         frameIndex = nextFrameIndex;
+        publishCount = 0;
         currentValid = false;
         current = {};
     }
@@ -20,9 +23,18 @@ namespace HIKARI::RENDER3D::DEPTH {
         }
 
         frameIndex = view.frameIndex;
+        ++publishCount;
         currentValid = true;
         current = view;
         return true;
+    }
+
+    bool DepthPyramidFrameResources::PublishCurrent(
+        DepthPyramidView view,
+        DepthPyramidViewKind viewKind) {
+
+        view.viewKind = viewKind;
+        return PublishCurrent(view);
     }
 
     const DepthPyramidView* DepthPyramidFrameResources::TryGetCurrent() const {
@@ -39,12 +51,30 @@ namespace HIKARI::RENDER3D::DEPTH {
         return view->sourceKind == requiredSource ? view : nullptr;
     }
 
+    const DepthPyramidView* DepthPyramidFrameResources::TryGetCurrent(
+        DepthPyramidSourceKind requiredSource,
+        DepthPyramidViewKind requiredViewKind) const {
+
+        const DepthPyramidView* view = TryGetCurrent(requiredSource);
+        if (view == nullptr) {
+            return nullptr;
+        }
+        return view->viewKind == requiredViewKind ? view : nullptr;
+    }
+
     void BeginDepthPyramidFrame(uint32_t frameIndex) {
         gFrameResources.BeginFrame(frameIndex);
     }
 
     bool PublishFrameDepthPyramid(const DepthPyramidView& view) {
         return gFrameResources.PublishCurrent(view);
+    }
+
+    bool PublishFrameDepthPyramid(
+        DepthPyramidView view,
+        DepthPyramidViewKind viewKind) {
+
+        return gFrameResources.PublishCurrent(std::move(view), viewKind);
     }
 
     const DepthPyramidFrameResources& GetDepthPyramidFrameResources() {
@@ -57,6 +87,13 @@ namespace HIKARI::RENDER3D::DEPTH {
 
     const DepthPyramidView* TryGetFrameDepthPyramidView(DepthPyramidSourceKind requiredSource) {
         return gFrameResources.TryGetCurrent(requiredSource);
+    }
+
+    const DepthPyramidView* TryGetFrameDepthPyramidView(
+        DepthPyramidSourceKind requiredSource,
+        DepthPyramidViewKind requiredViewKind) {
+
+        return gFrameResources.TryGetCurrent(requiredSource, requiredViewKind);
     }
 
     void ResetDepthPyramidFrameResources(uint32_t frameIndex) {

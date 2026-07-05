@@ -26,6 +26,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/Core/HIKARI_MeshVariantResolver.h"
 #include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendPolicy.h"
+#include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenDrawCommandStream.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
@@ -122,6 +123,7 @@ namespace HIKARI::MESHRENDERER {
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> instances{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
             std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+            std::vector<VFX::VariantKey> bucketVariants{};
             uint32_t gpuSceneBaseIndex = 0;
             uint32_t gpuSceneInstanceCount = 0;
             uint32_t staticCommandCount = 0;
@@ -134,6 +136,7 @@ namespace HIKARI::MESHRENDERER {
                 instances.clear();
                 materialSources.clear();
                 jointPalettes.clear();
+                bucketVariants.clear();
                 gpuSceneBaseIndex = 0;
                 gpuSceneInstanceCount = 0;
                 staticCommandCount = 0;
@@ -159,6 +162,9 @@ namespace HIKARI::MESHRENDERER {
                 if (view.jointPalettes != nullptr) {
                     jointPalettes = *view.jointPalettes;
                 }
+                if (view.bucketVariants != nullptr) {
+                    bucketVariants = *view.bucketVariants;
+                }
                 gpuSceneBaseIndex = view.gpuSceneBaseIndex;
                 gpuSceneInstanceCount = view.gpuSceneInstanceCount;
                 staticCommandCount = view.staticCommandCount;
@@ -181,6 +187,8 @@ namespace HIKARI::MESHRENDERER {
                     materialSources.empty() ? nullptr : &materialSources;
                 pass.traditionalIndirect.jointPalettes =
                     jointPalettes.empty() ? nullptr : &jointPalettes;
+                pass.traditionalIndirect.bucketVariants =
+                    bucketVariants.empty() ? nullptr : &bucketVariants;
                 pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
                 pass.traditionalIndirect.gpuSceneInstanceCount =
                     gpuSceneInstanceCount;
@@ -353,12 +361,14 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        bool ShouldUseGpuDrivenTraditionalIndirectStreams() {
-            const RENDER3D::GeometryPipelineMode mode =
-                RENDER3D::GetRenderQualitySettings().geometryPipeline;
-            return
-                mode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
-                mode == RENDER3D::GeometryPipelineMode::AutoFallback;
+        bool HasGpuDrivenTraditionalIndirectCommands() {
+            for (const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass :
+                g.gpuDrivenSceneSource.passes) {
+                if (pass.traditionalIndirect.HasCommands()) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         void CopyOwnedTraditionalIndirectStreamsFromSceneSource() {
@@ -392,7 +402,7 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline() {
-            if (!ShouldUseGpuDrivenTraditionalIndirectStreams()) {
+            if (!HasGpuDrivenTraditionalIndirectCommands()) {
                 AttachOwnedTraditionalIndirectStreamsToSceneSource();
                 return;
             }
@@ -1049,11 +1059,8 @@ namespace HIKARI::MESHRENDERER {
             workContext.frame = &g.gpuDrivenFrame;
             workContext.passMask = passMask;
             workContext.collectCounterReadback = collectCounterReadback;
-            const RENDER3D::GeometryPipelineMode geometryMode =
-                RENDER3D::GetRenderQualitySettings().geometryPipeline;
             workContext.emitTraditionalDrawArgs =
-                geometryMode == RENDER3D::GeometryPipelineMode::TraditionalVsPs ||
-                geometryMode == RENDER3D::GeometryPipelineMode::AutoFallback;
+                HasGpuDrivenTraditionalIndirectCommands();
             if (depthPyramid != nullptr &&
                 depthPyramid->valid &&
                 depthPyramid->pyramidSrv.ptr != 0 &&
@@ -1465,6 +1472,66 @@ namespace HIKARI::MESHRENDERER {
             return executed;
         }
 
+        ID3D12PipelineState* ResolveTraditionalStaticPso(
+            MeshDrawPassKind passKind,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
+            const VFX::VariantKey& bucketVariant) {
+
+            (void)gpuPass;
+
+            if (passKind == MeshDrawPassKind::GeometryAux) {
+                return g.pipelines.geometryPso.Get();
+            }
+            if (passKind == MeshDrawPassKind::DepthPrepass) {
+                return g.pipelines.depthPso.Get();
+            }
+            if (passKind != MeshDrawPassKind::Forward ||
+                SERVICES::gCtx.device == nullptr) {
+                return g.pipelines.pso.Get();
+            }
+
+            return GetOrCreateVariantPso(
+                g.pipelines,
+                SERVICES::gCtx.device,
+                g.debugStats,
+                bucketVariant,
+                false,
+                false);
+        }
+
+        ID3D12PipelineState* ResolveTraditionalSkinnedPso(
+            MeshDrawPassKind passKind,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
+            const VFX::VariantKey& bucketVariant) {
+
+            (void)gpuPass;
+
+            if (!bucketVariant.vertexShaderId.empty() &&
+                bucketVariant.vertexShaderId != "Render3D_StaticVS") {
+                return nullptr;
+            }
+            if (passKind == MeshDrawPassKind::GeometryAux) {
+                return g.pipelines.geometrySkinnedPso.Get();
+            }
+            if (passKind == MeshDrawPassKind::DepthPrepass) {
+                return g.pipelines.depthSkinnedPso.Get();
+            }
+            if (passKind != MeshDrawPassKind::Forward ||
+                SERVICES::gCtx.device == nullptr) {
+                return g.pipelines.skinnedPso.Get();
+            }
+
+            VFX::VariantKey key = bucketVariant;
+            key.vertexShaderId.clear();
+            return GetOrCreateVariantPso(
+                g.pipelines,
+                SERVICES::gCtx.device,
+                g.debugStats,
+                key,
+                true,
+                false);
+        }
+
         bool ExecuteTraditionalDrawFrame(
             const MeshPassResources& passResources,
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
@@ -1513,6 +1580,18 @@ namespace HIKARI::MESHRENDERER {
             if (!hasStaticStream && !hasSkinnedStream) {
                 return false;
             }
+            const std::vector<VFX::VariantKey>* bucketVariants =
+                range->traditionalIndirect != nullptr
+                    ? range->traditionalIndirect->bucketVariants
+                    : nullptr;
+            if (bucketVariants == nullptr || bucketVariants->empty()) {
+                return false;
+            }
+            const size_t executableBucketCount =
+                (std::min)(commandBucketCount, bucketVariants->size());
+            if (executableBucketCount == 0) {
+                return false;
+            }
 
             MeshBindingStateCache bindingCache{};
             const bool depthAwarePhase =
@@ -1525,12 +1604,6 @@ namespace HIKARI::MESHRENDERER {
             BindSurfaceGpuSceneBuffer(drawCtx.binding, drawCtx.surfaceGpuSceneSrv);
             BindObjectDataIndex(drawCtx.binding, 0u);
             BindMaterialDataIndex(drawCtx.binding, 0u);
-            ID3D12PipelineState* pso = g.pipelines.pso.Get();
-            if (passKind == MeshDrawPassKind::GeometryAux) {
-                pso = g.pipelines.geometryPso.Get();
-            } else if (passKind == MeshDrawPassKind::DepthPrepass) {
-                pso = g.pipelines.depthPso.Get();
-            }
             const size_t uintMaxCommandCount =
                 static_cast<size_t>((std::numeric_limits<UINT>::max)());
             const size_t staticCommandLimit =
@@ -1542,10 +1615,19 @@ namespace HIKARI::MESHRENDERER {
             const UINT maxSkinnedCommandCount = static_cast<UINT>(
                 (std::min)(skinnedCommandLimit, uintMaxCommandCount));
             bool executed = false;
-            if (hasStaticStream && pso != nullptr) {
-                BindPipelineState(drawCtx.binding, pso);
-
-                for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
+            if (hasStaticStream) {
+                for (size_t bucketIndex = 0; bucketIndex < executableBucketCount; ++bucketIndex) {
+                    const VFX::VariantKey& bucketVariant =
+                        (*bucketVariants)[bucketIndex];
+                    ID3D12PipelineState* bucketPso =
+                        ResolveTraditionalStaticPso(
+                            passKind,
+                            gpuPass,
+                            bucketVariant);
+                    if (bucketPso == nullptr) {
+                        continue;
+                    }
+                    BindPipelineState(drawCtx.binding, bucketPso);
                     SERVICES::gCtx.cmdList->ExecuteIndirect(
                         range->commandSignature,
                         maxStaticCommandCount,
@@ -1557,18 +1639,11 @@ namespace HIKARI::MESHRENDERER {
                         range->counterBufferOffset +
                             static_cast<UINT64>(bucketIndex) *
                             range->counterBucketStride);
+                    executed = true;
                 }
-                executed = true;
             }
 
-            ID3D12PipelineState* skinnedPso = g.pipelines.skinnedPso.Get();
-            if (passKind == MeshDrawPassKind::GeometryAux) {
-                skinnedPso = g.pipelines.geometrySkinnedPso.Get();
-            } else if (passKind == MeshDrawPassKind::DepthPrepass) {
-                skinnedPso = g.pipelines.depthSkinnedPso.Get();
-            }
             if (hasSkinnedStream &&
-                skinnedPso != nullptr &&
                 drawCtx.skinnedRootSig != nullptr) {
                 BindFrameCommonResources(
                     drawCtx.binding,
@@ -1594,8 +1669,18 @@ namespace HIKARI::MESHRENDERER {
                 }
                 BindObjectDataIndex(drawCtx.binding, 0u);
                 BindMaterialDataIndex(drawCtx.binding, 0u);
-                BindPipelineState(drawCtx.binding, skinnedPso);
-                for (size_t bucketIndex = 0; bucketIndex < commandBucketCount; ++bucketIndex) {
+                for (size_t bucketIndex = 0; bucketIndex < executableBucketCount; ++bucketIndex) {
+                    const VFX::VariantKey& bucketVariant =
+                        (*bucketVariants)[bucketIndex];
+                    ID3D12PipelineState* bucketPso =
+                        ResolveTraditionalSkinnedPso(
+                            passKind,
+                            gpuPass,
+                            bucketVariant);
+                    if (bucketPso == nullptr) {
+                        continue;
+                    }
+                    BindPipelineState(drawCtx.binding, bucketPso);
                     SERVICES::gCtx.cmdList->ExecuteIndirect(
                         range->skinnedCommandSignature,
                         maxSkinnedCommandCount,
@@ -1607,8 +1692,8 @@ namespace HIKARI::MESHRENDERER {
                         range->skinnedCounterBufferOffset +
                             static_cast<UINT64>(bucketIndex) *
                             range->counterBucketStride);
+                    executed = true;
                 }
-                executed = true;
             }
 
             g.debugStats.gpuDrivenSkinnedCommandCount +=
@@ -1665,7 +1750,6 @@ namespace HIKARI::MESHRENDERER {
                 }
                 result.gpuBackendExecuted = true;
                 result.executedGpuBackend = backend;
-                break;
             }
             return result;
         }
@@ -1691,7 +1775,6 @@ namespace HIKARI::MESHRENDERER {
                 }
                 result.gpuBackendExecuted = true;
                 result.executedGpuBackend = backend;
-                break;
             }
             return result;
         }
@@ -1865,129 +1948,17 @@ namespace HIKARI::MESHRENDERER {
             return backendResult.gpuBackendExecuted;
         }
 
-        void SubmitStaticDrawItem(
-            const ModelAsset& asset,
-            const Transform3D& transform,
-            const std::string& materialFxProfileId,
-            uint32_t postGroupMask,
-            const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount],
-            bool materialFxValuesInitialized,
-            bool receiveShadow,
-            MeshRenderDebugMode renderDebugMode,
-            const Material* materialOverride,
-            bool usePrimitiveFilter,
-            uint32_t meshIndex,
-            uint32_t primitiveIndex) {
-
-            DrawItem item{};
-            item.asset = &asset;
-            item.materialOverride = materialOverride;
-            item.transform = transform;
-            item.materialFxProfileId = materialFxProfileId;
-            item.postGroupMask = postGroupMask;
-            for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-                item.materialFxParamValues[i] = materialFxParamValues[i];
-            }
-            item.materialFxValuesInitialized = materialFxValuesInitialized;
-            item.usePrimitiveFilter = usePrimitiveFilter;
-            item.meshIndexFilter = meshIndex;
-            item.primitiveIndexFilter = primitiveIndex;
-            item.receiveShadow = receiveShadow;
-            item.renderDebugMode = renderDebugMode;
-            ResolveDrawVariant(item);
-            ++g.debugStats.staticDrawItemCount;
-            if (renderDebugMode != MeshRenderDebugMode::Normal) {
-                ++g.debugStats.wireDrawItemCount;
-            }
-            g.drawItems.push_back(std::move(item));
-        }
     }
 
     void Reset() {
-        g.drawItems.clear();
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         g.gpuDrivenSceneSource.Reset();
         g.debugStats = {};
     }
 
-    void SubmitStaticMesh(const ModelAsset& asset, const Transform3D& transform, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
-        SubmitStaticDrawItem(
-            asset,
-            transform,
-            materialFxProfileId,
-            postGroupMask,
-            materialFxParamValues,
-            materialFxValuesInitialized,
-            receiveShadow,
-            renderDebugMode,
-            materialOverride,
-            false,
-            0,
-            0);
-    }
-
-    void SubmitStaticSubmesh(const ModelAsset& asset, const Transform3D& transform, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
-        SubmitStaticDrawItem(
-            asset,
-            transform,
-            materialFxProfileId,
-            postGroupMask,
-            materialFxParamValues,
-            materialFxValuesInitialized,
-            receiveShadow,
-            renderDebugMode,
-            materialOverride,
-            true,
-            meshIndex,
-            primitiveIndex);
-    }
-
-    void SubmitSkinnedMesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
-        DrawItem item{};
-        item.asset = &asset;
-        item.materialOverride = materialOverride;
-        item.transform = transform;
-        item.jointPalette = jointPalette;
-        item.materialFxProfileId = materialFxProfileId;
-        item.postGroupMask = postGroupMask;
-        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-            item.materialFxParamValues[i] = materialFxParamValues[i];
-        }
-        item.materialFxValuesInitialized = materialFxValuesInitialized;
-        item.receiveShadow = receiveShadow;
-        item.renderDebugMode = renderDebugMode;
-        ResolveDrawVariant(item);
-        ++g.debugStats.skinnedDrawItemCount;
-        if (renderDebugMode != MeshRenderDebugMode::Normal) {
-            ++g.debugStats.wireDrawItemCount;
-        }
-        g.drawItems.push_back(std::move(item));
-    }
-
-    void SubmitSkinnedSubmesh(const ModelAsset& asset, const Transform3D& transform, const std::vector<MATH::Mat4>& jointPalette, uint32_t meshIndex, uint32_t primitiveIndex, const std::string& materialFxProfileId, uint32_t postGroupMask, const DirectX::XMFLOAT4(&materialFxParamValues)[VFX::kMaterialFxUserCount], bool materialFxValuesInitialized, bool receiveShadow, MeshRenderDebugMode renderDebugMode, const Material* materialOverride) {
-        DrawItem item{};
-        item.asset = &asset;
-        item.materialOverride = materialOverride;
-        item.transform = transform;
-        item.jointPalette = jointPalette;
-        item.materialFxProfileId = materialFxProfileId;
-        item.postGroupMask = postGroupMask;
-        for (size_t i = 0; i < item.materialFxParamValues.size(); ++i) {
-            item.materialFxParamValues[i] = materialFxParamValues[i];
-        }
-        item.materialFxValuesInitialized = materialFxValuesInitialized;
-        item.usePrimitiveFilter = true;
-        item.meshIndexFilter = meshIndex;
-        item.primitiveIndexFilter = primitiveIndex;
-        item.receiveShadow = receiveShadow;
-        item.renderDebugMode = renderDebugMode;
-        ResolveDrawVariant(item);
-        ++g.debugStats.skinnedDrawItemCount;
-        if (renderDebugMode != MeshRenderDebugMode::Normal) {
-            ++g.debugStats.wireDrawItemCount;
-        }
-        g.drawItems.push_back(std::move(item));
+    void InvalidateMaterialFxPipelineCache() {
+        InvalidateMeshPipelineVariants(g.pipelines);
     }
 
     void SetGpuDrivenSceneSource(
@@ -2022,7 +1993,7 @@ namespace HIKARI::MESHRENDERER {
     }
 
     bool HasSubmittedItems() {
-        return !g.drawItems.empty() || HasGpuDrivenSceneSource();
+        return HasGpuDrivenSceneSource();
     }
 
     bool BeginFrame(
@@ -2244,7 +2215,6 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void EndFrame() {
-        g.drawItems.clear();
         g.frameObjectIndex = 0;
         g.gpuDrivenSceneSource.Reset();
     }

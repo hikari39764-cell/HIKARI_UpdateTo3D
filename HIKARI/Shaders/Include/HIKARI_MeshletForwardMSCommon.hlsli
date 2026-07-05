@@ -72,7 +72,7 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
 }
 
 [outputtopology("triangle")]
-[numthreads(128, 1, 1)]
+[numthreads(HIKARI_MESHLET_MS_THREAD_COUNT, 1, 1)]
 void main(
     uint groupIndex : SV_GroupIndex,
     uint3 groupId : SV_GroupID,
@@ -85,14 +85,6 @@ void main(
     SetMeshOutputCounts(resolved.vertexCount, resolved.primitiveCount);
     if (!resolved.valid)
     {
-        if (groupIndex < HIKARI_MESHLET_MAX_VERTICES)
-        {
-            vertices[groupIndex] = HikariBuildEmptyMeshletVertex();
-        }
-        if (groupIndex < HIKARI_MESHLET_MAX_PRIMITIVES)
-        {
-            triangles[groupIndex] = uint3(0u, 0u, 0u);
-        }
         return;
     }
 
@@ -101,14 +93,16 @@ void main(
     HikariSurfaceGpuSceneInstance instance =
         gSurfaceGpuSceneBuffer[resolved.visible.gpuSceneInstanceIndex];
 
-    if (groupIndex < resolved.vertexCount)
+    for (uint vertexSlot = groupIndex;
+         vertexSlot < resolved.vertexCount;
+         vertexSlot += HIKARI_MESHLET_MS_THREAD_COUNT)
     {
         uint vertexIndex = 0u;
-        if (HikariResolveMeshletVertexIndex(resolved, groupIndex, vertexIndex))
+        if (HikariResolveMeshletVertexIndex(resolved, vertexSlot, vertexIndex))
         {
             HikariClusterVertex vertex =
                 HikariLoadClusterVertexShading(geometry, resolved.header, vertexIndex);
-            vertices[groupIndex] =
+            vertices[vertexSlot] =
                 HikariBuildMeshletVertex(
                     instance,
                     resolved,
@@ -117,23 +111,25 @@ void main(
         }
         else
         {
-            vertices[groupIndex] = HikariBuildEmptyMeshletVertex();
+            vertices[vertexSlot] = HikariBuildEmptyMeshletVertex();
         }
     }
 
-    if (groupIndex < resolved.primitiveCount)
+    for (uint primitiveSlot = groupIndex;
+         primitiveSlot < resolved.primitiveCount;
+         primitiveSlot += HIKARI_MESHLET_MS_THREAD_COUNT)
     {
         uint3 primitive =
-            HikariLoadResolvedMeshletPrimitive(geometry, resolved, groupIndex);
+            HikariLoadResolvedMeshletPrimitive(geometry, resolved, primitiveSlot);
         if (primitive.x < resolved.vertexCount &&
             primitive.y < resolved.vertexCount &&
             primitive.z < resolved.vertexCount)
         {
-            triangles[groupIndex] = primitive;
+            triangles[primitiveSlot] = primitive;
         }
         else
         {
-            triangles[groupIndex] = uint3(0u, 0u, 0u);
+            triangles[primitiveSlot] = uint3(0u, 0u, 0u);
         }
     }
 }

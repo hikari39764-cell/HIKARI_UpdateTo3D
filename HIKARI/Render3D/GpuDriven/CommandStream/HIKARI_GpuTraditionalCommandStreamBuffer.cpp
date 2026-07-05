@@ -19,7 +19,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         constexpr UINT kGpuTraditionalCommandStreamCounterBufferBytes =
             kGpuTraditionalCommandStreamCounterStrideBytes *
             static_cast<UINT>(kGpuDrivenPassCount) *
-            static_cast<UINT>(kGpuDrivenCommandBucketCount);
+            static_cast<UINT>(kGpuTraditionalCommandBucketCount);
         constexpr uint32_t kGpuTraditionalCommandStreamSeedFlagDoubleSided = 1u << 0;
         constexpr uint32_t kGpuTraditionalCommandStreamSeedFlagSkinned = 1u << 1;
 
@@ -91,19 +91,41 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : GpuDrivenPassKind::ForwardOpaque;
         }
 
-        GpuDrivenCommandBucket ResolveCommandBucket(
-            const RUNTIME::SurfaceDrawCommand& command) {
-
-            return command.doubleSided
-                ? GpuDrivenCommandBucket::DoubleSided
-                : GpuDrivenCommandBucket::BackFaceCulled;
-        }
-
         uint32_t ResolveCommandBucketIndex(
             const RUNTIME::SurfaceDrawCommand& command) {
 
-            return static_cast<uint32_t>(
-                ToCommandBucketIndex(ResolveCommandBucket(command)));
+            if (command.traditionalBucketIndex ==
+                    RUNTIME::kInvalidRenderSurfaceIndex ||
+                command.traditionalBucketIndex >=
+                    static_cast<uint32_t>(kGpuTraditionalCommandBucketCount)) {
+                return RUNTIME::kInvalidRenderSurfaceIndex;
+            }
+            return command.traditionalBucketIndex;
+        }
+
+        uint64_t BuildPayloadKey(
+            uint32_t absoluteGpuSceneIndex,
+            uint32_t passIndex,
+            uint32_t bucketIndex,
+            bool skinnedCommand) {
+
+            return
+                (static_cast<uint64_t>(absoluteGpuSceneIndex) << 32u) |
+                (static_cast<uint64_t>(passIndex & 0xffu) << 24u) |
+                (static_cast<uint64_t>(bucketIndex & 0xffu) << 16u) |
+                (skinnedCommand ? 1ull : 0ull);
+        }
+
+        uint32_t BuildPayloadFlags(
+            const RUNTIME::SurfaceDrawCommand& command,
+            bool skinnedCommand) {
+
+            uint32_t flags =
+                command.doubleSided ? kGpuTraditionalCommandStreamSeedFlagDoubleSided : 0u;
+            if (skinnedCommand) {
+                flags |= kGpuTraditionalCommandStreamSeedFlagSkinned;
+            }
+            return flags;
         }
 
         struct GpuTraditionalCommandSeed {
@@ -290,14 +312,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         seedCursor_ = 0;
         payloadCursor_ = 0;
         rootConstantCount_ = rootConstantCount;
-        payloadIndexByGpuSceneInstance_.clear();
+        payloadIndexByCommandKey_.clear();
         stats_ = {};
 
         const UINT64 bufferBytes =
             static_cast<UINT64>(sizeof(GpuTraditionalCommandArgument)) *
             static_cast<UINT64>(capacity) *
             static_cast<UINT64>(kGpuDrivenPassCount) *
-            static_cast<UINT64>(kGpuDrivenCommandBucketCount);
+            static_cast<UINT64>(kGpuTraditionalCommandBucketCount);
         auto argumentHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         auto argumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             bufferBytes,
@@ -306,7 +328,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             static_cast<UINT64>(sizeof(GpuTraditionalSkinnedCommandArgument)) *
             static_cast<UINT64>(capacity) *
             static_cast<UINT64>(kGpuDrivenPassCount) *
-            static_cast<UINT64>(kGpuDrivenCommandBucketCount);
+            static_cast<UINT64>(kGpuTraditionalCommandBucketCount);
         auto skinnedArgumentDesc = CD3DX12_RESOURCE_DESC::Buffer(
             skinnedBufferBytes,
             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -623,7 +645,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuTraditionalCommandStreamBuffer::ResetFrame() {
         seedCursor_ = 0;
         payloadCursor_ = 0;
-        payloadIndexByGpuSceneInstance_.clear();
+        payloadIndexByCommandKey_.clear();
 
         const size_t capacity = capacity_;
         const bool initialized =
@@ -661,7 +683,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             computeRootSignature_ != nullptr &&
             compactPipelineState_ != nullptr;
         stats_.gpuCompactedCommandCapacity = capacity;
-        stats_.commandBucketCount = kGpuDrivenCommandBucketCount;
+        stats_.commandBucketCount = kGpuTraditionalCommandBucketCount;
         stats_.argumentBufferAddress = address;
         stats_.skinnedArgumentBufferAddress = skinnedAddress;
         stats_.commandStride = static_cast<UINT>(sizeof(GpuTraditionalCommandArgument));
@@ -690,6 +712,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 ++stats_.missingDrawArgsCommandCount;
                 continue;
             }
+            const uint32_t commandBucketIndex =
+                ResolveCommandBucketIndex(command);
+            if (commandBucketIndex == RUNTIME::kInvalidRenderSurfaceIndex ||
+                commandBucketIndex >=
+                    static_cast<uint32_t>(kGpuTraditionalCommandBucketCount)) {
+                ++stats_.missingDrawArgsCommandCount;
+                continue;
+            }
             if (seedCursor_ >= capacity_) {
                 ++stats_.overflowCommandCount;
                 continue;
@@ -697,6 +727,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             const uint32_t absoluteGpuSceneIndex =
                 view.gpuSceneBaseIndex + command.firstGpuSceneInstanceIndex;
+            const GpuDrivenPassKind commandPass = ResolveCommandPass(command);
+            const uint32_t passIndex =
+                static_cast<uint32_t>(ToPassIndex(commandPass));
             const bool skinnedCommand =
                 view.jointPalettes != nullptr &&
                 command.firstRecordIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
@@ -716,9 +749,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             auto* payloads =
                 reinterpret_cast<GpuTraditionalCommandPayload*>(payloadMapped_);
             size_t payloadIndex = 0;
+            const uint64_t payloadKey =
+                BuildPayloadKey(
+                    absoluteGpuSceneIndex,
+                    passIndex,
+                    commandBucketIndex,
+                    skinnedCommand);
             const auto payloadFound =
-                payloadIndexByGpuSceneInstance_.find(absoluteGpuSceneIndex);
-            if (payloadFound != payloadIndexByGpuSceneInstance_.end()) {
+                payloadIndexByCommandKey_.find(payloadKey);
+            if (payloadFound != payloadIndexByCommandKey_.end()) {
                 payloadIndex = payloadFound->second;
                 ++stats_.reusedPayloadCount;
             } else {
@@ -727,35 +766,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     continue;
                 }
                 payloadIndex = payloadCursor_++;
-                payloadIndexByGpuSceneInstance_[absoluteGpuSceneIndex] = payloadIndex;
+                payloadIndexByCommandKey_[payloadKey] = payloadIndex;
                 GpuTraditionalCommandPayload& payload = payloads[payloadIndex];
                 payload = ToDrawPayload(command.drawArgs);
                 payload.vertexBuffer = command.triangleMeshView.vertexBuffer;
                 payload.indexBuffer = command.triangleMeshView.indexBuffer;
                 payload.jointPalette = command.jointPaletteGpuAddress;
-                payload.flags =
-                    command.doubleSided ? kGpuTraditionalCommandStreamSeedFlagDoubleSided : 0u;
-                if (skinnedCommand) {
-                    payload.flags |= kGpuTraditionalCommandStreamSeedFlagSkinned;
-                }
+                payload.flags = BuildPayloadFlags(command, skinnedCommand);
                 ++stats_.uploadedPayloadCount;
             }
             GpuTraditionalCommandPayload& payload = payloads[payloadIndex];
             payload.vertexBuffer = command.triangleMeshView.vertexBuffer;
             payload.indexBuffer = command.triangleMeshView.indexBuffer;
             payload.jointPalette = command.jointPaletteGpuAddress;
-            if (skinnedCommand) {
-                payload.flags |= kGpuTraditionalCommandStreamSeedFlagSkinned;
-            }
+            payload.flags = BuildPayloadFlags(command, skinnedCommand);
 
             auto* seeds = reinterpret_cast<GpuTraditionalCommandSeed*>(seedMapped_);
             GpuTraditionalCommandSeed& seed = seeds[seedCursor_++];
             seed = {};
             seed.boundsCenterRadius = boundsCenterRadius;
             seed.absoluteGpuSceneInstanceIndex = absoluteGpuSceneIndex;
-            seed.passIndex =
-                static_cast<uint32_t>(ToPassIndex(ResolveCommandPass(command)));
-            seed.bucketIndex = ResolveCommandBucketIndex(command);
+            seed.passIndex = passIndex;
+            seed.bucketIndex = commandBucketIndex;
             seed.payloadIndex = static_cast<uint32_t>(payloadIndex);
             seed.localGpuSceneInstanceIndex = command.firstGpuSceneInstanceIndex;
             seed.flags = command.doubleSided ? kGpuTraditionalCommandStreamSeedFlagDoubleSided : 0u;
@@ -991,20 +1023,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     UINT64 GpuTraditionalCommandStreamBuffer::GetCommandCounterOffset(GpuDrivenPassKind pass) const {
-        return GetCommandCounterOffset(
-            pass,
-            GpuDrivenCommandBucket::BackFaceCulled);
-    }
-
-    UINT64 GpuTraditionalCommandStreamBuffer::GetCommandCounterOffset(
-        GpuDrivenPassKind pass,
-        GpuDrivenCommandBucket bucket) const {
-
         const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
-        const UINT64 bucketIndex =
-            static_cast<UINT64>(ToCommandBucketIndex(bucket));
-        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
-            bucketIndex) *
+        return passIndex * static_cast<UINT64>(kGpuTraditionalCommandBucketCount) *
             static_cast<UINT64>(kGpuTraditionalCommandStreamCounterStrideBytes);
     }
 
@@ -1013,35 +1033,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     UINT64 GpuTraditionalCommandStreamBuffer::GetSkinnedCommandCounterOffset(GpuDrivenPassKind pass) const {
-        return GetSkinnedCommandCounterOffset(
-            pass,
-            GpuDrivenCommandBucket::BackFaceCulled);
-    }
-
-    UINT64 GpuTraditionalCommandStreamBuffer::GetSkinnedCommandCounterOffset(
-        GpuDrivenPassKind pass,
-        GpuDrivenCommandBucket bucket) const {
-
-        return GetCommandCounterOffset(pass, bucket) + 16u;
+        return GetCommandCounterOffset(pass) + 16u;
     }
 
     UINT64 GpuTraditionalCommandStreamBuffer::GetArgumentBufferOffset(
         GpuDrivenPassKind pass) const {
 
-        return GetArgumentBufferOffset(
-            pass,
-            GpuDrivenCommandBucket::BackFaceCulled);
-    }
-
-    UINT64 GpuTraditionalCommandStreamBuffer::GetArgumentBufferOffset(
-        GpuDrivenPassKind pass,
-        GpuDrivenCommandBucket bucket) const {
-
         const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
-        const UINT64 bucketIndex =
-            static_cast<UINT64>(ToCommandBucketIndex(bucket));
-        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
-            bucketIndex) *
+        return passIndex * static_cast<UINT64>(kGpuTraditionalCommandBucketCount) *
             static_cast<UINT64>(capacity_) *
             static_cast<UINT64>(sizeof(GpuTraditionalCommandArgument));
     }
@@ -1049,20 +1048,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     UINT64 GpuTraditionalCommandStreamBuffer::GetSkinnedArgumentBufferOffset(
         GpuDrivenPassKind pass) const {
 
-        return GetSkinnedArgumentBufferOffset(
-            pass,
-            GpuDrivenCommandBucket::BackFaceCulled);
-    }
-
-    UINT64 GpuTraditionalCommandStreamBuffer::GetSkinnedArgumentBufferOffset(
-        GpuDrivenPassKind pass,
-        GpuDrivenCommandBucket bucket) const {
-
         const UINT64 passIndex = static_cast<UINT64>(ToPassIndex(pass));
-        const UINT64 bucketIndex =
-            static_cast<UINT64>(ToCommandBucketIndex(bucket));
-        return (passIndex * static_cast<UINT64>(kGpuDrivenCommandBucketCount) +
-            bucketIndex) *
+        return passIndex * static_cast<UINT64>(kGpuTraditionalCommandBucketCount) *
             static_cast<UINT64>(capacity_) *
             static_cast<UINT64>(sizeof(GpuTraditionalSkinnedCommandArgument));
     }
@@ -1086,7 +1073,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     size_t GpuTraditionalCommandStreamBuffer::GetCommandBucketCount() const {
-        return kGpuDrivenCommandBucketCount;
+        return kGpuTraditionalCommandBucketCount;
     }
 
     size_t GpuTraditionalCommandStreamBuffer::GetUploadedSeedCount() const {

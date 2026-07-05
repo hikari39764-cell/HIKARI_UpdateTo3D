@@ -457,15 +457,21 @@ namespace HIKARI::MESHRENDERER {
         bool PatchSurfaceGpuSceneMaterialData(
             const MeshDrawContext& ctx,
             size_t gpuSceneInstanceIndex,
-            uint32_t materialDataIndex) {
+            uint32_t materialDataIndex,
+            uint32_t expectedSourceRecordIndex =
+                RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex,
+            uint32_t expectedSourceSurfaceInstanceIndex =
+                RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
 
             const uint32_t resolvedMaterialDataIndex =
                 materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
             const bool patched =
                 ctx.surfaceGpuSceneFrameBuffer != nullptr &&
-                ctx.surfaceGpuSceneFrameBuffer->PatchMaterialDataIndex(
+                ctx.surfaceGpuSceneFrameBuffer->PatchMaterialDataIndexChecked(
                     gpuSceneInstanceIndex,
-                    resolvedMaterialDataIndex);
+                    resolvedMaterialDataIndex,
+                    expectedSourceRecordIndex,
+                    expectedSourceSurfaceInstanceIndex);
             if (ctx.services.stats != nullptr) {
                 if (patched) {
                     ++ctx.services.stats->surfaceGpuSceneMaterialPatchCount;
@@ -1123,31 +1129,40 @@ namespace HIKARI::MESHRENDERER {
         return patchedAny;
     }
 
-    bool PrepareSurfaceGpuSceneMaterialSources(
-        const MeshDrawContext& ctx,
-        const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
-        size_t sourceCount) {
+        bool PrepareSurfaceGpuSceneMaterialSources(
+            const MeshDrawContext& ctx,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
+            size_t sourceCount) {
 
         if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
             sources == nullptr) {
             return false;
         }
 
-        bool patchedAny = false;
-        for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
-            SurfaceRecordPreparedObject prepared{};
-            if (!PrepareGpuSceneMaterialSourceData(ctx, sources[sourceIndex], prepared)) {
-                continue;
-            }
+            bool patchedAny = false;
+            for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
+                const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source =
+                    sources[sourceIndex];
+                SurfaceRecordPreparedObject prepared{};
+                if (!PrepareGpuSceneMaterialSourceData(ctx, source, prepared)) {
+                    continue;
+                }
 
-            // GPU-driven record path note.
-            patchedAny =
-                PatchSurfaceGpuSceneMaterialData(
-                    ctx,
-                    ctx.surfaceGpuSceneBaseOffset + sourceIndex,
-                    prepared.materialDataIndex) ||
-                patchedAny;
-        }
+                const size_t localInstanceIndex =
+                    source.localGpuSceneInstanceIndex !=
+                        RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex
+                        ? static_cast<size_t>(source.localGpuSceneInstanceIndex)
+                        : sourceIndex;
+                // GPU-driven record path note.
+                patchedAny =
+                    PatchSurfaceGpuSceneMaterialData(
+                        ctx,
+                        ctx.surfaceGpuSceneBaseOffset + localInstanceIndex,
+                        prepared.materialDataIndex,
+                        source.sourceRecordIndex,
+                        source.sourceSurfaceInstanceIndex) ||
+                    patchedAny;
+            }
 
         return patchedAny;
     }

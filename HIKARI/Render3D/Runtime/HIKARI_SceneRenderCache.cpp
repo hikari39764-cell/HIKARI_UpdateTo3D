@@ -133,6 +133,20 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 object.desc.renderModel->valid;
         }
 
+        std::vector<MATH::Mat4> BuildObjectNodeGlobals(const SceneRenderObject& object) {
+            const RenderModelAsset& renderModel = *object.desc.renderModel;
+            if (!object.desc.hasRuntimeAnimation) {
+                return BuildRenderModelNodeGlobals(renderModel);
+            }
+
+            return BuildRenderModelNodeGlobals(
+                renderModel,
+                object.desc.model,
+                object.desc.animationClipName,
+                object.desc.animationTimeSec,
+                object.desc.animationLoop);
+        }
+
         SceneSurfaceInstance BuildSurfaceInstance(
             const SceneRenderObject& object,
             uint32_t objectIndex,
@@ -425,7 +439,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
 
             const RenderModelAsset& renderModel = *object.desc.renderModel;
-            const std::vector<MATH::Mat4> nodeGlobals = BuildRenderModelNodeGlobals(renderModel);
+            const std::vector<MATH::Mat4> nodeGlobals = BuildObjectNodeGlobals(object);
             for (size_t surfaceIndex = 0; surfaceIndex < renderModel.surfaces.size(); ++surfaceIndex) {
                 const RenderSurfaceRecord& surface = renderModel.surfaces[surfaceIndex];
                 surfaceInstances_.push_back(BuildSurfaceInstance(
@@ -450,7 +464,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         }
 
         const RenderModelAsset& renderModel = *object.desc.renderModel;
-        const std::vector<MATH::Mat4> nodeGlobals = BuildRenderModelNodeGlobals(renderModel);
+        const std::vector<MATH::Mat4> nodeGlobals = BuildObjectNodeGlobals(object);
         uint32_t updatedSurfaceCount = 0;
         for (size_t surfaceInstanceIndex = 0;
             surfaceInstanceIndex < surfaceInstances_.size();

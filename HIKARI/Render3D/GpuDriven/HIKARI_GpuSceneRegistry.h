@@ -47,6 +47,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t blockedForwardDepthAwareRecordCount = 0;
         uint32_t blockedForwardTransparentRecordCount = 0;
         uint32_t blockedShadowRecordCount = 0;
+        uint32_t forwardStaticTraditionalRecordCount = 0;
+        uint32_t shadowStaticTraditionalRecordCount = 0;
         uint32_t forwardSkinnedTraditionalRecordCount = 0;
         uint32_t shadowSkinnedTraditionalRecordCount = 0;
         uint32_t depthPrepassOccluderRecordCount = 0;
@@ -89,6 +91,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             std::vector<RUNTIME::SurfaceGpuSceneInstance> instances{};
             std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
             std::vector<std::vector<MATH::Mat4>> jointPalettes{};
+            std::vector<VFX::VariantKey> bucketVariants{};
             uint32_t staticCommandCount = 0;
             uint32_t skinnedCommandCount = 0;
 
@@ -114,6 +117,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<uint32_t> forwardDepthAwareSkinnedRecordIndices_{};
         std::vector<uint32_t> forwardTransparentSkinnedRecordIndices_{};
         std::vector<uint32_t> shadowSkinnedRecordIndices_{};
+        std::vector<uint32_t> forwardOpaqueStaticTraditionalRecordIndices_{};
+        std::vector<uint32_t> forwardDepthAwareStaticTraditionalRecordIndices_{};
+        std::vector<uint32_t> forwardTransparentStaticTraditionalRecordIndices_{};
+        std::vector<uint32_t> shadowStaticTraditionalRecordIndices_{};
         std::vector<uint32_t> forwardOpaqueGpuSceneIndexByRecord_{};
         std::vector<uint32_t> depthPrepassGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardDepthAwareGpuSceneIndexByRecord_{};

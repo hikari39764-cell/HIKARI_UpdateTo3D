@@ -53,6 +53,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const RUNTIME::SurfaceGpuSceneInstance* instances,
             size_t count);
         bool PatchMaterialDataIndex(size_t instanceIndex, uint32_t materialDataIndex);
+        bool PatchMaterialDataIndexChecked(
+            size_t instanceIndex,
+            uint32_t materialDataIndex,
+            uint32_t expectedSourceRecordIndex,
+            uint32_t expectedSourceSurfaceInstanceIndex);
         bool HasMaterialDataIndex(size_t instanceIndex) const;
         void MarkResident(uint64_t layoutVersion, uint64_t sourceVersion, size_t instanceCount);
         void CommitFrame(ID3D12GraphicsCommandList* commandList);

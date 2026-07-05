@@ -242,9 +242,15 @@ namespace HIKARI {
             const bool characterProfile = profile == 1;
             const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
             dirty = DrawClampedIntSetting("LOD Count", cluster, "maxLodCount", 5, 1, 5) || dirty;
-            dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.25f, 4.0f) || dirty;
+            dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.50f, 4.0f) || dirty;
             dirty = DrawBoolSetting("Partition Large Surfaces", cluster, "partitionLargeSurfaces", true) || dirty;
-            dirty = DrawClampedFloatSetting("Partition Target Extent", cluster, "largeSurfaceTargetExtent", defaultPartitionExtent, 0.75f, 64.0f) || dirty;
+            dirty = DrawClampedFloatSetting(
+                "Partition Target Extent",
+                cluster,
+                "largeSurfaceTargetExtent",
+                defaultPartitionExtent,
+                characterProfile ? 1.0f : 2.0f,
+                64.0f) || dirty;
             dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
 
             if (dirty) {
