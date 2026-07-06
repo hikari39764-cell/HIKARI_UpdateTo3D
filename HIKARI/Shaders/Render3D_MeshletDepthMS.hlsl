@@ -33,8 +33,11 @@ HikariMeshletDepthVertexOut HikariBuildMeshletDepthVertex(
         localPosition,
         localNormal);
 
+    // Depth prepass と forward (LESS_EQUAL) の深度を bit 一致させるため、
+    // clip 位置の計算は各 MS で同一式 + precise に固定する。
     float4 worldPos = mul(instance.clusterWorld, float4(localPosition, 1.0f));
-    output.position = mul(gViewProj, worldPos);
+    precise float4 clipPosition = mul(gViewProj, worldPos);
+    output.position = clipPosition;
 
     const bool alphaMasked =
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED) != 0u;

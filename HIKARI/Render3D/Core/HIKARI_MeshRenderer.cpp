@@ -952,17 +952,25 @@ namespace HIKARI::MESHRENDERER {
         uint32_t MakePreDepthGpuDrivenPassMask() {
             using RENDER3D::GPUDRIVEN::GpuDrivenPassKind;
             using RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask;
-            return MakeGpuDrivenPassMask(GpuDrivenPassKind::Shadow);
+            // DepthPrepass は HZB 構築前に描くため、occlusion なし (frustum のみ)
+            // の BeginFrame ビルドで work を確定させる。
+            return
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::Shadow) |
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::DepthPrepass);
         }
 
         uint32_t MakeMainCameraGpuDrivenPassMask() {
             using RENDER3D::GPUDRIVEN::GpuDrivenPassKind;
             using RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask;
+            // DepthPrepass も finalize で再ビルドする。visibility dispatch は
+            // frameContext を丸ごと差し替えるため、ここに含めないと BeginFrame
+            // で作った prepass work が finalize 後に消える。
             return
                 MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardOpaque) |
                 MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardDepthAware) |
                 MakeGpuDrivenPassMask(GpuDrivenPassKind::ForwardTransparent) |
-                MakeGpuDrivenPassMask(GpuDrivenPassKind::GeometryAux);
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::GeometryAux) |
+                MakeGpuDrivenPassMask(GpuDrivenPassKind::DepthPrepass);
         }
 
         void BuildStrictGpuDrivenCommandFrame() {

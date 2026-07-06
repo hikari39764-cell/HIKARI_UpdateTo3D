@@ -49,8 +49,11 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
         localPosition,
         localNormal);
 
+    // Depth prepass (MeshletDepthMS) と深度を bit 一致させるため、
+    // clip 位置の計算は各 MS で同一式 + precise に固定する。
     float4 worldPos = mul(instance.clusterWorld, float4(localPosition, 1.0f));
-    output.position = mul(gViewProj, worldPos);
+    precise float4 clipPosition = mul(gViewProj, worldPos);
+    output.position = clipPosition;
     output.worldPosWS = worldPos.xyz;
     output.normalWS = normalize(mul((float3x3)instance.clusterNormalMatrix, localNormal));
     output.tangentWS = float4(

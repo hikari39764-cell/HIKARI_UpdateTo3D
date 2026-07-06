@@ -1,13 +1,16 @@
 ﻿#include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
 
 #include <algorithm>
+#include <string>
 
+#include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
@@ -123,6 +126,46 @@ namespace HIKARI::RENDER3D::PIPELINE {
         MESHRENDERER::MeshPassResources opaqueResources =
             BuildMeshPassResources(screenSpaceContext, screenResult);
         MESHRENDERER::MeshPassResources postOpaqueResources = opaqueResources;
+
+        // 不透明 mainline を先に scene DSV へ深度だけ描き、ForwardOpaque
+        // (LESS_EQUAL) のピクセル過描画を early-Z で殺す。visibility 用の
+        // occluder prepass (別ターゲット) とは独立している。
+        const bool scenePrepassEnabled =
+            RENDER3D::GetRenderQualitySettings().sceneDepthPrepass;
+        const bool sceneDsvReady = screenSpaceContext.sceneDsv.ptr != 0;
+        const bool depthPrepassWorkReady = MESHRENDERER::HasDepthPrepassWork();
+        if (scenePrepassEnabled && sceneDsvReady && depthPrepassWorkReady) {
+            GFX::PIX::ScopedGpuEvent pixScenePrepass(
+                SERVICES::gCtx.cmdList,
+                GFX::PIX::kColorRender,
+                "SceneDepthPrepass");
+            GFX::GPU_PROFILE::ScopedGpuTimer gpuScenePrepass(
+                SERVICES::gCtx.cmdList,
+                GFX::GPU_PROFILE::Pass::DepthPrepass);
+            const bool prepassExecuted =
+                MESHRENDERER::RenderDepthPrepass(screenSpaceContext.sceneDsv);
+            // 最初のフレームの状態だけを boot ヘルスチェックとして記録する。
+            static bool sLoggedScenePrepassState = false;
+            if (!sLoggedScenePrepassState) {
+                sLoggedScenePrepassState = true;
+                HIKARI_LOG_INFO(
+                    std::string("[RenderFramePipeline] scene depth prepass: ") +
+                    (prepassExecuted ? "executed" : "no gpu-driven work prepared"));
+            }
+            if (!POST::PostSystem::RebindCurrentRenderTarget()) {
+                MESHRENDERER::EndFrame();
+                return false;
+            }
+        } else if (scenePrepassEnabled) {
+            static bool sWarnedScenePrepassSkip = false;
+            if (!sWarnedScenePrepassSkip) {
+                sWarnedScenePrepassSkip = true;
+                HIKARI_LOG_WARN(
+                    std::string("[RenderFramePipeline] scene depth prepass skipped:") +
+                    (sceneDsvReady ? "" : " sceneDsv=null") +
+                    (depthPrepassWorkReady ? "" : " depthPrepassSource=empty"));
+            }
+        }
 
         bool opaqueOk = false;
         {
