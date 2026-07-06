@@ -318,6 +318,7 @@ namespace HIKARI {
                 changed |= DrawGeometryPipelineCombo(settings.geometryPipeline);
                 changed |= DrawForwardCostModeCombo(settings.forwardCostMode);
                 changed |= DrawLightProbeVolumeSamplingCombo(settings.lightProbeVolumeSampling);
+                changed |= ImGui::Checkbox("Scene Depth Prepass", &settings.sceneDepthPrepass);
                 ImGui::TreePop();
             }
 

@@ -53,6 +53,9 @@ namespace HIKARI::RENDER3D {
             LightProbeVolumeSamplingMode::FastSmooth;
         float viewportScale = 1.0f;
         bool vSync = false;
+        // ForwardOpaque 前に不透明 mainline を depth-only で描く scene depth
+        // prepass。過描画が支配的なシーンで有効、ジオメトリ律速なら切る。
+        bool sceneDepthPrepass = true;
     };
 
     RenderQualitySettings& GetRenderQualitySettings();

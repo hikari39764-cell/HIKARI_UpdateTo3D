@@ -196,6 +196,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         case Pass::ShadowMap: return "ShadowMap";
         case Pass::GeometryAux: return "GeometryAux";
         case Pass::ClusterCull: return "Cluster Cull";
+        case Pass::DepthPrepass: return "Depth Prepass";
         case Pass::TraditionalDrawGeometryAux: return "Traditional Draw GeometryAux";
         case Pass::TraditionalDrawForward: return "Traditional Draw Forward";
         case Pass::MeshletDrawGeometryAux: return "Meshlet Draw GeometryAux";

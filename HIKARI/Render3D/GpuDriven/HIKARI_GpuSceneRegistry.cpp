@@ -99,7 +99,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         constexpr float kDepthVisibilityMinOccluderRadius = 0.35f;
-        constexpr size_t kDepthVisibilityMaxOccluderRecords = 1024;
+        constexpr size_t kDepthVisibilityMaxOccluderRecords = 8192;
         constexpr float kShadowCasterMinRadius = 0.28f;
         constexpr float kShadowCasterMinMainArea = 0.06f;
         constexpr float kShadowAlphaMaskMinRadius = 1.10f;
@@ -113,7 +113,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             float score = 0.0f;
         };
 
-        bool HasDepthVisibilitySafeMaterial(const GpuSceneSurfaceRecord& record) {
+        // Depth prepass は solid な不透明 mainline をカバーして forward の
+        // 過描画を消す。alpha mask は prepass 側でテクスチャ sample + clip の
+        // PS が必要になり prepass 自体が高くつくため除外する (forward の
+        // alpha mask も prepass が書いた solid 深度に対して early-Z が効く)。
+        // 両面は DoubleSided bucket + null PS で安価なので含める。
+        bool IsDepthPrepassSafeMaterial(const GpuSceneSurfaceRecord& record) {
             return
                 !record.key.alphaMasked &&
                 !record.key.transparent &&
@@ -122,19 +127,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 !record.key.waterMaterialFx;
         }
 
-        bool IsDepthVisibilityOccluderRecord(
-            const GpuSceneSurfaceRecord& record,
-            bool strictSize) {
-
+        // BuildDepthPrepassOccluderRecords の収集規則と dirty patch の
+        // membership 判定は必ずこの述語を共有する。
+        bool IsDepthPrepassCoverageRecord(const GpuSceneSurfaceRecord& record) {
             if (!IsGpuSceneForwardOpaqueResidentRecord(record) ||
-                !HasDepthVisibilitySafeMaterial(record)) {
+                !IsDepthPrepassSafeMaterial(record)) {
                 return false;
-            }
-            if (record.key.doubleSided) {
-                return false;
-            }
-            if (!strictSize) {
-                return true;
             }
             return ComputeWorldBoundsRadius(record.worldBounds) >=
                 kDepthVisibilityMinOccluderRadius;
@@ -206,8 +204,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 if (!IsGpuSceneForwardOpaqueResidentRecord(record)) {
                     continue;
                 }
-                if (!HasDepthVisibilitySafeMaterial(record) ||
-                    record.key.doubleSided) {
+                if (!IsDepthPrepassSafeMaterial(record)) {
                     ++stats.depthPrepassRejectedUnsafeMaterialRecordCount;
                     continue;
                 }
@@ -1785,9 +1782,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const bool oldOpaque = IsGpuSceneForwardOpaqueResidentRecord(oldRecord);
             const bool newOpaque = IsGpuSceneForwardOpaqueResidentRecord(newRecord);
             const bool oldDepthOccluder =
-                IsDepthVisibilityOccluderRecord(oldRecord, true);
+                IsDepthPrepassCoverageRecord(oldRecord);
             const bool newDepthOccluder =
-                IsDepthVisibilityOccluderRecord(newRecord, true);
+                IsDepthPrepassCoverageRecord(newRecord);
             const bool oldNonOpaqueGpuPass =
                 IsGpuSceneForwardDepthAwareResidentRecord(oldRecord) ||
                 IsGpuSceneForwardTransparentResidentRecord(oldRecord) ||

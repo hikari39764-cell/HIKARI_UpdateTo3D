@@ -232,10 +232,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 if ((context.passMask & MakeGpuDrivenPassMask(range.passKind)) == 0u) {
                     continue;
                 }
-                if (context.depthOcclusion.enabled &&
-                    range.passKind == GpuDrivenPassKind::DepthPrepass) {
-                    continue;
-                }
+                // DepthPrepass は occlusion 有効時も dispatch する。pyramid の
+                // ソースとして使う場合の描画は finalize 前 (occlusion 無効の
+                // BeginFrame ビルド) に行われ、finalize 後の scene depth prepass
+                // は forward と同じ剔除結果を共有するのが正しい。
                 if (!TryToClusterCullPassKind(range.passKind, clusterPass)) {
                     continue;
                 }

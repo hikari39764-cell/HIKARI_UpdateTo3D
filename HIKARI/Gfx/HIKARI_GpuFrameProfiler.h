@@ -11,6 +11,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         ShadowMap = 0,
         GeometryAux,
         ClusterCull,
+        DepthPrepass,
         TraditionalDrawGeometryAux,
         TraditionalDrawForward,
         MeshletDrawGeometryAux,
