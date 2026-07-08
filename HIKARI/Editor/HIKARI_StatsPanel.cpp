@@ -66,48 +66,23 @@ namespace HIKARI {
         }
 
         const MODELRENDERER::ModelRendererDebugStats& modelStats = MODELRENDERER::GetDebugStats();
-        const MODELRENDERER::ModelRendererCacheStats& modelCacheStats = modelStats.cache;
         const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneRenderCacheStats =
             RenderSubmissionSystem::GetSceneRenderCacheStats();
         const MESHRENDERER::MeshRendererDebugStats& meshStats = MESHRENDERER::GetDebugStats();
-        if (ImGui::TreeNodeEx("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::TreeNodeEx("Render Summary", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("ModelRenderer Frame: %s", MODELRENDERER::ToString(modelStats.frameKind));
-            if (ImGui::TreeNodeEx("RenderModel Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Requests: %u", modelCacheStats.renderModelCacheRequestCount);
-                ImGui::Text("Hits / Misses: %u / %u",
-                    modelCacheStats.renderModelCacheHitCount,
-                    modelCacheStats.renderModelCacheMissCount);
-                ImGui::Text("Cached Models: %u", modelCacheStats.renderModelCachedModelCount);
-                ImGui::Text("Cached Surfaces: %u", modelCacheStats.renderModelCachedSurfaceCount);
-                ImGui::Text("Invalid Cached Models: %u", modelCacheStats.renderModelCacheInvalidCount);
-                ImGui::TreePop();
-            }
-            if (ImGui::TreeNodeEx("Scene Render Cache", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Objects: %u", sceneRenderCacheStats.renderObjectCount);
-                ImGui::Text("Visible / Hidden: %u / %u",
-                    sceneRenderCacheStats.visibleObjectCount,
-                    sceneRenderCacheStats.hiddenObjectCount);
-                ImGui::Text("Static / Dynamic: %u / %u",
-                    sceneRenderCacheStats.staticObjectCount,
-                    sceneRenderCacheStats.dynamicObjectCount);
-                ImGui::Text("Dirty: %u", sceneRenderCacheStats.dirtyObjectCount);
-                ImGui::Text("Inserted / Updated / Removed: %u / %u / %u",
-                    sceneRenderCacheStats.insertedCount,
-                    sceneRenderCacheStats.updatedCount,
-                    sceneRenderCacheStats.removedCount);
-                ImGui::Text("Invalid Desc: %u", sceneRenderCacheStats.invalidDescCount);
-                ImGui::Text("RenderModel Valid / Invalid: %u / %u",
-                    sceneRenderCacheStats.renderModelValidCount,
-                    sceneRenderCacheStats.renderModelInvalidCount);
-                ImGui::TreePop();
-            }
-            ImGui::Text("Wire GPU Draws: %zu", meshStats.wireGpuDrawCount);
-            ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
-            ImGui::Text("PSO Cache Hit / Miss: %zu / %zu", meshStats.psoCacheHitCount, meshStats.psoCacheMissCount);
-            ImGui::Text("Texture Cache Hit / Miss: %zu / %zu", meshStats.materialTextureCacheHitCount, meshStats.materialTextureCacheMissCount);
+            ImGui::Text("Objects Visible / Hidden / Dirty: %u / %u / %u",
+                sceneRenderCacheStats.visibleObjectCount,
+                sceneRenderCacheStats.hiddenObjectCount,
+                sceneRenderCacheStats.dirtyObjectCount);
+            ImGui::Text("Surfaces Total / Static / Dynamic / Skinned: %u / %u / %u / %u",
+                sceneRenderCacheStats.surfaceInstanceCount,
+                sceneRenderCacheStats.staticSurfaceInstanceCount,
+                sceneRenderCacheStats.dynamicSurfaceInstanceCount,
+                sceneRenderCacheStats.skinnedSurfaceInstanceCount);
+            ImGui::Text("GPU Scene: %s",
+                meshStats.surfaceGpuSceneSrvValid && meshStats.surfaceGpuSceneBufferReady ? "Ready" : "Missing");
             ImGui::Text("Texture Loads Deferred: %zu", meshStats.materialTextureLoadDeferredCount);
-            ImGui::Text("NormalMapped Primitives: %zu", meshStats.normalMappedPrimitiveCount);
-            ImGui::Text("NormalTexture Cache Hit / Miss: %zu / %zu", meshStats.normalTextureCacheHitCount, meshStats.normalTextureCacheMissCount);
             ImGui::TreePop();
         }
 
@@ -127,8 +102,6 @@ namespace HIKARI {
             ImGui::Text("SceneColor Size: %d x %d",
                 POST::PostSystem::GetSceneColorWidth(),
                 POST::PostSystem::GetSceneColorHeight());
-            ImGui::Text("SceneColor For Water: %s", POST::PostSystem::IsSceneColorReady() ? "Available" : "Unavailable");
-            ImGui::Text("Water Refraction: SceneColor t8 when renderPhase=DepthAware");
             const IBL::IblEnvironmentData& iblData = IBL::GetEnvironmentData();
             ImGui::Text("IBL Valid: %s", iblData.valid ? "Yes" : "No");
             ImGui::Text("IBL Irradiance / Prefiltered / BRDF: %s / %s / %s",
@@ -164,11 +137,7 @@ namespace HIKARI {
         }
 
         if (ImGui::TreeNode("Animation / Skinning")) {
-            ImGui::Text("GPU Driven Skinned Commands: %zu", meshStats.gpuDrivenSkinnedCommandCount);
-            ImGui::Text("GPU Driven Skinned Records: %zu / %zu / %zu",
-                meshStats.gpuDrivenSkinnedSourceRecordCount,
-                meshStats.gpuDrivenSkinnedSubmittedRecordCount,
-                meshStats.gpuDrivenSkinnedSkippedRecordCount);
+            ImGui::Text("Skinned GPU Draws: %zu", meshStats.skinnedGpuDrawCount);
             ImGui::Text("Uploaded Joints: %zu", meshStats.uploadedJointCount);
             ImGui::TreePop();
         }

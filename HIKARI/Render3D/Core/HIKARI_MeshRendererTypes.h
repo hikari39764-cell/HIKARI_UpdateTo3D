@@ -494,6 +494,7 @@ namespace HIKARI::MESHRENDERER {
         size_t meshletBackendForwardSubmittedDispatchCount = 0;
         size_t meshletBackendGeometryAuxSubmittedDispatchCount = 0;
         size_t meshletBackendDepthPrepassSubmittedDispatchCount = 0;
+        size_t meshletBackendShadowSubmittedDispatchCount = 0;
         size_t meshletBackendBackFaceSubmitCallCount = 0;
         size_t meshletBackendDoubleSidedSubmitCallCount = 0;
         size_t meshletBackendPipelineCreateRequestCount = 0;

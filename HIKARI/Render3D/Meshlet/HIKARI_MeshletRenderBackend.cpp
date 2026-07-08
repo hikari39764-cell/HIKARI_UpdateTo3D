@@ -875,11 +875,15 @@ namespace HIKARI::RENDER3D::MESHLET {
         constexpr UINT maxCommandCount = 1u;
 
         bool submittedAnyBucket = false;
-        GFX::GPU_PROFILE::ScopedGpuTimer gpuDraw(
-            ctx.commandList,
-            ctx.pipelineKind == MeshletPipelineKind::GeometryAux
-                ? GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux
-                : GFX::GPU_PROFILE::Pass::MeshletDrawForward);
+        const GFX::GPU_PROFILE::Pass profilePass =
+            ctx.profilePass != GFX::GPU_PROFILE::Pass::Count
+                ? ctx.profilePass
+                : ctx.pipelineKind == MeshletPipelineKind::GeometryAux
+                    ? GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux
+                    : ctx.pipelineKind == MeshletPipelineKind::Shadow
+                        ? GFX::GPU_PROFILE::Pass::MeshletDrawShadow
+                        : GFX::GPU_PROFILE::Pass::MeshletDrawForward;
+        GFX::GPU_PROFILE::ScopedGpuTimer gpuDraw(ctx.commandList, profilePass);
         for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
             const GPUDRIVEN::GpuDrivenCommandBucket bucket =
                 static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);
@@ -927,6 +931,8 @@ namespace HIKARI::RENDER3D::MESHLET {
             stats_.geometryAuxSubmittedDispatchCount += requestedDispatchCount;
         } else if (ctx.pipelineKind == MeshletPipelineKind::DepthPrepass) {
             stats_.depthPrepassSubmittedDispatchCount += requestedDispatchCount;
+        } else if (ctx.pipelineKind == MeshletPipelineKind::Shadow) {
+            stats_.shadowSubmittedDispatchCount += requestedDispatchCount;
         } else {
             stats_.forwardSubmittedDispatchCount += requestedDispatchCount;
         }

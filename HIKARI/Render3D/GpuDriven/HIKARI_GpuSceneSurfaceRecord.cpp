@@ -502,7 +502,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         uint32_t BuildInstanceFlags(const GpuSceneSurfaceRecord& record) {
             uint32_t flags = 0;
-            if (record.isStatic && !record.skinned) {
+            const bool staticGeometry =
+                !record.skinned &&
+                !record.hasRuntimeAnimation;
+            if (staticGeometry) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::StaticGeometry);
             }
             if (record.castShadow) {

@@ -166,10 +166,11 @@ Texture2D gSsaoTex : register(t13);
 // descriptor table として連続確保される。
 Texture3D<float4> gLightProbeShVolume[9] : register(t0, space2);
 SamplerState gLinearWrap : register(s0);
-SamplerState gShadowSampler : register(s1);
+SamplerComparisonState gShadowSampler : register(s1);
 
 #include "Include/HIKARI_PbrCommon.hlsli"
 #include "Include/HIKARI_SkyEnvironmentCommon.hlsli"
 #include "Include/HIKARI_DebugViewCommon.hlsli"
+#include "Include/Forward/HIKARI_ShadowSampling.hlsli"
 
 #endif

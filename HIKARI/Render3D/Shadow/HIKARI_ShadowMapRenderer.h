@@ -16,9 +16,24 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
 namespace HIKARI::SHADOW {
 
+    enum ShadowCacheMissReasonFlags : uint32_t {
+        ShadowCacheMissReasonNone = 0u,
+        ShadowCacheMissReasonInvalid = 1u << 0,
+        ShadowCacheMissReasonResource = 1u << 1,
+        ShadowCacheMissReasonState = 1u << 2,
+        ShadowCacheMissReasonResolution = 1u << 3,
+        ShadowCacheMissReasonLayout = 1u << 4,
+        ShadowCacheMissReasonSource = 1u << 5,
+        ShadowCacheMissReasonInstanceCount = 1u << 6,
+        ShadowCacheMissReasonMatrix = 1u << 7,
+        ShadowCacheMissReasonStaticDirty = 1u << 8,
+        ShadowCacheMissReasonNoStaticWork = 1u << 9,
+    };
+
     struct ShadowMapDebugStats {
         bool enabled = false;
         uint32_t resolution = 0;
+        float worldTexelSize = 0.0f;
         size_t submittedCasterCount = 0;
         size_t shadowRecordCasterDrawCount = 0;
         size_t shadowRecordSkippedCount = 0;
@@ -51,10 +66,29 @@ namespace HIKARI::SHADOW {
         size_t shadowGpuSceneReuseCount = 0;
         bool shadowGpuSceneSrvValid = false;
         bool shadowGpuSceneBufferReady = false;
+        size_t shadowMeshletRequestedDispatchCount = 0;
+        size_t shadowMeshletSubmittedDispatchCount = 0;
+        size_t shadowMeshletSkippedDispatchCount = 0;
+        size_t shadowMeshletSubmitCallCount = 0;
+        size_t shadowMeshletSkippedBucketCount = 0;
+        size_t shadowMeshletBackFaceSubmitCallCount = 0;
+        size_t shadowMeshletDoubleSidedSubmitCallCount = 0;
+        bool shadowMeshletPipelineReady = false;
+        bool shadowMeshletDispatchArgumentBufferReady = false;
+        bool shadowMeshletDispatchCommandSignatureReady = false;
         bool shadowCacheValid = false;
         bool shadowCacheHit = false;
+        uint32_t shadowCacheMissReasonFlags = ShadowCacheMissReasonNone;
+        uint32_t shadowCacheLastMissReasonFlags = ShadowCacheMissReasonNone;
         size_t shadowCacheHitCount = 0;
         size_t shadowCacheMissCount = 0;
+        size_t shadowStaticCacheCopyCount = 0;
+        size_t shadowStaticCacheUpdateCount = 0;
+        size_t shadowStaticSourceInstanceCount = 0;
+        size_t shadowDynamicSourceInstanceCount = 0;
+        bool shadowStaticRendered = false;
+        bool shadowDynamicRendered = false;
+        bool shadowFallbackRendered = false;
         size_t staticCasterDrawCount = 0;
         size_t skinnedCasterDrawCount = 0;
         size_t alphaMaskCasterDrawCount = 0;
@@ -75,6 +109,7 @@ namespace HIKARI::SHADOW {
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera);
     void SetGpuDrivenSceneSource(
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source);
+    void InvalidateSceneCache();
     void RenderDirectionalShadowMap();
 
     bool IsDirectionalShadowEnabled();

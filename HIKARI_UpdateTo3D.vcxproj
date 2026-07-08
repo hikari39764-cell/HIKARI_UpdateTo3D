@@ -924,6 +924,7 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />
     <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ShadowSampling.hlsli" />
     <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli" />
     <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterGpuData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGpuData.hlsli" />

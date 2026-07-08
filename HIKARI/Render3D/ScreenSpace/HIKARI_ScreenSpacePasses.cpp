@@ -438,9 +438,13 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         const SsaoMode ssaoMode =
             ResolveEffectiveSsaoMode(environment.ambientOcclusion);
+        // 同フレーム経路 (ExecuteBalancedSsaoFromSceneDepth) が成功した場合は
+        // temporal 更新を省く。フラグはここで毎フレーム消費する。
         const bool refreshBalancedSsao =
             ssaoMode == SsaoMode::Balanced &&
-            !environment.ambientOcclusion.editorViewportSuppressed;
+            !environment.ambientOcclusion.editorViewportSuppressed &&
+            !state.balancedSsaoSameFrame;
+        state.balancedSsaoSameFrame = false;
 
         if (!context.renderTargetAccess.BeginDepthRead()) {
             state.depthVisibilityValid = false;
@@ -502,6 +506,54 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         context.renderTargetAccess.EndDepthRead();
         return context.renderTargetAccess.Rebind();
+    }
+
+    bool ExecuteBalancedSsaoFromSceneDepth(
+        ScreenSpaceRuntimeState& state,
+        const RENDER3D::PIPELINE::ScreenSpacePassContext& context,
+        const MESHRENDERER::CameraCB& renderCameraCb,
+        const SceneEnvironment& environment,
+        ScreenSpaceFrameResult& result) {
+
+        state.balancedSsaoSameFrame = false;
+        const SsaoMode ssaoMode =
+            ResolveEffectiveSsaoMode(environment.ambientOcclusion);
+        if (ssaoMode != SsaoMode::Balanced ||
+            environment.ambientOcclusion.editorViewportSuppressed ||
+            context.cmd == nullptr ||
+            context.sceneDepthSrv.ptr == 0) {
+            return false;
+        }
+
+        if (!context.renderTargetAccess.BeginDepthRead()) {
+            return false;
+        }
+
+        GFX::PIX::ScopedGpuEvent pixSsao(
+            context.cmd,
+            GFX::PIX::kColorPost,
+            "SSAO.BalancedFromScenePrepass");
+        const bool ssaoOk = state.ssaoRenderer.RenderDepthOnly(
+            context.cmd,
+            context.width,
+            context.height,
+            context.sceneDepthSrv,
+            renderCameraCb,
+            environment.ambientOcclusion);
+        context.renderTargetAccess.EndDepthRead();
+        if (!context.renderTargetAccess.Rebind()) {
+            return false;
+        }
+
+        state.ssaoValid = ssaoOk;
+        if (!ssaoOk || state.ssaoRenderer.GetAoSrv().ptr == 0) {
+            return false;
+        }
+
+        state.balancedSsaoSameFrame = true;
+        result.ssaoRendered = true;
+        result.aoSrv = state.ssaoRenderer.GetAoSrv();
+        return true;
     }
 
 } // namespace HIKARI::RENDER3D::SCREENSPACE

@@ -7,6 +7,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
+#include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Render3D/GpuDriven/Backend/HIKARI_GeometryBackendContext.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenCommandBucket.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
@@ -68,6 +69,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         size_t forwardSubmittedDispatchCount = 0;
         size_t geometryAuxSubmittedDispatchCount = 0;
         size_t depthPrepassSubmittedDispatchCount = 0;
+        size_t shadowSubmittedDispatchCount = 0;
         size_t backFaceSubmitCallCount = 0;
         size_t doubleSidedSubmitCallCount = 0;
     };
@@ -78,6 +80,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         const GPUDRIVEN::GpuVisibilityResult* visibility = nullptr;
         const GPUDRIVEN::GpuDrivenDrawCommandRange* drawCommandRange = nullptr;
         MeshletPipelineKind pipelineKind = MeshletPipelineKind::ForwardOpaque;
+        GFX::GPU_PROFILE::Pass profilePass = GFX::GPU_PROFILE::Pass::Count;
     };
 
     class MeshletRenderBackend final {

@@ -1322,6 +1322,8 @@ namespace HIKARI::MESHRENDERER {
                 meshletStats.geometryAuxSubmittedDispatchCount;
             g.debugStats.meshletBackendDepthPrepassSubmittedDispatchCount =
                 meshletStats.depthPrepassSubmittedDispatchCount;
+            g.debugStats.meshletBackendShadowSubmittedDispatchCount =
+                meshletStats.shadowSubmittedDispatchCount;
             g.debugStats.meshletBackendBackFaceSubmitCallCount =
                 meshletStats.backFaceSubmitCallCount;
             g.debugStats.meshletBackendDoubleSidedSubmitCallCount =

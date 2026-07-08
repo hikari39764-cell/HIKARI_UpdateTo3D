@@ -575,7 +575,7 @@ namespace HIKARI {
         }
 
         RENDERER3D::Reset();
-        MODELRENDERER::Reset();
+        MODELRENDERER::ResetFrame();
         SKYRENDERER::Reset();
 
         if (environment_.post.enabled && environment_.post.globalPostProfileId.empty()) {

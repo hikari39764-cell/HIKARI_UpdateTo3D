@@ -1,11 +1,9 @@
 #include "HIKARI_ValidationLabPanel.h"
 
-#include "Render3D/Cluster/HIKARI_ClusteredGeometryManager.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
-#include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #include <algorithm>
@@ -19,50 +17,54 @@ namespace HIKARI {
 
 #if defined(HIKARI_WITH_EDITOR)
     namespace {
-        template <typename Numerator, typename Denominator>
-        float SafeRatio(Numerator numerator, Denominator denominator) {
-            const double safeDenominator = static_cast<double>(denominator);
-            return safeDenominator > 0.0 ?
-                static_cast<float>(static_cast<double>(numerator) / safeDenominator) :
-                0.0f;
-        }
 
-        int ClampScore(float score) {
-            if (score < 0.0f) {
-                return 0;
-            }
-            if (score > 100.0f) {
-                return 100;
-            }
-            return static_cast<int>(score + 0.5f);
-        }
+        struct RendererHealthSnapshot {
+            RenderSubmissionDebugStats submission{};
+            RENDER3D::RUNTIME::SceneRenderCache::Stats scene{};
+            RENDER3D::GPUDRIVEN::GpuSceneRegistryStats registry{};
+            MESHRENDERER::MeshRendererDebugStats mesh{};
+            SHADOW::ShadowMapDebugStats shadow{};
+            RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
+            RENDER3D::RenderResourceDescriptorPoolStats descriptorPool{};
+        };
 
-        int RatioPenalty(float ratio, int maxPenalty) {
-            return ClampScore(ratio * static_cast<float>(maxPenalty));
+        int ClampScore(int score) {
+            return (std::max)(0, (std::min)(100, score));
         }
 
         const char* ScoreBandText(int score) {
-            if (score >= 80) {
+            if (score >= 85) {
                 return "Good";
             }
-            if (score >= 55) {
+            if (score >= 60) {
                 return "Watch";
             }
             return "Risk";
         }
 
         ImVec4 ScoreBandColor(int score) {
-            if (score >= 80) {
+            if (score >= 85) {
                 return ImVec4(0.28f, 0.82f, 0.45f, 1.0f);
             }
-            if (score >= 55) {
+            if (score >= 60) {
                 return ImVec4(0.95f, 0.72f, 0.25f, 1.0f);
             }
             return ImVec4(0.95f, 0.34f, 0.32f, 1.0f);
         }
 
-        void DrawValidationScoreCard(const char* label, int score, const char* detail) {
-            ImGui::PushID(label);
+        RendererHealthSnapshot BuildSnapshot() {
+            RendererHealthSnapshot out{};
+            out.submission = RenderSubmissionSystem::GetDebugStats();
+            out.scene = RenderSubmissionSystem::GetSceneRenderCacheStats();
+            out.registry = RenderSubmissionSystem::GetGpuSceneRegistryStats();
+            out.mesh = MESHRENDERER::GetDebugStats();
+            out.shadow = SHADOW::GetDebugStats();
+            out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
+            out.descriptorPool = RENDER3D::GetRenderResourceDescriptorPoolStats();
+            return out;
+        }
+
+        void DrawHealthCard(const char* label, int score, const char* detail) {
             const ImVec4 color = ScoreBandColor(score);
             ImGui::TextUnformatted(label);
             ImGui::SameLine();
@@ -73,254 +75,197 @@ namespace HIKARI {
             ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
             ImGui::ProgressBar(static_cast<float>(score) / 100.0f, ImVec2(-1.0f, 0.0f), overlay);
             ImGui::PopStyleColor();
-            ImGui::TextWrapped("%s", detail);
-            ImGui::PopID();
+            ImGui::TextDisabled("%s", detail);
         }
 
-        void DrawGpuDrivenSubmissionValidationSection() {
-            const RENDER3D::RUNTIME::SceneRenderCache::Stats& sceneStats =
-                RenderSubmissionSystem::GetSceneRenderCacheStats();
-            const RENDER3D::GPUDRIVEN::GpuSceneRegistryStats& registryStats =
-                RenderSubmissionSystem::GetGpuSceneRegistryStats();
-            const MESHRENDERER::MeshRendererDebugStats& meshStats =
-                MESHRENDERER::GetDebugStats();
-            const SHADOW::ShadowMapDebugStats& shadowStats =
-                SHADOW::GetDebugStats();
+        template <typename... Args>
+        void MetricRow(const char* label, const char* fmt, Args... args) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(label);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text(fmt, args...);
+        }
 
-            if (!ImGui::CollapsingHeader("GPU Driven Submission Validation", ImGuiTreeNodeFlags_DefaultOpen)) {
-                return;
+        bool BeginMetricTable(const char* id, float labelWidth = 230.0f) {
+            if (!ImGui::BeginTable(
+                    id,
+                    2,
+                    ImGuiTableFlags_BordersInnerV |
+                        ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingStretchProp)) {
+                return false;
+            }
+            ImGui::TableSetupColumn("Signal", ImGuiTableColumnFlags_WidthFixed, labelWidth);
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+            return true;
+        }
+
+        int ComputeGpuDrivenScore(const RendererHealthSnapshot& s) {
+            int score = 100;
+            if (!s.submission.gpuDrivenMainRouteActive) {
+                score -= 15;
+            }
+            if (!s.mesh.surfaceGpuSceneSrvValid || !s.mesh.surfaceGpuSceneBufferReady) {
+                score -= 35;
+            }
+            if (s.mesh.surfaceGpuSceneOverflowInstanceCount > 0) {
+                score -= 25;
+            }
+            if (s.registry.unsupportedForwardRecordCount > 0) {
+                score -= 10;
+            }
+            if (s.registry.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount > 0) {
+                score -= 15;
+            }
+            return ClampScore(score);
+        }
+
+        int ComputeMeshletScore(const RendererHealthSnapshot& s) {
+            int score = 100;
+            if (!s.mesh.clusterGpuCullReady) {
+                score -= 25;
+            }
+            if (!s.mesh.meshletBackendPipelineReady) {
+                score -= 30;
+            }
+            if (!s.mesh.meshletBackendDispatchArgumentBufferReady ||
+                !s.mesh.meshletBackendDispatchCommandSignatureReady) {
+                score -= 25;
+            }
+            if (s.mesh.clusterGpuCullGpuOverflowCount +
+                    s.mesh.clusterGpuCullGpuDrawCommandOverflowCount >
+                0) {
+                score -= 20;
+            }
+            return ClampScore(score);
+        }
+
+        int ComputeResourceScore(const RendererHealthSnapshot& s) {
+            int score = 100;
+            if (!s.clusterResources.initialized || s.clusterResources.readyResourceCount == 0) {
+                score -= 30;
+            }
+            if (s.clusterResources.failedCount > 0) {
+                score -= 20;
+            }
+            if (s.clusterResources.missingDescriptorCount > 0 ||
+                s.clusterResources.descriptorAllocationFailedCount > 0) {
+                score -= 25;
+            }
+            if (!s.descriptorPool.initialized || s.descriptorPool.failedAllocationCount > 0) {
+                score -= 25;
+            }
+            return ClampScore(score);
+        }
+
+        int ComputeShadowScore(const RendererHealthSnapshot& s) {
+            if (!s.shadow.enabled) {
+                return 100;
             }
 
-            const RenderSubmissionDebugStats& renderSubmissionStats =
-                RenderSubmissionSystem::GetDebugStats();
-            const bool gpuSceneReady =
-                meshStats.surfaceGpuSceneSrvValid &&
-                meshStats.surfaceGpuSceneBufferReady &&
-                meshStats.surfaceGpuSceneOverflowInstanceCount == 0;
-            const bool meshletReady =
-                meshStats.meshletBackendPipelineReady &&
-                meshStats.meshletBackendDispatchArgumentBufferReady &&
-                meshStats.meshletBackendDispatchCommandSignatureReady;
-            const bool clusterReady =
-                meshStats.clusterGpuCullReady;
-            const bool hasMainlineWork =
-                registryStats.forwardOpaqueResidentRecordCount > 0 ||
-                meshStats.clusterGpuCullSubmittedInstanceCount > 0 ||
-                meshStats.meshletBackendSubmittedDispatchCount > 0;
-            const char* mainlineStatus = !hasMainlineWork ? "Idle" :
-                (gpuSceneReady && clusterReady && meshletReady ? "Ready" : "Watch");
-
-            ImGui::SeparatorText("Route");
-            ImGui::Text("Route: %s", ToString(RenderSubmissionSystem::GetRouteMode()));
-            ImGui::Text("Status / Mainline: %s / %s",
-                mainlineStatus,
-                renderSubmissionStats.gpuDrivenMainRouteActive ? "on" : "off");
-            ImGui::Text("Scene Scan / Submit / Cull / Hidden: %d / %d / %d / %d",
-                renderSubmissionStats.scannedModelCount,
-                renderSubmissionStats.submittedModelCount,
-                renderSubmissionStats.culledModelCount,
-                renderSubmissionStats.hiddenModelCount);
-
-            ImGui::SeparatorText("Scene Cache");
-            ImGui::Text("Objects Visible / Hidden / Dirty: %u / %u / %u",
-                sceneStats.visibleObjectCount,
-                sceneStats.hiddenObjectCount,
-                sceneStats.dirtyObjectCount);
-            ImGui::Text("Surfaces Total / Visible / Dirty: %u / %u / %u",
-                sceneStats.surfaceInstanceCount,
-                sceneStats.visibleSurfaceInstanceCount,
-                sceneStats.dirtySurfaceInstanceCount);
-            ImGui::Text("Surfaces Static / Dynamic / Skinned / Clustered: %u / %u / %u / %u",
-                sceneStats.staticSurfaceInstanceCount,
-                sceneStats.dynamicSurfaceInstanceCount,
-                sceneStats.skinnedSurfaceInstanceCount,
-                sceneStats.clusteredGeometrySurfaceInstanceCount);
-
-            ImGui::SeparatorText("GPU Registry");
-            ImGui::Text("Source Records / Routed / Unsupported: %u / %u / %u",
-                registryStats.sourceRecordCount,
-                registryStats.forwardRoutedRecordCount,
-                registryStats.unsupportedForwardRecordCount);
-            ImGui::Text("Forward Opaque Resident / Cluster Candidate: %u / %u",
-                registryStats.forwardOpaqueResidentRecordCount,
-                registryStats.forwardOpaqueClusterCandidateRecordCount);
-            ImGui::Text("GPU Scene Instances Opaque / DepthAware / Transparent: %u / %u / %u",
-                registryStats.forwardOpaqueGpuSceneStats.instanceCount,
-                registryStats.forwardDepthAwareGpuSceneStats.instanceCount,
-                registryStats.forwardTransparentGpuSceneStats.instanceCount);
-            ImGui::Text("Resource Instances / Missing: %u / %u",
-                registryStats.forwardOpaqueGpuSceneStats.resourceBackedInstanceCount,
-                registryStats.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount);
-            ImGui::Text("Cluster Resource / SRV / Range / Missing Range: %u / %u / %u / %u",
-                registryStats.forwardOpaqueGpuSceneStats.clusterResourceInstanceCount,
-                registryStats.forwardOpaqueGpuSceneStats.clusterShaderVisibleInstanceCount,
-                registryStats.forwardOpaqueGpuSceneStats.clusterSurfaceRangeInstanceCount,
-                registryStats.forwardOpaqueGpuSceneStats.clusterMissingSurfaceRangeInstanceCount);
-
-            ImGui::SeparatorText("GPU Execution");
-            ImGui::Text("GPU Scene Buffer Ready / Uploaded / Requested / Overflow: %s / %zu / %zu / %zu",
-                gpuSceneReady ? "Ready" : "Missing",
-                meshStats.surfaceGpuSceneUploadedInstanceCount,
-                meshStats.surfaceGpuSceneRequestedInstanceCount,
-                meshStats.surfaceGpuSceneOverflowInstanceCount);
-            ImGui::Text("GPU Scene Committed / KB / MaterialPatch Changed / Same: %zu / %zu / %zu / %zu",
-                meshStats.surfaceGpuSceneCommittedInstanceCount,
-                meshStats.surfaceGpuSceneCommittedBytes / 1024u,
-                meshStats.surfaceGpuSceneMaterialPatchChangedCount,
-                meshStats.surfaceGpuSceneMaterialPatchUnchangedCount);
-            ImGui::Text("MaterialData CPU Writes / GPU Copy KB / Copy Calls: %zu / %zu / %zu",
-                meshStats.materialDataWriteCount,
-                meshStats.materialDataGpuUploadBytes / 1024u,
-                meshStats.materialDataGpuUploadCallCount);
-            ImGui::Text("Worklist Passes / Cluster Passes / Instances / Cluster Instances: %zu / %zu / %zu / %zu",
-                meshStats.gpuDrivenWorklistPassCount,
-                meshStats.gpuDrivenWorklistClusterPassCount,
-                meshStats.gpuDrivenWorklistSourceInstanceCount,
-                meshStats.gpuDrivenWorklistClusterInstanceCount);
-            ImGui::Text("Command Stream Passes / Ranges / GPU Cmd / Traditional VS/PS: %zu / %zu / %zu / %zu",
-                meshStats.gpuDrivenCommandStreamPassCount,
-                meshStats.gpuDrivenCommandStreamRangeCount,
-                meshStats.gpuDrivenCommandStreamGpuCommandCount,
-                meshStats.gpuDrivenCommandStreamTraditionalCommandCount);
-            ImGui::Text("Cluster Cull Ready / Source / Candidate / Submitted / Overflow: %s / %zu / %zu / %zu / %zu",
-                clusterReady ? "Ready" : "Missing",
-                meshStats.clusterGpuCullSourceInstanceCount,
-                meshStats.clusterGpuCullCandidateInstanceCount,
-                meshStats.clusterGpuCullSubmittedInstanceCount,
-                meshStats.clusterGpuCullOverflowInstanceCount);
-            ImGui::Text("Cluster Visible Runs / Clusters / DrawArgs / Overflow: %zu / %zu / %zu / %zu",
-                meshStats.clusterGpuCullGpuVisibleRangeCount,
-                meshStats.clusterGpuCullGpuVisibleClusterCount,
-                meshStats.clusterGpuCullGpuDrawCommandCount,
-                meshStats.clusterGpuCullGpuDrawCommandOverflowCount +
-                    meshStats.clusterGpuCullGpuOverflowCount);
-            ImGui::Text("Cluster HZB Occlusion / Size / Page Culled / Cluster Culled: %s / %zux%zu / %zu / %zu",
-                meshStats.clusterGpuCullHzbOcclusionEnabled ? "on" : "off",
-                meshStats.clusterGpuCullHzbOcclusionWidth,
-                meshStats.clusterGpuCullHzbOcclusionHeight,
-                meshStats.clusterGpuCullGpuPageOcclusionCulledCount,
-                meshStats.clusterGpuCullGpuClusterOcclusionCulledCount);
-            ImGui::Text("Cluster HZB Reject Pass / AABB / Sphere / Accepted / Raw: %zu / %zu / %zu / %zu / %zu",
-                meshStats.clusterGpuCullGpuHzbPassRejectedCount,
-                meshStats.clusterGpuCullGpuHzbAabbRejectedCount,
-                meshStats.clusterGpuCullGpuHzbSphereRejectedCount,
-                meshStats.clusterGpuCullGpuHzbQueryAcceptedCount,
-                meshStats.clusterGpuCullGpuHzbRawOccludedCount);
-            ImGui::Text("Cluster HZB Temporal Ready / Capacity / Pending / Confirmed: %s / %zu / %zu / %zu",
-                meshStats.clusterGpuCullOcclusionHistoryReady ? "yes" : "no",
-                meshStats.clusterGpuCullOcclusionHistoryCapacity,
-                meshStats.clusterGpuCullGpuHzbTemporalPendingCount,
-                meshStats.clusterGpuCullGpuHzbTemporalConfirmedCount);
-            ImGui::Text("GPU LOD Selected L0 / L1 / L2 / L3+: %zu / %zu / %zu / %zu",
-                meshStats.clusterGpuCullGpuLod0SelectedCount,
-                meshStats.clusterGpuCullGpuLod1SelectedCount,
-                meshStats.clusterGpuCullGpuLod2SelectedCount,
-                meshStats.clusterGpuCullGpuLod3PlusSelectedCount);
-            ImGui::Text("Meshlet Backend Ready / SM6.5 / Tier / Fwd / GBuffer / PSO: %s / %s / %u / %s / %s / %zu/%zu",
-                meshletReady ? "Ready" : "Missing",
-                meshStats.meshletBackendShaderModel65Supported ? "yes" : "no",
-                meshStats.meshletBackendMeshShaderTier,
-                meshStats.meshletBackendForwardPipelineReady ? "Ready" : "Pending",
-                meshStats.meshletBackendGeometryAuxPipelineReady ? "Ready" : "Pending",
-                meshStats.meshletBackendPipelineCreateReadyCount,
-                meshStats.meshletBackendPipelineCreateRequestCount);
-            ImGui::Text("Meshlet Draw Requested / Submitted / Calls / EmptyBuckets: %zu / %zu / %zu / %zu",
-                meshStats.meshletBackendRequestedDispatchCount,
-                meshStats.meshletBackendSubmittedDispatchCount,
-                meshStats.meshletBackendSubmitCallCount,
-                meshStats.meshletBackendSkippedBucketCount);
-            ImGui::Text("Meshlet Draw Forward / Geometry / BackFace / DoubleSided Calls: %zu / %zu / %zu / %zu",
-                meshStats.meshletBackendForwardSubmittedDispatchCount,
-                meshStats.meshletBackendGeometryAuxSubmittedDispatchCount,
-                meshStats.meshletBackendBackFaceSubmitCallCount,
-                meshStats.meshletBackendDoubleSidedSubmitCallCount);
-            ImGui::Text("Traditional VS/PS ExecuteIndirect Opaque / DepthAware / Transparent: %zu / %zu / %zu",
-                meshStats.traditionalCommandStreamOpaqueCommandCount,
-                meshStats.traditionalCommandStreamDepthAwareCommandCount,
-                meshStats.traditionalCommandStreamTransparentCommandCount);
-
-            ImGui::SeparatorText("Shadow Baseline");
-            ImGui::Text("Shadow GPU Scene Ready / Uploaded / Overflow: %s / %zu / %zu",
-                shadowStats.shadowGpuSceneSrvValid && shadowStats.shadowGpuSceneBufferReady ? "Ready" : "Missing",
-                shadowStats.shadowGpuSceneUploadedInstanceCount,
-                shadowStats.shadowGpuSceneOverflowInstanceCount);
-            ImGui::Text("Shadow DrawCommands / Instanced / Drawn / Skipped: %zu / %zu / %zu / %zu",
-                shadowStats.shadowRecordDrawCallCount,
-                shadowStats.shadowRecordInstancedDrawCount,
-                shadowStats.shadowRecordCasterDrawCount,
-                shadowStats.shadowRecordSkippedCount);
-        }
-
-        void DrawClusterValidationSection(EditorContext& context) {
-            (void)context;
-            if (!ImGui::CollapsingHeader("Clustered Geometry Validation", ImGuiTreeNodeFlags_DefaultOpen)) {
-                return;
+            int score = 100;
+            if (!s.shadow.shadowCacheValid) {
+                score -= 20;
             }
-
-            const RENDER3D::CLUSTER::ClusteredGeometryManagerStats& clusterStats =
-                RENDER3D::CLUSTER::GetClusteredGeometryManager().GetStats();
-            ImGui::SeparatorText("Runtime HCMESH Cache");
-            ImGui::Text("Requests / Hits / Misses: %u / %u / %u",
-                clusterStats.requestCount,
-                clusterStats.hitCount,
-                clusterStats.missCount);
-            ImGui::Text("Valid / Invalid: %u / %u",
-                clusterStats.validAssetCount,
-                clusterStats.invalidAssetCount);
-            ImGui::Text("Surfaces / LOD Ranges / Clusters / Pages: %u / %u / %u / %u",
-                clusterStats.surfaceCount,
-                clusterStats.surfaceLodRangeCount,
-                clusterStats.clusterCount,
-                clusterStats.pageCount);
-            ImGui::Text("Triangles / Vertices: %u / %u",
-                clusterStats.totalTriangleCount,
-                clusterStats.totalVertexCount);
-            ImGui::Text("Max Vertices / Cluster: %u", clusterStats.maxVerticesPerCluster);
-            ImGui::TextWrapped("Last Load: %s",
-                RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().empty()
-                    ? "<none>"
-                    : RENDER3D::CLUSTER::GetClusteredGeometryManager().GetLastMessage().c_str());
-
-            const RENDER3D::ClusterGeometryResourceSystemStats clusterResourceStats =
-                RENDER3D::GetClusterGeometryResourceSystemStats();
-            ImGui::SeparatorText("Cluster GPU Resources");
-            ImGui::Text("Context / Ready Resources / Failed: %s / %u / %u",
-                clusterResourceStats.initialized ? "Ready" : "Missing",
-                clusterResourceStats.readyResourceCount,
-                clusterResourceStats.failedCount);
-            ImGui::Text("Requests / Hits / Misses / Loaded: %u / %u / %u / %u",
-                clusterResourceStats.requestCount,
-                clusterResourceStats.hitCount,
-                clusterResourceStats.missCount,
-                clusterResourceStats.loadedCount);
-            ImGui::Text("Resources / Upgraded Virtual Handles: %u / %u",
-                clusterResourceStats.resourceCount,
-                clusterResourceStats.upgradedVirtualHandleCount);
-            ImGui::Text("Shader SRV Ready / Missing / Allocation Failed: %u / %u / %u",
-                clusterResourceStats.shaderVisibleResourceCount,
-                clusterResourceStats.missingDescriptorCount,
-                clusterResourceStats.descriptorAllocationFailedCount);
-            ImGui::Text("GPU Surfaces / LOD Ranges / Clusters / Pages: %u / %u / %u / %u",
-                clusterResourceStats.surfaceCount,
-                clusterResourceStats.surfaceLodRangeCount,
-                clusterResourceStats.clusterCount,
-                clusterResourceStats.pageCount);
-            ImGui::Text("GPU Surface Ranges: %u", clusterResourceStats.surfaceRangeCount);
-            ImGui::Text("GPU Vertices / Indices / Primitives / Bytes: %u / %u / %u / %.2f MB",
-                clusterResourceStats.vertexCount,
-                clusterResourceStats.indexCount,
-                clusterResourceStats.meshletPrimitiveCount,
-                static_cast<double>(clusterResourceStats.gpuBufferBytes) / (1024.0 * 1024.0));
-
-            const RENDER3D::RenderResourceDescriptorPoolStats descriptorStats =
-                RENDER3D::GetRenderResourceDescriptorPoolStats();
-            ImGui::Text("Resource Descriptor Pool: %s, used %u / %u, failed %u",
-                descriptorStats.initialized ? "Ready" : "Missing",
-                descriptorStats.used,
-                descriptorStats.capacity,
-                descriptorStats.failedAllocationCount);
+            if (s.shadow.shadowGpuSceneOverflowInstanceCount > 0) {
+                score -= 20;
+            }
+            if (s.shadow.shadowStaticSourceInstanceCount > 0 && s.shadow.shadowCacheMissCount > 0 &&
+                s.shadow.shadowCacheHitCount == 0) {
+                score -= 20;
+            }
+            if (s.shadow.shadowMeshletRequestedDispatchCount > 0 &&
+                s.shadow.shadowMeshletSubmittedDispatchCount == 0) {
+                score -= 25;
+            }
+            return ClampScore(score);
         }
-    }
+
+        void DrawHealthOverview(const RendererHealthSnapshot& s) {
+            if (ImGui::BeginTable("RendererHealthCards", 2, ImGuiTableFlags_SizingStretchSame)) {
+                ImGui::TableNextColumn();
+                DrawHealthCard(
+                    "GPU Driven Path",
+                    ComputeGpuDrivenScore(s),
+                    "Route, GPU scene residency, upload overflow, and unsupported records.");
+                ImGui::TableNextColumn();
+                DrawHealthCard(
+                    "Meshlet Pipeline",
+                    ComputeMeshletScore(s),
+                    "Cluster culling, meshlet PSO readiness, indirect args, and overflow state.");
+                ImGui::TableNextColumn();
+                DrawHealthCard(
+                    "Render Resources",
+                    ComputeResourceScore(s),
+                    "Cluster resources, shader-visible descriptors, and descriptor pool health.");
+                ImGui::TableNextColumn();
+                DrawHealthCard(
+                    "Shadow Path",
+                    ComputeShadowScore(s),
+                    "Shadow cache health, GPU scene overflow, and meshlet shadow submission.");
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawIssueSummary(const RendererHealthSnapshot& s) {
+            ImGui::SeparatorText("Issue Summary");
+            if (BeginMetricTable("RendererHealthIssueSummary")) {
+                MetricRow("Route / Mainline", "%s / %s",
+                    ToString(s.submission.routeMode),
+                    s.submission.gpuDrivenMainRouteActive ? "on" : "off");
+                MetricRow("GPU Scene Missing Resources / Overflow", "%u / %zu",
+                    s.registry.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount,
+                    s.mesh.surfaceGpuSceneOverflowInstanceCount);
+                MetricRow("Cluster Resources Ready / Failed / Missing SRV", "%u / %u / %u",
+                    s.clusterResources.readyResourceCount,
+                    s.clusterResources.failedCount,
+                    s.clusterResources.missingDescriptorCount);
+                MetricRow("Meshlet Requested / Submitted / Empty Buckets", "%zu / %zu / %zu",
+                    s.mesh.meshletBackendRequestedDispatchCount,
+                    s.mesh.meshletBackendSubmittedDispatchCount,
+                    s.mesh.meshletBackendSkippedBucketCount);
+                MetricRow("Shadow Cache Valid / Hits / Misses / Updates", "%s / %zu / %zu / %zu",
+                    s.shadow.shadowCacheValid ? "yes" : "no",
+                    s.shadow.shadowCacheHitCount,
+                    s.shadow.shadowCacheMissCount,
+                    s.shadow.shadowStaticCacheUpdateCount);
+                MetricRow("Scene Objects Visible / Hidden / Dirty", "%u / %u / %u",
+                    s.scene.visibleObjectCount,
+                    s.scene.hiddenObjectCount,
+                    s.scene.dirtyObjectCount);
+                MetricRow("Scene Surfaces Static / Dynamic / Skinned", "%u / %u / %u",
+                    s.scene.staticSurfaceInstanceCount,
+                    s.scene.dynamicSurfaceInstanceCount,
+                    s.scene.skinnedSurfaceInstanceCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawResourceSummary(const RendererHealthSnapshot& s) {
+            ImGui::SeparatorText("Resource Summary");
+            if (BeginMetricTable("RendererHealthResourceSummary")) {
+                MetricRow("Cluster Surfaces / LOD Ranges / Clusters / Pages", "%u / %u / %u / %u",
+                    s.clusterResources.surfaceCount,
+                    s.clusterResources.surfaceLodRangeCount,
+                    s.clusterResources.clusterCount,
+                    s.clusterResources.pageCount);
+                MetricRow("Cluster Vertices / Indices / Primitives", "%u / %u / %u",
+                    s.clusterResources.vertexCount,
+                    s.clusterResources.indexCount,
+                    s.clusterResources.meshletPrimitiveCount);
+                MetricRow("Cluster GPU Buffer", "%.2f MB",
+                    static_cast<double>(s.clusterResources.gpuBufferBytes) / (1024.0 * 1024.0));
+                MetricRow("Descriptor Pool Used / Capacity / Failed", "%u / %u / %u",
+                    s.descriptorPool.used,
+                    s.descriptorPool.capacity,
+                    s.descriptorPool.failedAllocationCount);
+                ImGui::EndTable();
+            }
+        }
+
+    } // namespace
 #endif
 
     void ValidationLabPanel::Draw(EditorContext& context, bool& open) const {
@@ -328,7 +273,7 @@ namespace HIKARI {
         if (!open) {
             return;
         }
-        if (!ImGui::Begin("Validation Lab", &open)) {
+        if (!ImGui::Begin("Renderer Health", &open)) {
             ImGui::End();
             return;
         }
@@ -344,9 +289,11 @@ namespace HIKARI {
 
     void ValidationLabPanel::DrawContents(EditorContext& context) const {
 #if defined(HIKARI_WITH_EDITOR)
-        ImGui::TextDisabled("Renderer contract, GPU-driven submission, and cluster resource status.");
-        DrawGpuDrivenSubmissionValidationSection();
-        DrawClusterValidationSection(context);
+        (void)context;
+        const RendererHealthSnapshot snapshot = BuildSnapshot();
+        DrawHealthOverview(snapshot);
+        DrawIssueSummary(snapshot);
+        DrawResourceSummary(snapshot);
 #else
         (void)context;
 #endif

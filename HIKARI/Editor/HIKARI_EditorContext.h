@@ -108,7 +108,7 @@ namespace HIKARI {
         bool showDebugWorkspace = true;
         bool showDebugView = true;
         bool showPerformanceAudit = true;
-        bool showValidationLab = true;
+        bool showValidationLab = false;
     };
 
     struct DebugWindowState {

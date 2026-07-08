@@ -4,7 +4,6 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
-#include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
@@ -16,9 +15,8 @@
 #endif
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
-#include <cstdio>
+#include <string>
 
 namespace HIKARI {
 
@@ -35,17 +33,8 @@ namespace HIKARI {
             RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
             RENDER3D::RenderResourceDescriptorPoolStats descriptorPool{};
             RENDER3D::SCREENSPACE::SsaoDebugState ssao{};
-            RENDERER3D::DEBUG::DebugRendererFrameStats debugOverlay{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
         };
-
-        template <typename Numerator, typename Denominator>
-        float SafeRatio(Numerator numerator, Denominator denominator) {
-            const double safeDenominator = static_cast<double>(denominator);
-            return safeDenominator > 0.0 ?
-                static_cast<float>(static_cast<double>(numerator) / safeDenominator) :
-                0.0f;
-        }
 
         bool IsClusterSubpass(GFX::GPU_PROFILE::Pass pass) {
             return
@@ -56,12 +45,64 @@ namespace HIKARI {
                 pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward;
         }
 
+        bool IsShadowSubpass(GFX::GPU_PROFILE::Pass pass) {
+            return
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawShadow ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadow ||
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawShadowStatic ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowStatic ||
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawShadowDynamic ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowDynamic ||
+                pass == GFX::GPU_PROFILE::Pass::TraditionalDrawShadowFallback ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowFallback;
+        }
+
+        bool IsNestedGpuSubpass(GFX::GPU_PROFILE::Pass pass) {
+            return IsClusterSubpass(pass) || IsShadowSubpass(pass);
+        }
+
         const char* TimingScopeText(GFX::GPU_PROFILE::Pass pass) {
+            if (IsShadowSubpass(pass)) {
+                return "Shadow Subpass";
+            }
             return IsClusterSubpass(pass) ? "Cluster Subpass" : "Parent Pass";
         }
 
         const char* ReadyText(bool value) {
             return value ? "Ready" : "Missing";
+        }
+
+        void AppendShadowCacheReason(
+            std::string& text,
+            uint32_t flags,
+            uint32_t bit,
+            const char* label) {
+
+            if ((flags & bit) == 0u) {
+                return;
+            }
+            if (!text.empty()) {
+                text += "+";
+            }
+            text += label;
+        }
+
+        std::string ShadowCacheMissReasonText(uint32_t flags) {
+            if (flags == SHADOW::ShadowCacheMissReasonNone) {
+                return "none";
+            }
+            std::string text{};
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonNoStaticWork, "no static work");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonStaticDirty, "static dirty");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonMatrix, "matrix");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonSource, "source");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonLayout, "layout");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonInstanceCount, "instance count");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonResolution, "resolution");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonResource, "resource");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonState, "state");
+            AppendShadowCacheReason(text, flags, SHADOW::ShadowCacheMissReasonInvalid, "invalid");
+            return text.empty() ? "mixed" : text;
         }
 
         ImVec4 StatusColor(bool ok) {
@@ -120,21 +161,20 @@ namespace HIKARI {
             out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
             out.descriptorPool = RENDER3D::GetRenderResourceDescriptorPoolStats();
             out.ssao = RENDER3D::SCREENSPACE::GetSsaoDebugState();
-            out.debugOverlay = RENDERER3D::DEBUG::GetDebugRendererFrameStats();
             out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
             return out;
         }
 
         double SumGpuMsByScope(
             const GFX::GPU_PROFILE::FrameSnapshot& profile,
-            bool clusterSubpass) {
+            bool nestedSubpass) {
 
             double total = 0.0;
             for (size_t i = 0; i < profile.passes.size(); ++i) {
                 const GFX::GPU_PROFILE::Pass pass =
                     static_cast<GFX::GPU_PROFILE::Pass>(i);
                 const GFX::GPU_PROFILE::PassTiming& timing = profile.passes[i];
-                if (timing.valid && IsClusterSubpass(pass) == clusterSubpass) {
+                if (timing.valid && IsNestedGpuSubpass(pass) == nestedSubpass) {
                     total += timing.gpuMs;
                 }
             }
@@ -165,7 +205,7 @@ namespace HIKARI {
                 s.mesh.traditionalCommandStreamArgumentBufferReady &&
                 s.mesh.traditionalCommandStreamCommandSignatureReady;
             const double parentGpuMs = SumGpuMsByScope(s.gpu, false);
-            const double clusterSubpassGpuMs = SumGpuMsByScope(s.gpu, true);
+            const double nestedSubpassGpuMs = SumGpuMsByScope(s.gpu, true);
 
             if (ImGui::BeginTable("GpuDrivenFrameSummary", 4, ImGuiTableFlags_SizingStretchSame)) {
                 ImGui::TableNextColumn();
@@ -186,7 +226,7 @@ namespace HIKARI {
 
                 ImGui::TableNextColumn();
                 ImGui::Text("GPU parent %.3f ms", parentGpuMs);
-                ImGui::Text("cluster sub %.3f ms", clusterSubpassGpuMs);
+                ImGui::Text("nested sub %.3f ms", nestedSubpassGpuMs);
                 ImGui::EndTable();
             }
         }
@@ -202,12 +242,12 @@ namespace HIKARI {
             }
 
             const double parentMs = SumGpuMsByScope(s.gpu, false);
-            const double clusterSubpassMs = SumGpuMsByScope(s.gpu, true);
-            ImGui::Text("Frame %llu, passes %u, parent %.3f ms, cluster subpass %.3f ms",
+            const double nestedSubpassMs = SumGpuMsByScope(s.gpu, true);
+            ImGui::Text("Frame %llu, passes %u, parent %.3f ms, nested subpass %.3f ms",
                 static_cast<unsigned long long>(s.gpu.frameIndex),
                 CountValidGpuPasses(s.gpu),
                 parentMs,
-                clusterSubpassMs);
+                nestedSubpassMs);
 
             if (ImGui::BeginTable(
                     "GpuDrivenTimingTable",
@@ -230,9 +270,9 @@ namespace HIKARI {
                         continue;
                     }
 
-                    const bool clusterSubpass = IsClusterSubpass(pass);
+                    const bool nestedSubpass = IsNestedGpuSubpass(pass);
                     const double scopeTotal =
-                        (std::max)(0.0001, clusterSubpass ? clusterSubpassMs : parentMs);
+                        (std::max)(0.0001, nestedSubpass ? nestedSubpassMs : parentMs);
 
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
@@ -253,257 +293,87 @@ namespace HIKARI {
             }
         }
 
-        void DrawClusterRuntimeTable(const RuntimePerformanceSnapshot& s) {
-            ImGui::SeparatorText("Cluster Runtime");
-            if (BeginMetricTable("ClusterRuntimeMetrics")) {
-                MetricRow("GPU Cull Instances Source / Submitted / Overflow", "%zu / %zu / %zu",
+        void DrawRenderPathTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Render Path");
+            if (BeginMetricTable("RenderPathMetrics", 250.0f)) {
+                MetricRowText("Route", ToString(s.submission.routeMode));
+                MetricRow("Mainline / Strict / CPU Views Suppressed", "%s / %s / %u",
+                    s.submission.gpuDrivenMainRouteActive ? "on" : "off",
+                    s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
+                    s.gpuRegistry.cpuForwardViewSuppressedCount);
+                MetricRow("Scene Scanned / Submitted / Hidden", "%d / %d / %d",
+                    s.submission.scannedModelCount,
+                    s.submission.submittedModelCount,
+                    s.submission.hiddenModelCount);
+                MetricRow("Surfaces Total / Clustered / Dirty", "%u / %u / %u",
+                    s.scene.surfaceInstanceCount,
+                    s.scene.clusteredGeometrySurfaceInstanceCount,
+                    s.scene.dirtySurfaceInstanceCount);
+                MetricRow("GPU Records Source / Routed / Unsupported", "%u / %u / %u",
+                    s.gpuRegistry.sourceRecordCount,
+                    s.gpuRegistry.forwardRoutedRecordCount,
+                    s.gpuRegistry.unsupportedForwardRecordCount);
+                MetricRow("GPU Scene Upload Full / Dirty / Reuse", "%zu / %zu / %zu",
+                    s.mesh.surfaceGpuSceneFullUploadCount,
+                    s.mesh.surfaceGpuSceneDirtyPatchCount,
+                    s.mesh.surfaceGpuSceneReuseCount);
+                MetricRow("GPU Scene Instances Opaque / DepthPre / Shadow", "%u / %u / %zu",
+                    s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
+                    s.gpuRegistry.depthPrepassGpuSceneStats.instanceCount,
+                    s.shadow.shadowGpuSceneUploadedInstanceCount);
+                MetricRow("Command Stream GPU / Traditional / Overflow", "%zu / %zu / %zu",
+                    s.mesh.gpuDrivenCommandStreamGpuCommandCount,
+                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount,
+                    s.mesh.traditionalCommandStreamOverflowCommandCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawGeometryPipelineTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Geometry Pipeline");
+            if (BeginMetricTable("GeometryPipelineMetrics", 250.0f)) {
+                MetricRow("Cluster Cull Source / Submitted / Overflow", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullSourceInstanceCount,
                     s.mesh.clusterGpuCullSubmittedInstanceCount,
                     s.mesh.clusterGpuCullOverflowInstanceCount);
-                MetricRow("GPU PageTask Groups GPUScene Seeds / GPU Expanded / Overflow", "%zu / %zu / %zu",
-                    s.mesh.clusterGpuCullSourcePageTaskCount,
-                    s.mesh.clusterGpuCullGpuPageTaskCount,
-                    s.mesh.clusterGpuCullGpuPageTaskOverflowCount);
-                MetricRow("GPU Driven Worklist Passes / Cluster / Instances / Cluster Inst", "%zu / %zu / %zu / %zu",
-                    s.mesh.gpuDrivenWorklistPassCount,
-                    s.mesh.gpuDrivenWorklistClusterPassCount,
-                    s.mesh.gpuDrivenWorklistSourceInstanceCount,
-                    s.mesh.gpuDrivenWorklistClusterInstanceCount);
-                MetricRow("GPU Driven CommandStream Passes / Ranges / GPU Cmd / Traditional VS/PS", "%zu / %zu / %zu / %zu",
-                    s.mesh.gpuDrivenCommandStreamPassCount,
-                    s.mesh.gpuDrivenCommandStreamRangeCount,
-                    s.mesh.gpuDrivenCommandStreamGpuCommandCount,
-                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
-                MetricRow("GPU Visibility Counter Ranges / Known Visible / Known Overflow", "%zu / %zu / %zu",
-                    s.mesh.gpuDrivenCommandStreamGpuCounterBackedRangeCount,
-                    s.mesh.gpuDrivenCommandStreamKnownVisibleCommandCount,
-                    s.mesh.gpuDrivenCommandStreamKnownVisibleCommandOverflowCount);
-                MetricRow("Visible Runs / Input Culled / Clusters / DrawArgs / Overflow", "%zu / %zu / %zu / %zu / %zu",
+                MetricRow("Visible Ranges / Clusters / Draw Args", "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
-                    s.mesh.clusterGpuCullGpuInputFrustumCulledCount,
                     s.mesh.clusterGpuCullGpuVisibleClusterCount,
-                    s.mesh.clusterGpuCullGpuDrawCommandCount,
-                    s.mesh.clusterGpuCullGpuDrawCommandOverflowCount + s.mesh.clusterGpuCullGpuOverflowCount);
-                MetricRow("Cluster Capacity Visible / Draw / Bucket", "%zu / %zu / %zu",
-                    s.mesh.clusterGpuCullVisibleRangeCapacity,
-                    s.mesh.clusterGpuCullDrawArgumentCapacity,
-                    s.mesh.clusterGpuCullDrawArgumentCapacity / 10u);
-                MetricRow("Page Tested / Page Frustum Culled", "%zu / %zu",
-                    s.mesh.clusterGpuCullGpuPageTestedCount,
-                    s.mesh.clusterGpuCullGpuPageFrustumCulledCount);
-                MetricRow("HZB Occlusion Enabled / Size / Mips", "%s / %zu x %zu / %zu",
+                    s.mesh.clusterGpuCullGpuDrawCommandCount);
+                MetricRow("HZB Enabled / Size / Budget Skipped", "%s / %zu x %zu / %zu",
                     s.mesh.clusterGpuCullHzbOcclusionEnabled ? "yes" : "no",
                     s.mesh.clusterGpuCullHzbOcclusionWidth,
                     s.mesh.clusterGpuCullHzbOcclusionHeight,
-                    s.mesh.clusterGpuCullHzbOcclusionMipCount);
+                    s.mesh.clusterGpuCullGpuHzbBudgetSkippedCount);
                 MetricRow("HZB Page Tested / Culled | Cluster Tested / Culled", "%zu / %zu | %zu / %zu",
                     s.mesh.clusterGpuCullGpuPageOcclusionTestedCount,
                     s.mesh.clusterGpuCullGpuPageOcclusionCulledCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionTestedCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
-                MetricRow("HZB Try / Allowed / Accepted / Raw / Culled", "%zu / %zu / %zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuHzbTryCount,
-                    s.mesh.clusterGpuCullGpuHzbAllowedCount,
-                    s.mesh.clusterGpuCullGpuHzbQueryAcceptedCount,
-                    s.mesh.clusterGpuCullGpuHzbRawOccludedCount,
-                    s.mesh.clusterGpuCullGpuPageOcclusionCulledCount +
-                        s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
-                MetricRow("HZB Reject Invalid / Pass / Near / Offscreen", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuHzbInvalidRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbPassRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbNearPlaneRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbOffscreenRejectedCount);
-                MetricRow("HZB Accepted AABB / Sphere / LargeRect", "%zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuHzbAabbAcceptedCount,
-                    s.mesh.clusterGpuCullGpuHzbSphereAcceptedCount,
-                    s.mesh.clusterGpuCullGpuHzbLargeRectCount);
-                MetricRow("HZB Skipped LargeRect / PageSmall / ClusterSmall / ClusterLarge", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuHzbLargeRectSkippedCount,
-                    s.mesh.clusterGpuCullGpuPageHzbSmallScreenSkippedCount,
-                    s.mesh.clusterGpuCullGpuClusterHzbSmallScreenSkippedCount,
-                    s.mesh.clusterGpuCullGpuClusterHzbLargeScreenSkippedCount);
-                MetricRow("HZB Budget Skipped", "%zu",
-                    s.mesh.clusterGpuCullGpuHzbBudgetSkippedCount);
-                MetricRow("HZB Temporal Pending / Confirmed / Reset / Collision", "%zu / %zu / %zu / %zu",
+                MetricRow("HZB Temporal Pending / Confirmed", "%zu / %zu",
                     s.mesh.clusterGpuCullGpuHzbTemporalPendingCount,
-                    s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount,
-                    s.mesh.clusterGpuCullGpuHzbTemporalResetCount,
-                    s.mesh.clusterGpuCullGpuHzbTemporalCollisionCount);
-                MetricRow("HZB Reject Pass / AABB / Sphere / Accepted", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuHzbPassRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbAabbRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbSphereRejectedCount,
-                    s.mesh.clusterGpuCullGpuHzbQueryAcceptedCount);
-                MetricRow("Cluster Tested / Frustum Culled / Occlusion Culled / Cone Culled", "%zu / %zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuClusterTestedCount,
-                    s.mesh.clusterGpuCullGpuClusterFrustumCulledCount,
-                    s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount,
-                    s.mesh.clusterGpuCullGpuClusterConeCulledCount);
-                MetricRow("Cone Tested / Skipped DoubleSided / Skipped Material", "%zu / %zu / %zu",
-                    s.mesh.clusterGpuCullGpuClusterConeTestedCount,
-                    s.mesh.clusterGpuCullGpuConeSkippedDoubleSidedCount,
-                    s.mesh.clusterGpuCullGpuConeSkippedMaterialCount);
-                MetricRow("DrawArgs BackFace / DoubleSided / DoubleSided Share", "%zu / %zu / %.1f%%",
-                    s.mesh.clusterGpuCullGpuBackFaceDrawCommandCount,
-                    s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
-                    SafeRatio(
-                        s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
-                        s.mesh.clusterGpuCullGpuDrawCommandCount) * 100.0);
-                MetricRow("Batch Quality ClustersPerDraw / RangesPerDraw / MergeGaps", "%.2f / %.2f / %zu",
-                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleClusterCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
-                    SafeRatio(s.mesh.clusterGpuCullGpuVisibleRangeCount, s.mesh.clusterGpuCullGpuDrawCommandCount),
-                    s.mesh.clusterGpuCullGpuMergedGapCount);
-                const size_t nonPacketRangeCount =
-                    s.mesh.clusterGpuCullGpuVisibleRangeCount >
-                            s.mesh.clusterGpuCullGpuPacketRangeCount
-                        ? s.mesh.clusterGpuCullGpuVisibleRangeCount -
-                            s.mesh.clusterGpuCullGpuPacketRangeCount
-                        : 0u;
-                MetricRow("Packet Ranges / NonPacket / Clusters / Fill", "%zu / %zu / %zu / %.2f",
-                    s.mesh.clusterGpuCullGpuPacketRangeCount,
-                    nonPacketRangeCount,
-                    s.mesh.clusterGpuCullGpuPacketClusterCount,
-                    SafeRatio(s.mesh.clusterGpuCullGpuPacketClusterCount, s.mesh.clusterGpuCullGpuPacketRangeCount));
-                MetricRow("Visible ClusterList Reserved / Overflow", "%zu / %zu",
-                    s.mesh.clusterGpuCullGpuVisibleClusterListReservedCount,
-                    s.mesh.clusterGpuCullGpuVisibleClusterListOverflowCount);
+                    s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount);
                 MetricRow("GPU LOD Selected L0 / L1 / L2 / L3+", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuLod0SelectedCount,
                     s.mesh.clusterGpuCullGpuLod1SelectedCount,
                     s.mesh.clusterGpuCullGpuLod2SelectedCount,
                     s.mesh.clusterGpuCullGpuLod3PlusSelectedCount);
-                MetricRow("Mainline Ready / Seeds / OverflowBlock", "%s / %s / %s",
-                    s.mesh.clusterMainlineReady ? "Ready" : "Blocked",
-                    s.mesh.clusterMainlineHasDrawSeeds ? "yes" : "no",
-                    s.mesh.clusterMainlineOverflowBlocked ? "yes" : "no");
-                MetricRow("Meshlet ExecuteIndirect Calls BackFace / DoubleSided / EmptyBuckets", "%zu / %zu / %zu",
-                    s.mesh.meshletBackendBackFaceSubmitCallCount,
-                    s.mesh.meshletBackendDoubleSidedSubmitCallCount,
+                MetricRow("Meshlet Dispatch Requested / Submitted / Calls / Empty", "%zu / %zu / %zu / %zu",
+                    s.mesh.meshletBackendRequestedDispatchCount,
+                    s.mesh.meshletBackendSubmittedDispatchCount,
+                    s.mesh.meshletBackendSubmitCallCount,
                     s.mesh.meshletBackendSkippedBucketCount);
-                MetricRow("Meshlet Ranges Forward / DepthPre / Geometry / Requested", "%zu / %zu / %zu / %zu",
+                MetricRow("Meshlet Passes Forward / DepthPre / Shadow / Geometry", "%zu / %zu / %zu / %zu",
                     s.mesh.meshletBackendForwardSubmittedDispatchCount,
                     s.mesh.meshletBackendDepthPrepassSubmittedDispatchCount,
-                    s.mesh.meshletBackendGeometryAuxSubmittedDispatchCount,
-                    s.mesh.meshletBackendRequestedDispatchCount);
+                    s.mesh.meshletBackendShadowSubmittedDispatchCount,
+                    s.mesh.meshletBackendGeometryAuxSubmittedDispatchCount);
                 ImGui::EndTable();
             }
         }
 
-        void DrawStrictGpuDrivenTable(const RuntimePerformanceSnapshot& s) {
-            ImGui::SeparatorText("Strict GPU Driven");
-            if (BeginMetricTable("StrictGpuDrivenMetrics", 270.0f)) {
-                MetricRow("Strict Mainline / CPU Views Suppressed", "%s / %u",
-                    s.gpuRegistry.strictGpuDrivenMainline ? "on" : "off",
-                    s.gpuRegistry.cpuForwardViewSuppressedCount);
-                MetricRow("Strict Mainline Blocked Records", "%u",
-                    s.gpuRegistry.strictMainlineBlockedRecordCount);
-                MetricRow("Blocked Records Depth / Transparent / Shadow", "%u / %u / %u",
-                    s.gpuRegistry.blockedForwardDepthAwareRecordCount,
-                    s.gpuRegistry.blockedForwardTransparentRecordCount,
-                    s.gpuRegistry.blockedShadowRecordCount);
-                MetricRow("CommandStream GPU Authored / Traditional VS/PS", "%zu / %zu",
-                    s.mesh.gpuDrivenCommandStreamGpuCommandCount,
-                    s.mesh.gpuDrivenCommandStreamTraditionalCommandCount);
-                MetricRow("GpuTraditionalCommandStream Seeds / Overflow / Executed", "%zu / %zu / %zu",
-                    s.mesh.traditionalCommandStreamUploadedCommandCount,
-                    s.mesh.traditionalCommandStreamOverflowCommandCount,
-                    s.mesh.traditionalCommandStreamExecutedDrawCount);
-                MetricRow("GPU Scene Instances Opaque / DepthPre / DepthAware / Transparent / Shadow", "%u / %u / %u / %u / %zu",
-                    s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount,
-                    s.gpuRegistry.depthPrepassGpuSceneStats.instanceCount,
-                    s.gpuRegistry.forwardDepthAwareGpuSceneStats.instanceCount,
-                    s.gpuRegistry.forwardTransparentGpuSceneStats.instanceCount,
-                    s.shadow.shadowGpuSceneUploadedInstanceCount);
-                MetricRow("GPU Scene Uploaded / Committed / Commit KB / Overflow", "%zu / %zu / %zu / %zu",
-                    s.mesh.surfaceGpuSceneUploadedInstanceCount,
-                    s.mesh.surfaceGpuSceneCommittedInstanceCount,
-                    s.mesh.surfaceGpuSceneCommittedBytes / 1024u,
-                    s.mesh.surfaceGpuSceneOverflowInstanceCount);
-                MetricRow("GPU Scene Upload Path Full / DirtyPatch / Reuse", "%zu / %zu / %zu",
-                    s.mesh.surfaceGpuSceneFullUploadCount,
-                    s.mesh.surfaceGpuSceneDirtyPatchCount,
-                    s.mesh.surfaceGpuSceneReuseCount);
-                MetricRow("GPU Scene Material Patch Changed / Same / Failed", "%zu / %zu / %zu",
-                    s.mesh.surfaceGpuSceneMaterialPatchChangedCount,
-                    s.mesh.surfaceGpuSceneMaterialPatchUnchangedCount,
-                    s.mesh.surfaceGpuSceneMaterialPatchFailCount);
-                MetricRow("MaterialData CPU Writes / GPU Copy KB / Calls", "%zu / %zu / %zu",
-                    s.mesh.materialDataWriteCount,
-                    s.mesh.materialDataGpuUploadBytes / 1024u,
-                    s.mesh.materialDataGpuUploadCallCount);
-                MetricRow("DepthPrepass Occluders / Opaque / Uploaded", "%u / %u / %zu",
-                    s.gpuRegistry.depthPrepassOccluderRecordCount,
-                    s.gpuRegistry.forwardOpaqueResidentRecordCount,
-                    s.mesh.surfaceGpuSceneDepthPrepassInstanceCount);
-                MetricRow("DepthPrepass Reject Small / UnsafeMaterial / BudgetClip", "%u / %u / %u",
-                    s.gpuRegistry.depthPrepassRejectedSmallRecordCount,
-                    s.gpuRegistry.depthPrepassRejectedUnsafeMaterialRecordCount,
-                    s.gpuRegistry.depthPrepassBudgetClippedRecordCount);
-                ImGui::EndTable();
-            }
-        }
-
-        void DrawSubmissionTable(const RuntimePerformanceSnapshot& s) {
-            ImGui::SeparatorText("Submission");
-            if (BeginMetricTable("SubmissionMetrics")) {
-                MetricRowText("Route Mode", ToString(s.submission.routeMode));
-                MetricRowText("Mainline",
-                    s.submission.gpuDrivenMainRouteActive ? "on" : "off");
-                MetricRow("Scene Scanned / Submitted / Culled / Hidden", "%d / %d / %d / %d",
-                    s.submission.scannedModelCount,
-                    s.submission.submittedModelCount,
-                    s.submission.culledModelCount,
-                    s.submission.hiddenModelCount);
-                MetricRow("Surface Instances / Cluster Instances", "%u / %u",
-                    s.scene.surfaceInstanceCount,
-                    s.scene.clusteredGeometrySurfaceInstanceCount);
-                MetricRow("GPU Records Source / Routed / Unsupported", "%u / %u / %u",
-                    s.gpuRegistry.sourceRecordCount,
-                    s.gpuRegistry.forwardRoutedRecordCount,
-                    s.gpuRegistry.unsupportedForwardRecordCount);
-                MetricRow("GPU Resident Opaque / Cluster Candidate / Instances", "%u / %u / %u",
-                    s.gpuRegistry.forwardOpaqueResidentRecordCount,
-                    s.gpuRegistry.forwardOpaqueClusterCandidateRecordCount,
-                    s.gpuRegistry.forwardOpaqueGpuSceneStats.instanceCount);
-                MetricRow("GPU Resource Instances / Missing / Cluster Ranges", "%u / %u / %u",
-                    s.gpuRegistry.forwardOpaqueGpuSceneStats.resourceBackedInstanceCount,
-                    s.gpuRegistry.forwardOpaqueGpuSceneStats.missingResourceHandleInstanceCount,
-                    s.gpuRegistry.forwardOpaqueGpuSceneStats.clusterSurfaceRangeInstanceCount);
-                MetricRow("Static Batch Reordered Opaque / Depth / Shadow", "%u / %u / %u",
-                    s.gpuRegistry.forwardOpaqueBatchStats.reorderedRecordCount,
-                    s.gpuRegistry.forwardDepthAwareBatchStats.reorderedRecordCount,
-                    s.gpuRegistry.shadowBatchStats.reorderedRecordCount);
-                MetricRow("Opaque Batch PSO / Material Runs", "%u -> %u / %u -> %u",
-                    s.gpuRegistry.forwardOpaqueBatchStats.rawPsoRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.sortedPsoRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.rawMaterialRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMaterialRunCount);
-                MetricRow("Opaque Resource Runs Mesh / Material / Cluster", "%u -> %u / %u -> %u / %u -> %u",
-                    s.gpuRegistry.forwardOpaqueBatchStats.rawMeshResourceRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMeshResourceRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.rawMaterialResourceRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.sortedMaterialResourceRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.rawClusterResourceRunCount,
-                    s.gpuRegistry.forwardOpaqueBatchStats.sortedClusterResourceRunCount);
-                MetricRow("Traditional VS/PS ExecuteIndirect Opaque / DepthAware / Transparent", "%zu / %zu / %zu",
-                    s.mesh.traditionalCommandStreamOpaqueCommandCount,
-                    s.mesh.traditionalCommandStreamDepthAwareCommandCount,
-                    s.mesh.traditionalCommandStreamTransparentCommandCount);
-                MetricRow("GPU Traditional Command Stream Seeds / Overflow / MissingArgs", "%zu / %zu / %zu",
-                    s.mesh.traditionalCommandStreamUploadedCommandCount,
-                    s.mesh.traditionalCommandStreamOverflowCommandCount,
-                    s.mesh.traditionalCommandStreamMissingDrawArgsCommandCount);
-                MetricRow("GPU Traditional Command Stream Batches / Commands / Saved / Max", "%zu / %zu / %zu / %zu",
-                    s.mesh.traditionalCommandStreamBatchSubmitCount,
-                    s.mesh.traditionalCommandStreamBatchedCommandCount,
-                    s.mesh.traditionalCommandStreamSavedSubmitCount,
-                    s.mesh.traditionalCommandStreamMaxBatchCommandCount);
-                ImGui::EndTable();
-            }
-        }
-
-        void DrawClusterResourceTable(const RuntimePerformanceSnapshot& s) {
-            ImGui::SeparatorText("Cluster Resources");
+        void DrawResourceSummaryTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Resources");
             if (BeginMetricTable("ClusterResourceMetrics")) {
                 MetricRow("Context / Ready / Failed", "%s / %u / %u",
                     s.clusterResources.initialized ? "Ready" : "Missing",
@@ -537,9 +407,9 @@ namespace HIKARI {
             }
         }
 
-        void DrawSsaoAndOverlayTable(const RuntimePerformanceSnapshot& s) {
-            ImGui::SeparatorText("SSAO / Overlay");
-            if (BeginMetricTable("SsaoOverlayMetrics")) {
+        void DrawEffectsTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Effects");
+            if (BeginMetricTable("EffectsMetrics", 250.0f)) {
                 MetricRow("SSAO Mode / Valid / Half", "%s / %s / %s",
                     RENDER3D::SCREENSPACE::ToString(s.ssao.mode),
                     s.ssao.valid ? "yes" : "no",
@@ -549,19 +419,39 @@ namespace HIKARI {
                     s.ssao.internalHeight,
                     s.ssao.sampleCount,
                     s.ssao.blurIterations);
-                MetricRow("SSAO CPU Geometry / Main / Blur / Total", "%.3f / %.3f / %.3f / %.3f ms",
-                    s.ssao.geometryAuxCpuMs,
+                MetricRow("SSAO CPU Main / Blur / Total", "%.3f / %.3f / %.3f ms",
                     s.ssao.mainCpuMs,
                     s.ssao.blurCpuMs,
                     s.ssao.totalCpuMs);
-                MetricRow("Shadow Draws / AlphaMask / Enabled", "%zu / %zu / %s",
-                    s.shadow.totalPrimitiveCasterDrawCount,
-                    s.shadow.alphaMaskCasterDrawCount,
-                    s.shadow.enabled ? "yes" : "no");
-                MetricRow("Debug Lines / XRay / LightProbe", "%zu / %zu / %u",
-                    s.debugOverlay.expandedLineCount,
-                    s.debugOverlay.xrayLineCount,
-                    s.debugOverlay.lightProbeGizmoDrawnPointCount);
+                MetricRow("Shadow Enabled / Resolution / Ortho / Texel", "%s / %u / %.2f / %.5f",
+                    s.shadow.enabled ? "yes" : "no",
+                    s.shadow.resolution,
+                    s.shadow.orthoSize,
+                    s.shadow.worldTexelSize);
+                const std::string currentMissReason =
+                    ShadowCacheMissReasonText(s.shadow.shadowCacheMissReasonFlags);
+                const std::string lastMissReason =
+                    ShadowCacheMissReasonText(s.shadow.shadowCacheLastMissReasonFlags);
+                MetricRow("Shadow Cache Valid / Hit / Miss / Last", "%s / %s / %s / %s",
+                    s.shadow.shadowCacheValid ? "yes" : "no",
+                    s.shadow.shadowCacheHit ? "yes" : "no",
+                    currentMissReason.c_str(),
+                    lastMissReason.c_str());
+                MetricRow("Shadow Cache Hits / Misses / Copy / Update", "%zu / %zu / %zu / %zu",
+                    s.shadow.shadowCacheHitCount,
+                    s.shadow.shadowCacheMissCount,
+                    s.shadow.shadowStaticCacheCopyCount,
+                    s.shadow.shadowStaticCacheUpdateCount);
+                MetricRow("Shadow Sources Static / Dynamic / Drawn", "%zu / %zu / %s %s %s",
+                    s.shadow.shadowStaticSourceInstanceCount,
+                    s.shadow.shadowDynamicSourceInstanceCount,
+                    s.shadow.shadowStaticRendered ? "static" : "-",
+                    s.shadow.shadowDynamicRendered ? "dynamic" : "-",
+                    s.shadow.shadowFallbackRendered ? "fallback" : "-");
+                MetricRow("Shadow Meshlet Dispatch Req / Submitted / Skip", "%zu / %zu / %zu",
+                    s.shadow.shadowMeshletRequestedDispatchCount,
+                    s.shadow.shadowMeshletSubmittedDispatchCount,
+                    s.shadow.shadowMeshletSkippedDispatchCount);
                 ImGui::EndTable();
             }
         }
@@ -614,12 +504,11 @@ namespace HIKARI {
         const RuntimePerformanceSnapshot snapshot = BuildSnapshot();
         DrawFrameSummary(snapshot);
         DrawReadiness(snapshot);
-        DrawStrictGpuDrivenTable(snapshot);
         DrawGpuTimingTable(snapshot);
-        DrawClusterRuntimeTable(snapshot);
-        DrawSubmissionTable(snapshot);
-        DrawClusterResourceTable(snapshot);
-        DrawSsaoAndOverlayTable(snapshot);
+        DrawRenderPathTable(snapshot);
+        DrawGeometryPipelineTable(snapshot);
+        DrawEffectsTable(snapshot);
+        DrawResourceSummaryTable(snapshot);
 #endif
     }
 

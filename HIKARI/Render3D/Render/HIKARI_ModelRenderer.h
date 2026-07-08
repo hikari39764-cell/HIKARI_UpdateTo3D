@@ -39,6 +39,7 @@ namespace HIKARI::MODELRENDERER {
     };
 
     void Reset();
+    void ResetFrame();
     void ResetModelRendererFrameStats();
     void BeginModelRendererFrame(ModelRendererFrameKind kind);
     void RenderAll(

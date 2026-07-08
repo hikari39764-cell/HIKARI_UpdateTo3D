@@ -113,6 +113,7 @@ namespace HIKARI {
         sGpuDrivenSceneSyncInitialized_ = false;
         MESHRENDERER::InvalidateMaterialFxPipelineCache();
         MESHRENDERER::SetGpuDrivenSceneSource(nullptr);
+        SHADOW::InvalidateSceneCache();
         SHADOW::SetGpuDrivenSceneSource(nullptr);
         if (clearProceduralCache) {
             PROCEDURAL::ClearCache();

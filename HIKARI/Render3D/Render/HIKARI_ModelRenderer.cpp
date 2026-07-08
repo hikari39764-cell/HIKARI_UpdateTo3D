@@ -40,6 +40,12 @@ namespace HIKARI::MODELRENDERER {
         gDebugStats.frame = {};
     }
 
+    void ResetFrame() {
+        ResetModelRendererFrameStats();
+        gDebugStats.frameKind = ModelRendererFrameKind::None;
+        SyncRenderModelCacheStats();
+    }
+
     void BeginModelRendererFrame(ModelRendererFrameKind kind) {
         ResetModelRendererFrameStats();
         gDebugStats.frameKind = kind;
@@ -47,9 +53,7 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void Reset() {
-        ResetModelRendererFrameStats();
-        gDebugStats.frameKind = ModelRendererFrameKind::None;
-        SyncRenderModelCacheStats();
+        ResetFrame();
         MESHRENDERER::Reset();
         SHADOW::Reset();
     }

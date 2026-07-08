@@ -614,8 +614,10 @@ namespace HIKARI {
                 ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Debug View", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Performance Audit", rightDebugNode);
+                ImGui::DockBuilderDockWindow("Renderer Health", rightDebugNode);
 
                 // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
+                ImGui::DockBuilderDockWindow("Validation Lab", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Asset Browser", rightResourceNode);
                 ImGui::DockBuilderDockWindow("Debug Camera", rightDebugNode);
                 ImGui::DockBuilderDockWindow("Inspector", rightDebugNode);

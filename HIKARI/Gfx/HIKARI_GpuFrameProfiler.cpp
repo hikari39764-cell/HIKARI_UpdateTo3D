@@ -201,6 +201,14 @@ namespace HIKARI::GFX::GPU_PROFILE {
         case Pass::TraditionalDrawForward: return "Traditional Draw Forward";
         case Pass::MeshletDrawGeometryAux: return "Meshlet Draw GeometryAux";
         case Pass::MeshletDrawForward: return "Meshlet Draw Forward";
+        case Pass::TraditionalDrawShadow: return "Traditional Draw Shadow";
+        case Pass::MeshletDrawShadow: return "Meshlet Draw Shadow";
+        case Pass::TraditionalDrawShadowStatic: return "Traditional Draw Shadow Static";
+        case Pass::MeshletDrawShadowStatic: return "Meshlet Draw Shadow Static";
+        case Pass::TraditionalDrawShadowDynamic: return "Traditional Draw Shadow Dynamic";
+        case Pass::MeshletDrawShadowDynamic: return "Meshlet Draw Shadow Dynamic";
+        case Pass::TraditionalDrawShadowFallback: return "Traditional Draw Shadow Fallback";
+        case Pass::MeshletDrawShadowFallback: return "Meshlet Draw Shadow Fallback";
         case Pass::SsaoMain: return "SSAO Main";
         case Pass::SsaoBlur: return "SSAO Blur";
         case Pass::ForwardOpaque: return "ForwardOpaque";
