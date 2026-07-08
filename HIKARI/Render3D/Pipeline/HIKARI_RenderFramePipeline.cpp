@@ -74,6 +74,21 @@ namespace HIKARI::RENDER3D::PIPELINE {
             resources.fallbackAoTextureHandle = screenResult.fallbackAoTextureHandle;
             return resources;
         }
+
+        bool ShouldRunSceneDepthPrepass(
+            const RENDER3D::RenderQualitySettings& settings) {
+
+            if (!settings.sceneDepthPrepass) {
+                return false;
+            }
+            switch (settings.forwardCostMode) {
+            case RENDER3D::ForwardShadingCostMode::AlbedoOnly:
+            case RENDER3D::ForwardShadingCostMode::NoMaterialExtras:
+                return false;
+            default:
+                return true;
+            }
+        }
     }
 
     bool RenderMeshLightingFrame(
@@ -131,7 +146,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
         // (LESS_EQUAL) のピクセル過描画を early-Z で殺す。visibility 用の
         // occluder prepass (別ターゲット) とは独立している。
         const bool scenePrepassEnabled =
-            RENDER3D::GetRenderQualitySettings().sceneDepthPrepass;
+            ShouldRunSceneDepthPrepass(RENDER3D::GetRenderQualitySettings());
         const bool sceneDsvReady = screenSpaceContext.sceneDsv.ptr != 0;
         const bool depthPrepassWorkReady = MESHRENDERER::HasDepthPrepassWork();
         if (scenePrepassEnabled && sceneDsvReady && depthPrepassWorkReady) {

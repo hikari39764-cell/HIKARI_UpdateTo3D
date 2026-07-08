@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string>
 
+#include "HIKARI_AssetArtifactManifest.h"
 #include "HIKARI_AssetMeta.h"
 
 namespace HIKARI {
@@ -13,6 +14,7 @@ namespace HIKARI {
 
         std::filesystem::path sourcePath{};
         std::filesystem::path metaPath{};
+        std::filesystem::path artifactManifestPath{};
         std::filesystem::path importedDirectory{};
 
         std::string displayName{};
@@ -28,6 +30,7 @@ namespace HIKARI {
         std::string lastImportMessage{};
 
         AssetMeta meta{};
+        AssetArtifactManifest artifactManifest{};
     };
 
 } // namespace HIKARI

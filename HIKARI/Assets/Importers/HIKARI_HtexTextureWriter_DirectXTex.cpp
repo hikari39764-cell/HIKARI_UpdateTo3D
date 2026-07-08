@@ -50,10 +50,13 @@ namespace HIKARI {
 
         texture.subresources.reserve(image.GetImageCount());
         const DirectX::Image* images = image.GetImages();
+        const uint32_t mipLevels = texture.mipLevels == 0 ? 1u : texture.mipLevels;
         for (size_t i = 0; i < image.GetImageCount(); ++i) {
             const DirectX::Image* source = images + i;
 
             HtexSubresource subresource{};
+            subresource.mipLevel = static_cast<uint32_t>(i % mipLevels);
+            subresource.arraySlice = static_cast<uint32_t>(i / mipLevels);
             subresource.width = static_cast<uint32_t>(source->width);
             subresource.height = static_cast<uint32_t>(source->height);
             subresource.depth = 1;

@@ -426,9 +426,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 usesCustomVertexShader;
             key.customVertexShader = usesCustomVertexShader;
             key.depthAware = shaderRoute.depthAware;
-            const bool materialFxMeshletCompatible =
-                !key.materialFx ||
-                (!usesCustomVertexShader && !key.depthAware);
+            const bool ordinaryStaticMeshletMaterial =
+                !key.materialFx &&
+                !key.waterMaterialFx;
             // Mesh shader backend はまぁEstatic opaque / alpha-mask の cluster geometry だけを所有する、E
             key.clusterMainlineEligible =
                 !animatedPoseRecord &&
@@ -436,7 +436,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 clusterVertexCompatible &&
                 clusterPixelCompatible &&
                 key.objectDataCompatible &&
-                materialFxMeshletCompatible &&
+                ordinaryStaticMeshletMaterial &&
                 !key.depthAware &&
                 !key.transparent;
             if (record.skinned) {
@@ -680,6 +680,28 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             FillMaterialFxData(record, instance);
             return instance;
         }
+    }
+
+    uint64_t BuildGpuSceneStableStringKey(
+        std::string_view tag,
+        const std::string& value) {
+
+        return BuildStableStringKey(tag, value);
+    }
+
+    std::string BuildGpuSceneSurfaceResourceSourceKey(
+        std::string_view tag,
+        uint64_t stableKey) {
+
+        return BuildSurfaceResourceSourceKey(tag, stableKey);
+    }
+
+    std::string BuildGpuSceneClusterGeometrySourceKey(
+        const std::string& clusteredGeometryPath) {
+
+        return BuildSurfaceResourceSourceKey(
+            "surface.cluster",
+            BuildStableStringKey("cluster-geometry-path", clusteredGeometryPath));
     }
 
     bool GpuSceneSurfaceValidationResult::IsValid() const {

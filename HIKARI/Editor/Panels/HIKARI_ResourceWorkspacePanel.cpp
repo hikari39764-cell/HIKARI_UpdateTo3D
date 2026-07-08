@@ -169,9 +169,9 @@ namespace HIKARI {
                 ImGui::TextDisabled("No import report message yet");
             }
 
-            if (!record->meta.artifacts.empty()) {
+            if (!record->artifactManifest.artifacts.empty()) {
                 ImGui::SameLine();
-                ImGui::TextDisabled("Artifacts: %d", static_cast<int>(record->meta.artifacts.size()));
+                ImGui::TextDisabled("Artifacts: %d", static_cast<int>(record->artifactManifest.artifacts.size()));
             }
         }
 #endif

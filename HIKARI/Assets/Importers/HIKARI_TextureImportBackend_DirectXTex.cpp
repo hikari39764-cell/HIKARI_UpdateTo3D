@@ -4,11 +4,14 @@
 #include <DirectXTex.h>
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iomanip>
 #include <limits>
 #include <sstream>
+#include <utility>
 
+#include "Assets/Formats/HIKARI_HtexFormat.h"
 #include "Core/HIKARI_Logger.h"
 
 namespace HIKARI {
@@ -213,6 +216,222 @@ namespace HIKARI {
             return candidate.GetImageCount() > 0 ? candidate : source;
         }
 
+        bool SaveScratchImageToDds(
+            const DirectX::ScratchImage& image,
+            const std::filesystem::path& outputPath,
+            std::string& outMessage) {
+
+            std::error_code ec{};
+            std::filesystem::create_directories(outputPath.parent_path(), ec);
+            if (ec) {
+                outMessage = "[DirectXTexBackend] failed to create DDS output directory: " +
+                    outputPath.parent_path().generic_string();
+                HIKARI_LOG_ERROR(outMessage);
+                return false;
+            }
+
+            const HRESULT hr = DirectX::SaveToDDSFile(
+                image.GetImages(),
+                image.GetImageCount(),
+                image.GetMetadata(),
+                DirectX::DDS_FLAGS_FORCE_DX10_EXT,
+                outputPath.wstring().c_str());
+            if (FAILED(hr)) {
+                outMessage = "[DirectXTexBackend] SaveToDDSFile failed: " +
+                    outputPath.generic_string() +
+                    " hr=" +
+                    ToHexHr(hr);
+                HIKARI_LOG_ERROR(outMessage);
+                return false;
+            }
+
+            return true;
+        }
+
+        TextureCompression CompressionFromDxgiFormat(DXGI_FORMAT format, TextureCompression fallback) {
+            switch (format) {
+            case DXGI_FORMAT_BC1_TYPELESS:
+            case DXGI_FORMAT_BC1_UNORM:
+            case DXGI_FORMAT_BC1_UNORM_SRGB:
+                return TextureCompression::BC1;
+            case DXGI_FORMAT_BC3_TYPELESS:
+            case DXGI_FORMAT_BC3_UNORM:
+            case DXGI_FORMAT_BC3_UNORM_SRGB:
+                return TextureCompression::BC3;
+            case DXGI_FORMAT_BC4_TYPELESS:
+            case DXGI_FORMAT_BC4_UNORM:
+            case DXGI_FORMAT_BC4_SNORM:
+                return TextureCompression::BC4;
+            case DXGI_FORMAT_BC5_TYPELESS:
+            case DXGI_FORMAT_BC5_UNORM:
+            case DXGI_FORMAT_BC5_SNORM:
+                return TextureCompression::BC5;
+            case DXGI_FORMAT_BC6H_TYPELESS:
+            case DXGI_FORMAT_BC6H_UF16:
+            case DXGI_FORMAT_BC6H_SF16:
+                return TextureCompression::BC6H;
+            case DXGI_FORMAT_BC7_TYPELESS:
+            case DXGI_FORMAT_BC7_UNORM:
+            case DXGI_FORMAT_BC7_UNORM_SRGB:
+                return TextureCompression::BC7;
+            default:
+                return DirectX::IsCompressed(format) ? fallback : TextureCompression::None;
+            }
+        }
+
+        bool WriteScratchImageToHtex(
+            const DirectX::ScratchImage& image,
+            const TextureImportSettings& settings,
+            const std::filesystem::path& outputPath,
+            std::string& outMessage) {
+
+            const DirectX::TexMetadata metadata = image.GetMetadata();
+            if (metadata.width == 0 || metadata.height == 0 || image.GetImageCount() == 0) {
+                outMessage = "[DirectXTexBackend] invalid cooked texture image for HTEX";
+                HIKARI_LOG_ERROR(outMessage);
+                return false;
+            }
+
+            HtexTexture texture{};
+            texture.width = static_cast<uint32_t>(metadata.width);
+            texture.height = static_cast<uint32_t>(metadata.height);
+            texture.depth = static_cast<uint32_t>(metadata.depth);
+            texture.arraySize = static_cast<uint32_t>(metadata.arraySize);
+            texture.mipLevels = static_cast<uint32_t>(metadata.mipLevels == 0 ? 1 : metadata.mipLevels);
+            texture.format = metadata.format;
+            texture.dimension = metadata.IsCubemap()
+                ? HtexTextureDimension::TextureCube
+                : HtexTextureDimension::Texture2D;
+            texture.colorSpace = settings.colorSpace;
+            texture.usage = settings.usage;
+            texture.compression = CompressionFromDxgiFormat(metadata.format, settings.compression);
+
+            const uint32_t mipLevels = texture.mipLevels == 0 ? 1u : texture.mipLevels;
+            texture.subresources.reserve(image.GetImageCount());
+            const DirectX::Image* images = image.GetImages();
+            for (size_t i = 0; i < image.GetImageCount(); ++i) {
+                const DirectX::Image& source = images[i];
+                HtexSubresource subresource{};
+                subresource.mipLevel = static_cast<uint32_t>(i % mipLevels);
+                subresource.arraySlice = static_cast<uint32_t>(i / mipLevels);
+                subresource.width = static_cast<uint32_t>(source.width);
+                subresource.height = static_cast<uint32_t>(source.height);
+                subresource.depth = 1;
+                subresource.rowPitch = static_cast<uint64_t>(source.rowPitch);
+                subresource.slicePitch = static_cast<uint64_t>(source.slicePitch);
+                subresource.data.resize(source.slicePitch);
+                if (source.pixels && source.slicePitch > 0) {
+                    std::memcpy(subresource.data.data(), source.pixels, source.slicePitch);
+                }
+                texture.subresources.push_back(std::move(subresource));
+            }
+
+            if (!WriteHtexFile(outputPath, texture, outMessage)) {
+                HIKARI_LOG_ERROR(outMessage);
+                return false;
+            }
+
+            return true;
+        }
+
+        bool CookTextureImage(
+            const std::filesystem::path& sourcePath,
+            const TextureImportSettings& settings,
+            DirectX::ScratchImage& outImage,
+            std::string& outMessage) {
+
+            DirectX::TexMetadata metadata{};
+            DirectX::ScratchImage loaded{};
+            HRESULT hr = LoadScratchImage(sourcePath, metadata, loaded, outMessage);
+            if (FAILED(hr)) {
+                if (outMessage.empty()) {
+                    outMessage = "[DirectXTexBackend] load failed: " +
+                        sourcePath.generic_string() +
+                        " hr=" +
+                        ToHexHr(hr);
+                }
+                HIKARI_LOG_ERROR(outMessage);
+                return false;
+            }
+
+            DirectX::ScratchImage working{};
+            const DXGI_FORMAT workingFormat = ResolveWorkingFormat(sourcePath, metadata, settings);
+            if (metadata.format != workingFormat && !metadata.IsCubemap()) {
+                hr = DirectX::Convert(
+                    loaded.GetImages(),
+                    loaded.GetImageCount(),
+                    metadata,
+                    workingFormat,
+                    ResolveFilterFlags(settings.colorSpace),
+                    DirectX::TEX_THRESHOLD_DEFAULT,
+                    working);
+                if (FAILED(hr)) {
+                    outMessage = "[DirectXTexBackend] format conversion failed: " +
+                        sourcePath.generic_string() +
+                        " hr=" +
+                        ToHexHr(hr);
+                    HIKARI_LOG_ERROR(outMessage);
+                    return false;
+                }
+            }
+
+            const DirectX::ScratchImage& converted = SelectImage(loaded, working);
+            DirectX::ScratchImage mipmapped{};
+            const DirectX::TexMetadata convertedMetadata = converted.GetMetadata();
+            if (NeedsMipGeneration(settings, convertedMetadata) && !DirectX::IsCompressed(convertedMetadata.format)) {
+                hr = DirectX::GenerateMipMaps(
+                    converted.GetImages(),
+                    converted.GetImageCount(),
+                    convertedMetadata,
+                    ResolveFilterFlags(settings.colorSpace),
+                    0,
+                    mipmapped);
+                if (FAILED(hr)) {
+                    outMessage = "[DirectXTexBackend] mipmap generation failed, falling back to source mip: " +
+                        sourcePath.generic_string() +
+                        " hr=" +
+                        ToHexHr(hr);
+                    HIKARI_LOG_WARN(outMessage);
+                }
+            }
+
+            const DirectX::ScratchImage& mipSource = SelectImage(converted, mipmapped);
+            const DirectX::TexMetadata mipMetadata = mipSource.GetMetadata();
+
+            DirectX::ScratchImage compressed{};
+            const DXGI_FORMAT compressedFormat = ResolveCompressedFormat(sourcePath, mipMetadata, settings);
+            if (compressedFormat != DXGI_FORMAT_UNKNOWN && !mipMetadata.IsCubemap()) {
+                const bool quickCompress = true;
+                hr = DirectX::Compress(
+                    mipSource.GetImages(),
+                    mipSource.GetImageCount(),
+                    mipMetadata,
+                    compressedFormat,
+                    ResolveCompressFlags(settings.colorSpace, compressedFormat, quickCompress),
+                    DirectX::TEX_THRESHOLD_DEFAULT,
+                    compressed);
+                if (FAILED(hr)) {
+                    outMessage = "[DirectXTexBackend] block compression failed, writing uncompressed DDS: " +
+                        sourcePath.generic_string() +
+                        " hr=" +
+                        ToHexHr(hr);
+                    HIKARI_LOG_WARN(outMessage);
+                }
+            }
+
+            if (compressed.GetImageCount() > 0) {
+                outImage = std::move(compressed);
+            } else if (mipmapped.GetImageCount() > 0) {
+                outImage = std::move(mipmapped);
+            } else if (working.GetImageCount() > 0) {
+                outImage = std::move(working);
+            } else {
+                outImage = std::move(loaded);
+            }
+
+            return true;
+        }
+
         struct AlphaScanResult {
             bool hasAlphaChannel = false;
             bool hasMeaningfulAlpha = false;
@@ -410,101 +629,43 @@ namespace HIKARI {
         const TextureImportSettings& settings,
         std::string& outMessage) {
 
-        DirectX::TexMetadata metadata{};
-        DirectX::ScratchImage loaded{};
-        HRESULT hr = LoadScratchImage(sourcePath, metadata, loaded, outMessage);
-        if (FAILED(hr)) {
-            if (outMessage.empty()) {
-                outMessage = "[DirectXTexBackend] load failed: " + sourcePath.generic_string() + " hr=" + ToHexHr(hr);
-            }
-            HIKARI_LOG_ERROR(outMessage);
+        DirectX::ScratchImage finalImage{};
+        if (!CookTextureImage(sourcePath, settings, finalImage, outMessage)) {
             return false;
         }
 
-        std::error_code ec{};
-        std::filesystem::create_directories(outputPath.parent_path(), ec);
-        if (ec) {
-            outMessage = "[DirectXTexBackend] failed to create output directory: " + outputPath.parent_path().generic_string();
-            HIKARI_LOG_ERROR(outMessage);
-            return false;
-        }
-
-        DirectX::ScratchImage working{};
-        const DXGI_FORMAT workingFormat = ResolveWorkingFormat(sourcePath, metadata, settings);
-        if (metadata.format != workingFormat && !metadata.IsCubemap()) {
-            hr = DirectX::Convert(
-                loaded.GetImages(),
-                loaded.GetImageCount(),
-                metadata,
-                workingFormat,
-                ResolveFilterFlags(settings.colorSpace),
-                DirectX::TEX_THRESHOLD_DEFAULT,
-                working);
-            if (FAILED(hr)) {
-                outMessage = "[DirectXTexBackend] format conversion failed: " + sourcePath.generic_string() + " hr=" + ToHexHr(hr);
-                HIKARI_LOG_ERROR(outMessage);
-                return false;
-            }
-        }
-
-        const DirectX::ScratchImage& converted = SelectImage(loaded, working);
-        DirectX::ScratchImage mipmapped{};
-        const DirectX::TexMetadata convertedMetadata = converted.GetMetadata();
-        if (NeedsMipGeneration(settings, convertedMetadata) && !DirectX::IsCompressed(convertedMetadata.format)) {
-            hr = DirectX::GenerateMipMaps(
-                converted.GetImages(),
-                converted.GetImageCount(),
-                convertedMetadata,
-                ResolveFilterFlags(settings.colorSpace),
-                0,
-                mipmapped);
-            if (FAILED(hr)) {
-                outMessage = "[DirectXTexBackend] mipmap generation failed, falling back to source mip: " +
-                    sourcePath.generic_string() +
-                    " hr=" +
-                    ToHexHr(hr);
-                HIKARI_LOG_WARN(outMessage);
-            }
-        }
-
-        const DirectX::ScratchImage& mipSource = SelectImage(converted, mipmapped);
-        const DirectX::TexMetadata mipMetadata = mipSource.GetMetadata();
-
-        DirectX::ScratchImage compressed{};
-        const DXGI_FORMAT compressedFormat = ResolveCompressedFormat(sourcePath, mipMetadata, settings);
-        if (compressedFormat != DXGI_FORMAT_UNKNOWN && !mipMetadata.IsCubemap()) {
-            const bool quickCompress = true;
-            hr = DirectX::Compress(
-                mipSource.GetImages(),
-                mipSource.GetImageCount(),
-                mipMetadata,
-                compressedFormat,
-                ResolveCompressFlags(settings.colorSpace, compressedFormat, quickCompress),
-                DirectX::TEX_THRESHOLD_DEFAULT,
-                compressed);
-            if (FAILED(hr)) {
-                outMessage = "[DirectXTexBackend] block compression failed, writing uncompressed DDS: " +
-                    sourcePath.generic_string() +
-                    " hr=" +
-                    ToHexHr(hr);
-                HIKARI_LOG_WARN(outMessage);
-            }
-        }
-
-        const DirectX::ScratchImage& finalImage = SelectImage(mipSource, compressed);
-        hr = DirectX::SaveToDDSFile(
-            finalImage.GetImages(),
-            finalImage.GetImageCount(),
-            finalImage.GetMetadata(),
-            DirectX::DDS_FLAGS_FORCE_DX10_EXT,
-            outputPath.wstring().c_str());
-        if (FAILED(hr)) {
-            outMessage = "[DirectXTexBackend] SaveToDDSFile failed: " + outputPath.generic_string() + " hr=" + ToHexHr(hr);
-            HIKARI_LOG_ERROR(outMessage);
+        if (!SaveScratchImageToDds(finalImage, outputPath, outMessage)) {
             return false;
         }
 
         outMessage = "[DirectXTexBackend] wrote DDS: " + outputPath.generic_string();
+        HIKARI_LOG_INFO(outMessage);
+        return true;
+    }
+
+    bool DirectXTexTextureImportBackend::ConvertToHtexAndDds(
+        const std::filesystem::path& sourcePath,
+        const std::filesystem::path& htexOutputPath,
+        const std::filesystem::path& debugDdsOutputPath,
+        const TextureImportSettings& settings,
+        std::string& outMessage) {
+
+        DirectX::ScratchImage finalImage{};
+        if (!CookTextureImage(sourcePath, settings, finalImage, outMessage)) {
+            return false;
+        }
+
+        if (!WriteScratchImageToHtex(finalImage, settings, htexOutputPath, outMessage)) {
+            return false;
+        }
+
+        if (!debugDdsOutputPath.empty() &&
+            !SaveScratchImageToDds(finalImage, debugDdsOutputPath, outMessage)) {
+            return false;
+        }
+
+        outMessage = "[DirectXTexBackend] wrote HTEX and debug DDS: " +
+            htexOutputPath.generic_string();
         HIKARI_LOG_INFO(outMessage);
         return true;
     }

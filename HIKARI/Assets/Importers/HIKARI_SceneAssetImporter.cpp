@@ -58,7 +58,7 @@ namespace HIKARI {
             { "sourceFormat", sourcePath.extension().string() },
             { "runtimeLoader", "SceneSerializer" },
             { "cookScene", false },
-            { "futureOutputFormat", "HSCENE" },
+            { "outputFormat", "HSCENE" },
         }.dump(2);
         return meta;
     }

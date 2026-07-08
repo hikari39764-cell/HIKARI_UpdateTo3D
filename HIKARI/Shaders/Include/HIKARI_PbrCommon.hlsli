@@ -14,6 +14,15 @@ float3 HikariFresnelSchlick(float cosTheta, float3 F0)
     return F0 + (1.0f.xxx - F0) * HikariPow5(1.0f - saturate(cosTheta));
 }
 
+// 環境光 (IBL) 用 Fresnel。粗い表面はミクロ面の遮蔽により掠射角でも反射が
+// 立ち上がらないため、F90 を粗さで減衰させる (Karis の ambient fresnel)。
+// これが無いと粗い表面 (植生など) の縁が空の色で白く洗われる。
+float3 HikariFresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+    float3 f90 = max((1.0f - roughness).xxx, F0);
+    return F0 + (f90 - F0) * HikariPow5(1.0f - saturate(cosTheta));
+}
+
 float3 HikariSpecularF0(
     float3 baseColor,
     float metallic,

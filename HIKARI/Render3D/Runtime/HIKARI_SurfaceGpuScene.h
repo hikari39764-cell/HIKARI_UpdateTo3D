@@ -26,6 +26,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
         ClusterMainline = 1u << 8,
         WaterMaterialFx = 1u << 9,
         DepthAware = 1u << 10,
+        PassForwardOpaque = 1u << 11,
+        PassDepthPrepass = 1u << 12,
+        PassForwardDepthAware = 1u << 13,
+        PassForwardTransparent = 1u << 14,
+        PassShadow = 1u << 15,
     };
 
     enum class SurfaceGpuSceneResourceFlags : uint32_t {

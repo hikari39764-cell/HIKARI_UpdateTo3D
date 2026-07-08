@@ -45,6 +45,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             size_t residentInstanceCount,
             uint64_t layoutVersion,
             uint64_t sourceVersion) const;
+        bool CanPatchFrame(
+            size_t residentInstanceCount,
+            uint64_t layoutVersion,
+            uint64_t baseSourceVersion) const;
         void ReuseFrame(size_t residentInstanceCount);
         void Upload(const RUNTIME::SurfaceGpuSceneInstance* instances, size_t count);
         void Upload(const std::vector<RUNTIME::SurfaceGpuSceneInstance>& instances);

@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -518,30 +519,48 @@ namespace HIKARI {
                     ? std::filesystem::path("Assets") / droppedPath.filename()
                     : currentDirectory / droppedPath.filename();
 
-                for (const auto& entry : std::filesystem::recursive_directory_iterator(droppedPath, ec)) {
+                std::filesystem::recursive_directory_iterator it(
+                    droppedPath,
+                    std::filesystem::directory_options::skip_permission_denied,
+                    ec);
+                const std::filesystem::recursive_directory_iterator end{};
+                if (ec) {
+                    lastError = "Failed to read dropped folder: " + ec.message();
+                    ++skippedCount;
+                    return;
+                }
+
+                for (; it != end; it.increment(ec)) {
                     if (ec) {
-                        lastError = "Failed to read dropped folder: " + ec.message();
-                        break;
-                    }
-                    if (!entry.is_regular_file(ec)) {
+                        lastError = "Failed to continue reading dropped folder: " + ec.message();
+                        ec.clear();
                         ++skippedCount;
                         continue;
                     }
-                    const bool supportedAsset = IsSupportedImportSource(entry.path());
-                    const bool copyOnlySidecar = IsCopyOnlySidecarFile(entry.path());
+
+                    const std::filesystem::directory_entry entry = *it;
+                    std::error_code entryEc{};
+                    if (!entry.is_regular_file(entryEc)) {
+                        ++skippedCount;
+                        continue;
+                    }
+
+                    const std::filesystem::path entryPath = entry.path();
+                    const bool supportedAsset = IsSupportedImportSource(entryPath);
+                    const bool copyOnlySidecar = IsCopyOnlySidecarFile(entryPath);
                     if (!supportedAsset && !copyOnlySidecar) {
                         ++skippedCount;
                         continue;
                     }
 
-                    std::filesystem::path relativeInside = std::filesystem::relative(entry.path(), droppedPath, ec);
-                    if (ec) {
+                    std::filesystem::path relativeInside = std::filesystem::relative(entryPath, droppedPath, entryEc);
+                    if (entryEc) {
                         ++skippedCount;
                         continue;
                     }
                     std::filesystem::path copiedRelative{};
                     const std::filesystem::path targetRelative = (targetRoot / relativeInside).lexically_normal();
-                    if (CopySourceFileIntoProject(assetDatabase, entry.path(), targetRelative, copiedRelative, lastError)) {
+                    if (CopySourceFileIntoProject(assetDatabase, entryPath, targetRelative, copiedRelative, lastError)) {
                         if (supportedAsset) {
                             outProjectRelativeFiles.push_back(copiedRelative);
                         }
@@ -552,7 +571,20 @@ namespace HIKARI {
                 return;
             }
 
-            if (!std::filesystem::is_regular_file(droppedPath, ec) || !IsSupportedImportSource(droppedPath)) {
+            if (ec) {
+                lastError = "Failed to inspect dropped path: " + ec.message();
+                ++skippedCount;
+                return;
+            }
+
+            const bool regularFile = std::filesystem::is_regular_file(droppedPath, ec);
+            if (ec) {
+                lastError = "Failed to inspect dropped file: " + ec.message();
+                ++skippedCount;
+                return;
+            }
+
+            if (!regularFile || !IsSupportedImportSource(droppedPath)) {
                 ++skippedCount;
                 return;
             }
@@ -582,7 +614,17 @@ namespace HIKARI {
             int skippedCount = 0;
             std::string lastError{};
             for (const std::filesystem::path& dropped : droppedFiles) {
-                CollectDroppedFiles(dropped, currentDirectory, assetDatabase, copiedFiles, skippedCount, lastError);
+                try {
+                    CollectDroppedFiles(dropped, currentDirectory, assetDatabase, copiedFiles, skippedCount, lastError);
+                } catch (const std::exception& ex) {
+                    ++skippedCount;
+                    lastError = std::string("Drop failed: ") + ex.what();
+                    HIKARI_LOG_ERROR("[AssetBrowser][Drop] " + lastError);
+                } catch (...) {
+                    ++skippedCount;
+                    lastError = "Drop failed: unknown exception";
+                    HIKARI_LOG_ERROR("[AssetBrowser][Drop] " + lastError);
+                }
             }
 
             if (copiedFiles.empty()) {
@@ -594,24 +636,21 @@ namespace HIKARI {
 
             assetDatabase.ScanAssets(true);
 
-            int imported = 0;
-            int failed = 0;
+            std::vector<AssetGuid> importGuids;
+            importGuids.reserve(copiedFiles.size());
             std::filesystem::path firstRelativePath{};
             for (const std::filesystem::path& relativePath : copiedFiles) {
                 const AssetRecord* record = assetDatabase.FindByPath(relativePath);
                 if (!record) {
-                    ++failed;
                     continue;
                 }
                 if (firstRelativePath.empty()) {
                     firstRelativePath = relativePath;
                 }
-                if (assetDatabase.ImportAsset(record->guid)) {
-                    ++imported;
-                } else {
-                    ++failed;
-                }
+                importGuids.push_back(record->guid);
             }
+
+            const AssetImportBatchResult importResult = assetDatabase.ImportAssets(importGuids);
 
             assetDatabase.ScanAssets(false);
             if (!firstRelativePath.empty()) {
@@ -622,8 +661,8 @@ namespace HIKARI {
 
             lastOperationMessage =
                 "Dropped " + std::to_string(copiedFiles.size()) +
-                " file(s), imported " + std::to_string(imported) +
-                ", failed " + std::to_string(failed);
+                " file(s), imported " + std::to_string(importResult.succeeded) +
+                ", failed " + std::to_string(importResult.failed);
             if (skippedCount > 0) {
                 lastOperationMessage += ", skipped " + std::to_string(skippedCount);
             }
@@ -689,7 +728,7 @@ namespace HIKARI {
         }
 
         bool HasArtifactFormat(const AssetRecord& record, std::string_view format) {
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (artifact.format == format && !artifact.path.empty()) {
                     return true;
                 }
@@ -774,7 +813,7 @@ namespace HIKARI {
             }
 
             if (dirty) {
-                settings["futureMeshFormat"] = "HCMESH";
+                settings["meshFormat"] = "HCMESH";
             }
             return dirty;
         }
@@ -1010,7 +1049,7 @@ namespace HIKARI {
         }
 
         std::string FirstArtifactPath(const AssetRecord& record) {
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (!artifact.path.empty()) {
                     return artifact.path;
                 }
@@ -1211,8 +1250,9 @@ namespace HIKARI {
             }
 
             const std::filesystem::path newSource = MakeUniqueFilePath(desiredSource);
+            const std::filesystem::path newRelativeSource = MakeProjectRelativePath(assetDatabase, newSource);
             const std::filesystem::path oldMetaPath = record.metaPath;
-            const std::filesystem::path newMetaPath = newSource.parent_path() / (newSource.filename().string() + ".hikari.meta");
+            const std::filesystem::path newMetaPath = assetDatabase.GetMetaPathForSource(newRelativeSource);
 
             std::error_code ec{};
             if (!std::filesystem::exists(oldSource, ec)) {
@@ -1254,7 +1294,7 @@ namespace HIKARI {
                 return false;
             }
 
-            outRelativePath = MakeProjectRelativePath(assetDatabase, newSource);
+            outRelativePath = newRelativeSource;
             if (!UpdateSceneMetaAfterMove(assetDatabase, record, outRelativePath, newMetaPath, cleanName, outError)) {
                 if (movedMeta) {
                     MoveFileBackBestEffort(newMetaPath, oldMetaPath);
@@ -1289,7 +1329,7 @@ namespace HIKARI {
             const std::filesystem::path metaPath = record.metaPath;
             const std::filesystem::path trashMetaPath = metaPath.empty()
                 ? std::filesystem::path{}
-                : trashDirectory / metaPath.filename();
+                : trashDirectory / "AssetMeta" / record.sourcePath.parent_path() / metaPath.filename();
 
             std::error_code ec{};
             if (!std::filesystem::exists(sourcePath, ec)) {
@@ -1371,7 +1411,7 @@ namespace HIKARI {
                 record.meta.importerVersion);
             const std::string artifactPath = FirstArtifactPath(record);
             ImGui::Text("Artifact: %s", artifactPath.empty() ? "<none>" : artifactPath.c_str());
-            ImGui::Text("Dependencies: %d", static_cast<int>(record.meta.dependencies.size()));
+            ImGui::Text("Dependencies: %d", static_cast<int>(record.artifactManifest.dependencies.size()));
             ImGui::EndTooltip();
         }
 

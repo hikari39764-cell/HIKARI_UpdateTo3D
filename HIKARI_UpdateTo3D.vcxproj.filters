@@ -1693,6 +1693,9 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetDatabase.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetArtifactManifest.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetGuid.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>

@@ -842,6 +842,12 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.surfaceGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
             g.debugStats.surfaceGpuSceneCommittedInstanceCount = gpuSceneStats.committedInstanceCount;
             g.debugStats.surfaceGpuSceneCommittedBytes = gpuSceneStats.committedBytes;
+            g.debugStats.surfaceGpuSceneFullUploadCount =
+                uploadStats.uploadedFullScene ? 1u : 0u;
+            g.debugStats.surfaceGpuSceneDirtyPatchCount =
+                uploadStats.patchedDirtyRanges ? 1u : 0u;
+            g.debugStats.surfaceGpuSceneReuseCount =
+                uploadStats.reusedResidentFrame ? 1u : 0u;
             g.debugStats.surfaceGpuSceneOverflowInstanceCount = gpuSceneStats.overflowInstanceCount;
             g.debugStats.surfaceGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
             g.debugStats.surfaceGpuSceneMaterialPatchChangedCount =

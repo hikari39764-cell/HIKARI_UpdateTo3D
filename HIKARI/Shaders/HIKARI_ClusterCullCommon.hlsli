@@ -1491,16 +1491,46 @@ bool HikariClusterCullIsGpuSceneCandidate(HikariSurfaceGpuSceneInstance instance
     const bool depthAware =
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_DEPTH_AWARE) != 0u;
 
-    if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE)
+    if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_OPAQUE)
     {
-        if (!depthAware)
+        if ((instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_FORWARD_OPAQUE) == 0u ||
+            transparent ||
+            depthAware)
+        {
+            return false;
+        }
+    }
+    else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_DEPTH_PREPASS)
+    {
+        if ((instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_DEPTH_PREPASS) == 0u ||
+            transparent ||
+            depthAware)
+        {
+            return false;
+        }
+    }
+    else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_SHADOW)
+    {
+        if ((instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_SHADOW) == 0u ||
+            transparent ||
+            depthAware)
+        {
+            return false;
+        }
+    }
+    else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_DEPTH_AWARE)
+    {
+        if ((instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_FORWARD_DEPTH_AWARE) == 0u ||
+            !depthAware)
         {
             return false;
         }
     }
     else if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_FORWARD_TRANSPARENT)
     {
-        if (!transparent || depthAware)
+        if ((instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_FORWARD_TRANSPARENT) == 0u ||
+            !transparent ||
+            depthAware)
         {
             return false;
         }

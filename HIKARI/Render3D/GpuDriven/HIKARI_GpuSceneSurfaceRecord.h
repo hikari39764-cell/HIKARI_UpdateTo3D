@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <DirectXMath.h>
@@ -117,6 +118,17 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     GpuSceneSurfaceRecord BuildGpuSceneSurfaceRecord(
         const RUNTIME::SceneSurfaceInstance& surfaceInstance,
         uint32_t sourceSurfaceInstanceIndex);
+
+    uint64_t BuildGpuSceneStableStringKey(
+        std::string_view tag,
+        const std::string& value);
+
+    std::string BuildGpuSceneSurfaceResourceSourceKey(
+        std::string_view tag,
+        uint64_t stableKey);
+
+    std::string BuildGpuSceneClusterGeometrySourceKey(
+        const std::string& clusteredGeometryPath);
 
     GpuSceneSurfaceValidationResult ValidateGpuSceneSurfaceRecord(
         const GpuSceneSurfaceRecord& record);

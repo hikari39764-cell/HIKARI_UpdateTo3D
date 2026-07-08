@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include <Windows.h>
 #include <d3dx12.h>
 
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
@@ -22,6 +23,12 @@ namespace HIKARI::RENDER3D {
             std::unordered_map<std::string, ClusterGeometryResourceRecord> recordsBySourceKey{};
             std::unordered_map<uint64_t, std::string> sourceKeyByHandle{};
             ClusterGeometryResourceSystemStats stats{};
+            ID3D12Device* uploadDevice = nullptr;
+            Microsoft::WRL::ComPtr<ID3D12CommandAllocator> uploadAllocator{};
+            Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> uploadCommandList{};
+            Microsoft::WRL::ComPtr<ID3D12Fence> uploadFence{};
+            HANDLE uploadFenceEvent = nullptr;
+            uint64_t uploadFenceValue = 1;
         };
 
         ClusterGeometryResourceSystemState& State() {
@@ -39,86 +46,220 @@ namespace HIKARI::RENDER3D {
                 static_cast<uint64_t>(handle.index);
         }
 
-        Microsoft::WRL::ComPtr<ID3D12Resource> CreateClusterGeometryGpuBuffer(
-            const GFX::Context& context,
-            const std::vector<uint8_t>& bytes) {
+        struct ClusterGeometryUploadBuffer {
+            Microsoft::WRL::ComPtr<ID3D12Resource> gpu{};
+            Microsoft::WRL::ComPtr<ID3D12Resource> upload{};
+            UINT64 byteSize = 0;
+        };
 
-            if (context.device == nullptr ||
-                context.cmdList == nullptr ||
-                context.deferredReleaseQueue == nullptr ||
-                bytes.empty()) {
-                return {};
+        std::filesystem::file_time_type ReadSourceWriteTime(const std::filesystem::path& path) {
+            std::error_code ec{};
+            const std::filesystem::file_time_type value = std::filesystem::last_write_time(path, ec);
+            return ec ? std::filesystem::file_time_type{} : value;
+        }
+
+        bool IsSameSourcePath(
+            const std::filesystem::path& lhs,
+            const std::filesystem::path& rhs) {
+
+            return lhs.lexically_normal().generic_string() ==
+                rhs.lexically_normal().generic_string();
+        }
+
+        void ResetUploadObjects(ClusterGeometryResourceSystemState& state) {
+            state.uploadCommandList.Reset();
+            state.uploadAllocator.Reset();
+            state.uploadFence.Reset();
+            if (state.uploadFenceEvent != nullptr) {
+                CloseHandle(state.uploadFenceEvent);
+                state.uploadFenceEvent = nullptr;
+            }
+            state.uploadFenceValue = 1;
+            state.uploadDevice = nullptr;
+        }
+
+        bool EnsureUploadObjects(ClusterGeometryResourceSystemState& state) {
+            ID3D12Device* device = state.context.device;
+            if (device == nullptr || state.context.queue == nullptr) {
+                return false;
+            }
+            if (state.uploadDevice == device &&
+                state.uploadAllocator &&
+                state.uploadCommandList &&
+                state.uploadFence &&
+                state.uploadFenceEvent != nullptr) {
+                return true;
             }
 
-            Microsoft::WRL::ComPtr<ID3D12Resource> gpuBuffer{};
+            ResetUploadObjects(state);
+
+            HRESULT hr = device->CreateCommandAllocator(
+                D3D12_COMMAND_LIST_TYPE_DIRECT,
+                IID_PPV_ARGS(state.uploadAllocator.GetAddressOf()));
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create upload allocator");
+                return false;
+            }
+
+            hr = device->CreateCommandList(
+                0,
+                D3D12_COMMAND_LIST_TYPE_DIRECT,
+                state.uploadAllocator.Get(),
+                nullptr,
+                IID_PPV_ARGS(state.uploadCommandList.GetAddressOf()));
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create upload command list");
+                ResetUploadObjects(state);
+                return false;
+            }
+            state.uploadCommandList->Close();
+
+            hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(state.uploadFence.GetAddressOf()));
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create upload fence");
+                ResetUploadObjects(state);
+                return false;
+            }
+
+            state.uploadFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            if (state.uploadFenceEvent == nullptr) {
+                ResetUploadObjects(state);
+                return false;
+            }
+
+            state.uploadFenceValue = 1;
+            state.uploadDevice = device;
+            return true;
+        }
+
+        bool CreateClusterGeometryUploadBuffer(
+            ID3D12Device* device,
+            const std::vector<uint8_t>& bytes,
+            const wchar_t* gpuName,
+            const wchar_t* uploadName,
+            ClusterGeometryUploadBuffer& out) {
+
+            out = {};
+            if (device == nullptr || bytes.empty()) {
+                return false;
+            }
+
+            out.byteSize = static_cast<UINT64>(bytes.size());
+            const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(out.byteSize);
             const CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
-            const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(bytes.size());
-            HRESULT hr = context.device->CreateCommittedResource(
+            HRESULT hr = device->CreateCommittedResource(
                 &defaultHeap,
                 D3D12_HEAP_FLAG_NONE,
                 &desc,
-                D3D12_RESOURCE_STATE_COMMON,
+                D3D12_RESOURCE_STATE_COPY_DEST,
                 nullptr,
-                IID_PPV_ARGS(gpuBuffer.GetAddressOf()));
+                IID_PPV_ARGS(out.gpu.GetAddressOf()));
             if (FAILED(hr)) {
                 HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create default GPU buffer");
-                return {};
+                return false;
             }
-            GFX::SetD3D12Name(gpuBuffer.Get(), L"Cluster Geometry GPU Buffer");
+            GFX::SetD3D12Name(out.gpu.Get(), gpuName);
 
-            Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer{};
             const CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
-            hr = context.device->CreateCommittedResource(
+            hr = device->CreateCommittedResource(
                 &uploadHeap,
                 D3D12_HEAP_FLAG_NONE,
                 &desc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
-                IID_PPV_ARGS(uploadBuffer.GetAddressOf()));
+                IID_PPV_ARGS(out.upload.GetAddressOf()));
             if (FAILED(hr)) {
                 HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Create upload staging buffer");
-                return {};
+                out = {};
+                return false;
             }
-            GFX::SetD3D12Name(uploadBuffer.Get(), L"Cluster Geometry Upload Staging");
+            GFX::SetD3D12Name(out.upload.Get(), uploadName);
 
             void* mapped = nullptr;
-            hr = uploadBuffer->Map(0, nullptr, &mapped);
+            hr = out.upload->Map(0, nullptr, &mapped);
             if (FAILED(hr) || mapped == nullptr) {
                 HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Map upload staging buffer");
-                return {};
+                out = {};
+                return false;
             }
             std::memcpy(mapped, bytes.data(), bytes.size());
-            uploadBuffer->Unmap(0, nullptr);
+            out.upload->Unmap(0, nullptr);
+            return true;
+        }
 
-            const CD3DX12_RESOURCE_BARRIER toCopyDest =
+        bool ExecuteClusterGeometryUpload(
+            ClusterGeometryResourceSystemState& state,
+            ClusterGeometryUploadBuffer& geometry,
+            ClusterGeometryUploadBuffer& metadata) {
+
+            if (!EnsureUploadObjects(state)) {
+                return false;
+            }
+
+            HRESULT hr = state.uploadAllocator->Reset();
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Reset upload allocator");
+                return false;
+            }
+
+            hr = state.uploadCommandList->Reset(state.uploadAllocator.Get(), nullptr);
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Reset upload command list");
+                return false;
+            }
+
+            state.uploadCommandList->CopyBufferRegion(
+                geometry.gpu.Get(),
+                0,
+                geometry.upload.Get(),
+                0,
+                geometry.byteSize);
+            state.uploadCommandList->CopyBufferRegion(
+                metadata.gpu.Get(),
+                0,
+                metadata.upload.Get(),
+                0,
+                metadata.byteSize);
+
+            D3D12_RESOURCE_BARRIER barriers[] = {
                 CD3DX12_RESOURCE_BARRIER::Transition(
-                    gpuBuffer.Get(),
-                    D3D12_RESOURCE_STATE_COMMON,
-                    D3D12_RESOURCE_STATE_COPY_DEST);
-            context.cmdList->ResourceBarrier(1, &toCopyDest);
+                    geometry.gpu.Get(),
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_GENERIC_READ),
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    metadata.gpu.Get(),
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_GENERIC_READ)
+            };
+            state.uploadCommandList->ResourceBarrier(2, barriers);
 
-            context.cmdList->CopyBufferRegion(
-                gpuBuffer.Get(),
-                0,
-                uploadBuffer.Get(),
-                0,
-                static_cast<UINT64>(bytes.size()));
+            hr = state.uploadCommandList->Close();
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Close upload command list");
+                return false;
+            }
 
-            const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                gpuBuffer.Get(),
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_GENERIC_READ);
-            context.cmdList->ResourceBarrier(1, &barrier);
+            ID3D12CommandList* lists[] = { state.uploadCommandList.Get() };
+            state.context.queue->ExecuteCommandLists(1, lists);
 
-            Microsoft::WRL::ComPtr<ID3D12Resource> stagingKeepAlive = uploadBuffer;
-            context.deferredReleaseQueue->Enqueue(
-                context.currentFrameRetireFenceValue,
-                [stagingKeepAlive]() mutable {
-                    stagingKeepAlive.Reset();
-                },
-                "Cluster Geometry Upload Staging");
+            const uint64_t signalValue = state.uploadFenceValue++;
+            hr = state.context.queue->Signal(state.uploadFence.Get(), signalValue);
+            if (FAILED(hr)) {
+                HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Signal upload fence");
+                return false;
+            }
+            if (state.uploadFence->GetCompletedValue() < signalValue) {
+                hr = state.uploadFence->SetEventOnCompletion(signalValue, state.uploadFenceEvent);
+                if (FAILED(hr)) {
+                    HIKARI_DX_CHECK(hr, "ClusterGeometryResourceSystem::Set upload fence event");
+                    return false;
+                }
+                WaitForSingleObject(state.uploadFenceEvent, INFINITE);
+            }
 
-            return gpuBuffer;
+            geometry.upload.Reset();
+            metadata.upload.Reset();
+            return true;
         }
 
         RenderResourceDesc BuildResourceDesc(
@@ -197,6 +338,7 @@ namespace HIKARI::RENDER3D {
             const uint32_t requests = state.stats.requestCount;
             const uint32_t hits = state.stats.hitCount;
             const uint32_t misses = state.stats.missCount;
+            const uint32_t staleReloads = state.stats.staleReloadCount;
             const uint32_t loaded = state.stats.loadedCount;
             const uint32_t failed = state.stats.failedCount;
             const uint32_t missingDevice = state.stats.missingDeviceCount;
@@ -209,6 +351,7 @@ namespace HIKARI::RENDER3D {
             stats.requestCount = requests;
             stats.hitCount = hits;
             stats.missCount = misses;
+            stats.staleReloadCount = staleReloads;
             stats.loadedCount = loaded;
             stats.failedCount = failed;
             stats.missingDeviceCount = missingDevice;
@@ -262,6 +405,7 @@ namespace HIKARI::RENDER3D {
         state.sourceKeyByHandle.clear();
         state.context = {};
         state.stats = {};
+        ResetUploadObjects(state);
     }
 
     ClusterGeometryResourceHandle LoadClusterGeometryResource(
@@ -281,13 +425,18 @@ namespace HIKARI::RENDER3D {
         if (cached != state.recordsBySourceKey.end() &&
             cached->second.ready &&
             GetRenderResourcePool().IsAlive(cached->second.handle.ToUntyped())) {
-            ++state.stats.hitCount;
-            RebuildStats();
-            return cached->second.handle;
+            const std::filesystem::file_time_type currentWriteTime = ReadSourceWriteTime(hcmeshPath);
+            if (IsSameSourcePath(cached->second.sourcePath, hcmeshPath) &&
+                cached->second.sourceWriteTime == currentWriteTime) {
+                ++state.stats.hitCount;
+                RebuildStats();
+                return cached->second.handle;
+            }
+            ++state.stats.staleReloadCount;
         }
 
         ++state.stats.missCount;
-        if (state.context.device == nullptr) {
+        if (state.context.device == nullptr || state.context.queue == nullptr) {
             ++state.stats.failedCount;
             ++state.stats.missingDeviceCount;
             RebuildStats();
@@ -302,11 +451,21 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
-        Microsoft::WRL::ComPtr<ID3D12Resource> geometryBuffer =
-            CreateClusterGeometryGpuBuffer(state.context, packed.geometryBytes);
-        Microsoft::WRL::ComPtr<ID3D12Resource> metadataBuffer =
-            CreateClusterGeometryGpuBuffer(state.context, packed.metadataBytes);
-        if (!geometryBuffer || !metadataBuffer) {
+        ClusterGeometryUploadBuffer geometryUpload{};
+        ClusterGeometryUploadBuffer metadataUpload{};
+        if (!CreateClusterGeometryUploadBuffer(
+                state.context.device,
+                packed.geometryBytes,
+                L"Cluster Geometry GPU Buffer",
+                L"Cluster Geometry Upload Staging",
+                geometryUpload) ||
+            !CreateClusterGeometryUploadBuffer(
+                state.context.device,
+                packed.metadataBytes,
+                L"Cluster Geometry Metadata GPU Buffer",
+                L"Cluster Geometry Metadata Upload Staging",
+                metadataUpload) ||
+            !ExecuteClusterGeometryUpload(state, geometryUpload, metadataUpload)) {
             ++state.stats.failedCount;
             RebuildStats();
             return {};
@@ -319,8 +478,8 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
-        RenderResourceView srv = CreateClusterGeometrySrv(geometryBuffer.Get(), packed.layout.byteSize);
-        RenderResourceView metadataSrv = CreateClusterGeometrySrv(metadataBuffer.Get(), packed.metadataByteSize);
+        RenderResourceView srv = CreateClusterGeometrySrv(geometryUpload.gpu.Get(), packed.layout.byteSize);
+        RenderResourceView metadataSrv = CreateClusterGeometrySrv(metadataUpload.gpu.Get(), packed.metadataByteSize);
         if (!srv.IsValid() || !metadataSrv.IsValid()) {
             if (srv.IsValid()) {
                 ReleaseRenderResourceDescriptor(srv);
@@ -336,7 +495,7 @@ namespace HIKARI::RENDER3D {
 
         if (!GetRenderResourcePool().AttachOwnedResource(
             handle.ToUntyped(),
-            std::move(geometryBuffer),
+            std::move(geometryUpload.gpu),
             BuildResourceDesc(sourceKey, hcmeshPath, packed))) {
             ReleaseRenderResourceDescriptor(srv);
             ReleaseRenderResourceDescriptor(metadataSrv);
@@ -375,13 +534,14 @@ namespace HIKARI::RENDER3D {
         record.handle = handle;
         record.sourceKey = sourceKey;
         record.sourcePath = hcmeshPath;
+        record.sourceWriteTime = ReadSourceWriteTime(hcmeshPath);
         record.layout = packed.layout;
         record.surfaceRanges = packed.surfaceRanges;
         record.surfaceLodRanges = packed.surfaceLodRanges;
         record.surfaceSections = packed.surfaceSections;
         record.srv = srv;
         record.metadataSrv = metadataSrv;
-        record.metadataBuffer = std::move(metadataBuffer);
+        record.metadataBuffer = std::move(metadataUpload.gpu);
         record.metadataBufferBytes = packed.metadataByteSize;
         record.ready = true;
         state.recordsBySourceKey[sourceKey] = std::move(record);

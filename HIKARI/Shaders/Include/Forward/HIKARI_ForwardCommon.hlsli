@@ -161,7 +161,10 @@ TextureCube gIblPrefilteredTex : register(t10);
 Texture2D gIblBrdfLutTex : register(t11);
 TextureCube gReflectionProbePrefilteredTex : register(t12);
 Texture2D gSsaoTex : register(t13);
-StructuredBuffer<float4> gLightProbeSh : register(t14);
+// Light probe volume: SH9 係数を係数ごとに 1 枚の Texture3D (RGB=係数) に
+// 焼き、hardware trilinear で係数を補間する。9 枚は root param LightProbeSh の
+// descriptor table として連続確保される。
+Texture3D<float4> gLightProbeShVolume[9] : register(t0, space2);
 SamplerState gLinearWrap : register(s0);
 SamplerState gShadowSampler : register(s1);
 

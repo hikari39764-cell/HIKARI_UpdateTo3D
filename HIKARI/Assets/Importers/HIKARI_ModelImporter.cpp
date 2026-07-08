@@ -61,6 +61,29 @@ namespace HIKARI {
             return relative.lexically_normal();
         }
 
+        std::filesystem::path MakeSourceMetaPath(
+            const std::filesystem::path& sourceMetaRoot,
+            const std::filesystem::path& relativeSource) {
+
+            if (sourceMetaRoot.empty() || relativeSource.empty()) {
+                return {};
+            }
+
+            std::filesystem::path metaPath = sourceMetaRoot / relativeSource.parent_path();
+            metaPath /= relativeSource.filename().string() + ".hikari.asset.json";
+            return metaPath.lexically_normal();
+        }
+
+        std::filesystem::path MakeArtifactManifestPath(
+            const std::filesystem::path& libraryRoot,
+            const std::string& guid) {
+
+            if (libraryRoot.empty() || guid.empty()) {
+                return {};
+            }
+            return (libraryRoot / "AssetDatabase" / "Artifacts" / (guid + ".artifact.json")).lexically_normal();
+        }
+
         bool ReplaceFileWithTemp(
             const std::filesystem::path& tempPath,
             const std::filesystem::path& finalPath,
@@ -270,7 +293,7 @@ namespace HIKARI {
                 cook.largeSurfacePartitionMinTriangles = 384u;
                 cook.largeSurfacePartitionMinTrianglesPerChunk = 256u;
                 cook.largeSurfacePartitionMaxDepth = 5u;
-                cook.largeSurfacePartitionMaxExtent = 3.0f;
+                cook.largeSurfacePartitionMaxExtent = 4.0f;
                 cook.lockPartitionBorders = true;
                 cook.balancePlanarStaticSurfaces = true;
                 cook.minPartitionClusterEstimate = 16u;
@@ -282,10 +305,10 @@ namespace HIKARI {
                 cook.largeStaticTriangleMaxSubdivisions = 4u;
                 cook.largeStaticTriangleMaxGeneratedTriangles = 16384u;
                 cook.meshletConeWeight = 0.35f;
-                cook.meshletSplitFactor = 2.0f;
+                cook.meshletSplitFactor = 1.0f;
                 cook.compactUnderfilledClusterGroups = true;
                 cook.minClusterOccupancyRatio = 0.75f;
-                cook.maxNormalBucketClusterOverhead = 1.20f;
+                cook.maxNormalBucketClusterOverhead = 1.10f;
                 cook.clusterMergeNormalMinDot = 0.20f;
                 cook.normalBucketCoherentGroupMinDot = 0.35f;
                 cook.normalBucketQualityBonusRatio = 0.15f;
@@ -442,7 +465,7 @@ namespace HIKARI {
                 cluster,
                 "meshletSplitFactor",
                 cook.meshletSplitFactor,
-                profile == ModelGeometryCookProfile::Scene ? 2.0f : 0.0f,
+                0.0f,
                 8.0f);
             cook.compactUnderfilledClusterGroups = ReadClusterBool(
                 settings,
@@ -941,6 +964,8 @@ namespace HIKARI {
 
         bool ResolveTextureToHtex(
             const std::filesystem::path& projectRoot,
+            const std::filesystem::path& sourceMetaRoot,
+            const std::filesystem::path& libraryRoot,
             TextureAsset3D& texture,
             AssetDependencyDesc& outDependency,
             bool& outHasDependency,
@@ -952,8 +977,11 @@ namespace HIKARI {
             }
 
             const std::filesystem::path absoluteTexturePath = ResolveProjectPath(projectRoot, texture.sourcePath);
-            std::filesystem::path metaPath = absoluteTexturePath;
-            metaPath += ".hikari.meta";
+            const std::filesystem::path relativeTexturePath = MakeProjectRelative(projectRoot, absoluteTexturePath);
+            const std::filesystem::path metaPath = MakeSourceMetaPath(sourceMetaRoot, relativeTexturePath);
+            if (metaPath.empty()) {
+                return false;
+            }
 
             nlohmann::json metaJson;
             if (!ReadJsonFile(metaPath, metaJson)) {
@@ -961,25 +989,31 @@ namespace HIKARI {
             }
 
             const std::string guid = metaJson.value("guid", "");
-            if (!guid.empty()) {
-                outDependency.guid.value = guid;
-                outDependency.path = MakeProjectRelative(projectRoot, absoluteTexturePath).generic_string();
-                outDependency.role = "Texture";
-                outHasDependency = true;
-                inOutDiagnostic.guid = guid;
-                inOutDiagnostic.dependencyResolved = true;
-                if (!ReadTextureAlphaDiagnostics(projectRoot, guid, inOutDiagnostic)) {
+            if (guid.empty()) {
+                return false;
+            }
+            outDependency.guid.value = guid;
+            outDependency.path = relativeTexturePath.generic_string();
+            outDependency.role = "Texture";
+            outHasDependency = true;
+            inOutDiagnostic.guid = guid;
+            inOutDiagnostic.dependencyResolved = true;
+            if (!ReadTextureAlphaDiagnostics(projectRoot, guid, inOutDiagnostic)) {
                     // 古い texture report の場合でも、model cook は baseColor alpha を見落とさない。
-                    InspectSourceTextureAlpha(absoluteTexturePath, inOutDiagnostic);
-                }
+                InspectSourceTextureAlpha(absoluteTexturePath, inOutDiagnostic);
+            }
+            nlohmann::json manifestJson;
+            const std::filesystem::path artifactManifestPath = MakeArtifactManifestPath(libraryRoot, guid);
+            if (artifactManifestPath.empty() || !ReadJsonFile(artifactManifestPath, manifestJson)) {
+                return false;
             }
 
-            if (!metaJson.contains("artifacts") || !metaJson["artifacts"].is_array()) {
+            if (!manifestJson.contains("artifacts") || !manifestJson["artifacts"].is_array()) {
                 return false;
             }
 
             // テクスチャ meta の MainTexture が HTEX なら、モデル内参照を実行時向けに差し替える。
-            for (const auto& artifact : metaJson["artifacts"]) {
+            for (const auto& artifact : manifestJson["artifacts"]) {
                 if (!artifact.is_object()) {
                     continue;
                 }
@@ -1221,7 +1255,7 @@ namespace HIKARI {
             { "sourceFormat", sourcePath.extension().string() },
             { "cookModel", true },
             { "outputFormat", "HMODEL" },
-            { "futureMeshFormat", "HCMESH" },
+            { "meshFormat", "HCMESH" },
             { "loadMaterials", true },
             { "loadTextures", true },
             { "clusterGeometry", {
@@ -1230,7 +1264,7 @@ namespace HIKARI {
                 { "maxLodCount", 5 },
                 { "lodQualityBias", 1.0f },
                 { "partitionLargeSurfaces", true },
-                { "largeSurfaceTargetExtent", 3.0f },
+                { "largeSurfaceTargetExtent", 4.0f },
                 { "lockPartitionBorders", true },
                 { "balancePlanarStaticSurfaces", true },
                 { "partitionMinClusterEstimate", 16 },
@@ -1242,10 +1276,10 @@ namespace HIKARI {
                 { "largeTriangleMaxSubdivisions", 4 },
                 { "largeTriangleMaxGeneratedTriangles", 16384 },
                 { "meshletConeWeight", 0.35f },
-                { "meshletSplitFactor", 2.0f },
+                { "meshletSplitFactor", 1.0f },
                 { "compactUnderfilledClusters", true },
                 { "minClusterOccupancyRatio", 0.75f },
-                { "maxNormalBucketClusterOverhead", 1.20f },
+                { "maxNormalBucketClusterOverhead", 1.10f },
                 { "clusterMergeNormalMinDot", 0.20f },
                 { "normalBucketCoherentGroupMinDot", 0.35f },
                 { "normalBucketQualityBonusRatio", 0.15f },
@@ -1309,7 +1343,14 @@ namespace HIKARI {
 
             AssetDependencyDesc dependency{};
             bool hasDependency = false;
-            if (ResolveTextureToHtex(context.projectRoot, texture, dependency, hasDependency, diagnostic)) {
+                if (ResolveTextureToHtex(
+                    context.projectRoot,
+                    context.sourceMetaRoot,
+                    context.libraryRoot,
+                    texture,
+                    dependency,
+                    hasDependency,
+                    diagnostic)) {
                 ++htexReferenceCount;
                 diagnostic.htexReady = true;
             } else if (!texture.sourcePath.empty()) {

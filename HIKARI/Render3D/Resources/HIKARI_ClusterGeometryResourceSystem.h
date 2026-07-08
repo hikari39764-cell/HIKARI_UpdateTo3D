@@ -22,6 +22,7 @@ namespace HIKARI::RENDER3D {
         ClusterGeometryResourceHandle handle{};
         std::string sourceKey{};
         std::filesystem::path sourcePath{};
+        std::filesystem::file_time_type sourceWriteTime{};
         ClusterGeometryGpuLayout layout{};
         std::vector<CLUSTER::ClusterGeometrySurfaceRange> surfaceRanges{};
         std::vector<CLUSTER::ClusterGeometrySurfaceLodRange> surfaceLodRanges{};
@@ -38,6 +39,7 @@ namespace HIKARI::RENDER3D {
         uint32_t requestCount = 0;
         uint32_t hitCount = 0;
         uint32_t missCount = 0;
+        uint32_t staleReloadCount = 0;
         uint32_t loadedCount = 0;
         uint32_t failedCount = 0;
         uint32_t missingDeviceCount = 0;

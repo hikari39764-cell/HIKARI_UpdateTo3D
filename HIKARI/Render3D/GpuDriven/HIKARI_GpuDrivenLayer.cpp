@@ -91,30 +91,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 instances->size());
         }
 
-        void UploadPassInstances(
-            SurfaceGpuSceneFrameBuffer& buffer,
-            const GpuDrivenPassSource& pass) {
-
-            UploadSceneInstancesAt(
-                buffer,
-                pass.gpuSceneBaseIndex,
-                pass.instances);
-            UploadSceneInstancesAt(
-                buffer,
-                pass.traditionalIndirect.gpuSceneBaseIndex,
-                pass.traditionalIndirect.instances);
-        }
-
         bool SceneSourceLayoutTilesInstanceBuffer(
             const GpuDrivenSceneSource& source,
             size_t sourceInstanceCount) {
 
-            size_t coveredInstanceCount = 0;
             size_t maxRegionEnd = 0;
             for (const GpuDrivenPassSource& pass : source.passes) {
                 const size_t primaryCount = CountPrimaryInstances(pass);
                 if (primaryCount != 0u) {
-                    coveredInstanceCount += primaryCount;
                     maxRegionEnd = (std::max)(
                         maxRegionEnd,
                         static_cast<size_t>(pass.gpuSceneBaseIndex) +
@@ -123,7 +107,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 const size_t traditionalCount =
                     pass.traditionalIndirect.gpuSceneInstanceCount;
                 if (traditionalCount != 0u) {
-                    coveredInstanceCount += traditionalCount;
                     maxRegionEnd = (std::max)(
                         maxRegionEnd,
                         static_cast<size_t>(
@@ -131,9 +114,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                             traditionalCount);
                 }
             }
-            return
-                coveredInstanceCount == sourceInstanceCount &&
-                maxRegionEnd == sourceInstanceCount;
+            return maxRegionEnd <= sourceInstanceCount;
         }
 
         bool PatchDirtyPass(
@@ -186,11 +167,35 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             const GpuDrivenSceneSource& source) {
 
             buffer.ResetFrame();
+            const std::vector<RUNTIME::SurfaceGpuSceneInstance>*
+                uploadedPrimaryInstances = nullptr;
+            uint32_t uploadedPrimaryBaseIndex = 0;
+            uint32_t uploadedPrimaryCount = 0;
             for (size_t passIndex = 0u;
                 passIndex < kGpuDrivenPassCount;
                 ++passIndex) {
 
-                UploadPassInstances(buffer, source.passes[passIndex]);
+                const GpuDrivenPassSource& pass = source.passes[passIndex];
+                const bool primaryAlreadyUploaded =
+                    pass.instances != nullptr &&
+                    pass.instances == uploadedPrimaryInstances &&
+                    pass.gpuSceneBaseIndex == uploadedPrimaryBaseIndex &&
+                    pass.gpuSceneInstanceCount == uploadedPrimaryCount;
+                if (!primaryAlreadyUploaded) {
+                    UploadSceneInstancesAt(
+                        buffer,
+                        pass.gpuSceneBaseIndex,
+                        pass.instances);
+                    if (pass.instances != nullptr) {
+                        uploadedPrimaryInstances = pass.instances;
+                        uploadedPrimaryBaseIndex = pass.gpuSceneBaseIndex;
+                        uploadedPrimaryCount = pass.gpuSceneInstanceCount;
+                    }
+                }
+                UploadSceneInstancesAt(
+                    buffer,
+                    pass.traditionalIndirect.gpuSceneBaseIndex,
+                    pass.traditionalIndirect.instances);
             }
         }
 
@@ -311,25 +316,35 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     "wrong for every pass after the first gap/overlap.");
             }
         }
-        const bool residentLayoutMatches =
-            desc.residency != nullptr &&
-            desc.residency->resident &&
-            desc.residency->layoutVersion == layoutVersion &&
-            desc.residency->instanceCount == sourceInstanceCount;
         const bool activeFrameResidentMatches =
             sceneBuffer_->CanReuseFrame(
                 sourceInstanceCount,
                 layoutVersion,
                 sourceVersion);
+        const bool activeFramePatchable =
+            desc.allowDirtyRangePatching &&
+            source.HasAnyDirtyGpuSceneRanges() &&
+            sceneBuffer_->CanPatchFrame(
+                sourceInstanceCount,
+                layoutVersion,
+                source.dirtyBaseSourceVersion);
 
         if (sourceInstanceCount == 0u) {
             sceneBuffer_->ResetFrame();
             if (desc.residency != nullptr) {
                 desc.residency->Reset();
             }
-        } else if (residentLayoutMatches && activeFrameResidentMatches) {
+        } else if (activeFrameResidentMatches) {
             sceneUploadStats_.reusedResidentFrame = true;
             sceneBuffer_->ReuseFrame(sourceInstanceCount);
+        } else if (activeFramePatchable) {
+            sceneBuffer_->ReuseFrame(sourceInstanceCount);
+            if (PatchDirtySceneRanges(*sceneBuffer_, source)) {
+                sceneUploadStats_.patchedDirtyRanges = true;
+            } else {
+                UploadFullScene(*sceneBuffer_, source);
+                sceneUploadStats_.uploadedFullScene = true;
+            }
         } else {
             UploadFullScene(*sceneBuffer_, source);
             sceneUploadStats_.uploadedFullScene = true;

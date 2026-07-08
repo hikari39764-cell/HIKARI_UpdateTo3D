@@ -72,7 +72,7 @@ namespace HIKARI {
         }
 
         std::string FindArtifactPath(const AssetRecord& record, std::string_view role) {
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (artifact.role == role && !artifact.path.empty()) {
                     return artifact.path;
                 }
@@ -85,7 +85,7 @@ namespace HIKARI {
             std::string_view role,
             std::string_view format) {
 
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
                     return artifact.path;
                 }

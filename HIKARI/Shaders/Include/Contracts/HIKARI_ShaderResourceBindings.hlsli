@@ -1,10 +1,10 @@
-#ifndef HIKARI_SHADER_RESOURCE_BINDINGS_INCLUDED
+﻿#ifndef HIKARI_SHADER_RESOURCE_BINDINGS_INCLUDED
 #define HIKARI_SHADER_RESOURCE_BINDINGS_INCLUDED
 
 // Shader-side view of the global descriptor layout. Keep these values in sync
 // with GFX::DESCRIPTOR in HIKARI_DescriptorHeapLayout.h.
 static const uint HIKARI_SHADER_USER_SRV_COUNT = 3968u;
-static const uint HIKARI_SHADER_SYSTEM_SRV_DYNAMIC_BEGIN = 4001u;
+static const uint HIKARI_SHADER_SYSTEM_SRV_DYNAMIC_BEGIN = 4010u;
 static const uint HIKARI_SHADER_SYSTEM_SRV_DYNAMIC_COUNT = 111u;
 
 // Forward / mesh draw root binding contract.
@@ -28,7 +28,7 @@ static const uint HIKARI_SHADER_REG_T_IBL_PREFILTERED = 10u;
 static const uint HIKARI_SHADER_REG_T_IBL_BRDF_LUT = 11u;
 static const uint HIKARI_SHADER_REG_T_REFLECTION_PROBE_PREFILTERED = 12u;
 static const uint HIKARI_SHADER_REG_T_SSAO = 13u;
-static const uint HIKARI_SHADER_REG_T_LIGHT_PROBE_SH = 14u;
+// t14 (space0) は旧 light probe SH buffer の空き。SH volume は space2 の t0-t8。
 static const uint HIKARI_SHADER_REG_T_OBJECT_DATA = 15u;
 static const uint HIKARI_SHADER_REG_T_MATERIAL_DATA = 16u;
 static const uint HIKARI_SHADER_REG_T_SURFACE_GPU_SCENE = 17u;
@@ -38,6 +38,9 @@ static const uint HIKARI_SHADER_REG_T_MATERIAL_TEXTURE_POOL = 20u;
 
 static const uint HIKARI_SHADER_REG_SPACE_DEFAULT = 0u;
 static const uint HIKARI_SHADER_REG_SPACE_CLUSTER_GEOMETRY = 1u;
+static const uint HIKARI_SHADER_REG_SPACE_LIGHT_PROBE_SH_VOLUME = 2u;
+static const uint HIKARI_SHADER_REG_T_LIGHT_PROBE_SH_VOLUME_FIRST = 0u;
+static const uint HIKARI_SHADER_REG_T_LIGHT_PROBE_SH_VOLUME_COUNT = 9u;
 static const uint HIKARI_SHADER_REG_T_CLUSTER_GEOMETRY_POOL = 0u;
 
 static const uint HIKARI_SHADER_REG_S_LINEAR_WRAP = 0u;

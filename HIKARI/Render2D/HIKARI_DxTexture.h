@@ -26,6 +26,30 @@ namespace HIKARI {
             TextureCube
         };
 
+        struct TextureLoadRequest {
+            std::string name{};
+            std::string path{};
+            TextureColorSpace colorSpace = TextureColorSpace::Auto;
+        };
+
+        struct TextureLoadResult {
+            std::string name{};
+            std::string path{};
+            TextureColorSpace colorSpace = TextureColorSpace::Auto;
+            int handle = -1;
+            bool cacheHit = false;
+            bool loaded = false;
+        };
+
+        struct TextureBatchLoadStats {
+            uint32_t requested = 0;
+            uint32_t cacheHits = 0;
+            uint32_t uploaded = 0;
+            uint32_t fallbackLoads = 0;
+            uint32_t failed = 0;
+            uint64_t uploadedBytes = 0;
+        };
+
         class DxTextureManager {
         public:
             static void Init(const GFX::Context& ctx, int maxTextures = GFX::DESCRIPTOR::kUserSrvCount);
@@ -34,6 +58,9 @@ namespace HIKARI {
 
             static int LoadTexture(const std::string& name, const std::string& path);
             static int LoadTextureWithColorSpace(const std::string& name, const std::string& path, TextureColorSpace colorSpace);
+            static std::vector<TextureLoadResult> LoadTexturesWithColorSpaceBatch(
+                const std::vector<TextureLoadRequest>& requests,
+                TextureBatchLoadStats* outStats = nullptr);
             static int LoadTextureSrgb(const std::string& name, const std::string& path);
             static int LoadTextureLinear(const std::string& name, const std::string& path);
             static int LoadCubemap(const std::string& name, const std::string& path, TextureColorSpace colorSpace = TextureColorSpace::Linear);

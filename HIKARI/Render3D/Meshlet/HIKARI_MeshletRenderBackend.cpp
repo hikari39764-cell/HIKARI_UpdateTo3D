@@ -346,7 +346,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                 rootSignature == nullptr ||
                 amplificationShader == nullptr ||
                 meshShader == nullptr ||
-                pixelShader == nullptr ||
+                (pixelShader == nullptr && hasRenderTarget) ||
                 outPipelineState == nullptr) {
                 return false;
             }
@@ -393,7 +393,11 @@ namespace HIKARI::RENDER3D::MESHLET {
             stream.RootSignature = rootSignature;
             stream.AS = CD3DX12_SHADER_BYTECODE(amplificationShader);
             stream.MS = CD3DX12_SHADER_BYTECODE(meshShader);
-            stream.PS = CD3DX12_SHADER_BYTECODE(pixelShader);
+            const D3D12_SHADER_BYTECODE pixelShaderBytecode =
+                pixelShader != nullptr
+                    ? CD3DX12_SHADER_BYTECODE(pixelShader)
+                    : D3D12_SHADER_BYTECODE{};
+            stream.PS = pixelShaderBytecode;
             stream.BlendState = blend;
             stream.DepthStencilState = depthStencil;
             stream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
@@ -479,7 +483,6 @@ namespace HIKARI::RENDER3D::MESHLET {
         Microsoft::WRL::ComPtr<ID3DBlob> transparentPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> shadowPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
-        Microsoft::WRL::ComPtr<ID3DBlob> depthPrepassPixelShader;
         const bool needsForwardMeshShader =
             IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque);
         const bool needsForwardFxMeshShader =
@@ -573,14 +576,6 @@ namespace HIKARI::RENDER3D::MESHLET {
                 "main",
                 GFX::ShaderStage::Pixel,
                 geometryPixelShader.GetAddressOf())) {
-            return false;
-        }
-        if (IsPipelineRequested(pipelineMask_, MeshletPipelineKind::DepthPrepass) &&
-            !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletDepthPS.hlsl",
-                "main",
-                GFX::ShaderStage::Pixel,
-                depthPrepassPixelShader.GetAddressOf())) {
             return false;
         }
         stats_.shaderCompileReady = true;
@@ -698,7 +693,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     rootSignature,
                     amplificationShader.Get(),
                     depthMeshShader.Get(),
-                    depthPrepassPixelShader.Get(),
+                    nullptr,
                     DXGI_FORMAT_UNKNOWN,
                     CullModeForBucket(bucket),
                     false,

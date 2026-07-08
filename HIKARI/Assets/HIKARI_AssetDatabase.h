@@ -45,12 +45,14 @@ namespace HIKARI {
         const std::filesystem::path& GetProjectRoot() const;
         const std::filesystem::path& GetAssetsRoot() const;
         const std::filesystem::path& GetLibraryRoot() const;
+        const std::filesystem::path& GetSourceMetaRoot() const;
 
         AssetImporterRegistry& GetImporterRegistry();
         const AssetImporterRegistry& GetImporterRegistry() const;
 
         bool ScanAssets(bool createMissingMeta);
         bool ImportAsset(const AssetGuid& guid);
+        AssetImportBatchResult ImportAssets(const std::vector<AssetGuid>& guids);
         AssetImportBatchResult ImportAllOutdated();
         AssetImportBatchResult ImportOutdatedInDirectory(const std::filesystem::path& directory, bool recursive);
         AssetImportBatchResult ImportDependencies(const AssetGuid& guid, bool includeSelf = false);
@@ -71,6 +73,7 @@ namespace HIKARI {
         bool RegenerateMeta(const std::filesystem::path& sourcePath);
 
         std::filesystem::path GetMetaPathForSource(const std::filesystem::path& sourcePath) const;
+        std::filesystem::path GetArtifactManifestPath(const AssetGuid& guid) const;
         std::filesystem::path GetImportedDirectory(const AssetGuid& guid) const;
         ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetRecord& record) const;
         ClusteredGeometryArtifactState GetClusteredGeometryArtifactState(const AssetGuid& guid) const;
@@ -87,6 +90,12 @@ namespace HIKARI {
         void AddDirectoryToCache(const std::filesystem::path& directory);
         void SortAndUniqueDirectories();
         void RefreshRecordState(AssetRecord& record) const;
+        bool ReadArtifactManifest(
+            const std::filesystem::path& manifestPath,
+            AssetArtifactManifest& outManifest) const;
+        bool WriteArtifactManifest(
+            const AssetRecord& record,
+            const AssetImportResult& result) const;
         bool WriteImportReport(const AssetRecord& record, const AssetImportResult& result) const;
 
         std::filesystem::path NormalizeProjectPath(const std::filesystem::path& path) const;
@@ -97,6 +106,7 @@ namespace HIKARI {
         std::filesystem::path assetsRoot_{};
         std::filesystem::path libraryRoot_{};
         std::filesystem::path projectSettingsRoot_{};
+        std::filesystem::path sourceMetaRoot_{};
 
         AssetImporterRegistry importerRegistry_{};
         std::vector<AssetRecord> records_{};

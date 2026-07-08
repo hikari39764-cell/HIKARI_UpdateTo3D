@@ -45,7 +45,6 @@ namespace HIKARI {
                 { "brdfLutSize", 256 },
                 { "brdfSampleCount", 1024 },
                 { "outputFormat", "DDS" },
-                { "futureOutputFormat", "HTEX" },
             };
         }
 

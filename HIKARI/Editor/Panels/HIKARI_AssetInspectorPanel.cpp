@@ -254,7 +254,7 @@ namespace HIKARI {
             dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
 
             if (dirty) {
-                settings["futureMeshFormat"] = "HCMESH";
+                settings["meshFormat"] = "HCMESH";
             }
             return dirty;
         }
@@ -758,7 +758,7 @@ namespace HIKARI {
             }
 
             if (ImGui::BeginTabItem("Artifacts")) {
-                if (record->meta.artifacts.empty()) {
+                if (record->artifactManifest.artifacts.empty()) {
                     ImGui::TextDisabled("No artifacts");
                 } else if (ImGui::BeginTable("AssetArtifactsTable", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
                     ImGui::TableSetupColumn("Role");
@@ -767,7 +767,7 @@ namespace HIKARI {
                     ImGui::TableSetupColumn("Path");
                     ImGui::TableHeadersRow();
 
-                    for (const AssetArtifactDesc& artifact : record->meta.artifacts) {
+                    for (const AssetArtifactDesc& artifact : record->artifactManifest.artifacts) {
                         const std::filesystem::path artifactPath = assetDatabase.GetProjectRoot() / artifact.path;
                         const bool exists = std::filesystem::exists(artifactPath);
 
@@ -797,7 +797,7 @@ namespace HIKARI {
             }
 
             if (ImGui::BeginTabItem("Dependencies")) {
-                if (record->meta.dependencies.empty()) {
+                if (record->artifactManifest.dependencies.empty()) {
                     ImGui::TextDisabled("No dependencies");
                 } else if (ImGui::BeginTable("AssetDependenciesTable", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
                     ImGui::TableSetupColumn("Role");
@@ -806,7 +806,7 @@ namespace HIKARI {
                     ImGui::TableSetupColumn("Path");
                     ImGui::TableHeadersRow();
 
-                    for (const AssetDependencyDesc& dependency : record->meta.dependencies) {
+                    for (const AssetDependencyDesc& dependency : record->artifactManifest.dependencies) {
                         const bool resolved = dependency.guid.IsValid()
                             ? assetDatabase.FindByGuid(dependency.guid) != nullptr
                             : !dependency.path.empty() && std::filesystem::exists(assetDatabase.GetProjectRoot() / dependency.path);
@@ -824,7 +824,7 @@ namespace HIKARI {
 
                     ImGui::EndTable();
                 }
-                if (!record->meta.dependencies.empty()) {
+                if (!record->artifactManifest.dependencies.empty()) {
                     if (ImGui::Button("Import Dependencies")) {
                         assetDatabase.ImportDependencies(record->guid, false);
                     }
@@ -834,15 +834,15 @@ namespace HIKARI {
 
             if (ImGui::BeginTabItem("Preview")) {
                 if (record->type == AssetType::Texture) {
-                    if (record->meta.artifacts.empty()) {
+                    if (record->artifactManifest.artifacts.empty()) {
                         ImGui::TextDisabled("Texture preview waits for an imported DDS artifact");
                     } else {
-                        ImGui::Text("Texture artifact: %s", record->meta.artifacts.front().path.c_str());
+                        ImGui::Text("Texture artifact: %s", record->artifactManifest.artifacts.front().path.c_str());
                         ImGui::TextDisabled("SRV preview loading is reserved for the texture preview pass");
                     }
                 } else if (record->type == AssetType::Sky) {
                     ImGui::TextDisabled("Cubemap face/equirect preview is reserved for the sky preview pass");
-                    for (const AssetArtifactDesc& artifact : record->meta.artifacts) {
+                    for (const AssetArtifactDesc& artifact : record->artifactManifest.artifacts) {
                         if (artifact.role == "SkyCubemap") {
                             ImGui::Text("Sky cubemap: %s", artifact.path.c_str());
                         }

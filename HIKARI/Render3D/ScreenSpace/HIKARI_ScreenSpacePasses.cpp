@@ -315,10 +315,18 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 DEPTH::DepthPyramidViewKind::History);
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                 historyDepthStats);
+        } else if (historyDepthPyramidReady) {
+            // History pyramid は健在だが視点が動いて許容差を超えたフレーム。
+            // カメラ移動中は毎フレームここに来るため、occluder prepass の再構築
+            // (full depth 描画 + pyramid build) は高くつく。frustum のみに落とし、
+            // ピクセル過描画は scene depth prepass に任せる。
+            ClearFrozenCullingDepthStats(state);
+            state.depthVisibilityValid = false;
+            state.depthVisibilityViewProjValid = false;
+            (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
         } else {
-            // History pyramid が視点変化や resize で使えないフレーム。
-            // 以前はここで遮蔽剔除なしに落としていたが、occluder prepass から
-            // 当該フレームの pyramid を作って剔除を維持する。
+            // Pyramid が構造的に無い (初回 / resize 直後)。occluder prepass から
+            // 当該フレームの pyramid を作って遮蔽剔除を確保する。
             ClearFrozenCullingDepthStats(state);
             (void)BuildDepthVisibilityFromOccluderPrepass(
                 state,

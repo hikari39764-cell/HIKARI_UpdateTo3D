@@ -1,0 +1,23 @@
+{
+  "displayName": "sky2",
+  "guid": "a4459d9c11866780cab36ef4c3094ea2",
+  "importSettings": {
+    "autoBakeIBL": true,
+    "brdfLutSize": 256,
+    "brdfSampleCount": 1024,
+    "colorSpace": "Linear",
+    "copySkyCubemap": true,
+    "irradianceSampleCount": 256,
+    "irradianceSize": 64,
+    "outputFormat": "DDS",
+    "prefilteredMipCount": 7,
+    "prefilteredSampleCount": 1024,
+    "prefilteredSize": 256,
+    "sourceDimension": "TextureCube"
+  },
+  "importerId": "SkyCubemapImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Skies/sky2.dds",
+  "type": "Sky"
+}

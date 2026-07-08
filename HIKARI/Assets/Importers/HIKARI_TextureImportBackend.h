@@ -23,6 +23,13 @@ namespace HIKARI {
             const std::filesystem::path& outputPath,
             const TextureImportSettings& settings,
             std::string& outMessage) = 0;
+
+        virtual bool ConvertToHtexAndDds(
+            const std::filesystem::path& sourcePath,
+            const std::filesystem::path& htexOutputPath,
+            const std::filesystem::path& debugDdsOutputPath,
+            const TextureImportSettings& settings,
+            std::string& outMessage) = 0;
     };
 
 } // namespace HIKARI

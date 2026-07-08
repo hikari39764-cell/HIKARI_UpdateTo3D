@@ -386,6 +386,9 @@ namespace HIKARI::MESHRENDERER {
         size_t surfaceGpuSceneUploadedInstanceCount = 0;
         size_t surfaceGpuSceneCommittedInstanceCount = 0;
         size_t surfaceGpuSceneCommittedBytes = 0;
+        size_t surfaceGpuSceneFullUploadCount = 0;
+        size_t surfaceGpuSceneDirtyPatchCount = 0;
+        size_t surfaceGpuSceneReuseCount = 0;
         size_t surfaceGpuSceneOverflowInstanceCount = 0;
         size_t surfaceGpuSceneUploadCallCount = 0;
         size_t surfaceGpuSceneMaterialPatchCount = 0;

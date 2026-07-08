@@ -1,11 +1,15 @@
 #include "HIKARI_AssetDatabase.h"
 
+#include <Windows.h>
+
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <unordered_set>
 
 #include <json.hpp>
@@ -23,6 +27,29 @@
 namespace HIKARI {
 
     namespace {
+        constexpr std::string_view kSourceMetaSuffix = ".hikari.asset.json";
+        constexpr uint32_t kArtifactManifestVersion = 1;
+
+        class ScopedComInitialization {
+        public:
+            ScopedComInitialization() {
+                const HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+                initialized_ = SUCCEEDED(hr);
+            }
+
+            ~ScopedComInitialization() {
+                if (initialized_) {
+                    CoUninitialize();
+                }
+            }
+
+            ScopedComInitialization(const ScopedComInitialization&) = delete;
+            ScopedComInitialization& operator=(const ScopedComInitialization&) = delete;
+
+        private:
+            bool initialized_ = false;
+        };
+
         std::string ToLowerCopy(std::string value) {
             std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
                 return static_cast<char>(std::tolower(c));
@@ -45,18 +72,20 @@ namespace HIKARI {
         }
 
         bool IsMetaPath(const std::filesystem::path& path) {
-            return EndsWith(ToLowerCopy(path.filename().string()), ".hikari.meta");
+            return EndsWith(ToLowerCopy(path.filename().string()), kSourceMetaSuffix);
         }
 
-        std::filesystem::path SourcePathFromMetaPath(const std::filesystem::path& metaPath) {
-            constexpr std::string_view kMetaSuffix = ".hikari.meta";
-            std::string filename = metaPath.filename().string();
-            if (!EndsWith(ToLowerCopy(filename), kMetaSuffix)) {
+        std::filesystem::path MakeSourceMetaPath(
+            const std::filesystem::path& sourceMetaRoot,
+            const std::filesystem::path& relativeSource) {
+
+            if (sourceMetaRoot.empty() || relativeSource.empty()) {
                 return {};
             }
 
-            filename.resize(filename.size() - kMetaSuffix.size());
-            return metaPath.parent_path() / filename;
+            std::filesystem::path metaPath = sourceMetaRoot / relativeSource.parent_path();
+            metaPath /= relativeSource.filename().string() + std::string(kSourceMetaSuffix);
+            return metaPath.lexically_normal();
         }
 
         bool IsSkyFolderPath(const std::filesystem::path& path) {
@@ -221,7 +250,7 @@ namespace HIKARI {
             std::string_view role,
             std::string_view format) {
 
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
                     return true;
                 }
@@ -234,7 +263,7 @@ namespace HIKARI {
             std::string_view role,
             std::string_view format) {
 
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
                     return &artifact;
                 }
@@ -252,14 +281,38 @@ namespace HIKARI {
                 settings = nlohmann::json::object();
             }
 
-            const bool legacyFutureHmat =
-                !settings.contains("outputFormat") &&
-                settings.value("futureOutputFormat", std::string{}) == "HMAT";
-            const bool cookMaterial = legacyFutureHmat
-                ? true
-                : settings.value("cookMaterial", true);
+            const bool cookMaterial = settings.value("cookMaterial", true);
             const std::string outputFormat = settings.value("outputFormat", std::string("HMAT"));
             return cookMaterial && outputFormat == "HMAT";
+        }
+
+        int ImportPriority(AssetType type) {
+            switch (type) {
+            case AssetType::Texture:
+                return 0;
+            case AssetType::Sky:
+                return 1;
+            case AssetType::Material:
+                return 2;
+            case AssetType::VfxEffect:
+                return 3;
+            case AssetType::Model:
+                return 4;
+            case AssetType::Scene:
+                return 5;
+            default:
+                return 6;
+            }
+        }
+
+        uint32_t ResolveTextureImportWorkerCount(size_t textureCount) {
+            if (textureCount <= 1) {
+                return 1;
+            }
+
+            const uint32_t hardware = std::thread::hardware_concurrency();
+            const uint32_t budget = hardware > 2 ? hardware - 1 : 1;
+            return (std::max)(1u, (std::min)(budget, (std::min)(4u, static_cast<uint32_t>(textureCount))));
         }
     }
 
@@ -274,9 +327,23 @@ namespace HIKARI {
             projectRoot_ = root.lexically_normal();
         }
 
-        assetsRoot_ = projectRoot_ / "Assets";
-        libraryRoot_ = projectRoot_ / "Library";
         projectSettingsRoot_ = projectRoot_ / "ProjectSettings";
+
+        nlohmann::json pipelineSettings{};
+        const std::filesystem::path settingsPath = projectSettingsRoot_ / "asset_pipeline.json";
+        (void)ReadJsonFile(settingsPath, pipelineSettings);
+
+        const auto resolvePipelinePath =
+            [this, &pipelineSettings](const char* key, const char* fallback) {
+                const std::string value = pipelineSettings.is_object()
+                    ? pipelineSettings.value(key, std::string(fallback))
+                    : std::string(fallback);
+                return ResolveProjectPath(projectRoot_, value);
+            };
+
+        assetsRoot_ = resolvePipelinePath("assetsRoot", "Assets");
+        libraryRoot_ = resolvePipelinePath("libraryRoot", "Library");
+        sourceMetaRoot_ = resolvePipelinePath("sourceMetaRoot", "ProjectSettings/AssetMeta");
 
         RegisterDefaultImporters();
         EnsureProjectDirectories();
@@ -293,6 +360,10 @@ namespace HIKARI {
 
     const std::filesystem::path& AssetDatabase::GetLibraryRoot() const {
         return libraryRoot_;
+    }
+
+    const std::filesystem::path& AssetDatabase::GetSourceMetaRoot() const {
+        return sourceMetaRoot_;
     }
 
     AssetImporterRegistry& AssetDatabase::GetImporterRegistry() {
@@ -380,11 +451,6 @@ namespace HIKARI {
 
             const std::filesystem::path& absoluteSource = entry.path();
             if (IsMetaPath(absoluteSource)) {
-                const std::filesystem::path metaSourcePath = SourcePathFromMetaPath(absoluteSource);
-                std::error_code sourceEc{};
-                if (!metaSourcePath.empty() && !std::filesystem::exists(metaSourcePath, sourceEc) && !sourceEc) {
-                    appendRecordForSource(metaSourcePath, false);
-                }
                 continue;
             }
 
@@ -435,6 +501,7 @@ namespace HIKARI {
         context.projectRoot = projectRoot_;
         context.assetsRoot = assetsRoot_;
         context.libraryRoot = libraryRoot_;
+        context.sourceMetaRoot = sourceMetaRoot_;
         context.importedDirectory = GetImportedDirectory(record->guid);
 
         std::error_code ec{};
@@ -465,11 +532,22 @@ namespace HIKARI {
             record->meta.displayName = record->displayName.empty()
                 ? record->sourcePath.stem().string()
                 : record->displayName;
-            record->meta.artifacts = result.artifacts;
-            record->meta.dependencies = result.dependencies;
+            record->artifactManifest.manifestVersion = kArtifactManifestVersion;
+            record->artifactManifest.guid = record->guid;
+            record->artifactManifest.sourcePath = record->sourcePath.generic_string();
+            record->artifactManifest.importerId = record->meta.importerId;
+            record->artifactManifest.importerVersion = record->meta.importerVersion;
+            record->artifactManifest.lastImportSucceeded = true;
+            record->artifactManifest.lastImportMessage = result.message;
+            record->artifactManifest.diagnosticsJson = result.diagnosticsJson;
+            record->artifactManifest.artifacts = result.artifacts;
+            record->artifactManifest.dependencies = result.dependencies;
             if (!WriteMeta(*record)) {
                 result.success = false;
                 result.message = "[AssetDatabase] import succeeded but meta write failed";
+            } else if (!WriteArtifactManifest(*record, result)) {
+                result.success = false;
+                result.message = "[AssetDatabase] import succeeded but artifact manifest write failed";
             }
         }
 
@@ -478,8 +556,122 @@ namespace HIKARI {
         return result.success;
     }
 
-    AssetImportBatchResult AssetDatabase::ImportAllOutdated() {
+    AssetImportBatchResult AssetDatabase::ImportAssets(const std::vector<AssetGuid>& guids) {
         AssetImportBatchResult batch{};
+        std::vector<AssetGuid> textureGuids;
+        std::vector<AssetGuid> orderedGuids;
+        std::unordered_set<std::string> visited;
+
+        orderedGuids.reserve(guids.size());
+        textureGuids.reserve(guids.size());
+        for (const AssetGuid& guid : guids) {
+            if (!guid.IsValid() || !visited.insert(guid.value).second) {
+                continue;
+            }
+
+            const AssetRecord* record = FindByGuid(guid);
+            if (!record ||
+                record->duplicateGuid ||
+                !record->sourceExists ||
+                record->importerMissing ||
+                !record->guid.IsValid()) {
+                ++batch.failed;
+                continue;
+            }
+
+            orderedGuids.push_back(guid);
+        }
+
+        std::stable_sort(orderedGuids.begin(), orderedGuids.end(), [this](const AssetGuid& lhs, const AssetGuid& rhs) {
+            const AssetRecord* lhsRecord = FindByGuid(lhs);
+            const AssetRecord* rhsRecord = FindByGuid(rhs);
+            const int lhsPriority = lhsRecord ? ImportPriority(lhsRecord->type) : 100;
+            const int rhsPriority = rhsRecord ? ImportPriority(rhsRecord->type) : 100;
+            return lhsPriority < rhsPriority;
+        });
+
+        std::vector<AssetGuid> serialGuids;
+        serialGuids.reserve(orderedGuids.size());
+        for (const AssetGuid& guid : orderedGuids) {
+            const AssetRecord* record = FindByGuid(guid);
+            if (record && record->type == AssetType::Texture) {
+                textureGuids.push_back(guid);
+            } else {
+                serialGuids.push_back(guid);
+            }
+        }
+
+        const auto importOne = [this](const AssetGuid& guid) {
+            return ImportAsset(guid);
+        };
+
+        const uint32_t workerCount = ResolveTextureImportWorkerCount(textureGuids.size());
+        if (workerCount <= 1) {
+            for (const AssetGuid& guid : textureGuids) {
+                ++batch.attempted;
+                if (importOne(guid)) {
+                    ++batch.succeeded;
+                } else {
+                    ++batch.failed;
+                }
+            }
+        } else {
+            HIKARI_LOG_INFO("[AssetDatabase] parallel texture import start. count=" +
+                std::to_string(textureGuids.size()) +
+                " workers=" +
+                std::to_string(workerCount));
+
+            std::atomic<size_t> nextIndex{ 0 };
+            std::atomic<int> attempted{ 0 };
+            std::atomic<int> succeeded{ 0 };
+            std::atomic<int> failed{ 0 };
+            std::vector<std::thread> workers;
+            workers.reserve(workerCount);
+
+            for (uint32_t worker = 0; worker < workerCount; ++worker) {
+                workers.emplace_back([&, worker]() {
+                    (void)worker;
+                    const ScopedComInitialization comInitialization{};
+                    for (;;) {
+                        const size_t index = nextIndex.fetch_add(1);
+                        if (index >= textureGuids.size()) {
+                            break;
+                        }
+
+                        attempted.fetch_add(1);
+                        if (importOne(textureGuids[index])) {
+                            succeeded.fetch_add(1);
+                        } else {
+                            failed.fetch_add(1);
+                        }
+                    }
+                });
+            }
+
+            for (std::thread& worker : workers) {
+                if (worker.joinable()) {
+                    worker.join();
+                }
+            }
+
+            batch.attempted += attempted.load();
+            batch.succeeded += succeeded.load();
+            batch.failed += failed.load();
+        }
+
+        for (const AssetGuid& guid : serialGuids) {
+            ++batch.attempted;
+            if (importOne(guid)) {
+                ++batch.succeeded;
+            } else {
+                ++batch.failed;
+            }
+        }
+
+        return batch;
+    }
+
+    AssetImportBatchResult AssetDatabase::ImportAllOutdated() {
         std::vector<AssetGuid> importGuids;
         importGuids.reserve(records_.size());
 
@@ -494,23 +686,13 @@ namespace HIKARI {
             importGuids.push_back(record.guid);
         }
 
-        for (const AssetGuid& guid : importGuids) {
-            ++batch.attempted;
-            if (ImportAsset(guid)) {
-                ++batch.succeeded;
-            } else {
-                ++batch.failed;
-            }
-        }
-
-        return batch;
+        return ImportAssets(importGuids);
     }
 
     AssetImportBatchResult AssetDatabase::ImportOutdatedInDirectory(
         const std::filesystem::path& directory,
         bool recursive) {
 
-        AssetImportBatchResult batch{};
         std::vector<AssetGuid> importGuids;
 
         const std::vector<const AssetRecord*> records = CollectInDirectory(directory, recursive);
@@ -527,16 +709,7 @@ namespace HIKARI {
             importGuids.push_back(record->guid);
         }
 
-        for (const AssetGuid& guid : importGuids) {
-            ++batch.attempted;
-            if (ImportAsset(guid)) {
-                ++batch.succeeded;
-            } else {
-                ++batch.failed;
-            }
-        }
-
-        return batch;
+        return ImportAssets(importGuids);
     }
 
     AssetImportBatchResult AssetDatabase::ImportDependencies(const AssetGuid& guid, bool includeSelf) {
@@ -549,7 +722,7 @@ namespace HIKARI {
 
         std::vector<AssetGuid> importGuids;
         std::unordered_set<std::string> visited;
-        importGuids.reserve(rootRecord->meta.dependencies.size() + (includeSelf ? 1u : 0u));
+        importGuids.reserve(rootRecord->artifactManifest.dependencies.size() + (includeSelf ? 1u : 0u));
 
         auto queueGuid = [&](const AssetGuid& candidateGuid) {
             if (!candidateGuid.IsValid() || !visited.insert(candidateGuid.value).second) {
@@ -558,7 +731,7 @@ namespace HIKARI {
             importGuids.push_back(candidateGuid);
         };
 
-        for (const AssetDependencyDesc& dependency : rootRecord->meta.dependencies) {
+        for (const AssetDependencyDesc& dependency : rootRecord->artifactManifest.dependencies) {
             if (dependency.guid.IsValid()) {
                 queueGuid(dependency.guid);
                 continue;
@@ -693,8 +866,6 @@ namespace HIKARI {
             { "sourcePath", record.meta.sourcePath },
             { "displayName", record.meta.displayName },
             { "importSettings", settings },
-            { "dependencies", SerializeDependencies(record.meta.dependencies) },
-            { "artifacts", SerializeArtifacts(record.meta.artifacts) },
         };
 
         std::ofstream ofs(record.metaPath);
@@ -728,8 +899,6 @@ namespace HIKARI {
         } else {
             outMeta.importSettingsJson = "{}";
         }
-        ParseDependencies(root, outMeta.dependencies);
-        ParseArtifacts(root, outMeta.artifacts);
         return true;
     }
 
@@ -779,8 +948,14 @@ namespace HIKARI {
 
     std::filesystem::path AssetDatabase::GetMetaPathForSource(const std::filesystem::path& sourcePath) const {
         const std::filesystem::path relativeSource = NormalizeProjectPath(sourcePath);
-        const std::filesystem::path absoluteSource = ResolveProjectPath(projectRoot_, relativeSource);
-        return absoluteSource.parent_path() / (absoluteSource.filename().string() + ".hikari.meta");
+        return MakeSourceMetaPath(sourceMetaRoot_, relativeSource);
+    }
+
+    std::filesystem::path AssetDatabase::GetArtifactManifestPath(const AssetGuid& guid) const {
+        if (!guid.IsValid()) {
+            return {};
+        }
+        return libraryRoot_ / "AssetDatabase" / "Artifacts" / (guid.value + ".artifact.json");
     }
 
     std::filesystem::path AssetDatabase::GetImportedDirectory(const AssetGuid& guid) const {
@@ -803,7 +978,7 @@ namespace HIKARI {
         const AssetArtifactDesc* artifact = FindArtifactByRoleAndFormat(record, "ClusteredGeometry", "HCMESH");
         if (artifact == nullptr) {
             info.state = ClusteredGeometryArtifactState::Missing;
-            info.message = "HCMESH artifact is not recorded in meta";
+            info.message = "HCMESH artifact is not recorded in artifact manifest";
             return info;
         }
 
@@ -939,6 +1114,10 @@ namespace HIKARI {
         }
         if (record.guid.IsValid()) {
             record.importedDirectory = GetImportedDirectory(record.guid);
+            record.artifactManifestPath = GetArtifactManifestPath(record.guid);
+            if (std::filesystem::exists(record.artifactManifestPath)) {
+                ReadArtifactManifest(record.artifactManifestPath, record.artifactManifest);
+            }
         }
 
         RefreshRecordState(record);
@@ -1023,8 +1202,10 @@ namespace HIKARI {
             libraryRoot_ / "Imported",
             libraryRoot_ / "Thumbnails",
             libraryRoot_ / "AssetDatabase",
+            libraryRoot_ / "AssetDatabase" / "Artifacts",
             libraryRoot_ / "ShaderCache",
             projectSettingsRoot_,
+            sourceMetaRoot_,
         };
 
         for (const std::filesystem::path& root : roots) {
@@ -1042,6 +1223,7 @@ namespace HIKARI {
                 { "thumbnailRoot", "Library/Thumbnails" },
                 { "assetDatabaseRoot", "Library/AssetDatabase" },
                 { "shaderCacheRoot", "Library/ShaderCache" },
+                { "sourceMetaRoot", "ProjectSettings/AssetMeta" },
             };
 
             std::ofstream ofs(settingsPath);
@@ -1082,12 +1264,13 @@ namespace HIKARI {
 
         if (record.guid.IsValid()) {
             record.importedDirectory = GetImportedDirectory(record.guid);
+            record.artifactManifestPath = GetArtifactManifestPath(record.guid);
         }
 
         bool artifactMissing = false;
         std::filesystem::file_time_type oldestArtifactTime{};
         bool hasArtifactTime = false;
-        for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+        for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
             const std::filesystem::path artifactPath = ResolveProjectPath(projectRoot_, artifact.path);
             if (!std::filesystem::exists(artifactPath)) {
                 artifactMissing = true;
@@ -1112,9 +1295,9 @@ namespace HIKARI {
 
         const IAssetImporter* importer = importerRegistry_.FindById(record.meta.importerId);
         const bool importerVersionOutdated = importer && record.meta.importerVersion != importer->GetImporterVersion();
-        const bool textureNeedsArtifact = record.type == AssetType::Texture && record.meta.artifacts.empty();
-        const bool modelNeedsArtifact = record.type == AssetType::Model && record.meta.artifacts.empty();
-        const bool skyNeedsArtifact = record.type == AssetType::Sky && record.meta.artifacts.empty();
+        const bool textureNeedsArtifact = record.type == AssetType::Texture && record.artifactManifest.artifacts.empty();
+        const bool modelNeedsArtifact = record.type == AssetType::Model && record.artifactManifest.artifacts.empty();
+        const bool skyNeedsArtifact = record.type == AssetType::Sky && record.artifactManifest.artifacts.empty();
         // Material の cook 設定が有効な場合は artifact 欠落も outdated として扱う。
         const bool materialNeedsArtifact =
             IsMaterialHmatCookEnabled(record) &&
@@ -1136,6 +1319,89 @@ namespace HIKARI {
         }
     }
 
+    bool AssetDatabase::ReadArtifactManifest(
+        const std::filesystem::path& manifestPath,
+        AssetArtifactManifest& outManifest) const {
+
+        const std::filesystem::path absoluteManifestPath = ResolveProjectPath(projectRoot_, manifestPath);
+
+        nlohmann::json root;
+        if (!ReadJsonFile(absoluteManifestPath, root)) {
+            return false;
+        }
+
+        const uint32_t manifestVersion = root.value("manifestVersion", 0u);
+        if (manifestVersion != kArtifactManifestVersion) {
+            HIKARI_LOG_WARN("[AssetDatabase] unsupported artifact manifest version: " +
+                absoluteManifestPath.generic_string());
+            return false;
+        }
+
+        outManifest = AssetArtifactManifest{};
+        outManifest.manifestVersion = manifestVersion;
+        outManifest.guid.value = root.value("guid", "");
+        outManifest.sourcePath = root.value("sourcePath", "");
+        outManifest.importerId = root.value("importerId", "");
+        outManifest.importerVersion = root.value("importerVersion", 1u);
+        outManifest.lastImportSucceeded = root.value("success", false);
+        outManifest.lastImportMessage = root.value("message", "");
+        if (root.contains("diagnostics") && root["diagnostics"].is_object()) {
+            outManifest.diagnosticsJson = root["diagnostics"].dump(2);
+        } else {
+            outManifest.diagnosticsJson = root.value("diagnosticsText", "");
+        }
+        ParseDependencies(root, outManifest.dependencies);
+        ParseArtifacts(root, outManifest.artifacts);
+        return true;
+    }
+
+    bool AssetDatabase::WriteArtifactManifest(
+        const AssetRecord& record,
+        const AssetImportResult& result) const {
+
+        if (record.artifactManifestPath.empty()) {
+            return false;
+        }
+
+        std::error_code ec{};
+        std::filesystem::create_directories(record.artifactManifestPath.parent_path(), ec);
+        if (ec) {
+            HIKARI_LOG_ERROR("[AssetDatabase] failed to create artifact manifest directory: " +
+                record.artifactManifestPath.parent_path().generic_string());
+            return false;
+        }
+
+        nlohmann::json root{
+            { "manifestVersion", kArtifactManifestVersion },
+            { "guid", record.guid.value },
+            { "sourcePath", record.sourcePath.generic_string() },
+            { "importerId", record.meta.importerId },
+            { "importerVersion", record.meta.importerVersion },
+            { "success", result.success },
+            { "message", result.message },
+            { "dependencies", SerializeDependencies(result.dependencies) },
+            { "artifacts", SerializeArtifacts(result.artifacts) },
+        };
+
+        if (!result.diagnosticsJson.empty()) {
+            nlohmann::json diagnostics = nlohmann::json::parse(result.diagnosticsJson, nullptr, false);
+            if (diagnostics.is_discarded()) {
+                root["diagnosticsText"] = result.diagnosticsJson;
+            } else {
+                root["diagnostics"] = std::move(diagnostics);
+            }
+        }
+
+        std::ofstream ofs(record.artifactManifestPath);
+        if (!ofs.is_open()) {
+            HIKARI_LOG_ERROR("[AssetDatabase] failed to write artifact manifest: " +
+                record.artifactManifestPath.generic_string());
+            return false;
+        }
+        ofs << root.dump(2) << '\n';
+        return true;
+    }
+
     bool AssetDatabase::WriteImportReport(const AssetRecord& record, const AssetImportResult& result) const {
         if (record.importedDirectory.empty()) {
             return false;
@@ -1155,8 +1421,8 @@ namespace HIKARI {
             { "importerVersion", record.meta.importerVersion },
             { "success", result.success },
             { "message", result.message },
-            { "artifacts", SerializeArtifacts(result.success ? result.artifacts : record.meta.artifacts) },
-            { "dependencies", SerializeDependencies(result.success ? result.dependencies : record.meta.dependencies) },
+            { "artifacts", SerializeArtifacts(result.success ? result.artifacts : record.artifactManifest.artifacts) },
+            { "dependencies", SerializeDependencies(result.success ? result.dependencies : record.artifactManifest.dependencies) },
         };
 
         if (!result.diagnosticsJson.empty()) {

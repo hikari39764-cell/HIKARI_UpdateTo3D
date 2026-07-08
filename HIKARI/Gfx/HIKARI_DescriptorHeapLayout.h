@@ -8,7 +8,10 @@
 namespace HIKARI::GFX::DESCRIPTOR {
 
     constexpr UINT kUserSrvCount = 3968;
-    constexpr UINT kSystemSrvFixedCount = 33;
+    constexpr UINT kSystemSrvFixedCount = 42;
+    // Light probe volume の SH 係数 Texture3D。descriptor table として一括
+    // バインドするため 9 スロットは必ず連続で確保する。
+    constexpr UINT kLightProbeShVolumeTextureCount = 9;
     constexpr UINT kSystemSrvDynamicCount = 111;
     constexpr UINT kDepthPyramidTransientDescriptorCount = 384;
     constexpr UINT kSystemSrvAuxUsedCount = kDepthPyramidTransientDescriptorCount + 1;
@@ -32,7 +35,7 @@ namespace HIKARI::GFX::DESCRIPTOR {
         SsaoRaw = kSystemSrvBegin + 8,
         SsaoBlurred = kSystemSrvBegin + 9,
         SsaoResolved = kSystemSrvBegin + 10,
-        LightProbeSh = kSystemSrvBegin + 11,
+        // +11 は旧 LightProbeSh (StructuredBuffer) の空きスロット。
         MeshObjectData = kSystemSrvBegin + 12,
         MeshMaterialData = kSystemSrvBegin + 13,
         MeshSurfaceGpuScene = kSystemSrvBegin + 14,
@@ -55,6 +58,17 @@ namespace HIKARI::GFX::DESCRIPTOR {
         ShadowMaterialDataFrame0 = kSystemSrvBegin + 30,
         ShadowMaterialDataFrame1 = kSystemSrvBegin + 31,
         ShadowMaterialDataFrame2 = kSystemSrvBegin + 32,
+
+        // SH 係数 Texture3D ×9 (連続必須、descriptor table で一括バインド)。
+        LightProbeShVolume0 = kSystemSrvBegin + 33,
+        LightProbeShVolume1 = kSystemSrvBegin + 34,
+        LightProbeShVolume2 = kSystemSrvBegin + 35,
+        LightProbeShVolume3 = kSystemSrvBegin + 36,
+        LightProbeShVolume4 = kSystemSrvBegin + 37,
+        LightProbeShVolume5 = kSystemSrvBegin + 38,
+        LightProbeShVolume6 = kSystemSrvBegin + 39,
+        LightProbeShVolume7 = kSystemSrvBegin + 40,
+        LightProbeShVolume8 = kSystemSrvBegin + 41,
     };
 
     constexpr UINT kSystemSrvUsedCount = kSystemSrvFixedCount;
@@ -115,9 +129,11 @@ namespace HIKARI::GFX::DESCRIPTOR {
         kSystemSrvReservedCount >=
         kSystemSrvUsedCount + kSystemSrvDynamicCount + kSystemSrvAuxUsedCount);
     static_assert(kUserSrvCount == 3968);
-    static_assert(kSystemSrvDynamicBegin == 4001);
+    // 絶対 index は HLSL 側 HIKARI_ShaderResourceBindings.hlsli の
+    // HIKARI_SHADER_SYSTEM_SRV_DYNAMIC_BEGIN と同期させること。
+    static_assert(kSystemSrvDynamicBegin == 4010);
     static_assert(kSystemSrvDynamicCount == 111);
-    static_assert(kSystemSrvAuxBegin == 4112);
+    static_assert(kSystemSrvAuxBegin == 4121);
     static_assert(kSystemSrvBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin < kSrvHeapCapacity);
     static_assert(kSystemSrvDynamicBegin + kSystemSrvDynamicCount <= kSrvHeapCapacity);
@@ -137,7 +153,6 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::SsaoRaw) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SsaoBlurred) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::SsaoResolved) < kSrvHeapCapacity);
-    static_assert(ToIndex(SystemSrv::LightProbeSh) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshObjectData) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshMaterialData) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::MeshSurfaceGpuScene) < kSrvHeapCapacity);
@@ -154,5 +169,10 @@ namespace HIKARI::GFX::DESCRIPTOR {
     static_assert(ToIndex(SystemSrv::ShadowSurfaceGpuSceneFrame2) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::ShadowMaterialDataFrame0) < kSrvHeapCapacity);
     static_assert(ToIndex(SystemSrv::ShadowMaterialDataFrame2) < kSrvHeapCapacity);
+    static_assert(
+        ToIndex(SystemSrv::LightProbeShVolume8) ==
+        ToIndex(SystemSrv::LightProbeShVolume0) + kLightProbeShVolumeTextureCount - 1,
+        "SH volume texture slots must stay contiguous for the descriptor table");
+    static_assert(ToIndex(SystemSrv::LightProbeShVolume8) < kSystemSrvBegin + kSystemSrvFixedCount);
 
 } // namespace HIKARI::GFX::DESCRIPTOR

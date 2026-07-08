@@ -28,7 +28,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t kClusterCullMergeMaxIndexSpan = 32768u;
         // クラスタ間の空白をまたぐ結合は過剰描画になりやすいので、正式なcompactまで無効化する。
         constexpr uint32_t kClusterCullMergeClusterGapLimit = 3u;
-        constexpr float kClusterCullLodTargetErrorNdc = 0.0100f;
+        constexpr float kClusterCullLodTargetErrorNdc = 0.0160f;
         constexpr uint32_t kClusterCullPageTaskGroupSize = 4u;
         constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 4u;
         constexpr DXGI_FORMAT kClusterCullHzbFallbackFormat = DXGI_FORMAT_R32_FLOAT;
@@ -38,7 +38,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr size_t kClusterCullOcclusionHistoryMinCapacity = 65536u;
         constexpr size_t kClusterCullOcclusionHistoryMaxCapacity = 1048576u;
         constexpr size_t kClusterCullOcclusionHistoryEntryBytes = sizeof(uint32_t) * 2u;
-        constexpr uint32_t kClusterCullHzbOcclusionConfirmFrames = 2u;
+        constexpr uint32_t kClusterCullHzbOcclusionConfirmFrames = 1u;
         constexpr size_t kClusterCullVisibleClusterListCapacityMultiplier = 64u;
 
         uint64_t CurrentRetireFenceValue() {

@@ -1,0 +1,397 @@
+{
+  "environment": {
+    "ambient": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "intensity": 0.8899999856948853,
+      "skyBlend": 1.0,
+      "useSkyColor": true
+    },
+    "ambientOcclusion": {
+      "bias": 0.19499999284744263,
+      "blurIterations": 4,
+      "diffuseStrength": 1.0,
+      "enabled": true,
+      "mode": "Balanced",
+      "power": 1.7000000476837158,
+      "radius": 2.059999942779541,
+      "sampleCount": 32,
+      "specularStrength": 1.0,
+      "strength": 1.590000033378601
+    },
+    "bloom": {
+      "downsampleCount": 5,
+      "enabled": true,
+      "intensity": 0.8700000047683716,
+      "radius": 1.0700000524520874,
+      "threshold": 0.4699999988079071
+    },
+    "directional": {
+      "color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "direction": [
+        0.32444286346435547,
+        -0.8111071586608887,
+        -0.4866642951965332
+      ],
+      "enabled": true,
+      "intensity": 1.2000000476837158
+    },
+    "directionalShadow": {
+      "depthBias": 0.0010000000474974513,
+      "enabled": true,
+      "farPlane": 80.0,
+      "nearPlane": 0.10000000149011612,
+      "normalBias": 0.019999999552965164,
+      "orthoSize": 30.0,
+      "pcfEnabled": true,
+      "pcfRadius": 1.0,
+      "resolution": 2048,
+      "shadowDistance": 30.0,
+      "showDebugFrustum": false,
+      "showDebugTexture": false,
+      "stabilize": true,
+      "strength": 0.75
+    },
+    "fog": {
+      "color": [
+        0.11764705926179886,
+        0.5607843399047852,
+        1.0
+      ],
+      "density": 0.02199999988079071,
+      "enabled": true,
+      "endDistance": 115.0,
+      "heightFalloff": 0.25999999046325684,
+      "startDistance": 58.0,
+      "useSkyHorizonColor": true
+    },
+    "pointLights": [
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "enabled": true,
+        "intensity": 1.0,
+        "position": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "range": 5.0
+      }
+    ],
+    "post": {
+      "enabled": false,
+      "globalPostProfileId": "",
+      "paramValues": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "valuesInitialized": false
+    },
+    "reflectionProbe": {
+      "blendDistance": 1.0,
+      "enabled": false,
+      "influenceBoxCenter": [
+        0.0,
+        10.180000305175781,
+        0.0
+      ],
+      "influenceBoxSize": [
+        16.0,
+        16.0,
+        16.0
+      ],
+      "influenceShape": "Box",
+      "intensity": 1.0,
+      "position": [
+        0.0,
+        2.0,
+        0.0
+      ],
+      "priority": 0,
+      "projectionBoxCenter": [
+        0.0,
+        7.039999961853027,
+        0.0
+      ],
+      "projectionBoxSize": [
+        16.0,
+        9.720000267028809,
+        16.0
+      ],
+      "projectionShape": "Box",
+      "radius": 8.0,
+      "sourceCubemapAsset": ""
+    },
+    "showLightDebug": true,
+    "showPointLightMarkers": true,
+    "showSkyDebugInfo": false,
+    "sky": {
+      "ambientFromSky": 1.0,
+      "enabled": true,
+      "exposure": 1.0,
+      "followCamera": true,
+      "groundColor": [
+        0.07999999821186066,
+        0.07999999821186066,
+        0.10000000149011612
+      ],
+      "horizonColor": [
+        0.6499999761581421,
+        0.7799999713897705,
+        0.949999988079071
+      ],
+      "horizonPower": 1.5,
+      "mode": "Cubemap",
+      "reflectionIntensity": 1.0,
+      "scale": 1.090000033378601,
+      "showDebugTexture": false,
+      "showSunDisk": true,
+      "skyAsset": "a4459d9c11866780cab36ef4c3094ea2",
+      "sunDiskIntensity": 0.0,
+      "sunDiskSize": 0.03999999910593033,
+      "tint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaw": -0.029999999329447746,
+      "zenithColor": [
+        0.07999999821186066,
+        0.2199999988079071,
+        0.550000011920929
+      ]
+    },
+    "specularIntensity": 0.20000000298023224,
+    "specularPower": 32.0,
+    "toneMapping": {
+      "enabled": true,
+      "exposure": 1.4700000286102295,
+      "gamma": 1.3799999952316284,
+      "mode": 2
+    }
+  },
+  "lightingBake": {
+    "lightProbeVolume": {
+      "captureResolution": 64,
+      "count": [
+        8,
+        4,
+        8
+      ],
+      "intensity": 1.1299999952316284,
+      "origin": [
+        -30.850000381469727,
+        1.100000023841858,
+        -61.0
+      ],
+      "shOrder": 3,
+      "size": [
+        86.5,
+        20.350000381469727,
+        100.0
+      ]
+    }
+  },
+  "objects": [
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "316766690d9a63d68e3eff3494736c27",
+            "castShadow": true,
+            "receiveShadow": true,
+            "sourceKind": "Asset",
+            "visible": true
+          },
+          "type": "ModelComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 1,
+      "name": "testScene",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          0.15074238181114197,
+          2.314704656600952,
+          -1.8145203590393066
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "sceneName": "Untitled Scene",
+  "systems": [
+    {
+      "enabled": true,
+      "executionOrder": 0,
+      "settings": {},
+      "systemId": "TransformSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 100,
+      "settings": {},
+      "systemId": "ModelRenderSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 140,
+      "settings": {},
+      "systemId": "PlayerMovementSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 150,
+      "settings": {},
+      "systemId": "AnimationSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 180,
+      "settings": {},
+      "systemId": "SceneScanFxSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 190,
+      "settings": {},
+      "systemId": "CameraFollowSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 200,
+      "settings": {},
+      "systemId": "VfxSystem"
+    },
+    {
+      "enabled": false,
+      "executionOrder": 300,
+      "settings": {},
+      "systemId": "PhysicsSystem"
+    },
+    {
+      "enabled": false,
+      "executionOrder": 400,
+      "settings": {},
+      "systemId": "ScriptSystem"
+    }
+  ],
+  "version": 1
+}

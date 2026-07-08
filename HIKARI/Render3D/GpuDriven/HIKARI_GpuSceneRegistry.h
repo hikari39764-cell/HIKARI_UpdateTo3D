@@ -126,6 +126,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         std::vector<uint32_t> forwardDepthAwareGpuSceneIndexByRecord_{};
         std::vector<uint32_t> forwardTransparentGpuSceneIndexByRecord_{};
         std::vector<uint32_t> shadowGpuSceneIndexByRecord_{};
+        std::vector<uint32_t> globalGpuSceneIndexByRecord_{};
+        std::vector<RUNTIME::SurfaceGpuSceneInstance> globalGpuSceneInstances_{};
+        std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> globalMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> forwardOpaqueGpuSceneInstances_{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> forwardOpaqueMaterialSources_{};
         std::vector<RUNTIME::SurfaceGpuSceneInstance> depthPrepassGpuSceneInstances_{};

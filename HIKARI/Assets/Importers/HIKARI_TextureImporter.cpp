@@ -376,32 +376,31 @@ namespace HIKARI {
 
         std::string convertMessage{};
         try {
-            if (!backend_->ConvertToDds(context.projectRoot / record.sourcePath, tempPath, settings, convertMessage)) {
+            if (!backend_->ConvertToHtexAndDds(
+                    context.projectRoot / record.sourcePath,
+                    tempHtexPath,
+                    tempPath,
+                    settings,
+                    convertMessage)) {
                 std::error_code cleanupEc{};
+                std::filesystem::remove(tempHtexPath, cleanupEc);
                 std::filesystem::remove(tempPath, cleanupEc);
                 result.message = convertMessage.empty() ? "[TextureImporter] import failed" : convertMessage;
                 return result;
             }
         } catch (const std::exception& ex) {
             std::error_code cleanupEc{};
+            std::filesystem::remove(tempHtexPath, cleanupEc);
             std::filesystem::remove(tempPath, cleanupEc);
             result.message = std::string("[TextureImporter] import exception: ") + ex.what();
             HIKARI_LOG_ERROR(result.message);
             return result;
         } catch (...) {
             std::error_code cleanupEc{};
+            std::filesystem::remove(tempHtexPath, cleanupEc);
             std::filesystem::remove(tempPath, cleanupEc);
             result.message = "[TextureImporter] import exception: unknown";
             HIKARI_LOG_ERROR(result.message);
-            return result;
-        }
-
-        std::string htexMessage{};
-        if (!WriteHtexFromDdsWithDirectXTex(tempPath, tempHtexPath, settings, htexMessage)) {
-            std::error_code cleanupEc{};
-            std::filesystem::remove(tempHtexPath, cleanupEc);
-            std::filesystem::remove(tempPath, cleanupEc);
-            result.message = htexMessage.empty() ? "[TextureImporter] HTEX conversion failed" : htexMessage;
             return result;
         }
 

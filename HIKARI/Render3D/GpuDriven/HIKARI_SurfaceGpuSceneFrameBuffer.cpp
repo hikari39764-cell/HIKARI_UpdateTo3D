@@ -206,6 +206,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             residentInstanceCount <= capacity_;
     }
 
+    bool SurfaceGpuSceneFrameBuffer::CanPatchFrame(
+        size_t residentInstanceCount,
+        uint64_t layoutVersion,
+        uint64_t baseSourceVersion) const {
+
+        const FrameSlot* slot = ActiveSlot();
+        return
+            slot != nullptr &&
+            slot->resident &&
+            slot->residentInstanceCount == residentInstanceCount &&
+            slot->layoutVersion == layoutVersion &&
+            slot->sourceVersion == baseSourceVersion &&
+            residentInstanceCount <= capacity_;
+    }
+
     void SurfaceGpuSceneFrameBuffer::ReuseFrame(size_t residentInstanceCount) {
         const FrameSlot* slot = ActiveSlot();
         const size_t residentCount =

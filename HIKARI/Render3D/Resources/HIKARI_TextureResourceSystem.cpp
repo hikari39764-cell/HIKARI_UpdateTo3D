@@ -1,5 +1,6 @@
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
+#include <algorithm>
 #include <unordered_map>
 #include <utility>
 
@@ -187,6 +188,59 @@ namespace HIKARI::RENDER3D {
             name,
             BuildSourceKey(name, path),
             RenderResourceLifetime::ImportedAsset);
+    }
+
+    std::vector<TextureResourceHandle> PreloadTextureResourcesWithColorSpace(
+        const std::vector<TextureResourceLoadRequest>& requests,
+        TextureResourceBatchLoadStats* outStats) {
+
+        std::vector<DXTEX::TextureLoadRequest> backendRequests{};
+        backendRequests.reserve(requests.size());
+        for (const TextureResourceLoadRequest& request : requests) {
+            backendRequests.push_back(DXTEX::TextureLoadRequest{
+                request.name,
+                request.path,
+                ToBackendColorSpace(request.colorSpace) });
+        }
+
+        DXTEX::TextureBatchLoadStats backendStats{};
+        const std::vector<DXTEX::TextureLoadResult> backendResults =
+            DXTEX::DxTextureManager::LoadTexturesWithColorSpaceBatch(
+                backendRequests,
+                &backendStats);
+
+        std::vector<TextureResourceHandle> handles(requests.size());
+        TextureResourceBatchLoadStats stats{};
+        stats.requested = backendStats.requested;
+        stats.cacheHits = backendStats.cacheHits;
+        stats.uploaded = backendStats.uploaded;
+        stats.fallbackLoads = backendStats.fallbackLoads;
+        stats.failed = backendStats.failed;
+        stats.uploadedBytes = backendStats.uploadedBytes;
+
+        const size_t count = (std::min)(requests.size(), backendResults.size());
+        for (size_t i = 0; i < count; ++i) {
+            const DXTEX::TextureLoadResult& backendResult = backendResults[i];
+            if (!backendResult.loaded || backendResult.handle < 0) {
+                continue;
+            }
+
+            const TextureResourceLoadRequest& request = requests[i];
+            TextureResourceHandle handle = RegisterLoadedTexture(
+                backendResult.handle,
+                request.name,
+                BuildSourceKey(request.name, request.path),
+                RenderResourceLifetime::ImportedAsset);
+            handles[i] = handle;
+            if (handle) {
+                ++stats.registered;
+            }
+        }
+
+        if (outStats != nullptr) {
+            *outStats = stats;
+        }
+        return handles;
     }
 
     TextureResourceHandle LoadTextureResourceSrgb(

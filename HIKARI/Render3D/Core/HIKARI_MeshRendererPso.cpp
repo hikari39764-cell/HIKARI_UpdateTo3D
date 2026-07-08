@@ -312,11 +312,13 @@ namespace HIKARI::MESHRENDERER {
         ssaoRange.RegisterSpace = 0;
         ssaoRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+        // Light probe volume: SH 係数 Texture3D ×9 (t0-t8, space2)。
+        // heap 側は SystemSrv::LightProbeShVolume0..8 の連続スロットに対応する。
         D3D12_DESCRIPTOR_RANGE lightProbeShRange{};
         lightProbeShRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        lightProbeShRange.NumDescriptors = 1;
-        lightProbeShRange.BaseShaderRegister = 14;
-        lightProbeShRange.RegisterSpace = 0;
+        lightProbeShRange.NumDescriptors = GFX::DESCRIPTOR::kLightProbeShVolumeTextureCount;
+        lightProbeShRange.BaseShaderRegister = 0;
+        lightProbeShRange.RegisterSpace = 2;
         lightProbeShRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
         D3D12_DESCRIPTOR_RANGE objectDataRange{};

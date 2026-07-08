@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <d3d12.h>
 
@@ -29,6 +30,22 @@ namespace HIKARI::RENDER3D {
         uint32_t backendMaxDescriptorCount = 0;
     };
 
+    struct TextureResourceLoadRequest {
+        std::string name{};
+        std::string path{};
+        TextureResourceColorSpace colorSpace = TextureResourceColorSpace::Auto;
+    };
+
+    struct TextureResourceBatchLoadStats {
+        uint32_t requested = 0;
+        uint32_t cacheHits = 0;
+        uint32_t uploaded = 0;
+        uint32_t fallbackLoads = 0;
+        uint32_t failed = 0;
+        uint32_t registered = 0;
+        uint64_t uploadedBytes = 0;
+    };
+
     ID3D12DescriptorHeap* GetTextureResourceSrvHeap();
     TextureResourceSystemStats GetTextureResourceSystemStats();
 
@@ -40,6 +57,10 @@ namespace HIKARI::RENDER3D {
         const std::string& name,
         const std::string& path,
         TextureResourceColorSpace colorSpace);
+
+    std::vector<TextureResourceHandle> PreloadTextureResourcesWithColorSpace(
+        const std::vector<TextureResourceLoadRequest>& requests,
+        TextureResourceBatchLoadStats* outStats = nullptr);
 
     TextureResourceHandle LoadTextureResourceSrgb(
         const std::string& name,

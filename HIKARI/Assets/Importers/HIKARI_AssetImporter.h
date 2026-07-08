@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "Assets/HIKARI_AssetArtifactManifest.h"
 #include "Assets/HIKARI_AssetMeta.h"
 #include "Assets/HIKARI_AssetRecord.h"
 
@@ -14,6 +15,7 @@ namespace HIKARI {
         std::filesystem::path projectRoot{};
         std::filesystem::path assetsRoot{};
         std::filesystem::path libraryRoot{};
+        std::filesystem::path sourceMetaRoot{};
         std::filesystem::path importedDirectory{};
     };
 

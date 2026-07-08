@@ -604,7 +604,7 @@ namespace HIKARI::MESHRENDERER {
         } else {
             static bool sWarnedMissingLightProbeSrv = false;
             if (!sWarnedMissingLightProbeSrv) {
-                HIKARI_LOG_WARN("[LightProbe] missing t14 fallback SRV.");
+                HIKARI_LOG_WARN("[LightProbe] missing SH volume SRV table.");
                 sWarnedMissingLightProbeSrv = true;
             }
         }
@@ -697,7 +697,7 @@ namespace HIKARI::MESHRENDERER {
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE ResolveLightProbeShSrv() {
-        return RENDER3D::LIGHTPROBE::GetShBufferSrv();
+        return RENDER3D::LIGHTPROBE::GetShVolumeSrvTable();
     }
 
 } // namespace HIKARI::MESHRENDERER

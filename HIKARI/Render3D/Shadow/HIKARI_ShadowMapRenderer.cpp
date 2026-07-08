@@ -1743,6 +1743,12 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowGpuSceneUploadedInstanceCount = gpuSceneStats.uploadedInstanceCount;
             g.debugStats.shadowGpuSceneOverflowInstanceCount = gpuSceneStats.overflowInstanceCount;
             g.debugStats.shadowGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
+            g.debugStats.shadowGpuSceneFullUploadCount =
+                uploadStats.uploadedFullScene ? 1u : 0u;
+            g.debugStats.shadowGpuSceneDirtyPatchCount =
+                uploadStats.patchedDirtyRanges ? 1u : 0u;
+            g.debugStats.shadowGpuSceneReuseCount =
+                uploadStats.reusedResidentFrame ? 1u : 0u;
             g.debugStats.shadowGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.shadowGpuSceneBufferReady = gpuSceneStats.initialized;
             return g.frameHasShadowWork;

@@ -1235,7 +1235,7 @@ namespace HIKARI {
         asset = std::move(cooked);
         ResolvePbrTexturePaths(asset);
         BOUNDS::EnsureModelBounds(asset);
-        return BuildRuntimeResources(asset);
+        return true;
     }
 
     bool ModelManager::LoadAsAssimp(ModelAsset& asset, bool buildRuntimeResources) {

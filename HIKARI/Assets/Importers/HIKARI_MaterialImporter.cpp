@@ -45,12 +45,7 @@ namespace HIKARI {
         }
 
         bool ShouldCookHmat(const nlohmann::json& settings) {
-            const bool legacyFutureHmat =
-                !settings.contains("outputFormat") &&
-                settings.value("futureOutputFormat", std::string{}) == "HMAT";
-            const bool cookMaterial = legacyFutureHmat
-                ? true
-                : settings.value("cookMaterial", true);
+            const bool cookMaterial = settings.value("cookMaterial", true);
             const std::string outputFormat = settings.value("outputFormat", std::string("HMAT"));
             return cookMaterial && outputFormat == "HMAT";
         }

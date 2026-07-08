@@ -43,7 +43,7 @@ namespace HIKARI {
         meta.displayName = sourcePath.stem().string();
         meta.importSettingsJson = nlohmann::json{
             { "sourceFormat", sourcePath.extension().string() },
-            { "futureOutputFormat", "HPAK" },
+            { "outputFormat", "HPAK" },
             { "cookVfx", false },
         }.dump(2);
         return meta;

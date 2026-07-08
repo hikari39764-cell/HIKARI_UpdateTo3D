@@ -31,6 +31,7 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
     struct LightProbeVolumeDebugState {
         bool valid = false;
         bool srvReady = false;
+        // SH 係数 Texture3D 一式が GPU 上に揃っているか。
         bool hasBuffer = false;
         uint32_t probeCount = 0;
         uint32_t countX = 0;
@@ -63,7 +64,9 @@ namespace HIKARI::RENDER3D::LIGHTPROBE {
         ScopedLightProbeVolumeSamplingSuppress& operator=(const ScopedLightProbeVolumeSamplingSuppress&) = delete;
     };
 
-    D3D12_GPU_DESCRIPTOR_HANDLE GetShBufferSrv();
+    // SH 係数 Texture3D ×9 の descriptor table 先頭 GPU handle。
+    // root param LightProbeSh (t0-t8, space2) にそのままバインドする。
+    D3D12_GPU_DESCRIPTOR_HANDLE GetShVolumeSrvTable();
 
     bool HasGpuBuffer();
     bool IsSrvReady();

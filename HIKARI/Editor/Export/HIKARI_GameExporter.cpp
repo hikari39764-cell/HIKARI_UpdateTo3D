@@ -599,7 +599,7 @@ namespace HIKARI::EDITOR {
                     continue;
                 }
 
-                for (const AssetDependencyDesc& dependency : record->meta.dependencies) {
+                for (const AssetDependencyDesc& dependency : record->artifactManifest.dependencies) {
                     const AssetRecord* dependencyRecord = nullptr;
                     if (dependency.guid.IsValid()) {
                         dependencyRecord = assetDatabase.FindByGuid(dependency.guid);
@@ -704,7 +704,7 @@ namespace HIKARI::EDITOR {
             const AssetRecord& record,
             const std::filesystem::path& outputDirectory,
             std::string& errorMessage) {
-            for (const AssetArtifactDesc& artifact : record.meta.artifacts) {
+            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
                 if (!IsRuntimeArtifactForExport(artifact)) {
                     continue;
                 }

@@ -419,6 +419,10 @@ namespace HIKARI {
                     s.mesh.surfaceGpuSceneCommittedInstanceCount,
                     s.mesh.surfaceGpuSceneCommittedBytes / 1024u,
                     s.mesh.surfaceGpuSceneOverflowInstanceCount);
+                MetricRow("GPU Scene Upload Path Full / DirtyPatch / Reuse", "%zu / %zu / %zu",
+                    s.mesh.surfaceGpuSceneFullUploadCount,
+                    s.mesh.surfaceGpuSceneDirtyPatchCount,
+                    s.mesh.surfaceGpuSceneReuseCount);
                 MetricRow("GPU Scene Material Patch Changed / Same / Failed", "%zu / %zu / %zu",
                     s.mesh.surfaceGpuSceneMaterialPatchChangedCount,
                     s.mesh.surfaceGpuSceneMaterialPatchUnchangedCount,

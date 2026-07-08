@@ -110,6 +110,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
         layoutVersion = 0;
         sourceVersion = 0;
+        dirtyBaseSourceVersion = 0;
         sourceInstanceCount = 0;
     }
 
@@ -148,6 +149,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     size_t GpuDrivenSceneSource::CountGpuSceneInstances() const {
+        if (sourceInstanceCount != 0u) {
+            return sourceInstanceCount;
+        }
+
         size_t count = 0;
         for (const GpuDrivenPassSource& pass : passes) {
             if (pass.HasGpuSceneRange()) {
