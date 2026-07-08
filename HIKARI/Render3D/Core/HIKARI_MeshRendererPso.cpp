@@ -518,9 +518,24 @@ namespace HIKARI::MESHRENDERER {
         shadowSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
         shadowSampler.MaxLOD = D3D12_FLOAT32_MAX;
 
+        // Hardware PCF 用。SampleCmp 1 回で 2x2 の bilinear 比較が走るため、
+        // 受光側は少ない tap 数で滑らかな影になる。境界は白 (=影なし)。
+        D3D12_STATIC_SAMPLER_DESC shadowCmpSampler{};
+        shadowCmpSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+        shadowCmpSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        shadowCmpSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        shadowCmpSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        shadowCmpSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+        shadowCmpSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        shadowCmpSampler.ShaderRegister = 2;
+        shadowCmpSampler.RegisterSpace = 0;
+        shadowCmpSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        shadowCmpSampler.MaxLOD = D3D12_FLOAT32_MAX;
+
         const D3D12_STATIC_SAMPLER_DESC staticSamplers[] = {
             linearWrapSampler,
-            shadowSampler
+            shadowSampler,
+            shadowCmpSampler
         };
 
         D3D12_ROOT_SIGNATURE_DESC rsDesc{};

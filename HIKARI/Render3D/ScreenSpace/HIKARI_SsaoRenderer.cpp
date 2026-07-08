@@ -339,7 +339,9 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         };
         cb.aoParams1 = {
             static_cast<float>(modeParams.sampleCount),
-            camera.timeParams.w,
+            // Temporal 蓄積を持たないため per-frame jitter は正味のちらつき
+            // にしかならない。回転角は画素位置 hash のみで固定する。
+            0.0f,
             static_cast<float>(static_cast<int>(modeParams.mode)),
             depthOnlyNormals ? 1.0f : 0.0f
         };

@@ -277,73 +277,6 @@ float3 ApplyFog(float3 color, float3 worldPosWS)
     return lerp(color, gFogColorDensity.rgb, fogFactor);
 }
 
-float CompareShadowDepth(float2 uv, float currentDepth)
-{
-    float shadowDepth = gShadowMap.SampleLevel(gShadowSampler, uv, 0).r;
-    return currentDepth <= shadowDepth ? 1.0f : 0.0f;
-}
-
-float SampleShadowPcf(float2 uv, float currentDepth)
-{
-    float visibility = CompareShadowDepth(uv, currentDepth);
-    if (gShadowPcfEnabled == 0)
-    {
-        return visibility;
-    }
-
-    float2 texelSize = float2(gShadowTexelSizeX, gShadowTexelSizeY) * gShadowPcfRadius;
-    float sum = 0.0f;
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  1.0f), currentDepth);
-    visibility = sum / 9.0f;
-    return visibility;
-}
-
-float HikariShadowReceiverFade(float2 uv)
-{
-    if (gShadowEdgeFade <= 0.00001f)
-    {
-        return 1.0f;
-    }
-
-    float edgeDistance = min(min(uv.x, 1.0f - uv.x), min(uv.y, 1.0f - uv.y));
-    return saturate(edgeDistance / gShadowEdgeFade);
-}
-
-float SampleDirectionalShadow(float3 worldPosWS, float3 geometricNormalWS, uint receiveShadow)
-{
-    if (gShadowEnabled == 0 || receiveShadow == 0)
-    {
-        return 1.0f;
-    }
-
-    float3 biasedWorldPos = worldPosWS + geometricNormalWS * gShadowNormalBias;
-    float4 lightClip = mul(gShadowLightViewProj, float4(biasedWorldPos, 1.0f));
-    if (abs(lightClip.w) < 1e-5f)
-    {
-        return 1.0f;
-    }
-
-    float3 proj = lightClip.xyz / lightClip.w;
-    float2 uv = float2(proj.x * 0.5f + 0.5f, -proj.y * 0.5f + 0.5f);
-    if (uv.x < 0.0f || uv.x > 1.0f || uv.y < 0.0f || uv.y > 1.0f || proj.z < 0.0f || proj.z > 1.0f)
-    {
-        return 1.0f;
-    }
-
-    float currentDepth = proj.z - gShadowDepthBias;
-    float visibility = SampleShadowPcf(uv, currentDepth);
-    float shadowFactor = lerp(1.0f - gShadowStrength, 1.0f, visibility);
-    return lerp(1.0f, shadowFactor, HikariShadowReceiverFade(uv));
-}
-
 float4 main(PSInput input) : SV_TARGET
 {
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
@@ -465,9 +398,13 @@ float4 main(PSInput input) : SV_TARGET
     {
         screenAo = gSsaoTex.Load(int3(int2(input.position.xy), 0)).r;
     }
-    float shadowFactor = costNoShadow
-        ? 1.0f
-        : SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+    float shadowFactor = 1.0f;
+    if (gDebugView == 8 || (materialData.materialFlags & MATERIAL_UNLIT) == 0)
+    {
+        shadowFactor = costNoShadow
+            ? 1.0f
+            : HikariSampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+    }
     if (gDebugView == 8)
     {
         return float4(shadowFactor.xxx, albedo.a);

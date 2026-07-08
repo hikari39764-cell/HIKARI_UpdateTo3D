@@ -137,11 +137,6 @@ namespace HIKARI::RENDER3D::PIPELINE {
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
         }
 
-        MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(screenResult.ssaoRendered);
-        MESHRENDERER::MeshPassResources opaqueResources =
-            BuildMeshPassResources(screenSpaceContext, screenResult);
-        MESHRENDERER::MeshPassResources postOpaqueResources = opaqueResources;
-
         // 不透明 mainline を先に scene DSV へ深度だけ描き、ForwardOpaque
         // (LESS_EQUAL) のピクセル過描画を early-Z で殺す。visibility 用の
         // occluder prepass (別ターゲット) とは独立している。
@@ -150,15 +145,22 @@ namespace HIKARI::RENDER3D::PIPELINE {
         const bool sceneDsvReady = screenSpaceContext.sceneDsv.ptr != 0;
         const bool depthPrepassWorkReady = MESHRENDERER::HasDepthPrepassWork();
         if (scenePrepassEnabled && sceneDsvReady && depthPrepassWorkReady) {
-            GFX::PIX::ScopedGpuEvent pixScenePrepass(
-                SERVICES::gCtx.cmdList,
-                GFX::PIX::kColorRender,
-                "SceneDepthPrepass");
-            GFX::GPU_PROFILE::ScopedGpuTimer gpuScenePrepass(
-                SERVICES::gCtx.cmdList,
-                GFX::GPU_PROFILE::Pass::DepthPrepass);
-            const bool prepassExecuted =
-                MESHRENDERER::RenderDepthPrepass(screenSpaceContext.sceneDsv);
+            bool prepassExecuted = false;
+            {
+                GFX::PIX::ScopedGpuEvent pixScenePrepass(
+                    SERVICES::gCtx.cmdList,
+                    GFX::PIX::kColorRender,
+                    "SceneDepthPrepass");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuScenePrepass(
+                    SERVICES::gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::DepthPrepass);
+                prepassExecuted =
+                    MESHRENDERER::RenderDepthPrepass(screenSpaceContext.sceneDsv);
+                if (!POST::PostSystem::RebindCurrentRenderTarget()) {
+                    MESHRENDERER::EndFrame();
+                    return false;
+                }
+            }
             // 最初のフレームの状態だけを boot ヘルスチェックとして記録する。
             static bool sLoggedScenePrepassState = false;
             if (!sLoggedScenePrepassState) {
@@ -167,9 +169,15 @@ namespace HIKARI::RENDER3D::PIPELINE {
                     std::string("[RenderFramePipeline] scene depth prepass: ") +
                     (prepassExecuted ? "executed" : "no gpu-driven work prepared"));
             }
-            if (!POST::PostSystem::RebindCurrentRenderTarget()) {
-                MESHRENDERER::EndFrame();
-                return false;
+            // Balanced SSAO は prepass が書いた当該フレームの深度から同フレーム
+            // で作る (旧 temporal 経路の 1 フレーム遅れによる引き摺りを回避)。
+            if (prepassExecuted && cameraCb != nullptr) {
+                (void)RENDER3D::SCREENSPACE::ExecuteBalancedSsaoFromSceneDepth(
+                    RENDER3D::SCREENSPACE::GetScreenSpaceRuntimeState(),
+                    screenSpaceContext,
+                    *cameraCb,
+                    environment,
+                    screenResult);
             }
         } else if (scenePrepassEnabled) {
             static bool sWarnedScenePrepassSkip = false;
@@ -181,6 +189,11 @@ namespace HIKARI::RENDER3D::PIPELINE {
                     (depthPrepassWorkReady ? "" : " depthPrepassSource=empty"));
             }
         }
+
+        MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(screenResult.ssaoRendered);
+        MESHRENDERER::MeshPassResources opaqueResources =
+            BuildMeshPassResources(screenSpaceContext, screenResult);
+        MESHRENDERER::MeshPassResources postOpaqueResources = opaqueResources;
 
         bool opaqueOk = false;
         {

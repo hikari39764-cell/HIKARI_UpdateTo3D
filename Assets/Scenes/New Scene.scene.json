@@ -13,14 +13,14 @@
     "ambientOcclusion": {
       "bias": 0.19499999284744263,
       "blurIterations": 4,
-      "diffuseStrength": 1.0,
+      "diffuseStrength": 0.8100000023841858,
       "enabled": true,
       "mode": "Balanced",
-      "power": 1.7000000476837158,
-      "radius": 2.059999942779541,
+      "power": 1.559999942779541,
+      "radius": 2.1500000953674316,
       "sampleCount": 32,
-      "specularStrength": 1.0,
-      "strength": 1.590000033378601
+      "specularStrength": 0.8799999952316284,
+      "strength": 1.5299999713897705
     },
     "bloom": {
       "downsampleCount": 5,

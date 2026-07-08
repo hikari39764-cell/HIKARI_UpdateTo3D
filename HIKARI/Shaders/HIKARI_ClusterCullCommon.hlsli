@@ -1626,6 +1626,15 @@ bool HikariClusterCullSelectSectionLodRange(
     float4 lodWorldSphere =
         HikariClusterCullResolveSectionLodWorldSphere(instance, section, sectionWorldSphere);
     float screenRadius = HikariClusterCullProjectedScreenRadius(lodWorldSphere);
+    // Shadow pass の影は受光側 PCF で均されるため 1 段粗い LOD で十分。
+    // 見かけサイズを半分として扱い LOD 遷移を早める (誤差予算も等価に緩和)。
+    // DepthPrepass は forward と深度一致が必要なため偏らせない。
+    float lodBias = 1.0f;
+    if (gClusterCullPassKind == HIKARI_CLUSTER_CULL_PASS_SHADOW)
+    {
+        lodBias = 0.5f;
+        screenRadius *= lodBias;
+    }
     float targetProjectedError = HikariClusterCullResolveProjectedErrorBudget();
     bool useProjectedError =
         gClusterCullEnableLodErrorSelection != 0u &&
@@ -1659,7 +1668,7 @@ bool HikariClusterCullSelectSectionLodRange(
             screenRadius < max(transitionRadius, 0.0f);
         bool errorAllowsStepDown =
             !useProjectedError ||
-            HikariClusterCullProjectedLodError(lodWorldSphere, range) <=
+            HikariClusterCullProjectedLodError(lodWorldSphere, range) * lodBias <=
                 HikariClusterCullResolveSectionErrorBudget(section, range);
         if (!radiusAllowsStepDown || !errorAllowsStepDown)
         {

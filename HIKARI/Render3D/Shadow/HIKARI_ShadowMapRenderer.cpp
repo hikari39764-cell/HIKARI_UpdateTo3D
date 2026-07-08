@@ -111,12 +111,15 @@ namespace HIKARI::SHADOW {
             float elapsedTimeSec = 0.0f;
 
             ComPtr<ID3D12Resource> shadowMap;
+            ComPtr<ID3D12Resource> shadowStaticCacheMap;
             ComPtr<ID3D12DescriptorHeap> dsvHeap;
             D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+            D3D12_CPU_DESCRIPTOR_HANDLE staticCacheDsv{};
             RENDER3D::TextureResourceHandle shadowSrvResource{};
             RENDER3D::TextureResourceHandle fallbackTextureResource{};
             int shadowSrvHandle = -1;
             int fallbackTextureHandle = -1;
+            D3D12_RESOURCE_STATES staticCacheState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
             ComPtr<ID3D12RootSignature> rootSig;
             ComPtr<ID3D12RootSignature> skinnedRootSig;
@@ -139,6 +142,12 @@ namespace HIKARI::SHADOW {
 
             const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* gpuDrivenSceneSource = nullptr;
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneSource staticShadowSceneSource{};
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneSource dynamicShadowSceneSource{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> staticShadowInstances{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> dynamicShadowInstances{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> staticShadowMaterialSources{};
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> dynamicShadowMaterialSources{};
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
             RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer traditionalCommandStreamBuffer{};
             RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
@@ -153,8 +162,12 @@ namespace HIKARI::SHADOW {
             size_t shadowMapRecreateCount = 0;
             bool shadowCacheValid = false;
             bool shadowCacheHitThisFrame = false;
+            bool frameHasStaticShadowWork = false;
+            bool frameHasDynamicShadowWork = false;
             uint64_t shadowCacheLayoutVersion = 0;
             uint64_t shadowCacheSourceVersion = 0;
+            uint64_t shadowCacheContentHash = 0;
+            uint64_t frameStaticShadowContentHash = 0;
             size_t shadowCacheSourceInstanceCount = 0;
             uint32_t shadowCacheResolution = 0;
             MATH::Mat4 shadowCacheLightViewProj = MATH::Mat4::Identity();
@@ -175,42 +188,29 @@ namespace HIKARI::SHADOW {
             }
             return true;
         }
-
+		// Shadow cache の統計情報をデバッグ用に公開する。
         void PublishShadowCacheStats() {
             g.debugStats.shadowCacheValid = g.shadowCacheValid;
             g.debugStats.shadowCacheHit = g.shadowCacheHitThisFrame;
             g.debugStats.shadowCacheHitCount = g.shadowCacheHitCount;
             g.debugStats.shadowCacheMissCount = g.shadowCacheMissCount;
         }
-
+		// Shadow cache の状態を無効化する。次のフレームで再構築が必要になる。
         void InvalidateShadowCache() {
             g.shadowCacheValid = false;
             g.shadowCacheHitThisFrame = false;
+            g.shadowCacheContentHash = 0;
             PublishShadowCacheStats();
         }
-
-        bool HasTraditionalShadowWork() {
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadowPass =
-                g.shadowSceneSource.GetPass(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            return
-                shadowPass.traditionalIndirect.HasCommands() ||
-                shadowPass.traditionalIndirect.HasGpuSceneInstances();
-        }
-
-        bool CanReuseShadowCache(uint32_t resolution) {
+		// Shadow cache の再利用が可能かどうかを判定する。
+        bool CanReuseStaticShadowCache(uint32_t resolution) {
             return
                 g.shadowCacheValid &&
-                g.shadowMap != nullptr &&
-                RENDER3D::IsTextureResourceValid(g.shadowSrvResource) &&
-                g.shadowState == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE &&
-                !HasTraditionalShadowWork() &&
-                (g.gpuDrivenSceneSource == nullptr ||
-                    !g.gpuDrivenSceneSource->HasAnyDirtyGpuSceneRanges()) &&
+                g.shadowStaticCacheMap != nullptr &&
+                g.frameHasStaticShadowWork &&
                 g.shadowCacheResolution == resolution &&
-                g.shadowCacheLayoutVersion == g.shadowSceneSource.layoutVersion &&
-                g.shadowCacheSourceVersion == g.shadowSceneSource.sourceVersion &&
-                g.shadowCacheSourceInstanceCount == g.shadowSceneSource.sourceInstanceCount &&
+                g.shadowCacheLayoutVersion == g.staticShadowSceneSource.layoutVersion &&
+                g.shadowCacheContentHash == g.frameStaticShadowContentHash &&
                 AlmostEqualMat4(g.shadowCacheLightViewProj, g.lightViewProj);
         }
 
@@ -230,9 +230,10 @@ namespace HIKARI::SHADOW {
         void MarkShadowCacheValidAfterRender() {
             g.shadowCacheValid = true;
             g.shadowCacheHitThisFrame = false;
-            g.shadowCacheLayoutVersion = g.shadowSceneSource.layoutVersion;
-            g.shadowCacheSourceVersion = g.shadowSceneSource.sourceVersion;
-            g.shadowCacheSourceInstanceCount = g.shadowSceneSource.sourceInstanceCount;
+            g.shadowCacheLayoutVersion = g.staticShadowSceneSource.layoutVersion;
+            g.shadowCacheSourceVersion = g.staticShadowSceneSource.sourceVersion;
+            g.shadowCacheContentHash = g.frameStaticShadowContentHash;
+            g.shadowCacheSourceInstanceCount = g.staticShadowSceneSource.sourceInstanceCount;
             g.shadowCacheResolution = g.resolution;
             g.shadowCacheLightViewProj = g.lightViewProj;
             PublishShadowCacheStats();
@@ -250,6 +251,22 @@ namespace HIKARI::SHADOW {
             uint32_t gpuSceneInstanceCount = 0;
             uint32_t staticCommandCount = 0;
             uint32_t skinnedCommandCount = 0;
+
+            bool HasCommands() const {
+                return
+                    !records.empty() &&
+                    !executableRecordIndices.empty() &&
+                    !commands.empty() &&
+                    !instances.empty() &&
+                    !materialSources.empty() &&
+                    !jointPalettes.empty() &&
+                    !bucketVariants.empty() &&
+                    records.size() == commands.size() &&
+                    records.size() == executableRecordIndices.size() &&
+                    records.size() == instances.size() &&
+                    records.size() == materialSources.size() &&
+                    records.size() == jointPalettes.size();
+            }
 
             void Clear() {
                 records.clear();
@@ -322,6 +339,8 @@ namespace HIKARI::SHADOW {
         };
 
         OwnedShadowTraditionalIndirectStream gShadowTraditionalIndirectStream{};
+        OwnedShadowTraditionalIndirectStream gShadowStaticTraditionalIndirectStream{};
+        OwnedShadowTraditionalIndirectStream gShadowDynamicTraditionalIndirectStream{};
 
         const MaterialAsset* GetPrimitiveMaterial(const ModelAsset& asset, uint32_t materialIndex) {
             if (materialIndex >= asset.materials.size()) {
@@ -720,6 +739,475 @@ namespace HIKARI::SHADOW {
             (void)UploadShadowMaterialData(0u, defaultData);
         }
 
+        uint32_t ShadowInstanceFlag(
+            RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags flag) {
+
+            return static_cast<uint32_t>(flag);
+        }
+
+        bool HasShadowInstanceFlag(
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance,
+            RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags flag) {
+
+            return (instance.flags & ShadowInstanceFlag(flag)) != 0u;
+        }
+
+        bool IsShadowPassInstance(
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance) {
+
+            return HasShadowInstanceFlag(
+                instance,
+                RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::PassShadow);
+        }
+
+        bool IsStaticShadowCacheInstance(
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance) {
+
+            return
+                IsShadowPassInstance(instance) &&
+                HasShadowInstanceFlag(
+                    instance,
+                    RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::StaticGeometry);
+        }
+
+        bool IsStaticShadowCacheRecord(
+            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+
+            return
+                record.isStatic &&
+                !record.skinned &&
+                !record.hasRuntimeAnimation;
+        }
+
+        void ClearShadowSplitSources() {
+            g.staticShadowSceneSource.Reset();
+            g.dynamicShadowSceneSource.Reset();
+            g.staticShadowInstances.clear();
+            g.dynamicShadowInstances.clear();
+            g.staticShadowMaterialSources.clear();
+            g.dynamicShadowMaterialSources.clear();
+            gShadowStaticTraditionalIndirectStream.Clear();
+            gShadowDynamicTraditionalIndirectStream.Clear();
+            g.frameHasStaticShadowWork = false;
+            g.frameHasDynamicShadowWork = false;
+            g.frameStaticShadowContentHash = 0;
+        }
+
+        void AppendSplitShadowInstance(
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* materialSource,
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances,
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>& materialSources) {
+
+            const uint32_t localIndex =
+                static_cast<uint32_t>(
+                    (std::min)(
+                        instances.size(),
+                        static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+            instances.push_back(instance);
+            if (materialSource != nullptr) {
+                RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource patched = *materialSource;
+                patched.localGpuSceneInstanceIndex = localIndex;
+                materialSources.push_back(patched);
+            } else {
+                RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource fallback{};
+                fallback.localGpuSceneInstanceIndex = localIndex;
+                fallback.sourceRecordIndex = instance.sourceRecordIndex;
+                fallback.sourceSurfaceInstanceIndex = instance.sourceSurfaceInstanceIndex;
+                fallback.materialIndex = instance.sourceMaterialIndex;
+                fallback.world = instance.world;
+                fallback.normalMatrix = instance.normalMatrix;
+                fallback.receiveShadow = HasShadowInstanceFlag(
+                    instance,
+                    RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::ReceiveShadow);
+                fallback.fxFlags = instance.fxFlags;
+                for (size_t i = 0; i < VFX::kMaterialFxUserCount; ++i) {
+                    fallback.fxUser[i] = instance.fxUser[i];
+                }
+                materialSources.push_back(fallback);
+            }
+        }
+
+        bool AppendSplitTraditionalCommand(
+            const OwnedShadowTraditionalIndirectStream& source,
+            size_t commandIndex,
+            OwnedShadowTraditionalIndirectStream& target) {
+
+            if (!source.HasCommands() ||
+                commandIndex >= source.commands.size() ||
+                commandIndex >= source.records.size() ||
+                commandIndex >= source.executableRecordIndices.size() ||
+                commandIndex >= source.instances.size() ||
+                commandIndex >= source.materialSources.size() ||
+                commandIndex >= source.jointPalettes.size()) {
+                return false;
+            }
+
+            if (target.bucketVariants.empty()) {
+                target.bucketVariants = source.bucketVariants;
+            }
+
+            const uint32_t targetIndex =
+                static_cast<uint32_t>(
+                    (std::min)(
+                        target.commands.size(),
+                        static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+
+            RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord record =
+                source.records[commandIndex];
+            RENDER3D::RUNTIME::SurfaceGpuSceneInstance instance =
+                source.instances[commandIndex];
+            RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource material =
+                source.materialSources[commandIndex];
+            RENDER3D::RUNTIME::SurfaceDrawCommand command =
+                source.commands[commandIndex];
+
+            instance.sourceRecordIndex = targetIndex;
+            material.sourceRecordIndex = targetIndex;
+            material.localGpuSceneInstanceIndex = targetIndex;
+
+            command.firstExecutableIndex = targetIndex;
+            command.firstRecordIndex = targetIndex;
+            command.firstGpuSceneInstanceIndex = targetIndex;
+            command.gpuSceneInstanceCount = 1u;
+
+            target.records.push_back(std::move(record));
+            target.executableRecordIndices.push_back(targetIndex);
+            target.instances.push_back(instance);
+            target.materialSources.push_back(material);
+            target.jointPalettes.push_back(source.jointPalettes[commandIndex]);
+            target.commands.push_back(command);
+
+            const bool skinnedCommand =
+                target.records.back().skinned &&
+                !target.jointPalettes.back().empty();
+            if (skinnedCommand) {
+                ++target.skinnedCommandCount;
+            } else {
+                ++target.staticCommandCount;
+            }
+            return true;
+        }
+
+        void SplitShadowTraditionalStream(
+            const OwnedShadowTraditionalIndirectStream& source) {
+
+            gShadowStaticTraditionalIndirectStream.Clear();
+            gShadowDynamicTraditionalIndirectStream.Clear();
+            if (!source.HasCommands()) {
+                return;
+            }
+
+            for (size_t commandIndex = 0; commandIndex < source.commands.size(); ++commandIndex) {
+                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
+                    source.records[commandIndex];
+                OwnedShadowTraditionalIndirectStream& target =
+                    IsStaticShadowCacheRecord(record)
+                        ? gShadowStaticTraditionalIndirectStream
+                        : gShadowDynamicTraditionalIndirectStream;
+                (void)AppendSplitTraditionalCommand(source, commandIndex, target);
+            }
+        }
+
+        uint64_t HashShadowMaterialSource(
+            uint64_t seed,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source) {
+
+            seed = HashAppend(seed, static_cast<uint64_t>(reinterpret_cast<uintptr_t>(source.model)));
+            seed = HashAppend(seed, static_cast<uint64_t>(reinterpret_cast<uintptr_t>(source.materialOverride)));
+            seed = HashAppend(seed, source.sourceSurfaceInstanceIndex);
+            seed = HashAppend(seed, source.materialIndex);
+            seed = HashAppend(seed, source.materialKey);
+            seed = HashBytes(seed, &source.world, sizeof(source.world));
+            seed = HashAppend(seed, source.fxFlags);
+            return HashBytes(seed, source.fxUser, sizeof(source.fxUser));
+        }
+
+        uint64_t HashShadowTriangleMeshView(
+            uint64_t seed,
+            const RENDER3D::RUNTIME::SurfaceTriangleMeshGpuView& view) {
+
+            seed = HashAppend(seed, view.vertexBuffer.BufferLocation);
+            seed = HashAppend(seed, view.vertexBuffer.SizeInBytes);
+            seed = HashAppend(seed, view.vertexBuffer.StrideInBytes);
+            seed = HashAppend(seed, view.indexBuffer.BufferLocation);
+            seed = HashAppend(seed, view.indexBuffer.SizeInBytes);
+            seed = HashAppend(seed, view.indexBuffer.Format);
+            return seed;
+        }
+
+        uint64_t HashShadowDrawArgs(
+            uint64_t seed,
+            const RENDER3D::RUNTIME::SurfaceDrawIndexedArgs& args) {
+
+            seed = HashAppend(seed, args.indexCountPerInstance);
+            seed = HashAppend(seed, args.instanceCount);
+            seed = HashAppend(seed, args.startIndexLocation);
+            seed = HashAppend(seed, static_cast<uint32_t>(args.baseVertexLocation));
+            seed = HashAppend(seed, args.startInstanceLocation);
+            return seed;
+        }
+
+        uint64_t HashShadowCasterInstance(
+            uint64_t seed,
+            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance) {
+
+            seed = HashBytes(seed, &instance.world, sizeof(instance.world));
+            seed = HashBytes(seed, &instance.clusterWorld, sizeof(instance.clusterWorld));
+            seed = HashAppend(seed, instance.objectIdLow);
+            seed = HashAppend(seed, instance.objectIdHigh);
+            seed = HashAppend(seed, instance.meshIndex);
+            seed = HashAppend(seed, instance.primitiveIndex);
+            seed = HashAppend(seed, instance.sourceMaterialIndex);
+            seed = HashAppend(seed, instance.nodeIndex);
+            seed = HashAppend(
+                seed,
+                instance.flags &
+                    (ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::CastShadow) |
+                        ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::AlphaMasked) |
+                        ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::DoubleSided) |
+                        ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::MaterialFx) |
+                        ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::WaterMaterialFx) |
+                        ShadowInstanceFlag(RENDER3D::RUNTIME::SurfaceGpuSceneInstanceFlags::PassShadow)));
+            seed = HashAppend(seed, instance.meshResourceIndex);
+            seed = HashAppend(seed, instance.meshResourceGeneration);
+            seed = HashAppend(seed, instance.materialResourceIndex);
+            seed = HashAppend(seed, instance.materialResourceGeneration);
+            seed = HashAppend(seed, instance.clusterGeometryResourceIndex);
+            seed = HashAppend(seed, instance.clusterGeometryMetadataSrvDescriptorIndex);
+            seed = HashAppend(seed, instance.resourceFlags);
+            seed = HashAppend(seed, instance.geometryBackend);
+            seed = HashAppend(seed, instance.fxFlags);
+            seed = HashAppend(seed, instance.clusterGeometrySrvDescriptorIndex);
+            seed = HashAppend(seed, instance.clusterSurfaceIndex);
+            seed = HashAppend(seed, instance.clusterIndexCount);
+            seed = HashAppend(seed, instance.clusterRangeIndex);
+            seed = HashAppend(seed, instance.clusterRangeCount);
+            seed = HashAppend(seed, instance.clusterLodRangeIndex);
+            seed = HashAppend(seed, instance.clusterLodRangeCount);
+            seed = HashAppend(seed, instance.clusterSelectedLodIndex);
+            seed = HashAppend(seed, instance.clusterLodFlags);
+            return HashBytes(seed, instance.fxUser, sizeof(instance.fxUser));
+        }
+
+        uint64_t HashShadowDrawCommand(
+            uint64_t seed,
+            const RENDER3D::RUNTIME::SurfaceDrawCommand& command) {
+
+            seed = HashAppend(seed, static_cast<uint32_t>(command.pass));
+            seed = HashAppend(seed, command.recordCount);
+            seed = HashAppend(seed, command.firstGpuSceneInstanceIndex);
+            seed = HashAppend(seed, command.gpuSceneInstanceCount);
+            seed = HashAppend(seed, command.firstClusterRangeIndex);
+            seed = HashAppend(seed, command.clusterRangeCount);
+            seed = HashAppend(seed, command.psoKey);
+            seed = HashAppend(seed, command.geometryKey);
+            seed = HashAppend(seed, static_cast<uint32_t>(command.geometryBackend));
+            seed = HashAppend(seed, static_cast<uint32_t>(command.backendRoute));
+            seed = HashAppend(seed, command.materialKey);
+            seed = HashAppend(seed, command.textureSetKey);
+            seed = HashAppend(seed, command.modelKey);
+            seed = HashAppend(seed, command.traditionalBucketIndex);
+            seed = HashAppend(seed, command.singleRecord ? 1u : 0u);
+            seed = HashAppend(seed, command.alphaMasked ? 1u : 0u);
+            seed = HashAppend(seed, command.doubleSided ? 1u : 0u);
+            seed = HashAppend(seed, command.materialFx ? 1u : 0u);
+            seed = HashAppend(seed, command.waterMaterialFx ? 1u : 0u);
+            seed = HashAppend(seed, command.materialFxUsesCustomVertexShader ? 1u : 0u);
+            seed = HashAppend(seed, command.clusterMainlineEligible ? 1u : 0u);
+            seed = HashAppend(seed, command.drawArgsValid ? 1u : 0u);
+            seed = HashShadowDrawArgs(seed, command.drawArgs);
+            return HashShadowTriangleMeshView(seed, command.triangleMeshView);
+        }
+
+        uint64_t HashShadowTraditionalStream(
+            uint64_t seed,
+            const OwnedShadowTraditionalIndirectStream& stream) {
+
+            seed = HashAppend(seed, stream.records.size());
+            seed = HashAppend(seed, stream.commands.size());
+            seed = HashAppend(seed, stream.staticCommandCount);
+            seed = HashAppend(seed, stream.skinnedCommandCount);
+            for (const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record : stream.records) {
+                seed = HashAppend(seed, record.objectId.value);
+                seed = HashAppend(seed, record.objectVersion);
+                seed = HashAppend(seed, record.sourceSurfaceInstanceIndex);
+                seed = HashAppend(seed, record.surfaceIndex);
+                seed = HashAppend(seed, record.nodeIndex);
+                seed = HashAppend(seed, record.meshIndex);
+                seed = HashAppend(seed, record.primitiveIndex);
+                seed = HashAppend(seed, record.materialIndex);
+                seed = HashAppend(seed, record.isStatic ? 1u : 0u);
+                seed = HashAppend(seed, record.hasRuntimeAnimation ? 1u : 0u);
+                seed = HashAppend(seed, record.skinned ? 1u : 0u);
+                seed = HashAppend(seed, record.castShadow ? 1u : 0u);
+                seed = HashBytes(seed, &record.drawWorldMatrix, sizeof(record.drawWorldMatrix));
+                seed = HashBytes(seed, &record.worldBounds, sizeof(record.worldBounds));
+                seed = HashAppend(seed, record.key.modelKey);
+                seed = HashAppend(seed, record.key.geometryKey);
+                seed = HashAppend(seed, record.key.clusterGeometryKey);
+                seed = HashAppend(seed, record.key.materialKey);
+                seed = HashAppend(seed, record.key.textureSetKey);
+                seed = HashAppend(seed, record.key.psoKey);
+            }
+            for (const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance : stream.instances) {
+                seed = HashShadowCasterInstance(seed, instance);
+            }
+            for (const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& material : stream.materialSources) {
+                seed = HashShadowMaterialSource(seed, material);
+            }
+            for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : stream.commands) {
+                seed = HashShadowDrawCommand(seed, command);
+            }
+            return seed;
+        }
+
+        uint64_t BuildShadowSourceContentHash(
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances,
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>& materialSources,
+            const OwnedShadowTraditionalIndirectStream& traditionalStream,
+            uint64_t salt) {
+
+            uint64_t seed = HashAppend(1469598103934665603ull, salt);
+            seed = HashAppend(seed, instances.size());
+            seed = HashAppend(seed, materialSources.size());
+            for (const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance : instances) {
+                seed = HashShadowCasterInstance(seed, instance);
+            }
+            for (const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& material : materialSources) {
+                seed = HashShadowMaterialSource(seed, material);
+            }
+            return HashShadowTraditionalStream(seed, traditionalStream);
+        }
+
+        uint64_t BuildShadowSourceLayoutHash(
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances,
+            const OwnedShadowTraditionalIndirectStream& traditionalStream,
+            uint64_t salt) {
+
+            uint64_t seed = HashAppend(1099511628211ull, salt);
+            seed = HashAppend(seed, instances.size());
+            seed = HashAppend(seed, traditionalStream.instances.size());
+            seed = HashAppend(seed, traditionalStream.staticCommandCount);
+            seed = HashAppend(seed, traditionalStream.skinnedCommandCount);
+            return seed;
+        }
+
+        void AttachSplitShadowPass(
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source,
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>& instances,
+            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>& materialSources,
+            OwnedShadowTraditionalIndirectStream& traditionalStream,
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& templatePass,
+            uint64_t sourceSalt) {
+
+            source.Reset();
+            RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                source.GetPass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            if (!instances.empty()) {
+                pass.instances = &instances;
+                pass.materialSources = &materialSources;
+                pass.gpuSceneBaseIndex = 0u;
+                pass.gpuSceneInstanceCount =
+                    static_cast<uint32_t>(
+                        (std::min)(
+                            instances.size(),
+                            static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+            }
+            pass.preferredBackend = templatePass.preferredBackend;
+            pass.clusterEligible = templatePass.clusterEligible && !instances.empty();
+
+            traditionalStream.gpuSceneBaseIndex = pass.gpuSceneInstanceCount;
+            traditionalStream.gpuSceneInstanceCount =
+                static_cast<uint32_t>(
+                    (std::min)(
+                        traditionalStream.instances.size(),
+                        static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
+            traditionalStream.AttachTo(pass);
+
+            const uint64_t contentHash = BuildShadowSourceContentHash(
+                instances,
+                materialSources,
+                traditionalStream,
+                sourceSalt);
+            source.layoutVersion = BuildShadowSourceLayoutHash(
+                instances,
+                traditionalStream,
+                sourceSalt);
+            source.sourceVersion = contentHash;
+            source.dirtyBaseSourceVersion = contentHash;
+            source.sourceInstanceCount =
+                static_cast<size_t>(pass.gpuSceneInstanceCount) +
+                static_cast<size_t>(traditionalStream.gpuSceneInstanceCount);
+        }
+
+        void BuildShadowSplitSceneSources() {
+            ClearShadowSplitSources();
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& sourcePass =
+                g.shadowSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance>* sourceInstances =
+                sourcePass.instances;
+            const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>* sourceMaterials =
+                sourcePass.materialSources;
+
+            const size_t primaryCount =
+                sourceInstances != nullptr
+                    ? (std::min)(
+                        static_cast<size_t>(sourcePass.gpuSceneInstanceCount),
+                        sourceInstances->size())
+                    : 0u;
+            for (size_t index = 0; index < primaryCount; ++index) {
+                const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance =
+                    (*sourceInstances)[index];
+                if (!IsShadowPassInstance(instance)) {
+                    continue;
+                }
+
+                const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* material =
+                    sourceMaterials != nullptr && index < sourceMaterials->size()
+                        ? &(*sourceMaterials)[index]
+                        : nullptr;
+                if (IsStaticShadowCacheInstance(instance)) {
+                    AppendSplitShadowInstance(
+                        instance,
+                        material,
+                        g.staticShadowInstances,
+                        g.staticShadowMaterialSources);
+                } else {
+                    AppendSplitShadowInstance(
+                        instance,
+                        material,
+                        g.dynamicShadowInstances,
+                        g.dynamicShadowMaterialSources);
+                }
+            }
+
+            SplitShadowTraditionalStream(gShadowTraditionalIndirectStream);
+            AttachSplitShadowPass(
+                g.staticShadowSceneSource,
+                g.staticShadowInstances,
+                g.staticShadowMaterialSources,
+                gShadowStaticTraditionalIndirectStream,
+                sourcePass,
+                0x7374617469635f73ull);
+            AttachSplitShadowPass(
+                g.dynamicShadowSceneSource,
+                g.dynamicShadowInstances,
+                g.dynamicShadowMaterialSources,
+                gShadowDynamicTraditionalIndirectStream,
+                sourcePass,
+                0x64796e616d69635full);
+
+            g.frameHasStaticShadowWork =
+                g.staticShadowSceneSource.HasAnyGpuSceneRanges();
+            g.frameHasDynamicShadowWork =
+                g.dynamicShadowSceneSource.HasAnyGpuSceneRanges();
+            g.frameStaticShadowContentHash =
+                g.staticShadowSceneSource.sourceVersion;
+        }
+
         MESHRENDERER::MaterialGpuData BuildShadowMaterialGpuData(
             const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source) {
 
@@ -821,9 +1309,10 @@ namespace HIKARI::SHADOW {
             }
         }
 
-        void PrepareShadowSurfaceGpuSceneMaterialFrame() {
+        void PrepareShadowSurfaceGpuSceneMaterialFrame(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source) {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
-                g.shadowSceneSource.GetPass(
+                source.GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
             PrepareShadowSurfaceGpuSceneMaterialSources(
                 shadow.gpuSceneBaseIndex,
@@ -1154,11 +1643,13 @@ namespace HIKARI::SHADOW {
             g.shadowSrvHandle = -1;
 
             g.shadowMap.Reset();
+            g.shadowStaticCacheMap.Reset();
             g.dsvHeap.Reset();
+            g.staticCacheDsv = {};
 
             D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
             dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-            dsvHeapDesc.NumDescriptors = 1;
+            dsvHeapDesc.NumDescriptors = 2;
             if (FAILED(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(g.dsvHeap.GetAddressOf())))) {
                 return false;
             }
@@ -1189,11 +1680,31 @@ namespace HIKARI::SHADOW {
             }
             GFX::SetD3D12Name(g.shadowMap.Get(), L"Directional Shadow Map");
 
+            const HRESULT cacheHr = device->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &texDesc,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                &clearValue,
+                IID_PPV_ARGS(g.shadowStaticCacheMap.GetAddressOf()));
+            if (!HIKARI_DX_CHECK(cacheHr, "ShadowMapRenderer::CreateStaticShadowCacheResource")) {
+                return false;
+            }
+            GFX::SetD3D12Name(g.shadowStaticCacheMap.Get(), L"Directional Shadow Static Cache");
+
             D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
             dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
             g.dsv = g.dsvHeap->GetCPUDescriptorHandleForHeapStart();
             device->CreateDepthStencilView(g.shadowMap.Get(), &dsvDesc, g.dsv);
+            const UINT dsvDescriptorSize =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+            g.staticCacheDsv = g.dsv;
+            g.staticCacheDsv.ptr += dsvDescriptorSize;
+            device->CreateDepthStencilView(
+                g.shadowStaticCacheMap.Get(),
+                &dsvDesc,
+                g.staticCacheDsv);
 
             RENDER3D::RenderResourceDesc shadowSrvDesc{};
             shadowSrvDesc.kind = RENDER3D::RenderResourceKind::Texture;
@@ -1215,6 +1726,7 @@ namespace HIKARI::SHADOW {
             g.shadowSrvHandle = RENDER3D::GetTextureResourceBackendHandle(g.shadowSrvResource);
             g.resolution = resolution;
             g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            g.staticCacheState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             ++g.shadowMapRecreateCount;
             return RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
         }
@@ -1542,7 +2054,10 @@ namespace HIKARI::SHADOW {
                 return 0.0f;
             }
 
-            constexpr float kSnapTexels = 2.0f;
+            // Anchor の吸着格子。大きいほどカメラ移動での再アンカー (= shadow
+            // cache 失効) が減る。orthoSize に対して 16/2048 程度のずれは
+            // 視覚上判別できない。
+            constexpr float kSnapTexels = 16.0f;
             const float texelWorldSize =
                 orthoSize / static_cast<float>((std::max)(1u, g.resolution));
             return (std::max)(texelWorldSize * kSnapTexels, 0.0001f);
@@ -1720,16 +2235,18 @@ namespace HIKARI::SHADOW {
         void ClearFrameSubmissions() {
             g.debugStats = {};
             g.frameHasShadowWork = false;
+            g.frameHasStaticShadowWork = false;
+            g.frameHasDynamicShadowWork = false;
             g.shadowCacheHitThisFrame = false;
+            g.frameStaticShadowContentHash = 0;
+            ClearShadowSplitSources();
             PublishShadowCacheStats();
         }
 
-        bool UploadShadowGpuSceneFrame() {
-            g.gpuDrivenLayer.BeginFrame(
-                g.frameHasShadowWork &&
-                    g.shadowSceneSource.HasAnyGpuSceneRanges()
-                    ? &g.shadowSceneSource
-                    : nullptr);
+        bool UploadShadowGpuSceneFrame(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source) {
+            const bool hasSource = source.HasAnyGpuSceneRanges();
+            g.gpuDrivenLayer.BeginFrame(hasSource ? &source : nullptr);
 
             RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadDesc uploadDesc{};
             uploadDesc.commandList = SERVICES::gCtx.cmdList;
@@ -1751,7 +2268,7 @@ namespace HIKARI::SHADOW {
                 uploadStats.reusedResidentFrame ? 1u : 0u;
             g.debugStats.shadowGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.shadowGpuSceneBufferReady = gpuSceneStats.initialized;
-            return g.frameHasShadowWork;
+            return hasSource;
         }
 
         void ResetShadowGpuDrivenWorkFrame() {
@@ -1768,14 +2285,15 @@ namespace HIKARI::SHADOW {
             g.gpuDrivenLayer.BuildCommandFrame(commandFrameDesc);
         }
 
-        void BuildShadowGpuDrivenWorkFrame() {
+        void BuildShadowGpuDrivenWorkFrame(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source) {
             const RENDER3D::GPUDRIVEN::GpuDrivenFrameBuildInput input =
                 RENDER3D::GPUDRIVEN::BuildGpuDrivenFrameInput(
-                    g.shadowSceneSource);
+                    source);
             g.gpuDrivenFrame =
                 RENDER3D::GPUDRIVEN::BuildGpuDrivenFrame(input);
 
-            if (!g.shadowSceneSource.HasAnyGpuSceneRanges() ||
+            if (!source.HasAnyGpuSceneRanges() ||
                 !g.surfaceGpuSceneBuffer.GetStats().initialized ||
                 g.surfaceGpuSceneBuffer.GetStats().overflowInstanceCount != 0) {
                 ResetShadowGpuDrivenWorkFrame();
@@ -1828,6 +2346,140 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowIndirectMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
             g.debugStats.shadowIndirectArgumentBufferReady = indirectStats.initialized;
             g.debugStats.shadowIndirectCommandSignatureReady = indirectStats.commandSignatureReady;
+        }
+
+        bool ExecuteShadowGpuDrivenPass();
+
+        bool TransitionTrackedResource(
+            ID3D12Resource* resource,
+            D3D12_RESOURCE_STATES& currentState,
+            D3D12_RESOURCE_STATES targetState) {
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (resource == nullptr || cmd == nullptr) {
+                return false;
+            }
+            if (currentState == targetState) {
+                return true;
+            }
+
+            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                resource,
+                currentState,
+                targetState);
+            cmd->ResourceBarrier(1, &barrier);
+            currentState = targetState;
+            return true;
+        }
+
+        bool CopyStaticShadowCacheToShadowMap() {
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (cmd == nullptr ||
+                g.shadowMap == nullptr ||
+                g.shadowStaticCacheMap == nullptr ||
+                !g.shadowCacheValid) {
+                return false;
+            }
+
+            if (!TransitionTrackedResource(
+                    g.shadowStaticCacheMap.Get(),
+                    g.staticCacheState,
+                    D3D12_RESOURCE_STATE_COPY_SOURCE) ||
+                !TransitionTrackedResource(
+                    g.shadowMap.Get(),
+                    g.shadowState,
+                    D3D12_RESOURCE_STATE_COPY_DEST)) {
+                return false;
+            }
+
+            cmd->CopyResource(g.shadowMap.Get(), g.shadowStaticCacheMap.Get());
+            const bool staticCacheReadable = TransitionTrackedResource(
+                g.shadowStaticCacheMap.Get(),
+                g.staticCacheState,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            const bool shadowMapWritable = TransitionTrackedResource(
+                g.shadowMap.Get(),
+                g.shadowState,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            return staticCacheReadable && shadowMapWritable;
+        }
+
+        void BindShadowDepthTarget(
+            D3D12_CPU_DESCRIPTOR_HANDLE dsv,
+            bool clearDepth) {
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (cmd == nullptr || dsv.ptr == 0) {
+                return;
+            }
+
+            D3D12_VIEWPORT viewport{};
+            viewport.Width = static_cast<float>(g.resolution);
+            viewport.Height = static_cast<float>(g.resolution);
+            viewport.MaxDepth = 1.0f;
+            D3D12_RECT scissor{ 0, 0, static_cast<LONG>(g.resolution), static_cast<LONG>(g.resolution) };
+            cmd->RSSetViewports(1, &viewport);
+            cmd->RSSetScissorRects(1, &scissor);
+            cmd->OMSetRenderTargets(0, nullptr, FALSE, &dsv);
+            if (clearDepth) {
+                cmd->ClearDepthStencilView(
+                    dsv,
+                    D3D12_CLEAR_FLAG_DEPTH,
+                    1.0f,
+                    0,
+                    0,
+                    nullptr);
+            }
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
+            if (srvHeap != nullptr) {
+                ID3D12DescriptorHeap* heaps[] = { srvHeap };
+                cmd->SetDescriptorHeaps(1, heaps);
+            }
+        }
+
+        bool PrepareShadowSourceForRender(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source) {
+
+            if (!source.HasAnyGpuSceneRanges()) {
+                return false;
+            }
+
+            ResetShadowMaterialFrame();
+            if (!UploadShadowGpuSceneFrame(source)) {
+                return false;
+            }
+            PrepareShadowSurfaceGpuSceneMaterialFrame(source);
+            CommitShadowMaterialDataFrame(SERVICES::gCtx.cmdList);
+            g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
+            BuildShadowGpuDrivenWorkFrame(source);
+            UploadShadowIndirectDrawFrame();
+            return true;
+        }
+
+        bool RenderShadowSourceToDepth(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& source,
+            ID3D12Resource* target,
+            D3D12_RESOURCE_STATES& targetState,
+            D3D12_CPU_DESCRIPTOR_HANDLE dsv,
+            bool clearDepth) {
+
+            if (target == nullptr || dsv.ptr == 0) {
+                return false;
+            }
+            if (!PrepareShadowSourceForRender(source)) {
+                return false;
+            }
+            if (!TransitionTrackedResource(
+                    target,
+                    targetState,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE)) {
+                return false;
+            }
+
+            BindShadowDepthTarget(dsv, clearDepth);
+            return ExecuteShadowGpuDrivenPass();
         }
 
         bool ExecuteShadowGpuDrivenBackend(
@@ -1986,6 +2638,13 @@ namespace HIKARI::SHADOW {
                     executed = true;
                 }
             }
+            if (!executed &&
+                g.gpuDrivenLayer.IsBackendConsumable(
+                    shadowPass,
+                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs)) {
+                executed = ExecuteShadowGpuDrivenBackend(
+                    RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs);
+            }
             return executed;
         }
 
@@ -2021,6 +2680,14 @@ namespace HIKARI::SHADOW {
             InvalidateShadowCache();
             return;
         }
+        BuildShadowSplitSceneSources();
+        g.frameHasShadowWork =
+            g.frameHasStaticShadowWork ||
+            g.frameHasDynamicShadowWork;
+        if (!g.frameHasShadowWork) {
+            InvalidateShadowCache();
+            return;
+        }
         if (!EnsureInitialized()) {
             g.frameEnabled = false;
             g.debugStats.enabled = false;
@@ -2048,23 +2715,14 @@ namespace HIKARI::SHADOW {
         g.lightAnchor = shadowFrame.anchor;
         g.lightAnchorGrid = shadowFrame.anchorGrid;
         UploadShadowCameraConstants(shadowFrame);
-        if (CanReuseShadowCache(resolution)) {
+        if (CanReuseStaticShadowCache(resolution)) {
             MarkShadowCacheHit();
-            SubmitDebugFrustum(environment, camera);
-            return;
+        } else if (g.frameHasStaticShadowWork) {
+            MarkShadowCacheMiss();
+        } else {
+            g.shadowCacheHitThisFrame = false;
+            PublishShadowCacheStats();
         }
-
-        MarkShadowCacheMiss();
-        ResetShadowMaterialFrame();
-        if (!UploadShadowGpuSceneFrame()) {
-            InvalidateShadowCache();
-            return;
-        }
-        PrepareShadowSurfaceGpuSceneMaterialFrame();
-        CommitShadowMaterialDataFrame(SERVICES::gCtx.cmdList);
-        g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
-        BuildShadowGpuDrivenWorkFrame();
-        UploadShadowIndirectDrawFrame();
         SubmitDebugFrustum(environment, camera);
     }
 
@@ -2075,6 +2733,7 @@ namespace HIKARI::SHADOW {
         if (source == nullptr) {
             g.shadowSceneSource.Reset();
             gShadowTraditionalIndirectStream.Clear();
+            ClearShadowSplitSources();
             InvalidateShadowCache();
         }
     }
@@ -2087,55 +2746,61 @@ namespace HIKARI::SHADOW {
         if (cmd == nullptr) {
             return;
         }
-        if (g.shadowCacheHitThisFrame) {
-            if (g.shadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
-                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                    g.shadowMap.Get(),
-                    g.shadowState,
-                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-                cmd->ResourceBarrier(1, &barrier);
-                g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            }
-            return;
-        }
         GFX::GPU_PROFILE::ScopedGpuTimer gpuShadow(cmd, GFX::GPU_PROFILE::Pass::ShadowMap);
 
-        if (g.shadowState != D3D12_RESOURCE_STATE_DEPTH_WRITE) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(g.shadowMap.Get(), g.shadowState, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-            cmd->ResourceBarrier(1, &barrier);
-            g.shadowState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-        }
-
-        D3D12_VIEWPORT viewport{};
-        viewport.Width = static_cast<float>(g.resolution);
-        viewport.Height = static_cast<float>(g.resolution);
-        viewport.MaxDepth = 1.0f;
-        D3D12_RECT scissor{ 0, 0, static_cast<LONG>(g.resolution), static_cast<LONG>(g.resolution) };
-        cmd->RSSetViewports(1, &viewport);
-        cmd->RSSetScissorRects(1, &scissor);
-        cmd->OMSetRenderTargets(0, nullptr, FALSE, &g.dsv);
-        cmd->ClearDepthStencilView(g.dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
-        if (srvHeap != nullptr) {
-            ID3D12DescriptorHeap* heaps[] = { srvHeap };
-            cmd->SetDescriptorHeaps(1, heaps);
-        }
-
         auto finishShadowRender = [&]() {
-            if (g.shadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
-                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(g.shadowMap.Get(), g.shadowState, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-                cmd->ResourceBarrier(1, &barrier);
-                g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            }
+            (void)TransitionTrackedResource(
+                g.shadowMap.Get(),
+                g.shadowState,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             RestoreMainRenderTarget();
         };
 
-        const bool executed = ExecuteShadowGpuDrivenPass();
+        bool hasBaseShadowDepth = false;
+        bool staticRendered = false;
+        if (g.frameHasStaticShadowWork && !g.shadowCacheHitThisFrame) {
+            staticRendered = RenderShadowSourceToDepth(
+                g.staticShadowSceneSource,
+                g.shadowStaticCacheMap.Get(),
+                g.staticCacheState,
+                g.staticCacheDsv,
+                true);
+            if (staticRendered) {
+                MarkShadowCacheValidAfterRender();
+            } else {
+                InvalidateShadowCache();
+            }
+        }
+
+        if (g.frameHasStaticShadowWork && g.shadowCacheValid) {
+            hasBaseShadowDepth = CopyStaticShadowCacheToShadowMap();
+            if (!hasBaseShadowDepth) {
+                InvalidateShadowCache();
+            }
+        }
+
+        bool dynamicRendered = false;
+        if (g.frameHasDynamicShadowWork) {
+            dynamicRendered = RenderShadowSourceToDepth(
+                g.dynamicShadowSceneSource,
+                g.shadowMap.Get(),
+                g.shadowState,
+                g.dsv,
+                !hasBaseShadowDepth);
+        } else if (!hasBaseShadowDepth && !g.frameHasStaticShadowWork) {
+            (void)TransitionTrackedResource(
+                g.shadowMap.Get(),
+                g.shadowState,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            BindShadowDepthTarget(g.dsv, true);
+        }
+
+        const bool executed =
+            hasBaseShadowDepth ||
+            dynamicRendered;
         finishShadowRender();
         if (executed) {
-            MarkShadowCacheValidAfterRender();
+            PublishShadowCacheStats();
         } else {
             InvalidateShadowCache();
         }

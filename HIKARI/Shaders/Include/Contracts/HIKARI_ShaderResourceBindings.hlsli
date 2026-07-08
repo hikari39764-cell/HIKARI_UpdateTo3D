@@ -45,5 +45,6 @@ static const uint HIKARI_SHADER_REG_T_CLUSTER_GEOMETRY_POOL = 0u;
 
 static const uint HIKARI_SHADER_REG_S_LINEAR_WRAP = 0u;
 static const uint HIKARI_SHADER_REG_S_SHADOW = 1u;
+static const uint HIKARI_SHADER_REG_S_SHADOW_CMP = 2u;
 
 #endif

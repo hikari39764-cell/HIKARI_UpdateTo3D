@@ -922,6 +922,7 @@
     <None Include="Data\transition_profiles\noise_wipe.json" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ShadowSampling.hlsli" />
     <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli" />

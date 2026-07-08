@@ -1,4 +1,4 @@
-
+﻿
 #define gFxUser0 waterObjectData.fxUser[0]
 #define gFxUser1 waterObjectData.fxUser[1]
 #define gFxUser2 waterObjectData.fxUser[2]
@@ -106,7 +106,10 @@ TextureCube gSkyCube : register(t6);
 Texture2D gSceneDepth : register(t7);
 Texture2D gSceneColorTex : register(t8);
 SamplerState gShadowSampler : register(s1);
+SamplerComparisonState gShadowCmpSampler : register(s2);
 SamplerState gSkySampler : register(s0);
+
+#include "Include/Forward/HIKARI_ShadowSampling.hlsli"
 
 #ifndef WATER_DEBUG_SCENE_DEPTH
 #define WATER_DEBUG_SCENE_DEPTH 0
@@ -505,79 +508,8 @@ float3 ApplyFog(float3 color, float3 worldPosWS)
     return lerp(color, gFogColorDensity.rgb, fogFactor);
 }
 
-float CompareShadowDepth(float2 uv, float currentDepth)
-{
-    float shadowDepth = gShadowMap.SampleLevel(gShadowSampler, uv, 0).r;
-    return currentDepth <= shadowDepth ? 1.0f : 0.0f;
-}
-
-float SampleShadowPcf(float2 uv, float currentDepth)
-{
-    float visibility = CompareShadowDepth(uv, currentDepth);
-
-    if (gShadowPcfEnabled == 0)
-    {
-        return visibility;
-    }
-
-    float2 texelSize = float2(gShadowTexelSizeX, gShadowTexelSizeY) * gShadowPcfRadius;
-
-    float sum = 0.0f;
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f, -1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  0.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2(-1.0f,  1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 0.0f,  1.0f), currentDepth);
-    sum += CompareShadowDepth(uv + texelSize * float2( 1.0f,  1.0f), currentDepth);
-
-    return sum / 9.0f;
-}
-
-float HikariShadowReceiverFade(float2 uv)
-{
-    if (gShadowEdgeFade <= 0.00001f)
-    {
-        return 1.0f;
-    }
-
-    float edgeDistance = min(min(uv.x, 1.0f - uv.x), min(uv.y, 1.0f - uv.y));
-    return saturate(edgeDistance / gShadowEdgeFade);
-}
-
-float SampleDirectionalShadow(float3 worldPosWS, float3 normalWS, uint receiveShadow)
-{
-    if (gShadowEnabled == 0 || receiveShadow == 0)
-    {
-        return 1.0f;
-    }
-
-    float3 biasedWorldPos = worldPosWS + normalWS * gShadowNormalBias;
-
-    float4 lightClip = mul(gShadowLightViewProj, float4(biasedWorldPos, 1.0f));
-    if (abs(lightClip.w) < 1e-5f)
-    {
-        return 1.0f;
-    }
-
-    float3 proj = lightClip.xyz / lightClip.w;
-    float2 uv = float2(proj.x * 0.5f + 0.5f, -proj.y * 0.5f + 0.5f);
-
-    if (uv.x < 0.0f || uv.x > 1.0f ||
-        uv.y < 0.0f || uv.y > 1.0f ||
-        proj.z < 0.0f || proj.z > 1.0f)
-    {
-        return 1.0f;
-    }
-
-    float currentDepth = proj.z - gShadowDepthBias;
-    float visibility = SampleShadowPcf(uv, currentDepth);
-
-    float shadowFactor = lerp(1.0f - gShadowStrength, 1.0f, visibility);
-    return lerp(1.0f, shadowFactor, HikariShadowReceiverFade(uv));
-}
+// 蠖ｱ縺ｮ繧ｵ繝ｳ繝励Μ繝ｳ繧ｰ縺ｯ Include/Forward/HIKARI_ShadowSampling.hlsli 縺ｮ
+// 蜈ｱ騾壼ｮ溯｣・(hardware PCF) 繧剃ｽｿ縺・・
 
 
 float3 RotateSkyYaw(float3 dir, float yaw)
@@ -724,7 +656,7 @@ float4 main(PSInput input) : SV_TARGET
     float3 normalWaterColor = lerp(waterColor, shallowColor, oldNormalShallow);
     float3 baseWater = lerp(normalWaterColor, depthWaterColor, saturate(depthBlend));
 
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n, input.receiveShadow);
+    float shadowFactor = HikariSampleDirectionalShadow(input.worldPosWS, n, input.receiveShadow);
 
     float3 ambient = gAmbientColor.rgb * max(gAmbientIntensity, 0.05f);
     float3 sun = gDirectionalColor.rgb * gDirectionalIntensity * ndotl * shadowFactor;
