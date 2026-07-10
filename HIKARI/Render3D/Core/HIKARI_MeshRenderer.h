@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <vector>
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include "Render3D/Core/HIKARI_Camera3D.h"
@@ -21,6 +22,20 @@ namespace HIKARI::RENDER3D {
 }
 
 namespace HIKARI::MESHRENDERER {
+
+    struct TemporalVelocityDraw {
+        uint64_t objectId = 0;
+        MATH::Mat4 world{};
+        D3D12_VERTEX_BUFFER_VIEW vertexBuffer{};
+        D3D12_INDEX_BUFFER_VIEW indexBuffer{};
+        uint32_t indexCount = 0;
+        uint32_t startIndex = 0;
+        int32_t baseVertex = 0;
+        bool skinned = false;
+        bool doubleSided = false;
+        bool alphaMasked = false;
+        const std::vector<MATH::Mat4>* jointPalette = nullptr;
+    };
 
     void Reset();
     void InvalidateMaterialFxPipelineCache();
@@ -58,6 +73,8 @@ namespace HIKARI::MESHRENDERER {
     bool HasForwardTransparentPassWork();
     bool RenderDepthAwarePass(
         const MeshPassResources& passResources);
+    void GatherTemporalVelocityDraws(
+        std::vector<TemporalVelocityDraw>& outDraws);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();
     void RenderAll(

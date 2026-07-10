@@ -57,8 +57,13 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             }
 
             const uint32_t sampleIndex = (phase % 16u) + 1u;
-            const float pixelX = Halton(sampleIndex, 2u) - 0.5f;
-            const float pixelY = Halton(sampleIndex, 3u) - 0.5f;
+            // Center the finite 16-phase sequence itself. The raw Halton prefix
+            // has a small non-zero mean that otherwise becomes a persistent
+            // sub-pixel camera offset after convergence.
+            constexpr float kPhaseMeanX = -0.029296875f;
+            constexpr float kPhaseMeanY = -0.037037037f;
+            const float pixelX = Halton(sampleIndex, 2u) - 0.5f - kPhaseMeanX;
+            const float pixelY = Halton(sampleIndex, 3u) - 0.5f - kPhaseMeanY;
             return {
                 pixelX,
                 pixelY,

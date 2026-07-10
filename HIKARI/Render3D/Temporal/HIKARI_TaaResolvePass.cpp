@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <iterator>
+#include <string>
 
 #include <d3dx12.h>
 #include <wrl/client.h>
@@ -21,6 +22,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
     namespace {
         using Microsoft::WRL::ComPtr;
+        constexpr uint32_t kFrameSlotCount = 3u;
 
         struct TaaResolveConstants {
             MATH::Vec4 screenParams{};
@@ -28,11 +30,15 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             MATH::Vec4 rejectionParams{};
         };
 
+        struct ConstantSlot {
+            ComPtr<ID3D12Resource> buffer{};
+            TaaResolveConstants* mapped = nullptr;
+        };
+
         struct TaaResolvePassState {
             ComPtr<ID3D12RootSignature> rootSignature{};
             ComPtr<ID3D12PipelineState> pipelineState{};
-            ComPtr<ID3D12Resource> constantBuffer{};
-            TaaResolveConstants* mappedConstants = nullptr;
+            std::array<ConstantSlot, kFrameSlotCount> constants{};
             bool ready = false;
         };
 
@@ -45,34 +51,39 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             return (size + 255u) & ~255u;
         }
 
-        bool EnsureConstantBuffer(ID3D12Device* device) {
+        bool EnsureConstantBuffers(ID3D12Device* device) {
             TaaResolvePassState& state = State();
-            if (state.constantBuffer != nullptr && state.mappedConstants != nullptr) {
-                return true;
-            }
+            for (uint32_t index = 0; index < kFrameSlotCount; ++index) {
+                ConstantSlot& slot = state.constants[index];
+                if (slot.buffer != nullptr && slot.mapped != nullptr) {
+                    continue;
+                }
 
-            const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-                AlignConstantBufferSize(sizeof(TaaResolveConstants)));
-            const HRESULT hr = device->CreateCommittedResource(
-                &heapProps,
-                D3D12_HEAP_FLAG_NONE,
-                &bufferDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(state.constantBuffer.GetAddressOf()));
-            if (!HIKARI_DX_CHECK(hr, "TaaResolvePass::CreateConstantBuffer")) {
-                return false;
-            }
-            state.constantBuffer->SetName(L"HIKARI.Temporal.TaaResolveCB");
-            const CD3DX12_RANGE readRange(0, 0);
-            if (FAILED(state.constantBuffer->Map(
-                    0,
-                    &readRange,
-                    reinterpret_cast<void**>(&state.mappedConstants)))) {
-                state.constantBuffer.Reset();
-                state.mappedConstants = nullptr;
-                return false;
+                const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+                const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
+                    AlignConstantBufferSize(sizeof(TaaResolveConstants)));
+                const HRESULT hr = device->CreateCommittedResource(
+                    &heapProps,
+                    D3D12_HEAP_FLAG_NONE,
+                    &bufferDesc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    IID_PPV_ARGS(slot.buffer.GetAddressOf()));
+                if (!HIKARI_DX_CHECK(hr, "TaaResolvePass::CreateConstantBuffer")) {
+                    return false;
+                }
+                const std::wstring name =
+                    L"HIKARI.Temporal.TaaResolveCB" + std::to_wstring(index);
+                slot.buffer->SetName(name.c_str());
+                const CD3DX12_RANGE readRange(0, 0);
+                if (FAILED(slot.buffer->Map(
+                        0,
+                        &readRange,
+                        reinterpret_cast<void**>(&slot.mapped)))) {
+                    slot.buffer.Reset();
+                    slot.mapped = nullptr;
+                    return false;
+                }
             }
             return true;
         }
@@ -88,7 +99,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
                 return false;
             }
 
-            D3D12_DESCRIPTOR_RANGE ranges[5]{};
+            D3D12_DESCRIPTOR_RANGE ranges[10]{};
             for (uint32_t i = 0; i < static_cast<uint32_t>(std::size(ranges)); ++i) {
                 ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
                 ranges[i].NumDescriptors = 1;
@@ -98,13 +109,13 @@ namespace HIKARI::RENDER3D::TEMPORAL {
                     D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
             }
 
-            D3D12_ROOT_PARAMETER params[6]{};
+            D3D12_ROOT_PARAMETER params[11]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
             params[0].Descriptor.RegisterSpace = 0;
 
-            for (uint32_t i = 0; i < 5u; ++i) {
+            for (uint32_t i = 0; i < 10u; ++i) {
                 params[i + 1u].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
                 params[i + 1u].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
                 params[i + 1u].DescriptorTable.NumDescriptorRanges = 1;
@@ -185,9 +196,11 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
             psoDesc.InputLayout = {};
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-            psoDesc.NumRenderTargets = 2;
+            psoDesc.NumRenderTargets = 4;
             psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
-            psoDesc.RTVFormats[1] = DXGI_FORMAT_R32_FLOAT;
+            psoDesc.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            psoDesc.RTVFormats[2] = DXGI_FORMAT_R32_FLOAT;
+            psoDesc.RTVFormats[3] = DXGI_FORMAT_R16G16B16A16_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
             hr = device->CreateGraphicsPipelineState(
@@ -198,7 +211,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             }
             state.pipelineState->SetName(L"HIKARI.Temporal.TaaResolvePSO");
 
-            state.ready = EnsureConstantBuffer(device);
+            state.ready = EnsureConstantBuffers(device);
             return state.ready;
         }
     }
@@ -214,6 +227,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         RenderTarget2D* historyTarget = GetHistoryColorWriteRenderTarget();
         RenderTarget2D* historyDepthTarget = GetHistoryDepthWriteRenderTarget();
         RenderTarget2D* outputTarget = GetTaaResolvedColorRenderTarget();
+        RenderTarget2D* debugTarget = GetTemporalDebugRenderTarget();
 
         MarkTemporalAntiAliasing(settings.enabled, false);
         if (!settings.enabled ||
@@ -224,17 +238,28 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             historyTarget == nullptr ||
             historyDepthTarget == nullptr ||
             outputTarget == nullptr ||
+            debugTarget == nullptr ||
             !inputs.sceneColor.valid ||
             !inputs.motionVectors.valid ||
+            !inputs.motionMetadata.valid ||
             !inputs.hasSceneDepth ||
             inputs.sceneDepthSrv.ptr == 0 ||
             !inputs.historyColorWrite.valid ||
-            !inputs.historyDepthWrite.valid) {
+            !inputs.historyDepthWrite.valid ||
+            !inputs.reactiveMask.valid ||
+            !inputs.transparencyMask.valid ||
+            !inputs.invalidDepthMotionMask.valid ||
+            !inputs.exposure.valid ||
+            !inputs.debugOutput.valid) {
             return nullptr;
         }
-        if (!EnsurePipeline(device) ||
-            state.mappedConstants == nullptr ||
-            state.constantBuffer == nullptr) {
+        if (!EnsurePipeline(device)) {
+            return nullptr;
+        }
+
+        ConstantSlot& constantSlot =
+            state.constants[inputs.frame.frameIndex % kFrameSlotCount];
+        if (constantSlot.mapped == nullptr || constantSlot.buffer == nullptr) {
             return nullptr;
         }
 
@@ -247,16 +272,16 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         constants.taaParams = {
             historyValid ? 1.0f : 0.0f,
             std::clamp(settings.historyWeight, 0.0f, 0.97f),
-            0.0f,
+            inputs.exposure.valid ? 1.0f : 0.0f,
             (std::max)(0.0f, settings.varianceClipGamma)
         };
         constants.rejectionParams = {
             std::clamp(settings.depthRejection, 0.0001f, 0.05f),
             std::clamp(settings.luminanceRejection, 0.05f, 4.0f),
             std::clamp(settings.sharpness, 0.0f, 1.0f),
-            0.0f
+            static_cast<float>(GetTemporalDebugView())
         };
-        *state.mappedConstants = constants;
+        *constantSlot.mapped = constants;
 
         D3D12_GPU_DESCRIPTOR_HANDLE historySrv =
             historyValid ? inputs.historyColorRead.srv : inputs.sceneColor.srv;
@@ -273,12 +298,16 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
         historyTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
         historyDepthTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        outputTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        debugTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = {
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[4] = {
+            outputTarget->GetRtvHandle(),
             historyTarget->GetRtvHandle(),
-            historyDepthTarget->GetRtvHandle()
+            historyDepthTarget->GetRtvHandle(),
+            debugTarget->GetRtvHandle()
         };
-        cmd->OMSetRenderTargets(2, rtvs, FALSE, nullptr);
+        cmd->OMSetRenderTargets(4, rtvs, FALSE, nullptr);
         const uint32_t viewportWidth =
             static_cast<uint32_t>((std::max)(1, historyTarget->GetWidth()));
         const uint32_t viewportHeight =
@@ -302,28 +331,35 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         const float colorClear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
         const float depthClear[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
         cmd->ClearRenderTargetView(rtvs[0], colorClear, 0, nullptr);
-        cmd->ClearRenderTargetView(rtvs[1], depthClear, 0, nullptr);
+        cmd->ClearRenderTargetView(rtvs[1], colorClear, 0, nullptr);
+        cmd->ClearRenderTargetView(rtvs[2], depthClear, 0, nullptr);
+        cmd->ClearRenderTargetView(rtvs[3], colorClear, 0, nullptr);
 
         cmd->SetDescriptorHeaps(1, &srvHeap);
         cmd->SetGraphicsRootSignature(state.rootSignature.Get());
         cmd->SetPipelineState(state.pipelineState.Get());
         cmd->SetGraphicsRootConstantBufferView(
             0,
-            state.constantBuffer->GetGPUVirtualAddress());
+            constantSlot.buffer->GetGPUVirtualAddress());
         cmd->SetGraphicsRootDescriptorTable(1, inputs.sceneColor.srv);
         cmd->SetGraphicsRootDescriptorTable(2, historySrv);
         cmd->SetGraphicsRootDescriptorTable(3, inputs.motionVectors.srv);
-        cmd->SetGraphicsRootDescriptorTable(4, inputs.sceneDepthSrv);
-        cmd->SetGraphicsRootDescriptorTable(5, historyDepthSrv);
+        cmd->SetGraphicsRootDescriptorTable(4, inputs.motionMetadata.srv);
+        cmd->SetGraphicsRootDescriptorTable(5, inputs.sceneDepthSrv);
+        cmd->SetGraphicsRootDescriptorTable(6, historyDepthSrv);
+        cmd->SetGraphicsRootDescriptorTable(7, inputs.reactiveMask.srv);
+        cmd->SetGraphicsRootDescriptorTable(8, inputs.transparencyMask.srv);
+        cmd->SetGraphicsRootDescriptorTable(
+            9,
+            inputs.invalidDepthMotionMask.srv);
+        cmd->SetGraphicsRootDescriptorTable(10, inputs.exposure.srv);
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->DrawInstanced(3, 1, 0, 0);
 
-        historyTarget->TransitionColor(D3D12_RESOURCE_STATE_COPY_SOURCE);
-        historyDepthTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        outputTarget->TransitionColor(D3D12_RESOURCE_STATE_COPY_DEST);
-        cmd->CopyResource(outputTarget->GetResource(), historyTarget->GetResource());
         historyTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        historyDepthTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         outputTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        debugTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         CommitTemporalHistory(true);
         MarkTemporalAntiAliasing(true, true);
@@ -332,11 +368,13 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
     void ShutdownTaaResolvePass() {
         TaaResolvePassState& state = State();
-        if (state.constantBuffer != nullptr && state.mappedConstants != nullptr) {
-            state.constantBuffer->Unmap(0, nullptr);
+        for (ConstantSlot& slot : state.constants) {
+            if (slot.buffer != nullptr && slot.mapped != nullptr) {
+                slot.buffer->Unmap(0, nullptr);
+            }
+            slot.mapped = nullptr;
+            slot.buffer.Reset();
         }
-        state.mappedConstants = nullptr;
-        state.constantBuffer.Reset();
         state.pipelineState.Reset();
         state.rootSignature.Reset();
         state.ready = false;

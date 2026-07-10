@@ -70,6 +70,7 @@ namespace HIKARI {
             static D3D12_GPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDepthSrv();
             static bool RebindCurrentRenderTarget();
             static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetDsv();
+            static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetReadOnlyDsv();
             static bool BeginCurrentRenderTargetDepthRead();
             static void EndCurrentRenderTargetDepthRead();
             static void EndSceneCaptureAndPresent(); // ?里会自??用光照合成

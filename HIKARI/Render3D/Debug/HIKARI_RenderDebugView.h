@@ -19,6 +19,12 @@ namespace HIKARI {
         SceneDepth = 11,
         SceneColor = 12,
         MotionVectors = 13,
+        TemporalHistoryWeight = 14,
+        TemporalDepthRejection = 15,
+        TemporalReactiveMask = 16,
+        TemporalTransparencyMask = 17,
+        TemporalDisocclusion = 18,
+        TemporalInvalidDepthMotion = 19,
 
         MeshletId = 32,
         ClusterId = 33,
@@ -43,6 +49,12 @@ namespace HIKARI {
         case RenderDebugView::SceneDepth: return "Scene Depth";
         case RenderDebugView::SceneColor: return "Scene Color";
         case RenderDebugView::MotionVectors: return "Motion Vectors";
+        case RenderDebugView::TemporalHistoryWeight: return "TAA History Weight";
+        case RenderDebugView::TemporalDepthRejection: return "TAA Depth Rejection";
+        case RenderDebugView::TemporalReactiveMask: return "TAA Reactive Mask";
+        case RenderDebugView::TemporalTransparencyMask: return "TAA Transparency Mask";
+        case RenderDebugView::TemporalDisocclusion: return "TAA Disocclusion";
+        case RenderDebugView::TemporalInvalidDepthMotion: return "Invalid Depth / Motion";
         case RenderDebugView::MeshletId: return "Meshlet ID";
         case RenderDebugView::ClusterId: return "Cluster ID";
         case RenderDebugView::SurfaceId: return "Surface ID";
@@ -65,7 +77,23 @@ namespace HIKARI {
 
     inline bool IsScreenSpaceRenderDebugView(RenderDebugView view) {
         return view == RenderDebugView::SceneColor ||
-            view == RenderDebugView::MotionVectors;
+            view == RenderDebugView::MotionVectors ||
+            view == RenderDebugView::TemporalHistoryWeight ||
+            view == RenderDebugView::TemporalDepthRejection ||
+            view == RenderDebugView::TemporalReactiveMask ||
+            view == RenderDebugView::TemporalTransparencyMask ||
+            view == RenderDebugView::TemporalDisocclusion ||
+            view == RenderDebugView::TemporalInvalidDepthMotion;
+    }
+
+    inline bool IsTemporalRenderDebugView(RenderDebugView view) {
+        return view == RenderDebugView::MotionVectors ||
+            view == RenderDebugView::TemporalHistoryWeight ||
+            view == RenderDebugView::TemporalDepthRejection ||
+            view == RenderDebugView::TemporalReactiveMask ||
+            view == RenderDebugView::TemporalTransparencyMask ||
+            view == RenderDebugView::TemporalDisocclusion ||
+            view == RenderDebugView::TemporalInvalidDepthMotion;
     }
 
 } // namespace HIKARI

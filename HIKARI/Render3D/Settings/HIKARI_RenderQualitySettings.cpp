@@ -36,6 +36,10 @@ namespace HIKARI::RENDER3D {
             static_cast<uint8_t>(RenderAntiAliasingMode::DLSS)) {
             gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::Off;
         }
+        if (gRenderQualitySettings.antiAliasingMode ==
+            RenderAntiAliasingMode::DLSS) {
+            gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::TAA;
+        }
         if (static_cast<uint8_t>(gRenderQualitySettings.forwardCostMode) >
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
             gRenderQualitySettings.forwardCostMode = ForwardShadingCostMode::Full;
@@ -101,7 +105,7 @@ namespace HIKARI::RENDER3D {
         case RenderAntiAliasingMode::Off: return "Off";
         case RenderAntiAliasingMode::FXAA: return "FXAA";
         case RenderAntiAliasingMode::TAA: return "TAA";
-        case RenderAntiAliasingMode::DLSS: return "DLSS";
+        case RenderAntiAliasingMode::DLSS: return "DLSS (Unavailable)";
         default: return "Unknown";
         }
     }
@@ -112,6 +116,10 @@ namespace HIKARI::RENDER3D {
 
     bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode) {
         return mode == RenderAntiAliasingMode::FXAA;
+    }
+
+    bool IsAntiAliasingModeAvailable(RenderAntiAliasingMode mode) {
+        return mode != RenderAntiAliasingMode::DLSS;
     }
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset) {

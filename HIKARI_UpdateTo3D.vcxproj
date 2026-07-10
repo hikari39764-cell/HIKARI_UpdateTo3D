@@ -303,7 +303,6 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugViewPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_LightDebugDraw.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Camera3D.cpp" />
@@ -336,6 +335,8 @@
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalFrameState.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMotionVectorPass.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalGeometryPass.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMaskPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
@@ -659,7 +660,6 @@
     <ClInclude Include="HIKARI\HIKARI_2D.h" />
     <ClInclude Include="HIKARI\HIKARI_3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h" />
-    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugViewPass.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
@@ -772,6 +772,8 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalFrameState.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMotionVectorPass.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalGeometryPass.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMaskPass.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
@@ -968,6 +970,8 @@
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaquePS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
     <None Include="HIKARI\Shaders\Temporal_MotionVector.hlsl" />
+    <None Include="HIKARI\Shaders\Temporal_GeometryMotion.hlsl" />
+    <None Include="HIKARI\Shaders\Temporal_Masks.hlsl" />
     <None Include="HIKARI\Shaders\Temporal_TaaResolve.hlsl" />
     <None Include="HIKARI\Shaders\HIKARI_ClusterCullCommon.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_ClusterDispatchFinalizeCS.hlsl" />

@@ -16,6 +16,7 @@
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Temporal/HIKARI_TaaResolvePass.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
+#include "Render3D/Temporal/HIKARI_TemporalMaskPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 
 namespace HIKARI {
@@ -991,6 +992,14 @@ namespace HIKARI {
             return rtStack_.top().rt->GetDsvHandle();
         }
 
+        D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::GetCurrentRenderTargetReadOnlyDsv()
+        {
+            if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
+                return {};
+            }
+            return rtStack_.top().rt->GetReadOnlyDsvHandle();
+        }
+
         bool PostSystem::BeginCurrentRenderTargetDepthRead()
         {
             if (!initialized_ || rtStack_.empty() || rtStack_.top().rt == nullptr) {
@@ -1069,6 +1078,7 @@ namespace HIKARI {
             rtStack_.pop();
 
             RenderTarget2D* finalSceneRT = currentRT;
+            bool temporalDebugOutput = false;
             const RENDER3D::RenderQualitySettings& renderQuality =
                 RENDER3D::GetRenderQualitySettings();
             const bool taaRequested =
@@ -1098,10 +1108,14 @@ namespace HIKARI {
                     sceneDepthSrv.ptr != 0 && currentRT->BeginDepthShaderRead();
                 if (depthReadActive &&
                     RENDER3D::TEMPORAL::PrepareSceneColorInput(*finalSceneRT)) {
+                    (void)RENDER3D::TEMPORAL::UpdateTemporalExposure(
+                        toneMappingSettings_.exposure);
                     const RENDER3D::TEMPORAL::TemporalInputs temporalInputs =
                         RENDER3D::TEMPORAL::BuildTemporalInputs(
                             sceneDepthSrv,
                             finalSceneRT->GetSrvGpu());
+                    (void)RENDER3D::TEMPORAL::ExecuteTemporalMaskPass(
+                        temporalInputs);
                     RENDER3D::TEMPORAL::TaaResolveSettings taaSettings{};
                     taaSettings.enabled = taaRequested;
                     taaSettings.historyWeight = renderQuality.taaHistoryWeight;
@@ -1118,6 +1132,15 @@ namespace HIKARI {
                             taaSettings);
                     if (taaRT != nullptr && taaRT->GetResource() != nullptr) {
                         finalSceneRT = taaRT;
+                        if (IsTemporalRenderDebugView(
+                                RENDER3D::TEMPORAL::GetTemporalDebugView())) {
+                            RenderTarget2D* debugRT =
+                                RENDER3D::TEMPORAL::GetTemporalDebugRenderTarget();
+                            if (debugRT != nullptr && debugRT->GetResource() != nullptr) {
+                                finalSceneRT = debugRT;
+                                temporalDebugOutput = true;
+                            }
+                        }
                     } else {
                         RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
                             RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
@@ -1134,11 +1157,12 @@ namespace HIKARI {
                 }
             }
 
-            if (globalChain_.HasAny()) {
+            if (!temporalDebugOutput && globalChain_.HasAny()) {
                 finalSceneRT = globalChain_.Execute(*finalSceneRT, quad_, commonParams_);
             }
 
-            RenderTarget2D* bloomRT = ApplyBloom(*finalSceneRT);
+            RenderTarget2D* bloomRT =
+                temporalDebugOutput ? nullptr : ApplyBloom(*finalSceneRT);
             if (bloomRT != nullptr && bloomRT->GetResource() != nullptr) {
                 finalSceneRT->Rebind();
                 if (!quad_.SetOutputFormat(finalSceneRT->GetFormat())) {

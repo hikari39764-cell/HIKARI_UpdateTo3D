@@ -10,10 +10,11 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
     namespace {
         constexpr DXGI_FORMAT kMotionVectorFormat = DXGI_FORMAT_R16G16_FLOAT;
+        constexpr DXGI_FORMAT kMotionMetadataFormat = DXGI_FORMAT_R16G16_FLOAT;
         constexpr DXGI_FORMAT kHistoryColorFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
         constexpr DXGI_FORMAT kHistoryDepthFormat = DXGI_FORMAT_R32_FLOAT;
         constexpr DXGI_FORMAT kMaskFormat = DXGI_FORMAT_R8_UNORM;
-        constexpr DXGI_FORMAT kExposureFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        constexpr DXGI_FORMAT kExposureFormat = DXGI_FORMAT_R32_FLOAT;
 
         struct TemporalTarget {
             RenderTarget2D target{};
@@ -38,12 +39,17 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             TemporalFrameState frame{};
             TemporalExternalTexture sceneColor{};
             TemporalTarget motionVectors{};
+            TemporalTarget motionMetadata{};
             TemporalTarget historyColor[2]{};
             TemporalTarget historyDepth[2]{};
             TemporalTarget taaResolvedColor{};
             TemporalTarget exposure{};
             TemporalTarget reactiveMask{};
             TemporalTarget transparencyMask{};
+            TemporalTarget invalidDepthMotionMask{};
+            TemporalTarget debugOutput{};
+            D3D12_GPU_DESCRIPTOR_HANDLE compositionBaseSrv{};
+            RenderDebugView debugView = RenderDebugView::None;
             uint32_t historyReadIndex = 0;
             uint32_t historyWriteIndex = 1;
             bool historyColorValid = false;
@@ -187,6 +193,14 @@ namespace HIKARI::RENDER3D::TEMPORAL {
                 "Temporal.MotionVectors",
                 { 0.0f, 0.0f, 0.0f, 0.0f }) && ok;
             ok = EnsureTarget(
+                state.motionMetadata,
+                state.context,
+                width,
+                height,
+                kMotionMetadataFormat,
+                "Temporal.MotionMetadata",
+                { 1.0f, 0.0f, 0.0f, 0.0f }) && ok;
+            ok = EnsureTarget(
                 state.historyColor[0],
                 state.context,
                 width,
@@ -250,6 +264,22 @@ namespace HIKARI::RENDER3D::TEMPORAL {
                 kMaskFormat,
                 "Temporal.TransparencyMask",
                 { 0.0f, 0.0f, 0.0f, 0.0f }) && ok;
+            ok = EnsureTarget(
+                state.invalidDepthMotionMask,
+                state.context,
+                width,
+                height,
+                kMaskFormat,
+                "Temporal.InvalidDepthMotionMask",
+                { 0.0f, 0.0f, 0.0f, 0.0f }) && ok;
+            ok = EnsureTarget(
+                state.debugOutput,
+                state.context,
+                width,
+                height,
+                kHistoryColorFormat,
+                "Temporal.DebugOutput",
+                { 0.0f, 0.0f, 0.0f, 1.0f }) && ok;
 
             if (sizeChanged) {
                 ++state.stats.resourceResizeCount;
@@ -262,10 +292,12 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             state.stats.width = state.frame.renderWidth;
             state.stats.height = state.frame.renderHeight;
             state.stats.motionVectorFormat = kMotionVectorFormat;
+            state.stats.motionMetadataFormat = kMotionMetadataFormat;
             state.stats.historyColorFormat = kHistoryColorFormat;
             state.stats.historyDepthFormat = kHistoryDepthFormat;
             state.stats.sceneColorReady = state.sceneColor.ready;
             state.stats.motionVectorReady = state.motionVectors.ready;
+            state.stats.motionMetadataReady = state.motionMetadata.ready;
             state.stats.historyColorReady =
                 state.historyColor[0].ready && state.historyColor[1].ready;
             state.stats.historyColorValid = state.historyColorValid;
@@ -276,6 +308,10 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             state.stats.exposureReady = state.exposure.ready;
             state.stats.reactiveMaskReady = state.reactiveMask.ready;
             state.stats.transparencyMaskReady = state.transparencyMask.ready;
+            state.stats.invalidDepthMotionMaskReady =
+                state.invalidDepthMotionMask.ready;
+            state.stats.debugOutputReady = state.debugOutput.ready;
+            state.stats.debugView = state.debugView;
         }
     }
 
@@ -289,6 +325,12 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         state.stats.motionVectorWritten = false;
         state.stats.taaEnabled = false;
         state.stats.taaResolved = false;
+        state.stats.masksWritten = false;
+        state.stats.exposureWritten = false;
+        state.stats.rigidVelocityDrawCount = 0;
+        state.stats.skinnedVelocityDrawCount = 0;
+        state.stats.alphaMaskedVelocityDrawCount = 0;
+        state.compositionBaseSrv = {};
         if (frame.resetHistory) {
             if (state.historyColorValid ||
                 state.historyDepthValid ||
@@ -310,6 +352,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         TemporalResourceState& state = State();
         ReleaseExternalTexture(state.sceneColor);
         ReleaseTarget(state.motionVectors);
+        ReleaseTarget(state.motionMetadata);
         ReleaseTarget(state.historyColor[0]);
         ReleaseTarget(state.historyColor[1]);
         ReleaseTarget(state.historyDepth[0]);
@@ -318,18 +361,27 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         ReleaseTarget(state.exposure);
         ReleaseTarget(state.reactiveMask);
         ReleaseTarget(state.transparencyMask);
+        ReleaseTarget(state.invalidDepthMotionMask);
+        ReleaseTarget(state.debugOutput);
         state.context = {};
         state.frame = {};
         state.historyReadIndex = 0;
         state.historyWriteIndex = 1;
         state.historyColorValid = false;
         state.historyDepthValid = false;
+        state.compositionBaseSrv = {};
+        state.debugView = RenderDebugView::None;
         state.stats = {};
     }
 
     RenderTarget2D* GetMotionVectorRenderTarget() {
         TemporalResourceState& state = State();
         return state.motionVectors.ready ? &state.motionVectors.target : nullptr;
+    }
+
+    RenderTarget2D* GetMotionMetadataRenderTarget() {
+        TemporalResourceState& state = State();
+        return state.motionMetadata.ready ? &state.motionMetadata.target : nullptr;
     }
 
     RenderTarget2D* GetHistoryColorWriteRenderTarget() {
@@ -347,6 +399,91 @@ namespace HIKARI::RENDER3D::TEMPORAL {
     RenderTarget2D* GetTaaResolvedColorRenderTarget() {
         TemporalResourceState& state = State();
         return state.taaResolvedColor.ready ? &state.taaResolvedColor.target : nullptr;
+    }
+
+    RenderTarget2D* GetReactiveMaskRenderTarget() {
+        TemporalResourceState& state = State();
+        return state.reactiveMask.ready ? &state.reactiveMask.target : nullptr;
+    }
+
+    RenderTarget2D* GetTransparencyMaskRenderTarget() {
+        TemporalResourceState& state = State();
+        return state.transparencyMask.ready ? &state.transparencyMask.target : nullptr;
+    }
+
+    RenderTarget2D* GetInvalidDepthMotionMaskRenderTarget() {
+        TemporalResourceState& state = State();
+        return state.invalidDepthMotionMask.ready
+            ? &state.invalidDepthMotionMask.target
+            : nullptr;
+    }
+
+    RenderTarget2D* GetTemporalDebugRenderTarget() {
+        TemporalResourceState& state = State();
+        return state.debugOutput.ready ? &state.debugOutput.target : nullptr;
+    }
+
+    void SetTemporalCompositionBase(D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv) {
+        State().compositionBaseSrv = sceneColorSrv;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE GetTemporalCompositionBase() {
+        return State().compositionBaseSrv;
+    }
+
+    void SetTemporalDebugView(RenderDebugView view) {
+        TemporalResourceState& state = State();
+        state.debugView = view;
+        RefreshStats(state);
+    }
+
+    RenderDebugView GetTemporalDebugView() {
+        return State().debugView;
+    }
+
+    bool UpdateTemporalExposure(float exposure) {
+        TemporalResourceState& state = State();
+        if (!state.exposure.ready || state.context.cmdList == nullptr) {
+            state.stats.exposureWritten = false;
+            return false;
+        }
+        const float safeExposure = (std::max)(exposure, 1e-4f);
+        state.exposure.target.TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        const float clearValue[4] = {
+            safeExposure,
+            safeExposure,
+            safeExposure,
+            safeExposure
+        };
+        state.context.cmdList->ClearRenderTargetView(
+            state.exposure.target.GetRtvHandle(),
+            clearValue,
+            0,
+            nullptr);
+        state.exposure.target.TransitionColor(
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        state.stats.exposureWritten = true;
+        return true;
+    }
+
+    void MarkTemporalMasksWritten(bool written) {
+        TemporalResourceState& state = State();
+        state.stats.masksWritten =
+            written &&
+            state.reactiveMask.ready &&
+            state.transparencyMask.ready &&
+            state.invalidDepthMotionMask.ready;
+    }
+
+    void SetTemporalGeometryDrawCounts(
+        uint32_t rigid,
+        uint32_t skinned,
+        uint32_t alphaMasked) {
+
+        TemporalResourceState& state = State();
+        state.stats.rigidVelocityDrawCount = rigid;
+        state.stats.skinnedVelocityDrawCount = skinned;
+        state.stats.alphaMaskedVelocityDrawCount = alphaMasked;
     }
 
     bool PrepareSceneColorInput(RenderTarget2D& source) {
@@ -396,7 +533,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
     void MarkMotionVectorsWritten(bool written) {
         TemporalResourceState& state = State();
-        state.stats.motionVectorWritten = written && state.motionVectors.ready;
+        state.stats.motionVectorWritten =
+            written && state.motionVectors.ready && state.motionMetadata.ready;
     }
 
     void MarkTemporalAntiAliasing(bool enabled, bool resolved) {
@@ -433,6 +571,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         inputs.hasSceneColor = sceneColorSrv.ptr != 0;
         inputs.sceneColor = MakeTextureView(state.sceneColor);
         inputs.motionVectors = MakeTextureView(state.motionVectors);
+        inputs.motionMetadata = MakeTextureView(state.motionMetadata);
         if (state.historyColorValid) {
             inputs.historyColorRead =
                 MakeTextureView(state.historyColor[state.historyReadIndex]);
@@ -448,6 +587,9 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         inputs.exposure = MakeTextureView(state.exposure);
         inputs.reactiveMask = MakeTextureView(state.reactiveMask);
         inputs.transparencyMask = MakeTextureView(state.transparencyMask);
+        inputs.invalidDepthMotionMask =
+            MakeTextureView(state.invalidDepthMotionMask);
+        inputs.debugOutput = MakeTextureView(state.debugOutput);
         return inputs;
     }
 

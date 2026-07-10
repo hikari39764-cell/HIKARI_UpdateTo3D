@@ -300,6 +300,9 @@ namespace HIKARI {
                 };
                 for (RENDER3D::RenderAntiAliasingMode candidate : modes) {
                     const bool selected = mode == candidate;
+                    const bool available =
+                        RENDER3D::IsAntiAliasingModeAvailable(candidate);
+                    ImGui::BeginDisabled(!available);
                     if (ImGui::Selectable(RENDER3D::RenderAntiAliasingModeLabel(candidate), selected)) {
                         mode = candidate;
                         changed = true;
@@ -307,6 +310,7 @@ namespace HIKARI {
                     if (selected) {
                         ImGui::SetItemDefaultFocus();
                     }
+                    ImGui::EndDisabled();
                 }
                 ImGui::EndCombo();
             }

@@ -97,6 +97,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
         TemporalTextureView sceneColor{};
         TemporalTextureView motionVectors{};
+        TemporalTextureView motionMetadata{};
         TemporalTextureView historyColorRead{};
         TemporalTextureView historyColorWrite{};
         TemporalTextureView historyDepthRead{};
@@ -104,6 +105,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         TemporalTextureView exposure{};
         TemporalTextureView reactiveMask{};
         TemporalTextureView transparencyMask{};
+        TemporalTextureView invalidDepthMotionMask{};
+        TemporalTextureView debugOutput{};
     };
 
     const char* ToString(TemporalHistoryResetReason reason);

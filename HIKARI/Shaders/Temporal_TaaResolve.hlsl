@@ -1,15 +1,20 @@
 cbuffer TemporalTaaCB : register(b0)
 {
     float4 gScreenParams; // xy: render size, zw: inverse render size
-    float4 gTaaParams;    // x: history valid, y: history weight, z: reserved, w: clip gamma
-    float4 gRejectParams; // x: depth threshold, y: luma threshold, z: sharpness
+    float4 gTaaParams;    // x: history valid, y: history weight, z: exposure valid, w: clip gamma
+    float4 gRejectParams; // x: depth threshold, y: luma threshold, z: sharpness, w: debug mode
 };
 
 Texture2D<float4> gCurrentColor : register(t0);
 Texture2D<float4> gHistoryColor : register(t1);
 Texture2D<float2> gMotionVectors : register(t2);
-Texture2D<float> gSceneDepth : register(t3);
-Texture2D<float> gHistoryDepth : register(t4);
+Texture2D<float2> gMotionMetadata : register(t3);
+Texture2D<float> gSceneDepth : register(t4);
+Texture2D<float> gHistoryDepth : register(t5);
+Texture2D<float> gReactiveMask : register(t6);
+Texture2D<float> gTransparencyMask : register(t7);
+Texture2D<float> gInvalidDepthMotionMask : register(t8);
+Texture2D<float> gExposure : register(t9);
 SamplerState gLinearClamp : register(s0);
 
 struct VSOut
@@ -20,8 +25,24 @@ struct VSOut
 
 struct PSOut
 {
-    float4 color : SV_TARGET0;
-    float depth : SV_TARGET1;
+    float4 resolvedColor : SV_TARGET0;
+    float4 historyColor : SV_TARGET1;
+    float historyDepth : SV_TARGET2;
+    float4 debugColor : SV_TARGET3;
+};
+
+struct MotionSample
+{
+    float2 pixels;
+    float expectedPreviousDepth;
+    float valid;
+};
+
+struct RejectionResult
+{
+    float depth;
+    float luma;
+    float confidence;
 };
 
 VSOut VSMain(uint vertexId : SV_VertexID)
@@ -34,6 +55,11 @@ VSOut VSMain(uint vertexId : SV_VertexID)
     return output;
 }
 
+float Luminance(float3 color)
+{
+    return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
 float3 RGBToYCoCg(float3 color)
 {
     return float3(
@@ -44,35 +70,51 @@ float3 RGBToYCoCg(float3 color)
 
 float3 YCoCgToRGB(float3 color)
 {
-    float y = color.x;
-    float co = color.y;
-    float cg = color.z;
-    float chromaBase = y - cg * 0.5f;
+    float chromaBase = color.x - color.z * 0.5f;
     return float3(
-        chromaBase + co * 0.5f,
-        y + cg * 0.5f,
-        chromaBase - co * 0.5f);
+        chromaBase + color.y * 0.5f,
+        color.x + color.z * 0.5f,
+        chromaBase - color.y * 0.5f);
 }
 
-float Luminance(float3 color)
+float3 EncodeTemporalColor(float3 color, float exposure)
 {
-    return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+    float3 exposed = max(color, 0.0f) * max(exposure, 1e-4f);
+    return exposed / (1.0f + Luminance(exposed));
 }
 
-float3 EncodeTemporalColor(float3 color)
+float3 DecodeTemporalColor(float3 encoded, float exposure)
 {
-    color = max(color, float3(0.0f, 0.0f, 0.0f));
-    return color / (1.0f + Luminance(color));
+    float3 exposed = max(
+        encoded / max(1.0f - Luminance(encoded), 1e-4f),
+        0.0f);
+    return exposed / max(exposure, 1e-4f);
 }
 
-float3 DecodeTemporalColor(float3 color)
+int2 ClampPixel(int2 pixel)
 {
-    return max(color / max(1.0f - Luminance(color), 1e-4f), float3(0.0f, 0.0f, 0.0f));
+    int2 size = max(int2(gScreenParams.xy), int2(1, 1));
+    return clamp(pixel, int2(0, 0), size - 1);
 }
 
-float CatmullRomWeight(float x)
+float4 LoadCurrent(int2 pixel)
 {
-    x = abs(x);
+    return gCurrentColor.Load(int3(ClampPixel(pixel), 0));
+}
+
+float LoadDepth(int2 pixel)
+{
+    return gSceneDepth.Load(int3(ClampPixel(pixel), 0));
+}
+
+float LoadMask(Texture2D<float> mask, int2 pixel)
+{
+    return mask.Load(int3(ClampPixel(pixel), 0));
+}
+
+float CatmullRomWeight(float value)
+{
+    float x = abs(value);
     if (x <= 1.0f)
     {
         return ((1.5f * x - 2.5f) * x) * x + 1.0f;
@@ -84,49 +126,34 @@ float CatmullRomWeight(float x)
     return 0.0f;
 }
 
-float4 LoadClampedColor(int2 pixel)
-{
-    int2 size = max(int2(gScreenParams.xy), int2(1, 1));
-    int2 p = clamp(pixel, int2(0, 0), size - 1);
-    return gCurrentColor.Load(int3(p, 0));
-}
-
-float4 LoadClampedHistory(int2 pixel)
-{
-    int2 size = max(int2(gScreenParams.xy), int2(1, 1));
-    int2 p = clamp(pixel, int2(0, 0), size - 1);
-    return gHistoryColor.Load(int3(p, 0));
-}
-
 float4 SampleHistoryCatmullRom(float2 uv)
 {
-    float2 texelCoord = uv * gScreenParams.xy - 0.5f;
-    int2 basePixel = int2(floor(texelCoord));
-    float2 f = texelCoord - float2(basePixel);
-
+    float2 texel = uv * gScreenParams.xy - 0.5f;
+    int2 basePixel = int2(floor(texel));
+    float2 fraction = texel - float2(basePixel);
     float4 sum = 0.0f;
     float weightSum = 0.0f;
+
     [unroll]
     for (int y = -1; y <= 2; ++y)
     {
-        float wy = CatmullRomWeight(float(y) - f.y);
+        float weightY = CatmullRomWeight(float(y) - fraction.y);
         [unroll]
         for (int x = -1; x <= 2; ++x)
         {
-            float wx = CatmullRomWeight(float(x) - f.x);
-            float w = wx * wy;
-            sum += LoadClampedHistory(basePixel + int2(x, y)) * w;
-            weightSum += w;
+            float weight = CatmullRomWeight(float(x) - fraction.x) * weightY;
+            sum += gHistoryColor.Load(int3(ClampPixel(basePixel + int2(x, y)), 0)) * weight;
+            weightSum += weight;
         }
     }
     return sum / max(weightSum, 1e-5f);
 }
 
-float3 ClipHistoryToNeighborhood(uint2 pixel, float3 historyEncoded)
+MotionSample LoadDilatedMotion(uint2 pixel)
 {
     int2 basePixel = int2(pixel);
-    float3 mean = 0.0f;
-    float3 meanSq = 0.0f;
+    int2 selectedPixel = basePixel;
+    float selectedDepth = LoadDepth(basePixel);
 
     [unroll]
     for (int y = -1; y <= 1; ++y)
@@ -134,158 +161,228 @@ float3 ClipHistoryToNeighborhood(uint2 pixel, float3 historyEncoded)
         [unroll]
         for (int x = -1; x <= 1; ++x)
         {
-            float3 c = RGBToYCoCg(EncodeTemporalColor(LoadClampedColor(basePixel + int2(x, y)).rgb));
-            mean += c;
-            meanSq += c * c;
+            int2 candidatePixel = basePixel + int2(x, y);
+            float candidateDepth = LoadDepth(candidatePixel);
+            if (candidateDepth < selectedDepth)
+            {
+                selectedDepth = candidateDepth;
+                selectedPixel = candidatePixel;
+            }
+        }
+    }
+
+    int2 clampedPixel = ClampPixel(selectedPixel);
+    float2 motionPayload = gMotionVectors.Load(int3(clampedPixel, 0));
+    float2 metadataPayload = gMotionMetadata.Load(int3(clampedPixel, 0));
+    MotionSample sample;
+    sample.pixels = motionPayload;
+    sample.expectedPreviousDepth = metadataPayload.x;
+    sample.valid = metadataPayload.y;
+    return sample;
+}
+
+float ReferenceMotionLength(float2 motionPixels)
+{
+    // Express motion in 1080p-equivalent pixels so temporal response remains
+    // stable when only the render resolution changes.
+    return length(motionPixels) * (1080.0f / max(gScreenParams.y, 1.0f));
+}
+
+float CurrentDepthSlope(uint2 pixel)
+{
+    int2 basePixel = int2(pixel);
+    float center = LoadDepth(basePixel);
+    float slope = 0.0f;
+    slope = max(slope, abs(LoadDepth(basePixel + int2(-1, 0)) - center));
+    slope = max(slope, abs(LoadDepth(basePixel + int2(1, 0)) - center));
+    slope = max(slope, abs(LoadDepth(basePixel + int2(0, -1)) - center));
+    slope = max(slope, abs(LoadDepth(basePixel + int2(0, 1)) - center));
+    return slope;
+}
+
+float3 ClipHistoryToNeighborhood(
+    uint2 pixel,
+    float3 historyEncoded,
+    float exposure)
+{
+    int2 basePixel = int2(pixel);
+    float3 mean = 0.0f;
+    float3 meanSquared = 0.0f;
+    float3 minimum = float3(65504.0f, 65504.0f, 65504.0f);
+    float3 maximum = 0.0f;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float3 encoded = EncodeTemporalColor(
+                LoadCurrent(basePixel + int2(x, y)).rgb,
+                exposure);
+            float3 sample = RGBToYCoCg(encoded);
+            mean += sample;
+            meanSquared += sample * sample;
+            minimum = min(minimum, sample);
+            maximum = max(maximum, sample);
         }
     }
 
     mean *= 1.0f / 9.0f;
-    meanSq *= 1.0f / 9.0f;
-    float3 sigma = sqrt(max(meanSq - mean * mean, float3(0.0f, 0.0f, 0.0f)));
-    float gamma = max(gTaaParams.w, 0.0f);
-    float3 historyYCoCg = RGBToYCoCg(historyEncoded);
-    historyYCoCg = clamp(historyYCoCg, mean - sigma * gamma, mean + sigma * gamma);
-    return max(YCoCgToRGB(historyYCoCg), float3(0.0f, 0.0f, 0.0f));
+    meanSquared *= 1.0f / 9.0f;
+    float3 sigma = sqrt(max(meanSquared - mean * mean, 0.0f));
+    float3 lower = max(minimum, mean - sigma * max(gTaaParams.w, 0.0f));
+    float3 upper = min(maximum, mean + sigma * max(gTaaParams.w, 0.0f));
+    return max(YCoCgToRGB(clamp(RGBToYCoCg(historyEncoded), lower, upper)), 0.0f);
 }
 
-float3 SpatialFilteredCurrent(uint2 pixel)
+float3 SpatialFallback(uint2 pixel, float exposure)
 {
     int2 basePixel = int2(pixel);
-    float3 sum = 0.0f;
-    float weightSum = 0.0f;
+    float centerDepth = LoadDepth(basePixel);
+    float3 center = EncodeTemporalColor(LoadCurrent(basePixel).rgb, exposure);
+    float3 sum = center * 4.0f;
+    float weightSum = 4.0f;
+    const int2 offsets[4] = {
+        int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1)
+    };
 
     [unroll]
-    for (int y = -1; y <= 1; ++y)
+    for (uint index = 0; index < 4u; ++index)
     {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            float weight =
-                (x == 0 && y == 0) ? 4.0f :
-                ((x == 0 || y == 0) ? 2.0f : 1.0f);
-            sum += EncodeTemporalColor(LoadClampedColor(basePixel + int2(x, y)).rgb) * weight;
-            weightSum += weight;
-        }
+        int2 samplePixel = basePixel + offsets[index];
+        float depthDelta = abs(LoadDepth(samplePixel) - centerDepth);
+        float depthWeight = rcp(1.0f + depthDelta * 2048.0f);
+        float3 sample = EncodeTemporalColor(LoadCurrent(samplePixel).rgb, exposure);
+        float lumaWeight = rcp(1.0f + abs(Luminance(sample) - Luminance(center)) * 12.0f);
+        float weight = depthWeight * lumaWeight;
+        sum += sample * weight;
+        weightSum += weight;
     }
-
     return sum / max(weightSum, 1e-5f);
 }
 
-void CurrentNeighborhoodBounds(uint2 pixel, out float3 minColor, out float3 maxColor)
+RejectionResult EvaluateHistory(
+    uint2 pixel,
+    float2 previousUv,
+    MotionSample motion,
+    float3 currentEncoded,
+    float3 historyEncoded)
 {
-    int2 basePixel = int2(pixel);
-    minColor = float3(65504.0f, 65504.0f, 65504.0f);
-    maxColor = float3(0.0f, 0.0f, 0.0f);
+    int2 previousPixel = ClampPixel(int2(previousUv * gScreenParams.xy));
+    float previousDepth = gHistoryDepth.Load(int3(previousPixel, 0));
+    float depthThreshold = max(
+        gRejectParams.x,
+        CurrentDepthSlope(pixel) * 1.5f + 1e-5f);
+    float depthError = abs(previousDepth - motion.expectedPreviousDepth);
+    float depthReject = saturate(
+        (depthError - depthThreshold) / max(depthThreshold * 3.0f, 1e-5f));
+    depthReject = max(depthReject, 1.0f - saturate(motion.valid));
 
-    [unroll]
-    for (int y = -1; y <= 1; ++y)
-    {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            float3 c = EncodeTemporalColor(LoadClampedColor(basePixel + int2(x, y)).rgb);
-            minColor = min(minColor, c);
-            maxColor = max(maxColor, c);
-        }
-    }
-}
-
-float3 CurrentFallback(uint2 pixel, float3 currentEncoded)
-{
-    const float fallbackFilterStrength = 0.18f;
-    return lerp(currentEncoded, SpatialFilteredCurrent(pixel), fallbackFilterStrength);
-}
-
-float3 ApplyTemporalSharpen(uint2 pixel, float3 resolvedEncoded)
-{
-    float sharpness = saturate(gRejectParams.z);
-    if (sharpness <= 0.0f)
-    {
-        return resolvedEncoded;
-    }
-
-    int2 basePixel = int2(pixel);
-    float3 center = EncodeTemporalColor(LoadClampedColor(basePixel).rgb);
-    float3 crossAverage =
-        (EncodeTemporalColor(LoadClampedColor(basePixel + int2(-1, 0)).rgb) +
-         EncodeTemporalColor(LoadClampedColor(basePixel + int2(1, 0)).rgb) +
-         EncodeTemporalColor(LoadClampedColor(basePixel + int2(0, -1)).rgb) +
-         EncodeTemporalColor(LoadClampedColor(basePixel + int2(0, 1)).rgb)) * 0.25f;
-
-    float3 minColor;
-    float3 maxColor;
-    CurrentNeighborhoodBounds(pixel, minColor, maxColor);
-    return clamp(resolvedEncoded + (center - crossAverage) * sharpness, minColor, maxColor);
-}
-
-float LoadClampedDepth(int2 pixel)
-{
-    int2 size = max(int2(gScreenParams.xy), int2(1, 1));
-    int2 p = clamp(pixel, int2(0, 0), size - 1);
-    return gSceneDepth.Load(int3(p, 0)).r;
-}
-
-float HistoryDepthReject(uint2 pixel, float2 previousUv)
-{
-    int2 size = max(int2(gScreenParams.xy), int2(1, 1));
-    int2 basePixel = int2(pixel);
-    float minDepth = 1.0f;
-    float maxDepth = 0.0f;
-
-    [unroll]
-    for (int y = -1; y <= 1; ++y)
-    {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            float d = LoadClampedDepth(basePixel + int2(x, y));
-            minDepth = min(minDepth, d);
-            maxDepth = max(maxDepth, d);
-        }
-    }
-
-    int2 previousPixel = clamp(int2(previousUv * gScreenParams.xy), int2(0, 0), size - 1);
-    float previousDepth = gHistoryDepth.Load(int3(previousPixel, 0)).r;
-    if (previousDepth >= 0.99999f)
-    {
-        return 1.0f;
-    }
-
-    float depthThreshold = max(gRejectParams.x, 0.0001f);
-    float outsideRange =
-        max(max(minDepth - previousDepth, previousDepth - maxDepth), 0.0f);
-    return saturate(outsideRange / (depthThreshold * 8.0f));
-}
-
-float HistoryConfidence(uint2 pixel, float2 previousUv, float3 current, float3 history, float2 motionPixels)
-{
-    float depthReject = HistoryDepthReject(pixel, previousUv);
-
-    float currentLuma = Luminance(current);
-    float historyLuma = Luminance(history);
-    float lumaBase = max(max(currentLuma, historyLuma), 0.25f);
+    float currentLuma = Luminance(currentEncoded);
+    float historyLuma = Luminance(historyEncoded);
+    float relativeLumaError =
+        abs(currentLuma - historyLuma) /
+        max(max(currentLuma, historyLuma), 0.1f);
     float lumaReject = saturate(
-        (abs(currentLuma - historyLuma) / lumaBase) /
+        (relativeLumaError - gRejectParams.y * 0.35f) /
         max(gRejectParams.y, 0.05f));
 
-    float confidence = 1.0f;
-    confidence *= 1.0f - depthReject;
-    confidence *= 1.0f - lumaReject;
-    return saturate(confidence);
+    float reactive = LoadMask(gReactiveMask, int2(pixel));
+    float transparency = LoadMask(gTransparencyMask, int2(pixel));
+    float invalidDepthMotion =
+        LoadMask(gInvalidDepthMotionMask, int2(pixel));
+    RejectionResult result;
+    result.depth = depthReject;
+    result.luma = lumaReject;
+    result.confidence = (1.0f - depthReject) * (1.0f - lumaReject * 0.65f);
+    result.confidence *= 1.0f - reactive * 0.90f;
+    result.confidence *= 1.0f - transparency * 0.70f;
+    result.confidence *= 1.0f - invalidDepthMotion * 0.98f;
+    result.confidence = saturate(result.confidence);
+    return result;
 }
 
-float ResolveHistoryWeight(float baseHistoryWeight, float historyConfidence, float2 motionPixels)
+float ResolveHistoryWeight(
+    float baseWeight,
+    float confidence,
+    float2 motionPixels,
+    float transparency)
 {
-    const float stationaryHistoryBoost = 0.04f;
-    const float maxStationaryHistoryWeight = 0.965f;
-    float motionLength = length(motionPixels);
-    float movingBlend = smoothstep(1.25f, 5.0f, motionLength);
-    float stationaryHistoryWeight =
-        max(baseHistoryWeight, min(maxStationaryHistoryWeight, baseHistoryWeight + stationaryHistoryBoost));
-    float adaptiveWeight =
-        lerp(stationaryHistoryWeight, baseHistoryWeight, movingBlend);
-    return saturate(adaptiveWeight) * historyConfidence;
+    float stationary =
+        1.0f - smoothstep(0.35f, 2.5f, ReferenceMotionLength(motionPixels));
+    float weight = lerp(baseWeight, min(baseWeight + 0.035f, 0.965f), stationary);
+    weight = min(weight, lerp(0.965f, 0.72f, transparency));
+    return saturate(weight) * confidence;
+}
+
+float3 ApplyStableSharpen(
+    uint2 pixel,
+    float3 resolved,
+    float exposure,
+    float confidence,
+    float2 motionPixels)
+{
+    float stable = confidence *
+        (1.0f - smoothstep(0.5f, 4.0f, ReferenceMotionLength(motionPixels)));
+    float strength = saturate(gRejectParams.z) * stable * 0.35f;
+    if (strength <= 0.0f)
+    {
+        return resolved;
+    }
+
+    int2 basePixel = int2(pixel);
+    float3 center = EncodeTemporalColor(LoadCurrent(basePixel).rgb, exposure);
+    float3 crossAverage =
+        (EncodeTemporalColor(LoadCurrent(basePixel + int2(-1, 0)).rgb, exposure) +
+         EncodeTemporalColor(LoadCurrent(basePixel + int2(1, 0)).rgb, exposure) +
+         EncodeTemporalColor(LoadCurrent(basePixel + int2(0, -1)).rgb, exposure) +
+         EncodeTemporalColor(LoadCurrent(basePixel + int2(0, 1)).rgb, exposure)) * 0.25f;
+    return max(resolved + (center - crossAverage) * strength, 0.0f);
+}
+
+float3 BuildDebugColor(
+    MotionSample motion,
+    float historyWeight,
+    RejectionResult rejection,
+    float reactive,
+    float transparency,
+    float invalidDepthMotion)
+{
+    uint mode = (uint)round(gRejectParams.w);
+    if (mode == 13u)
+    {
+        float magnitude = saturate(length(motion.pixels) / 16.0f);
+        return float3(
+            saturate(0.5f + motion.pixels.x / 32.0f),
+            saturate(0.5f - motion.pixels.y / 32.0f),
+            magnitude);
+    }
+    if (mode == 14u)
+    {
+        return historyWeight.xxx;
+    }
+    if (mode == 15u)
+    {
+        return float3(rejection.depth, rejection.luma, 0.0f);
+    }
+    if (mode == 16u)
+    {
+        return float3(reactive, 0.0f, 0.0f);
+    }
+    if (mode == 17u)
+    {
+        return float3(0.0f, transparency, transparency);
+    }
+    if (mode == 18u)
+    {
+        return (1.0f - rejection.confidence).xxx;
+    }
+    if (mode == 19u)
+    {
+        return float3(invalidDepthMotion, invalidDepthMotion * 0.5f, 0.0f);
+    }
+    return 0.0f;
 }
 
 PSOut PSMain(VSOut input)
@@ -293,38 +390,80 @@ PSOut PSMain(VSOut input)
     uint2 size = max(uint2(gScreenParams.xy), uint2(1u, 1u));
     uint2 pixel = min(uint2(input.position.xy), size - 1u);
     float4 current = gCurrentColor.Load(int3(pixel, 0));
-    float currentDepth = LoadClampedDepth(int2(pixel));
-    float3 currentEncoded = EncodeTemporalColor(current.rgb);
+    float currentDepth = LoadDepth(int2(pixel));
+    float currentExposure =
+        gTaaParams.z >= 0.5f ? max(gExposure.Load(int3(0, 0, 0)), 1e-4f) : 1.0f;
+    float3 currentEncoded = EncodeTemporalColor(current.rgb, currentExposure);
+    MotionSample motion = LoadDilatedMotion(pixel);
+    float reactive = LoadMask(gReactiveMask, int2(pixel));
+    float transparency = LoadMask(gTransparencyMask, int2(pixel));
+    float invalidDepthMotion =
+        LoadMask(gInvalidDepthMotionMask, int2(pixel));
 
     PSOut output;
-    output.depth = currentDepth;
+    output.historyColor = float4(currentEncoded, currentExposure);
+    output.historyDepth = currentDepth;
+    output.resolvedColor = current;
 
-    if (gTaaParams.x < 0.5f)
+    RejectionResult rejection;
+    rejection.depth = 1.0f;
+    rejection.luma = 0.0f;
+    rejection.confidence = 0.0f;
+    float historyWeight = 0.0f;
+
+    if (gTaaParams.x >= 0.5f && motion.valid >= 0.5f)
     {
-        output.color = current;
-        return output;
+        float2 previousUv = input.uv - motion.pixels * gScreenParams.zw;
+        if (all(previousUv >= 0.0f) && all(previousUv <= 1.0f))
+        {
+            float4 historySample = SampleHistoryCatmullRom(previousUv);
+            float historyExposure = max(historySample.a, 1e-4f);
+            float3 historyLinear = DecodeTemporalColor(historySample.rgb, historyExposure);
+            float3 historyEncoded = EncodeTemporalColor(historyLinear, currentExposure);
+            historyEncoded = ClipHistoryToNeighborhood(
+                pixel,
+                historyEncoded,
+                currentExposure);
+            rejection = EvaluateHistory(
+                pixel,
+                previousUv,
+                motion,
+                currentEncoded,
+                historyEncoded);
+            historyWeight = ResolveHistoryWeight(
+                saturate(gTaaParams.y),
+                rejection.confidence,
+                motion.pixels,
+                transparency);
+
+            float fallbackBlend =
+                saturate((1.0f - rejection.confidence) * 0.12f + rejection.depth * 0.08f);
+            float3 currentResolve = lerp(
+                currentEncoded,
+                SpatialFallback(pixel, currentExposure),
+                fallbackBlend);
+            float3 resolvedEncoded = lerp(currentResolve, historyEncoded, historyWeight);
+            resolvedEncoded = ApplyStableSharpen(
+                pixel,
+                resolvedEncoded,
+                currentExposure,
+                rejection.confidence,
+                motion.pixels);
+            output.historyColor = float4(resolvedEncoded, currentExposure);
+            output.resolvedColor = float4(
+                DecodeTemporalColor(resolvedEncoded, currentExposure),
+                current.a);
+        }
     }
 
-    float2 motionPixels = gMotionVectors.Load(int3(pixel, 0));
-    float2 previousUv = input.uv - motionPixels * gScreenParams.zw;
-    if (any(previousUv < 0.0f) || any(previousUv > 1.0f))
-    {
-        output.color = float4(DecodeTemporalColor(CurrentFallback(pixel, currentEncoded)), current.a);
-        return output;
-    }
-
-    float4 history = SampleHistoryCatmullRom(previousUv);
-    float3 historyEncoded = ClipHistoryToNeighborhood(pixel, EncodeTemporalColor(history.rgb));
-
-    float historyConfidence =
-        HistoryConfidence(pixel, previousUv, currentEncoded, historyEncoded, motionPixels);
-    float historyWeight =
-        ResolveHistoryWeight(saturate(gTaaParams.y), historyConfidence, motionPixels);
-
-    float3 currentFallback = CurrentFallback(pixel, currentEncoded);
-    float3 currentResolve = lerp(currentFallback, currentEncoded, historyConfidence);
-    float3 resolvedEncoded = lerp(currentResolve, historyEncoded, historyWeight);
-    resolvedEncoded = ApplyTemporalSharpen(pixel, resolvedEncoded);
-    output.color = float4(DecodeTemporalColor(resolvedEncoded), current.a);
+    output.debugColor = float4(
+        BuildDebugColor(
+            motion,
+            historyWeight,
+            rejection,
+            reactive,
+            transparency,
+            invalidDepthMotion),
+        1.0f);
     return output;
 }

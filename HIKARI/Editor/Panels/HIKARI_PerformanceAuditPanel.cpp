@@ -601,9 +601,14 @@ namespace HIKARI {
                     s.temporalFrame.jitterPhase,
                     s.temporalFrame.camera.jitter.x,
                     s.temporalFrame.camera.jitter.y);
-                MetricRow("Motion Vectors Ready / Written", "%s / %s",
+                MetricRow("Motion RG / Metadata / Written", "%s / %s / %s",
                     s.temporalResources.motionVectorReady ? "yes" : "no",
+                    s.temporalResources.motionMetadataReady ? "yes" : "no",
                     s.temporalResources.motionVectorWritten ? "yes" : "no");
+                MetricRow("Velocity Draws Rigid / Skinned / AlphaMask", "%u / %u / %u",
+                    s.temporalResources.rigidVelocityDrawCount,
+                    s.temporalResources.skinnedVelocityDrawCount,
+                    s.temporalResources.alphaMaskedVelocityDrawCount);
                 MetricRow("Scene Color / TAA", "%s / %s / %s",
                     s.temporalResources.sceneColorReady ? "yes" : "no",
                     s.temporalResources.taaEnabled ? "on" : "off",
@@ -615,10 +620,17 @@ namespace HIKARI {
                         s.temporalResources.historyDepthValid) ? "yes" : "no");
                 MetricRow("TAA Resolved Ready", "%s",
                     s.temporalResources.taaResolvedColorReady ? "yes" : "no");
-                MetricRow("Exposure / Reactive / Transparency", "%s / %s / %s",
+                MetricRow("Exposure Ready / Written", "%s / %s",
                     s.temporalResources.exposureReady ? "yes" : "no",
-                    s.temporalResources.reactiveMaskReady ? "yes" : "no",
-                    s.temporalResources.transparencyMaskReady ? "yes" : "no");
+                    s.temporalResources.exposureWritten ? "yes" : "no");
+                MetricRow("Masks R/T/Invalid Ready / Written", "%s / %s",
+                    (s.temporalResources.reactiveMaskReady &&
+                        s.temporalResources.transparencyMaskReady &&
+                        s.temporalResources.invalidDepthMotionMaskReady) ? "yes" : "no",
+                    s.temporalResources.masksWritten ? "yes" : "no");
+                MetricRow("Temporal Debug", "%s / %s",
+                    ToString(s.temporalResources.debugView),
+                    s.temporalResources.debugOutputReady ? "ready" : "missing");
                 MetricRow("Invalidations / Resizes", "%llu / %llu",
                     static_cast<unsigned long long>(
                         s.temporalResources.historyInvalidationCount),

@@ -216,6 +216,12 @@ namespace HIKARI {
             { RenderDebugView::SceneDepth, "Scene Depth" },
             { RenderDebugView::SceneColor, "Scene Color" },
             { RenderDebugView::MotionVectors, "Motion Vectors" },
+            { RenderDebugView::TemporalHistoryWeight, "TAA History Weight" },
+            { RenderDebugView::TemporalDepthRejection, "TAA Depth Rejection" },
+            { RenderDebugView::TemporalReactiveMask, "TAA Reactive Mask" },
+            { RenderDebugView::TemporalTransparencyMask, "TAA Transparency Mask" },
+            { RenderDebugView::TemporalDisocclusion, "TAA Disocclusion" },
+            { RenderDebugView::TemporalInvalidDepthMotion, "Invalid Depth / Motion" },
             { RenderDebugView::MeshletId, "Meshlet ID" },
             { RenderDebugView::ClusterId, "Cluster ID" },
             { RenderDebugView::SurfaceId, "Surface ID" },
@@ -1503,6 +1509,12 @@ namespace HIKARI {
             const RenderDebugView screenSpaceModes[] = {
                 RenderDebugView::SceneColor,
                 RenderDebugView::MotionVectors,
+                RenderDebugView::TemporalHistoryWeight,
+                RenderDebugView::TemporalDepthRejection,
+                RenderDebugView::TemporalReactiveMask,
+                RenderDebugView::TemporalTransparencyMask,
+                RenderDebugView::TemporalDisocclusion,
+                RenderDebugView::TemporalInvalidDepthMotion,
             };
             for (RenderDebugView mode : screenSpaceModes) {
                 ImGui::TableNextColumn();
@@ -1513,17 +1525,6 @@ namespace HIKARI {
             }
             ImGui::EndTable();
         }
-        if (context_.viewportDebug.renderView == RenderDebugView::MotionVectors) {
-            ImGui::SetNextItemWidth(220.0f);
-            ImGui::SliderFloat(
-                "Motion Vector Scale",
-                &context_.viewportDebug.motionVectorDebugScale,
-                1.0f / 128.0f,
-                1.0f / 8.0f,
-                "%.4f",
-                ImGuiSliderFlags_Logarithmic);
-        }
-
         ImGui::SeparatorText("Meshlet");
         if (ImGui::BeginTable("DebugViewMeshletModes", 3, ImGuiTableFlags_SizingStretchSame)) {
             const RenderDebugView meshletModes[] = {

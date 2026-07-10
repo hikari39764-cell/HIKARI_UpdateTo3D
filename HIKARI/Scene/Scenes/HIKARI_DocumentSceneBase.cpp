@@ -26,7 +26,6 @@
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
-#include "Render3D/Debug/HIKARI_RenderDebugViewPass.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
@@ -644,8 +643,6 @@ namespace HIKARI {
 
         MESHRENDERER::SetGpuDrivenCullingCameraFreezeEnabled(
             DrawDebugHelpers() && viewportDebugViewState_.freezeCullingCamera);
-        RENDER3D::DEBUGVIEW::SetMotionVectorDebugScale(
-            viewportDebugViewState_.motionVectorDebugScale);
         const Camera3D& renderCamera = camera_;
 
         SKYRENDERER::Render(renderCamera, activeEnvironment, modelManager_, skyManager_);

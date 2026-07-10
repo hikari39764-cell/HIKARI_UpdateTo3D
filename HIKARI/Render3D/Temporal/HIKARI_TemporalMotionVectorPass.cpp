@@ -1,8 +1,10 @@
 #include "Render3D/Temporal/HIKARI_TemporalMotionVectorPass.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iterator>
+#include <string>
 
 #include <d3dx12.h>
 #include <wrl/client.h>
@@ -19,6 +21,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
     namespace {
         using Microsoft::WRL::ComPtr;
+        constexpr uint32_t kFrameSlotCount = 3u;
 
         struct MotionVectorConstants {
             MATH::Mat4 invViewProj{};
@@ -26,13 +29,19 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             MATH::Mat4 prevViewProj{};
             MATH::Vec4 screenParams{};
             MATH::Vec4 historyParams{};
+            MATH::Vec4 cameraPos{};
+            MATH::Vec4 prevCameraPos{};
+        };
+
+        struct ConstantSlot {
+            ComPtr<ID3D12Resource> buffer{};
+            MotionVectorConstants* mapped = nullptr;
         };
 
         struct MotionVectorPassState {
             ComPtr<ID3D12RootSignature> rootSignature{};
             ComPtr<ID3D12PipelineState> pipelineState{};
-            ComPtr<ID3D12Resource> constantBuffer{};
-            MotionVectorConstants* mappedConstants = nullptr;
+            std::array<ConstantSlot, kFrameSlotCount> constants{};
             bool ready = false;
         };
 
@@ -45,34 +54,39 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             return (size + 255u) & ~255u;
         }
 
-        bool EnsureConstantBuffer(ID3D12Device* device) {
+        bool EnsureConstantBuffers(ID3D12Device* device) {
             MotionVectorPassState& state = State();
-            if (state.constantBuffer != nullptr && state.mappedConstants != nullptr) {
-                return true;
-            }
+            for (uint32_t index = 0; index < kFrameSlotCount; ++index) {
+                ConstantSlot& slot = state.constants[index];
+                if (slot.buffer != nullptr && slot.mapped != nullptr) {
+                    continue;
+                }
 
-            const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-                AlignConstantBufferSize(sizeof(MotionVectorConstants)));
-            const HRESULT hr = device->CreateCommittedResource(
-                &heapProps,
-                D3D12_HEAP_FLAG_NONE,
-                &bufferDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(state.constantBuffer.GetAddressOf()));
-            if (!HIKARI_DX_CHECK(hr, "TemporalMotionVectorPass::CreateConstantBuffer")) {
-                return false;
-            }
-            state.constantBuffer->SetName(L"HIKARI.Temporal.MotionVectorCB");
-            const CD3DX12_RANGE readRange(0, 0);
-            if (FAILED(state.constantBuffer->Map(
-                    0,
-                    &readRange,
-                    reinterpret_cast<void**>(&state.mappedConstants)))) {
-                state.constantBuffer.Reset();
-                state.mappedConstants = nullptr;
-                return false;
+                const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+                const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
+                    AlignConstantBufferSize(sizeof(MotionVectorConstants)));
+                const HRESULT hr = device->CreateCommittedResource(
+                    &heapProps,
+                    D3D12_HEAP_FLAG_NONE,
+                    &bufferDesc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    IID_PPV_ARGS(slot.buffer.GetAddressOf()));
+                if (!HIKARI_DX_CHECK(hr, "TemporalMotionVectorPass::CreateConstantBuffer")) {
+                    return false;
+                }
+                const std::wstring name =
+                    L"HIKARI.Temporal.MotionVectorCB" + std::to_wstring(index);
+                slot.buffer->SetName(name.c_str());
+                const CD3DX12_RANGE readRange(0, 0);
+                if (FAILED(slot.buffer->Map(
+                        0,
+                        &readRange,
+                        reinterpret_cast<void**>(&slot.mapped)))) {
+                    slot.buffer.Reset();
+                    slot.mapped = nullptr;
+                    return false;
+                }
             }
             return true;
         }
@@ -164,8 +178,9 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
             psoDesc.InputLayout = {};
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-            psoDesc.NumRenderTargets = 1;
+            psoDesc.NumRenderTargets = 2;
             psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16_FLOAT;
+            psoDesc.RTVFormats[1] = DXGI_FORMAT_R16G16_FLOAT;
             psoDesc.SampleDesc.Count = 1;
 
             hr = device->CreateGraphicsPipelineState(
@@ -176,7 +191,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             }
             state.pipelineState->SetName(L"HIKARI.Temporal.MotionVectorPSO");
 
-            state.ready = EnsureConstantBuffer(device);
+            state.ready = EnsureConstantBuffers(device);
             return state.ready;
         }
     }
@@ -187,17 +202,25 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         ID3D12Device* device = SERVICES::gCtx.device;
         ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
         RenderTarget2D* motionTarget = GetMotionVectorRenderTarget();
+        RenderTarget2D* metadataTarget = GetMotionMetadataRenderTarget();
         if (cmd == nullptr ||
             device == nullptr ||
             srvHeap == nullptr ||
             motionTarget == nullptr ||
-            !inputs.motionVectors.valid) {
+            metadataTarget == nullptr ||
+            !inputs.motionVectors.valid ||
+            !inputs.motionMetadata.valid) {
             MarkMotionVectorsWritten(false);
             return false;
         }
-        if (!EnsurePipeline(device) ||
-            state.mappedConstants == nullptr ||
-            state.constantBuffer == nullptr) {
+        if (!EnsurePipeline(device)) {
+            MarkMotionVectorsWritten(false);
+            return false;
+        }
+
+        ConstantSlot& constantSlot =
+            state.constants[inputs.frame.frameIndex % kFrameSlotCount];
+        if (constantSlot.mapped == nullptr || constantSlot.buffer == nullptr) {
             MarkMotionVectorsWritten(false);
             return false;
         }
@@ -210,10 +233,12 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         constants.historyParams = {
             inputs.frame.historyValid ? 1.0f : 0.0f,
             inputs.hasSceneDepth ? 1.0f : 0.0f,
-            0.0f,
+            (std::max)(inputs.frame.camera.farZ, 1.0f),
             0.0f
         };
-        *state.mappedConstants = constants;
+        constants.cameraPos = inputs.frame.camera.cameraPos;
+        constants.prevCameraPos = inputs.frame.camera.prevCameraPos;
+        *constantSlot.mapped = constants;
 
         GFX::PIX::ScopedGpuEvent pix(
             cmd,
@@ -223,34 +248,63 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             cmd,
             GFX::GPU_PROFILE::Pass::TemporalMotionVectors);
 
-        motionTarget->BeginCapture(0.0f, 0.0f, 0.0f, 0.0f);
         if (!inputs.hasSceneDepth || inputs.sceneDepthSrv.ptr == 0) {
-            motionTarget->EndCapture();
             MarkMotionVectorsWritten(false);
             return false;
         }
+
+        motionTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        metadataTarget->TransitionColor(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = {
+            motionTarget->GetRtvHandle(),
+            metadataTarget->GetRtvHandle()
+        };
+        cmd->OMSetRenderTargets(2, rtvs, FALSE, nullptr);
+        const float motionClear[4] = {};
+        const float metadataClear[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+        cmd->ClearRenderTargetView(rtvs[0], motionClear, 0, nullptr);
+        cmd->ClearRenderTargetView(rtvs[1], metadataClear, 0, nullptr);
+        const D3D12_VIEWPORT viewport{
+            0.0f,
+            0.0f,
+            static_cast<float>((std::max)(1, motionTarget->GetWidth())),
+            static_cast<float>((std::max)(1, motionTarget->GetHeight())),
+            0.0f,
+            1.0f
+        };
+        const D3D12_RECT scissor{
+            0,
+            0,
+            (std::max)(1, motionTarget->GetWidth()),
+            (std::max)(1, motionTarget->GetHeight())
+        };
+        cmd->RSSetViewports(1, &viewport);
+        cmd->RSSetScissorRects(1, &scissor);
 
         cmd->SetDescriptorHeaps(1, &srvHeap);
         cmd->SetGraphicsRootSignature(state.rootSignature.Get());
         cmd->SetPipelineState(state.pipelineState.Get());
         cmd->SetGraphicsRootConstantBufferView(
             0,
-            state.constantBuffer->GetGPUVirtualAddress());
+            constantSlot.buffer->GetGPUVirtualAddress());
         cmd->SetGraphicsRootDescriptorTable(1, inputs.sceneDepthSrv);
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->DrawInstanced(3, 1, 0, 0);
-        motionTarget->EndCapture();
+        motionTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        metadataTarget->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         MarkMotionVectorsWritten(true);
         return true;
     }
 
     void ShutdownMotionVectorPass() {
         MotionVectorPassState& state = State();
-        if (state.constantBuffer != nullptr && state.mappedConstants != nullptr) {
-            state.constantBuffer->Unmap(0, nullptr);
+        for (ConstantSlot& slot : state.constants) {
+            if (slot.buffer != nullptr && slot.mapped != nullptr) {
+                slot.buffer->Unmap(0, nullptr);
+            }
+            slot.mapped = nullptr;
+            slot.buffer.Reset();
         }
-        state.mappedConstants = nullptr;
-        state.constantBuffer.Reset();
         state.pipelineState.Reset();
         state.rootSignature.Reset();
         state.ready = false;

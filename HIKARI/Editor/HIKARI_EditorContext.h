@@ -85,7 +85,6 @@ namespace HIKARI {
         RenderDebugView renderView = RenderDebugView::None;
         bool showLegend = true;
         bool freezeCullingCamera = false;
-        float motionVectorDebugScale = 1.0f / 32.0f;
     };
 
     struct ViewportWindowState {

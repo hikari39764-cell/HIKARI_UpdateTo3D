@@ -83,6 +83,7 @@ namespace HIKARI::RENDER3D {
 
     bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode);
     bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode);
+    bool IsAntiAliasingModeAvailable(RenderAntiAliasingMode mode);
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset);
     RenderResolution ResolveFixedRenderResolution(RenderResolutionPreset preset);

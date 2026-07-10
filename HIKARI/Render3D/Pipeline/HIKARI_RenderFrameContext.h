@@ -56,6 +56,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
         uint32_t width = 1;
         uint32_t height = 1;
         D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv{};
+        D3D12_CPU_DESCRIPTOR_HANDLE readOnlySceneDsv{};
         D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv{};
         bool depthReadable = false;
         RenderTargetAccess renderTargetAccess{};
