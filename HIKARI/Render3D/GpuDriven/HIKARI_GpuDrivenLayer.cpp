@@ -1,6 +1,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenLayer.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
@@ -253,6 +254,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         frameSource_ = nullptr;
         sceneUploadStats_ = {};
         commandFrameStats_ = {};
+        traditionalCommandFrameKey_ = {};
         InitializePassExecutionStates(nullptr);
     }
 
@@ -445,17 +447,47 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const bool buildTraditionalStream =
             HasTraditionalCommandStreamWork(frameSource_);
 
+        TraditionalCommandFrameKey key{};
+        key.valid = true;
+        key.frameIndex = desc.frameIndex;
+        key.source = frameSource_;
+        key.sourceVersion =
+            frameSource_ != nullptr ? frameSource_->sourceVersion : 0u;
+        key.layoutVersion =
+            frameSource_ != nullptr ? frameSource_->layoutVersion : 0u;
+        key.hasCullViewProj = desc.cullViewProj != nullptr;
+        key.enableSurfaceFrustumCull = desc.enableSurfaceFrustumCull;
+        if (desc.cullViewProj != nullptr) {
+            key.cullViewProj = *desc.cullViewProj;
+        }
+        const bool reuseTraditionalCommands =
+            buildTraditionalStream &&
+            traditionalCommandStreamBuffer_ != nullptr &&
+            traditionalCommandFrameKey_.valid &&
+            traditionalCommandFrameKey_.frameIndex == key.frameIndex &&
+            traditionalCommandFrameKey_.source == key.source &&
+            traditionalCommandFrameKey_.sourceVersion == key.sourceVersion &&
+            traditionalCommandFrameKey_.layoutVersion == key.layoutVersion &&
+            traditionalCommandFrameKey_.hasCullViewProj == key.hasCullViewProj &&
+            traditionalCommandFrameKey_.enableSurfaceFrustumCull ==
+                key.enableSurfaceFrustumCull &&
+            std::memcmp(
+                &traditionalCommandFrameKey_.cullViewProj,
+                &key.cullViewProj,
+                sizeof(key.cullViewProj)) == 0;
+
         if (traditionalCommandStreamBuffer_ != nullptr) {
             traditionalCommandStreamBuffer_->BeginFrame(desc.frameIndex);
         }
 
         if (traditionalCommandStreamBuffer_ != nullptr &&
+            !reuseTraditionalCommands &&
             (desc.resetTraditionalIndirectBuffer || !buildTraditionalStream)) {
             traditionalCommandStreamBuffer_->ResetFrame();
         }
 
         if (traditionalCommandStreamBuffer_ != nullptr && buildTraditionalStream) {
-            if (frameSource_ != nullptr) {
+            if (!reuseTraditionalCommands && frameSource_ != nullptr) {
                 UploadTraditionalIndirectCommands(
                     *traditionalCommandStreamBuffer_,
                     *frameSource_);
@@ -465,9 +497,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                         *desc.cullViewProj,
                         desc.enableSurfaceFrustumCull);
                 }
+                traditionalCommandFrameKey_ = key;
             }
             commandFrameStats_.traditionalCommandStreamStats =
                 traditionalCommandStreamBuffer_->GetStats();
+        } else {
+            traditionalCommandFrameKey_ = {};
         }
 
         if (desc.publishCommandBuffers) {

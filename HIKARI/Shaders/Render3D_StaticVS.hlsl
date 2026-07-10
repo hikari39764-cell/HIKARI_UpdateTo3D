@@ -18,6 +18,7 @@ cbuffer CameraCB : register(b0)
 };
 
 #include "Include/HIKARI_MeshObjectData.hlsli"
+#include "Include/Forward/HIKARI_ForwardVertexMeta.hlsli"
 
 struct VSInput
 {
@@ -38,13 +39,10 @@ struct VSOutput
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
-    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint forwardMeta : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
-    nointerpolation uint debugClusterId : TEXCOORD6;
-    nointerpolation uint debugSurfaceId : TEXCOORD7;
-    nointerpolation uint debugLodIndex : TEXCOORD8;
-    nointerpolation uint debugDrawBucket : TEXCOORD9;
+    nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
 
 VSOutput main(VSInput input)
@@ -61,12 +59,10 @@ VSOutput main(VSInput input)
     output.uv = input.uv;
     output.uv1 = input.uv1;
     output.materialDataIndex = objectData.materialDataIndex;
-    output.receiveShadow = objectData.receiveShadow;
+    output.forwardMeta = HikariPackForwardVertexMeta(
+        objectData.receiveShadow, 0u, 0u, 0u);
     output.objectDataIndex = objectDataIndex;
     output.surfaceGpuSceneIndex = HikariGetSurfaceGpuSceneAbsoluteIndex(input.instanceId);
-    output.debugClusterId = 0u;
     output.debugSurfaceId = 0u;
-    output.debugLodIndex = 0u;
-    output.debugDrawBucket = 0u;
     return output;
 }

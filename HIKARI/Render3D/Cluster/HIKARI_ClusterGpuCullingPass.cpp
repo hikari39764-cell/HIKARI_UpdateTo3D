@@ -31,7 +31,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr float kClusterCullLodTargetErrorNdc = 0.0180f;
         constexpr float kClusterCullLodTransitionRelaxPerLevel = 0.35f;
         constexpr float kClusterCullLodErrorRelaxPerLevel = 0.75f;
-        constexpr uint32_t kClusterCullPageTaskGroupSize = 4u;
+        // CullPageTasksCS は 1 group = 1 page task 前提。page 単位で emit する
+        // ため必ず 1 に固定する (HLSL 側の LDS 並列化と対)。
+        constexpr uint32_t kClusterCullPageTaskGroupSize = 1u;
         constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 4u;
         constexpr DXGI_FORMAT kClusterCullHzbFallbackFormat = DXGI_FORMAT_R32_FLOAT;
         constexpr float kClusterCullHzbDepthBias = 0.0005f;

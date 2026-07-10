@@ -9,14 +9,12 @@ struct PSInput
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
-    nointerpolation uint receiveShadow : TEXCOORD3;
     // VS/MS 側の TEXCOORD スロットと一致させ、PSO リンク時の再割り当てを避ける。
+    // forwardMeta のビットレイアウトは HIKARI_ForwardVertexMeta.hlsli を参照。
+    nointerpolation uint forwardMeta : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
-    nointerpolation uint debugClusterId : TEXCOORD6;
-    nointerpolation uint debugSurfaceId : TEXCOORD7;
-    nointerpolation uint debugLodIndex : TEXCOORD8;
-    nointerpolation uint debugDrawBucket : TEXCOORD9;
+    nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
 
 float3 ResolveShadingNormal(
@@ -326,10 +324,10 @@ float4 main(PSInput input) : SV_TARGET
     float4 geometryDebugColor;
     if (HikariTryResolveGeometryDebugView(
         gDebugView,
-        input.debugClusterId,
+        HikariForwardVertexMetaClusterId(input.forwardMeta),
         input.debugSurfaceId,
-        input.debugLodIndex,
-        input.debugDrawBucket,
+        HikariForwardVertexMetaLodIndex(input.forwardMeta),
+        HikariForwardVertexMetaDrawBucket(input.forwardMeta),
         albedo.a,
         geometryDebugColor))
     {
@@ -400,7 +398,10 @@ float4 main(PSInput input) : SV_TARGET
     }
     float shadowFactor = costNoShadow
         ? 1.0f
-        : SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+        : SampleDirectionalShadow(
+            input.worldPosWS,
+            geometricNormal,
+            HikariForwardVertexMetaReceiveShadow(input.forwardMeta));
     if (gDebugView == 8)
     {
         return float4(shadowFactor.xxx, albedo.a);

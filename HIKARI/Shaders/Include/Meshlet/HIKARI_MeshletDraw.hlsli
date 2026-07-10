@@ -41,14 +41,31 @@ static const uint HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD =
 static const uint HIKARI_MESHLET_AS_MODE_COMPACT = 0u;
 static const uint HIKARI_MESHLET_AS_MODE_DENSE = 1u;
 
+// AS→MS payload はサイズが占有率に直結するため、cluster あたり 16B に
+// 詰める。vertex/primitive count は cluster 設定上 8bit に収まる
+// (最大 64 vert / 124 prim)。
 struct HikariMeshletPayloadCluster
 {
     uint clusterIndex;
     uint firstVertex;
-    uint vertexCount;
     uint firstPrimitive;
-    uint primitiveCount;
+    uint packedCounts; // bits 0-7: vertexCount, bits 8-15: primitiveCount
 };
+
+uint HikariMeshletPackPayloadCounts(uint vertexCount, uint primitiveCount)
+{
+    return (vertexCount & 0xffu) | ((primitiveCount & 0xffu) << 8u);
+}
+
+uint HikariMeshletPayloadVertexCount(HikariMeshletPayloadCluster cluster)
+{
+    return cluster.packedCounts & 0xffu;
+}
+
+uint HikariMeshletPayloadPrimitiveCount(HikariMeshletPayloadCluster cluster)
+{
+    return (cluster.packedCounts >> 8u) & 0xffu;
+}
 
 struct HikariMeshletPayload
 {

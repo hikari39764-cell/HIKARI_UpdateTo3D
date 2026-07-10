@@ -115,6 +115,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const GpuDrivenCommandFrameStats& GetCommandFrameStats() const;
 
     private:
+        // 同一フレーム内で BuildCommandFrame が複数回呼ばれても、入力が
+        // 変わらない限り伝統ストリームの再アップロード + GPU 圧縮を繰り返さ
+        // ないための冪等キー。ResetFrame / ソース差し替えで無効化される。
+        struct TraditionalCommandFrameKey {
+            bool valid = false;
+            uint32_t frameIndex = 0;
+            const GpuDrivenSceneSource* source = nullptr;
+            uint64_t sourceVersion = 0;
+            uint64_t layoutVersion = 0;
+            bool hasCullViewProj = false;
+            bool enableSurfaceFrustumCull = false;
+            MATH::Mat4 cullViewProj{};
+        };
+
         SurfaceGpuSceneFrameBuffer* sceneBuffer_ = nullptr;
         GpuTraditionalCommandStreamBuffer* traditionalCommandStreamBuffer_ = nullptr;
         IGpuDrivenProducer* producer_ = nullptr;
@@ -122,6 +136,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         GpuDrivenFrameContext frameContext_{};
         GpuDrivenSceneUploadStats sceneUploadStats_{};
         GpuDrivenCommandFrameStats commandFrameStats_{};
+        TraditionalCommandFrameKey traditionalCommandFrameKey_{};
 
         void InitializePassExecutionStates(
             const GpuDrivenSceneSource* source);

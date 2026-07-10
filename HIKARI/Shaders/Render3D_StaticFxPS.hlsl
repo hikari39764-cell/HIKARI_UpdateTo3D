@@ -10,14 +10,12 @@ struct PSInput
     float2 uv         : TEXCOORD0;
     float2 uv1        : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
-    nointerpolation uint receiveShadow : TEXCOORD3;
+    // Keep TEXCOORD slots aligned between VS and MeshletMS layouts for PSO linkage.
+    // forwardMeta bit layout: HIKARI_ForwardVertexMeta.hlsli.
+    nointerpolation uint forwardMeta : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
-    // Keep TEXCOORD slots aligned between VS and MeshletMS layouts for PSO linkage.
-    nointerpolation uint debugClusterId : TEXCOORD6;
-    nointerpolation uint debugSurfaceId : TEXCOORD7;
-    nointerpolation uint debugLodIndex : TEXCOORD8;
-    nointerpolation uint debugDrawBucket : TEXCOORD9;
+    nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
 
 float3 ResolveShadingNormal(
@@ -484,7 +482,10 @@ float4 main(PSInput input) : SV_TARGET
 #if HIKARI_USE_COOK_TORRANCE_PBR
         shadowFactor = costNoShadow
             ? 1.0f
-            : SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+            : SampleDirectionalShadow(
+                input.worldPosWS,
+                geometricNormal,
+                HikariForwardVertexMetaReceiveShadow(input.forwardMeta));
 
         float3 direct =
             HikariEvaluateDirectPbr(
@@ -533,7 +534,10 @@ float4 main(PSInput input) : SV_TARGET
         float3 pointLightContribution = AccumulatePointLight(n, input.worldPosWS, v);
         shadowFactor = costNoShadow
             ? 1.0f
-            : SampleDirectionalShadow(input.worldPosWS, geometricNormal, input.receiveShadow);
+            : SampleDirectionalShadow(
+                input.worldPosWS,
+                geometricNormal,
+                HikariForwardVertexMetaReceiveShadow(input.forwardMeta));
         lit = albedo.rgb * (ambient + (diffuse + specular) * shadowFactor + pointLightContribution);
 #endif
     }
@@ -596,10 +600,10 @@ float4 main(PSInput input) : SV_TARGET
     float4 geometryDebugColor;
     if (HikariTryResolveGeometryDebugView(
         gDebugView,
-        input.debugClusterId,
+        HikariForwardVertexMetaClusterId(input.forwardMeta),
         input.debugSurfaceId,
-        input.debugLodIndex,
-        input.debugDrawBucket,
+        HikariForwardVertexMetaLodIndex(input.forwardMeta),
+        HikariForwardVertexMetaDrawBucket(input.forwardMeta),
         albedo.a,
         geometryDebugColor))
     {

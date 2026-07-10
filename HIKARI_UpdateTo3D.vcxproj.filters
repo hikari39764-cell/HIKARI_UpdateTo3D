@@ -2263,6 +2263,9 @@
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ShadowSampling.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardVertexMeta.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>

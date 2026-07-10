@@ -123,9 +123,13 @@ HikariMeshletResolvedCluster HikariResolveMeshletCluster(
         result.firstVertex = payloadCluster.firstVertex;
         result.firstPrimitive = payloadCluster.firstPrimitive;
         result.vertexCount =
-            min(payloadCluster.vertexCount, HIKARI_MESHLET_MAX_VERTICES);
+            min(
+                HikariMeshletPayloadVertexCount(payloadCluster),
+                HIKARI_MESHLET_MAX_VERTICES);
         result.primitiveCount =
-            min(payloadCluster.primitiveCount, HIKARI_MESHLET_MAX_PRIMITIVES);
+            min(
+                HikariMeshletPayloadPrimitiveCount(payloadCluster),
+                HIKARI_MESHLET_MAX_PRIMITIVES);
         result.cluster.firstVertex = result.firstVertex;
         result.cluster.vertexCount = result.vertexCount;
         result.cluster.firstPrimitive = result.firstPrimitive;

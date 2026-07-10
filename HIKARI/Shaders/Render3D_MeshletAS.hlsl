@@ -110,9 +110,9 @@ bool HikariMeshletAsBuildPayloadCluster(
 
     payloadCluster.clusterIndex = clusterIndex;
     payloadCluster.firstVertex = cluster.firstVertex;
-    payloadCluster.vertexCount = vertexCount;
     payloadCluster.firstPrimitive = cluster.firstPrimitive;
-    payloadCluster.primitiveCount = primitiveCount;
+    payloadCluster.packedCounts =
+        HikariMeshletPackPayloadCounts(vertexCount, primitiveCount);
     return true;
 }
 
@@ -467,8 +467,9 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
     }
     GroupMemoryBarrierWithGroupSync();
 
+    // 全滅時は MS group を発行しない (DispatchMesh(0) は仕様上合法)。
     DispatchMesh(
-        max(gMeshletAsPayload.visibleClusterCount, 1u),
+        gMeshletAsPayload.visibleClusterCount,
         1u,
         1u,
         gMeshletAsPayload);

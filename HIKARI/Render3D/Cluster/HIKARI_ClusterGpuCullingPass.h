@@ -267,9 +267,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         static_assert(sizeof(GpuIndirectMeshletDispatchArgument) == 32u);
 
+        // HLSL 側 ClusterCullPageTask とレイアウト一致必須。clusterWorld は
+        // GPU scene から task.gpuSceneInstanceIndex で読み直すため持たない。
         struct GpuPageTask {
-            MATH::Mat4 clusterWorld{};
-            MATH::Vec4 boundsCenterRadius{};
             uint32_t gpuSceneInstanceIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t clusterGeometrySrvDescriptorIndex = RUNTIME::kInvalidRenderSurfaceIndex;
             uint32_t firstCluster = RUNTIME::kInvalidRenderSurfaceIndex;
@@ -292,7 +292,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t clusterGeometryMetadataSrvDescriptorIndex = RUNTIME::kInvalidRenderSurfaceIndex;
         };
 
-        static_assert(sizeof(GpuPageTask) == 160u);
+        static_assert(sizeof(GpuPageTask) == 80u);
 
         struct GpuCounters {
             uint32_t inputCount = 0;

@@ -923,9 +923,10 @@ namespace HIKARI::MESHRENDERER {
             using RENDER3D::GPUDRIVEN::MakeGpuDrivenPassMask;
             // DepthPrepass は HZB 構築前に描くため、occlusion なし (frustum のみ)
             // の BeginFrame ビルドで work を確定させる。
-            return
-                MakeGpuDrivenPassMask(GpuDrivenPassKind::Shadow) |
-                MakeGpuDrivenPassMask(GpuDrivenPassKind::DepthPrepass);
+            // Shadow はここに含めない: shadow map は ShadowMapRenderer が光源
+            // 行列で専用の cull チェーンを回すため、主カメラでの Shadow cull は
+            // 消費者が存在しない。
+            return MakeGpuDrivenPassMask(GpuDrivenPassKind::DepthPrepass);
         }
 
         uint32_t MakeMainCameraGpuDrivenPassMask() {

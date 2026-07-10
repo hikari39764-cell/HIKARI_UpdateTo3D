@@ -6,6 +6,7 @@
 
 #define HIKARI_GPU_DRIVEN_ENABLE_WATER_DEFORM HIKARI_MESHLET_ENABLE_WATER_DEFORM
 #include "Include/Meshlet/HIKARI_GpuDrivenWaterDeform.hlsli"
+#include "Include/Forward/HIKARI_ForwardVertexMeta.hlsli"
 
 struct HikariMeshletVertexOut
 {
@@ -16,13 +17,10 @@ struct HikariMeshletVertexOut
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD10;
     nointerpolation uint materialDataIndex : TEXCOORD2;
-    nointerpolation uint receiveShadow : TEXCOORD3;
+    nointerpolation uint forwardMeta : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
-    nointerpolation uint debugClusterId : TEXCOORD6;
-    nointerpolation uint debugSurfaceId : TEXCOORD7;
-    nointerpolation uint debugLodIndex : TEXCOORD8;
-    nointerpolation uint debugDrawBucket : TEXCOORD9;
+    nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
 
 HikariMeshletVertexOut HikariBuildEmptyMeshletVertex()
@@ -62,15 +60,15 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
     output.uv = vertex.uv01.xy;
     output.uv1 = vertex.uv01.zw;
     output.materialDataIndex = instance.materialDataIndex;
-    output.receiveShadow =
-        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u ? 1u : 0u;
+    output.forwardMeta = HikariPackForwardVertexMeta(
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_RECEIVE_SHADOW) != 0u ? 1u : 0u,
+        resolved.visible.drawBucket,
+        resolved.visible.lodIndex,
+        resolved.clusterIndex);
     output.objectDataIndex = surfaceGpuSceneIndex;
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
-    output.debugClusterId = resolved.clusterIndex;
     output.debugSurfaceId =
         resolved.visible.clusterSurfaceIndex * 4099u + resolved.visible.sectionIndex;
-    output.debugLodIndex = resolved.visible.lodIndex;
-    output.debugDrawBucket = resolved.visible.drawBucket;
     return output;
 }
 

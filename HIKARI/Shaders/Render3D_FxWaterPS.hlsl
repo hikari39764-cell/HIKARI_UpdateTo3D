@@ -42,6 +42,7 @@ cbuffer CameraCB : register(b0)
 
 #include "Include/HIKARI_MeshObjectData.hlsli"
 #include "Include/HIKARI_DebugViewCommon.hlsli"
+#include "Include/Forward/HIKARI_ForwardVertexMeta.hlsli"
 
 cbuffer LightCB : register(b2)
 {
@@ -140,14 +141,12 @@ struct PSInput
     float4 tangentWS : TANGENT;
     float2 uv : TEXCOORD0;
     nointerpolation uint materialDataIndex : TEXCOORD2;
-    nointerpolation uint receiveShadow : TEXCOORD3;
     // Keep TEXCOORD slots aligned between VS and MeshletMS layouts for PSO linkage.
+    // forwardMeta bit layout: HIKARI_ForwardVertexMeta.hlsli.
+    nointerpolation uint forwardMeta : TEXCOORD3;
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
-    nointerpolation uint debugClusterId : TEXCOORD6;
-    nointerpolation uint debugSurfaceId : TEXCOORD7;
-    nointerpolation uint debugLodIndex : TEXCOORD8;
-    nointerpolation uint debugDrawBucket : TEXCOORD9;
+    nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
 
 float SampleSceneDepth(float4 svPosition)
@@ -651,7 +650,10 @@ float4 main(PSInput input) : SV_TARGET
     float3 normalWaterColor = lerp(waterColor, shallowColor, oldNormalShallow);
     float3 baseWater = lerp(normalWaterColor, depthWaterColor, saturate(depthBlend));
 
-    float shadowFactor = SampleDirectionalShadow(input.worldPosWS, n, input.receiveShadow);
+    float shadowFactor = SampleDirectionalShadow(
+        input.worldPosWS,
+        n,
+        HikariForwardVertexMetaReceiveShadow(input.forwardMeta));
 
     float3 ambient = gAmbientColor.rgb * max(gAmbientIntensity, 0.05f);
     float3 sun = gDirectionalColor.rgb * gDirectionalIntensity * ndotl * shadowFactor;
@@ -725,10 +727,10 @@ float4 main(PSInput input) : SV_TARGET
     float4 geometryDebugColor;
     if (HikariTryResolveGeometryDebugView(
         gDebugView,
-        input.debugClusterId,
+        HikariForwardVertexMetaClusterId(input.forwardMeta),
         input.debugSurfaceId,
-        input.debugLodIndex,
-        input.debugDrawBucket,
+        HikariForwardVertexMetaLodIndex(input.forwardMeta),
+        HikariForwardVertexMetaDrawBucket(input.forwardMeta),
         1.0f,
         geometryDebugColor))
     {

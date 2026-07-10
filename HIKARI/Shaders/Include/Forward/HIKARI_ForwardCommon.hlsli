@@ -171,6 +171,7 @@ SamplerComparisonState gShadowSampler : register(s1);
 #include "Include/HIKARI_PbrCommon.hlsli"
 #include "Include/HIKARI_SkyEnvironmentCommon.hlsli"
 #include "Include/HIKARI_DebugViewCommon.hlsli"
+#include "Include/Forward/HIKARI_ForwardVertexMeta.hlsli"
 #include "Include/Forward/HIKARI_ShadowSampling.hlsli"
 
 #endif

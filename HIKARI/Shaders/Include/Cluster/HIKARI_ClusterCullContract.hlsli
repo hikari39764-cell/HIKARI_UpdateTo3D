@@ -75,10 +75,10 @@ struct ClusterCullMeshletDispatchArgument
     uint reserved0;
 };
 
+// clusterWorld は task に埋め込まず gpuSceneInstanceIndex 経由で GPU scene
+// から読み直す (expand 書き込み + cull 読み出しの帯域を半減させる)。
 struct ClusterCullPageTask
 {
-    float4x4 clusterWorld;
-    float4 boundsCenterRadius;
     uint gpuSceneInstanceIndex;
     uint clusterGeometrySrvDescriptorIndex;
     uint firstCluster;
@@ -242,6 +242,11 @@ static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_MAX_INDEX_SPAN = 16384u;
 static const uint HIKARI_CLUSTER_CULL_DEFAULT_MERGE_CLUSTER_GAP_LIMIT = 1u;
 static const uint HIKARI_CLUSTER_CULL_MESHLET_AS_MAX_CLUSTER_PAYLOAD =
     HIKARI_CLUSTER_GEOMETRY_CONFIG_AS_CLUSTER_PAYLOAD;
+// CullPageTasksCS は 1 group = 1 page task で回すため、task 数が X 次元の
+// 上限 (D3D12: 65535) を超えたら Y 次元に折り返す。Finalize CS と CS 本体で
+// 同じ幅を共有する。
+static const uint HIKARI_CLUSTER_CULL_PAGE_TASK_DISPATCH_MAX_X = 65535u;
+static const uint HIKARI_CLUSTER_CULL_FINE_GROUP_SIZE = 64u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PACKET = 1u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED = 2u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_CLUSTER_LIST = 4u;
