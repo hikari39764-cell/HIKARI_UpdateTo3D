@@ -26,9 +26,6 @@ namespace HIKARI::MESHRENDERER {
     void InvalidateMaterialFxPipelineCache();
     void SetGpuDrivenSceneSource(
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source);
-    void SetGpuDrivenCullingDebugFreezeEnabled(bool enabled);
-    GpuDrivenCullingDebugView GetGpuDrivenCullingDebugView();
-    bool IsGpuDrivenCullingDebugFreezeActive();
     bool HasSubmittedItems();
     bool BeginFrame(
         const Camera3D& camera,
@@ -39,7 +36,10 @@ namespace HIKARI::MESHRENDERER {
         const SceneEnvironment& environment,
         uint32_t screenWidth,
         uint32_t screenHeight,
-        RenderDebugView debugView = RenderDebugView::None);
+        RenderDebugView debugView = RenderDebugView::None,
+        const MeshFrameCameraOverrides* cameraOverrides = nullptr);
+    void SetGpuDrivenCullingCameraFreezeEnabled(bool enabled);
+    bool IsGpuDrivenCullingCameraFrozen();
     const CameraCB* GetCameraConstants();
     const CameraCB* GetGpuDrivenCullingCameraConstants();
     bool RenderGeometryAuxPass(

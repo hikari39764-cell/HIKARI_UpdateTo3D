@@ -83,6 +83,11 @@ namespace HIKARI::MESHRENDERER {
         JointPaletteCB* jointPaletteMapped = nullptr;
 
         MeshRendererDebugStats debugStats;
+        CameraCB frozenCullingCamera{};
+        bool freezeGpuDrivenCullingCamera = false;
+        bool frozenCullingCameraValid = false;
+        uint32_t frozenCullingCameraWidth = 0;
+        uint32_t frozenCullingCameraHeight = 0;
 
         RENDER3D::TextureResourceHandle fallbackTextureResource{};
         RENDER3D::TextureResourceHandle fallbackNormalTextureResource{};
@@ -112,8 +117,6 @@ namespace HIKARI::MESHRENDERER {
 
         RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};
         RENDER3D::GPUDRIVEN::GpuDrivenSceneResidency gpuDrivenSceneResidency{};
-
-        GpuDrivenCullingDebugView cullingDebugView{};
 
         float elapsedTimeSec = 0.0f;
     };

@@ -3,6 +3,10 @@
 namespace HIKARI {
 
     void Camera3D::SetPerspective(float fovYRad, float aspect, float nearZ, float farZ) {
+        fovYRad_ = fovYRad;
+        aspect_ = aspect;
+        nearZ_ = nearZ;
+        farZ_ = farZ;
         proj_ = MATH::Mat4::PerspectiveFovRH_ZO(fovYRad, aspect, nearZ, farZ);
     }
 

@@ -26,6 +26,7 @@
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Debug/HIKARI_RenderDebugViewPass.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
@@ -84,14 +85,17 @@ namespace HIKARI {
             return true;
         }
 
-        void SubmitGpuDrivenCullingDebugFrustum() {
-            const MESHRENDERER::GpuDrivenCullingDebugView debugView =
-                MESHRENDERER::GetGpuDrivenCullingDebugView();
-            if (!debugView.freezeRequested || !debugView.frozenViewValid) {
+        void SubmitFrozenCullingCameraDebugFrustum() {
+            if (!MESHRENDERER::IsGpuDrivenCullingCameraFrozen()) {
                 return;
             }
 
-            const MATH::Mat4 invViewProj = MATH::Inverse(debugView.viewProj);
+            const MESHRENDERER::CameraCB* cullingCamera =
+                MESHRENDERER::GetGpuDrivenCullingCameraConstants();
+            if (cullingCamera == nullptr) {
+                return;
+            }
+
             constexpr std::array<std::array<float, 3>, 8> kClipCorners{ {
                 { -1.0f, -1.0f, 0.0f },
                 {  1.0f, -1.0f, 0.0f },
@@ -107,7 +111,7 @@ namespace HIKARI {
             for (size_t i = 0; i < kClipCorners.size(); ++i) {
                 const auto& c = kClipCorners[i];
                 if (!TryUnprojectClipCorner(
-                    invViewProj,
+                    cullingCamera->invViewProj,
                     c[0],
                     c[1],
                     c[2],
@@ -134,9 +138,14 @@ namespace HIKARI {
                 });
             }
 
+            const MATH::Vec3 cullingPosition{
+                cullingCamera->cameraPos.x,
+                cullingCamera->cameraPos.y,
+                cullingCamera->cameraPos.z
+            };
             for (size_t i = 0; i < 4; ++i) {
                 RENDERER3D::DEBUG::SubmitLine3D({
-                    debugView.cameraPosition,
+                    cullingPosition,
                     corners[i],
                     kRayColor,
                     RENDERER3D::DEBUG::DebugDepthMode::XRay
@@ -633,7 +642,13 @@ namespace HIKARI {
             }
         }
 
-        SKYRENDERER::Render(camera_, activeEnvironment, modelManager_, skyManager_);
+        MESHRENDERER::SetGpuDrivenCullingCameraFreezeEnabled(
+            DrawDebugHelpers() && viewportDebugViewState_.freezeCullingCamera);
+        RENDER3D::DEBUGVIEW::SetMotionVectorDebugScale(
+            viewportDebugViewState_.motionVectorDebugScale);
+        const Camera3D& renderCamera = camera_;
+
+        SKYRENDERER::Render(renderCamera, activeEnvironment, modelManager_, skyManager_);
         if (DrawDebugHelpers()) {
             if (viewportOverlayState_.showLights) {
                 LIGHTDEBUGDRAW::SubmitDirectionalLightArrow(activeEnvironment.directional.direction, activeEnvironment);
@@ -641,7 +656,7 @@ namespace HIKARI {
             }
 #if defined(HIKARI_WITH_EDITOR)
             if (viewportOverlayState_.showReflectionProbe) {
-                reflectionProbeGizmoRenderer_.Submit(activeEnvironment, viewportOverlayState_, camera_);
+                reflectionProbeGizmoRenderer_.Submit(activeEnvironment, viewportOverlayState_, renderCamera);
             }
             lightProbeVolumeGizmoRenderer_.Submit(
                 sceneDocument_.lightingBake.lightProbeVolume,
@@ -650,12 +665,10 @@ namespace HIKARI {
         }
 
         componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
-        MESHRENDERER::SetGpuDrivenCullingDebugFreezeEnabled(
-            viewportDebugViewState_.freezeGpuDrivenCullingView);
-        MODELRENDERER::RenderAll(camera_, activeEnvironment, viewportDebugViewState_.renderView);
-        SubmitGpuDrivenCullingDebugFrustum();
-        RENDERER3D::RenderAll(camera_, static_cast<float>(captureW), static_cast<float>(captureH));
-        VFX::Render(camera_);
+        MODELRENDERER::RenderAll(renderCamera, activeEnvironment, viewportDebugViewState_.renderView);
+        SubmitFrozenCullingCameraDebugFrustum();
+        RENDERER3D::RenderAll(renderCamera, static_cast<float>(captureW), static_cast<float>(captureH));
+        VFX::Render(renderCamera);
     }
     void DocumentSceneBase::RenderImGui() {
         if (!SERVICES::IsEditorUIEnabled() && !SERVICES::ArePortableObjectToolsEnabled()) {

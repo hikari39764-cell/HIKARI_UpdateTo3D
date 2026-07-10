@@ -15,23 +15,12 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
     namespace {
         ScreenSpaceRuntimeState gScreenSpaceState{};
+        DepthVisibilityDebugState gDepthVisibilityDebugState{};
 
         using CpuClock = std::chrono::steady_clock;
 
         float ElapsedMs(CpuClock::time_point start, CpuClock::time_point end) {
             return std::chrono::duration<float, std::milli>(end - start).count();
-        }
-
-        bool NearlyEqualMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
-            constexpr float kEpsilon = 0.0001f;
-            for (int col = 0; col < 4; ++col) {
-                for (int row = 0; row < 4; ++row) {
-                    if (std::fabs(lhs.m[col][row] - rhs.m[col][row]) > kEpsilon) {
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
 
         float MaxAbsDeltaMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
@@ -63,17 +52,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 pyramid.viewProjValid;
         }
 
-        bool IsDepthPyramidStatsUsableForView(
-            const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
-            uint32_t width,
-            uint32_t height,
-            const MATH::Mat4& viewProj) {
-
-            return
-                IsDepthPyramidStatsUsable(stats, width, height) &&
-                NearlyEqualMat4(stats.depthPyramid.viewProj, viewProj);
-        }
-
         bool IsHistoryDepthPyramidUsableForCullingView(
             const RENDER3D::GPUDRIVEN::GpuDepthVisibilityStats& stats,
             uint32_t width,
@@ -87,6 +65,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             constexpr float kHistoryViewProjMaxDelta = 0.0125f;
             return MaxAbsDeltaMat4(stats.depthPyramid.viewProj, viewProj) <=
                 kHistoryViewProjMaxDelta;
+        }
+
+        void ClearFrozenCullingDepthStats(ScreenSpaceRuntimeState& state) {
+            state.frozenCullingDepthStats = {};
+            state.frozenCullingDepthStatsValid = false;
         }
 
         void PublishFrameDepthPyramid(
@@ -108,9 +91,43 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             DEPTH::PublishFrameDepthPyramid(view);
         }
 
-        void ClearFrozenCullingDepthStats(ScreenSpaceRuntimeState& state) {
-            state.frozenCullingDepthStats = {};
-            state.frozenCullingDepthStatsValid = false;
+        void BeginDepthVisibilityDebugFrame(
+            uint32_t width,
+            uint32_t height,
+            bool historyReady,
+            bool historyMatched) {
+
+            gDepthVisibilityDebugState = {};
+            gDepthVisibilityDebugState.width = width;
+            gDepthVisibilityDebugState.height = height;
+            gDepthVisibilityDebugState.historyReady = historyReady;
+            gDepthVisibilityDebugState.historyMatched = historyMatched;
+        }
+
+        void RecordDepthVisibilitySource(DepthVisibilitySource source) {
+            gDepthVisibilityDebugState.visibilitySource = source;
+            gDepthVisibilityDebugState.visibilityUsedHzb =
+                source != DepthVisibilitySource::None &&
+                source != DepthVisibilitySource::NoHzb;
+            gDepthVisibilityDebugState.visibilityWithoutHzb =
+                source == DepthVisibilitySource::NoHzb;
+            if (gDepthVisibilityDebugState.visibilityUsedHzb) {
+                gDepthVisibilityDebugState.depthPyramidBuilt = true;
+                gDepthVisibilityDebugState.latestPyramidSource = source;
+            }
+        }
+
+        void RecordDepthPyramidSource(DepthVisibilitySource source) {
+            if (source == DepthVisibilitySource::None ||
+                source == DepthVisibilitySource::NoHzb) {
+                return;
+            }
+            gDepthVisibilityDebugState.depthPyramidBuilt = true;
+            gDepthVisibilityDebugState.latestPyramidSource = source;
+        }
+
+        void RecordDepthVisibilityWithoutHzb() {
+            RecordDepthVisibilitySource(DepthVisibilitySource::NoHzb);
         }
 
         // History HZB が使えないフレームでも遮蔽剔除を丸ごと失わないよう、
@@ -135,6 +152,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             }
             result.depthPrepassWritten = depthWritten;
             state.depthVisibility.RecordDepthPrepass(depthWritten);
+            gDepthVisibilityDebugState.depthPrepassWritten = depthWritten;
             if (depthWritten) {
                 result.hzbBuilt =
                     state.depthVisibility.BuildDepthPyramidFromVisibilityPrepass(
@@ -155,14 +173,17 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             state.depthVisibilityViewProjValid = state.depthVisibilityValid;
             state.depthVisibilityViewProj = cullingCameraCb.viewProj;
             if (!state.depthVisibilityValid) {
+                RecordDepthVisibilityWithoutHzb();
                 (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
                 return false;
             }
 
+            RecordDepthPyramidSource(DepthVisibilitySource::CurrentPrepass);
             PublishFrameDepthPyramid(
                 result,
                 currentDepthStats.depthPyramid,
                 DEPTH::DepthPyramidViewKind::CurrentFrame);
+            RecordDepthVisibilitySource(DepthVisibilitySource::CurrentPrepass);
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                 currentDepthStats);
             return true;
@@ -171,6 +192,28 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
     ScreenSpaceRuntimeState& GetScreenSpaceRuntimeState() {
         return gScreenSpaceState;
+    }
+
+    const DepthVisibilityDebugState& GetDepthVisibilityDebugState() {
+        return gDepthVisibilityDebugState;
+    }
+
+    const char* ToString(DepthVisibilitySource source) {
+        switch (source) {
+        case DepthVisibilitySource::History:
+            return "History";
+        case DepthVisibilitySource::Frozen:
+            return "Frozen";
+        case DepthVisibilitySource::CurrentPrepass:
+            return "CurrentPrepass";
+        case DepthVisibilitySource::CurrentSceneDepth:
+            return "CurrentSceneDepth";
+        case DepthVisibilitySource::NoHzb:
+            return "NoHzb";
+        case DepthVisibilitySource::None:
+        default:
+            return "None";
+        }
     }
 
     void ReleaseScreenSpaceRuntimeState() {
@@ -232,6 +275,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 context.height,
                 cullingCameraCb.viewProj);
         state.depthVisibility.ResetFrame();
+        BeginDepthVisibilityDebugFrame(
+            context.width,
+            context.height,
+            historyDepthPyramidReady,
+            historyDepthPyramidMatchesCullingView);
         BeginSsaoDebugFrame(context.width, context.height, environment.ambientOcclusion);
 
         if (context.cmd == nullptr) {
@@ -247,61 +295,59 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         const SsaoMode ssaoMode = ResolveEffectiveSsaoMode(environment.ambientOcclusion);
 
         const CpuClock::time_point depthVisibilityStart = CpuClock::now();
-        const bool frozenCullingView =
-            MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive();
         const bool depthVisibilityAllowedThisFrame = true;
         state.depthVisibilityBuildAllowedThisFrame =
             depthVisibilityAllowedThisFrame;
-        if (frozenCullingView) {
+        const bool cullingCameraFrozen =
+            MESHRENDERER::IsGpuDrivenCullingCameraFrozen();
+        if (!cullingCameraFrozen) {
+            ClearFrozenCullingDepthStats(state);
+        }
+
+        if (cullingCameraFrozen) {
             if (!state.frozenCullingDepthStatsValid &&
-                IsDepthPyramidStatsUsableForView(
-                    historyDepthStats,
-                    context.width,
-                    context.height,
-                    cullingCameraCb.viewProj)) {
+                historyDepthPyramidMatchesCullingView) {
                 state.frozenCullingDepthStats = historyDepthStats;
                 state.frozenCullingDepthStatsValid = true;
             }
 
-            const bool frozenHistoryReady =
+            const bool frozenDepthReady =
                 state.frozenCullingDepthStatsValid &&
-                IsDepthPyramidStatsUsableForView(
+                IsHistoryDepthPyramidUsableForCullingView(
                     state.frozenCullingDepthStats,
                     context.width,
                     context.height,
                     cullingCameraCb.viewProj);
-            if (frozenHistoryReady) {
-                GFX::PIX::ScopedGpuEvent pixFrozenHistory(
+            if (frozenDepthReady) {
+                GFX::PIX::ScopedGpuEvent pixFrozen(
                     context.cmd,
                     GFX::PIX::kColorUpload,
                     "GpuDepthVisibility.UseFrozenDepthPyramid");
-                result.hzbBuilt = true;
-                PublishFrameDepthPyramid(
-                    result,
-                    state.frozenCullingDepthStats.depthPyramid,
-                    DEPTH::DepthPyramidViewKind::FrozenHistory);
                 state.depthVisibilityValid = true;
                 state.depthVisibilityViewProjValid = true;
                 state.depthVisibilityViewProj =
                     state.frozenCullingDepthStats.depthPyramid.viewProj;
+                PublishFrameDepthPyramid(
+                    result,
+                    state.frozenCullingDepthStats.depthPyramid,
+                    DEPTH::DepthPyramidViewKind::History);
+                RecordDepthVisibilitySource(DepthVisibilitySource::Frozen);
                 (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                     state.frozenCullingDepthStats);
-            } else {
-                if (BuildDepthVisibilityFromOccluderPrepass(
+            } else if (BuildDepthVisibilityFromOccluderPrepass(
                     state,
                     context,
                     cullingCameraCb,
                     result)) {
-                    state.frozenCullingDepthStats = state.depthVisibility.GetStats();
-                    state.frozenCullingDepthStatsValid = true;
-                } else {
-                    ClearFrozenCullingDepthStats(state);
-                }
+                state.frozenCullingDepthStats = state.depthVisibility.GetStats();
+                state.frozenCullingDepthStatsValid = true;
+                RecordDepthVisibilitySource(DepthVisibilitySource::Frozen);
+            } else {
+                ClearFrozenCullingDepthStats(state);
             }
         } else if (depthVisibilityAllowedThisFrame &&
             historyDepthPyramidReady &&
             historyDepthPyramidMatchesCullingView) {
-            ClearFrozenCullingDepthStats(state);
             GFX::PIX::ScopedGpuEvent pixHistory(
                 context.cmd,
                 GFX::PIX::kColorUpload,
@@ -313,6 +359,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 result,
                 historyDepthStats.depthPyramid,
                 DEPTH::DepthPyramidViewKind::History);
+            RecordDepthVisibilitySource(DepthVisibilitySource::History);
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityFromDepth(
                 historyDepthStats);
         } else if (historyDepthPyramidReady) {
@@ -320,14 +367,13 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             // カメラ移動中は毎フレームここに来るため、occluder prepass の再構築
             // (full depth 描画 + pyramid build) は高くつく。frustum のみに落とし、
             // ピクセル過描画は scene depth prepass に任せる。
-            ClearFrozenCullingDepthStats(state);
             state.depthVisibilityValid = false;
             state.depthVisibilityViewProjValid = false;
+            RecordDepthVisibilityWithoutHzb();
             (void)MESHRENDERER::FinalizeGpuDrivenVisibilityWithoutDepth();
         } else {
             // Pyramid が構造的に無い (初回 / resize 直後)。occluder prepass から
             // 当該フレームの pyramid を作って遮蔽剔除を確保する。
-            ClearFrozenCullingDepthStats(state);
             (void)BuildDepthVisibilityFromOccluderPrepass(
                 state,
                 context,
@@ -458,8 +504,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                 GFX::PIX::kColorPost,
                 "ScreenSpace.PostOpaqueTemporal");
 
-            if (!MESHRENDERER::IsGpuDrivenCullingDebugFreezeActive() &&
-                state.depthVisibilityBuildAllowedThisFrame) {
+            if (state.depthVisibilityBuildAllowedThisFrame &&
+                !MESHRENDERER::IsGpuDrivenCullingCameraFrozen()) {
                 result.hzbBuilt = state.depthVisibility.BuildDepthPyramidFromDepthSrv(
                     context.cmd,
                     context.width,
@@ -467,6 +513,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
                     context.sceneDepthSrv,
                     cameraCb.viewProj);
                 if (result.hzbBuilt) {
+                    RecordDepthPyramidSource(DepthVisibilitySource::CurrentSceneDepth);
                     PublishFrameDepthPyramid(
                         result,
                         state.depthVisibility.GetStats().depthPyramid,

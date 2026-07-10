@@ -1,6 +1,4 @@
-#include "Gfx/HIKARI_GpuFrameProfiler.h"
-
-#include <algorithm>
+#include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 
 #include <d3dx12.h>
 #include <wrl.h>
@@ -8,15 +6,14 @@
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DXCheck.h"
 
-namespace HIKARI::GFX::GPU_PROFILE {
+namespace HIKARI::GFX::GPU_PIPELINE_STATS {
 
     namespace {
         using Microsoft::WRL::ComPtr;
 
         constexpr uint32_t kBufferedFrameCount = 3u;
-        constexpr uint32_t kPassCount = static_cast<uint32_t>(Pass::Count);
-        constexpr uint32_t kQueriesPerPass = 2u;
-        constexpr uint32_t kQueryCount = kPassCount * kQueriesPerPass;
+        constexpr uint32_t kPassCount = static_cast<uint32_t>(GPU_PROFILE::Pass::Count);
+        constexpr uint32_t kQueryCount = kPassCount;
 
         struct FrameSlot {
             ComPtr<ID3D12QueryHeap> queryHeap{};
@@ -31,31 +28,27 @@ namespace HIKARI::GFX::GPU_PROFILE {
             std::array<FrameSlot, kBufferedFrameCount> slots{};
             FrameSlot* currentSlot = nullptr;
             FrameSnapshot latest{};
-            uint64_t timestampFrequency = 0;
             uint32_t writeSlotIndex = 0;
             bool initialized = false;
             bool enabled = true;
+            bool meshShaderPipelineStatsSupported = false;
             const char* unavailableReason = "";
         };
 
         ProfilerState gState{};
 
-        uint32_t PassIndex(Pass pass) {
+        uint32_t PassIndex(GPU_PROFILE::Pass pass) {
             return static_cast<uint32_t>(pass);
         }
 
-        uint32_t QueryIndex(Pass pass, uint32_t endpoint) {
-            return PassIndex(pass) * kQueriesPerPass + endpoint;
-        }
-
-        bool IsValidPass(Pass pass) {
+        bool IsValidPass(GPU_PROFILE::Pass pass) {
             return PassIndex(pass) < kPassCount;
         }
 
         void ResetLatestNames(FrameSnapshot& snapshot) {
             for (uint32_t i = 0; i < kPassCount; ++i) {
-                const Pass pass = static_cast<Pass>(i);
-                snapshot.passes[i].name = ToString(pass);
+                const GPU_PROFILE::Pass pass = static_cast<GPU_PROFILE::Pass>(i);
+                snapshot.passes[i].name = GPU_PROFILE::ToString(pass);
             }
         }
 
@@ -63,40 +56,50 @@ namespace HIKARI::GFX::GPU_PROFILE {
             gState.latest = {};
             gState.latest.initialized = gState.initialized;
             gState.latest.profilerEnabled = gState.enabled;
-            gState.latest.gpuTimingAvailable = false;
-            gState.latest.timestampFrequency = gState.timestampFrequency;
+            gState.latest.pipelineStatsAvailable = false;
+            gState.latest.meshShaderPipelineStatsSupported =
+                gState.meshShaderPipelineStatsSupported;
             gState.latest.unavailableReason = reason != nullptr ? reason : "";
             ResetLatestNames(gState.latest);
         }
 
-        bool EnsureInitialized(ID3D12Device* device, ID3D12CommandQueue* queue) {
+        bool CheckPipelineStatsSupport(ID3D12Device* device) {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS9 options9{};
+            const HRESULT hr = device->CheckFeatureSupport(
+                D3D12_FEATURE_D3D12_OPTIONS9,
+                &options9,
+                sizeof(options9));
+            return SUCCEEDED(hr) && options9.MeshShaderPipelineStatsSupported != FALSE;
+        }
+
+        bool EnsureInitialized(ID3D12Device* device) {
             if (gState.initialized) {
                 return true;
             }
-            if (device == nullptr || queue == nullptr) {
-                ResetUnavailableSnapshot("GPU profiler requires a valid device and command queue.");
+            if (device == nullptr) {
+                ResetUnavailableSnapshot("Pipeline stats profiler requires a valid device.");
                 return false;
             }
 
-            uint64_t frequency = 0;
-            if (FAILED(queue->GetTimestampFrequency(&frequency)) || frequency == 0) {
-                HIKARI_LOG_WARN("[GpuFrameProfiler] timestamp frequency is unavailable.");
-                ResetUnavailableSnapshot("Timestamp frequency is unavailable.");
+            gState.meshShaderPipelineStatsSupported = CheckPipelineStatsSupport(device);
+            if (!gState.meshShaderPipelineStatsSupported) {
+                ResetUnavailableSnapshot("Mesh shader pipeline statistics are not supported by this device/runtime.");
                 return false;
             }
 
             for (FrameSlot& slot : gState.slots) {
                 D3D12_QUERY_HEAP_DESC heapDesc{};
-                heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+                heapDesc.Type = D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1;
                 heapDesc.Count = kQueryCount;
                 if (!HIKARI_DX_CHECK(
                         device->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(slot.queryHeap.GetAddressOf())),
-                        "GpuFrameProfiler::CreateQueryHeap")) {
+                        "GpuPipelineStatsProfiler::CreateQueryHeap")) {
                     return false;
                 }
 
                 const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-                const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint64_t) * kQueryCount);
+                const auto bufferDesc =
+                    CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS1) * kQueryCount);
                 if (!HIKARI_DX_CHECK(
                         device->CreateCommittedResource(
                             &heapProps,
@@ -105,42 +108,46 @@ namespace HIKARI::GFX::GPU_PROFILE {
                             D3D12_RESOURCE_STATE_COPY_DEST,
                             nullptr,
                             IID_PPV_ARGS(slot.readbackBuffer.GetAddressOf())),
-                        "GpuFrameProfiler::CreateReadbackBuffer")) {
+                        "GpuPipelineStatsProfiler::CreateReadbackBuffer")) {
                     return false;
                 }
-                slot.readbackBuffer->SetName(L"HIKARI.GpuFrameProfiler.Readback");
+                slot.readbackBuffer->SetName(L"HIKARI.GpuPipelineStatsProfiler.Readback");
             }
 
-            gState.timestampFrequency = frequency;
             gState.initialized = true;
             gState.latest = {};
             gState.latest.initialized = true;
             gState.latest.profilerEnabled = true;
-            gState.latest.gpuTimingAvailable = true;
-            gState.latest.timestampFrequency = frequency;
+            gState.latest.pipelineStatsAvailable = true;
+            gState.latest.meshShaderPipelineStatsSupported = true;
             gState.latest.unavailableReason = "";
             ResetLatestNames(gState.latest);
             return true;
         }
 
         void CollectResolvedSlot(FrameSlot& slot) {
-            if (!slot.resolved || slot.readbackBuffer == nullptr || gState.timestampFrequency == 0) {
+            if (!slot.resolved || slot.readbackBuffer == nullptr) {
                 return;
             }
 
-            const D3D12_RANGE readRange{ 0, sizeof(uint64_t) * kQueryCount };
+            const D3D12_RANGE readRange{
+                0,
+                sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS1) * kQueryCount
+            };
             void* mapped = nullptr;
             if (FAILED(slot.readbackBuffer->Map(0, &readRange, &mapped)) || mapped == nullptr) {
                 return;
             }
-            const uint64_t* queryData = static_cast<const uint64_t*>(mapped);
+            const auto* queryData =
+                static_cast<const D3D12_QUERY_DATA_PIPELINE_STATISTICS1*>(mapped);
 
             FrameSnapshot snapshot{};
             snapshot.initialized = true;
             snapshot.profilerEnabled = true;
-            snapshot.gpuTimingAvailable = true;
+            snapshot.pipelineStatsAvailable = true;
+            snapshot.meshShaderPipelineStatsSupported =
+                gState.meshShaderPipelineStatsSupported;
             snapshot.frameIndex = slot.frameIndex;
-            snapshot.timestampFrequency = gState.timestampFrequency;
             snapshot.unavailableReason = "";
             ResetLatestNames(snapshot);
 
@@ -149,18 +156,9 @@ namespace HIKARI::GFX::GPU_PROFILE {
                     continue;
                 }
 
-                const uint64_t start = queryData[QueryIndex(static_cast<Pass>(i), 0u)];
-                const uint64_t end = queryData[QueryIndex(static_cast<Pass>(i), 1u)];
-                if (end < start) {
-                    continue;
-                }
-
-                PassTiming& timing = snapshot.passes[i];
-                timing.valid = true;
-                timing.ticks = end - start;
-                timing.gpuMs =
-                    static_cast<double>(timing.ticks) * 1000.0 /
-                    static_cast<double>(gState.timestampFrequency);
+                PassPipelineStats& stats = snapshot.passes[i];
+                stats.valid = true;
+                stats.counters = queryData[i];
             }
 
             const D3D12_RANGE writeRange{ 0, 0 };
@@ -191,47 +189,8 @@ namespace HIKARI::GFX::GPU_PROFILE {
         return gState.enabled;
     }
 
-    const char* ToString(Pass pass) {
-        switch (pass) {
-        case Pass::ShadowMap: return "ShadowMap";
-        case Pass::GeometryAux: return "GeometryAux";
-        case Pass::ClusterCull: return "Cluster Cull";
-        case Pass::DepthPrepass: return "Depth Prepass";
-        case Pass::TraditionalDrawGeometryAux: return "Traditional Draw GeometryAux";
-        case Pass::TraditionalDrawForward: return "Traditional Draw Forward";
-        case Pass::MeshletDrawGeometryAux: return "Meshlet Draw GeometryAux";
-        case Pass::MeshletDrawDepthPrepass: return "Meshlet Draw DepthPrepass";
-        case Pass::MeshletDrawForward: return "Meshlet Draw Forward";
-        case Pass::MeshletDrawDepthAware: return "Meshlet Draw DepthAware";
-        case Pass::MeshletDrawTransparent: return "Meshlet Draw Transparent";
-        case Pass::TraditionalDrawShadow: return "Traditional Draw Shadow";
-        case Pass::MeshletDrawShadow: return "Meshlet Draw Shadow";
-        case Pass::TraditionalDrawShadowStatic: return "Traditional Draw Shadow Static";
-        case Pass::MeshletDrawShadowStatic: return "Meshlet Draw Shadow Static";
-        case Pass::TraditionalDrawShadowDynamic: return "Traditional Draw Shadow Dynamic";
-        case Pass::MeshletDrawShadowDynamic: return "Meshlet Draw Shadow Dynamic";
-        case Pass::TraditionalDrawShadowFallback: return "Traditional Draw Shadow Fallback";
-        case Pass::MeshletDrawShadowFallback: return "Meshlet Draw Shadow Fallback";
-        case Pass::SsaoMain: return "SSAO Main";
-        case Pass::SsaoBlur: return "SSAO Blur";
-        case Pass::TemporalMotionVectors: return "Temporal MotionVectors";
-        case Pass::TemporalTaaResolve: return "Temporal TAA";
-        case Pass::ForwardOpaque: return "ForwardOpaque";
-        case Pass::DepthAware: return "DepthAware";
-        case Pass::ForwardTransparent: return "ForwardTransparent";
-        case Pass::PostResolve: return "Post Resolve";
-        case Pass::GameViewResolve: return "GameView Resolve";
-        case Pass::SceneLayers: return "Scene Layers";
-        case Pass::UiLayers: return "UI Layers";
-        case Pass::ImGui: return "ImGui";
-        case Pass::Count:
-        default: return "";
-        }
-    }
-
     void BeginFrame(
         ID3D12Device* device,
-        ID3D12CommandQueue* queue,
         ID3D12GraphicsCommandList* cmd,
         uint64_t frameIndex) {
         if (!gState.enabled) {
@@ -239,13 +198,12 @@ namespace HIKARI::GFX::GPU_PROFILE {
             ResetUnavailableSnapshot(gState.unavailableReason);
             return;
         }
-        if (cmd == nullptr || !EnsureInitialized(device, queue)) {
+        if (cmd == nullptr || !EnsureInitialized(device)) {
             gState.currentSlot = nullptr;
             return;
         }
 
         FrameSlot& slot = gState.slots[gState.writeSlotIndex % kBufferedFrameCount];
-        // 前回この slot に解決した timestamp を読み、今フレーム用に再利用する。
         CollectResolvedSlot(slot);
         ResetSlot(slot, frameIndex);
         gState.currentSlot = &slot;
@@ -261,19 +219,20 @@ namespace HIKARI::GFX::GPU_PROFILE {
 
         for (uint32_t i = 0; i < kPassCount; ++i) {
             if (slot->active[i] != 0) {
-                const Pass pass = static_cast<Pass>(i);
-                cmd->EndQuery(slot->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, QueryIndex(pass, 1u));
+                cmd->EndQuery(
+                    slot->queryHeap.Get(),
+                    D3D12_QUERY_TYPE_PIPELINE_STATISTICS1,
+                    i);
                 slot->active[i] = 0;
             }
             if (slot->used[i] != 0) {
-                const Pass pass = static_cast<Pass>(i);
                 cmd->ResolveQueryData(
                     slot->queryHeap.Get(),
-                    D3D12_QUERY_TYPE_TIMESTAMP,
-                    QueryIndex(pass, 0u),
-                    kQueriesPerPass,
+                    D3D12_QUERY_TYPE_PIPELINE_STATISTICS1,
+                    i,
+                    1u,
                     slot->readbackBuffer.Get(),
-                    sizeof(uint64_t) * QueryIndex(pass, 0u));
+                    sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS1) * i);
             }
         }
 
@@ -292,7 +251,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         gState = {};
     }
 
-    bool BeginPass(ID3D12GraphicsCommandList* cmd, Pass pass) {
+    bool BeginPass(ID3D12GraphicsCommandList* cmd, GPU_PROFILE::Pass pass) {
         FrameSlot* slot = gState.currentSlot;
         if (!gState.enabled || !gState.initialized || slot == nullptr || cmd == nullptr || !IsValidPass(pass)) {
             return false;
@@ -303,13 +262,13 @@ namespace HIKARI::GFX::GPU_PROFILE {
             return false;
         }
 
-        cmd->EndQuery(slot->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, QueryIndex(pass, 0u));
+        cmd->BeginQuery(slot->queryHeap.Get(), D3D12_QUERY_TYPE_PIPELINE_STATISTICS1, index);
         slot->active[index] = 1u;
         slot->used[index] = 1u;
         return true;
     }
 
-    void EndPass(ID3D12GraphicsCommandList* cmd, Pass pass) {
+    void EndPass(ID3D12GraphicsCommandList* cmd, GPU_PROFILE::Pass pass) {
         FrameSlot* slot = gState.currentSlot;
         if (!gState.enabled || !gState.initialized || slot == nullptr || cmd == nullptr || !IsValidPass(pass)) {
             return;
@@ -320,7 +279,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
             return;
         }
 
-        cmd->EndQuery(slot->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, QueryIndex(pass, 1u));
+        cmd->EndQuery(slot->queryHeap.Get(), D3D12_QUERY_TYPE_PIPELINE_STATISTICS1, index);
         slot->active[index] = 0u;
     }
 
@@ -328,18 +287,18 @@ namespace HIKARI::GFX::GPU_PROFILE {
         return gState.latest;
     }
 
-    ScopedGpuTimer::ScopedGpuTimer(ID3D12GraphicsCommandList* cmd, Pass pass)
+    ScopedPipelineStats::ScopedPipelineStats(ID3D12GraphicsCommandList* cmd, GPU_PROFILE::Pass pass)
         : cmd_(cmd)
         , pass_(pass) {
         if (cmd_ != nullptr && IsValidPass(pass_)) {
-            active_ = BeginPass(cmd_, pass_);
+            active_ = GPU_PIPELINE_STATS::BeginPass(cmd_, pass_);
         }
     }
 
-    ScopedGpuTimer::~ScopedGpuTimer() {
+    ScopedPipelineStats::~ScopedPipelineStats() {
         if (active_) {
-            EndPass(cmd_, pass_);
+            GPU_PIPELINE_STATS::EndPass(cmd_, pass_);
         }
     }
 
-} // namespace HIKARI::GFX::GPU_PROFILE
+} // namespace HIKARI::GFX::GPU_PIPELINE_STATS

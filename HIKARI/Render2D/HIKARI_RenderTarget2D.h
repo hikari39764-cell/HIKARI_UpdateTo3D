@@ -33,6 +33,8 @@ namespace HIKARI {
         void Rebind();
         bool BeginDepthRead();
         void EndDepthRead();
+        bool BeginDepthShaderRead();
+        void EndDepthShaderRead();
         void EndCapture();
         void SetDebugName(std::string name);
         const std::string& GetDebugName() const { return debugName_; }

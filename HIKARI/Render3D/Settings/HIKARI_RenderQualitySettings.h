@@ -38,6 +38,13 @@ namespace HIKARI::RENDER3D {
         Off,
     };
 
+    enum class RenderAntiAliasingMode : uint8_t {
+        Off = 0,
+        FXAA,
+        TAA,
+        DLSS,
+    };
+
     struct RenderResolution {
         int width = 0;
         int height = 0;
@@ -53,6 +60,12 @@ namespace HIKARI::RENDER3D {
             LightProbeVolumeSamplingMode::FastSmooth;
         float viewportScale = 1.0f;
         bool vSync = false;
+        RenderAntiAliasingMode antiAliasingMode = RenderAntiAliasingMode::TAA;
+        float taaHistoryWeight = 0.92f;
+        float taaVarianceClipGamma = 1.25f;
+        float taaDepthRejection = 0.0025f;
+        float taaLuminanceRejection = 0.55f;
+        float taaSharpness = 0.25f;
         // Optional scene-depth prepass for overdraw-heavy scenes.
         // Geometry-bound scenes should leave this off.
         bool sceneDepthPrepass = false;
@@ -66,6 +79,10 @@ namespace HIKARI::RENDER3D {
     const char* GeometryPipelineModeLabel(GeometryPipelineMode mode);
     const char* ForwardShadingCostModeLabel(ForwardShadingCostMode mode);
     const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode);
+    const char* RenderAntiAliasingModeLabel(RenderAntiAliasingMode mode);
+
+    bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode);
+    bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode);
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset);
     RenderResolution ResolveFixedRenderResolution(RenderResolutionPreset preset);

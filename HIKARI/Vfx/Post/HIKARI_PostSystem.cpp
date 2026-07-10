@@ -12,6 +12,11 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "HIKARI_Core.h"
+#include "Core/HIKARI_TimeService.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Temporal/HIKARI_TaaResolvePass.h"
+#include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
+#include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 
 namespace HIKARI {
     namespace POST {
@@ -282,12 +287,15 @@ namespace HIKARI {
         }
 
         std::string PostSystem::DumpFrameState() {
+            const RENDER3D::RenderQualitySettings& renderQuality =
+                RENDER3D::GetRenderQualitySettings();
             std::ostringstream oss;
             oss << "[PostSystem] initialized=" << initialized_
                 << " globalChainHasAny=" << globalChain_.HasAny()
                 << " bloomEnabled=" << bloomSettings_.enabled
                 << " bloomPassCount=" << bloomDebugStats_.passCount
-                << " fxaaEnabled=" << fxaaSettings_.enabled
+                << " aaMode=" << RENDER3D::RenderAntiAliasingModeLabel(
+                    renderQuality.antiAliasingMode)
                 << " toneMappingEnabled=" << toneMappingSettings_.enabled
                 << " toneMappingMode=" << toneMappingSettings_.mode
                 << " transitionActive=" << transitionActive_
@@ -435,7 +443,7 @@ namespace HIKARI {
         }
 
         RenderTarget2D* PostSystem::ApplyFxaa(RenderTarget2D& source) {
-            if (!fxaaSettings_.enabled || source.GetResource() == nullptr) {
+            if (source.GetResource() == nullptr) {
                 return nullptr;
             }
 
@@ -455,7 +463,7 @@ namespace HIKARI {
                 1.0f / height
             };
             fxaaParams_.user[1] = {
-                fxaaSettings_.enabled ? 1.0f : 0.0f,
+                1.0f,
                 fxaaSettings_.edgeThreshold,
                 fxaaSettings_.edgeThresholdMin,
                 fxaaSettings_.subpixelQuality
@@ -1061,8 +1069,73 @@ namespace HIKARI {
             rtStack_.pop();
 
             RenderTarget2D* finalSceneRT = currentRT;
+            const RENDER3D::RenderQualitySettings& renderQuality =
+                RENDER3D::GetRenderQualitySettings();
+            const bool taaRequested =
+                RENDER3D::IsTemporalAntiAliasingMode(
+                    renderQuality.antiAliasingMode);
+            const RENDER3D::TEMPORAL::TemporalFrameState& temporalFrame =
+                RENDER3D::TEMPORAL::GetCurrentTemporalFrameState();
+            const bool temporalFrameCurrent =
+                temporalFrame.frameIndex == TIME::GetFrameContext().frameIndex &&
+                temporalFrame.camera.valid &&
+                temporalFrame.renderWidth ==
+                    static_cast<uint32_t>((std::max)(1, finalSceneRT->GetWidth())) &&
+                temporalFrame.renderHeight ==
+                    static_cast<uint32_t>((std::max)(1, finalSceneRT->GetHeight()));
+            if (!taaRequested ||
+                !temporalFrameCurrent ||
+                !temporalFrame.temporalResolveAllowed) {
+                RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
+                    taaRequested,
+                    false);
+                RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                    RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+            } else {
+                const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv =
+                    currentRT->HasDepth() ? currentRT->GetDepthSrvGpu() : D3D12_GPU_DESCRIPTOR_HANDLE{};
+                const bool depthReadActive =
+                    sceneDepthSrv.ptr != 0 && currentRT->BeginDepthShaderRead();
+                if (depthReadActive &&
+                    RENDER3D::TEMPORAL::PrepareSceneColorInput(*finalSceneRT)) {
+                    const RENDER3D::TEMPORAL::TemporalInputs temporalInputs =
+                        RENDER3D::TEMPORAL::BuildTemporalInputs(
+                            sceneDepthSrv,
+                            finalSceneRT->GetSrvGpu());
+                    RENDER3D::TEMPORAL::TaaResolveSettings taaSettings{};
+                    taaSettings.enabled = taaRequested;
+                    taaSettings.historyWeight = renderQuality.taaHistoryWeight;
+                    taaSettings.varianceClipGamma =
+                        renderQuality.taaVarianceClipGamma;
+                    taaSettings.depthRejection =
+                        renderQuality.taaDepthRejection;
+                    taaSettings.luminanceRejection =
+                        renderQuality.taaLuminanceRejection;
+                    taaSettings.sharpness = renderQuality.taaSharpness;
+                    RenderTarget2D* taaRT =
+                        RENDER3D::TEMPORAL::ExecuteTaaResolvePass(
+                            temporalInputs,
+                            taaSettings);
+                    if (taaRT != nullptr && taaRT->GetResource() != nullptr) {
+                        finalSceneRT = taaRT;
+                    } else {
+                        RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                            RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+                    }
+                } else {
+                    RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
+                        taaRequested,
+                        false);
+                    RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                        RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+                }
+                if (depthReadActive) {
+                    currentRT->EndDepthShaderRead();
+                }
+            }
+
             if (globalChain_.HasAny()) {
-                finalSceneRT = globalChain_.Execute(*currentRT, quad_, commonParams_);
+                finalSceneRT = globalChain_.Execute(*finalSceneRT, quad_, commonParams_);
             }
 
             RenderTarget2D* bloomRT = ApplyBloom(*finalSceneRT);
@@ -1097,7 +1170,8 @@ namespace HIKARI {
                     " bloom=" +
                     ((bloomRT != nullptr && bloomRT->GetResource() != nullptr) ? "on" : "off") +
                     " fxaaStage=" +
-                    (fxaaSettings_.enabled ? "afterTone" : "off") +
+                    (RENDER3D::IsFxaaAntiAliasingMode(
+                        renderQuality.antiAliasingMode) ? "afterTone" : "off") +
                     " toneMapping=" +
                     (toneMappingSettings_.enabled ? "on" : "off") +
                     " transition=" +
@@ -1181,7 +1255,12 @@ namespace HIKARI {
             toneMappedLdrRT_.EndCapture();
 
             RenderTarget2D* resolvedRT = &toneMappedLdrRT_;
-            RenderTarget2D* fxaaRT = ApplyFxaa(*resolvedRT);
+            const RENDER3D::RenderQualitySettings& renderQuality =
+                RENDER3D::GetRenderQualitySettings();
+            RenderTarget2D* fxaaRT =
+                RENDER3D::IsFxaaAntiAliasingMode(renderQuality.antiAliasingMode)
+                    ? ApplyFxaa(*resolvedRT)
+                    : nullptr;
             if (fxaaRT != nullptr && fxaaRT->GetResource() != nullptr) {
                 resolvedRT = fxaaRT;
             }

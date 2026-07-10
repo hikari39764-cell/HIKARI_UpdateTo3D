@@ -22,6 +22,20 @@ namespace HIKARI::RENDER3D {
         gRenderQualitySettings = settings;
         gRenderQualitySettings.viewportScale =
             std::clamp(gRenderQualitySettings.viewportScale, 0.25f, 2.0f);
+        gRenderQualitySettings.taaHistoryWeight =
+            std::clamp(gRenderQualitySettings.taaHistoryWeight, 0.0f, 0.97f);
+        gRenderQualitySettings.taaVarianceClipGamma =
+            std::clamp(gRenderQualitySettings.taaVarianceClipGamma, 0.0f, 4.0f);
+        gRenderQualitySettings.taaDepthRejection =
+            std::clamp(gRenderQualitySettings.taaDepthRejection, 0.0001f, 0.05f);
+        gRenderQualitySettings.taaLuminanceRejection =
+            std::clamp(gRenderQualitySettings.taaLuminanceRejection, 0.05f, 4.0f);
+        gRenderQualitySettings.taaSharpness =
+            std::clamp(gRenderQualitySettings.taaSharpness, 0.0f, 1.0f);
+        if (static_cast<uint8_t>(gRenderQualitySettings.antiAliasingMode) >
+            static_cast<uint8_t>(RenderAntiAliasingMode::DLSS)) {
+            gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::Off;
+        }
         if (static_cast<uint8_t>(gRenderQualitySettings.forwardCostMode) >
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
             gRenderQualitySettings.forwardCostMode = ForwardShadingCostMode::Full;
@@ -80,6 +94,24 @@ namespace HIKARI::RENDER3D {
         case LightProbeVolumeSamplingMode::Off: return "Off";
         default: return "Unknown";
         }
+    }
+
+    const char* RenderAntiAliasingModeLabel(RenderAntiAliasingMode mode) {
+        switch (mode) {
+        case RenderAntiAliasingMode::Off: return "Off";
+        case RenderAntiAliasingMode::FXAA: return "FXAA";
+        case RenderAntiAliasingMode::TAA: return "TAA";
+        case RenderAntiAliasingMode::DLSS: return "DLSS";
+        default: return "Unknown";
+        }
+    }
+
+    bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode) {
+        return mode == RenderAntiAliasingMode::TAA;
+    }
+
+    bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode) {
+        return mode == RenderAntiAliasingMode::FXAA;
     }
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset) {

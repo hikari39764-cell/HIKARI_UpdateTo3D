@@ -278,6 +278,7 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_DynamicUploadBuffer.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_GpuPipelineStatsProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_PixProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ResourceStateTracker.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_ShaderCompiler.cpp" />
@@ -302,6 +303,7 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_Transform2D.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_Renderer3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugViewPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\HIKARI_LightDebugDraw.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Camera3D.cpp" />
@@ -332,6 +334,10 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDepthVisibilityLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalFrameState.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMotionVectorPass.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
@@ -653,6 +659,7 @@
     <ClInclude Include="HIKARI\HIKARI_2D.h" />
     <ClInclude Include="HIKARI\HIKARI_3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_Renderer3D_Debug.h" />
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugViewPass.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
@@ -763,6 +770,10 @@
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalFrameState.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMotionVectorPass.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.h" />
@@ -880,6 +891,7 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_GpuPipelineStatsProfiler.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_PixProfiler.h" />
     <ClInclude Include="HIKARI\Platform\HIKARI_Win32Window.h" />
     <ClInclude Include="HIKARI\Render2D\HIKARI_Camera.h" />
@@ -955,6 +967,8 @@
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueNoSsaoPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaquePS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GeometryAuxPS.hlsl" />
+    <None Include="HIKARI\Shaders\Temporal_MotionVector.hlsl" />
+    <None Include="HIKARI\Shaders\Temporal_TaaResolve.hlsl" />
     <None Include="HIKARI\Shaders\HIKARI_ClusterCullCommon.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_ClusterDispatchFinalizeCS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ClusterFineVisibilityCS.hlsl" />
@@ -976,6 +990,7 @@
     <None Include="HIKARI\Shaders\Render3D_SkyPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_DebugLineVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_DebugLinePS.hlsl" />
+    <None Include="HIKARI\Shaders\Debug_MotionVectorView.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowAlphaPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowSkinnedVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl" />

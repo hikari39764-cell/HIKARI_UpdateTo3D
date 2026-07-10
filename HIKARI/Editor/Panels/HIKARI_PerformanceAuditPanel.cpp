@@ -3,11 +3,16 @@
 #include "Core/HIKARI_TimeService.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
+#include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
+#include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -33,7 +38,11 @@ namespace HIKARI {
             RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
             RENDER3D::RenderResourceDescriptorPoolStats descriptorPool{};
             RENDER3D::SCREENSPACE::SsaoDebugState ssao{};
+            RENDER3D::SCREENSPACE::DepthVisibilityDebugState depthVisibility{};
+            RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
+            RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
+            GFX::GPU_PIPELINE_STATS::FrameSnapshot pipelineStats{};
         };
 
         bool IsClusterSubpass(GFX::GPU_PROFILE::Pass pass) {
@@ -42,7 +51,10 @@ namespace HIKARI {
                 pass == GFX::GPU_PROFILE::Pass::TraditionalDrawGeometryAux ||
                 pass == GFX::GPU_PROFILE::Pass::TraditionalDrawForward ||
                 pass == GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux ||
-                pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward;
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawDepthPrepass ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawDepthAware ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawTransparent;
         }
 
         bool IsShadowSubpass(GFX::GPU_PROFILE::Pass pass) {
@@ -70,6 +82,25 @@ namespace HIKARI {
 
         const char* ReadyText(bool value) {
             return value ? "Ready" : "Missing";
+        }
+
+        double SafeDivide(uint64_t numerator, uint64_t denominator) {
+            return denominator != 0u
+                ? static_cast<double>(numerator) / static_cast<double>(denominator)
+                : 0.0;
+        }
+
+        bool IsMeshletPipelineStatsPass(GFX::GPU_PROFILE::Pass pass) {
+            return
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawDepthPrepass ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawForward ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawDepthAware ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawTransparent ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadow ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowStatic ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowDynamic ||
+                pass == GFX::GPU_PROFILE::Pass::MeshletDrawShadowFallback;
         }
 
         void AppendShadowCacheReason(
@@ -161,7 +192,14 @@ namespace HIKARI {
             out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
             out.descriptorPool = RENDER3D::GetRenderResourceDescriptorPoolStats();
             out.ssao = RENDER3D::SCREENSPACE::GetSsaoDebugState();
+            out.depthVisibility =
+                RENDER3D::SCREENSPACE::GetDepthVisibilityDebugState();
+            out.temporalFrame =
+                RENDER3D::TEMPORAL::GetCurrentTemporalFrameState();
+            out.temporalResources =
+                RENDER3D::TEMPORAL::GetTemporalResourceStats();
             out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
+            out.pipelineStats = GFX::GPU_PIPELINE_STATS::GetLatestSnapshot();
             return out;
         }
 
@@ -329,6 +367,75 @@ namespace HIKARI {
             }
         }
 
+        void DrawMeshShaderPipelineStatsTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Mesh Shader Pipeline Stats");
+            if (!s.pipelineStats.pipelineStatsAvailable) {
+                const char* reason =
+                    s.pipelineStats.unavailableReason != nullptr &&
+                            s.pipelineStats.unavailableReason[0] != '\0'
+                        ? s.pipelineStats.unavailableReason
+                        : "Pipeline statistics query data is waiting.";
+                ImGui::TextDisabled("%s", reason);
+                return;
+            }
+
+            bool drewRows = false;
+            if (ImGui::BeginTable(
+                    "MeshShaderPipelineStatsTable",
+                    8,
+                    ImGuiTableFlags_BordersInnerV |
+                        ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+                ImGui::TableSetupColumn("AS", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                ImGui::TableSetupColumn("MS", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                ImGui::TableSetupColumn("MS Prim", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+                ImGui::TableSetupColumn("Clip Prim", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+                ImGui::TableSetupColumn("PS", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+                ImGui::TableSetupColumn("Prim / MS", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+                ImGui::TableSetupColumn("PS / Prim");
+                ImGui::TableHeadersRow();
+
+                for (size_t i = 0; i < s.pipelineStats.passes.size(); ++i) {
+                    const GFX::GPU_PROFILE::Pass pass =
+                        static_cast<GFX::GPU_PROFILE::Pass>(i);
+                    if (!IsMeshletPipelineStatsPass(pass)) {
+                        continue;
+                    }
+
+                    const GFX::GPU_PIPELINE_STATS::PassPipelineStats& stats =
+                        s.pipelineStats.passes[i];
+                    if (!stats.valid) {
+                        continue;
+                    }
+                    drewRows = true;
+
+                    const D3D12_QUERY_DATA_PIPELINE_STATISTICS1& c = stats.counters;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextUnformatted(stats.name);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%llu", static_cast<unsigned long long>(c.ASInvocations));
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%llu", static_cast<unsigned long long>(c.MSInvocations));
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%llu", static_cast<unsigned long long>(c.MSPrimitives));
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%llu", static_cast<unsigned long long>(c.CPrimitives));
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Text("%llu", static_cast<unsigned long long>(c.PSInvocations));
+                    ImGui::TableSetColumnIndex(6);
+                    ImGui::Text("%.2f", SafeDivide(c.MSPrimitives, c.MSInvocations));
+                    ImGui::TableSetColumnIndex(7);
+                    ImGui::Text("%.2f", SafeDivide(c.PSInvocations, c.MSPrimitives));
+                }
+                ImGui::EndTable();
+            }
+            if (!drewRows) {
+                ImGui::TextDisabled("No meshlet draw pipeline statistics were captured in the latest resolved frame.");
+            }
+        }
+
         void DrawGeometryPipelineTable(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Geometry Pipeline");
             if (BeginMetricTable("GeometryPipelineMetrics", 250.0f)) {
@@ -340,6 +447,16 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuVisibleClusterCount,
                     s.mesh.clusterGpuCullGpuDrawCommandCount);
+                MetricRow("Culling Camera Frozen / HZB Used", "%s / %s",
+                    s.mesh.gpuDrivenCullingCameraFrozen ? "yes" : "no",
+                    s.depthVisibility.visibilityUsedHzb ? "yes" : "no");
+                MetricRow("HZB Visibility / Pyramid / History", "%s / %s / %s %s",
+                    RENDER3D::SCREENSPACE::ToString(
+                        s.depthVisibility.visibilitySource),
+                    RENDER3D::SCREENSPACE::ToString(
+                        s.depthVisibility.latestPyramidSource),
+                    s.depthVisibility.historyReady ? "ready" : "cold",
+                    s.depthVisibility.historyMatched ? "matched" : "moved");
                 MetricRow("HZB Enabled / Size / Budget Skipped", "%s / %zu x %zu / %zu",
                     s.mesh.clusterGpuCullHzbOcclusionEnabled ? "yes" : "no",
                     s.mesh.clusterGpuCullHzbOcclusionWidth,
@@ -350,14 +467,20 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuPageOcclusionCulledCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionTestedCount,
                     s.mesh.clusterGpuCullGpuClusterOcclusionCulledCount);
-                MetricRow("HZB Temporal Pending / Confirmed", "%zu / %zu",
+                MetricRow("HZB Raw / Confirmed / Pending / Reset", "%zu / %zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuHzbRawOccludedCount,
+                    s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount,
                     s.mesh.clusterGpuCullGpuHzbTemporalPendingCount,
-                    s.mesh.clusterGpuCullGpuHzbTemporalConfirmedCount);
+                    s.mesh.clusterGpuCullGpuHzbTemporalResetCount);
                 MetricRow("GPU LOD Selected L0 / L1 / L2 / L3+", "%zu / %zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuLod0SelectedCount,
                     s.mesh.clusterGpuCullGpuLod1SelectedCount,
                     s.mesh.clusterGpuCullGpuLod2SelectedCount,
                     s.mesh.clusterGpuCullGpuLod3PlusSelectedCount);
+                MetricRow("LOD Policy Error / Radius Relax / Error Relax", "%.4f / %.2f / %.2f",
+                    s.mesh.clusterGpuCullLodTargetErrorNdc,
+                    s.mesh.clusterGpuCullLodTransitionRelaxPerLevel,
+                    s.mesh.clusterGpuCullLodErrorRelaxPerLevel);
                 MetricRow("Meshlet Dispatch Requested / Submitted / Calls / Empty", "%zu / %zu / %zu / %zu",
                     s.mesh.meshletBackendRequestedDispatchCount,
                     s.mesh.meshletBackendSubmittedDispatchCount,
@@ -456,6 +579,55 @@ namespace HIKARI {
             }
         }
 
+        void DrawTemporalTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("Temporal");
+            if (BeginMetricTable("TemporalMetrics", 250.0f)) {
+                const RENDER3D::RenderQualitySettings& renderQuality =
+                    RENDER3D::GetRenderQualitySettings();
+                MetricRow("AA Mode", "%s",
+                    RENDER3D::RenderAntiAliasingModeLabel(
+                        renderQuality.antiAliasingMode));
+                MetricRow("Frame / History / Reset", "%llu / %s / %s",
+                    static_cast<unsigned long long>(s.temporalFrame.frameIndex),
+                    s.temporalFrame.historyValid ? "valid" : "cold",
+                    RENDER3D::TEMPORAL::ToString(s.temporalFrame.resetReason));
+                MetricRow("Render / Output Size", "%u x %u / %u x %u",
+                    s.temporalFrame.renderWidth,
+                    s.temporalFrame.renderHeight,
+                    s.temporalFrame.outputWidth,
+                    s.temporalFrame.outputHeight);
+                MetricRow("Jitter / Phase / Pixels", "%s / %u / %.3f, %.3f",
+                    s.temporalFrame.jitterEnabled ? "on" : "off",
+                    s.temporalFrame.jitterPhase,
+                    s.temporalFrame.camera.jitter.x,
+                    s.temporalFrame.camera.jitter.y);
+                MetricRow("Motion Vectors Ready / Written", "%s / %s",
+                    s.temporalResources.motionVectorReady ? "yes" : "no",
+                    s.temporalResources.motionVectorWritten ? "yes" : "no");
+                MetricRow("Scene Color / TAA", "%s / %s / %s",
+                    s.temporalResources.sceneColorReady ? "yes" : "no",
+                    s.temporalResources.taaEnabled ? "on" : "off",
+                    s.temporalResources.taaResolved ? "resolved" : "skipped");
+                MetricRow("History Color / Depth / Valid", "%s / %s / %s",
+                    s.temporalResources.historyColorReady ? "yes" : "no",
+                    s.temporalResources.historyDepthReady ? "yes" : "no",
+                    (s.temporalResources.historyColorValid &&
+                        s.temporalResources.historyDepthValid) ? "yes" : "no");
+                MetricRow("TAA Resolved Ready", "%s",
+                    s.temporalResources.taaResolvedColorReady ? "yes" : "no");
+                MetricRow("Exposure / Reactive / Transparency", "%s / %s / %s",
+                    s.temporalResources.exposureReady ? "yes" : "no",
+                    s.temporalResources.reactiveMaskReady ? "yes" : "no",
+                    s.temporalResources.transparencyMaskReady ? "yes" : "no");
+                MetricRow("Invalidations / Resizes", "%llu / %llu",
+                    static_cast<unsigned long long>(
+                        s.temporalResources.historyInvalidationCount),
+                    static_cast<unsigned long long>(
+                        s.temporalResources.resourceResizeCount));
+                ImGui::EndTable();
+            }
+        }
+
         void DrawReadiness(const RuntimePerformanceSnapshot& s) {
             ImGui::SeparatorText("Readiness");
             if (ImGui::BeginTable("ReadinessTable", 3, ImGuiTableFlags_SizingStretchSame)) {
@@ -505,8 +677,10 @@ namespace HIKARI {
         DrawFrameSummary(snapshot);
         DrawReadiness(snapshot);
         DrawGpuTimingTable(snapshot);
+        DrawMeshShaderPipelineStatsTable(snapshot);
         DrawRenderPathTable(snapshot);
         DrawGeometryPipelineTable(snapshot);
+        DrawTemporalTable(snapshot);
         DrawEffectsTable(snapshot);
         DrawResourceSummaryTable(snapshot);
 #endif

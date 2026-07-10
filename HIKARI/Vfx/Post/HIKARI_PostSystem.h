@@ -36,7 +36,6 @@ namespace HIKARI {
             };
 
             struct FxaaSettings {
-                bool enabled = true;
                 float edgeThreshold = 0.125f;
                 float edgeThresholdMin = 0.0312f;
                 float subpixelQuality = 0.75f;

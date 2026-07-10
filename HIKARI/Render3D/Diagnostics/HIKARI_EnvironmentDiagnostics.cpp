@@ -11,6 +11,7 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/ScreenSpace/HIKARI_SsaoRenderer.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -123,6 +124,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             bool bloomInitialized = false;
             bool bloomFailed = false;
             bool toneMappingEnabled = false;
+            std::string antiAliasingMode{};
             bool fxaaEnabled = false;
             bool hasRecentRenderErrors = false;
         };
@@ -228,6 +230,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
                 lhs.bloomInitialized == rhs.bloomInitialized &&
                 lhs.bloomFailed == rhs.bloomFailed &&
                 lhs.toneMappingEnabled == rhs.toneMappingEnabled &&
+                lhs.antiAliasingMode == rhs.antiAliasingMode &&
                 lhs.fxaaEnabled == rhs.fxaaEnabled &&
                 lhs.hasRecentRenderErrors == rhs.hasRecentRenderErrors;
         }
@@ -383,6 +386,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             key.bloomInitialized = snapshot.bloomInitialized;
             key.bloomFailed = snapshot.bloomFailed;
             key.toneMappingEnabled = snapshot.toneMappingEnabled;
+            key.antiAliasingMode = snapshot.antiAliasingMode;
             key.fxaaEnabled = snapshot.fxaaEnabled;
             key.hasRecentRenderErrors = snapshot.recentRenderErrorCount > 0;
             return key;
@@ -536,8 +540,12 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         if (environment) {
             snapshot.toneMappingEnabled = environment->toneMapping.enabled;
         }
+        const RenderQualitySettings& renderQuality = GetRenderQualitySettings();
+        snapshot.antiAliasingMode =
+            RenderAntiAliasingModeLabel(renderQuality.antiAliasingMode);
         const POST::PostSystem::FxaaSettings& fxaa = POST::PostSystem::GetFxaaSettings();
-        snapshot.fxaaEnabled = fxaa.enabled;
+        snapshot.fxaaEnabled =
+            IsFxaaAntiAliasingMode(renderQuality.antiAliasingMode);
         snapshot.fxaaEdgeThreshold = fxaa.edgeThreshold;
         snapshot.fxaaEdgeThresholdMin = fxaa.edgeThresholdMin;
         snapshot.fxaaSubpixelQuality = fxaa.subpixelQuality;
@@ -721,6 +729,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
             std::ostringstream oss;
             oss << "[EnvironmentDiagnostics][Post]"
                 << " toneMapping=" << BoolText(snapshot.toneMappingEnabled)
+                << " aaMode=" << snapshot.antiAliasingMode
                 << " fxaa=" << BoolText(snapshot.fxaaEnabled)
                 << " fxaaEdge=" << snapshot.fxaaEdgeThreshold
                 << " fxaaEdgeMin=" << snapshot.fxaaEdgeThresholdMin

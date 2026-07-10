@@ -140,6 +140,7 @@ namespace HIKARI {
             float bloomRadius = 0.0f;
 
             bool toneMappingEnabled = false;
+            std::string antiAliasingMode{};
             bool fxaaEnabled = false;
             float fxaaEdgeThreshold = 0.0f;
             float fxaaEdgeThresholdMin = 0.0f;

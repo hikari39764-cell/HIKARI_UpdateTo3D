@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <d3d12.h>
 
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
@@ -15,6 +17,28 @@ namespace HIKARI {
 }
 
 namespace HIKARI::RENDER3D::SCREENSPACE {
+
+    enum class DepthVisibilitySource : uint32_t {
+        None,
+        History,
+        Frozen,
+        CurrentPrepass,
+        CurrentSceneDepth,
+        NoHzb,
+    };
+
+    struct DepthVisibilityDebugState {
+        uint32_t width = 0;
+        uint32_t height = 0;
+        bool historyReady = false;
+        bool historyMatched = false;
+        bool depthPrepassWritten = false;
+        bool depthPyramidBuilt = false;
+        bool visibilityUsedHzb = false;
+        bool visibilityWithoutHzb = false;
+        DepthVisibilitySource visibilitySource = DepthVisibilitySource::None;
+        DepthVisibilitySource latestPyramidSource = DepthVisibilitySource::None;
+    };
 
     struct ScreenSpaceRuntimeState {
         ScreenSpaceGeometryAux geometryAux{};
@@ -48,6 +72,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     };
 
     ScreenSpaceRuntimeState& GetScreenSpaceRuntimeState();
+    const DepthVisibilityDebugState& GetDepthVisibilityDebugState();
+    const char* ToString(DepthVisibilitySource source);
     void ReleaseScreenSpaceRuntimeState();
 
     bool EnsureScreenSpaceFallbacks(ScreenSpaceRuntimeState& state);

@@ -1,0 +1,58 @@
+#pragma once
+
+#include <cstdint>
+
+#include <d3d12.h>
+
+#include "Gfx/HIKARI_GfxContext.h"
+#include "Render2D/HIKARI_RenderTarget2D.h"
+#include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
+
+namespace HIKARI::RENDER3D::TEMPORAL {
+
+    struct TemporalResourceStats {
+        bool initialized = false;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        DXGI_FORMAT motionVectorFormat = DXGI_FORMAT_UNKNOWN;
+        DXGI_FORMAT historyColorFormat = DXGI_FORMAT_UNKNOWN;
+        DXGI_FORMAT historyDepthFormat = DXGI_FORMAT_UNKNOWN;
+        bool sceneColorReady = false;
+        bool motionVectorReady = false;
+        bool motionVectorWritten = false;
+        bool historyColorReady = false;
+        bool historyColorValid = false;
+        bool historyDepthReady = false;
+        bool historyDepthValid = false;
+        bool taaResolvedColorReady = false;
+        bool taaEnabled = false;
+        bool taaResolved = false;
+        bool exposureReady = false;
+        bool reactiveMaskReady = false;
+        bool transparencyMaskReady = false;
+        uint64_t resourceResizeCount = 0;
+        uint64_t historyInvalidationCount = 0;
+        TemporalHistoryResetReason lastResetReason =
+            TemporalHistoryResetReason::FirstFrame;
+    };
+
+    void UpdateTemporalResourceSystemContext(const GFX::Context& ctx);
+    bool BeginTemporalResources(const TemporalFrameState& frame);
+    void ShutdownTemporalResourceSystem();
+
+    RenderTarget2D* GetMotionVectorRenderTarget();
+    RenderTarget2D* GetHistoryColorWriteRenderTarget();
+    RenderTarget2D* GetHistoryDepthWriteRenderTarget();
+    RenderTarget2D* GetTaaResolvedColorRenderTarget();
+    bool PrepareSceneColorInput(RenderTarget2D& source);
+    void MarkMotionVectorsWritten(bool written);
+    void MarkTemporalAntiAliasing(bool enabled, bool resolved);
+    void CommitTemporalHistory(bool written);
+
+    TemporalInputs BuildTemporalInputs(
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
+        D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv);
+
+    const TemporalResourceStats& GetTemporalResourceStats();
+
+} // namespace HIKARI::RENDER3D::TEMPORAL

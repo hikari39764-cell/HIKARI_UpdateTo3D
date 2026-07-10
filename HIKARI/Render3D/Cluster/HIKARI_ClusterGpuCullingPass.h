@@ -168,6 +168,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t gpuLod1SelectedCount = 0;
         uint32_t gpuLod2SelectedCount = 0;
         uint32_t gpuLod3PlusSelectedCount = 0;
+        float lodTargetErrorNdc = 0.0f;
+        float lodTransitionRelaxPerLevel = 0.0f;
+        float lodErrorRelaxPerLevel = 0.0f;
         size_t dispatchCount = 0;
         size_t workgroupCount = 0;
         uint32_t threadGroupSize = 64;
@@ -412,8 +415,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t visibleClusterListCapacity = 0;
             uint32_t meshletPreciseCompaction = 1;
             uint32_t emitTraditionalDrawArgs = 0;
-            uint32_t reserved1 = 0;
-            uint32_t reserved2 = 0;
+            float lodTransitionRelaxPerLevel = 0.0f;
+            float lodErrorRelaxPerLevel = 0.0f;
         };
 
         static_assert(sizeof(GpuConstants) == 288u);

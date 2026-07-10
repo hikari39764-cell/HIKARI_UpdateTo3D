@@ -429,6 +429,28 @@ bool RenderTarget2D::CreateResources()
         cmd->RSSetScissorRects(1, &scissorRect_);
     }
 
+    bool RenderTarget2D::BeginDepthShaderRead()
+    {
+        if (!initialized_ || !hasDepth_ || !depthTex_ || depthSrvGpuHandle_.ptr == 0) {
+            return false;
+        }
+
+        TransitionDepth(
+            D3D12_RESOURCE_STATE_DEPTH_READ |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        return true;
+    }
+
+    void RenderTarget2D::EndDepthShaderRead()
+    {
+        if (!initialized_ || !hasDepth_ || !depthTex_) {
+            return;
+        }
+
+        TransitionDepth(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    }
+
     void RenderTarget2D::EndCapture()
     {
         if (!initialized_) {

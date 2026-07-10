@@ -1601,8 +1601,24 @@ float HikariClusterCullResolveSectionErrorBudget(
     HikariClusterGeometrySurfaceLodRange range)
 {
     float baseBudget = max(section.lodErrorBudgetNdc, HikariClusterCullResolveProjectedErrorBudget());
-    float lodRelax = 1.0f + min((float)range.lodIndex, 4.0f) * 0.50f;
+    float lodRelax =
+        1.0f +
+        min((float)range.lodIndex, 4.0f) *
+        max(gClusterCullLodErrorRelaxPerLevel, 0.0f);
     return max(baseBudget * lodRelax, 0.0f);
+}
+
+float HikariClusterCullResolveLodTransitionRadius(
+    HikariClusterGeometrySurfaceLodRange currentRange,
+    HikariClusterGeometrySurfaceLodRange candidateRange)
+{
+    float baseRadius = max(currentRange.minScreenRadius, candidateRange.minScreenRadius);
+    float laterLevel = max((float)candidateRange.lodIndex - 1.0f, 0.0f);
+    float relax =
+        1.0f +
+        laterLevel *
+        max(gClusterCullLodTransitionRelaxPerLevel, 0.0f);
+    return max(baseRadius * relax, 0.0f);
 }
 
 bool HikariClusterCullSelectSectionLodRange(
@@ -1654,7 +1670,8 @@ bool HikariClusterCullSelectSectionLodRange(
 
         // LOD 縺ｮ谿ｵ髫主､画峩縺ｯ隕九◆逶ｮ繧ｵ繧､繧ｺ縺ｨ蟷ｾ菴戊ｪ､蟾ｮ縺ｮ荳｡譁ｹ縺ｧ豎ｺ繧√ｋ縲・
         // 迚・婿縺縺代〒關ｽ縺ｨ縺吶→縲・ｫ伜ｯ・ｺｦ繧ｭ繝｣繝ｩ繧ｯ繧ｿ繝ｼ縺碁□霍晞屬縺ｧ譛邨・LOD 縺ｫ蠑ｵ繧贋ｻ倥″繧・☆縺・・
-        float transitionRadius = max(selectedRange.minScreenRadius, range.minScreenRadius);
+        float transitionRadius =
+            HikariClusterCullResolveLodTransitionRadius(selectedRange, range);
         bool radiusAllowsStepDown =
             screenRadius < max(transitionRadius, 0.0f);
         bool errorAllowsStepDown =

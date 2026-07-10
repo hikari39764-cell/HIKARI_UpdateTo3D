@@ -19,8 +19,12 @@
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Debug/HIKARI_RenderDebugViewPass.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Temporal/HIKARI_TaaResolvePass.h"
+#include "Render3D/Temporal/HIKARI_TemporalMotionVectorPass.h"
+#include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -446,6 +450,10 @@ namespace HIKARI {
             HIKARI_LOG_INFO("DxRenderer finalized.");
             HIKARI::DefaultPbrResources::Shutdown();
             HIKARI_LOG_INFO("Default PBR resources finalized.");
+            RENDER3D::DEBUGVIEW::ShutdownRenderDebugViewPasses();
+            RENDER3D::TEMPORAL::ShutdownTaaResolvePass();
+            RENDER3D::TEMPORAL::ShutdownMotionVectorPass();
+            RENDER3D::TEMPORAL::ShutdownTemporalResourceSystem();
             RENDER3D::ShutdownClusterGeometryResourceSystem();
             RENDER3D::ShutdownRenderResourceDescriptorPool();
 #if defined(HIKARI_WITH_EDITOR)

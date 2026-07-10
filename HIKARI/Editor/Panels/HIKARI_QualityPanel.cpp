@@ -289,6 +289,42 @@ namespace HIKARI {
             return changed;
         }
 
+        bool DrawAntiAliasingModeCombo(RENDER3D::RenderAntiAliasingMode& mode) {
+            bool changed = false;
+            if (ImGui::BeginCombo("Anti-Aliasing", RENDER3D::RenderAntiAliasingModeLabel(mode))) {
+                const RENDER3D::RenderAntiAliasingMode modes[] = {
+                    RENDER3D::RenderAntiAliasingMode::Off,
+                    RENDER3D::RenderAntiAliasingMode::FXAA,
+                    RENDER3D::RenderAntiAliasingMode::TAA,
+                    RENDER3D::RenderAntiAliasingMode::DLSS,
+                };
+                for (RENDER3D::RenderAntiAliasingMode candidate : modes) {
+                    const bool selected = mode == candidate;
+                    if (ImGui::Selectable(RENDER3D::RenderAntiAliasingModeLabel(candidate), selected)) {
+                        mode = candidate;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        }
+
+        bool DrawFxaaSettings() {
+            POST::PostSystem::FxaaSettings fxaa = POST::PostSystem::GetFxaaSettings();
+            bool changed = false;
+            changed |= ImGui::DragFloat("FXAA Edge Threshold", &fxaa.edgeThreshold, 0.001f, 0.0312f, 0.333f, "%.4f");
+            changed |= ImGui::DragFloat("FXAA Edge Threshold Min", &fxaa.edgeThresholdMin, 0.0005f, 0.0f, 0.0833f, "%.4f");
+            changed |= ImGui::DragFloat("FXAA Subpixel Quality", &fxaa.subpixelQuality, 0.01f, 0.0f, 1.0f);
+            if (changed) {
+                POST::PostSystem::SetFxaaSettings(fxaa);
+            }
+            return changed;
+        }
+
         void DrawRenderSettings() {
             RENDER3D::RenderQualitySettings settings =
                 RENDER3D::GetRenderQualitySettings();
@@ -318,6 +354,42 @@ namespace HIKARI {
                 changed |= DrawGeometryPipelineCombo(settings.geometryPipeline);
                 changed |= DrawForwardCostModeCombo(settings.forwardCostMode);
                 changed |= DrawLightProbeVolumeSamplingCombo(settings.lightProbeVolumeSampling);
+                changed |= DrawAntiAliasingModeCombo(settings.antiAliasingMode);
+                if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::TAA) {
+                    changed |= ImGui::SliderFloat(
+                        "TAA History",
+                        &settings.taaHistoryWeight,
+                        0.0f,
+                        0.97f,
+                        "%.2f");
+                    changed |= ImGui::SliderFloat(
+                        "TAA Variance Clip",
+                        &settings.taaVarianceClipGamma,
+                        0.0f,
+                        3.0f,
+                        "%.2f");
+                    changed |= ImGui::DragFloat(
+                        "TAA Depth Reject",
+                        &settings.taaDepthRejection,
+                        0.0005f,
+                        0.0001f,
+                        0.05f,
+                        "%.4f");
+                    changed |= ImGui::SliderFloat(
+                        "TAA Luma Reject",
+                        &settings.taaLuminanceRejection,
+                        0.05f,
+                        4.0f,
+                        "%.2f");
+                    changed |= ImGui::SliderFloat(
+                        "TAA Sharpness",
+                        &settings.taaSharpness,
+                        0.0f,
+                        1.0f,
+                        "%.2f");
+                } else if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::FXAA) {
+                    (void)DrawFxaaSettings();
+                }
                 changed |= ImGui::Checkbox("Scene Depth Prepass", &settings.sceneDepthPrepass);
                 ImGui::TreePop();
             }
@@ -438,18 +510,6 @@ namespace HIKARI {
             int mode = std::clamp(environment.toneMapping.mode, 0, 2);
             if (ImGui::Combo("Mode", &mode, modes, static_cast<int>(std::size(modes)))) {
                 environment.toneMapping.mode = mode;
-            }
-        }
-
-        void DrawFxaa() {
-            POST::PostSystem::FxaaSettings fxaa = POST::PostSystem::GetFxaaSettings();
-            bool changed = false;
-            changed |= ImGui::Checkbox("FXAA Enabled", &fxaa.enabled);
-            changed |= ImGui::DragFloat("Edge Threshold", &fxaa.edgeThreshold, 0.001f, 0.0312f, 0.333f, "%.4f");
-            changed |= ImGui::DragFloat("Edge Threshold Min", &fxaa.edgeThresholdMin, 0.0005f, 0.0f, 0.0833f, "%.4f");
-            changed |= ImGui::DragFloat("Subpixel Quality", &fxaa.subpixelQuality, 0.01f, 0.0f, 1.0f);
-            if (changed) {
-                POST::PostSystem::SetFxaaSettings(fxaa);
             }
         }
 
@@ -576,10 +636,6 @@ namespace HIKARI {
         }
         if (ImGui::TreeNode("Tone Mapping")) {
             DrawToneMapping(environment);
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("FXAA")) {
-            DrawFxaa();
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Global Post")) {

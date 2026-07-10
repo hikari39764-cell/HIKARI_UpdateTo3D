@@ -37,12 +37,19 @@ namespace HIKARI::MESHRENDERER {
         MATH::Vec4 screenParams{};
     };
 
-    struct GpuDrivenCullingDebugView {
-        bool freezeRequested = false;
-        bool frozenViewValid = false;
-        MATH::Mat4 viewProj = MATH::Mat4::Identity();
-        MATH::Vec3 cameraPosition{};
-        uint64_t capturedFrameIndex = 0;
+    struct MeshFrameCameraOverrides {
+        const MATH::Mat4* renderViewProj = nullptr;
+        const MATH::Mat4* renderInvViewProj = nullptr;
+        const MATH::Mat4* cullingViewProj = nullptr;
+        const MATH::Mat4* cullingInvViewProj = nullptr;
+
+        bool HasRenderMatrices() const {
+            return renderViewProj != nullptr && renderInvViewProj != nullptr;
+        }
+
+        bool HasCullingMatrices() const {
+            return cullingViewProj != nullptr && cullingInvViewProj != nullptr;
+        }
     };
 
     struct ObjectCB {
@@ -476,6 +483,9 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullGpuLod1SelectedCount = 0;
         size_t clusterGpuCullGpuLod2SelectedCount = 0;
         size_t clusterGpuCullGpuLod3PlusSelectedCount = 0;
+        float clusterGpuCullLodTargetErrorNdc = 0.0f;
+        float clusterGpuCullLodTransitionRelaxPerLevel = 0.0f;
+        float clusterGpuCullLodErrorRelaxPerLevel = 0.0f;
         size_t depthPrepassOccluderRecordCount = 0;
         size_t depthPrepassRejectedSmallRecordCount = 0;
         size_t depthPrepassRejectedUnsafeMaterialRecordCount = 0;
@@ -521,6 +531,7 @@ namespace HIKARI::MESHRENDERER {
         bool clusterGpuCullDebugCountersEnabled = false;
         bool clusterGpuCullHzbOcclusionEnabled = false;
         bool clusterGpuCullOcclusionHistoryReady = false;
+        bool gpuDrivenCullingCameraFrozen = false;
         bool meshletBackendInitialized = false;
         bool meshletBackendShaderModel65Supported = false;
         bool meshletBackendMeshShaderSupported = false;

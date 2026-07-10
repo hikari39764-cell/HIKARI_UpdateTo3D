@@ -50,70 +50,33 @@ namespace HIKARI::MESHRENDERER {
         MeshRendererState g;
         constexpr size_t kMaxMaterialTextureGpuLoadsPerFrame = 2;
 
-        bool IsGpuDrivenCullingDebugFreezeActiveInternal() {
-            return
-                g.cullingDebugView.freezeRequested &&
-                g.cullingDebugView.frozenViewValid;
-        }
-
-        void UpdateGpuDrivenCullingDebugView(const Camera3D& camera) {
-            if (!g.cullingDebugView.freezeRequested) {
-                g.cullingDebugView.frozenViewValid = false;
-                return;
-            }
-
-            if (g.cullingDebugView.frozenViewValid) {
-                return;
-            }
-
-            const FrameContext& frame = TIME::GetFrameContext();
-            g.cullingDebugView.frozenViewValid = true;
-            g.cullingDebugView.viewProj = camera.GetViewProj();
-            g.cullingDebugView.cameraPosition = camera.GetPosition();
-            g.cullingDebugView.capturedFrameIndex = frame.frameIndex;
-        }
-
         MATH::Mat4 ResolveGpuDrivenCullingViewProj() {
-            if (IsGpuDrivenCullingDebugFreezeActiveInternal()) {
-                return g.cullingDebugView.viewProj;
-            }
-
-            return g.cameraMapped != nullptr
-                ? g.cameraMapped->viewProj
+            return g.cullingCameraMapped != nullptr
+                ? g.cullingCameraMapped->viewProj
                 : MATH::Mat4::Identity();
         }
 
         MATH::Vec3 ResolveGpuDrivenCullingCameraPosition() {
-            if (IsGpuDrivenCullingDebugFreezeActiveInternal()) {
-                return g.cullingDebugView.cameraPosition;
-            }
-
-            return g.cameraMapped != nullptr
+            return g.cullingCameraMapped != nullptr
                 ? MATH::Vec3{
-                    g.cameraMapped->cameraPos.x,
-                    g.cameraMapped->cameraPos.y,
-                    g.cameraMapped->cameraPos.z
+                    g.cullingCameraMapped->cameraPos.x,
+                    g.cullingCameraMapped->cameraPos.y,
+                    g.cullingCameraMapped->cameraPos.z
                 }
                 : MATH::Vec3{};
         }
 
         D3D12_GPU_VIRTUAL_ADDRESS ResolveCameraAddressForPass(MeshDrawPassKind passKind) {
-            if (passKind == MeshDrawPassKind::DepthPrepass &&
-                IsGpuDrivenCullingDebugFreezeActiveInternal() &&
-                g.cullingCameraCB != nullptr) {
-                return g.cullingCameraCB->GetGPUVirtualAddress();
+            if (passKind == MeshDrawPassKind::DepthPrepass) {
+                return g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0;
             }
-
             return g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0;
         }
 
         D3D12_GPU_VIRTUAL_ADDRESS ResolveCullingCameraAddress() {
-            if (IsGpuDrivenCullingDebugFreezeActiveInternal() &&
-                g.cullingCameraCB != nullptr) {
-                return g.cullingCameraCB->GetGPUVirtualAddress();
-            }
-
-            return g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0;
+            return g.cullingCameraCB != nullptr
+                ? g.cullingCameraCB->GetGPUVirtualAddress()
+                : (g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0);
         }
 
         struct OwnedTraditionalIndirectStream {
@@ -1262,6 +1225,12 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuLod2SelectedCount;
             g.debugStats.clusterGpuCullGpuLod3PlusSelectedCount =
                 clusterCullStats.gpuLod3PlusSelectedCount;
+            g.debugStats.clusterGpuCullLodTargetErrorNdc =
+                clusterCullStats.lodTargetErrorNdc;
+            g.debugStats.clusterGpuCullLodTransitionRelaxPerLevel =
+                clusterCullStats.lodTransitionRelaxPerLevel;
+            g.debugStats.clusterGpuCullLodErrorRelaxPerLevel =
+                clusterCullStats.lodErrorRelaxPerLevel;
             g.debugStats.clusterGpuCullGpuCulledInstanceCount =
                 clusterCullStats.gpuInputFrustumCulledCount;
             g.debugStats.clusterGpuCullDispatchCount =
@@ -1800,13 +1769,20 @@ namespace HIKARI::MESHRENDERER {
             const SceneEnvironment& environment,
             RenderDebugView debugView,
             uint32_t overrideScreenWidth = 0,
-            uint32_t overrideScreenHeight = 0) {
+            uint32_t overrideScreenHeight = 0,
+            const MeshFrameCameraOverrides* cameraOverrides = nullptr) {
             if (g.cameraMapped == nullptr || g.cullingCameraMapped == nullptr || g.lightMapped == nullptr || g.shadowMapped == nullptr || g.skyEnvironmentMapped == nullptr) {
                 return false;
             }
 
-            g.cameraMapped->viewProj = camera.GetViewProj();
-            g.cameraMapped->invViewProj = MATH::Inverse(g.cameraMapped->viewProj);
+            g.cameraMapped->viewProj =
+                cameraOverrides != nullptr && cameraOverrides->HasRenderMatrices()
+                    ? *cameraOverrides->renderViewProj
+                    : camera.GetViewProj();
+            g.cameraMapped->invViewProj =
+                cameraOverrides != nullptr && cameraOverrides->HasRenderMatrices()
+                    ? *cameraOverrides->renderInvViewProj
+                    : MATH::Inverse(g.cameraMapped->viewProj);
             const MATH::Vec3 cameraPos = camera.GetPosition();
             g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
             const FrameContext& frame = TIME::GetFrameContext();
@@ -1824,16 +1800,32 @@ namespace HIKARI::MESHRENDERER {
                 1.0f / static_cast<float>(screenW),
                 1.0f / static_cast<float>(screenH)
             };
-            UpdateGpuDrivenCullingDebugView(camera);
-            *g.cullingCameraMapped = *g.cameraMapped;
-            if (IsGpuDrivenCullingDebugFreezeActiveInternal()) {
-                g.cullingCameraMapped->viewProj = g.cullingDebugView.viewProj;
-                g.cullingCameraMapped->invViewProj =
-                    MATH::Inverse(g.cullingCameraMapped->viewProj);
-                const MATH::Vec3 frozenPos = g.cullingDebugView.cameraPosition;
-                g.cullingCameraMapped->cameraPos =
-                    { frozenPos.x, frozenPos.y, frozenPos.z, 1.0f };
+            CameraCB cullingCamera = *g.cameraMapped;
+            if (cameraOverrides != nullptr && cameraOverrides->HasCullingMatrices()) {
+                cullingCamera.viewProj = *cameraOverrides->cullingViewProj;
+                cullingCamera.invViewProj = *cameraOverrides->cullingInvViewProj;
             }
+            const uint32_t cullingWidth = static_cast<uint32_t>(screenW);
+            const uint32_t cullingHeight = static_cast<uint32_t>(screenH);
+            if (g.freezeGpuDrivenCullingCamera) {
+                const bool sizeChanged =
+                    g.frozenCullingCameraWidth != cullingWidth ||
+                    g.frozenCullingCameraHeight != cullingHeight;
+                if (!g.frozenCullingCameraValid || sizeChanged) {
+                    g.frozenCullingCamera = cullingCamera;
+                    g.frozenCullingCameraValid = true;
+                    g.frozenCullingCameraWidth = cullingWidth;
+                    g.frozenCullingCameraHeight = cullingHeight;
+                }
+                *g.cullingCameraMapped = g.frozenCullingCamera;
+            } else {
+                g.frozenCullingCameraValid = false;
+                g.frozenCullingCameraWidth = 0;
+                g.frozenCullingCameraHeight = 0;
+                *g.cullingCameraMapped = cullingCamera;
+            }
+            g.debugStats.gpuDrivenCullingCameraFrozen =
+                g.freezeGpuDrivenCullingCamera && g.frozenCullingCameraValid;
 
             FillLightCB(environment, debugView, *g.lightMapped, g.debugStats);
             FillShadowCB(environment, *g.shadowMapped);
@@ -1970,6 +1962,11 @@ namespace HIKARI::MESHRENDERER {
         g.frameObjectIndex = 0;
         g.materialDataFrameTable.Clear();
         g.gpuDrivenSceneSource.Reset();
+        g.freezeGpuDrivenCullingCamera = false;
+        g.frozenCullingCamera = {};
+        g.frozenCullingCameraValid = false;
+        g.frozenCullingCameraWidth = 0;
+        g.frozenCullingCameraHeight = 0;
         g.debugStats = {};
     }
 
@@ -1988,24 +1985,6 @@ namespace HIKARI::MESHRENDERER {
         g.gpuDrivenSceneSource = *source;
         CopyOwnedTraditionalIndirectStreamsFromSceneSource();
         AttachOwnedTraditionalIndirectStreamsToSceneSource();
-    }
-
-    void SetGpuDrivenCullingDebugFreezeEnabled(bool enabled) {
-        if (g.cullingDebugView.freezeRequested == enabled) {
-            return;
-        }
-
-        g.cullingDebugView.freezeRequested = enabled;
-        g.cullingDebugView.frozenViewValid = false;
-        g.cullingDebugView.capturedFrameIndex = 0;
-    }
-
-    GpuDrivenCullingDebugView GetGpuDrivenCullingDebugView() {
-        return g.cullingDebugView;
-    }
-
-    bool IsGpuDrivenCullingDebugFreezeActive() {
-        return IsGpuDrivenCullingDebugFreezeActiveInternal();
     }
 
     bool HasSubmittedItems() {
@@ -2059,7 +2038,8 @@ namespace HIKARI::MESHRENDERER {
         const SceneEnvironment& environment,
         uint32_t screenWidth,
         uint32_t screenHeight,
-        RenderDebugView debugView) {
+        RenderDebugView debugView,
+        const MeshFrameCameraOverrides* cameraOverrides) {
 
         if (!EnsureInitialized()) {
             return false;
@@ -2067,7 +2047,13 @@ namespace HIKARI::MESHRENDERER {
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
         g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
         // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
-        if (!PrepareMeshFrame(camera, environment, debugView, screenWidth, screenHeight)) {
+        if (!PrepareMeshFrame(
+                camera,
+                environment,
+                debugView,
+                screenWidth,
+                screenHeight,
+                cameraOverrides)) {
             return false;
         }
 
@@ -2100,16 +2086,32 @@ namespace HIKARI::MESHRENDERER {
         return true;
     }
 
+    void SetGpuDrivenCullingCameraFreezeEnabled(bool enabled) {
+        if (g.freezeGpuDrivenCullingCamera == enabled) {
+            return;
+        }
+        g.freezeGpuDrivenCullingCamera = enabled;
+        if (!enabled) {
+            g.frozenCullingCamera = {};
+            g.frozenCullingCameraValid = false;
+            g.frozenCullingCameraWidth = 0;
+            g.frozenCullingCameraHeight = 0;
+            g.debugStats.gpuDrivenCullingCameraFrozen = false;
+        }
+    }
+
+    bool IsGpuDrivenCullingCameraFrozen() {
+        return g.freezeGpuDrivenCullingCamera && g.frozenCullingCameraValid;
+    }
+
     const CameraCB* GetCameraConstants() {
         return g.cameraMapped;
     }
 
     const CameraCB* GetGpuDrivenCullingCameraConstants() {
-        return
-            IsGpuDrivenCullingDebugFreezeActiveInternal() &&
-            g.cullingCameraMapped != nullptr
-                ? g.cullingCameraMapped
-                : g.cameraMapped;
+        return g.cullingCameraMapped != nullptr
+            ? g.cullingCameraMapped
+            : g.cameraMapped;
     }
 
     bool RenderGeometryAuxPass(

@@ -28,7 +28,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr uint32_t kClusterCullMergeMaxIndexSpan = 32768u;
         // クラスタ間の空白をまたぐ結合は過剰描画になりやすいので、正式なcompactまで無効化する。
         constexpr uint32_t kClusterCullMergeClusterGapLimit = 3u;
-        constexpr float kClusterCullLodTargetErrorNdc = 0.0160f;
+        constexpr float kClusterCullLodTargetErrorNdc = 0.0180f;
+        constexpr float kClusterCullLodTransitionRelaxPerLevel = 0.35f;
+        constexpr float kClusterCullLodErrorRelaxPerLevel = 0.75f;
         constexpr uint32_t kClusterCullPageTaskGroupSize = 4u;
         constexpr uint32_t kClusterCullClusterHzbMinScreenPixels = 4u;
         constexpr DXGI_FORMAT kClusterCullHzbFallbackFormat = DXGI_FORMAT_R32_FLOAT;
@@ -1498,6 +1500,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         baseConstants.mergeClusterGapLimit = kClusterCullMergeClusterGapLimit;
         baseConstants.lodTargetErrorNdc = kClusterCullLodTargetErrorNdc;
         baseConstants.enableLodErrorSelection = 1u;
+        baseConstants.lodTransitionRelaxPerLevel =
+            kClusterCullLodTransitionRelaxPerLevel;
+        baseConstants.lodErrorRelaxPerLevel =
+            kClusterCullLodErrorRelaxPerLevel;
         baseConstants.pageTaskGroupSize = kClusterCullPageTaskGroupSize;
         baseConstants.clusterHzbMinScreenPixels =
             kClusterCullClusterHzbMinScreenPixels;
@@ -1524,6 +1530,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
             emitTraditionalDrawArgs ? 1u : 0u;
         stats_.debugCountersEnabled = baseConstants.enableDebugCounters != 0u;
         stats_.traditionalDrawArgsEmitted = emitTraditionalDrawArgs;
+        stats_.lodTargetErrorNdc = baseConstants.lodTargetErrorNdc;
+        stats_.lodTransitionRelaxPerLevel =
+            baseConstants.lodTransitionRelaxPerLevel;
+        stats_.lodErrorRelaxPerLevel =
+            baseConstants.lodErrorRelaxPerLevel;
 
         const UINT constantsStride = AlignConstantBufferSize(sizeof(GpuConstants));
         std::array<UINT, kClusterGpuCullingMaxSourceRangeCount> expandGroupCounts{};

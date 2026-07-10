@@ -4,15 +4,20 @@
 #include <string>
 
 #include "Core/HIKARI_Logger.h"
+#include "Core/HIKARI_TimeService.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Debug/HIKARI_RenderDebugViewPass.h"
 #include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
+#include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
+#include "Render3D/Temporal/HIKARI_TemporalMotionVectorPass.h"
+#include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::RENDER3D::PIPELINE {
@@ -102,16 +107,45 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
         GFX::PIX::ScopedGpuEvent pixFrame(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "RenderFrame.MeshLighting");
         const ScreenSpacePassContext screenSpaceContext = BuildScreenSpaceContext();
+        RENDER3D::TEMPORAL::TemporalFrameDesc temporalDesc{};
+        temporalDesc.camera = &camera;
+        temporalDesc.frameIndex = TIME::GetFrameContext().frameIndex;
+        temporalDesc.renderWidth = screenSpaceContext.width;
+        temporalDesc.renderHeight = screenSpaceContext.height;
+        temporalDesc.outputWidth =
+            static_cast<uint32_t>(std::max(1, SERVICES::gCtx.backBufferWidth));
+        temporalDesc.outputHeight =
+            static_cast<uint32_t>(std::max(1, SERVICES::gCtx.backBufferHeight));
+        temporalDesc.temporalResolveAllowed = debugView == RenderDebugView::None;
+        temporalDesc.forceHistoryReset = debugView != RenderDebugView::None;
+        temporalDesc.jitterEnabled =
+            RENDER3D::IsTemporalAntiAliasingMode(
+                RENDER3D::GetRenderQualitySettings().antiAliasingMode) &&
+            debugView == RenderDebugView::None;
+        const RENDER3D::TEMPORAL::TemporalFrameState temporalFrame =
+            RENDER3D::TEMPORAL::BeginTemporalFrame(temporalDesc);
+        RENDER3D::TEMPORAL::UpdateTemporalResourceSystemContext(SERVICES::gCtx);
+        (void)RENDER3D::TEMPORAL::BeginTemporalResources(temporalFrame);
         if (!POST::PostSystem::HasCurrentRenderTarget() ||
             !POST::PostSystem::RebindCurrentRenderTarget()) {
             return false;
+        }
+        MESHRENDERER::MeshFrameCameraOverrides cameraOverrides{};
+        if (temporalFrame.camera.valid) {
+            cameraOverrides.renderViewProj = &temporalFrame.camera.viewProj;
+            cameraOverrides.renderInvViewProj = &temporalFrame.camera.invViewProj;
+            cameraOverrides.cullingViewProj =
+                &temporalFrame.camera.unjitteredViewProj;
+            cameraOverrides.cullingInvViewProj =
+                &temporalFrame.camera.invUnjitteredViewProj;
         }
         if (!MESHRENDERER::BeginFrame(
             camera,
             environment,
             screenSpaceContext.width,
             screenSpaceContext.height,
-            debugView)) {
+            debugView,
+            temporalFrame.camera.valid ? &cameraOverrides : nullptr)) {
             MESHRENDERER::EndFrame();
             return false;
         }
@@ -219,6 +253,28 @@ namespace HIKARI::RENDER3D::PIPELINE {
             MESHRENDERER::SetAmbientOcclusionRuntimeEnabled(screenResult.ssaoRendered);
             postOpaqueResources = BuildMeshPassResources(screenSpaceContext, screenResult);
         }
+        if (opaqueOk) {
+            const RENDER3D::TEMPORAL::TemporalInputs temporalInputs =
+                RENDER3D::TEMPORAL::BuildTemporalInputs(
+                    screenSpaceContext.sceneDepthSrv,
+                    postOpaqueResources.sceneColorSrv);
+            bool motionVectorsWritten = false;
+            if (temporalInputs.motionVectors.valid &&
+                screenSpaceContext.depthReadable &&
+                screenSpaceContext.sceneDepthSrv.ptr != 0 &&
+                screenSpaceContext.renderTargetAccess.BeginDepthRead()) {
+                motionVectorsWritten =
+                    RENDER3D::TEMPORAL::ExecuteMotionVectorPass(temporalInputs);
+                screenSpaceContext.renderTargetAccess.EndDepthRead();
+                if (!screenSpaceContext.renderTargetAccess.Rebind()) {
+                    MESHRENDERER::EndFrame();
+                    return false;
+                }
+            }
+            RENDER3D::TEMPORAL::MarkMotionVectorsWritten(motionVectorsWritten);
+        } else {
+            RENDER3D::TEMPORAL::MarkMotionVectorsWritten(false);
+        }
         const bool hasDepthAwareWork = MESHRENDERER::HasDepthAwarePassWork();
         const bool hasTransparentWork = MESHRENDERER::HasForwardTransparentPassWork();
         bool depthAwareOk = true;
@@ -253,6 +309,21 @@ namespace HIKARI::RENDER3D::PIPELINE {
                 GFX::GPU_PROFILE::Pass::ForwardTransparent);
             transparentOk = MESHRENDERER::RenderForwardTransparentPass(
                 postOpaqueResources);
+        }
+
+        if (opaqueOk &&
+            depthAwareOk &&
+            transparentOk &&
+            debugView == RenderDebugView::MotionVectors) {
+            const RENDER3D::TEMPORAL::TemporalInputs debugTemporalInputs =
+                RENDER3D::TEMPORAL::BuildTemporalInputs(
+                    screenSpaceContext.sceneDepthSrv,
+                    postOpaqueResources.sceneColorSrv);
+            if (debugTemporalInputs.motionVectors.valid &&
+                screenSpaceContext.renderTargetAccess.Rebind()) {
+                (void)RENDER3D::DEBUGVIEW::ExecuteMotionVectorDebugView(
+                    debugTemporalInputs.motionVectors);
+            }
         }
 
         MESHRENDERER::EndFrame();

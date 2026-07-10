@@ -11,6 +11,7 @@
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
@@ -262,6 +263,24 @@ namespace HIKARI::RENDER3D::MESHLET {
                 return bucket == GPUDRIVEN::GpuDrivenCommandBucket::DoubleSided
                     ? "MeshletDraw.ForwardOpaque.DoubleSided"
                     : "MeshletDraw.ForwardOpaque.BackFace";
+            }
+        }
+
+        GFX::GPU_PROFILE::Pass ProfilePassForPipelineKind(MeshletPipelineKind kind) {
+            switch (kind) {
+            case MeshletPipelineKind::GeometryAux:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux;
+            case MeshletPipelineKind::DepthPrepass:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawDepthPrepass;
+            case MeshletPipelineKind::ForwardDepthAware:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawDepthAware;
+            case MeshletPipelineKind::ForwardTransparent:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawTransparent;
+            case MeshletPipelineKind::Shadow:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawShadow;
+            case MeshletPipelineKind::ForwardOpaque:
+            default:
+                return GFX::GPU_PROFILE::Pass::MeshletDrawForward;
             }
         }
 
@@ -878,12 +897,9 @@ namespace HIKARI::RENDER3D::MESHLET {
         const GFX::GPU_PROFILE::Pass profilePass =
             ctx.profilePass != GFX::GPU_PROFILE::Pass::Count
                 ? ctx.profilePass
-                : ctx.pipelineKind == MeshletPipelineKind::GeometryAux
-                    ? GFX::GPU_PROFILE::Pass::MeshletDrawGeometryAux
-                    : ctx.pipelineKind == MeshletPipelineKind::Shadow
-                        ? GFX::GPU_PROFILE::Pass::MeshletDrawShadow
-                        : GFX::GPU_PROFILE::Pass::MeshletDrawForward;
+                : ProfilePassForPipelineKind(ctx.pipelineKind);
         GFX::GPU_PROFILE::ScopedGpuTimer gpuDraw(ctx.commandList, profilePass);
+        GFX::GPU_PIPELINE_STATS::ScopedPipelineStats pipelineStats(ctx.commandList, profilePass);
         for (size_t bucketIndex = 0; bucketIndex < GPUDRIVEN::kGpuDrivenCommandBucketCount; ++bucketIndex) {
             const GPUDRIVEN::GpuDrivenCommandBucket bucket =
                 static_cast<GPUDRIVEN::GpuDrivenCommandBucket>(bucketIndex);

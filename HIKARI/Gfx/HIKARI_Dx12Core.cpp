@@ -15,6 +15,7 @@
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GfxDebugConfig.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
+#include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Core/HIKARI_Logger.h"
 
@@ -372,6 +373,7 @@ bool Dx12Core::CreateDepthBuffer() {
 // Dx12Core の終了処理。GPU の完了を待ち、リソースを解放する。
 void Dx12Core::Shutdown() {
     WaitGPU();
+    GPU_PIPELINE_STATS::Shutdown();
     GPU_PROFILE::Shutdown();
     deferredReleaseQueue_.FlushAll();
     if (fenceEvent_) CloseHandle(fenceEvent_);
@@ -410,7 +412,13 @@ bool Dx12Core::BeginFrame(float clearR, float clearG, float clearB, float clearA
         debugConfig.enableDebugLayer ?
             "GPU profiler is disabled while D3D12 Debug Layer is enabled." :
             "GPU profiler is disabled by GfxDebugConfig.");
+    GPU_PIPELINE_STATS::SetEnabled(
+        allowGpuProfiler,
+        debugConfig.enableDebugLayer ?
+            "Pipeline stats profiler is disabled while D3D12 Debug Layer is enabled." :
+            "Pipeline stats profiler is disabled by GfxDebugConfig.");
     GPU_PROFILE::BeginFrame(device_.Get(), queue_.Get(), cmdList_.Get(), frameIndex_);
+    GPU_PIPELINE_STATS::BeginFrame(device_.Get(), cmdList_.Get(), frameIndex_);
     PIX::BeginGpuEvent(cmdList_.Get(), PIX::kColorFrame, "Frame");
 
     resourceStates_.Transition(
@@ -466,6 +474,7 @@ bool Dx12Core::EndFrame() {
         return false;
     }
 
+    GPU_PIPELINE_STATS::EndFrame(cmdList_.Get());
     GPU_PROFILE::EndFrame(cmdList_.Get());
     resourceStates_.Transition(
         cmdList_.Get(),

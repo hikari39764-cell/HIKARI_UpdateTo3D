@@ -25,7 +25,6 @@ namespace HIKARI::RENDER3D::DEPTH {
         Invalid,
         CurrentFrame,
         History,
-        FrozenHistory,
     };
 
     struct DepthPyramidView {

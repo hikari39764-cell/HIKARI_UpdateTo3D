@@ -140,8 +140,8 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullVisibleClusterListCapacity;
     uint gClusterCullMeshletPreciseCompaction;
     uint gClusterCullEmitTraditionalDrawArgs;
-    uint gClusterCullReserved1;
-    uint gClusterCullReserved2;
+    float gClusterCullLodTransitionRelaxPerLevel;
+    float gClusterCullLodErrorRelaxPerLevel;
 };
 
 RWStructuredBuffer<ClusterCullVisibleRange> gClusterCullVisibleRanges : register(u0);
