@@ -35,6 +35,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         bool transparencyMaskReady = false;
         bool invalidDepthMotionMaskReady = false;
         bool masksWritten = false;
+        bool masksCompositionDerived = false;
         bool exposureWritten = false;
         bool debugOutputReady = false;
         RenderDebugView debugView = RenderDebugView::None;
@@ -66,7 +67,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
     void SetTemporalDebugView(RenderDebugView view);
     RenderDebugView GetTemporalDebugView();
     bool UpdateTemporalExposure(float exposure);
-    void MarkTemporalMasksWritten(bool written);
+    void MarkTemporalMasksWritten(bool written, bool compositionDerived);
     void SetTemporalGeometryDrawCounts(
         uint32_t rigid,
         uint32_t skinned,
@@ -78,6 +79,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
     TemporalInputs BuildTemporalInputs(
         D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv,
         D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv);
+    TemporalInputs BuildTemporalInputs(RenderTarget2D& sceneTarget);
 
     const TemporalResourceStats& GetTemporalResourceStats();
 

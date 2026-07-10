@@ -175,6 +175,7 @@ namespace HIKARI {
                     RENDER3D::RenderResolutionPreset::P720,
                     RENDER3D::RenderResolutionPreset::P1080,
                     RENDER3D::RenderResolutionPreset::P1440,
+                    RENDER3D::RenderResolutionPreset::P2160,
                 };
                 for (RENDER3D::RenderResolutionPreset candidate : presets) {
                     if (!includeViewport && candidate == RENDER3D::RenderResolutionPreset::Viewport) {
@@ -296,6 +297,7 @@ namespace HIKARI {
                     RENDER3D::RenderAntiAliasingMode::Off,
                     RENDER3D::RenderAntiAliasingMode::FXAA,
                     RENDER3D::RenderAntiAliasingMode::TAA,
+                    RENDER3D::RenderAntiAliasingMode::DLAA,
                     RENDER3D::RenderAntiAliasingMode::DLSS,
                 };
                 for (RENDER3D::RenderAntiAliasingMode candidate : modes) {
@@ -311,6 +313,34 @@ namespace HIKARI {
                         ImGui::SetItemDefaultFocus();
                     }
                     ImGui::EndDisabled();
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        }
+
+        bool DrawDlssQualityModeCombo(RENDER3D::DlssQualityMode& mode) {
+            bool changed = false;
+            if (ImGui::BeginCombo(
+                    "DLSS Quality",
+                    RENDER3D::DlssQualityModeLabel(mode))) {
+                const RENDER3D::DlssQualityMode modes[] = {
+                    RENDER3D::DlssQualityMode::Quality,
+                    RENDER3D::DlssQualityMode::Balanced,
+                    RENDER3D::DlssQualityMode::Performance,
+                    RENDER3D::DlssQualityMode::UltraPerformance,
+                };
+                for (RENDER3D::DlssQualityMode candidate : modes) {
+                    const bool selected = mode == candidate;
+                    if (ImGui::Selectable(
+                            RENDER3D::DlssQualityModeLabel(candidate),
+                            selected)) {
+                        mode = candidate;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
                 }
                 ImGui::EndCombo();
             }
@@ -344,8 +374,12 @@ namespace HIKARI {
                 changed |= ImGui::Checkbox("VSync", &settings.vSync);
                 int captureWidth = 0;
                 int captureHeight = 0;
+                int outputWidth = 0;
+                int outputHeight = 0;
                 POST::PostSystem::GetSceneCaptureSize(captureWidth, captureHeight);
+                POST::PostSystem::GetSceneOutputSize(outputWidth, outputHeight);
                 ImGui::TextDisabled("Internal Render: %d x %d", captureWidth, captureHeight);
+                ImGui::TextDisabled("Temporal Output: %d x %d", outputWidth, outputHeight);
                 if (ImGui::Button("Apply Window")) {
                     RENDER3D::SetRenderQualitySettings(settings);
                     SERVICES::ApplyWindowPresentationSettings();
@@ -359,6 +393,9 @@ namespace HIKARI {
                 changed |= DrawForwardCostModeCombo(settings.forwardCostMode);
                 changed |= DrawLightProbeVolumeSamplingCombo(settings.lightProbeVolumeSampling);
                 changed |= DrawAntiAliasingModeCombo(settings.antiAliasingMode);
+                if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::DLSS) {
+                    changed |= DrawDlssQualityModeCombo(settings.dlssQualityMode);
+                }
                 if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::TAA) {
                     changed |= ImGui::SliderFloat(
                         "TAA History",

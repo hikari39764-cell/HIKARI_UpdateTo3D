@@ -5,6 +5,7 @@
 #include "Gfx/HIKARI_ResourceStateTracker.h"
 
 #include <array>
+#include <functional>
 #include <cstddef>
 #include <wrl.h>
 #include <dxgi1_6.h>
@@ -15,7 +16,12 @@ class Dx12Core {
 public:
     static constexpr uint32_t kFrameCount = 3;
 
-    bool Initialize(HWND hwnd, int w, int h, bool enableDebugLayer);
+    bool Initialize(
+        HWND hwnd,
+        int w,
+        int h,
+        bool enableDebugLayer,
+        const std::function<void(ID3D12Device*)>& deviceCreated = {});
     void Shutdown();
 
     bool BeginFrame(float clearR, float clearG, float clearB, float clearA);

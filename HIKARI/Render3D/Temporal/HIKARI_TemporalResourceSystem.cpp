@@ -31,6 +31,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
             uint32_t width = 0;
             uint32_t height = 0;
+            D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
             bool ready = false;
         };
 
@@ -85,6 +86,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             view.format = target.format;
             view.width = target.width;
             view.height = target.height;
+            view.state = target.target.GetColorState();
             view.valid =
                 target.ready &&
                 view.resource != nullptr &&
@@ -99,6 +101,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             view.format = texture.format;
             view.width = texture.width;
             view.height = texture.height;
+            view.state = texture.state;
             view.valid =
                 texture.ready &&
                 view.resource != nullptr &&
@@ -115,6 +118,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             texture.format = DXGI_FORMAT_UNKNOWN;
             texture.width = 0;
             texture.height = 0;
+            texture.state = D3D12_RESOURCE_STATE_COMMON;
             texture.ready = false;
         }
 
@@ -326,6 +330,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         state.stats.taaEnabled = false;
         state.stats.taaResolved = false;
         state.stats.masksWritten = false;
+        state.stats.masksCompositionDerived = false;
         state.stats.exposureWritten = false;
         state.stats.rigidVelocityDrawCount = 0;
         state.stats.skinnedVelocityDrawCount = 0;
@@ -466,13 +471,15 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         return true;
     }
 
-    void MarkTemporalMasksWritten(bool written) {
+    void MarkTemporalMasksWritten(bool written, bool compositionDerived) {
         TemporalResourceState& state = State();
         state.stats.masksWritten =
             written &&
             state.reactiveMask.ready &&
             state.transparencyMask.ready &&
             state.invalidDepthMotionMask.ready;
+        state.stats.masksCompositionDerived =
+            state.stats.masksWritten && compositionDerived;
     }
 
     void SetTemporalGeometryDrawCounts(
@@ -527,6 +534,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             state.sceneColor.height = height;
             state.sceneColor.ready = true;
         }
+        state.sceneColor.state = source.GetColorState();
         RefreshStats(state);
         return true;
     }
@@ -590,6 +598,27 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         inputs.invalidDepthMotionMask =
             MakeTextureView(state.invalidDepthMotionMask);
         inputs.debugOutput = MakeTextureView(state.debugOutput);
+        return inputs;
+    }
+
+    TemporalInputs BuildTemporalInputs(RenderTarget2D& sceneTarget) {
+        TemporalResourceState& state = State();
+        TemporalInputs inputs = BuildTemporalInputs(
+            sceneTarget.GetDepthSrvGpu(),
+            state.sceneColor.srv.gpu);
+        inputs.hasSceneDepth =
+            sceneTarget.GetDepthResource() != nullptr &&
+            inputs.sceneDepthSrv.ptr != 0;
+        inputs.hasSceneColor = state.sceneColor.ready;
+        inputs.sceneDepth.resource = sceneTarget.GetDepthResource();
+        inputs.sceneDepth.srv = inputs.sceneDepthSrv;
+        inputs.sceneDepth.format = DXGI_FORMAT_R32_FLOAT;
+        inputs.sceneDepth.width =
+            static_cast<uint32_t>((std::max)(1, sceneTarget.GetWidth()));
+        inputs.sceneDepth.height =
+            static_cast<uint32_t>((std::max)(1, sceneTarget.GetHeight()));
+        inputs.sceneDepth.state = sceneTarget.GetDepthState();
+        inputs.sceneDepth.valid = inputs.hasSceneDepth;
         return inputs;
     }
 

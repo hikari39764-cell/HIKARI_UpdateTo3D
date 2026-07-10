@@ -216,6 +216,8 @@ namespace HIKARI::GFX::GPU_PROFILE {
         case Pass::SsaoBlur: return "SSAO Blur";
         case Pass::TemporalMotionVectors: return "Temporal MotionVectors";
         case Pass::TemporalTaaResolve: return "Temporal TAA";
+        case Pass::TemporalDlaaResolve: return "Temporal DLAA";
+        case Pass::TemporalDlssResolve: return "Temporal DLSS";
         case Pass::ForwardOpaque: return "ForwardOpaque";
         case Pass::DepthAware: return "DepthAware";
         case Pass::ForwardTransparent: return "ForwardTransparent";

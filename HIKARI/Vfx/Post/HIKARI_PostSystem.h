@@ -76,8 +76,13 @@ namespace HIKARI {
             static void EndSceneCaptureAndPresent(); // ?里会自??用光照合成
             static bool EndSceneCaptureToEditorViewport();
             static bool IsSceneCaptureActive();
-            static void SetSceneCaptureSize(int width, int height);
+            static void SetSceneCaptureSize(
+                int renderWidth,
+                int renderHeight,
+                int outputWidth,
+                int outputHeight);
             static void GetSceneCaptureSize(int& outWidth, int& outHeight);
+            static void GetSceneOutputSize(int& outWidth, int& outHeight);
             static bool IsEditorViewportReady();
             static D3D12_GPU_DESCRIPTOR_HANDLE GetEditorViewportSrv();
             static int GetEditorViewportWidth();
@@ -112,6 +117,10 @@ namespace HIKARI {
             static void EnsureSceneRTSize();
             static void EnsureEditorViewportRTSize(int width, int height);
             static bool EnsureToneMappedLdrRTSize(int width, int height, DXGI_FORMAT format);
+            static bool EnsureTemporalFallbackOutputSize(
+                int width,
+                int height,
+                DXGI_FORMAT format);
             static void RefreshEditorViewportSrvDescriptor();
             static void EnsureSceneColorSnapshotRTSize();
             static void RefreshSceneColorSrvDescriptor();
@@ -134,6 +143,7 @@ namespace HIKARI {
             static RenderTarget2D editorViewportRT_;
             static RenderTarget2D sceneColorSnapshotRT_;
             static RenderTarget2D toneMappedLdrRT_;
+            static RenderTarget2D temporalFallbackOutputRT_;
             static bool sceneColorReady_;
             static D3D12_CPU_DESCRIPTOR_HANDLE sceneColorSrvCpu_;
             static D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrvGpu_;
@@ -173,6 +183,8 @@ namespace HIKARI {
             static bool editorViewportReady_;
             static int requestedSceneCaptureWidth_;
             static int requestedSceneCaptureHeight_;
+            static int requestedSceneOutputWidth_;
+            static int requestedSceneOutputHeight_;
             static D3D12_CPU_DESCRIPTOR_HANDLE editorViewportSrvCpu_;
             static D3D12_GPU_DESCRIPTOR_HANDLE editorViewportSrvGpu_;
 

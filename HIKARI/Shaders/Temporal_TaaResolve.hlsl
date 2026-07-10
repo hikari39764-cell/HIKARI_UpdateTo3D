@@ -413,7 +413,7 @@ PSOut PSMain(VSOut input)
 
     if (gTaaParams.x >= 0.5f && motion.valid >= 0.5f)
     {
-        float2 previousUv = input.uv - motion.pixels * gScreenParams.zw;
+        float2 previousUv = input.uv + motion.pixels * gScreenParams.zw;
         if (all(previousUv >= 0.0f) && all(previousUv <= 1.0f))
         {
             float4 historySample = SampleHistoryCatmullRom(previousUv);

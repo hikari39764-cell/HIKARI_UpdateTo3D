@@ -107,7 +107,12 @@ bool Dx12Core::CheckDeviceRemoved(const char* reason, HRESULT hr) {
     return true;
 }
 
-bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
+bool Dx12Core::Initialize(
+    HWND hwnd,
+    int w,
+    int h,
+    bool enableDebugLayer,
+    const std::function<void(ID3D12Device*)>& deviceCreated) {
     HIKARI_LOG_D3D12("Dx12Core initialization started.");
 
     hwnd_ = hwnd;
@@ -167,6 +172,9 @@ bool Dx12Core::Initialize(HWND hwnd, int w, int h, bool enableDebugLayer) {
     ConfigureD3D12InfoQueue(device_.Get());
     SetD3D12Name(device_.Get(), L"HIKARI D3D12 Device");
     HIKARI_LOG_D3D12("Device created.");
+    if (deviceCreated) {
+        deviceCreated(device_.Get());
+    }
 
     D3D12_COMMAND_QUEUE_DESC qDesc{};
     qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;

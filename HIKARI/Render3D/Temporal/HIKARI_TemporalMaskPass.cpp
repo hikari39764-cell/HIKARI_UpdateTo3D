@@ -155,7 +155,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             reactive == nullptr ||
             transparency == nullptr ||
             invalidDepthMotion == nullptr) {
-            MarkTemporalMasksWritten(false);
+            MarkTemporalMasksWritten(false, false);
             return false;
         }
 
@@ -211,7 +211,10 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         transparency->TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         invalidDepthMotion->TransitionColor(
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        MarkTemporalMasksWritten(canGenerate);
+        // Cleared zero masks are a valid opaque-only hint set. When a
+        // post-opaque composition base exists, the draw refines them from the
+        // actual color difference instead.
+        MarkTemporalMasksWritten(true, canGenerate);
         return true;
     }
 

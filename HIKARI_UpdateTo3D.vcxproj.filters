@@ -145,6 +145,9 @@
     <Filter Include="Header Files\Render3D\Temporal">
       <UniqueIdentifier>{D4D296D8-7CD6-49CB-A813-9F9C41F3E522}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Upscaling">
+      <UniqueIdentifier>{4b88dc06-c6eb-4f86-a92a-f8870bd6a381}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
@@ -405,6 +408,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Temporal">
       <UniqueIdentifier>{38B3F552-9B16-43C5-A5B0-05C6145C2DD0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Upscaling">
+      <UniqueIdentifier>{cd3d2495-f0b5-45ac-9bc8-1abc0bbf56ee}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
@@ -1400,6 +1406,9 @@
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.cpp">
       <Filter>Source Files\Render3D\Temporal</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\WICTextureLoader.h">
@@ -2224,6 +2233,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h">
       <Filter>Header Files\Render3D\Temporal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h">
       <Filter>Header Files\Core</Filter>

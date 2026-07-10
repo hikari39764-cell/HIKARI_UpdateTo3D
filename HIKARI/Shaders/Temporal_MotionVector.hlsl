@@ -73,8 +73,11 @@ PSOut PSMain(VSOut input)
 
     float3 currentProjection = ProjectUvDepth(gViewProj, currentWorld);
     float3 previousProjection = ProjectUvDepth(gPrevViewProj, previousWorld);
+    // Canonical temporal contract: previousUv = currentUv + motionPixels / size.
+    // Jitter is excluded; the vector points from the current sample to its
+    // previous-frame location, matching temporal upscaler conventions.
     float2 motionPixels =
-        (currentProjection.xy - previousProjection.xy) * gScreenParams.xy;
+        (previousProjection.xy - currentProjection.xy) * gScreenParams.xy;
     float valid = gHistoryParams.x >= 0.5f ? 1.0f : 0.0f;
     PSOut output;
     output.motionPixels = motionPixels;

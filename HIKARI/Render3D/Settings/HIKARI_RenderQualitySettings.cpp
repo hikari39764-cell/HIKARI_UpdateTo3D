@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
+
 namespace HIKARI::RENDER3D {
 
     namespace {
@@ -36,9 +38,9 @@ namespace HIKARI::RENDER3D {
             static_cast<uint8_t>(RenderAntiAliasingMode::DLSS)) {
             gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::Off;
         }
-        if (gRenderQualitySettings.antiAliasingMode ==
-            RenderAntiAliasingMode::DLSS) {
-            gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::TAA;
+        if (static_cast<uint8_t>(gRenderQualitySettings.dlssQualityMode) >
+            static_cast<uint8_t>(DlssQualityMode::UltraPerformance)) {
+            gRenderQualitySettings.dlssQualityMode = DlssQualityMode::Quality;
         }
         if (static_cast<uint8_t>(gRenderQualitySettings.forwardCostMode) >
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
@@ -57,6 +59,7 @@ namespace HIKARI::RENDER3D {
         case RenderResolutionPreset::P720: return "1280 x 720";
         case RenderResolutionPreset::P1080: return "1920 x 1080";
         case RenderResolutionPreset::P1440: return "2560 x 1440";
+        case RenderResolutionPreset::P2160: return "3840 x 2160";
         default: return "Unknown";
         }
     }
@@ -105,7 +108,18 @@ namespace HIKARI::RENDER3D {
         case RenderAntiAliasingMode::Off: return "Off";
         case RenderAntiAliasingMode::FXAA: return "FXAA";
         case RenderAntiAliasingMode::TAA: return "TAA";
-        case RenderAntiAliasingMode::DLSS: return "DLSS (Unavailable)";
+        case RenderAntiAliasingMode::DLAA: return "DLAA";
+        case RenderAntiAliasingMode::DLSS: return "DLSS";
+        default: return "Unknown";
+        }
+    }
+
+    const char* DlssQualityModeLabel(DlssQualityMode mode) {
+        switch (mode) {
+        case DlssQualityMode::Quality: return "Quality";
+        case DlssQualityMode::Balanced: return "Balanced";
+        case DlssQualityMode::Performance: return "Performance";
+        case DlssQualityMode::UltraPerformance: return "Ultra Performance";
         default: return "Unknown";
         }
     }
@@ -114,12 +128,31 @@ namespace HIKARI::RENDER3D {
         return mode == RenderAntiAliasingMode::TAA;
     }
 
+    bool UsesTemporalJitter(RenderAntiAliasingMode mode) {
+        return
+            mode == RenderAntiAliasingMode::TAA ||
+            mode == RenderAntiAliasingMode::DLAA ||
+            mode == RenderAntiAliasingMode::DLSS;
+    }
+
+    bool IsDlaaAntiAliasingMode(RenderAntiAliasingMode mode) {
+        return mode == RenderAntiAliasingMode::DLAA;
+    }
+
+    bool IsDlssAntiAliasingMode(RenderAntiAliasingMode mode) {
+        return mode == RenderAntiAliasingMode::DLSS;
+    }
+
     bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode) {
         return mode == RenderAntiAliasingMode::FXAA;
     }
 
     bool IsAntiAliasingModeAvailable(RenderAntiAliasingMode mode) {
-        return mode != RenderAntiAliasingMode::DLSS;
+        if (mode == RenderAntiAliasingMode::DLAA ||
+            mode == RenderAntiAliasingMode::DLSS) {
+            return UPSCALING::IsStreamlineDlssAvailable();
+        }
+        return true;
     }
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset) {
@@ -131,12 +164,13 @@ namespace HIKARI::RENDER3D {
         case RenderResolutionPreset::P720: return { 1280, 720 };
         case RenderResolutionPreset::P1080: return { 1920, 1080 };
         case RenderResolutionPreset::P1440: return { 2560, 1440 };
+        case RenderResolutionPreset::P2160: return { 3840, 2160 };
         case RenderResolutionPreset::Viewport:
         default: return { 0, 0 };
         }
     }
 
-    RenderResolution ResolveSceneCaptureResolution(
+    RenderResolution ResolveSceneOutputResolution(
         const RenderQualitySettings& settings,
         int viewportWidth,
         int viewportHeight) {

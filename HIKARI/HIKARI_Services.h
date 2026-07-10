@@ -26,6 +26,7 @@
 #include "Render3D/Temporal/HIKARI_TemporalGeometryPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalMaskPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -196,7 +197,14 @@ namespace HIKARI {
             return gWindow.ApplyWindowMode(mode, windowWidth, windowHeight);
         }
 
-        inline RENDER3D::RenderResolution ResolveFrameSceneCaptureResolution() {
+        struct FrameSceneResolutionPlan {
+            RENDER3D::RenderResolution render{};
+            RENDER3D::RenderResolution output{};
+            RENDER3D::UPSCALING::StreamlineDlssMode streamlineMode =
+                RENDER3D::UPSCALING::StreamlineDlssMode::Off;
+        };
+
+        inline FrameSceneResolutionPlan ResolveFrameSceneResolutionPlan() {
             const RENDER3D::RenderQualitySettings& settings =
                 RENDER3D::GetRenderQualitySettings();
 
@@ -213,21 +221,43 @@ namespace HIKARI {
             }
 #endif
 
-            return RENDER3D::ResolveSceneCaptureResolution(
+            FrameSceneResolutionPlan plan{};
+            plan.output = RENDER3D::ResolveSceneOutputResolution(
                 settings,
                 viewportWidth,
                 viewportHeight);
+            plan.render = plan.output;
+            plan.streamlineMode =
+                RENDER3D::UPSCALING::ResolveStreamlineDlssMode(settings);
+
+            if (RENDER3D::UPSCALING::IsStreamlineDlssSuperResolutionMode(
+                    plan.streamlineMode)) {
+                RENDER3D::UPSCALING::StreamlineOptimalSettings optimal{};
+                if (RENDER3D::UPSCALING::QueryStreamlineDlssOptimalSettings(
+                        plan.streamlineMode,
+                        static_cast<uint32_t>(plan.output.width),
+                        static_cast<uint32_t>(plan.output.height),
+                        optimal)) {
+                    plan.render.width =
+                        static_cast<int>(optimal.optimalRenderWidth);
+                    plan.render.height =
+                        static_cast<int>(optimal.optimalRenderHeight);
+                }
+            }
+            return plan;
         }
 
         inline void ApplyFrameSceneCaptureSize() {
-            const RENDER3D::RenderResolution resolution =
-                ResolveFrameSceneCaptureResolution();
+            const FrameSceneResolutionPlan plan =
+                ResolveFrameSceneResolutionPlan();
             HIKARI::POST::PostSystem::SetSceneCaptureSize(
-                resolution.width,
-                resolution.height);
+                plan.render.width,
+                plan.render.height,
+                plan.output.width,
+                plan.output.height);
             HIKARI::DX::DxRenderer::SetScreenSize(
-                resolution.width,
-                resolution.height);
+                plan.render.width,
+                plan.render.height);
         }
 
         inline void ConfigureEditorImGuiContext() {
@@ -293,6 +323,7 @@ namespace HIKARI {
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
             CORE::InitializeLogger();
             HIKARI_LOG_INFO("HIKARI boot started.");
+            (void)RENDER3D::UPSCALING::InitializeStreamlineEarly();
 
             gRuntimeHostMode = cfg.hostMode;
             gEnableImGui = cfg.enableImGui;
@@ -329,6 +360,7 @@ namespace HIKARI {
             HIKARI_LOG_INFO("Window initialization started.");
             if (!gWindow.Initialize(wTitle, cfg.windowWidth, cfg.windowHeight, cfg.resizableWindow)) {
                 HIKARI_LOG_ERROR("Window initialization failed.");
+                RENDER3D::UPSCALING::ShutdownStreamline();
                 return false;
             }
             GFX::PIX::Initialize(gWindow.GetHWND());
@@ -339,8 +371,16 @@ namespace HIKARI {
                 HIKARI_LOG_INFO(oss.str());
             }
             HIKARI_LOG_INFO("D3D12 core initialization started.");
-            if (!gCore.Initialize(gWindow.GetHWND(), cfg.windowWidth, cfg.windowHeight, cfg.enableDebugLayer)) {
+            if (!gCore.Initialize(
+                    gWindow.GetHWND(),
+                    cfg.windowWidth,
+                    cfg.windowHeight,
+                    cfg.enableDebugLayer,
+                    [](ID3D12Device* device) {
+                        (void)RENDER3D::UPSCALING::AttachStreamlineDevice(device);
+                    })) {
                 HIKARI_LOG_ERROR("D3D12 core initialization failed.");
+                RENDER3D::UPSCALING::ShutdownStreamline();
                 return false;
             }
             HIKARI_LOG_INFO("D3D12 core initialized.");
@@ -355,6 +395,7 @@ namespace HIKARI {
             });
 
             gCtx = gCore.BuildContext();
+            RENDER3D::UPSCALING::UpdateStreamlineContext(gCtx);
 
             DXTEX::DxTextureManager::Init(gCtx);
             HIKARI_LOG_INFO("TextureManager initialized.");
@@ -467,6 +508,8 @@ namespace HIKARI {
             HIKARI_LOG_INFO("VFX shutdown.");
             AUDIO::Shutdown();
             HIKARI_LOG_INFO("Audio shutdown.");
+            RENDER3D::UPSCALING::ShutdownStreamline();
+            HIKARI_LOG_INFO("Streamline shutdown.");
             gCore.Shutdown();
             HIKARI_LOG_INFO("D3D12 core shutdown.");
             GFX::PIX::Shutdown();

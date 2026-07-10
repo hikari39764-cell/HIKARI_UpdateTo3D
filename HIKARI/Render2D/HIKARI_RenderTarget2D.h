@@ -23,7 +23,8 @@ namespace HIKARI {
             DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
             bool withDepth = false,
             const std::array<float, 4>& optimizedClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
-            bool publishDepthSrv = true
+            bool publishDepthSrv = true,
+            bool allowUnorderedAccess = false
         );
 
         void UpdateContext(const HIKARI::GFX::Context& ctx);
@@ -44,6 +45,7 @@ namespace HIKARI {
         int GetHeight() const { return height_; }
         DXGI_FORMAT GetFormat() const { return format_; }
         D3D12_RESOURCE_STATES GetColorState() const { return colorState_; }
+        D3D12_RESOURCE_STATES GetDepthState() const { return depthState_; }
         bool HasDepth() const { return hasDepth_; }
         bool IsInitialized() const { return initialized_; }
         void TransitionColor(D3D12_RESOURCE_STATES nextState);
@@ -89,6 +91,7 @@ namespace HIKARI {
         bool initialized_ = false;
         bool hasDepth_ = false;
         bool publishDepthSrv_ = true;
+        bool allowUnorderedAccess_ = false;
         std::string debugName_ = "RenderTarget2D";
         HIKARI::GFX::Context context_{};
 

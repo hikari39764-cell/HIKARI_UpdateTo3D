@@ -13,10 +13,10 @@
     "ambientOcclusion": {
       "bias": 0.19499999284744263,
       "blurIterations": 4,
-      "diffuseStrength": 0.8100000023841858,
+      "diffuseStrength": 0.9300000071525574,
       "enabled": true,
-      "mode": "Balanced",
-      "power": 1.559999942779541,
+      "mode": "OptimizedHigh",
+      "power": 2.130000114440918,
       "radius": 2.1500000953674316,
       "sampleCount": 32,
       "specularStrength": 0.8799999952316284,
@@ -31,9 +31,9 @@
     },
     "directional": {
       "color": [
-        1.0,
-        1.0,
-        1.0
+        0.9836734533309937,
+        0.4879937767982483,
+        0.1686297208070755
       ],
       "direction": [
         0.5273278951644897,

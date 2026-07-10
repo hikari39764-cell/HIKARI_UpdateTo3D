@@ -65,6 +65,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="ThirdParty\Streamline\HIKARI_Streamline.props" Condition="Exists('ThirdParty\Streamline\HIKARI_Streamline.props')" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
@@ -339,6 +340,7 @@
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMaskPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.cpp" />
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
@@ -776,6 +778,7 @@
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalMaskPass.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.h" />
@@ -1021,5 +1024,6 @@
   </PropertyGroup>
   <ImportGroup Label="ExtensionTargets">
     <Import Project="ThirdParty\WinPixEventRuntime\build\WinPixEventRuntime.targets" Condition="'$(Configuration)'!='Shipping' And Exists('ThirdParty\WinPixEventRuntime\build\WinPixEventRuntime.targets')" />
+    <Import Project="ThirdParty\Streamline\HIKARI_Streamline.targets" Condition="Exists('ThirdParty\Streamline\HIKARI_Streamline.targets')" />
   </ImportGroup>
 </Project>

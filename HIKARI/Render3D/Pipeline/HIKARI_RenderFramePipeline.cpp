@@ -18,6 +18,7 @@
 #include "Render3D/Temporal/HIKARI_TemporalGeometryPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalMotionVectorPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 namespace HIKARI::RENDER3D::PIPELINE {
@@ -109,24 +110,47 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
         GFX::PIX::ScopedGpuEvent pixFrame(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "RenderFrame.MeshLighting");
         const ScreenSpacePassContext screenSpaceContext = BuildScreenSpaceContext();
+        const RENDER3D::RenderQualitySettings& renderQuality =
+            RENDER3D::GetRenderQualitySettings();
+        const RENDER3D::RenderAntiAliasingMode antiAliasingMode =
+            renderQuality.antiAliasingMode;
+        static bool previousAntiAliasingModeValid = false;
+        static RENDER3D::RenderAntiAliasingMode previousAntiAliasingMode =
+            RENDER3D::RenderAntiAliasingMode::Off;
+        static RENDER3D::DlssQualityMode previousDlssQualityMode =
+            RENDER3D::DlssQualityMode::Quality;
+        if (previousAntiAliasingModeValid &&
+            (previousAntiAliasingMode != antiAliasingMode ||
+                (antiAliasingMode == RENDER3D::RenderAntiAliasingMode::DLSS &&
+                    previousDlssQualityMode != renderQuality.dlssQualityMode))) {
+            RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+        }
+        previousAntiAliasingMode = antiAliasingMode;
+        previousDlssQualityMode = renderQuality.dlssQualityMode;
+        previousAntiAliasingModeValid = true;
+
         RENDER3D::TEMPORAL::TemporalFrameDesc temporalDesc{};
         temporalDesc.camera = &camera;
         temporalDesc.frameIndex = TIME::GetFrameContext().frameIndex;
         temporalDesc.renderWidth = screenSpaceContext.width;
         temporalDesc.renderHeight = screenSpaceContext.height;
-        // Native TAA resolves at the scene render extent. Presentation scaling
-        // is a separate post/output concern; future temporal upscalers can set
-        // a distinct output extent when their backend owns the resolve.
-        temporalDesc.outputWidth = screenSpaceContext.width;
-        temporalDesc.outputHeight = screenSpaceContext.height;
+        int sceneOutputWidth = 0;
+        int sceneOutputHeight = 0;
+        POST::PostSystem::GetSceneOutputSize(
+            sceneOutputWidth,
+            sceneOutputHeight);
+        temporalDesc.outputWidth =
+            static_cast<uint32_t>(std::max(1, sceneOutputWidth));
+        temporalDesc.outputHeight =
+            static_cast<uint32_t>(std::max(1, sceneOutputHeight));
         const bool temporalDebugView = IsTemporalRenderDebugView(debugView);
         const bool temporalPipelineAllowed =
             debugView == RenderDebugView::None || temporalDebugView;
         temporalDesc.temporalResolveAllowed = temporalPipelineAllowed;
         temporalDesc.forceHistoryReset = !temporalPipelineAllowed;
         temporalDesc.jitterEnabled =
-            RENDER3D::IsTemporalAntiAliasingMode(
-                RENDER3D::GetRenderQualitySettings().antiAliasingMode) &&
+            RENDER3D::UsesTemporalJitter(antiAliasingMode) &&
             temporalPipelineAllowed;
         const RENDER3D::TEMPORAL::TemporalFrameState temporalFrame =
             RENDER3D::TEMPORAL::BeginTemporalFrame(temporalDesc);
@@ -134,6 +158,13 @@ namespace HIKARI::RENDER3D::PIPELINE {
         (void)RENDER3D::TEMPORAL::BeginTemporalResources(temporalFrame);
         RENDER3D::TEMPORAL::SetTemporalDebugView(
             temporalDebugView ? debugView : RenderDebugView::None);
+        const RENDER3D::UPSCALING::StreamlineDlssMode streamlineMode =
+            temporalPipelineAllowed && !temporalDebugView
+                ? RENDER3D::UPSCALING::ResolveStreamlineDlssMode(renderQuality)
+                : RENDER3D::UPSCALING::StreamlineDlssMode::Off;
+        (void)RENDER3D::UPSCALING::BeginStreamlineFrame(
+            temporalFrame,
+            streamlineMode);
         if (!POST::PostSystem::HasCurrentRenderTarget() ||
             !POST::PostSystem::RebindCurrentRenderTarget()) {
             return false;

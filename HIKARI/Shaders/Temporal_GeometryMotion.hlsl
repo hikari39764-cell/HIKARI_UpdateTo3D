@@ -93,7 +93,9 @@ PSOut PSMain(VSOut input)
     float previousDepth =
         input.previousClip.z / max(abs(input.previousClip.w), 1e-5f);
     PSOut output;
-    output.motionPixels = (currentUv - previousUv) * gScreenParams.xy;
+    // Keep object motion in the same current-to-previous pixel-space contract
+    // as the dense camera-motion pass.
+    output.motionPixels = (previousUv - currentUv) * gScreenParams.xy;
     output.reprojectionMetadata = float2(
         saturate(previousDepth),
         gTemporalParams.x >= 0.5f ? 1.0f : 0.0f);

@@ -18,6 +18,7 @@
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 #include "Render3D/Temporal/HIKARI_TemporalMaskPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 
 namespace HIKARI {
     namespace POST {
@@ -71,6 +72,7 @@ namespace HIKARI {
         RenderTarget2D PostSystem::editorViewportRT_{};
         RenderTarget2D PostSystem::sceneColorSnapshotRT_{};
         RenderTarget2D PostSystem::toneMappedLdrRT_{};
+        RenderTarget2D PostSystem::temporalFallbackOutputRT_{};
         bool PostSystem::sceneColorReady_ = false;
         D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvCpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::sceneColorSrvGpu_{};
@@ -108,6 +110,8 @@ namespace HIKARI {
         bool PostSystem::editorViewportReady_ = false;
         int PostSystem::requestedSceneCaptureWidth_ = 0;
         int PostSystem::requestedSceneCaptureHeight_ = 0;
+        int PostSystem::requestedSceneOutputWidth_ = 0;
+        int PostSystem::requestedSceneOutputHeight_ = 0;
         D3D12_CPU_DESCRIPTOR_HANDLE PostSystem::editorViewportSrvCpu_{};
         D3D12_GPU_DESCRIPTOR_HANDLE PostSystem::editorViewportSrvGpu_{};
 
@@ -153,6 +157,7 @@ namespace HIKARI {
             editorViewportRT_.UpdateContext(ctx);
             sceneColorSnapshotRT_.UpdateContext(ctx);
             toneMappedLdrRT_.UpdateContext(ctx);
+            temporalFallbackOutputRT_.UpdateContext(ctx);
             lightRT_.UpdateContext(ctx);
         }
 
@@ -171,6 +176,7 @@ namespace HIKARI {
             editorViewportRT_.Finalize();
             sceneColorSnapshotRT_.Finalize();
             toneMappedLdrRT_.Finalize();
+            temporalFallbackOutputRT_.Finalize();
             lightRT_.Finalize();
             quad_.Finalize();
 
@@ -539,14 +545,23 @@ namespace HIKARI {
             return sceneCaptureActive_;
         }
 
-        void PostSystem::SetSceneCaptureSize(int width, int height)
+        void PostSystem::SetSceneCaptureSize(
+            int renderWidth,
+            int renderHeight,
+            int outputWidth,
+            int outputHeight)
         {
-            if (width <= 0 || height <= 0) {
+            if (renderWidth <= 0 || renderHeight <= 0 ||
+                outputWidth <= 0 || outputHeight <= 0) {
                 const bool changed =
                     requestedSceneCaptureWidth_ != 0 ||
-                    requestedSceneCaptureHeight_ != 0;
+                    requestedSceneCaptureHeight_ != 0 ||
+                    requestedSceneOutputWidth_ != 0 ||
+                    requestedSceneOutputHeight_ != 0;
                 requestedSceneCaptureWidth_ = 0;
                 requestedSceneCaptureHeight_ = 0;
+                requestedSceneOutputWidth_ = 0;
+                requestedSceneOutputHeight_ = 0;
                 if (changed) {
                     editorViewportReady_ = false;
                     sceneColorReady_ = false;
@@ -554,15 +569,33 @@ namespace HIKARI {
                 return;
             }
 
-            const int clampedWidth = std::clamp(width, kMinEditorViewportSize, kMaxEditorViewportSize);
-            const int clampedHeight = std::clamp(height, kMinEditorViewportSize, kMaxEditorViewportSize);
-            if (requestedSceneCaptureWidth_ == clampedWidth &&
-                requestedSceneCaptureHeight_ == clampedHeight) {
+            const int clampedRenderWidth = std::clamp(
+                renderWidth,
+                kMinEditorViewportSize,
+                kMaxEditorViewportSize);
+            const int clampedRenderHeight = std::clamp(
+                renderHeight,
+                kMinEditorViewportSize,
+                kMaxEditorViewportSize);
+            const int clampedOutputWidth = std::clamp(
+                outputWidth,
+                kMinEditorViewportSize,
+                kMaxEditorViewportSize);
+            const int clampedOutputHeight = std::clamp(
+                outputHeight,
+                kMinEditorViewportSize,
+                kMaxEditorViewportSize);
+            if (requestedSceneCaptureWidth_ == clampedRenderWidth &&
+                requestedSceneCaptureHeight_ == clampedRenderHeight &&
+                requestedSceneOutputWidth_ == clampedOutputWidth &&
+                requestedSceneOutputHeight_ == clampedOutputHeight) {
                 return;
             }
 
-            requestedSceneCaptureWidth_ = clampedWidth;
-            requestedSceneCaptureHeight_ = clampedHeight;
+            requestedSceneCaptureWidth_ = clampedRenderWidth;
+            requestedSceneCaptureHeight_ = clampedRenderHeight;
+            requestedSceneOutputWidth_ = clampedOutputWidth;
+            requestedSceneOutputHeight_ = clampedOutputHeight;
             // GameView のサイズ変更中は古い SRV を表示・参照しない。
             editorViewportReady_ = false;
             sceneColorReady_ = false;
@@ -572,6 +605,20 @@ namespace HIKARI {
         {
             outWidth = (requestedSceneCaptureWidth_ > 0) ? requestedSceneCaptureWidth_ : kScreenW;
             outHeight = (requestedSceneCaptureHeight_ > 0) ? requestedSceneCaptureHeight_ : kScreenH;
+        }
+
+        void PostSystem::GetSceneOutputSize(int& outWidth, int& outHeight)
+        {
+            outWidth = (requestedSceneOutputWidth_ > 0)
+                ? requestedSceneOutputWidth_
+                : ((requestedSceneCaptureWidth_ > 0)
+                    ? requestedSceneCaptureWidth_
+                    : kScreenW);
+            outHeight = (requestedSceneOutputHeight_ > 0)
+                ? requestedSceneOutputHeight_
+                : ((requestedSceneCaptureHeight_ > 0)
+                    ? requestedSceneCaptureHeight_
+                    : kScreenH);
         }
 
         bool PostSystem::IsEditorViewportReady()
@@ -756,6 +803,36 @@ namespace HIKARI {
             return true;
         }
 
+        bool PostSystem::EnsureTemporalFallbackOutputSize(
+            int width,
+            int height,
+            DXGI_FORMAT format)
+        {
+            if (width <= 0 || height <= 0 || format == DXGI_FORMAT_UNKNOWN) {
+                return false;
+            }
+
+            temporalFallbackOutputRT_.UpdateContext(context_);
+            const bool invalid =
+                temporalFallbackOutputRT_.GetResource() == nullptr ||
+                temporalFallbackOutputRT_.GetWidth() != width ||
+                temporalFallbackOutputRT_.GetHeight() != height ||
+                temporalFallbackOutputRT_.GetFormat() != format ||
+                temporalFallbackOutputRT_.HasDepth();
+            if (!invalid) {
+                return true;
+            }
+
+            temporalFallbackOutputRT_.Finalize();
+            temporalFallbackOutputRT_.SetDebugName("Post.TemporalFallback.Output");
+            return temporalFallbackOutputRT_.Init(
+                width,
+                height,
+                format,
+                false,
+                { 0.0f, 0.0f, 0.0f, 0.0f });
+        }
+
         void PostSystem::RefreshEditorViewportSrvDescriptor()
         {
             ID3D12Device* device = context_.device;
@@ -792,12 +869,12 @@ namespace HIKARI {
 
         bool PostSystem::IsEditorViewportTextureCurrent()
         {
-            if (requestedSceneCaptureWidth_ <= 0 || requestedSceneCaptureHeight_ <= 0) {
+            if (requestedSceneOutputWidth_ <= 0 || requestedSceneOutputHeight_ <= 0) {
                 return true;
             }
 
-            return editorViewportRT_.GetWidth() == requestedSceneCaptureWidth_ &&
-                editorViewportRT_.GetHeight() == requestedSceneCaptureHeight_;
+            return editorViewportRT_.GetWidth() == requestedSceneOutputWidth_ &&
+                editorViewportRT_.GetHeight() == requestedSceneOutputHeight_;
         }
 
         void PostSystem::EnsureSceneColorSnapshotRTSize()
@@ -1081,9 +1158,26 @@ namespace HIKARI {
             bool temporalDebugOutput = false;
             const RENDER3D::RenderQualitySettings& renderQuality =
                 RENDER3D::GetRenderQualitySettings();
-            const bool taaRequested =
+            const RenderDebugView temporalDebugView =
+                RENDER3D::TEMPORAL::GetTemporalDebugView();
+            const bool temporalDebugRequested =
+                IsTemporalRenderDebugView(temporalDebugView);
+            const bool nativeTaaRequested =
                 RENDER3D::IsTemporalAntiAliasingMode(
-                    renderQuality.antiAliasingMode);
+                    renderQuality.antiAliasingMode) ||
+                temporalDebugRequested;
+            const RENDER3D::UPSCALING::StreamlineDlssMode streamlineMode =
+                !temporalDebugRequested
+                    ? RENDER3D::UPSCALING::ResolveStreamlineDlssMode(renderQuality)
+                    : RENDER3D::UPSCALING::StreamlineDlssMode::Off;
+            const bool streamlineRequested =
+                streamlineMode !=
+                RENDER3D::UPSCALING::StreamlineDlssMode::Off;
+            const bool dlssSuperResolutionRequested =
+                RENDER3D::UPSCALING::IsStreamlineDlssSuperResolutionMode(
+                    streamlineMode);
+            const bool temporalResolveRequested =
+                nativeTaaRequested || streamlineRequested;
             const RENDER3D::TEMPORAL::TemporalFrameState& temporalFrame =
                 RENDER3D::TEMPORAL::GetCurrentTemporalFrameState();
             const bool temporalFrameCurrent =
@@ -1093,11 +1187,14 @@ namespace HIKARI {
                     static_cast<uint32_t>((std::max)(1, finalSceneRT->GetWidth())) &&
                 temporalFrame.renderHeight ==
                     static_cast<uint32_t>((std::max)(1, finalSceneRT->GetHeight()));
-            if (!taaRequested ||
-                !temporalFrameCurrent ||
+            if (!temporalResolveRequested) {
+                RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
+                    false,
+                    false);
+            } else if (!temporalFrameCurrent ||
                 !temporalFrame.temporalResolveAllowed) {
                 RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
-                    taaRequested,
+                    nativeTaaRequested,
                     false);
                 RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
                     RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
@@ -1111,13 +1208,12 @@ namespace HIKARI {
                     (void)RENDER3D::TEMPORAL::UpdateTemporalExposure(
                         toneMappingSettings_.exposure);
                     const RENDER3D::TEMPORAL::TemporalInputs temporalInputs =
-                        RENDER3D::TEMPORAL::BuildTemporalInputs(
-                            sceneDepthSrv,
-                            finalSceneRT->GetSrvGpu());
-                    (void)RENDER3D::TEMPORAL::ExecuteTemporalMaskPass(
-                        temporalInputs);
+                        RENDER3D::TEMPORAL::BuildTemporalInputs(*currentRT);
+                    const bool temporalMasksWritten =
+                        RENDER3D::TEMPORAL::ExecuteTemporalMaskPass(
+                            temporalInputs);
                     RENDER3D::TEMPORAL::TaaResolveSettings taaSettings{};
-                    taaSettings.enabled = taaRequested;
+                    taaSettings.enabled = true;
                     taaSettings.historyWeight = renderQuality.taaHistoryWeight;
                     taaSettings.varianceClipGamma =
                         renderQuality.taaVarianceClipGamma;
@@ -1126,14 +1222,65 @@ namespace HIKARI {
                     taaSettings.luminanceRejection =
                         renderQuality.taaLuminanceRejection;
                     taaSettings.sharpness = renderQuality.taaSharpness;
-                    RenderTarget2D* taaRT =
-                        RENDER3D::TEMPORAL::ExecuteTaaResolvePass(
-                            temporalInputs,
-                            taaSettings);
-                    if (taaRT != nullptr && taaRT->GetResource() != nullptr) {
-                        finalSceneRT = taaRT;
-                        if (IsTemporalRenderDebugView(
-                                RENDER3D::TEMPORAL::GetTemporalDebugView())) {
+
+                    RenderTarget2D* temporalResolvedRT = nullptr;
+                    if (streamlineRequested && temporalMasksWritten) {
+                        temporalResolvedRT =
+                            RENDER3D::UPSCALING::ExecuteStreamlineDlss(
+                                temporalInputs,
+                                streamlineMode);
+                        if (temporalResolvedRT != nullptr) {
+                            RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
+                                false,
+                                false);
+                        }
+                    }
+                    if (streamlineRequested && temporalResolvedRT == nullptr) {
+                        RENDER3D::UPSCALING::MarkStreamlineDlssFallback();
+                        temporalResolvedRT =
+                            RENDER3D::TEMPORAL::ExecuteTaaResolvePass(
+                                temporalInputs,
+                                taaSettings);
+                    } else if (nativeTaaRequested) {
+                        temporalResolvedRT =
+                            RENDER3D::TEMPORAL::ExecuteTaaResolvePass(
+                                temporalInputs,
+                                taaSettings);
+                    }
+
+                    if (dlssSuperResolutionRequested &&
+                        temporalResolvedRT != nullptr &&
+                        temporalResolvedRT->GetResource() != nullptr &&
+                        (temporalResolvedRT->GetWidth() !=
+                            static_cast<int>(temporalFrame.outputWidth) ||
+                            temporalResolvedRT->GetHeight() !=
+                            static_cast<int>(temporalFrame.outputHeight))) {
+                        if (EnsureTemporalFallbackOutputSize(
+                                static_cast<int>(temporalFrame.outputWidth),
+                                static_cast<int>(temporalFrame.outputHeight),
+                                temporalResolvedRT->GetFormat())) {
+                            temporalFallbackOutputRT_.BeginCapture(
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f);
+                            const bool fallbackResolved =
+                                DrawResolvedSceneToCurrentTarget(
+                                    *temporalResolvedRT,
+                                    temporalFallbackOutputRT_.GetFormat());
+                            temporalFallbackOutputRT_.EndCapture();
+                            temporalResolvedRT = fallbackResolved
+                                ? &temporalFallbackOutputRT_
+                                : nullptr;
+                        } else {
+                            temporalResolvedRT = nullptr;
+                        }
+                    }
+
+                    if (temporalResolvedRT != nullptr &&
+                        temporalResolvedRT->GetResource() != nullptr) {
+                        finalSceneRT = temporalResolvedRT;
+                        if (temporalDebugRequested) {
                             RenderTarget2D* debugRT =
                                 RENDER3D::TEMPORAL::GetTemporalDebugRenderTarget();
                             if (debugRT != nullptr && debugRT->GetResource() != nullptr) {
@@ -1147,7 +1294,7 @@ namespace HIKARI {
                     }
                 } else {
                     RENDER3D::TEMPORAL::MarkTemporalAntiAliasing(
-                        taaRequested,
+                        nativeTaaRequested,
                         false);
                     RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
                         RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
@@ -1157,6 +1304,10 @@ namespace HIKARI {
                 }
             }
 
+            commonParams_.resolutionX =
+                static_cast<float>((std::max)(1, finalSceneRT->GetWidth()));
+            commonParams_.resolutionY =
+                static_cast<float>((std::max)(1, finalSceneRT->GetHeight()));
             if (!temporalDebugOutput && globalChain_.HasAny()) {
                 finalSceneRT = globalChain_.Execute(*finalSceneRT, quad_, commonParams_);
             }
@@ -1193,6 +1344,12 @@ namespace HIKARI {
                     (globalChain_.HasAny() ? "on" : "off") +
                     " bloom=" +
                     ((bloomRT != nullptr && bloomRT->GetResource() != nullptr) ? "on" : "off") +
+                    " temporalStage=" +
+                    (streamlineRequested
+                        ? (RENDER3D::UPSCALING::GetStreamlineDebugStats().dlssEvaluated
+                            ? RENDER3D::UPSCALING::ToString(streamlineMode)
+                            : "taa-fallback")
+                        : (nativeTaaRequested ? "taa" : "off")) +
                     " fxaaStage=" +
                     (RENDER3D::IsFxaaAntiAliasingMode(
                         renderQuality.antiAliasingMode) ? "afterTone" : "off") +

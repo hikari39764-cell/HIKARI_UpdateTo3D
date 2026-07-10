@@ -85,6 +85,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
         uint32_t width = 0;
         uint32_t height = 0;
+        D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
         bool valid = false;
     };
 
@@ -95,7 +96,10 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         bool hasSceneDepth = false;
         bool hasSceneColor = false;
 
+        TemporalTextureView sceneDepth{};
         TemporalTextureView sceneColor{};
+        // Dense, unjittered current-to-previous motion in render pixels:
+        // previousUv = currentUv + motionPixels / renderSize.
         TemporalTextureView motionVectors{};
         TemporalTextureView motionMetadata{};
         TemporalTextureView historyColorRead{};

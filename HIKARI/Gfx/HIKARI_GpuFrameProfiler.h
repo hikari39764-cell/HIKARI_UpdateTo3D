@@ -31,6 +31,8 @@ namespace HIKARI::GFX::GPU_PROFILE {
         SsaoBlur,
         TemporalMotionVectors,
         TemporalTaaResolve,
+        TemporalDlaaResolve,
+        TemporalDlssResolve,
         ForwardOpaque,
         DepthAware,
         ForwardTransparent,

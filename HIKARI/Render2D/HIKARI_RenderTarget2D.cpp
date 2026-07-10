@@ -47,7 +47,8 @@ namespace HIKARI {
         DXGI_FORMAT format,
         bool withDepth,
         const std::array<float, 4>& optimizedClearColor,
-        bool publishDepthSrv)
+        bool publishDepthSrv,
+        bool allowUnorderedAccess)
     {
         if (initialized_) {
             return true;
@@ -58,6 +59,7 @@ namespace HIKARI {
         format_ = format;
         hasDepth_ = withDepth;
         publishDepthSrv_ = publishDepthSrv;
+        allowUnorderedAccess_ = allowUnorderedAccess;
         optimizedClearColor_ = optimizedClearColor;
 
         if (!CreateResources()) {
@@ -104,6 +106,7 @@ namespace HIKARI {
         initialized_ = false;
         hasDepth_ = false;
         publishDepthSrv_ = true;
+        allowUnorderedAccess_ = false;
     }
 
     void RenderTarget2D::SetDebugName(std::string name)
@@ -139,6 +142,7 @@ namespace HIKARI {
             << " size=" << width_ << "x" << height_
             << " format=" << GFX::FormatToString(format_)
             << " hasDepth=" << hasDepth_
+            << " allowUav=" << allowUnorderedAccess_
             << " colorTex=" << (colorTex_ ? 1 : 0)
             << " depthTex=" << (depthTex_ ? 1 : 0)
             << " rtvHeap=" << (rtvHeap_ ? 1 : 0)
@@ -157,12 +161,16 @@ bool RenderTarget2D::CreateResources()
     if (!device) { return false; }
 
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+    D3D12_RESOURCE_FLAGS colorFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (allowUnorderedAccess_) {
+        colorFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    }
     CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
         format_,
         static_cast<UINT64>(width_),
         static_cast<UINT>(height_),
         1, 1, 1, 0,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+        colorFlags
     );
 
     D3D12_CLEAR_VALUE colorClearValue{};

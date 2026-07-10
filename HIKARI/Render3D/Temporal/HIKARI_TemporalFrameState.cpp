@@ -13,6 +13,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             TemporalCameraData previousCamera{};
             uint32_t previousRenderWidth = 0;
             uint32_t previousRenderHeight = 0;
+            uint32_t previousOutputWidth = 0;
+            uint32_t previousOutputHeight = 0;
             bool hasPreviousCamera = false;
             bool pendingExplicitReset = true;
             TemporalHistoryResetReason pendingResetReason =
@@ -158,7 +160,9 @@ namespace HIKARI::RENDER3D::TEMPORAL {
                 return TemporalHistoryResetReason::CameraCut;
             }
             if (desc.renderWidth != store.previousRenderWidth ||
-                desc.renderHeight != store.previousRenderHeight) {
+                desc.renderHeight != store.previousRenderHeight ||
+                desc.outputWidth != store.previousOutputWidth ||
+                desc.outputHeight != store.previousOutputHeight) {
                 return TemporalHistoryResetReason::Resize;
             }
             return TemporalHistoryResetReason::None;
@@ -219,6 +223,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             store.previousCamera = next.camera;
             store.previousRenderWidth = next.renderWidth;
             store.previousRenderHeight = next.renderHeight;
+            store.previousOutputWidth = next.outputWidth;
+            store.previousOutputHeight = next.outputHeight;
             store.hasPreviousCamera = true;
         }
         store.pendingExplicitReset = false;

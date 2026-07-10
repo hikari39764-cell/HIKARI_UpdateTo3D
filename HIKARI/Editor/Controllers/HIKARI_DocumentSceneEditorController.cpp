@@ -873,6 +873,7 @@ namespace HIKARI {
                         RENDER3D::RenderResolutionPreset::P720,
                         RENDER3D::RenderResolutionPreset::P1080,
                         RENDER3D::RenderResolutionPreset::P1440,
+                        RENDER3D::RenderResolutionPreset::P2160,
                     };
                     for (RENDER3D::RenderResolutionPreset preset : presets) {
                         const bool selected = qualitySettings.sceneResolution == preset;

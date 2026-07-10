@@ -9,6 +9,7 @@ namespace HIKARI::RENDER3D {
         P720,
         P1080,
         P1440,
+        P2160,
     };
 
     enum class WindowPresentationMode : uint8_t {
@@ -42,7 +43,15 @@ namespace HIKARI::RENDER3D {
         Off = 0,
         FXAA,
         TAA,
+        DLAA,
         DLSS,
+    };
+
+    enum class DlssQualityMode : uint8_t {
+        Quality = 0,
+        Balanced,
+        Performance,
+        UltraPerformance,
     };
 
     struct RenderResolution {
@@ -61,6 +70,7 @@ namespace HIKARI::RENDER3D {
         float viewportScale = 1.0f;
         bool vSync = false;
         RenderAntiAliasingMode antiAliasingMode = RenderAntiAliasingMode::TAA;
+        DlssQualityMode dlssQualityMode = DlssQualityMode::Quality;
         float taaHistoryWeight = 0.92f;
         float taaVarianceClipGamma = 1.25f;
         float taaDepthRejection = 0.0025f;
@@ -80,14 +90,18 @@ namespace HIKARI::RENDER3D {
     const char* ForwardShadingCostModeLabel(ForwardShadingCostMode mode);
     const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode);
     const char* RenderAntiAliasingModeLabel(RenderAntiAliasingMode mode);
+    const char* DlssQualityModeLabel(DlssQualityMode mode);
 
     bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode);
+    bool UsesTemporalJitter(RenderAntiAliasingMode mode);
+    bool IsDlaaAntiAliasingMode(RenderAntiAliasingMode mode);
+    bool IsDlssAntiAliasingMode(RenderAntiAliasingMode mode);
     bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode);
     bool IsAntiAliasingModeAvailable(RenderAntiAliasingMode mode);
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset);
     RenderResolution ResolveFixedRenderResolution(RenderResolutionPreset preset);
-    RenderResolution ResolveSceneCaptureResolution(
+    RenderResolution ResolveSceneOutputResolution(
         const RenderQualitySettings& settings,
         int viewportWidth,
         int viewportHeight);

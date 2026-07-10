@@ -13,6 +13,7 @@
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -41,6 +42,7 @@ namespace HIKARI {
             RENDER3D::SCREENSPACE::DepthVisibilityDebugState depthVisibility{};
             RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
             RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
+            RENDER3D::UPSCALING::StreamlineDebugStats streamline{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
             GFX::GPU_PIPELINE_STATS::FrameSnapshot pipelineStats{};
         };
@@ -198,6 +200,8 @@ namespace HIKARI {
                 RENDER3D::TEMPORAL::GetCurrentTemporalFrameState();
             out.temporalResources =
                 RENDER3D::TEMPORAL::GetTemporalResourceStats();
+            out.streamline =
+                RENDER3D::UPSCALING::GetStreamlineDebugStats();
             out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
             out.pipelineStats = GFX::GPU_PIPELINE_STATS::GetLatestSnapshot();
             return out;
@@ -623,11 +627,54 @@ namespace HIKARI {
                 MetricRow("Exposure Ready / Written", "%s / %s",
                     s.temporalResources.exposureReady ? "yes" : "no",
                     s.temporalResources.exposureWritten ? "yes" : "no");
-                MetricRow("Masks R/T/Invalid Ready / Written", "%s / %s",
+                MetricRow("Masks R/T/Invalid Ready / Valid / Source", "%s / %s / %s",
                     (s.temporalResources.reactiveMaskReady &&
                         s.temporalResources.transparencyMaskReady &&
                         s.temporalResources.invalidDepthMotionMaskReady) ? "yes" : "no",
-                    s.temporalResources.masksWritten ? "yes" : "no");
+                    s.temporalResources.masksWritten ? "yes" : "no",
+                    s.temporalResources.masksCompositionDerived
+                        ? "composition-diff"
+                        : "opaque-zero");
+                MetricRow("Streamline SDK / Init / Device", "%s / %s / %s",
+                    s.streamline.sdkCompiled ? "yes" : "no",
+                    s.streamline.initialized ? "yes" : "no",
+                    s.streamline.deviceAttached ? "yes" : "no");
+                MetricRow("DLSS Support / Token / Constants", "%s / %s / %s",
+                    s.streamline.dlssSupported ? "yes" : "no",
+                    s.streamline.frameTokenReady ? "yes" : "no",
+                    s.streamline.constantsSubmitted ? "yes" : "no");
+                MetricRow("DLSS Mode / Requested / Evaluated", "%s / %s / %s",
+                    RENDER3D::UPSCALING::ToString(s.streamline.mode),
+                    s.streamline.dlssRequested ? "yes" : "no",
+                    s.streamline.dlssEvaluated ? "yes" : "no");
+                MetricRow("DLSS Fallback / Output / Evaluations", "%s / %s / %llu",
+                    s.streamline.fallbackUsed ? "yes" : "no",
+                    s.streamline.outputReady ? "ready" : "missing",
+                    static_cast<unsigned long long>(s.streamline.evaluationCount));
+                MetricRow("DLSS Failures / VRAM MB", "%llu / %.2f",
+                    static_cast<unsigned long long>(s.streamline.failureCount),
+                    static_cast<double>(s.streamline.estimatedVramBytes) /
+                        (1024.0 * 1024.0));
+                MetricRow("DLSS Render / Output", "%u x %u / %u x %u",
+                    s.streamline.renderWidth,
+                    s.streamline.renderHeight,
+                    s.streamline.outputWidth,
+                    s.streamline.outputHeight);
+                MetricRow("DLSS Optimal / Min / Max", "%u x %u / %u x %u / %u x %u",
+                    s.streamline.optimalRenderWidth,
+                    s.streamline.optimalRenderHeight,
+                    s.streamline.minRenderWidth,
+                    s.streamline.minRenderHeight,
+                    s.streamline.maxRenderWidth,
+                    s.streamline.maxRenderHeight);
+                MetricRow("Streamline Status / Last", "%s / %s: %s",
+                    RENDER3D::UPSCALING::ToString(s.streamline.status),
+                    s.streamline.lastOperation.empty()
+                        ? "none"
+                        : s.streamline.lastOperation.c_str(),
+                    s.streamline.lastResult.empty()
+                        ? "none"
+                        : s.streamline.lastResult.c_str());
                 MetricRow("Temporal Debug", "%s / %s",
                     ToString(s.temporalResources.debugView),
                     s.temporalResources.debugOutputReady ? "ready" : "missing");
