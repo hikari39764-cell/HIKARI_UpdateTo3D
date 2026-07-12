@@ -69,6 +69,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint64_t sourceVersion = 0;
         uint64_t dirtyBaseSourceVersion = 0;
         size_t sourceInstanceCount = 0;
+        uint32_t sourceRecordCount = 0;
 
         void Reset();
         GpuDrivenPassSource& GetPass(GpuDrivenPassKind passKind);

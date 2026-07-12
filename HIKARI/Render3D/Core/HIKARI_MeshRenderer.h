@@ -19,6 +19,9 @@ namespace HIKARI::RENDER3D {
     namespace SCREENSPACE {
         class ScreenSpaceGeometryAux;
     }
+    namespace MATERIAL {
+        struct GpuMaterialRegistryStats;
+    }
 }
 
 namespace HIKARI::MESHRENDERER {
@@ -82,5 +85,7 @@ namespace HIKARI::MESHRENDERER {
         const SceneEnvironment& environment,
         RenderDebugView debugView = RenderDebugView::None);
     const MeshRendererDebugStats& GetDebugStats();
+    const RENDER3D::MATERIAL::GpuMaterialRegistryStats&
+        GetGpuMaterialRegistryStats();
 
 } // namespace HIKARI::MESHRENDERER

@@ -112,6 +112,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         sourceVersion = 0;
         dirtyBaseSourceVersion = 0;
         sourceInstanceCount = 0;
+        sourceRecordCount = 0;
     }
 
     GpuDrivenPassSource& GpuDrivenSceneSource::GetPass(

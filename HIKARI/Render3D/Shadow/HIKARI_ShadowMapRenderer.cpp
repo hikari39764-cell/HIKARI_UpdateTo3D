@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <d3dcompiler.h>
@@ -17,6 +18,7 @@
 
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_DXCheck.h"
@@ -98,6 +100,18 @@ namespace HIKARI::SHADOW {
             D3D12_RESOURCE_STATES materialDataState = D3D12_RESOURCE_STATE_COMMON;
         };
 
+        struct ShadowMaterialFrameTable {
+            std::unordered_map<uint64_t, uint32_t> indexByKey{};
+            std::unordered_set<uint32_t> textureDescriptorIndices{};
+            uint32_t count = 0;
+
+            void Clear() {
+                indexByKey.clear();
+                textureDescriptorIndices.clear();
+                count = 0;
+            }
+        };
+
         struct State {
             bool initialized = false;
             bool frameEnabled = false;
@@ -139,7 +153,7 @@ namespace HIKARI::SHADOW {
             JointPaletteCB* jointPaletteMapped = nullptr;
             D3D12_CPU_DESCRIPTOR_HANDLE materialDataSrvCpu{};
             D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrvGpu{};
-            MESHRENDERER::MaterialDataFrameTable materialDataFrameTable{};
+            ShadowMaterialFrameTable materialDataFrameTable{};
 
             const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* gpuDrivenSceneSource = nullptr;
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
@@ -149,6 +163,12 @@ namespace HIKARI::SHADOW {
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> staticShadowPrimaryMaterialSources{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> dynamicShadowPrimaryInstances{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> dynamicShadowPrimaryMaterialSources{};
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* shadowSourceCacheIdentity = nullptr;
+            uint64_t shadowSourceCacheLayoutVersion = 0;
+            uint64_t shadowSourceCacheSourceVersion = 0;
+            uint64_t shadowSourceCacheDirtyBaseVersion = 0;
+            size_t shadowSourceCacheInstanceCount = 0;
+            bool shadowSourceCacheValid = false;
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
             RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer traditionalCommandStreamBuffer{};
             RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
@@ -178,6 +198,30 @@ namespace HIKARI::SHADOW {
         };
 
         State g;
+
+        void InvalidateShadowSourceCache() {
+            g.shadowSourceCacheIdentity = nullptr;
+            g.shadowSourceCacheLayoutVersion = 0;
+            g.shadowSourceCacheSourceVersion = 0;
+            g.shadowSourceCacheDirtyBaseVersion = 0;
+            g.shadowSourceCacheInstanceCount = 0;
+            g.shadowSourceCacheValid = false;
+        }
+
+        bool CanReuseShadowSourceCache() {
+            return
+                g.shadowSourceCacheValid &&
+                g.gpuDrivenSceneSource != nullptr &&
+                g.shadowSourceCacheIdentity == g.gpuDrivenSceneSource &&
+                g.shadowSourceCacheLayoutVersion ==
+                    g.gpuDrivenSceneSource->layoutVersion &&
+                g.shadowSourceCacheSourceVersion ==
+                    g.gpuDrivenSceneSource->sourceVersion &&
+                g.shadowSourceCacheDirtyBaseVersion ==
+                    g.gpuDrivenSceneSource->dirtyBaseSourceVersion &&
+                g.shadowSourceCacheInstanceCount ==
+                    g.gpuDrivenSceneSource->sourceInstanceCount;
+        }
 
         bool AlmostEqualMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
             constexpr float kEpsilon = 0.0001f;
@@ -1321,6 +1365,39 @@ namespace HIKARI::SHADOW {
         }
 
         bool BuildShadowGpuDrivenSceneSources() {
+            CPU_PROFILE::ScopedCpuTimer cpuTimer(
+                CPU_PROFILE::Pass::ShadowSourceSync);
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* sourcePass =
+                GetSourceShadowPass();
+            if (sourcePass == nullptr ||
+                !sourcePass->HasGpuSceneInstances()) {
+
+                g.shadowSceneSource.Reset();
+                g.staticShadowSceneSource.Reset();
+                g.dynamicShadowSceneSource.Reset();
+                g.staticShadowPrimaryInstances.clear();
+                g.staticShadowPrimaryMaterialSources.clear();
+                g.dynamicShadowPrimaryInstances.clear();
+                g.dynamicShadowPrimaryMaterialSources.clear();
+                gShadowStaticTraditionalIndirectStream.Clear();
+                gShadowDynamicTraditionalIndirectStream.Clear();
+                InvalidateShadowSourceCache();
+                return false;
+            }
+
+            if (CanReuseShadowSourceCache()) {
+                g.frameHasStaticShadowWork =
+                    g.staticShadowSceneSource.sourceInstanceCount != 0u;
+                g.frameHasDynamicShadowWork =
+                    g.dynamicShadowSceneSource.sourceInstanceCount != 0u;
+                g.debugStats.shadowStaticSourceInstanceCount =
+                    g.staticShadowSceneSource.sourceInstanceCount;
+                g.debugStats.shadowDynamicSourceInstanceCount =
+                    g.dynamicShadowSceneSource.sourceInstanceCount;
+                return g.shadowSceneSource.sourceInstanceCount != 0u;
+            }
+
             g.shadowSceneSource.Reset();
             g.staticShadowSceneSource.Reset();
             g.dynamicShadowSceneSource.Reset();
@@ -1330,13 +1407,6 @@ namespace HIKARI::SHADOW {
             g.dynamicShadowPrimaryMaterialSources.clear();
             gShadowStaticTraditionalIndirectStream.Clear();
             gShadowDynamicTraditionalIndirectStream.Clear();
-
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource* sourcePass =
-                GetSourceShadowPass();
-            if (sourcePass == nullptr ||
-                !sourcePass->HasGpuSceneInstances()) {
-                return false;
-            }
 
             RENDER3D::GPUDRIVEN::GpuDrivenPassSource& staticPass =
                 g.staticShadowSceneSource.GetPass(
@@ -1507,6 +1577,17 @@ namespace HIKARI::SHADOW {
                 g.staticShadowSceneSource.sourceInstanceCount;
             g.debugStats.shadowDynamicSourceInstanceCount =
                 g.dynamicShadowSceneSource.sourceInstanceCount;
+
+            g.shadowSourceCacheIdentity = g.gpuDrivenSceneSource;
+            g.shadowSourceCacheLayoutVersion =
+                g.gpuDrivenSceneSource->layoutVersion;
+            g.shadowSourceCacheSourceVersion =
+                g.gpuDrivenSceneSource->sourceVersion;
+            g.shadowSourceCacheDirtyBaseVersion =
+                g.gpuDrivenSceneSource->dirtyBaseSourceVersion;
+            g.shadowSourceCacheInstanceCount =
+                g.gpuDrivenSceneSource->sourceInstanceCount;
+            g.shadowSourceCacheValid = true;
             return g.shadowSceneSource.sourceInstanceCount != 0;
         }
 
@@ -2819,6 +2900,8 @@ namespace HIKARI::SHADOW {
     }
 
     void BeginFrame(const SceneEnvironment& environment, const Camera3D& camera) {
+        CPU_PROFILE::ScopedCpuTimer cpuTimer(
+            CPU_PROFILE::Pass::ShadowPrepare);
         ClearFrameSubmissions();
         g.frameEnabled = environment.directional.enabled && environment.directionalShadow.enabled;
         g.debugStats.enabled = g.frameEnabled;
@@ -2890,8 +2973,13 @@ namespace HIKARI::SHADOW {
             g.shadowSceneSource.Reset();
             g.staticShadowSceneSource.Reset();
             g.dynamicShadowSceneSource.Reset();
+            g.staticShadowPrimaryInstances.clear();
+            g.staticShadowPrimaryMaterialSources.clear();
+            g.dynamicShadowPrimaryInstances.clear();
+            g.dynamicShadowPrimaryMaterialSources.clear();
             gShadowStaticTraditionalIndirectStream.Clear();
             gShadowDynamicTraditionalIndirectStream.Clear();
+            InvalidateShadowSourceCache();
         }
     }
 

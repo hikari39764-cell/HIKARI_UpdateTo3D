@@ -272,6 +272,7 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxRenderer.cpp" />
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
+    <ClCompile Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.cpp" />
@@ -475,6 +476,7 @@
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp" />
@@ -850,6 +852,8 @@
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.h" />
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.h" />
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialTypes.h" />
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h" />
@@ -890,6 +894,7 @@
     <ClInclude Include="HIKARI\Audio\HIKARI_IAudioBackend.h" />
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h" />
+    <ClInclude Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />

@@ -19,6 +19,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
+#include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
@@ -102,7 +103,8 @@ namespace HIKARI::MESHRENDERER {
         MeshPrimitiveCache primitiveCache;
         MeshMaterialResolver materialResolver;
         size_t frameObjectIndex = 0;
-        MaterialDataFrameTable materialDataFrameTable{};
+        RENDER3D::MATERIAL::GpuMaterialRegistry gpuMaterialRegistry{};
+        std::vector<RENDER3D::MATERIAL::GpuMaterialUploadRange> materialUploadRanges{};
         D3D12_CPU_DESCRIPTOR_HANDLE objectDataSrvCpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrvGpu{};
         D3D12_CPU_DESCRIPTOR_HANDLE materialDataSrvCpu{};
@@ -116,6 +118,7 @@ namespace HIKARI::MESHRENDERER {
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};
 
         RENDER3D::GPUDRIVEN::GpuDrivenSceneSource gpuDrivenSceneSource{};
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* gpuDrivenSceneSourceIdentity = nullptr;
         RENDER3D::GPUDRIVEN::GpuDrivenSceneResidency gpuDrivenSceneResidency{};
 
         float elapsedTimeSec = 0.0f;

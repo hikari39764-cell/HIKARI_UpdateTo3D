@@ -11,6 +11,7 @@
 #include <wrl/client.h>
 
 #include "Core/HIKARI_Logger.h"
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -503,6 +504,58 @@ namespace HIKARI::MESHRENDERER {
             defaultState = shaderState;
         }
 
+        void CommitMappedBufferRangesToGpu(
+            ID3D12GraphicsCommandList* commandList,
+            ID3D12Resource* uploadResource,
+            ID3D12Resource* defaultResource,
+            D3D12_RESOURCE_STATES& defaultState,
+            size_t elementStride,
+            const std::vector<RENDER3D::MATERIAL::GpuMaterialUploadRange>& ranges) {
+
+            if (commandList == nullptr ||
+                uploadResource == nullptr ||
+                defaultResource == nullptr ||
+                elementStride == 0u ||
+                ranges.empty()) {
+                return;
+            }
+
+            if (defaultState != D3D12_RESOURCE_STATE_COPY_DEST) {
+                const auto toCopyDest = CD3DX12_RESOURCE_BARRIER::Transition(
+                    defaultResource,
+                    defaultState,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+                commandList->ResourceBarrier(1, &toCopyDest);
+                defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
+            }
+
+            for (const RENDER3D::MATERIAL::GpuMaterialUploadRange& range : ranges) {
+                if (range.slotCount == 0u) {
+                    continue;
+                }
+                const UINT64 byteOffset =
+                    static_cast<UINT64>(elementStride) * range.firstSlot;
+                const UINT64 byteCount =
+                    static_cast<UINT64>(elementStride) * range.slotCount;
+                commandList->CopyBufferRegion(
+                    defaultResource,
+                    byteOffset,
+                    uploadResource,
+                    byteOffset,
+                    byteCount);
+            }
+
+            const D3D12_RESOURCE_STATES shaderState =
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            const auto toShader = CD3DX12_RESOURCE_BARRIER::Transition(
+                defaultResource,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                shaderState);
+            commandList->ResourceBarrier(1, &toShader);
+            defaultState = shaderState;
+        }
+
         void BindActiveFrameResources(uint32_t frameIndex) {
             g.activeFrameResourceIndex = frameIndex % GFX::kFrameResourceCount;
             MeshRendererFrameResources& frame =
@@ -683,6 +736,13 @@ namespace HIKARI::MESHRENDERER {
             if (!CreateBuffers(device)) {
                 return false;
             }
+            if (!g.gpuMaterialRegistry.Initialize(
+                    kMaxMaterialDataCount,
+                    GFX::kFrameResourceCount)) {
+                DEBUGLOG::PushRenderError(
+                    "[MeshRenderer][ERROR] GPU material registry initialization failed.");
+                return false;
+            }
             if (!InitializeMeshPipelines(device, g.pipelines)) {
                 return false;
             }
@@ -774,6 +834,12 @@ namespace HIKARI::MESHRENDERER {
             uploadDesc.commandList = SERVICES::gCtx.cmdList;
             uploadDesc.residency = &g.gpuDrivenSceneResidency;
             uploadDesc.frameIndex = SERVICES::gCtx.frameIndex;
+            const std::span<const uint32_t> materialBindings =
+                g.gpuMaterialRegistry.GetSourceBindings();
+            uploadDesc.materialSlotBySourceRecord = materialBindings.data();
+            uploadDesc.materialSourceRecordCount = materialBindings.size();
+            uploadDesc.materialBindingVersion =
+                g.gpuMaterialRegistry.GetBindingVersion();
             const RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadStats& uploadStats =
                 g.gpuDrivenLayer.UploadSceneFrame(uploadDesc);
 
@@ -813,84 +879,140 @@ namespace HIKARI::MESHRENDERER {
                 uploadStats.reusedResidentFrame ? 1u : 0u;
             g.debugStats.surfaceGpuSceneOverflowInstanceCount = gpuSceneStats.overflowInstanceCount;
             g.debugStats.surfaceGpuSceneUploadCallCount = gpuSceneStats.uploadCallCount;
+            g.debugStats.surfaceGpuSceneMaterialPatchCount =
+                gpuSceneStats.materialBindingVisitCount;
             g.debugStats.surfaceGpuSceneMaterialPatchChangedCount =
                 gpuSceneStats.materialPatchChangedCount;
             g.debugStats.surfaceGpuSceneMaterialPatchUnchangedCount =
                 gpuSceneStats.materialPatchUnchangedCount;
+            g.debugStats.surfaceGpuSceneMaterialPatchFailCount =
+                gpuSceneStats.materialBindingMissingCount;
             g.debugStats.surfaceGpuSceneSrvValid = gpuSceneStats.srv.ptr != 0;
             g.debugStats.surfaceGpuSceneBufferReady = gpuSceneStats.initialized;
         }
 
         void CommitActiveMaterialDataFrame(ID3D12GraphicsCommandList* commandList) {
+            CPU_PROFILE::ScopedCpuTimer cpuTimer(
+                CPU_PROFILE::Pass::MaterialPrepare);
             MeshRendererFrameResources& frame =
                 g.frameResources[g.activeFrameResourceIndex % GFX::kFrameResourceCount];
-            const UINT64 materialBytes =
-                static_cast<UINT64>(sizeof(MaterialGpuData)) *
-                static_cast<UINT64>(
-                    (std::min)(
-                        static_cast<size_t>(g.materialDataFrameTable.count),
-                        static_cast<size_t>(kMaxMaterialDataCount)));
-            if (materialBytes == 0u) {
+            if (!g.gpuMaterialRegistry.StageFrame(
+                    g.activeFrameResourceIndex,
+                    frame.materialDataMapped,
+                    kMaxMaterialDataCount,
+                    g.materialUploadRanges)) {
                 return;
             }
 
-            CommitMappedBufferToGpu(
+            CommitMappedBufferRangesToGpu(
                 commandList,
                 frame.materialDataUploadBuffer.Get(),
                 frame.materialDataBuffer.Get(),
                 frame.materialDataState,
-                materialBytes);
-            g.debugStats.materialDataGpuUploadBytes += static_cast<size_t>(materialBytes);
-            ++g.debugStats.materialDataGpuUploadCallCount;
+                sizeof(MaterialGpuData),
+                g.materialUploadRanges);
+
+            const RENDER3D::MATERIAL::GpuMaterialRegistryStats& stats =
+                g.gpuMaterialRegistry.GetStats();
+            g.debugStats.materialDataGpuUploadBytes = stats.frameUploadBytes;
+            g.debugStats.materialDataGpuUploadCallCount =
+                stats.frameUploadRangeCount;
+            g.debugStats.materialDataWriteCount = stats.frameUpdatedSlotCount;
+            g.debugStats.materialDataCacheHitCount = stats.frameSourceReuseCount;
+            g.debugStats.materialDataCacheMissCount =
+                stats.frameCreatedSlotCount + stats.frameUpdatedSlotCount;
+            g.debugStats.materialDataOverflowCount = stats.frameOverflowCount;
+            g.debugStats.materialDataCachedCount = stats.residentSlotCount;
         }
 
-        void PrepareSurfaceGpuSceneMaterialFrame() {
+        void SyncSurfaceGpuSceneMaterialFrame() {
+            CPU_PROFILE::ScopedCpuTimer cpuTimer(
+                CPU_PROFILE::Pass::MaterialPrepare);
+
+            const RENDER3D::MATERIAL::GpuMaterialSourceSyncMode syncMode =
+                g.gpuMaterialRegistry.BeginSourceSync(
+                    reinterpret_cast<uintptr_t>(g.gpuDrivenSceneSourceIdentity),
+                    g.gpuDrivenSceneSource.layoutVersion,
+                    g.gpuDrivenSceneSource.sourceVersion,
+                    g.gpuDrivenSceneSource.dirtyBaseSourceVersion,
+                    g.gpuDrivenSceneSource.sourceRecordCount);
+            if (syncMode ==
+                RENDER3D::MATERIAL::GpuMaterialSourceSyncMode::None) {
+                return;
+            }
+
             MeshDrawContext drawCtx = BuildDrawContext(false, MeshDrawPassKind::Forward, {});
             const auto prepareMaterialSources =
                 [&](uint32_t baseIndex,
-                    const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>* sources) {
+                    const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>* sources,
+                    size_t firstSource,
+                    size_t sourceCount) {
                 drawCtx.surfaceGpuSceneBaseOffset = baseIndex;
-                if (sources != nullptr && !sources->empty()) {
+                if (sources != nullptr &&
+                    firstSource < sources->size() &&
+                    sourceCount != 0u) {
+                    const size_t clampedCount =
+                        (std::min)(sourceCount, sources->size() - firstSource);
                     PrepareSurfaceGpuSceneMaterialSources(
                         drawCtx,
-                        sources->data(),
-                        sources->size());
+                        sources->data() + firstSource,
+                        clampedCount);
                 }
             };
 
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& opaque =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
-            prepareMaterialSources(opaque.gpuSceneBaseIndex, opaque.materialSources);
-            prepareMaterialSources(
-                opaque.traditionalIndirect.gpuSceneBaseIndex,
-                opaque.traditionalIndirect.materialSources);
+            constexpr std::array<RENDER3D::GPUDRIVEN::GpuDrivenPassKind, 4>
+                kMaterialPasses{
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass,
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware,
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent,
+                };
 
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthPrepass =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass);
-            prepareMaterialSources(depthPrepass.gpuSceneBaseIndex, depthPrepass.materialSources);
+            if (syncMode ==
+                RENDER3D::MATERIAL::GpuMaterialSourceSyncMode::Incremental) {
+                for (const RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind :
+                    kMaterialPasses) {
+                    const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                        GetSceneSourcePass(passKind);
+                    for (const RENDER3D::GPUDRIVEN::GpuSceneDirtyRange& range :
+                        pass.dirtyRanges) {
+                        prepareMaterialSources(
+                            pass.gpuSceneBaseIndex,
+                            pass.materialSources,
+                            range.firstInstance,
+                            range.instanceCount);
+                    }
+                }
+            } else {
+                std::vector<const std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource>*>
+                    visitedPrimarySources{};
+                for (const RENDER3D::GPUDRIVEN::GpuDrivenPassKind passKind :
+                    kMaterialPasses) {
+                    const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                        GetSceneSourcePass(passKind);
+                    if (pass.materialSources != nullptr &&
+                        std::find(
+                            visitedPrimarySources.begin(),
+                            visitedPrimarySources.end(),
+                            pass.materialSources) == visitedPrimarySources.end()) {
+                        visitedPrimarySources.push_back(pass.materialSources);
+                        prepareMaterialSources(
+                            pass.gpuSceneBaseIndex,
+                            pass.materialSources,
+                            0u,
+                            pass.materialSources->size());
+                    }
+                    prepareMaterialSources(
+                        pass.traditionalIndirect.gpuSceneBaseIndex,
+                        pass.traditionalIndirect.materialSources,
+                        0u,
+                        pass.traditionalIndirect.materialSources != nullptr
+                            ? pass.traditionalIndirect.materialSources->size()
+                            : 0u);
+                }
+            }
 
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& depthAware =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware);
-            prepareMaterialSources(depthAware.gpuSceneBaseIndex, depthAware.materialSources);
-            prepareMaterialSources(
-                depthAware.traditionalIndirect.gpuSceneBaseIndex,
-                depthAware.traditionalIndirect.materialSources);
-
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& transparent =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardTransparent);
-            prepareMaterialSources(transparent.gpuSceneBaseIndex, transparent.materialSources);
-            prepareMaterialSources(
-                transparent.traditionalIndirect.gpuSceneBaseIndex,
-                transparent.traditionalIndirect.materialSources);
-
-            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
-                GetSceneSourcePass(RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
-            prepareMaterialSources(shadow.gpuSceneBaseIndex, shadow.materialSources);
-            prepareMaterialSources(
-                shadow.traditionalIndirect.gpuSceneBaseIndex,
-                shadow.traditionalIndirect.materialSources);
-            CommitActiveMaterialDataFrame(SERVICES::gCtx.cmdList);
-            g.gpuDrivenLayer.CommitSurfaceGpuSceneMaterialFrame(SERVICES::gCtx.cmdList);
+            g.gpuMaterialRegistry.EndSourceSync();
         }
 
         void UpdateTraditionalCommandStreamStats() {
@@ -983,6 +1105,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         void PrepareGpuDrivenFrameState() {
+            CPU_PROFILE::ScopedCpuTimer cpuTimer(
+                CPU_PROFILE::Pass::MeshPrepare);
             UploadGpuDrivenSceneFrame();
             if (!g.gpuDrivenSceneResidency.resident) {
                 g.gpuDrivenFrame.Reset();
@@ -1002,7 +1126,6 @@ namespace HIKARI::MESHRENDERER {
                 UpdateGpuDrivenCommandStreamDebugStats();
                 return;
             }
-            PrepareSurfaceGpuSceneMaterialFrame();
             BuildGpuDrivenFrameState();
             BuildGpuDrivenWorkFrame(
                 nullptr,
@@ -1850,7 +1973,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.objectDataMapped = g.objectDataMapped;
             ctx.materialDataMapped = g.materialDataMapped;
             ctx.jointPaletteMapped = g.jointPaletteMapped;
-            ctx.materialDataTable = &g.materialDataFrameTable;
+            ctx.gpuMaterialRegistry = &g.gpuMaterialRegistry;
             ctx.objectDataSrv = g.objectDataSrvGpu;
             ctx.materialDataSrv = g.materialDataSrvGpu;
             ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
@@ -1961,8 +2084,9 @@ namespace HIKARI::MESHRENDERER {
 
     void Reset() {
         g.frameObjectIndex = 0;
-        g.materialDataFrameTable.Clear();
+        g.gpuMaterialRegistry.Clear();
         g.gpuDrivenSceneSource.Reset();
+        g.gpuDrivenSceneSourceIdentity = nullptr;
         g.freezeGpuDrivenCullingCamera = false;
         g.frozenCullingCamera = {};
         g.frozenCullingCameraValid = false;
@@ -1978,9 +2102,30 @@ namespace HIKARI::MESHRENDERER {
     void SetGpuDrivenSceneSource(
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* source) {
 
+        if (source != nullptr &&
+            g.gpuDrivenSceneSourceIdentity == source &&
+            g.gpuDrivenSceneSource.layoutVersion == source->layoutVersion &&
+            g.gpuDrivenSceneSource.sourceVersion == source->sourceVersion &&
+            g.gpuDrivenSceneSource.sourceInstanceCount == source->sourceInstanceCount &&
+            g.gpuDrivenSceneSource.sourceRecordCount == source->sourceRecordCount) {
+
+            g.gpuDrivenSceneSource.dirtyBaseSourceVersion =
+                source->dirtyBaseSourceVersion;
+            for (size_t passIndex = 0;
+                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
+                ++passIndex) {
+
+                g.gpuDrivenSceneSource.passes[passIndex].dirtyRanges =
+                    source->passes[passIndex].dirtyRanges;
+            }
+            return;
+        }
+
         g.gpuDrivenSceneSource.Reset();
         ClearOwnedTraditionalIndirectStreams();
+        g.gpuDrivenSceneSourceIdentity = source;
         if (source == nullptr) {
+            g.gpuMaterialRegistry.Clear();
             return;
         }
         g.gpuDrivenSceneSource = *source;
@@ -2001,6 +2146,7 @@ namespace HIKARI::MESHRENDERER {
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
         g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
+        g.gpuMaterialRegistry.BeginFrame();
         if (!PrepareMeshFrame(camera, environment, debugView)) {
             return false;
         }
@@ -2017,7 +2163,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         g.frameObjectIndex = 0;
-        g.materialDataFrameTable.Clear();
+        SyncSurfaceGpuSceneMaterialFrame();
+        CommitActiveMaterialDataFrame(cmd);
         if (HasGpuDrivenSceneSource()) {
             RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
             PrepareGpuDrivenFrameState();
@@ -2047,6 +2194,7 @@ namespace HIKARI::MESHRENDERER {
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
         g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
+        g.gpuMaterialRegistry.BeginFrame();
         // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
         if (!PrepareMeshFrame(
                 camera,
@@ -2070,7 +2218,8 @@ namespace HIKARI::MESHRENDERER {
         }
 
         g.frameObjectIndex = 0;
-        g.materialDataFrameTable.Clear();
+        SyncSurfaceGpuSceneMaterialFrame();
+        CommitActiveMaterialDataFrame(cmd);
         if (HasGpuDrivenSceneSource()) {
             RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
             PrepareGpuDrivenFrameState();
@@ -2346,7 +2495,6 @@ namespace HIKARI::MESHRENDERER {
 
     void EndFrame() {
         g.frameObjectIndex = 0;
-        g.gpuDrivenSceneSource.Reset();
     }
 
     void RenderAll(
@@ -2362,6 +2510,11 @@ namespace HIKARI::MESHRENDERER {
         g.debugStats.materialFxProfileCacheMissCount = fxCacheStats.missCount;
         g.debugStats.materialFxProfileCacheFailCount = fxCacheStats.failCount;
         return g.debugStats;
+    }
+
+    const RENDER3D::MATERIAL::GpuMaterialRegistryStats&
+        GetGpuMaterialRegistryStats() {
+        return g.gpuMaterialRegistry.GetStats();
     }
 
 } // namespace HIKARI::MESHRENDERER

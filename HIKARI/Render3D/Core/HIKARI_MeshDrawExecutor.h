@@ -8,6 +8,7 @@
 #include "Render3D/Core/HIKARI_MeshRendererBindings.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
+#include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
 
 namespace HIKARI {
     class Mesh;
@@ -59,7 +60,7 @@ namespace HIKARI::MESHRENDERER {
         ObjectGpuData* objectDataMapped = nullptr;
         MaterialGpuData* materialDataMapped = nullptr;
         JointPaletteCB* jointPaletteMapped = nullptr;
-        MaterialDataFrameTable* materialDataTable = nullptr;
+        RENDER3D::MATERIAL::GpuMaterialRegistry* gpuMaterialRegistry = nullptr;
         D3D12_GPU_DESCRIPTOR_HANDLE objectDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE materialDataSrv{};
         D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrv{};
@@ -78,22 +79,6 @@ namespace HIKARI::MESHRENDERER {
     };
 
     void BindSurfaceRecordFrameResources(const MeshDrawContext& ctx);
-
-    bool PrepareSurfaceRecordGpuSceneMaterials(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount);
-
-    bool PrepareSurfaceGpuSceneInstanceMaterials(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
-        size_t instanceCount);
 
     bool PrepareSurfaceGpuSceneMaterialSources(
         const MeshDrawContext& ctx,

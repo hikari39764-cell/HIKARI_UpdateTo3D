@@ -303,27 +303,6 @@ namespace HIKARI::MESHRENDERER {
             return data;
         }
 
-        void RegisterMaterialTextureDescriptors(
-            MaterialDataFrameTable& table,
-            const MaterialGpuData& data) {
-
-            const uint32_t descriptorIndices[] = {
-                data.baseColorTextureDescriptorIndex,
-                data.normalTextureDescriptorIndex,
-                data.emissiveTextureDescriptorIndex,
-                data.metallicRoughnessTextureDescriptorIndex,
-                data.occlusionTextureDescriptorIndex,
-                data.specularTextureDescriptorIndex,
-                data.specularColorTextureDescriptorIndex,
-            };
-
-            for (uint32_t descriptorIndex : descriptorIndices) {
-                if (descriptorIndex != kInvalidTextureDescriptorIndex) {
-                    table.textureDescriptorIndices.insert(descriptorIndex);
-                }
-            }
-        }
-
         void RecordMaterialTexturePoolStats(
             const MeshDrawContext& ctx,
             const MaterialGpuData& data) {
@@ -360,65 +339,6 @@ namespace HIKARI::MESHRENDERER {
             return seed;
         }
 
-        uint64_t HashBytes(uint64_t seed, const void* data, size_t size) {
-            const uint8_t* bytes = static_cast<const uint8_t*>(data);
-            for (size_t i = 0; i < size; ++i) {
-                seed = HashAppend(seed, static_cast<uint64_t>(bytes[i]));
-            }
-            return seed;
-        }
-
-        uint64_t BuildMaterialDataKey(
-            uint64_t stableMaterialKey,
-            const MaterialGpuData& data) {
-
-            uint64_t seed = HashAppend(1469598103934665603ull, stableMaterialKey);
-            return HashBytes(seed, &data, sizeof(data));
-        }
-
-        uint32_t UploadMaterialData(
-            const MeshDrawContext& ctx,
-            uint64_t key,
-            const MaterialGpuData& data) {
-
-            if (ctx.materialDataTable == nullptr || ctx.materialDataMapped == nullptr) {
-                return kInvalidMaterialDataIndex;
-            }
-
-            MaterialDataFrameTable& table = *ctx.materialDataTable;
-            const auto found = table.indexByKey.find(key);
-            if (found != table.indexByKey.end()) {
-                if (ctx.services.stats != nullptr) {
-                    ++ctx.services.stats->materialDataCacheHitCount;
-                    ctx.services.stats->materialDataCachedCount = table.count;
-                    ctx.services.stats->materialTexturePoolUniqueDescriptorCount =
-                        table.textureDescriptorIndices.size();
-                }
-                return found->second;
-            }
-
-            if (table.count >= kMaxMaterialDataCount) {
-                if (ctx.services.stats != nullptr) {
-                    ++ctx.services.stats->materialDataOverflowCount;
-                    ctx.services.stats->materialDataCachedCount = table.count;
-                }
-                return kInvalidMaterialDataIndex;
-            }
-
-            const uint32_t index = table.count++;
-            ctx.materialDataMapped[index] = data;
-            table.indexByKey.emplace(key, index);
-            RegisterMaterialTextureDescriptors(table, data);
-            if (ctx.services.stats != nullptr) {
-                ++ctx.services.stats->materialDataCacheMissCount;
-                ++ctx.services.stats->materialDataWriteCount;
-                ctx.services.stats->materialDataCachedCount = table.count;
-                ctx.services.stats->materialTexturePoolUniqueDescriptorCount =
-                    table.textureDescriptorIndices.size();
-            }
-            return index;
-        }
-
         bool VariantCanUseObjectDataOnly(
             MeshDrawPassKind passKind,
             const VFX::VariantKey& variant) {
@@ -452,34 +372,6 @@ namespace HIKARI::MESHRENDERER {
                 pixelId == "Render3D_StaticPS" ||
                 pixelId == "Render3D_StaticFxPS" ||
                 pixelId == "Render3D_FxWaterPS";
-        }
-
-        bool PatchSurfaceGpuSceneMaterialData(
-            const MeshDrawContext& ctx,
-            size_t gpuSceneInstanceIndex,
-            uint32_t materialDataIndex,
-            uint32_t expectedSourceRecordIndex =
-                RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex,
-            uint32_t expectedSourceSurfaceInstanceIndex =
-                RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
-
-            const uint32_t resolvedMaterialDataIndex =
-                materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
-            const bool patched =
-                ctx.surfaceGpuSceneFrameBuffer != nullptr &&
-                ctx.surfaceGpuSceneFrameBuffer->PatchMaterialDataIndexChecked(
-                    gpuSceneInstanceIndex,
-                    resolvedMaterialDataIndex,
-                    expectedSourceRecordIndex,
-                    expectedSourceSurfaceInstanceIndex);
-            if (ctx.services.stats != nullptr) {
-                if (patched) {
-                    ++ctx.services.stats->surfaceGpuSceneMaterialPatchCount;
-                } else {
-                    ++ctx.services.stats->surfaceGpuSceneMaterialPatchFailCount;
-                }
-            }
-            return patched;
         }
 
         bool HasPreparedSurfaceGpuSceneMaterial(
@@ -565,11 +457,6 @@ namespace HIKARI::MESHRENDERER {
             bool objectDataCompatible = false;
         };
 
-        struct SurfaceRecordPreparedObject {
-            ObjectCB object{};
-            uint32_t materialDataIndex = kInvalidMaterialDataIndex;
-        };
-
         bool CanUseSurfaceGpuSceneCommand(
             const MeshDrawContext& ctx,
             const SurfaceRecordBatchState& state,
@@ -621,39 +508,6 @@ namespace HIKARI::MESHRENDERER {
             return item;
         }
 
-
-        ResolvedMaterialTextures ResolveRecordTextures(
-            const MeshDrawContext& ctx,
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
-            const MaterialAsset* materialAsset) {
-
-            ResolvedMaterialTextures textures{};
-            if (record.materialOverride != nullptr) {
-                const MaterialTextureHandles handles =
-                    ResolveRuntimeMaterialTextureHandles(record.materialOverride, ctx.binding, ctx.materialFill);
-                textures.baseColor = handles.baseColor;
-                textures.normal = handles.normal;
-                textures.emissive = handles.emissive;
-                textures.metallicRoughness = handles.metallicRoughness;
-                textures.occlusion = handles.occlusion;
-                textures.specular = handles.specular;
-                textures.specularColor = handles.specularColor;
-                return textures;
-            }
-
-            if (ctx.services.materialResolver != nullptr && record.model != nullptr) {
-                return ctx.services.materialResolver->Resolve(*record.model, materialAsset, ctx.services.stats);
-            }
-
-            textures.baseColor = ctx.binding.fallbackTextureHandle;
-            textures.normal = ctx.binding.fallbackNormalTextureHandle;
-            textures.emissive = ctx.materialFill.fallbackBlackTextureHandle;
-            textures.metallicRoughness = ctx.binding.fallbackTextureHandle;
-            textures.occlusion = ctx.binding.fallbackTextureHandle;
-            textures.specular = ctx.binding.fallbackTextureHandle;
-            textures.specularColor = ctx.binding.fallbackTextureHandle;
-            return textures;
-        }
 
         ResolvedMaterialTextures ResolveGpuSceneMaterialSourceTextures(
             const MeshDrawContext& ctx,
@@ -848,68 +702,11 @@ namespace HIKARI::MESHRENDERER {
             FillRecordFxValues(obj, state, record);
         }
 
-        bool PrepareSurfaceRecordObjectData(
-            const MeshDrawContext& ctx,
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
-            SurfaceRecordPreparedObject& outPrepared) {
-
-            if (record.model == nullptr ||
-                record.meshIndex >= record.model->meshes.size()) {
-                return false;
-            }
-
-            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
-            if (record.primitiveIndex >= meshAsset.primitives.size()) {
-                return false;
-            }
-
-            const MeshPrimitive& primitive = meshAsset.primitives[record.primitiveIndex];
-            const MaterialAsset* materialAsset = GetPrimitiveMaterial(*record.model, primitive.materialIndex);
-            const ResolvedMaterialTextures textures = ResolveRecordTextures(ctx, record, materialAsset);
-            const DrawItem variantItem = BuildBatchVariantAdapter(record);
-
-            ObjectCB obj{};
-            const Transform3D drawTransform = BuildRecordDrawTransform(record);
-            obj.world = record.drawWorldMatrix;
-            obj.normalMatrix = BuildNormalMatrix(drawTransform);
-            FillMaterialValues(
-                obj,
-                materialAsset,
-                textures.normal,
-                textures.emissive,
-                textures.metallicRoughness,
-                textures.occlusion,
-                ctx.materialFill);
-            if (record.materialOverride != nullptr) {
-                FillRuntimeMaterialValues(obj, *record.materialOverride);
-            }
-            obj.hasBaseColorTexture =
-                (textures.baseColor >= 0 && textures.baseColor != ctx.binding.fallbackTextureHandle) ? 1u : 0u;
-            obj.receiveShadow = record.receiveShadow ? 1u : 0u;
-            FillRecordFxValues(obj, variantItem, record);
-
-            const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
-            const MaterialGpuData materialData = BuildMaterialGpuData(
-                obj,
-                textureHandles,
-                materialAsset,
-                record.materialOverride);
-            RecordMaterialTexturePoolStats(ctx, materialData);
-            const uint32_t materialDataIndex = UploadMaterialData(
-                ctx,
-                BuildMaterialDataKey(record.key.materialKey, materialData),
-                materialData);
-
-            outPrepared.object = obj;
-            outPrepared.materialDataIndex =
-                materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
-            return true;
-        }
-
-        bool PrepareGpuSceneMaterialSourceData(
+        bool BuildGpuSceneMaterialSourceData(
             const MeshDrawContext& ctx,
             const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source,
-            SurfaceRecordPreparedObject& outPrepared) {
+            MaterialGpuData& outData,
+            bool& outFinalized) {
 
             if (source.model == nullptr) {
                 return false;
@@ -943,59 +740,13 @@ namespace HIKARI::MESHRENDERER {
             }
 
             const MaterialTextureHandles textureHandles = ToMaterialTextureHandles(textures);
-            const MaterialGpuData materialData = BuildMaterialGpuData(
+            outData = BuildMaterialGpuData(
                 obj,
                 textureHandles,
                 materialAsset,
                 source.materialOverride);
-            RecordMaterialTexturePoolStats(ctx, materialData);
-            const uint32_t materialDataIndex = UploadMaterialData(
-                ctx,
-                BuildMaterialDataKey(source.materialKey, materialData),
-                materialData);
-
-            outPrepared.object = obj;
-            outPrepared.materialDataIndex =
-                materialDataIndex == kInvalidMaterialDataIndex ? 0u : materialDataIndex;
-            return true;
-        }
-
-        bool IsInstanceBatchCompatibleRecord(
-            const MeshDrawContext& ctx,
-            const SurfaceRecordBatchState& state,
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord,
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
-
-            (void)ctx;
-            if (!IsBatchCompatibleRecord(state, record) ||
-                record.meshIndex != firstRecord.meshIndex ||
-                record.primitiveIndex != firstRecord.primitiveIndex) {
-                return false;
-            }
-
-            return state.objectDataCompatible;
-        }
-
-
-        bool TryResolveSurfaceCommandRecordRange(
-            const RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            size_t executableRecordIndexCount,
-            size_t& outBegin,
-            size_t& outEnd) {
-
-            const size_t begin = command.firstExecutableIndex;
-            const size_t count = static_cast<size_t>(command.recordCount);
-            if (count == 0 || begin >= executableRecordIndexCount) {
-                return false;
-            }
-
-            const size_t end = begin + count;
-            if (end < begin || end > executableRecordIndexCount) {
-                return false;
-            }
-
-            outBegin = begin;
-            outEnd = end;
+            RecordMaterialTexturePoolStats(ctx, outData);
+            outFinalized = textures.complete;
             return true;
         }
 
@@ -1006,165 +757,64 @@ namespace HIKARI::MESHRENDERER {
         BindSurfaceRecordFrameResourcesInternal(ctx);
     }
 
-    bool PrepareSurfaceRecordGpuSceneMaterials(
+    bool PrepareSurfaceGpuSceneMaterialSources(
         const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const uint32_t* executableRecordIndices,
-        size_t executableRecordIndexCount,
-        const RENDER3D::RUNTIME::SurfaceDrawCommand* commands,
-        size_t commandCount) {
+        const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
+        size_t sourceCount) {
 
-        if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            records == nullptr ||
-            executableRecordIndices == nullptr ||
-            commands == nullptr) {
+        if (ctx.gpuMaterialRegistry == nullptr || sources == nullptr) {
             return false;
         }
 
-        bool patchedAny = false;
-        for (size_t commandIndex = 0; commandIndex < commandCount; ++commandIndex) {
-            const RENDER3D::RUNTIME::SurfaceDrawCommand& command = commands[commandIndex];
-            if (command.recordCount == 0 ||
-                command.firstGpuSceneInstanceIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex) {
+        bool resolvedAny = false;
+        for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
+            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source =
+                sources[sourceIndex];
+            const bool hasSourceRecord =
+                source.sourceRecordIndex !=
+                RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex;
+            if (!hasSourceRecord) {
+                continue;
+            }
+            const RENDER3D::MATERIAL::GpuMaterialSourceKey sourceKey{
+                source.materialResource,
+                source.materialKey,
+                reinterpret_cast<uintptr_t>(source.model),
+                reinterpret_cast<uintptr_t>(source.materialOverride),
+                source.materialRevision,
+                source.materialIndex
+            };
+
+            uint32_t materialSlot = kInvalidMaterialDataIndex;
+            if (ctx.gpuMaterialRegistry->TryReuseSourceBinding(
+                    source.sourceRecordIndex,
+                    sourceKey,
+                    materialSlot)) {
+                resolvedAny = true;
                 continue;
             }
 
-            size_t commandBegin = 0;
-            size_t commandEnd = 0;
-            if (!TryResolveSurfaceCommandRecordRange(
-                command,
-                executableRecordIndexCount,
-                commandBegin,
-                commandEnd)) {
-                continue;
-            }
-
-            const uint32_t firstRecordIndex = executableRecordIndices[commandBegin];
-            if (firstRecordIndex >= recordCount) {
-                continue;
-            }
-
-            SurfaceRecordBatchState state{};
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& firstRecord = records[firstRecordIndex];
-            // GPU-driven record path note.
-            if (!ResolveSurfaceRecordBatchState(ctx, firstRecord, command, state) ||
-                !CanUseSurfaceGpuSceneCommand(ctx, state, command) ||
-                !IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, firstRecord)) {
-                continue;
-            }
-
-            size_t localIndex = 0;
-            for (size_t executableIndex = commandBegin; executableIndex < commandEnd; ++executableIndex) {
-                const uint32_t recordIndex = executableRecordIndices[executableIndex];
-                if (recordIndex >= recordCount) {
-                    break;
-                }
-
-                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record = records[recordIndex];
-                if (!IsInstanceBatchCompatibleRecord(ctx, state, firstRecord, record)) {
-                    break;
-                }
-
-                SurfaceRecordPreparedObject prepared{};
-                if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
-                    break;
-                }
-
-                // Execute時ではなぁEframe 準備段階で material index めESurfaceGpuScene に確定する、E
-                patchedAny =
-                    PatchSurfaceGpuSceneMaterialData(
-                        ctx,
-                        ctx.surfaceGpuSceneBaseOffset +
-                        static_cast<size_t>(command.firstGpuSceneInstanceIndex) +
-                        localIndex,
-                        prepared.materialDataIndex) ||
-                    patchedAny;
-                ++localIndex;
-            }
-        }
-
-        return patchedAny;
-    }
-
-    bool PrepareSurfaceGpuSceneInstanceMaterials(
-        const MeshDrawContext& ctx,
-        const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord* records,
-        size_t recordCount,
-        const RENDER3D::RUNTIME::SurfaceGpuSceneInstance* instances,
-        size_t instanceCount) {
-
-        if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            records == nullptr ||
-            instances == nullptr) {
-            return false;
-        }
-
-        bool patchedAny = false;
-        for (size_t instanceIndex = 0; instanceIndex < instanceCount; ++instanceIndex) {
-            const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance =
-                instances[instanceIndex];
-            if (instance.sourceRecordIndex == RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex ||
-                instance.sourceRecordIndex >= recordCount) {
-                continue;
-            }
-
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
-                records[instance.sourceRecordIndex];
-
-            SurfaceRecordPreparedObject prepared{};
-            if (!PrepareSurfaceRecordObjectData(ctx, record, prepared)) {
-                continue;
-            }
-
-            // GPU-driven record path note.
-            patchedAny =
-                PatchSurfaceGpuSceneMaterialData(
+            MaterialGpuData materialData{};
+            bool finalized = true;
+            if (!BuildGpuSceneMaterialSourceData(
                     ctx,
-                    ctx.surfaceGpuSceneBaseOffset + instanceIndex,
-                    prepared.materialDataIndex) ||
-                patchedAny;
-        }
-
-        return patchedAny;
-    }
-
-        bool PrepareSurfaceGpuSceneMaterialSources(
-            const MeshDrawContext& ctx,
-            const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource* sources,
-            size_t sourceCount) {
-
-        if (ctx.surfaceGpuSceneFrameBuffer == nullptr ||
-            sources == nullptr) {
-            return false;
-        }
-
-            bool patchedAny = false;
-            for (size_t sourceIndex = 0; sourceIndex < sourceCount; ++sourceIndex) {
-                const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source =
-                    sources[sourceIndex];
-                SurfaceRecordPreparedObject prepared{};
-                if (!PrepareGpuSceneMaterialSourceData(ctx, source, prepared)) {
-                    continue;
-                }
-
-                const size_t localInstanceIndex =
-                    source.localGpuSceneInstanceIndex !=
-                        RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex
-                        ? static_cast<size_t>(source.localGpuSceneInstanceIndex)
-                        : sourceIndex;
-                // GPU-driven record path note.
-                patchedAny =
-                    PatchSurfaceGpuSceneMaterialData(
-                        ctx,
-                        ctx.surfaceGpuSceneBaseOffset + localInstanceIndex,
-                        prepared.materialDataIndex,
-                        source.sourceRecordIndex,
-                        source.sourceSurfaceInstanceIndex) ||
-                    patchedAny;
+                    source,
+                    materialData,
+                    finalized)) {
+                continue;
             }
 
-        return patchedAny;
+            materialSlot =
+                ctx.gpuMaterialRegistry->ResolveAndBindSource(
+                    source.sourceRecordIndex,
+                    sourceKey,
+                    materialData,
+                    finalized);
+            resolvedAny =
+                materialSlot != kInvalidMaterialDataIndex || resolvedAny;
+        }
+
+        return resolvedAny;
     }
 
 } // namespace HIKARI::MESHRENDERER

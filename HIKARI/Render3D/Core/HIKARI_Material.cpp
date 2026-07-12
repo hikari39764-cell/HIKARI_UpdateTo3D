@@ -6,10 +6,41 @@
 namespace HIKARI {
     namespace {
         RuntimeTextureSlot kEmptyTextureSlot{};
+
+        bool Equal(const MATH::Vec2& lhs, const MATH::Vec2& rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y;
+        }
+
+        bool Equal(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+        }
+
+        bool Equal(const MATH::Vec4& lhs, const MATH::Vec4& rhs) {
+            return
+                lhs.x == rhs.x && lhs.y == rhs.y &&
+                lhs.z == rhs.z && lhs.w == rhs.w;
+        }
+
+        bool Equal(const RuntimeTextureSlot& lhs, const RuntimeTextureSlot& rhs) {
+            return
+                lhs.sourcePath == rhs.sourcePath &&
+                lhs.resolvedPath == rhs.resolvedPath &&
+                lhs.resource == rhs.resource &&
+                lhs.handle == rhs.handle &&
+                lhs.enabled == rhs.enabled &&
+                lhs.texCoord == rhs.texCoord &&
+                Equal(lhs.uvScale, rhs.uvScale) &&
+                Equal(lhs.uvOffset, rhs.uvOffset) &&
+                lhs.uvRotation == rhs.uvRotation;
+        }
     }
 
     void Material::SetBaseColor(const MATH::Vec4& color) {
+        if (Equal(baseColor_, color)) {
+            return;
+        }
         baseColor_ = color;
+        ++revision_;
     }
 
     const MATH::Vec4& Material::GetBaseColor() const {
@@ -17,11 +48,17 @@ namespace HIKARI {
     }
 
     void Material::SetBaseColorTexturePath(std::string path) {
-        baseColorTexture_.resolvedPath = std::move(path);
-        if (baseColorTexture_.sourcePath.empty()) {
-            baseColorTexture_.sourcePath = baseColorTexture_.resolvedPath;
+        RuntimeTextureSlot next = baseColorTexture_;
+        next.resolvedPath = std::move(path);
+        if (next.sourcePath.empty()) {
+            next.sourcePath = next.resolvedPath;
         }
-        baseColorTexture_.enabled = !baseColorTexture_.resolvedPath.empty();
+        next.enabled = !next.resolvedPath.empty();
+        if (Equal(baseColorTexture_, next)) {
+            return;
+        }
+        baseColorTexture_ = std::move(next);
+        ++revision_;
     }
 
     const std::string& Material::GetBaseColorTexturePath() const {
@@ -29,9 +66,15 @@ namespace HIKARI {
     }
 
     void Material::SetBaseColorTextureHandle(int handle) {
-        baseColorTexture_.resource = {};
-        baseColorTexture_.handle = handle;
-        baseColorTexture_.enabled = handle >= 0;
+        RuntimeTextureSlot next = baseColorTexture_;
+        next.resource = {};
+        next.handle = handle;
+        next.enabled = handle >= 0;
+        if (Equal(baseColorTexture_, next)) {
+            return;
+        }
+        baseColorTexture_ = std::move(next);
+        ++revision_;
     }
 
     int Material::GetBaseColorTextureHandle() const {
@@ -43,7 +86,11 @@ namespace HIKARI {
     }
 
     void Material::SetShaderProfileId(std::string shaderProfileId) {
+        if (shaderProfileId_ == shaderProfileId) {
+            return;
+        }
         shaderProfileId_ = std::move(shaderProfileId);
+        ++revision_;
     }
 
     const std::string& Material::GetShaderProfileId() const {
@@ -51,7 +98,11 @@ namespace HIKARI {
     }
 
     void Material::SetFeatureBits(uint32_t featureBits) {
+        if (featureBits_ == featureBits) {
+            return;
+        }
         featureBits_ = featureBits;
+        ++revision_;
     }
 
     uint32_t Material::GetFeatureBits() const {
@@ -59,31 +110,37 @@ namespace HIKARI {
     }
 
     void Material::SetTextureSlot(ModelTextureUsage usage, RuntimeTextureSlot slot) {
+        RuntimeTextureSlot* destination = nullptr;
         switch (usage) {
         case ModelTextureUsage::BaseColor:
-            baseColorTexture_ = std::move(slot);
+            destination = &baseColorTexture_;
             break;
         case ModelTextureUsage::Normal:
-            normalTexture_ = std::move(slot);
+            destination = &normalTexture_;
             break;
         case ModelTextureUsage::MetallicRoughness:
-            metallicRoughnessTexture_ = std::move(slot);
+            destination = &metallicRoughnessTexture_;
             break;
         case ModelTextureUsage::Occlusion:
-            occlusionTexture_ = std::move(slot);
+            destination = &occlusionTexture_;
             break;
         case ModelTextureUsage::Emissive:
-            emissiveTexture_ = std::move(slot);
+            destination = &emissiveTexture_;
             break;
         case ModelTextureUsage::Specular:
-            specularTexture_ = std::move(slot);
+            destination = &specularTexture_;
             break;
         case ModelTextureUsage::SpecularColor:
-            specularColorTexture_ = std::move(slot);
+            destination = &specularColorTexture_;
             break;
         default:
-            break;
+            return;
         }
+        if (Equal(*destination, slot)) {
+            return;
+        }
+        *destination = std::move(slot);
+        ++revision_;
     }
 
     const RuntimeTextureSlot& Material::GetTextureSlot(ModelTextureUsage usage) const {
@@ -112,7 +169,12 @@ namespace HIKARI {
     }
 
     void Material::SetMetallicFactor(float value) {
-        metallicFactor_ = std::clamp(value, 0.0f, 1.0f);
+        const float next = std::clamp(value, 0.0f, 1.0f);
+        if (metallicFactor_ == next) {
+            return;
+        }
+        metallicFactor_ = next;
+        ++revision_;
     }
 
     float Material::GetMetallicFactor() const {
@@ -120,7 +182,12 @@ namespace HIKARI {
     }
 
     void Material::SetRoughnessFactor(float value) {
-        roughnessFactor_ = std::clamp(value, 0.04f, 1.0f);
+        const float next = std::clamp(value, 0.04f, 1.0f);
+        if (roughnessFactor_ == next) {
+            return;
+        }
+        roughnessFactor_ = next;
+        ++revision_;
     }
 
     float Material::GetRoughnessFactor() const {
@@ -128,7 +195,12 @@ namespace HIKARI {
     }
 
     void Material::SetSpecularFactor(float value) {
-        specularFactor_ = std::max(0.0f, value);
+        const float next = std::max(0.0f, value);
+        if (specularFactor_ == next) {
+            return;
+        }
+        specularFactor_ = next;
+        ++revision_;
     }
 
     float Material::GetSpecularFactor() const {
@@ -136,7 +208,11 @@ namespace HIKARI {
     }
 
     void Material::SetSpecularColorFactor(const MATH::Vec3& value) {
+        if (Equal(specularColorFactor_, value)) {
+            return;
+        }
         specularColorFactor_ = value;
+        ++revision_;
     }
 
     const MATH::Vec3& Material::GetSpecularColorFactor() const {
@@ -144,7 +220,11 @@ namespace HIKARI {
     }
 
     void Material::SetNormalScale(float value) {
+        if (normalScale_ == value) {
+            return;
+        }
         normalScale_ = value;
+        ++revision_;
     }
 
     float Material::GetNormalScale() const {
@@ -152,7 +232,11 @@ namespace HIKARI {
     }
 
     void Material::SetOcclusionStrength(float value) {
+        if (occlusionStrength_ == value) {
+            return;
+        }
         occlusionStrength_ = value;
+        ++revision_;
     }
 
     float Material::GetOcclusionStrength() const {
@@ -160,7 +244,11 @@ namespace HIKARI {
     }
 
     void Material::SetEmissiveFactor(const MATH::Vec3& value) {
+        if (Equal(emissiveFactor_, value)) {
+            return;
+        }
         emissiveFactor_ = value;
+        ++revision_;
     }
 
     const MATH::Vec3& Material::GetEmissiveFactor() const {
@@ -168,11 +256,19 @@ namespace HIKARI {
     }
 
     void Material::SetEmissiveStrength(float value) {
+        if (emissiveStrength_ == value) {
+            return;
+        }
         emissiveStrength_ = value;
+        ++revision_;
     }
 
     float Material::GetEmissiveStrength() const {
         return emissiveStrength_;
+    }
+
+    uint64_t Material::GetRevision() const {
+        return revision_;
     }
 
 } // namespace HIKARI

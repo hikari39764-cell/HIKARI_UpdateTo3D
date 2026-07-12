@@ -1,10 +1,12 @@
 #include "HIKARI_PerformanceAuditPanel.h"
 
 #include "Core/HIKARI_TimeService.h"
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
@@ -34,6 +36,7 @@ namespace HIKARI {
             RenderSubmissionDebugStats submission{};
             RENDER3D::RUNTIME::SceneRenderCache::Stats scene{};
             RENDER3D::GPUDRIVEN::GpuSceneRegistryStats gpuRegistry{};
+            RENDER3D::MATERIAL::GpuMaterialRegistryStats gpuMaterials{};
             MESHRENDERER::MeshRendererDebugStats mesh{};
             SHADOW::ShadowMapDebugStats shadow{};
             RENDER3D::ClusterGeometryResourceSystemStats clusterResources{};
@@ -43,6 +46,7 @@ namespace HIKARI {
             RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
             RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
             RENDER3D::UPSCALING::StreamlineDebugStats streamline{};
+            CPU_PROFILE::FrameSnapshot cpu{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
             GFX::GPU_PIPELINE_STATS::FrameSnapshot pipelineStats{};
         };
@@ -189,6 +193,7 @@ namespace HIKARI {
             out.submission = RenderSubmissionSystem::GetDebugStats();
             out.scene = RenderSubmissionSystem::GetSceneRenderCacheStats();
             out.gpuRegistry = RenderSubmissionSystem::GetGpuSceneRegistryStats();
+            out.gpuMaterials = MESHRENDERER::GetGpuMaterialRegistryStats();
             out.mesh = MESHRENDERER::GetDebugStats();
             out.shadow = SHADOW::GetDebugStats();
             out.clusterResources = RENDER3D::GetClusterGeometryResourceSystemStats();
@@ -202,6 +207,7 @@ namespace HIKARI {
                 RENDER3D::TEMPORAL::GetTemporalResourceStats();
             out.streamline =
                 RENDER3D::UPSCALING::GetStreamlineDebugStats();
+            out.cpu = CPU_PROFILE::GetLatestSnapshot();
             out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
             out.pipelineStats = GFX::GPU_PIPELINE_STATS::GetLatestSnapshot();
             return out;
@@ -233,6 +239,22 @@ namespace HIKARI {
             return count;
         }
 
+        double GetCpuFrameMs(const CPU_PROFILE::FrameSnapshot& profile) {
+            const CPU_PROFILE::PassTiming& frameTiming =
+                profile.passes[static_cast<size_t>(CPU_PROFILE::Pass::Frame)];
+            return frameTiming.valid ? frameTiming.cpuMs : 0.0;
+        }
+
+        uint32_t CountValidCpuPasses(const CPU_PROFILE::FrameSnapshot& profile) {
+            uint32_t count = 0;
+            for (const CPU_PROFILE::PassTiming& timing : profile.passes) {
+                if (timing.valid) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+
         void DrawFrameSummary(const RuntimePerformanceSnapshot& s) {
             const size_t mainlineSubmittedCount =
                 s.mesh.meshletBackendSubmittedDispatchCount > 0
@@ -243,16 +265,19 @@ namespace HIKARI {
                 mainlineSubmittedCount > 0;
             const bool gpuDrivenReady =
                 s.mesh.surfaceGpuSceneSrvValid &&
-                s.mesh.surfaceGpuSceneBufferReady &&
-                s.mesh.traditionalCommandStreamArgumentBufferReady &&
-                s.mesh.traditionalCommandStreamCommandSignatureReady;
+                s.mesh.surfaceGpuSceneBufferReady;
+            const double cpuFrameMs = GetCpuFrameMs(s.cpu);
             const double parentGpuMs = SumGpuMsByScope(s.gpu, false);
             const double nestedSubpassGpuMs = SumGpuMsByScope(s.gpu, true);
 
             if (ImGui::BeginTable("GpuDrivenFrameSummary", 4, ImGuiTableFlags_SizingStretchSame)) {
                 ImGui::TableNextColumn();
                 ImGui::Text("FPS %.1f", s.fpsRaw);
-                ImGui::TextDisabled("route %s", ToString(s.submission.routeMode));
+                if (s.cpu.valid) {
+                    ImGui::Text("CPU frame %.3f ms", cpuFrameMs);
+                } else {
+                    ImGui::TextDisabled("CPU timing waiting");
+                }
 
                 ImGui::TableNextColumn();
                 ImGui::TextColored(StatusColor(gpuDrivenReady), "GPU scene %s", ReadyText(gpuDrivenReady));
@@ -262,13 +287,62 @@ namespace HIKARI {
 
                 ImGui::TableNextColumn();
                 ImGui::TextColored(StatusColor(clusterMainline), "cluster %s", clusterMainline ? "Active" : "Idle");
-                ImGui::Text("submitted %zu / eligible %zu",
+                ImGui::Text("dispatches %zu / draw args %zu",
                     mainlineSubmittedCount,
                     s.mesh.clusterGpuCullGpuDrawCommandCount);
 
                 ImGui::TableNextColumn();
                 ImGui::Text("GPU parent %.3f ms", parentGpuMs);
                 ImGui::Text("nested sub %.3f ms", nestedSubpassGpuMs);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawCpuTimingTable(const RuntimePerformanceSnapshot& s) {
+            ImGui::SeparatorText("CPU Timing");
+            if (!s.cpu.valid) {
+                ImGui::TextDisabled("CPU timing data is waiting for a completed frame.");
+                return;
+            }
+
+            const double frameMs = (std::max)(0.0001, GetCpuFrameMs(s.cpu));
+            ImGui::Text("Frame %llu, scopes %u, frame %.3f ms",
+                static_cast<unsigned long long>(s.cpu.frameIndex),
+                CountValidCpuPasses(s.cpu),
+                frameMs);
+            ImGui::TextDisabled("Inclusive timings; nested scopes are not additive.");
+
+            if (ImGui::BeginTable(
+                    "CpuFrameTimingTable",
+                    4,
+                    ImGuiTableFlags_BordersInnerV |
+                        ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableSetupColumn("Scope", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+                ImGui::TableSetupColumn("CPU ms", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+                ImGui::TableSetupColumn("Calls", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+                ImGui::TableSetupColumn("Frame Share");
+                ImGui::TableHeadersRow();
+
+                for (size_t i = 0; i < s.cpu.passes.size(); ++i) {
+                    const CPU_PROFILE::PassTiming& timing = s.cpu.passes[i];
+                    if (!timing.valid) {
+                        continue;
+                    }
+
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextUnformatted(timing.name);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%.3f", timing.cpuMs);
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%u", timing.callCount);
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::ProgressBar(
+                        static_cast<float>((std::min)(1.0, timing.cpuMs / frameMs)),
+                        ImVec2(-1.0f, 0.0f),
+                        "");
+                }
                 ImGui::EndTable();
             }
         }
@@ -367,6 +441,52 @@ namespace HIKARI {
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount,
                     s.mesh.traditionalCommandStreamOverflowCommandCount);
+                ImGui::EndTable();
+            }
+        }
+
+        void DrawGpuMaterialTable(const RuntimePerformanceSnapshot& s) {
+            const RENDER3D::MATERIAL::GpuMaterialRegistryStats& materials =
+                s.gpuMaterials;
+            ImGui::SeparatorText("GPU Materials");
+            if (BeginMetricTable("GpuMaterialMetrics", 250.0f)) {
+                MetricRow("State / Source Sync", "%s / %s",
+                    materials.initialized ? "resident" : "missing",
+                    RENDER3D::MATERIAL::ToString(materials.sourceSyncMode));
+                MetricRow("Slots Resident / Capacity", "%u / %u",
+                    materials.residentSlotCount,
+                    materials.capacity);
+                MetricRow("Sources Bound / Records / Missing", "%u / %u / %zu",
+                    materials.sourceBindingCount,
+                    s.gpuRegistry.sourceRecordCount,
+                    s.mesh.surfaceGpuSceneMaterialPatchFailCount);
+                MetricRow("Versions Data / Binding", "%llu / %llu",
+                    static_cast<unsigned long long>(materials.dataVersion),
+                    static_cast<unsigned long long>(materials.bindingVersion));
+                MetricRow("Resolve Requests / Reuse / Pending", "%u / %u / %u",
+                    materials.frameResolveRequestCount,
+                    materials.frameSourceReuseCount,
+                    materials.pendingSourceResolveCount);
+                MetricRow("Slots Created / Updated / Retired / Overflow", "%u / %u / %u / %u",
+                    materials.frameCreatedSlotCount,
+                    materials.frameUpdatedSlotCount,
+                    materials.frameRetiredSlotCount,
+                    materials.frameOverflowCount);
+                MetricRow("Upload Slots / Ranges / KB", "%u / %u / %.2f",
+                    materials.frameUploadedSlotCount,
+                    materials.frameUploadRangeCount,
+                    static_cast<double>(materials.frameUploadBytes) / 1024.0);
+                MetricRow("Binding Visits / Changed / Reused", "%zu / %zu / %zu",
+                    s.mesh.surfaceGpuSceneMaterialPatchCount,
+                    s.mesh.surfaceGpuSceneMaterialPatchChangedCount,
+                    s.mesh.surfaceGpuSceneMaterialPatchUnchangedCount);
+                MetricRow("Pending Frame Copies / Stable Frames", "%u / %u",
+                    materials.pendingFrameSlotCount,
+                    materials.stableFrameReuseCount);
+                MetricRow("Source Sync Full / Dirty / Retry", "%u / %u / %u",
+                    materials.fullSourceSyncCount,
+                    materials.incrementalSourceSyncCount,
+                    materials.retrySourceSyncCount);
                 ImGui::EndTable();
             }
         }
@@ -735,9 +855,11 @@ namespace HIKARI {
         const RuntimePerformanceSnapshot snapshot = BuildSnapshot();
         DrawFrameSummary(snapshot);
         DrawReadiness(snapshot);
+        DrawCpuTimingTable(snapshot);
         DrawGpuTimingTable(snapshot);
         DrawMeshShaderPipelineStatsTable(snapshot);
         DrawRenderPathTable(snapshot);
+        DrawGpuMaterialTable(snapshot);
         DrawGeometryPipelineTable(snapshot);
         DrawTemporalTable(snapshot);
         DrawEffectsTable(snapshot);

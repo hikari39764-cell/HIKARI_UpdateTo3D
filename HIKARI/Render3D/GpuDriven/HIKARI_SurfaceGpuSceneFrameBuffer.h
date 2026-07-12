@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include <d3d12.h>
@@ -26,6 +27,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t materialPatchCount = 0;
         size_t materialPatchChangedCount = 0;
         size_t materialPatchUnchangedCount = 0;
+        size_t materialBindingVisitCount = 0;
+        size_t materialBindingMissingCount = 0;
+        uint64_t materialBindingVersion = 0;
         bool initialized = false;
         D3D12_GPU_DESCRIPTOR_HANDLE srv{};
     };
@@ -62,6 +66,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             uint32_t materialDataIndex,
             uint32_t expectedSourceRecordIndex,
             uint32_t expectedSourceSurfaceInstanceIndex);
+        void ApplyMaterialBindings(
+            std::span<const uint32_t> materialSlotBySourceRecord,
+            uint64_t bindingVersion);
         bool HasMaterialDataIndex(size_t instanceIndex) const;
         void MarkResident(uint64_t layoutVersion, uint64_t sourceVersion, size_t instanceCount);
         void CommitFrame(ID3D12GraphicsCommandList* commandList);
@@ -84,6 +91,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             size_t dirtyEndInstance = 0;
             uint64_t layoutVersion = 0;
             uint64_t sourceVersion = 0;
+            uint64_t materialBindingVersion = 0;
             bool resident = false;
             bool dirty = false;
         };

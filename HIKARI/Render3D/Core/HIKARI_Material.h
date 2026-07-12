@@ -62,6 +62,7 @@ namespace HIKARI {
         const MATH::Vec3& GetEmissiveFactor() const;
         void SetEmissiveStrength(float value);
         float GetEmissiveStrength() const;
+        uint64_t GetRevision() const;
 
     private:
         MATH::Vec4 baseColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -82,6 +83,7 @@ namespace HIKARI {
         float emissiveStrength_ = 1.0f;
         std::string shaderProfileId_{};
         uint32_t featureBits_ = 0;
+        uint64_t revision_ = 1;
     };
 
 } // namespace HIKARI

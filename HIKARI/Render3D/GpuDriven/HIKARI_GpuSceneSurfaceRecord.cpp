@@ -750,6 +750,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         record.receiveShadow = surfaceInstance.receiveShadow;
         record.clusteredGeometryPath = surfaceInstance.clusteredGeometryPath;
         record.materialOverride = surfaceInstance.materialOverride;
+        record.materialOverrideRevision =
+            surfaceInstance.materialOverrideRevision;
         record.materialFxProfileId = surfaceInstance.materialFxProfileId;
         record.postGroupMask = surfaceInstance.postGroupMask;
         record.materialFxValuesInitialized = surfaceInstance.materialFxValuesInitialized;
@@ -868,6 +870,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         source.sourceSurfaceInstanceIndex = instance.sourceSurfaceInstanceIndex;
         source.materialIndex = record.materialIndex;
         source.materialKey = record.key.materialKey;
+        source.materialResource = record.key.resources.material;
+        source.materialRevision =
+            record.materialOverrideRevision;
         source.world = instance.world;
         source.normalMatrix = instance.normalMatrix;
         source.receiveShadow = record.receiveShadow;

@@ -148,6 +148,10 @@ namespace HIKARI {
             desc.allowStaticCachedForward =
                 !desc.hasRuntimeAnimation;
             desc.materialOverride = model.GetRuntimeMaterialOverride();
+            desc.materialOverrideRevision =
+                desc.materialOverride != nullptr
+                    ? desc.materialOverride->GetRevision()
+                    : 0u;
             desc.materialFxProfileId = model.GetMaterialFxProfileId();
             desc.postGroupMask = model.GetPostGroupMask();
             desc.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();

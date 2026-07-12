@@ -177,6 +177,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             slot->residentInstanceCount = 0;
             slot->layoutVersion = 0;
             slot->sourceVersion = 0;
+            slot->materialBindingVersion = 0;
             slot->dirty = false;
             slot->dirtyFirstInstance = 0;
             slot->dirtyEndInstance = 0;
@@ -362,6 +363,81 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         return PatchMaterialDataIndex(instanceIndex, materialDataIndex);
+    }
+
+    void SurfaceGpuSceneFrameBuffer::ApplyMaterialBindings(
+        std::span<const uint32_t> materialSlotBySourceRecord,
+        uint64_t bindingVersion) {
+
+        FrameSlot* slot = ActiveSlot();
+        if (slot == nullptr || slot->mapped == nullptr) {
+            return;
+        }
+
+        const size_t instanceCount =
+            (std::min)(
+                stats_.uploadedInstanceCount,
+                (std::min)(slot->cursor, capacity_));
+        if (instanceCount == 0u) {
+            slot->materialBindingVersion = bindingVersion;
+            stats_.materialBindingVersion = bindingVersion;
+            return;
+        }
+
+        const bool bindingVersionChanged =
+            slot->materialBindingVersion != bindingVersion;
+        const size_t firstInstance =
+            bindingVersionChanged
+                ? 0u
+                : (slot->dirty ? slot->dirtyFirstInstance : instanceCount);
+        const size_t endInstance =
+            bindingVersionChanged
+                ? instanceCount
+                : (slot->dirty ? slot->dirtyEndInstance : instanceCount);
+        if (firstInstance >= endInstance) {
+            stats_.materialBindingVersion = slot->materialBindingVersion;
+            return;
+        }
+
+        size_t firstChanged = instanceCount;
+        size_t endChanged = 0u;
+        for (size_t instanceIndex = firstInstance;
+            instanceIndex < endInstance;
+            ++instanceIndex) {
+
+            RUNTIME::SurfaceGpuSceneInstance& instance =
+                slot->mapped[instanceIndex];
+            uint32_t materialSlot = 0u;
+            if (instance.sourceRecordIndex < materialSlotBySourceRecord.size()) {
+                const uint32_t resolved =
+                    materialSlotBySourceRecord[instance.sourceRecordIndex];
+                if (resolved != RUNTIME::kInvalidRenderSurfaceIndex) {
+                    materialSlot = resolved;
+                } else {
+                    ++stats_.materialBindingMissingCount;
+                }
+            } else {
+                ++stats_.materialBindingMissingCount;
+            }
+
+            ++stats_.materialBindingVisitCount;
+            ++stats_.materialPatchCount;
+            if (instance.materialDataIndex == materialSlot) {
+                ++stats_.materialPatchUnchangedCount;
+                continue;
+            }
+
+            instance.materialDataIndex = materialSlot;
+            ++stats_.materialPatchChangedCount;
+            firstChanged = (std::min)(firstChanged, instanceIndex);
+            endChanged = (std::max)(endChanged, instanceIndex + 1u);
+        }
+
+        if (firstChanged < endChanged) {
+            MarkDirtyRange(*slot, firstChanged, endChanged);
+        }
+        slot->materialBindingVersion = bindingVersion;
+        stats_.materialBindingVersion = bindingVersion;
     }
 
     bool SurfaceGpuSceneFrameBuffer::HasMaterialDataIndex(size_t instanceIndex) const {

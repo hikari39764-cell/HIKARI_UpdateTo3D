@@ -99,6 +99,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t sourceSurfaceInstanceIndex = kInvalidRenderSurfaceIndex;
         uint32_t materialIndex = 0;
         uint64_t materialKey = 0;
+        MaterialResourceHandle materialResource{};
+        uint64_t materialRevision = 0;
 
         MATH::Mat4 world{};
         MATH::Mat4 normalMatrix{};

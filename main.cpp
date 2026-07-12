@@ -1,6 +1,7 @@
 #include "HIKARI/HIKARI_Services.h"
 #include "HIKARI/App/HIKARI_EngineApp.h"
 #include "HIKARI/Core/HIKARI_TimeService.h"
+#include "HIKARI/Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "HIKARI/Runtime/HIKARI_RuntimeLaunchConfig.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
@@ -36,12 +37,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		if (!op.IsAnimationFinished("op"))
 		{
-			op.Update(frame.gameDt);
-			op.Draw();
+			{
+				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuUpdate(
+					HIKARI::CPU_PROFILE::Pass::AppUpdate);
+				op.Update(frame.gameDt);
+			}
+			{
+				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuRender(
+					HIKARI::CPU_PROFILE::Pass::AppRender);
+				op.Draw();
+			}
 		} else {
-			app.Update(frame.gameDt);
-			app.Render();
-			app.RenderImGui();
+			{
+				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuUpdate(
+					HIKARI::CPU_PROFILE::Pass::AppUpdate);
+				app.Update(frame.gameDt);
+			}
+			{
+				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuRender(
+					HIKARI::CPU_PROFILE::Pass::AppRender);
+				app.Render();
+			}
+			{
+				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuImGui(
+					HIKARI::CPU_PROFILE::Pass::AppImGui);
+				app.RenderImGui();
+			}
 		}
 
 

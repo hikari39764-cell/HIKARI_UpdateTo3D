@@ -41,6 +41,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     struct GpuDrivenSceneUploadDesc {
         ID3D12GraphicsCommandList* commandList = nullptr;
         GpuDrivenSceneResidency* residency = nullptr;
+        const uint32_t* materialSlotBySourceRecord = nullptr;
+        size_t materialSourceRecordCount = 0;
+        uint64_t materialBindingVersion = 0;
         uint32_t frameIndex = 0;
         bool allowDirtyRangePatching = true;
     };

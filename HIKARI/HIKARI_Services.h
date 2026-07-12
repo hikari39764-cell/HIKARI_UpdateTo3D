@@ -9,6 +9,7 @@
 #include "HIKARI_Anim.h"
 #include "HIKARI_Input.h"
 #include "Core/HIKARI_TimeService.h"
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
@@ -535,6 +536,9 @@ namespace HIKARI {
             gGpuFrameReady = false;
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.BeginFrame");
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
+            CPU_PROFILE::BeginFrame(frame.frameIndex);
+            CPU_PROFILE::ScopedCpuTimer cpuBeginFrame(
+                CPU_PROFILE::Pass::ServicesBeginFrame);
             if (!ApplyPendingWindowResize()) {
                 return false;
             }
@@ -613,6 +617,8 @@ namespace HIKARI {
                 HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
             }
             {
+                CPU_PROFILE::ScopedCpuTimer cpuPost(
+                    CPU_PROFILE::Pass::PostResolve);
                 GFX::PIX::ScopedGpuEvent pixPost(gCtx.cmdList, GFX::PIX::kColorPost, "PostSystem");
                 GFX::GPU_PROFILE::ScopedGpuTimer gpuPost(
                     gCtx.cmdList,
@@ -620,6 +626,8 @@ namespace HIKARI {
                 HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
             }
             {
+                CPU_PROFILE::ScopedCpuTimer cpuUi(
+                    CPU_PROFILE::Pass::UiLayers);
                 GFX::PIX::ScopedGpuEvent pixUi(gCtx.cmdList, GFX::PIX::kColorEditor, "UI and Debug Layers");
                 GFX::GPU_PROFILE::ScopedGpuTimer gpuUi(
                     gCtx.cmdList,
@@ -629,6 +637,8 @@ namespace HIKARI {
 
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
 #if defined(HIKARI_ENABLE_IMGUI)
+                CPU_PROFILE::ScopedCpuTimer cpuImGui(
+                    CPU_PROFILE::Pass::ImGui);
                 GFX::PIX::ScopedGpuEvent pixImGui(gCtx.cmdList, GFX::PIX::kColorEditor, "ImGui");
                 GFX::GPU_PROFILE::ScopedGpuTimer gpuImGui(
                     gCtx.cmdList,
@@ -650,10 +660,12 @@ namespace HIKARI {
             if (!gCore.EndFrame()) {
                 gGpuFrameReady = false;
                 HIKARI_LOG_ERROR("D3D12 EndFrame failed; stopping GPU frame loop.");
+                CPU_PROFILE::EndFrame();
                 return false;
             }
             gGpuFrameReady = false;
             GFX::PIX::Update();
+            CPU_PROFILE::EndFrame();
             return true;
         }
     } // namespace SERVICES

@@ -2,6 +2,7 @@
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Core/HIKARI_FrameContext.h"
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
@@ -141,6 +142,8 @@ namespace HIKARI {
     }
 
     void RenderSubmissionSystem::PreRender(World& world, const FrameContext& frame) {
+        CPU_PROFILE::ScopedCpuTimer cpuTimer(
+            CPU_PROFILE::Pass::RenderSubmission);
         sDebugStats_.submittedModelCount = 0;
         sDebugStats_.scannedModelCount = 0;
         sDebugStats_.hiddenModelCount = 0;

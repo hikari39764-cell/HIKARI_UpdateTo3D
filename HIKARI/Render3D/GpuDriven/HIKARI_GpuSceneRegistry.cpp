@@ -2087,6 +2087,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         sceneSource_.sourceVersion = dataVersion_;
         sceneSource_.dirtyBaseSourceVersion = dataVersion_;
         sceneSource_.sourceInstanceCount = cursor;
+        sceneSource_.sourceRecordCount = ClampToUint32(surfaceRecords_.size());
     }
 
     void GpuSceneRegistry::ClearFrameDirtyRanges() {

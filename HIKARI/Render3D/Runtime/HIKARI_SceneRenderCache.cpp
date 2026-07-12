@@ -82,6 +82,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             flags.material =
                 oldDesc.materialOverride != newDesc.materialOverride ||
+                oldDesc.materialOverrideRevision != newDesc.materialOverrideRevision ||
                 oldDesc.materialFxProfileId != newDesc.materialFxProfileId ||
                 oldDesc.postGroupMask != newDesc.postGroupMask ||
                 oldDesc.materialFxValuesInitialized != newDesc.materialFxValuesInitialized ||
@@ -181,6 +182,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             instance.skinned = surface.IsSkinned();
             instance.clusteredGeometryPath = object.desc.clusteredGeometryPath;
             instance.materialOverride = object.desc.materialOverride;
+            instance.materialOverrideRevision =
+                object.desc.materialOverrideRevision;
             instance.materialFxProfileId = object.desc.materialFxProfileId;
             instance.postGroupMask = object.desc.postGroupMask;
             instance.materialFxValuesInitialized = object.desc.materialFxValuesInitialized;

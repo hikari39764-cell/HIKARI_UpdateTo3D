@@ -353,6 +353,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         if (sourceInstanceCount != 0u) {
+            if (desc.materialSlotBySourceRecord != nullptr &&
+                desc.materialSourceRecordCount != 0u) {
+                sceneBuffer_->ApplyMaterialBindings(
+                    {
+                        desc.materialSlotBySourceRecord,
+                        desc.materialSourceRecordCount
+                    },
+                    desc.materialBindingVersion);
+            }
             sceneBuffer_->MarkResident(layoutVersion, sourceVersion, sourceInstanceCount);
             sceneBuffer_->CommitFrame(desc.commandList);
         }

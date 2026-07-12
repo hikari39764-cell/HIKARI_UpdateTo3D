@@ -54,6 +54,7 @@ namespace HIKARI::MESHRENDERER {
 
     bool MeshMaterialResolver::TryAcquireTextureLoadBudget(MeshRendererDebugStats* stats) {
         if (textureLoadBudgetRemaining_ == 0) {
+            resolveDeferred_ = true;
             if (stats != nullptr) {
                 ++stats->materialTextureLoadDeferredCount;
             }
@@ -68,6 +69,7 @@ namespace HIKARI::MESHRENDERER {
         const ModelAsset& asset,
         const MaterialAsset* materialAsset,
         MeshRendererDebugStats* stats) {
+        resolveDeferred_ = false;
         ResolvedMaterialTextures textures{};
         textures.baseColor = ResolveBaseColorTexture(asset, materialAsset, stats);
         textures.normal = ResolveNormalTexture(asset, materialAsset, stats);
@@ -76,6 +78,7 @@ namespace HIKARI::MESHRENDERER {
         textures.occlusion = ResolveOcclusionTexture(asset, materialAsset, stats);
         textures.specular = ResolveSpecularTexture(asset, materialAsset, stats);
         textures.specularColor = ResolveSpecularColorTexture(asset, materialAsset, stats);
+        textures.complete = !resolveDeferred_;
         return textures;
     }
 

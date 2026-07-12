@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <sstream>
 #include <string>
+#include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
@@ -490,16 +491,25 @@ bool Dx12Core::EndFrame() {
         D3D12_RESOURCE_STATE_PRESENT);
     PIX::EndGpuEvent(cmdList_.Get());
 
-    HRESULT hr = cmdList_->Close();
-    if (FAILED(hr)) {
-        frameOpen_ = false;
-        HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame CloseCommandList");
-        CheckDeviceRemoved("Dx12Core::EndFrame CloseCommandList", hr);
-        return false;
+    HRESULT hr = S_OK;
+    {
+        CPU_PROFILE::ScopedCpuTimer cpuSubmit(
+            CPU_PROFILE::Pass::CommandSubmit);
+        hr = cmdList_->Close();
+        if (FAILED(hr)) {
+            frameOpen_ = false;
+            HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame CloseCommandList");
+            CheckDeviceRemoved("Dx12Core::EndFrame CloseCommandList", hr);
+            return false;
+        }
+        ID3D12CommandList* lists[] = { cmdList_.Get() };
+        queue_->ExecuteCommandLists(1, lists);
     }
-    ID3D12CommandList* lists[] = { cmdList_.Get() };
-    queue_->ExecuteCommandLists(1, lists);
-    hr = swapChain_->Present(vSyncEnabled_ ? 1u : 0u, 0);
+    {
+        CPU_PROFILE::ScopedCpuTimer cpuPresent(
+            CPU_PROFILE::Pass::Present);
+        hr = swapChain_->Present(vSyncEnabled_ ? 1u : 0u, 0);
+    }
     if (FAILED(hr)) {
         frameOpen_ = false;
         HIKARI_DX_CHECK(hr, "Dx12Core::EndFrame Present");
@@ -536,6 +546,8 @@ bool Dx12Core::WaitGPU() {
             CheckDeviceRemoved("Dx12Core::WaitGPU SetEventOnCompletion", eventHr);
             return false;
         }
+        CPU_PROFILE::ScopedCpuTimer cpuWait(
+            CPU_PROFILE::Pass::FenceWait);
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
     deferredReleaseQueue_.Collect(fence_->GetCompletedValue());
@@ -575,6 +587,8 @@ bool Dx12Core::MoveToNextFrame() {
             return false;
         }
 
+        CPU_PROFILE::ScopedCpuTimer cpuWait(
+            CPU_PROFILE::Pass::FenceWait);
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
 

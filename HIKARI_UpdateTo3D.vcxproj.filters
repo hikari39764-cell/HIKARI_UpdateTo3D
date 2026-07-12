@@ -498,6 +498,9 @@
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp">
       <Filter>Source Files\Diagnostics</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.cpp">
+      <Filter>Source Files\Diagnostics</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
@@ -1369,6 +1372,9 @@
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp">
       <Filter>Source Files\Render3D\Material</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.cpp">
+      <Filter>Source Files\Render3D\Material</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp">
       <Filter>Source Files\Tools\Baking</Filter>
     </ClCompile>
@@ -1894,6 +1900,9 @@
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h">
       <Filter>Header Files\Diagnostics</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.h">
+      <Filter>Header Files\Diagnostics</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
@@ -2213,6 +2222,12 @@
       <Filter>Header Files\Render3D\Material</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.h">
+      <Filter>Header Files\Render3D\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.h">
+      <Filter>Header Files\Render3D\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialTypes.h">
       <Filter>Header Files\Render3D\Material</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />

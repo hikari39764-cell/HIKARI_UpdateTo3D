@@ -53,6 +53,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         std::string clusteredGeometryPath{};
 
         const Material* materialOverride = nullptr;
+        uint64_t materialOverrideRevision = 0;
 
         std::string materialFxProfileId{};
         uint32_t postGroupMask = 0;
@@ -111,6 +112,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         std::string clusteredGeometryPath{};
 
         const Material* materialOverride = nullptr;
+        uint64_t materialOverrideRevision = 0;
         std::string materialFxProfileId{};
         uint32_t postGroupMask = 0;
         DirectX::XMFLOAT4 materialFxParamValues[VFX::kMaterialFxUserCount]{};

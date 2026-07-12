@@ -28,6 +28,7 @@ namespace HIKARI::MESHRENDERER {
         int occlusion = -1;
         int specular = -1;
         int specularColor = -1;
+        bool complete = true;
     };
 
     class MeshMaterialResolver {
@@ -87,6 +88,7 @@ namespace HIKARI::MESHRENDERER {
         MeshMaterialResolverFallbacks fallbacks_{};
         std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache_;
         size_t textureLoadBudgetRemaining_ = 0;
+        bool resolveDeferred_ = false;
     };
 
 } // namespace HIKARI::MESHRENDERER
