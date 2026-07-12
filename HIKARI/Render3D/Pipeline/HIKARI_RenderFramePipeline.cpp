@@ -36,30 +36,61 @@ namespace HIKARI::RENDER3D::PIPELINE {
             POST::PostSystem::EndCurrentRenderTargetDepthRead();
         }
 
-        ScreenSpacePassContext BuildScreenSpaceContext() {
-            ScreenSpacePassContext context{};
-            context.cmd = SERVICES::gCtx.cmdList;
-            context.sceneDsv = POST::PostSystem::GetCurrentRenderTargetDsv();
-            context.readOnlySceneDsv =
-                POST::PostSystem::GetCurrentRenderTargetReadOnlyDsv();
-            context.sceneDepthSrv = POST::PostSystem::GetCurrentRenderTargetDepthSrv();
-            if (context.sceneDepthSrv.ptr == 0) {
-                context.sceneDepthSrv = SERVICES::gCtx.sceneDepthSrv;
-            }
-            context.depthReadable = context.sceneDepthSrv.ptr != 0;
-            context.renderTargetAccess.rebind = RebindPostRenderTarget;
-            context.renderTargetAccess.beginDepthRead = BeginPostDepthRead;
-            context.renderTargetAccess.endDepthRead = EndPostDepthRead;
+        RenderFrameContext BuildRenderFrameContext(
+            const Camera3D& camera,
+            const SceneEnvironment& environment) {
 
-            int width = 0;
-            int height = 0;
-            POST::PostSystem::GetSceneCaptureSize(width, height);
-            if (width <= 0 || height <= 0) {
-                width = POST::PostSystem::GetSceneColorWidth();
-                height = POST::PostSystem::GetSceneColorHeight();
+            RenderFrameContext context{};
+            context.cmd = SERVICES::gCtx.cmdList;
+            context.camera = &camera;
+            context.environment = &environment;
+            context.scene.dsv = POST::PostSystem::GetCurrentRenderTargetDsv();
+            context.scene.readOnlyDsv =
+                POST::PostSystem::GetCurrentRenderTargetReadOnlyDsv();
+            context.scene.depthSrv =
+                POST::PostSystem::GetCurrentRenderTargetDepthSrv();
+            if (context.scene.depthSrv.ptr == 0) {
+                context.scene.depthSrv = SERVICES::gCtx.sceneDepthSrv;
             }
-            context.width = static_cast<uint32_t>(std::max(1, width));
-            context.height = static_cast<uint32_t>(std::max(1, height));
+            context.scene.depthReadable = context.scene.depthSrv.ptr != 0;
+            context.targetAccess.rebind = RebindPostRenderTarget;
+            context.targetAccess.beginDepthRead = BeginPostDepthRead;
+            context.targetAccess.endDepthRead = EndPostDepthRead;
+
+            int renderWidth = 0;
+            int renderHeight = 0;
+            POST::PostSystem::GetSceneCaptureSize(renderWidth, renderHeight);
+            if (renderWidth <= 0 || renderHeight <= 0) {
+                renderWidth = POST::PostSystem::GetSceneColorWidth();
+                renderHeight = POST::PostSystem::GetSceneColorHeight();
+            }
+            context.renderWidth =
+                static_cast<uint32_t>((std::max)(1, renderWidth));
+            context.renderHeight =
+                static_cast<uint32_t>((std::max)(1, renderHeight));
+
+            int outputWidth = 0;
+            int outputHeight = 0;
+            POST::PostSystem::GetSceneOutputSize(outputWidth, outputHeight);
+            context.outputWidth =
+                static_cast<uint32_t>((std::max)(1, outputWidth));
+            context.outputHeight =
+                static_cast<uint32_t>((std::max)(1, outputHeight));
+            return context;
+        }
+
+        ScreenSpacePassContext BuildScreenSpaceContext(
+            const RenderFrameContext& frame) {
+
+            ScreenSpacePassContext context{};
+            context.cmd = frame.cmd;
+            context.width = frame.renderWidth;
+            context.height = frame.renderHeight;
+            context.sceneDsv = frame.scene.dsv;
+            context.readOnlySceneDsv = frame.scene.readOnlyDsv;
+            context.sceneDepthSrv = frame.scene.depthSrv;
+            context.depthReadable = frame.scene.depthReadable;
+            context.renderTargetAccess = frame.targetAccess;
             return context;
         }
 
@@ -109,7 +140,10 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
 
         GFX::PIX::ScopedGpuEvent pixFrame(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "RenderFrame.MeshLighting");
-        const ScreenSpacePassContext screenSpaceContext = BuildScreenSpaceContext();
+        const RenderFrameContext frame =
+            BuildRenderFrameContext(camera, environment);
+        const ScreenSpacePassContext screenSpaceContext =
+            BuildScreenSpaceContext(frame);
         const RENDER3D::RenderQualitySettings& renderQuality =
             RENDER3D::GetRenderQualitySettings();
         const RENDER3D::RenderAntiAliasingMode antiAliasingMode =
@@ -133,17 +167,10 @@ namespace HIKARI::RENDER3D::PIPELINE {
         RENDER3D::TEMPORAL::TemporalFrameDesc temporalDesc{};
         temporalDesc.camera = &camera;
         temporalDesc.frameIndex = TIME::GetFrameContext().frameIndex;
-        temporalDesc.renderWidth = screenSpaceContext.width;
-        temporalDesc.renderHeight = screenSpaceContext.height;
-        int sceneOutputWidth = 0;
-        int sceneOutputHeight = 0;
-        POST::PostSystem::GetSceneOutputSize(
-            sceneOutputWidth,
-            sceneOutputHeight);
-        temporalDesc.outputWidth =
-            static_cast<uint32_t>(std::max(1, sceneOutputWidth));
-        temporalDesc.outputHeight =
-            static_cast<uint32_t>(std::max(1, sceneOutputHeight));
+        temporalDesc.renderWidth = frame.renderWidth;
+        temporalDesc.renderHeight = frame.renderHeight;
+        temporalDesc.outputWidth = frame.outputWidth;
+        temporalDesc.outputHeight = frame.outputHeight;
         const bool temporalDebugView = IsTemporalRenderDebugView(debugView);
         const bool temporalPipelineAllowed =
             debugView == RenderDebugView::None || temporalDebugView;

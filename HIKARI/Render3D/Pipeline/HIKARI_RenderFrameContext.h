@@ -11,7 +11,7 @@ namespace HIKARI {
 
 namespace HIKARI::RENDER3D::PIPELINE {
 
-    // Pipeline が所有する render target 操作を、下位 pass へ明示的に渡すための境界。
+    // Explicit render-target operations exposed to pipeline stages.
     struct RenderTargetAccess {
         using RebindCallback = bool (*)(void* userData);
         using BeginDepthReadCallback = bool (*)(void* userData);
@@ -37,20 +37,27 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
     };
 
-    struct RenderFrameContext {
-        ID3D12GraphicsCommandList* cmd = nullptr;
-        Camera3D* camera = nullptr;
-        const SceneEnvironment* environment = nullptr;
-        uint32_t width = 1;
-        uint32_t height = 1;
-        D3D12_CPU_DESCRIPTOR_HANDLE sceneRtv{};
-        D3D12_CPU_DESCRIPTOR_HANDLE sceneDsv{};
-        D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv{};
-        D3D12_GPU_DESCRIPTOR_HANDLE sceneColorSrv{};
-        bool hasSceneDepthSrv = false;
-        bool hasSceneColorSrv = false;
+    struct SceneFrameResources {
+        D3D12_CPU_DESCRIPTOR_HANDLE dsv{};
+        D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE depthSrv{};
+        bool depthReadable = false;
     };
 
+    // Immutable per-frame contract shared by renderer stages.
+    struct RenderFrameContext {
+        ID3D12GraphicsCommandList* cmd = nullptr;
+        const Camera3D* camera = nullptr;
+        const SceneEnvironment* environment = nullptr;
+        uint32_t renderWidth = 1;
+        uint32_t renderHeight = 1;
+        uint32_t outputWidth = 1;
+        uint32_t outputHeight = 1;
+        SceneFrameResources scene{};
+        RenderTargetAccess targetAccess{};
+    };
+
+    // Narrow view consumed by screen-space passes.
     struct ScreenSpacePassContext {
         ID3D12GraphicsCommandList* cmd = nullptr;
         uint32_t width = 1;

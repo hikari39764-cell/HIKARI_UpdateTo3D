@@ -549,6 +549,15 @@
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostSystem.cpp">
       <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostPresentationStage.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostProcessingStage.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_SceneCaptureStage.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render2D\HIKARI_Renderer.cpp">
       <Filter>Source Files\Render2D</Filter>
     </ClCompile>
@@ -1409,6 +1418,9 @@
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.cpp">
       <Filter>Source Files\Render3D\Temporal</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResolveStage.cpp">
+      <Filter>Source Files\Render3D\Temporal</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.cpp">
       <Filter>Source Files\Render3D\Temporal</Filter>
     </ClCompile>
@@ -1966,6 +1978,18 @@
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostSystem.h">
       <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostPresentationStage.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostProcessingStage.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostProcessingTypes.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_SceneCaptureStage.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render2D\HIKARI_Renderer.h">
       <Filter>Header Files\Render2D</Filter>
     </ClInclude>
@@ -2244,6 +2268,9 @@
       <Filter>Header Files\Render3D\Temporal</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.h">
+      <Filter>Header Files\Render3D\Temporal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResolveStage.h">
       <Filter>Header Files\Render3D\Temporal</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h">
