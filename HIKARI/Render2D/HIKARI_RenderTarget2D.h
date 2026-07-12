@@ -47,6 +47,7 @@ namespace HIKARI {
         D3D12_RESOURCE_STATES GetColorState() const { return colorState_; }
         D3D12_RESOURCE_STATES GetDepthState() const { return depthState_; }
         bool HasDepth() const { return hasDepth_; }
+        bool AllowsUnorderedAccess() const { return allowUnorderedAccess_; }
         bool IsInitialized() const { return initialized_; }
         void TransitionColor(D3D12_RESOURCE_STATES nextState);
 

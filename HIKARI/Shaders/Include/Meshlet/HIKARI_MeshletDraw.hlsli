@@ -89,7 +89,13 @@ struct HikariMeshletPayload
     uint rangeClusterCount;
     uint geometryClusterCount;
 
-    HikariMeshletPayloadCluster clusters[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
+    // Keep compact cluster payloads in SoA form. DXIL requires dynamic TGSM
+    // accesses to resolve directly to a scalar global allocation; an AoS
+    // member access introduces an ambiguous intermediate structure pointer.
+    uint clusterIndices[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
+    uint clusterFirstVertices[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
+    uint clusterFirstPrimitives[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
+    uint clusterPackedCounts[HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD];
 };
 
 bool HikariMeshletVisibleRangeUsesPacket(HikariMeshletVisibleRange visible)

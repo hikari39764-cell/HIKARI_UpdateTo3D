@@ -25,6 +25,9 @@ namespace HIKARI {
         TemporalTransparencyMask = 17,
         TemporalDisocclusion = 18,
         TemporalInvalidDepthMotion = 19,
+        VolumetricScattering = 20,
+        VolumetricTransmittance = 21,
+        VolumetricDepthSlice = 22,
 
         MeshletId = 32,
         ClusterId = 33,
@@ -55,6 +58,9 @@ namespace HIKARI {
         case RenderDebugView::TemporalTransparencyMask: return "TAA Transparency Mask";
         case RenderDebugView::TemporalDisocclusion: return "TAA Disocclusion";
         case RenderDebugView::TemporalInvalidDepthMotion: return "Invalid Depth / Motion";
+        case RenderDebugView::VolumetricScattering: return "Volumetric Scattering";
+        case RenderDebugView::VolumetricTransmittance: return "Volumetric Transmittance";
+        case RenderDebugView::VolumetricDepthSlice: return "Volumetric Depth Slice";
         case RenderDebugView::MeshletId: return "Meshlet ID";
         case RenderDebugView::ClusterId: return "Cluster ID";
         case RenderDebugView::SurfaceId: return "Surface ID";
@@ -83,7 +89,10 @@ namespace HIKARI {
             view == RenderDebugView::TemporalReactiveMask ||
             view == RenderDebugView::TemporalTransparencyMask ||
             view == RenderDebugView::TemporalDisocclusion ||
-            view == RenderDebugView::TemporalInvalidDepthMotion;
+            view == RenderDebugView::TemporalInvalidDepthMotion ||
+            view == RenderDebugView::VolumetricScattering ||
+            view == RenderDebugView::VolumetricTransmittance ||
+            view == RenderDebugView::VolumetricDepthSlice;
     }
 
     inline bool IsTemporalRenderDebugView(RenderDebugView view) {
@@ -94,6 +103,12 @@ namespace HIKARI {
             view == RenderDebugView::TemporalTransparencyMask ||
             view == RenderDebugView::TemporalDisocclusion ||
             view == RenderDebugView::TemporalInvalidDepthMotion;
+    }
+
+    inline bool IsVolumetricRenderDebugView(RenderDebugView view) {
+        return view == RenderDebugView::VolumetricScattering ||
+            view == RenderDebugView::VolumetricTransmittance ||
+            view == RenderDebugView::VolumetricDepthSlice;
     }
 
 } // namespace HIKARI

@@ -269,11 +269,14 @@ namespace HIKARI {
                 lhs.bloom.radius != rhs.bloom.radius ||
                 lhs.bloom.downsampleCount != rhs.bloom.downsampleCount ||
                 lhs.fog.enabled != rhs.fog.enabled ||
+                lhs.fog.volumetric != rhs.fog.volumetric ||
                 !EqualVec3(lhs.fog.color, rhs.fog.color) ||
                 lhs.fog.density != rhs.fog.density ||
                 lhs.fog.startDistance != rhs.fog.startDistance ||
                 lhs.fog.endDistance != rhs.fog.endDistance ||
                 lhs.fog.heightFalloff != rhs.fog.heightFalloff ||
+                lhs.fog.anisotropy != rhs.fog.anisotropy ||
+                lhs.fog.temporalWeight != rhs.fog.temporalWeight ||
                 lhs.fog.useSkyHorizonColor != rhs.fog.useSkyHorizonColor ||
                 lhs.toneMapping.enabled != rhs.toneMapping.enabled ||
                 lhs.toneMapping.exposure != rhs.toneMapping.exposure ||
@@ -844,11 +847,14 @@ namespace HIKARI {
 
         if (ImGui::TreeNode("Fog")) {
             ImGui::Checkbox("Fog Enabled", &environment.fog.enabled);
+            ImGui::Checkbox("Volumetric Fog", &environment.fog.volumetric);
             ImGui::ColorEdit3("Fog Color", &environment.fog.color.x);
             ImGui::DragFloat("Density", &environment.fog.density, 0.001f, 0.0f, 1.0f);
             ImGui::DragFloat("Start Distance", &environment.fog.startDistance, 0.1f, 0.0f, 500.0f);
             ImGui::DragFloat("End Distance", &environment.fog.endDistance, 0.1f, 0.1f, 1000.0f);
             ImGui::DragFloat("Height Falloff", &environment.fog.heightFalloff, 0.001f, 0.0f, 2.0f);
+            ImGui::SliderFloat("Anisotropy", &environment.fog.anisotropy, -0.8f, 0.8f);
+            ImGui::SliderFloat("Temporal Weight", &environment.fog.temporalWeight, 0.0f, 0.98f);
             ImGui::Checkbox("Use Sky Horizon Color", &environment.fog.useSkyHorizonColor);
             if (ImGui::Button("Set Fog Color From Sky Horizon")) {
                 environment.fog.color = environment.sky.horizonColor;

@@ -4,6 +4,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
@@ -222,6 +223,9 @@ namespace HIKARI {
             { RenderDebugView::TemporalTransparencyMask, "TAA Transparency Mask" },
             { RenderDebugView::TemporalDisocclusion, "TAA Disocclusion" },
             { RenderDebugView::TemporalInvalidDepthMotion, "Invalid Depth / Motion" },
+            { RenderDebugView::VolumetricScattering, "Volumetric Scattering" },
+            { RenderDebugView::VolumetricTransmittance, "Volumetric Transmittance" },
+            { RenderDebugView::VolumetricDepthSlice, "Volumetric Depth Slice" },
             { RenderDebugView::MeshletId, "Meshlet ID" },
             { RenderDebugView::ClusterId, "Cluster ID" },
             { RenderDebugView::SurfaceId, "Surface ID" },
@@ -247,10 +251,17 @@ namespace HIKARI {
             if (ImGui::BeginCombo(label, kRenderDebugViewOptions[currentIndex].label, ImGuiComboFlags_NoArrowButton)) {
                 ImGui::SeparatorText("Shading");
                 for (int i = 0; i < static_cast<int>(std::size(kRenderDebugViewOptions)); ++i) {
-                    if (i == 11) {
+                    const RenderDebugView option = kRenderDebugViewOptions[i].view;
+                    if (option == RenderDebugView::SceneDepth) {
                         ImGui::SeparatorText("Screen Space");
                     }
-                    if (i == 13) {
+                    if (option == RenderDebugView::MotionVectors) {
+                        ImGui::SeparatorText("Temporal");
+                    }
+                    if (option == RenderDebugView::VolumetricScattering) {
+                        ImGui::SeparatorText("Volumetric");
+                    }
+                    if (option == RenderDebugView::MeshletId) {
                         ImGui::SeparatorText("Meshlet");
                     }
                     const bool selected = (i == selectedIndex);
@@ -271,26 +282,12 @@ namespace HIKARI {
         }
 
         bool DrawMiniTextToggle(const char* text, const char* id, bool selected, const char* tooltip) {
-            ImGui::PushID(id);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
-            ImGui::PushStyleColor(
-                ImGuiCol_Button,
-                selected ? ImVec4(0.14f, 0.42f, 0.48f, 0.92f) : ImVec4(0.08f, 0.10f, 0.13f, 0.82f));
-            ImGui::PushStyleColor(
-                ImGuiCol_ButtonHovered,
-                selected ? ImVec4(0.18f, 0.50f, 0.56f, 0.96f) : ImVec4(0.15f, 0.20f, 0.24f, 0.92f));
-            ImGui::PushStyleColor(
-                ImGuiCol_ButtonActive,
-                ImVec4(0.12f, 0.30f, 0.36f, 1.0f));
-            const bool pressed = ImGui::Button(text, ImVec2(30.0f, 26.0f));
-            if (tooltip && ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s", tooltip);
-            }
-            ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar(2);
-            ImGui::PopID();
-            return pressed;
+            return EDITOR::ToggleButton(
+                text,
+                id,
+                selected,
+                ImVec2(30.0f, 30.0f),
+                tooltip);
         }
 
         bool ProjectWorldToViewport(
@@ -863,9 +860,11 @@ namespace HIKARI {
                 ImGui::SameLine();
 
                 RENDER3D::RenderQualitySettings qualitySettings = RENDER3D::GetRenderQualitySettings();
+                EDITOR::ToolbarLabel("Render");
+                ImGui::SameLine();
                 ImGui::SetNextItemWidth(118.0f);
                 if (ImGui::BeginCombo(
-                    "Render",
+                    "##GameViewRenderResolution",
                     RENDER3D::RenderResolutionPresetLabel(qualitySettings.sceneResolution),
                     ImGuiComboFlags_NoArrowButton)) {
                     constexpr RENDER3D::RenderResolutionPreset presets[] = {
@@ -889,13 +888,14 @@ namespace HIKARI {
                 }
 
                 ImGui::SameLine();
-                DrawRenderDebugViewCombo("Debug", context_.viewportDebug, 132.0f);
+                EDITOR::ToolbarLabel("View");
+                ImGui::SameLine();
+                DrawRenderDebugViewCombo("##GameViewDebug", context_.viewportDebug, 144.0f);
                 if (context_.viewportDebug.renderView != RenderDebugView::None) {
                     ImGui::SameLine();
-                    ImGui::TextColored(
-                        ImVec4(0.45f, 0.95f, 0.62f, 1.0f),
-                        "%s",
-                        IsGeometryRenderDebugView(context_.viewportDebug.renderView) ? "Meshlet" : "Shading");
+                    EDITOR::StatusText(
+                        "Diagnostic output",
+                        EDITOR::EditorStatusTone::Ready);
                 }
             }
             ImGui::EndChild();
@@ -1463,9 +1463,14 @@ namespace HIKARI {
         }
 
         ImGui::SeparatorText("Global View");
-        DrawRenderDebugViewCombo("Mode", context_.viewportDebug, 220.0f);
+        DrawRenderDebugViewCombo("##DebugViewMode", context_.viewportDebug, 220.0f);
         ImGui::SameLine();
-        if (ImGui::Button("Lit")) {
+        if (EDITOR::ActionButton(
+                "Lit",
+                "DebugViewLit",
+                context_.viewportDebug.renderView == RenderDebugView::None
+                    ? EDITOR::EditorButtonTone::Primary
+                    : EDITOR::EditorButtonTone::Neutral)) {
             context_.viewportDebug.renderView = RenderDebugView::None;
         }
         ImGui::Checkbox("Show Legend", &context_.viewportDebug.showLegend);
@@ -1476,13 +1481,16 @@ namespace HIKARI {
         if (context_.viewportDebug.renderView == RenderDebugView::None) {
             ImGui::TextDisabled("The viewport is using the normal shaded output.");
         } else {
-            ImGui::Text("Active: %s", ToString(context_.viewportDebug.renderView));
+            EDITOR::StatusText(
+                ToString(context_.viewportDebug.renderView),
+                EDITOR::EditorStatusTone::Ready);
             ImGui::TextDisabled(
                 IsGeometryRenderDebugView(context_.viewportDebug.renderView)
                     ? "Meshlet modes are generated by the active GPU meshlet path."
                     : IsScreenSpaceRenderDebugView(context_.viewportDebug.renderView)
                     ? "Screen-space modes visualize resolved frame resources."
                     : "Shading modes reuse the final material/light pixel shader.");
+            ImGui::TextDisabled("Temporal upscaling and post effects are bypassed for diagnostic output.");
         }
 
         ImGui::SeparatorText("Shading");
@@ -1490,15 +1498,20 @@ namespace HIKARI {
             const RenderDebugView shadingModes[] = {
                 RenderDebugView::BaseColor,
                 RenderDebugView::Normal,
+                RenderDebugView::Tangent,
+                RenderDebugView::LightingOnly,
                 RenderDebugView::Roughness,
                 RenderDebugView::Metallic,
+                RenderDebugView::Occlusion,
                 RenderDebugView::Shadow,
+                RenderDebugView::NdotL,
+                RenderDebugView::Emissive,
                 RenderDebugView::SceneDepth,
             };
             for (RenderDebugView mode : shadingModes) {
                 ImGui::TableNextColumn();
                 const bool selected = context_.viewportDebug.renderView == mode;
-                if (ImGui::Selectable(ToString(mode), selected, 0, ImVec2(0.0f, 0.0f))) {
+                if (EDITOR::ModeButton(ToString(mode), ToString(mode), selected)) {
                     context_.viewportDebug.renderView = mode;
                 }
             }
@@ -1520,7 +1533,23 @@ namespace HIKARI {
             for (RenderDebugView mode : screenSpaceModes) {
                 ImGui::TableNextColumn();
                 const bool selected = context_.viewportDebug.renderView == mode;
-                if (ImGui::Selectable(ToString(mode), selected, 0, ImVec2(0.0f, 0.0f))) {
+                if (EDITOR::ModeButton(ToString(mode), ToString(mode), selected)) {
+                    context_.viewportDebug.renderView = mode;
+                }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::SeparatorText("Volumetric");
+        if (ImGui::BeginTable("DebugViewVolumetricModes", 3, ImGuiTableFlags_SizingStretchSame)) {
+            const RenderDebugView volumetricModes[] = {
+                RenderDebugView::VolumetricScattering,
+                RenderDebugView::VolumetricTransmittance,
+                RenderDebugView::VolumetricDepthSlice,
+            };
+            for (RenderDebugView mode : volumetricModes) {
+                ImGui::TableNextColumn();
+                const bool selected = context_.viewportDebug.renderView == mode;
+                if (EDITOR::ModeButton(ToString(mode), ToString(mode), selected)) {
                     context_.viewportDebug.renderView = mode;
                 }
             }
@@ -1539,7 +1568,7 @@ namespace HIKARI {
             for (RenderDebugView mode : meshletModes) {
                 ImGui::TableNextColumn();
                 const bool selected = context_.viewportDebug.renderView == mode;
-                if (ImGui::Selectable(ToString(mode), selected, 0, ImVec2(0.0f, 0.0f))) {
+                if (EDITOR::ModeButton(ToString(mode), ToString(mode), selected)) {
                     context_.viewportDebug.renderView = mode;
                 }
             }

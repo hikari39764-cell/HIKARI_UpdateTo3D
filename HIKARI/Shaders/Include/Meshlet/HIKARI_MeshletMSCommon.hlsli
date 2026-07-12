@@ -116,7 +116,10 @@ HikariMeshletResolvedCluster HikariResolveMeshletCluster(
             (HikariMeshletPayloadCluster)0;
         if (slotValid)
         {
-            payloadCluster = payload.clusters[groupId.x];
+            payloadCluster.clusterIndex = payload.clusterIndices[groupId.x];
+            payloadCluster.firstVertex = payload.clusterFirstVertices[groupId.x];
+            payloadCluster.firstPrimitive = payload.clusterFirstPrimitives[groupId.x];
+            payloadCluster.packedCounts = payload.clusterPackedCounts[groupId.x];
         }
 
         result.clusterIndex = payloadCluster.clusterIndex;

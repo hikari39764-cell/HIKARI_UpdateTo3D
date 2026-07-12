@@ -27,6 +27,7 @@
 #include "Render3D/Temporal/HIKARI_TemporalGeometryPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalMaskPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
@@ -498,6 +499,7 @@ namespace HIKARI {
             RENDER3D::TEMPORAL::ShutdownTemporalGeometryPass();
             RENDER3D::TEMPORAL::ShutdownMotionVectorPass();
             RENDER3D::TEMPORAL::ShutdownTemporalResourceSystem();
+            RENDER3D::VOLUMETRIC::ShutdownVolumetricLightingStage();
             RENDER3D::ShutdownClusterGeometryResourceSystem();
             RENDER3D::ShutdownRenderResourceDescriptorPool();
 #if defined(HIKARI_WITH_EDITOR)

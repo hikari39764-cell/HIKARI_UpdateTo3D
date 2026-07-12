@@ -59,9 +59,13 @@ namespace HIKARI::POST {
         RenderTarget2D* ResolveHdr(
             RenderTarget2D& source,
             QuadDrawer& quad,
-            bool temporalDebugOutput,
+            bool debugOutput,
             const char* temporalBackend,
             bool lightingEnabled);
+        RenderTarget2D* ResolveDebugLdr(
+            RenderTarget2D& source,
+            DXGI_FORMAT outputFormat,
+            QuadDrawer& quad);
         RenderTarget2D* ResolveLdr(
             RenderTarget2D& source,
             DXGI_FORMAT outputFormat,

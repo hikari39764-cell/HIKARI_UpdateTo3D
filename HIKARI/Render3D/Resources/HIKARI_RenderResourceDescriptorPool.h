@@ -41,6 +41,19 @@ namespace HIKARI::RENDER3D {
         DXGI_FORMAT format,
         UINT mipSlice = 0);
 
+    RenderResourceView AllocateTexture3DSrvDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mostDetailedMip = 0,
+        UINT mipLevels = 1);
+
+    RenderResourceView AllocateTexture3DUavDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mipSlice = 0,
+        UINT firstWSlice = 0,
+        UINT wSize = UINT_MAX);
+
     bool ReleaseRenderResourceDescriptor(RenderResourceView view);
 
     RenderResourceDescriptorPoolStats GetRenderResourceDescriptorPoolStats();

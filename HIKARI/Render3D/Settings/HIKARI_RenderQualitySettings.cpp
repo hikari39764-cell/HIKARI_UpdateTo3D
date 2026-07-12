@@ -42,6 +42,11 @@ namespace HIKARI::RENDER3D {
             static_cast<uint8_t>(DlssQualityMode::UltraPerformance)) {
             gRenderQualitySettings.dlssQualityMode = DlssQualityMode::Quality;
         }
+        if (static_cast<uint8_t>(gRenderQualitySettings.volumetricLightingQuality) >
+            static_cast<uint8_t>(VolumetricLightingQuality::High)) {
+            gRenderQualitySettings.volumetricLightingQuality =
+                VolumetricLightingQuality::Balanced;
+        }
         if (static_cast<uint8_t>(gRenderQualitySettings.forwardCostMode) >
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
             gRenderQualitySettings.forwardCostMode = ForwardShadingCostMode::Full;
@@ -120,6 +125,15 @@ namespace HIKARI::RENDER3D {
         case DlssQualityMode::Balanced: return "Balanced";
         case DlssQualityMode::Performance: return "Performance";
         case DlssQualityMode::UltraPerformance: return "Ultra Performance";
+        default: return "Unknown";
+        }
+    }
+
+    const char* VolumetricLightingQualityLabel(VolumetricLightingQuality quality) {
+        switch (quality) {
+        case VolumetricLightingQuality::Low: return "Low";
+        case VolumetricLightingQuality::Balanced: return "Balanced";
+        case VolumetricLightingQuality::High: return "High";
         default: return "Unknown";
         }
     }

@@ -4,6 +4,7 @@
 
 #include "Core/HIKARI_TimeService.h"
 #include "Render2D/HIKARI_RenderTarget2D.h"
+#include "Render3D/Debug/HIKARI_RenderDebugOutput.h"
 #include "Render3D/Debug/HIKARI_RenderDebugView.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Temporal/HIKARI_TaaResolvePass.h"
@@ -33,20 +34,28 @@ namespace HIKARI::RENDER3D::TEMPORAL {
     }
 
     TemporalResolveStageResult ExecuteTemporalResolveStage(
-        RenderTarget2D& sceneTarget,
+        RenderTarget2D& sceneColorTarget,
+        RenderTarget2D& sceneDepthTarget,
         const RenderQualitySettings& quality,
         float exposure) {
 
         TemporalResolveStageResult result{};
-        result.output = &sceneTarget;
+        result.output = &sceneColorTarget;
 
-        const RenderDebugView debugView = GetTemporalDebugView();
-        const bool debugRequested = IsTemporalRenderDebugView(debugView);
+        const RenderDebugOutputRoute& debugRoute =
+            GetRenderDebugOutputRoute();
+        const bool debugRequested = debugRoute.temporalVisualization;
+
+        if (debugRoute.active && !debugRequested) {
+            MarkTemporalAntiAliasing(false, false);
+            return result;
+        }
+
         const bool nativeTaaRequested =
             IsTemporalAntiAliasingMode(quality.antiAliasingMode) ||
             debugRequested;
         const UPSCALING::StreamlineDlssMode streamlineMode =
-            !debugRequested
+            !debugRoute.bypassTemporalUpscaler
                 ? UPSCALING::ResolveStreamlineDlssMode(quality)
                 : UPSCALING::StreamlineDlssMode::Off;
         const bool streamlineRequested =
@@ -68,30 +77,36 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             frame.frameIndex == TIME::GetFrameContext().frameIndex &&
             frame.camera.valid &&
             frame.renderWidth ==
-                static_cast<uint32_t>((std::max)(1, sceneTarget.GetWidth())) &&
+                static_cast<uint32_t>((std::max)(1, sceneColorTarget.GetWidth())) &&
             frame.renderHeight ==
-                static_cast<uint32_t>((std::max)(1, sceneTarget.GetHeight()));
+                static_cast<uint32_t>((std::max)(1, sceneColorTarget.GetHeight())) &&
+            frame.renderWidth ==
+                static_cast<uint32_t>((std::max)(1, sceneDepthTarget.GetWidth())) &&
+            frame.renderHeight ==
+                static_cast<uint32_t>((std::max)(1, sceneDepthTarget.GetHeight()));
         if (!frameCurrent || !frame.temporalResolveAllowed) {
             RejectTemporalFrame(nativeTaaRequested);
             return result;
         }
 
         const D3D12_GPU_DESCRIPTOR_HANDLE sceneDepthSrv =
-            sceneTarget.HasDepth()
-                ? sceneTarget.GetDepthSrvGpu()
+            sceneDepthTarget.HasDepth()
+                ? sceneDepthTarget.GetDepthSrvGpu()
                 : D3D12_GPU_DESCRIPTOR_HANDLE{};
         const bool depthReadActive =
-            sceneDepthSrv.ptr != 0 && sceneTarget.BeginDepthShaderRead();
-        if (!depthReadActive || !PrepareSceneColorInput(sceneTarget)) {
+            sceneDepthSrv.ptr != 0 && sceneDepthTarget.BeginDepthShaderRead();
+        if (!depthReadActive || !PrepareSceneColorInput(sceneColorTarget)) {
             if (depthReadActive) {
-                sceneTarget.EndDepthShaderRead();
+                sceneDepthTarget.EndDepthShaderRead();
             }
             RejectTemporalFrame(nativeTaaRequested);
             return result;
         }
 
         (void)UpdateTemporalExposure(exposure);
-        const TemporalInputs inputs = BuildTemporalInputs(sceneTarget);
+        const TemporalInputs inputs = BuildTemporalInputs(
+            sceneColorTarget,
+            sceneDepthTarget);
         const bool masksWritten = ExecuteTemporalMaskPass(inputs);
         const TaaResolveSettings taaSettings = BuildTaaSettings(quality);
 
@@ -113,7 +128,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             result.backend = TemporalResolveBackend::Taa;
         }
 
-        sceneTarget.EndDepthShaderRead();
+        sceneDepthTarget.EndDepthShaderRead();
 
         if (resolvedTarget == nullptr || resolvedTarget->GetResource() == nullptr) {
             RejectTemporalFrame(nativeTaaRequested);
@@ -131,7 +146,6 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             RenderTarget2D* debugTarget = GetTemporalDebugRenderTarget();
             if (debugTarget != nullptr && debugTarget->GetResource() != nullptr) {
                 result.output = debugTarget;
-                result.debugOutput = true;
                 result.requiresOutputNormalization = false;
             }
         }

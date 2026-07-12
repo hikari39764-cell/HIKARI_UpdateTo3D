@@ -7,6 +7,7 @@
 #include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
+#include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
@@ -43,6 +44,7 @@ namespace HIKARI {
             RENDER3D::RenderResourceDescriptorPoolStats descriptorPool{};
             RENDER3D::SCREENSPACE::SsaoDebugState ssao{};
             RENDER3D::SCREENSPACE::DepthVisibilityDebugState depthVisibility{};
+            RENDER3D::VOLUMETRIC::VolumetricLightingStats volumetric{};
             RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
             RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
             RENDER3D::UPSCALING::StreamlineDebugStats streamline{};
@@ -201,6 +203,8 @@ namespace HIKARI {
             out.ssao = RENDER3D::SCREENSPACE::GetSsaoDebugState();
             out.depthVisibility =
                 RENDER3D::SCREENSPACE::GetDepthVisibilityDebugState();
+            out.volumetric =
+                RENDER3D::VOLUMETRIC::GetVolumetricLightingStats();
             out.temporalFrame =
                 RENDER3D::TEMPORAL::GetCurrentTemporalFrameState();
             out.temporalResources =
@@ -670,6 +674,28 @@ namespace HIKARI {
                     s.ssao.mainCpuMs,
                     s.ssao.blurCpuMs,
                     s.ssao.totalCpuMs);
+                MetricRow("Volumetric Requested / Active / History", "%s / %s / %s",
+                    s.volumetric.requested ? "yes" : "no",
+                    s.volumetric.active ? "yes" : "no",
+                    s.volumetric.historyValid ? "valid" : "cold");
+                MetricRow("Volumetric Quality / Froxels / Tile", "%s / %u x %u x %u / %u px",
+                    RENDER3D::VolumetricLightingQualityLabel(
+                        static_cast<RENDER3D::VolumetricLightingQuality>(
+                            s.volumetric.qualityLevel)),
+                    s.volumetric.froxelWidth,
+                    s.volumetric.froxelHeight,
+                    s.volumetric.froxelDepth,
+                    s.volumetric.froxelPixelSize);
+                MetricRow("Volumetric Working Set", "%.2f MB",
+                    static_cast<double>(s.volumetric.workingSetBytes) / (1024.0 * 1024.0));
+                MetricRow("Volumetric Shadow / Points / History Weight", "%s / %u / %.2f",
+                    s.volumetric.shadowed ? "yes" : "no",
+                    s.volumetric.pointLightCount,
+                    s.volumetric.temporalWeight);
+                MetricRow("Volumetric Dispatch / Resizes / Resets", "%u / %llu / %llu",
+                    s.volumetric.dispatchCount,
+                    static_cast<unsigned long long>(s.volumetric.resizeCount),
+                    static_cast<unsigned long long>(s.volumetric.historyResetCount));
                 MetricRow("Shadow Enabled / Resolution / Ortho / Texel", "%s / %u / %.2f / %.5f",
                     s.shadow.enabled ? "yes" : "no",
                     s.shadow.resolution,

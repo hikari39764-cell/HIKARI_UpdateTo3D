@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 
+#include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 
 namespace HIKARI::RENDER3D::TEMPORAL {
@@ -67,11 +68,29 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             return ctx.device != nullptr && ctx.cmdList != nullptr;
         }
 
-        void ReleaseTarget(TemporalTarget& target) {
-            if (target.srv.IsValid()) {
-                (void)RENDER3D::ReleaseRenderResourceDescriptor(target.srv);
+        void RetireDescriptor(
+            TemporalResourceState& state,
+            RenderResourceView& view,
+            const char* debugName) {
+
+            if (!view.IsValid()) return;
+            const RenderResourceView retired = view;
+            view = {};
+            if (state.context.deferredReleaseQueue != nullptr &&
+                state.context.currentFrameRetireFenceValue != 0) {
+                state.context.deferredReleaseQueue->Enqueue(
+                    state.context.currentFrameRetireFenceValue,
+                    [retired]() {
+                        (void)RENDER3D::ReleaseRenderResourceDescriptor(retired);
+                    },
+                    debugName != nullptr ? debugName : "Temporal.Descriptor");
+                return;
             }
-            target.srv = {};
+            (void)RENDER3D::ReleaseRenderResourceDescriptor(retired);
+        }
+
+        void ReleaseTarget(TemporalTarget& target) {
+            RetireDescriptor(State(), target.srv, "Temporal.TargetSRV");
             target.target.Finalize();
             target.format = DXGI_FORMAT_UNKNOWN;
             target.width = 0;
@@ -110,10 +129,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         }
 
         void ReleaseExternalTexture(TemporalExternalTexture& texture) {
-            if (texture.srv.IsValid()) {
-                (void)RENDER3D::ReleaseRenderResourceDescriptor(texture.srv);
-            }
-            texture.srv = {};
+            RetireDescriptor(State(), texture.srv, "Temporal.ExternalSRV");
             texture.resource = nullptr;
             texture.format = DXGI_FORMAT_UNKNOWN;
             texture.width = 0;
@@ -601,25 +617,34 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         return inputs;
     }
 
-    TemporalInputs BuildTemporalInputs(RenderTarget2D& sceneTarget) {
+    TemporalInputs BuildTemporalInputs(
+        RenderTarget2D& sceneColorTarget,
+        RenderTarget2D& sceneDepthTarget) {
+
         TemporalResourceState& state = State();
         TemporalInputs inputs = BuildTemporalInputs(
-            sceneTarget.GetDepthSrvGpu(),
+            sceneDepthTarget.GetDepthSrvGpu(),
             state.sceneColor.srv.gpu);
         inputs.hasSceneDepth =
-            sceneTarget.GetDepthResource() != nullptr &&
+            sceneDepthTarget.GetDepthResource() != nullptr &&
             inputs.sceneDepthSrv.ptr != 0;
-        inputs.hasSceneColor = state.sceneColor.ready;
-        inputs.sceneDepth.resource = sceneTarget.GetDepthResource();
+        inputs.hasSceneColor =
+            state.sceneColor.ready &&
+            state.sceneColor.resource == sceneColorTarget.GetResource();
+        inputs.sceneDepth.resource = sceneDepthTarget.GetDepthResource();
         inputs.sceneDepth.srv = inputs.sceneDepthSrv;
         inputs.sceneDepth.format = DXGI_FORMAT_R32_FLOAT;
         inputs.sceneDepth.width =
-            static_cast<uint32_t>((std::max)(1, sceneTarget.GetWidth()));
+            static_cast<uint32_t>((std::max)(1, sceneDepthTarget.GetWidth()));
         inputs.sceneDepth.height =
-            static_cast<uint32_t>((std::max)(1, sceneTarget.GetHeight()));
-        inputs.sceneDepth.state = sceneTarget.GetDepthState();
+            static_cast<uint32_t>((std::max)(1, sceneDepthTarget.GetHeight()));
+        inputs.sceneDepth.state = sceneDepthTarget.GetDepthState();
         inputs.sceneDepth.valid = inputs.hasSceneDepth;
         return inputs;
+    }
+
+    TemporalInputs BuildTemporalInputs(RenderTarget2D& sceneTarget) {
+        return BuildTemporalInputs(sceneTarget, sceneTarget);
     }
 
     const TemporalResourceStats& GetTemporalResourceStats() {

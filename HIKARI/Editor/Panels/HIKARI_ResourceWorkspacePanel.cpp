@@ -9,6 +9,7 @@
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -208,15 +209,21 @@ namespace HIKARI {
         ImGui::SameLine();
         ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
         ImGui::SameLine();
-        if (ImGui::SmallButton("Refresh")) {
+        if (EDITOR::ActionButton(
+                "Refresh",
+                "ResourceRefresh",
+                EDITOR::EditorButtonTone::Quiet,
+                ImVec2(0.0f, 26.0f),
+                "Refresh AssetDatabase and reload resources used by the current scene")) {
             assetDatabase.ScanAssets(true);
             refreshCurrentSceneResourcesRequested_ = true;
         }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Refreshes AssetDatabase and reloads resources used by the current scene.");
-        }
         ImGui::SameLine();
-        if (ImGui::SmallButton("Import Outdated")) {
+        if (EDITOR::ActionButton(
+                "Import Outdated",
+                "ResourceImportOutdated",
+                EDITOR::EditorButtonTone::Primary,
+                ImVec2(0.0f, 26.0f))) {
             const AssetImportBatchResult result = assetDatabase.ImportAllOutdated();
             assetDatabase.ScanAssets(false);
             importMonitor_ = ResourceImportBatchMonitor{
@@ -231,7 +238,12 @@ namespace HIKARI {
         if (activeScope_ != AssetBrowserScope::Project) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::SmallButton("Import Current Folder")) {
+        if (EDITOR::ActionButton(
+                "Import Current Folder",
+                "ResourceImportCurrentFolder",
+                EDITOR::EditorButtonTone::Neutral,
+                ImVec2(0.0f, 26.0f),
+                "Import outdated assets in the selected folder; recursive follows the browser toggle")) {
             const std::filesystem::path currentDirectory = assetBrowserPanel_.CurrentDirectory();
             const AssetImportBatchResult result =
                 assetDatabase.ImportOutdatedInDirectory(currentDirectory, assetBrowserPanel_.IsRecursiveEnabled());
@@ -244,9 +256,6 @@ namespace HIKARI {
                 "Current folder " + currentDirectory.generic_string()
             };
         }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Imports outdated assets in the selected Asset Browser folder. Recursive follows the browser toggle.");
-        }
         if (activeScope_ != AssetBrowserScope::Project) {
             ImGui::EndDisabled();
         }
@@ -254,7 +263,11 @@ namespace HIKARI {
         if (selectedRecord == nullptr) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::SmallButton("Import Dependencies")) {
+        if (EDITOR::ActionButton(
+                "Import Dependencies",
+                "ResourceImportDependencies",
+                EDITOR::EditorButtonTone::Quiet,
+                ImVec2(0.0f, 26.0f))) {
             const AssetImportBatchResult result = assetDatabase.ImportDependencies(selectedRecord->guid, false);
             assetDatabase.ScanAssets(false);
             importMonitor_ = ResourceImportBatchMonitor{
@@ -266,7 +279,11 @@ namespace HIKARI {
             };
         }
         ImGui::SameLine();
-        if (ImGui::SmallButton("Reimport Selected")) {
+        if (EDITOR::ActionButton(
+                "Reimport Selected",
+                "ResourceReimportSelected",
+                EDITOR::EditorButtonTone::Neutral,
+                ImVec2(0.0f, 26.0f))) {
             const bool ok = assetDatabase.ImportAsset(selectedRecord->guid);
             assetDatabase.ScanAssets(false);
             importMonitor_ = ResourceImportBatchMonitor{
@@ -281,7 +298,12 @@ namespace HIKARI {
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
-        if (ImGui::SmallButton(showInspector_ ? "Hide Inspector" : "Inspector")) {
+        if (EDITOR::ToggleButton(
+                "Inspector",
+                "ResourceInspectorToggle",
+                showInspector_,
+                ImVec2(0.0f, 26.0f),
+                showInspector_ ? "Hide asset inspector" : "Show asset inspector")) {
             showInspector_ = !showInspector_;
         }
         ImGui::SameLine();

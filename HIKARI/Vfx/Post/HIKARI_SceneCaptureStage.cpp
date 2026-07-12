@@ -35,13 +35,14 @@ namespace HIKARI::POST {
         const bool sceneInvalid = !sceneTarget_.GetResource() ||
             sceneTarget_.GetWidth() != width || sceneTarget_.GetHeight() != height ||
             sceneTarget_.GetFormat() != DXGI_FORMAT_R16G16B16A16_FLOAT ||
-            !sceneTarget_.HasDepth();
+            !sceneTarget_.HasDepth() ||
+            !sceneTarget_.AllowsUnorderedAccess();
         if (sceneInvalid) {
             sceneTarget_.Finalize();
             sceneTarget_.SetDebugName("SceneCapture.HDR");
             if (!sceneTarget_.Init(
                     width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
-                    true, { 0, 0, 0, 1 })) return false;
+                    true, { 0, 0, 0, 1 }, true, true)) return false;
         }
 
         const bool clearChanged =

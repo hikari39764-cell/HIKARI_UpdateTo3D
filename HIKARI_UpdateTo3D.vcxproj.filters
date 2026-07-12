@@ -648,6 +648,9 @@
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_VolumetricLightingStage.cpp">
+      <Filter>Source Files\Render3D\Lighting</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
@@ -655,6 +658,9 @@
       <Filter>Source Files\Render3D\Lighting</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp">
+      <Filter>Source Files\Render3D\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.cpp">
       <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
@@ -685,6 +691,9 @@
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.cpp">
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
@@ -1672,6 +1681,9 @@
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
       <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.h">
+      <Filter>Header Files\Editor\Style</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -1702,6 +1714,9 @@
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugView.h">
       <Filter>Header Files\Render3D\Debug</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.h">
+      <Filter>Header Files\Render3D\Debug</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpaceGeometryAux.h">
       <Filter>Header Files\Render3D\ScreenSpace</Filter>
     </ClInclude>
@@ -1715,6 +1730,9 @@
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_VolumetricLightingStage.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyAsset.h">
@@ -2484,6 +2502,9 @@
     </None>
     <None Include="HIKARI\Shaders\Render3D_ShadowStaticVS.hlsl">
       <Filter>Project\Shaders\Render3D\Shadow</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Render3D_VolumetricLighting.hlsl">
+      <Filter>Project\Shaders\Render3D</Filter>
     </None>
     <None Include="HIKARI\Shaders\Post_AniPS.hlsl">
       <Filter>Project\Shaders\Post</Filter>

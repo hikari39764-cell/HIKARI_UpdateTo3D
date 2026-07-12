@@ -50,6 +50,9 @@ namespace HIKARI::SHADOW {
     namespace {
         constexpr UINT kMaxCasterObjects = 2048u;
         constexpr size_t kMaxJointPaletteMatrices = 128u;
+        constexpr D3D12_RESOURCE_STATES kShadowShaderReadState =
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
         constexpr UINT AlignConstantBufferSize(size_t size) {
             return static_cast<UINT>((size + 255u) & ~255u);
@@ -119,7 +122,7 @@ namespace HIKARI::SHADOW {
             bool frameHasStaticShadowWork = false;
             bool frameHasDynamicShadowWork = false;
             uint32_t resolution = 0;
-            D3D12_RESOURCE_STATES shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            D3D12_RESOURCE_STATES shadowState = kShadowShaderReadState;
             D3D12_RESOURCE_STATES staticShadowState = D3D12_RESOURCE_STATE_COMMON;
             MATH::Mat4 lightViewProj = MATH::Mat4::Identity();
             MATH::Vec3 lightCullPosition{};
@@ -1891,7 +1894,7 @@ namespace HIKARI::SHADOW {
                 &heapProps,
                 D3D12_HEAP_FLAG_NONE,
                 &texDesc,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                kShadowShaderReadState,
                 &clearValue,
                 IID_PPV_ARGS(g.shadowMap.GetAddressOf()));
             if (!HIKARI_DX_CHECK(hr, "ShadowMapRenderer::CreateShadowMapResource")) {
@@ -1937,7 +1940,7 @@ namespace HIKARI::SHADOW {
                 std::move(shadowSrvDesc));
             g.shadowSrvHandle = RENDER3D::GetTextureResourceBackendHandle(g.shadowSrvResource);
             g.resolution = resolution;
-            g.shadowState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            g.shadowState = kShadowShaderReadState;
             g.staticShadowState = D3D12_RESOURCE_STATE_COMMON;
             ++g.shadowMapRecreateCount;
             return RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
@@ -2508,7 +2511,7 @@ namespace HIKARI::SHADOW {
                 cmd,
                 g.shadowMap.Get(),
                 g.shadowState,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                kShadowShaderReadState);
             RestoreMainRenderTarget();
         }
 
@@ -2522,7 +2525,7 @@ namespace HIKARI::SHADOW {
 
             if (!g.frameHasDynamicShadowWork &&
                 g.finalShadowMapMatchesStaticCache &&
-                g.shadowState == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
+                g.shadowState == kShadowShaderReadState) {
                 return true;
             }
 

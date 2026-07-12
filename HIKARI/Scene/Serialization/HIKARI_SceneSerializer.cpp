@@ -237,11 +237,14 @@ namespace HIKARI {
             out["bloom"]["downsampleCount"] = environment.bloom.downsampleCount;
 
             out["fog"]["enabled"] = environment.fog.enabled;
+            out["fog"]["volumetric"] = environment.fog.volumetric;
             out["fog"]["color"] = ToVec3(environment.fog.color);
             out["fog"]["density"] = environment.fog.density;
             out["fog"]["startDistance"] = environment.fog.startDistance;
             out["fog"]["endDistance"] = environment.fog.endDistance;
             out["fog"]["heightFalloff"] = environment.fog.heightFalloff;
+            out["fog"]["anisotropy"] = environment.fog.anisotropy;
+            out["fog"]["temporalWeight"] = environment.fog.temporalWeight;
             out["fog"]["useSkyHorizonColor"] = environment.fog.useSkyHorizonColor;
 
             out["toneMapping"]["enabled"] = environment.toneMapping.enabled;
@@ -409,11 +412,14 @@ namespace HIKARI {
             if (in.contains("fog") && in["fog"].is_object()) {
                 const json& fog = in["fog"];
                 environment.fog.enabled = fog.value("enabled", environment.fog.enabled);
+                environment.fog.volumetric = fog.value("volumetric", environment.fog.volumetric);
                 environment.fog.color = JSONREAD::Vec3Or(fog.value("color", json::array()), environment.fog.color);
                 environment.fog.density = fog.value("density", environment.fog.density);
                 environment.fog.startDistance = fog.value("startDistance", environment.fog.startDistance);
                 environment.fog.endDistance = fog.value("endDistance", environment.fog.endDistance);
                 environment.fog.heightFalloff = fog.value("heightFalloff", environment.fog.heightFalloff);
+                environment.fog.anisotropy = fog.value("anisotropy", environment.fog.anisotropy);
+                environment.fog.temporalWeight = fog.value("temporalWeight", environment.fog.temporalWeight);
                 environment.fog.useSkyHorizonColor = fog.value("useSkyHorizonColor", environment.fog.useSkyHorizonColor);
             }
 

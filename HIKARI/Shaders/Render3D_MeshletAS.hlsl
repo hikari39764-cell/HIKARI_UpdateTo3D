@@ -116,22 +116,14 @@ bool HikariMeshletAsBuildPayloadCluster(
     return true;
 }
 
-void HikariMeshletAsStoreVisibleCluster(
-    uint compactIndex,
-    HikariMeshletPayloadCluster payloadCluster)
-{
-    if (compactIndex < HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD)
-    {
-        gMeshletAsPayload.clusters[compactIndex] = payloadCluster;
-    }
-}
-
-bool HikariMeshletAsTryStoreVisibleCluster(
+bool HikariMeshletAsBuildCompactedCluster(
     HikariClusterGeometryHeader header,
     uint clusterIndex,
-    HikariMeshCluster cluster)
+    HikariMeshCluster cluster,
+    out uint compactIndex,
+    out HikariMeshletPayloadCluster payloadCluster)
 {
-    HikariMeshletPayloadCluster payloadCluster;
+    compactIndex = 0xffffffffu;
     if (!HikariMeshletAsBuildPayloadCluster(
         header,
         clusterIndex,
@@ -141,10 +133,8 @@ bool HikariMeshletAsTryStoreVisibleCluster(
         return false;
     }
 
-    uint compactIndex = 0u;
     InterlockedAdd(gMeshletAsVisibleCount, 1u, compactIndex);
-    HikariMeshletAsStoreVisibleCluster(compactIndex, payloadCluster);
-    return true;
+    return compactIndex < HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD;
 }
 
 float4 HikariMeshletAsMatrixRow0(float4x4 matrix)
@@ -399,7 +389,24 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
 
         if (clusterValid)
         {
-            HikariMeshletAsTryStoreVisibleCluster(header, clusterIndex, cluster);
+            uint compactIndex;
+            HikariMeshletPayloadCluster payloadCluster;
+            if (HikariMeshletAsBuildCompactedCluster(
+                header,
+                clusterIndex,
+                cluster,
+                compactIndex,
+                payloadCluster))
+            {
+                gMeshletAsPayload.clusterIndices[compactIndex] =
+                    payloadCluster.clusterIndex;
+                gMeshletAsPayload.clusterFirstVertices[compactIndex] =
+                    payloadCluster.firstVertex;
+                gMeshletAsPayload.clusterFirstPrimitives[compactIndex] =
+                    payloadCluster.firstPrimitive;
+                gMeshletAsPayload.clusterPackedCounts[compactIndex] =
+                    payloadCluster.packedCounts;
+            }
         }
     }
     else if (rangeValid && !useDenseRange)
@@ -450,7 +457,24 @@ void main(uint groupIndex : SV_GroupIndex, uint3 groupId : SV_GroupID)
 
         if (clusterValid)
         {
-            HikariMeshletAsTryStoreVisibleCluster(header, clusterIndex, cluster);
+            uint compactIndex;
+            HikariMeshletPayloadCluster payloadCluster;
+            if (HikariMeshletAsBuildCompactedCluster(
+                header,
+                clusterIndex,
+                cluster,
+                compactIndex,
+                payloadCluster))
+            {
+                gMeshletAsPayload.clusterIndices[compactIndex] =
+                    payloadCluster.clusterIndex;
+                gMeshletAsPayload.clusterFirstVertices[compactIndex] =
+                    payloadCluster.firstVertex;
+                gMeshletAsPayload.clusterFirstPrimitives[compactIndex] =
+                    payloadCluster.firstPrimitive;
+                gMeshletAsPayload.clusterPackedCounts[compactIndex] =
+                    payloadCluster.packedCounts;
+            }
         }
     }
 

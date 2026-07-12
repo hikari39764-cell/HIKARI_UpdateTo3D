@@ -7,7 +7,9 @@
 #include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "HIKARI_Core.h"
+#include "Render3D/Debug/HIKARI_RenderDebugOutput.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 #include "Render3D/Temporal/HIKARI_TemporalResolveStage.h"
 #include "Vfx/Post/HIKARI_PostChain.h"
@@ -204,10 +206,19 @@ namespace HIKARI::POST {
         RenderTarget2D* captured = captureStage_.End();
         if (!captured) return nullptr;
 
+        RenderTarget2D* volumetric =
+            RENDER3D::VOLUMETRIC::ExecuteVolumetricLightingStage(*captured);
+        if (volumetric == nullptr || volumetric->GetResource() == nullptr) {
+            volumetric = captured;
+        }
+
         const auto& quality = RENDER3D::GetRenderQualitySettings();
         auto temporal = RENDER3D::TEMPORAL::ExecuteTemporalResolveStage(
-            *captured, quality, processingStage_.GetExposure());
-        RenderTarget2D* output = temporal.output ? temporal.output : captured;
+            *volumetric,
+            *captured,
+            quality,
+            processingStage_.GetExposure());
+        RenderTarget2D* output = temporal.output ? temporal.output : volumetric;
         if (temporal.requiresOutputNormalization) {
             RenderTarget2D* normalized = processingStage_.NormalizeTemporalOutput(
                 *output,
@@ -217,7 +228,7 @@ namespace HIKARI::POST {
             if (normalized) {
                 output = normalized;
             } else {
-                output = captured;
+                output = volumetric;
                 RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
                     RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
             }
@@ -225,7 +236,7 @@ namespace HIKARI::POST {
         return processingStage_.ResolveHdr(
             *output,
             quad_,
-            temporal.debugOutput,
+            RENDER3D::GetRenderDebugOutputRoute().bypassPostProcessing,
             RENDER3D::TEMPORAL::ToString(temporal.backend),
             captureStage_.IsLightingEnabled());
     }
@@ -233,6 +244,12 @@ namespace HIKARI::POST {
     RenderTarget2D* PostSystem::ResolveFinalSceneToLdr(
         RenderTarget2D& source,
         DXGI_FORMAT outputFormat) {
+        if (RENDER3D::GetRenderDebugOutputRoute().bypassPostProcessing) {
+            return processingStage_.ResolveDebugLdr(
+                source,
+                outputFormat,
+                quad_);
+        }
         return processingStage_.ResolveLdr(
             source,
             outputFormat,

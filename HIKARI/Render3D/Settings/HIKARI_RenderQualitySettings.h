@@ -54,6 +54,12 @@ namespace HIKARI::RENDER3D {
         UltraPerformance,
     };
 
+    enum class VolumetricLightingQuality : uint8_t {
+        Low = 0,
+        Balanced,
+        High,
+    };
+
     struct RenderResolution {
         int width = 0;
         int height = 0;
@@ -71,6 +77,8 @@ namespace HIKARI::RENDER3D {
         bool vSync = false;
         RenderAntiAliasingMode antiAliasingMode = RenderAntiAliasingMode::TAA;
         DlssQualityMode dlssQualityMode = DlssQualityMode::Quality;
+        VolumetricLightingQuality volumetricLightingQuality =
+            VolumetricLightingQuality::Balanced;
         float taaHistoryWeight = 0.92f;
         float taaVarianceClipGamma = 1.25f;
         float taaDepthRejection = 0.0025f;
@@ -91,6 +99,7 @@ namespace HIKARI::RENDER3D {
     const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode);
     const char* RenderAntiAliasingModeLabel(RenderAntiAliasingMode mode);
     const char* DlssQualityModeLabel(DlssQualityMode mode);
+    const char* VolumetricLightingQualityLabel(VolumetricLightingQuality quality);
 
     bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode);
     bool UsesTemporalJitter(RenderAntiAliasingMode mode);

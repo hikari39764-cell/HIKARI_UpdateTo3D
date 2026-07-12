@@ -373,16 +373,16 @@ namespace HIKARI::POST {
     RenderTarget2D* PostProcessingStage::ResolveHdr(
         RenderTarget2D& source,
         QuadDrawer& quad,
-        bool temporalDebugOutput,
+        bool debugOutput,
         const char* temporalBackend,
         bool lightingEnabled) {
         RenderTarget2D* output = &source;
         commonParams_.resolutionX = static_cast<float>((std::max)(1, output->GetWidth()));
         commonParams_.resolutionY = static_cast<float>((std::max)(1, output->GetHeight()));
-        if (!temporalDebugOutput && globalChain_.HasAny()) {
+        if (!debugOutput && globalChain_.HasAny()) {
             output = globalChain_.Execute(*output, quad, commonParams_);
         }
-        RenderTarget2D* bloom = temporalDebugOutput ? nullptr : ApplyBloom(*output, quad);
+        RenderTarget2D* bloom = debugOutput ? nullptr : ApplyBloom(*output, quad);
         if (bloom && bloom->GetResource()) {
             output->Rebind();
             if (quad.SetOutputFormat(output->GetFormat())) {
@@ -400,6 +400,23 @@ namespace HIKARI::POST {
                 " lighting=" + (lightingEnabled ? "on" : "off"));
         }
         return output;
+    }
+
+    RenderTarget2D* PostProcessingStage::ResolveDebugLdr(
+        RenderTarget2D& source,
+        DXGI_FORMAT outputFormat,
+        QuadDrawer& quad) {
+        if (!EnsureLdrTarget(source.GetWidth(), source.GetHeight(), outputFormat)) {
+            return nullptr;
+        }
+
+        ldrTarget_.BeginCapture(0.0f, 0.0f, 0.0f, 1.0f);
+        const bool ready = quad.SetOutputFormat(ldrTarget_.GetFormat());
+        if (ready) {
+            quad.DrawFullscreen(source.GetSrvHeap(), source.GetSrvGpu());
+        }
+        ldrTarget_.EndCapture();
+        return ready ? &ldrTarget_ : nullptr;
     }
 
     RenderTarget2D* PostProcessingStage::ResolveLdr(

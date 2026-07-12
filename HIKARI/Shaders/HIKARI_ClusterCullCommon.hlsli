@@ -1047,7 +1047,11 @@ uint HikariClusterCullGetPacketIndex(
     {
         return packet2[slot - 8u];
     }
-    return packet3[slot - 12u];
+    if (slot < HIKARI_CLUSTER_CULL_VISIBLE_PACKET_CAPACITY)
+    {
+        return packet3[slot - 12u];
+    }
+    return 0xffffffffu;
 }
 
 bool HikariClusterCullPromoteVisibleRunToClusterList(
@@ -1065,8 +1069,10 @@ bool HikariClusterCullPromoteVisibleRunToClusterList(
         return true;
     }
 
+    // Before promotion every stored index still lives in the 16-entry packet.
+    // Once a list exists the early return above owns subsequent appends.
     if (runVisibleClusterCount >
-        HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY)
+        HIKARI_CLUSTER_CULL_VISIBLE_PACKET_CAPACITY)
     {
         return false;
     }

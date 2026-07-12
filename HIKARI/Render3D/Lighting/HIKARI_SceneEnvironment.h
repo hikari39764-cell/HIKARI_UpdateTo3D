@@ -133,11 +133,14 @@ namespace HIKARI {
 
     struct FogSettings {
         bool enabled = false;
+        bool volumetric = true;
         MATH::Vec3 color{ 0.55f, 0.65f, 0.75f };
         float density = 0.02f;
         float startDistance = 10.0f;
         float endDistance = 80.0f;
         float heightFalloff = 0.0f;
+        float anisotropy = 0.2f;
+        float temporalWeight = 0.9f;
         bool useSkyHorizonColor = false;
     };
 

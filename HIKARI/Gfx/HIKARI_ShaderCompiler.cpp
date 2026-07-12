@@ -219,11 +219,13 @@ namespace HIKARI::GFX {
             }
 #if defined(_DEBUG)
             args.push_back(DXC_ARG_DEBUG);
-            args.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
             args.push_back(L"-Qembed_debug");
-#else
-            args.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
 #endif
+            // Runtime PSOs must use production-grade DXIL in every C++ build.
+            // Unoptimized mesh/amplification shaders can exceed driver-side
+            // compilation budgets even though their source is valid. Debug
+            // builds retain embedded symbols for PIX and diagnostics.
+            args.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
         }
 
         bool CopyDxcBlobToD3DBlob(IDxcBlob* shaderBlob, ID3DBlob** outBlob) {

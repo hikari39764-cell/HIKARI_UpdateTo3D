@@ -377,9 +377,11 @@
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_ScreenSpacePasses.cpp" />
     <ClCompile Include="HIKARI\Render3D\ScreenSpace\HIKARI_SsaoRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_VolumetricLightingStage.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.cpp" />
     <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
@@ -390,6 +392,7 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp" />
@@ -760,6 +763,7 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
@@ -767,6 +771,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugView.h" />
+    <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_SceneLighting.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.h" />
@@ -775,6 +780,7 @@
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h" />
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_VolumetricLightingStage.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFramePipeline.h" />
@@ -977,6 +983,7 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_SurfaceGpuScene.hlsli" />
     <None Include="HIKARI\Shaders\Render3D_StaticVS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticPS.hlsl" />
+    <None Include="HIKARI\Shaders\Render3D_VolumetricLighting.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_StaticFxPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_FxWaterPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_GpuDrivenOpaqueAlbedoOnlyPS.hlsl" />

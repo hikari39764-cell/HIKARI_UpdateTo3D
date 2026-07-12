@@ -10,6 +10,7 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
 #ifdef max
@@ -118,7 +119,8 @@ namespace HIKARI::MESHRENDERER {
             std::max(0.0f, environment.fog.density)
         };
         out.fogParams = {
-            environment.fog.enabled ? 1.0f : 0.0f,
+            (environment.fog.enabled &&
+                !RENDER3D::VOLUMETRIC::IsVolumetricLightingActive()) ? 1.0f : 0.0f,
             std::max(0.0f, environment.fog.startDistance),
             std::max(0.1f, environment.fog.endDistance),
             std::max(0.0f, environment.fog.heightFalloff)

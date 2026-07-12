@@ -10,8 +10,10 @@
 #include "HIKARI_Services.h"
 #include "Render3D/Core/HIKARI_MeshPassResources.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Debug/HIKARI_RenderDebugOutput.h"
 #include "Render3D/Depth/HIKARI_DepthPyramidFrameResources.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Pipeline/HIKARI_RenderFrameContext.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
@@ -135,6 +137,9 @@ namespace HIKARI::RENDER3D::PIPELINE {
         const SceneEnvironment& environment,
         RenderDebugView debugView) {
 
+        RENDER3D::SetRenderDebugOutputView(debugView);
+        const RENDER3D::RenderDebugOutputRoute& debugRoute =
+            RENDER3D::GetRenderDebugOutputRoute();
         if (!MESHRENDERER::HasSubmittedItems()) {
             return true;
         }
@@ -171,9 +176,10 @@ namespace HIKARI::RENDER3D::PIPELINE {
         temporalDesc.renderHeight = frame.renderHeight;
         temporalDesc.outputWidth = frame.outputWidth;
         temporalDesc.outputHeight = frame.outputHeight;
-        const bool temporalDebugView = IsTemporalRenderDebugView(debugView);
+        const bool temporalDebugView = debugRoute.temporalVisualization;
+        const bool volumetricDebugView = debugRoute.volumetricVisualization;
         const bool temporalPipelineAllowed =
-            debugView == RenderDebugView::None || temporalDebugView;
+            !debugRoute.active || temporalDebugView;
         temporalDesc.temporalResolveAllowed = temporalPipelineAllowed;
         temporalDesc.forceHistoryReset = !temporalPipelineAllowed;
         temporalDesc.jitterEnabled =
@@ -183,10 +189,16 @@ namespace HIKARI::RENDER3D::PIPELINE {
             RENDER3D::TEMPORAL::BeginTemporalFrame(temporalDesc);
         RENDER3D::TEMPORAL::UpdateTemporalResourceSystemContext(SERVICES::gCtx);
         (void)RENDER3D::TEMPORAL::BeginTemporalResources(temporalFrame);
+        (void)RENDER3D::VOLUMETRIC::PrepareVolumetricLightingFrame(
+            SERVICES::gCtx,
+            temporalFrame,
+            environment,
+            renderQuality.volumetricLightingQuality,
+            volumetricDebugView ? debugView : RenderDebugView::None);
         RENDER3D::TEMPORAL::SetTemporalDebugView(
             temporalDebugView ? debugView : RenderDebugView::None);
         const RENDER3D::UPSCALING::StreamlineDlssMode streamlineMode =
-            temporalPipelineAllowed && !temporalDebugView
+            !debugRoute.bypassTemporalUpscaler
                 ? RENDER3D::UPSCALING::ResolveStreamlineDlssMode(renderQuality)
                 : RENDER3D::UPSCALING::StreamlineDlssMode::Off;
         (void)RENDER3D::UPSCALING::BeginStreamlineFrame(
@@ -210,7 +222,9 @@ namespace HIKARI::RENDER3D::PIPELINE {
             environment,
             screenSpaceContext.width,
             screenSpaceContext.height,
-            temporalDebugView ? RenderDebugView::None : debugView,
+            (temporalDebugView || volumetricDebugView)
+                ? RenderDebugView::None
+                : debugView,
             temporalFrame.camera.valid ? &cameraOverrides : nullptr)) {
             MESHRENDERER::EndFrame();
             return false;

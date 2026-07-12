@@ -168,6 +168,56 @@ namespace HIKARI::RENDER3D {
         return view;
     }
 
+    RenderResourceView AllocateTexture3DSrvDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mostDetailedMip,
+        UINT mipLevels) {
+
+        RenderResourceDescriptorPoolState& state = State();
+        if (resource == nullptr || mipLevels == 0) {
+            ++state.failedAllocationCount;
+            return {};
+        }
+        RenderResourceView view = AllocateDescriptor(state);
+        if (!view.IsValid()) return {};
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+        desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        desc.Format = format;
+        desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+        desc.Texture3D.MostDetailedMip = mostDetailedMip;
+        desc.Texture3D.MipLevels = mipLevels;
+        desc.Texture3D.ResourceMinLODClamp = 0.0f;
+        state.context.device->CreateShaderResourceView(resource, &desc, view.cpu);
+        return view;
+    }
+
+    RenderResourceView AllocateTexture3DUavDescriptor(
+        ID3D12Resource* resource,
+        DXGI_FORMAT format,
+        UINT mipSlice,
+        UINT firstWSlice,
+        UINT wSize) {
+
+        RenderResourceDescriptorPoolState& state = State();
+        if (resource == nullptr) {
+            ++state.failedAllocationCount;
+            return {};
+        }
+        RenderResourceView view = AllocateDescriptor(state);
+        if (!view.IsValid()) return {};
+
+        D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
+        desc.Format = format;
+        desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+        desc.Texture3D.MipSlice = mipSlice;
+        desc.Texture3D.FirstWSlice = firstWSlice;
+        desc.Texture3D.WSize = wSize;
+        state.context.device->CreateUnorderedAccessView(resource, nullptr, &desc, view.cpu);
+        return view;
+    }
+
     bool ReleaseRenderResourceDescriptor(RenderResourceView view) {
         RenderResourceDescriptorPoolState& state = State();
         if (!state.initialized || view.descriptorIndex == UINT32_MAX) {

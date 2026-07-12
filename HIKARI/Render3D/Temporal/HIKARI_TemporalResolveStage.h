@@ -26,12 +26,12 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         uint32_t expectedOutputHeight = 0;
         bool requested = false;
         bool resolved = false;
-        bool debugOutput = false;
         bool requiresOutputNormalization = false;
     };
 
     TemporalResolveStageResult ExecuteTemporalResolveStage(
-        RenderTarget2D& sceneTarget,
+        RenderTarget2D& sceneColorTarget,
+        RenderTarget2D& sceneDepthTarget,
         const RenderQualitySettings& quality,
         float exposure);
 

@@ -36,6 +36,7 @@ namespace HIKARI::GFX::GPU_PROFILE {
         ForwardOpaque,
         DepthAware,
         ForwardTransparent,
+        VolumetricLighting,
         PostResolve,
         GameViewResolve,
         SceneLayers,
