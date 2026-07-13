@@ -314,8 +314,8 @@ namespace HIKARI {
 			BindButtonsIL("Jump", { KeyCodeFromString("Space") });
 			BindPadButtons("Jump", { PAD_A });
 
-			// ----  ESC で終了用 ----
-			BindButtonsIL("CloseProgram", { KeyCodeFromString("Esc") });
+			BindButtonsIL("CloseProgram", {});
+			BindButtonsIL("StopPlay", { KeyCodeFromString("Esc") });
 
 			BindButtonsIL("ToggleEditorUI", { KeyCodeFromString("F1") });
 			BindButtonsIL("PlayTestVfx", { KeyCodeFromString("Space") });
@@ -337,6 +337,7 @@ namespace HIKARI {
 			SetLayerActions("Debug", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
+				"StopPlay",
 				"ToggleEditorUI",
 				"PlayTestVfx",
 				"PlaySceneScan"
@@ -344,6 +345,7 @@ namespace HIKARI {
 			SetLayerActions("Gameplay", {
 				"MoveX","MoveY","Jump",
 				"CloseProgram",
+				"StopPlay",
 				"ToggleEditorUI",
 				"PlayTestVfx",
 				"PlaySceneScan"
@@ -605,6 +607,19 @@ namespace HIKARI {
 
 		void SetHostWindow(void* hwnd) {
 			gHostWindow = reinterpret_cast<HWND>(hwnd);
+			POINT point{};
+			if (::GetCursorPos(&point)) {
+				if (gHostWindow) {
+					::ScreenToClient(gHostWindow, &point);
+				}
+				gMousePos = {
+					static_cast<float>(point.x),
+					static_cast<float>(point.y) };
+				gMousePrev = gMousePos;
+			}
+			gMouseDelta = { 0.0f, 0.0f };
+			gExternalWheelDelta = 0.0f;
+			gWheelDelta = 0.0f;
 		}
 
 		void SetExternalMouseWheelDelta(float delta) {

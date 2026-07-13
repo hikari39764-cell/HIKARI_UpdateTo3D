@@ -7,6 +7,7 @@ namespace HIKARI {
     enum class RuntimeHostMode {
         Game,
         Editor,
+        GamePreview,
         ExportedGame,
         ExportedGameWithTools,
     };
@@ -20,6 +21,12 @@ namespace HIKARI {
             mode == RuntimeHostMode::ExportedGameWithTools;
     }
 
+    inline constexpr bool IsStandaloneGameHostMode(RuntimeHostMode mode) {
+        return mode == RuntimeHostMode::Game ||
+            mode == RuntimeHostMode::GamePreview ||
+            IsExportedGameHostMode(mode);
+    }
+
     inline constexpr bool AllowsPortableObjectTools(RuntimeHostMode mode) {
         return mode == RuntimeHostMode::ExportedGameWithTools;
     }
@@ -30,6 +37,8 @@ namespace HIKARI {
             return "Game";
         case RuntimeHostMode::Editor:
             return "Editor";
+        case RuntimeHostMode::GamePreview:
+            return "GamePreview";
         case RuntimeHostMode::ExportedGame:
             return "ExportedGame";
         case RuntimeHostMode::ExportedGameWithTools:
@@ -46,6 +55,12 @@ namespace HIKARI {
         }
         if (name == "Editor" || name == "editor") {
             outMode = RuntimeHostMode::Editor;
+            return true;
+        }
+        if (name == "GamePreview" ||
+            name == "gamePreview" ||
+            name == "game_preview") {
+            outMode = RuntimeHostMode::GamePreview;
             return true;
         }
         if (name == "ExportedGame" || name == "exportedGame" || name == "exported_game") {

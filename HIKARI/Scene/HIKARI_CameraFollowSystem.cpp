@@ -44,11 +44,11 @@ namespace HIKARI {
         }
     }
 
-    CameraFollowSystem::CameraFollowSystem(Camera3D& camera)
-        : camera_(&camera) {}
+    CameraFollowSystem::CameraFollowSystem(Camera3D& camera, const bool& runtimeCameraActive)
+        : camera_(&camera), runtimeCameraActive_(&runtimeCameraActive) {}
 
     void CameraFollowSystem::Update(World& world, const FrameContext& frame) {
-        if (camera_ == nullptr) {
+        if (camera_ == nullptr || runtimeCameraActive_ == nullptr || !*runtimeCameraActive_) {
             return;
         }
 

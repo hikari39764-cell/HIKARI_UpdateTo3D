@@ -83,6 +83,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         RenderTarget2D& sceneColorTarget,
         RenderTarget2D& sceneDepthTarget);
     TemporalInputs BuildTemporalInputs(RenderTarget2D& sceneTarget);
+    TemporalInputs GetCurrentTemporalInputs();
 
     const TemporalResourceStats& GetTemporalResourceStats();
 

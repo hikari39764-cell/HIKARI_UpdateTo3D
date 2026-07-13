@@ -555,8 +555,16 @@ namespace HIKARI {
     }
     void DocumentSceneBase::Update(float dt) {
         const FrameContext& frame = HIKARI::TIME::GetFrameContext();
-        if (UseDebugCamera()) {
-            debugCamera_.Update(dt, camera_);
+        if (runtimePlayActive_ && runtimePreviewCameraActive_) {
+            runtimePreviewCamera_.Update(
+                dt,
+                camera_,
+                CameraControlInputContext::RuntimeWindow);
+        } else if (UseDebugCamera()) {
+            debugCamera_.Update(
+                dt,
+                camera_,
+                CameraControlInputContext::EditorViewport);
         }
         systemScheduler_.PreUpdate(world_, frame);
         world_.Update(dt);
@@ -661,7 +669,12 @@ namespace HIKARI {
 #endif
         }
 
-        componentGizmoRenderer_.SubmitWorldGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
+        if (DrawDebugHelpers()) {
+            componentGizmoRenderer_.SubmitWorldGizmos(
+                world_,
+                componentGizmoState_,
+                selectedGizmoObjectId_);
+        }
         MODELRENDERER::RenderAll(renderCamera, activeEnvironment, viewportDebugViewState_.renderView);
         SubmitFrozenCullingCameraDebugFrustum();
         RENDERER3D::RenderAll(renderCamera, static_cast<float>(captureW), static_cast<float>(captureH));
@@ -954,6 +967,103 @@ namespace HIKARI {
             RenderSubmissionSystem::InvalidateSceneResources(true);
         }
         return built;
+    }
+    bool DocumentSceneBase::BeginRuntimePlay() {
+        if (runtimePlayActive_ || !currentSceneAssetGuid_.IsValid()) {
+            return false;
+        }
+
+        editorCameraSnapshot_ = camera_;
+        editorDebugCameraSnapshot_ = debugCamera_;
+        editorComponentGizmoSnapshot_ = componentGizmoState_;
+        editorViewportOverlaySnapshot_ = viewportOverlayState_;
+        editorViewportPerformanceSnapshot_ = viewportPerformanceState_;
+        editorViewportDebugViewSnapshot_ = viewportDebugViewState_;
+        editorSelectedGizmoObjectSnapshot_ = selectedGizmoObjectId_;
+        if (!ReloadSceneDocument()) {
+            camera_ = editorCameraSnapshot_;
+            debugCamera_ = editorDebugCameraSnapshot_;
+            HIKARI_LOG_ERROR("Runtime Play scene rebuild failed.");
+            return false;
+        }
+
+        camera_ = editorCameraSnapshot_;
+        runtimePreviewCamera_ = editorDebugCameraSnapshot_;
+        runtimePreviewCamera_.ResetFromCamera(camera_);
+        runtimePreviewCamera_.SetEnabled(true);
+        runtimeSceneCameraActive_ = HasRuntimeSceneCameraDriver();
+        runtimePreviewCameraActive_ = !runtimeSceneCameraActive_;
+        componentGizmoState_ = {};
+        viewportOverlayState_ = {};
+        viewportDebugViewState_ = {};
+        viewportGizmoInteracting_ = false;
+        selectedGizmoObjectId_ = {};
+        runtimePlayActive_ = true;
+        HIKARI_LOG_INFO("Document scene entered runtime Play state.");
+        return true;
+    }
+    bool DocumentSceneBase::EndRuntimePlay() {
+        if (!runtimePlayActive_) {
+            return true;
+        }
+
+        runtimePlayActive_ = false;
+        runtimePreviewCameraActive_ = false;
+        runtimeSceneCameraActive_ = false;
+        const bool restored = ReloadSceneDocument();
+        camera_ = editorCameraSnapshot_;
+        debugCamera_ = editorDebugCameraSnapshot_;
+        componentGizmoState_ = editorComponentGizmoSnapshot_;
+        viewportOverlayState_ = editorViewportOverlaySnapshot_;
+        viewportPerformanceState_ = editorViewportPerformanceSnapshot_;
+        viewportDebugViewState_ = editorViewportDebugViewSnapshot_;
+        viewportGizmoInteracting_ = false;
+        selectedGizmoObjectId_ = editorSelectedGizmoObjectSnapshot_;
+        if (!restored) {
+            HIKARI_LOG_ERROR("Editor scene restoration after runtime Play failed.");
+            return false;
+        }
+        HIKARI_LOG_INFO("Document scene restored after runtime Play.");
+        return true;
+    }
+    bool DocumentSceneBase::ParkRuntimeForStandalone() {
+        if (runtimeParkedForStandalone_) {
+            return true;
+        }
+        if (runtimePlayActive_) {
+            return false;
+        }
+
+        systemScheduler_.DetachWorld(world_);
+        systemScheduler_.Clear();
+        RuntimeSceneContext::SetCurrentWorld(nullptr);
+        world_.Clear();
+        RenderSubmissionSystem::InvalidateSceneResources(true);
+        MODELRENDERER::Reset();
+        modelManager_.UnloadAllAssets();
+        skyManager_.Clear();
+        SKYRENDERER::InvalidateSkyTextureCache();
+        runtimeParkedForStandalone_ = true;
+        HIKARI_LOG_INFO("Editor scene runtime parked for Standalone Game.");
+        return true;
+    }
+    bool DocumentSceneBase::RestoreRuntimeAfterStandalone() {
+        if (!runtimeParkedForStandalone_) {
+            return true;
+        }
+
+        if (!ReloadSceneDocument()) {
+            HIKARI_LOG_ERROR(
+                "Editor scene runtime restoration after Standalone Game failed.");
+            return false;
+        }
+        systemScheduler_.Clear();
+        RegisterDefaultSystems();
+        systemScheduler_.AttachWorld(world_);
+        VFX::SetAssetRegistry(&assetRegistry_);
+        runtimeParkedForStandalone_ = false;
+        HIKARI_LOG_INFO("Editor scene runtime restored after Standalone Game.");
+        return true;
     }
     bool DocumentSceneBase::RequestOpenSceneAsset(const AssetGuid& sceneGuid) {
         return OpenSceneAssetNow(sceneGuid);
@@ -2077,7 +2187,7 @@ namespace HIKARI {
         systemScheduler_.AddSystem(std::make_unique<PlayerMovementSystem>(&camera_));
         systemScheduler_.AddSystem(std::make_unique<AnimationSystem>());
         systemScheduler_.AddSystem(std::make_unique<SceneScanFxSystem>());
-        systemScheduler_.AddSystem(std::make_unique<CameraFollowSystem>(camera_));
+        systemScheduler_.AddSystem(std::make_unique<CameraFollowSystem>(camera_, runtimeSceneCameraActive_));
         systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
     }
     void DocumentSceneBase::RegisterDefaultComponentTypes() {
@@ -2300,10 +2410,33 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBase::UseDebugCamera() const {
-        return true;
+        return !runtimePlayActive_;
+    }
+
+    bool DocumentSceneBase::HasRuntimeSceneCameraDriver() const {
+        const auto system = std::find_if(
+            sceneDocument_.systems.begin(),
+            sceneDocument_.systems.end(),
+            [](const SceneSystemData& entry) {
+                return entry.systemId == "CameraFollowSystem";
+            });
+        if (system != sceneDocument_.systems.end() && !system->enabled) {
+            return false;
+        }
+
+        for (const auto& object : world_.GetObjects()) {
+            if (!object) {
+                continue;
+            }
+            const auto* follow = object->GetComponent<CameraFollowComponent>();
+            if (follow != nullptr && follow->IsEnabled()) {
+                return true;
+            }
+        }
+        return false;
     }
     bool DocumentSceneBase::DrawDebugHelpers() const {
-        return SERVICES::IsEditorUIEnabled();
+        return !runtimePlayActive_ && SERVICES::IsEditorUIEnabled();
     }
     bool DocumentSceneBase::UseEnvironmentLighting() const {
         return environmentLightingEnabled_;

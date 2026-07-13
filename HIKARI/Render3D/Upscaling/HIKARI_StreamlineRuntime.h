@@ -7,6 +7,8 @@
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 
+struct IDXGISwapChain4;
+
 namespace HIKARI {
     class RenderTarget2D;
 }
@@ -41,6 +43,7 @@ namespace HIKARI::RENDER3D::UPSCALING {
         DeviceFailed,
         FeatureUnsupported,
         Ready,
+        ResourcePressure,
         RuntimeFailure,
     };
 
@@ -48,6 +51,7 @@ namespace HIKARI::RENDER3D::UPSCALING {
         bool sdkCompiled = false;
         bool initialized = false;
         bool deviceAttached = false;
+        bool dlssPluginPresent = false;
         bool dlssSupported = false;
         bool frameTokenReady = false;
         bool constantsSubmitted = false;
@@ -70,22 +74,30 @@ namespace HIKARI::RENDER3D::UPSCALING {
         uint64_t evaluationCount = 0;
         uint64_t failureCount = 0;
         uint64_t estimatedVramBytes = 0;
+        uint64_t retryFrameIndex = 0;
+        uint32_t consecutiveFailureCount = 0;
+        bool retryPending = false;
         StreamlineRuntimeStatus status = StreamlineRuntimeStatus::NotCompiled;
         std::string sdkVersion{};
         std::string lastOperation{};
         std::string lastResult{};
     };
 
-    bool InitializeStreamlineEarly();
+    bool InitializeStreamlineEarly(bool enableFrameGenerationPlugins);
     bool AttachStreamlineDevice(ID3D12Device* device);
+    bool SetStreamlineFrameGenerationFeatureLoaded(bool loaded);
+    bool IsStreamlineFrameGenerationFeatureLoaded();
+    void InspectStreamlineSwapChain(IDXGISwapChain4* swapChain);
     void UpdateStreamlineContext(const GFX::Context& context);
-    bool BeginStreamlineFrame(
+    bool BeginStreamlineFrame(uint64_t frameIndex);
+    bool SubmitStreamlineFrameConstants(
         const TEMPORAL::TemporalFrameState& frame,
         StreamlineDlssMode mode);
     RenderTarget2D* ExecuteStreamlineDlss(
         const TEMPORAL::TemporalInputs& inputs,
         StreamlineDlssMode mode);
     void MarkStreamlineDlssFallback();
+    void ReleaseStreamlineTransientResources();
     void ShutdownStreamline();
 
     StreamlineDlssMode ResolveStreamlineDlssMode(

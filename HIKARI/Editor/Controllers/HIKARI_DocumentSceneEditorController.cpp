@@ -14,6 +14,8 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Settings/HIKARI_RenderQualityProfileStore.h"
+#include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
@@ -640,7 +642,9 @@ namespace HIKARI {
 #endif
     }
 
-    void DocumentSceneEditorController::Draw(DocumentSceneBase& scene) {
+    void DocumentSceneEditorController::Draw(
+        DocumentSceneBase& scene,
+        EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
         if (!IsObjectAlive(scene.GetWorld(), context_.selection.selectedObject)) {
             context_.selection.selectedObject = nullptr;
@@ -667,8 +671,11 @@ namespace HIKARI {
             resetDockingLayoutRequested);
 
         if (context_.windows.viewport.gameOnlyMode) {
-            DrawGameViewportWindow(scene, true);
+            DrawGameViewportWindow(scene, true, playSession);
             DrawPendingSceneOpenModal(scene);
+            if (renderQualitySavePending_ && !ImGui::IsAnyItemActive()) {
+                (void)SaveRenderQualityProfile(scene);
+            }
             return;
         }
 
@@ -677,7 +684,7 @@ namespace HIKARI {
 #endif
 
         if (context_.windows.viewport.showGameView) {
-            DrawGameViewportWindow(scene, false);
+            DrawGameViewportWindow(scene, false, playSession);
         } else {
             EDITOR::ClearGameViewportInputRect();
             SERVICES::SetEditorGameViewportSize(0, 0, false);
@@ -781,10 +788,13 @@ namespace HIKARI {
             }
         }
         if (context_.windows.resources.showQuality) {
-            if (qualityPanel_.Draw(scene.GetSceneEnvironment())) {
+            const QualityPanelResult qualityResult =
+                qualityPanel_.Draw(scene.GetSceneEnvironment());
+            if (qualityResult.environmentChanged) {
                 scene.ApplyEnvironmentRuntimeChanges();
                 context_.sceneDirty = true;
             }
+            renderQualitySavePending_ |= qualityResult.renderQualityChanged;
         }
         if (context_.windows.resources.showLightingBake) {
             lightingBakePanel_.Draw(scene, context_.windows.resources.showLightingBake);
@@ -802,12 +812,110 @@ namespace HIKARI {
             validationLabPanel_.Draw(context_, context_.windows.runtime.showValidationLab);
         }
         DrawPendingSceneOpenModal(scene);
+        if (renderQualitySavePending_ && !ImGui::IsAnyItemActive()) {
+            (void)SaveRenderQualityProfile(scene);
+        }
 #else
         (void)scene;
+        (void)playSession;
 #endif
     }
 
-    void DocumentSceneEditorController::DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly) {
+    bool DocumentSceneEditorController::SaveRenderQualityProfile(
+        DocumentSceneBase& scene) {
+#if defined(HIKARI_WITH_EDITOR)
+        std::string errorMessage{};
+        if (!RENDER3D::SaveRenderQualityProfile(
+                scene.GetAssetDatabase().GetProjectRoot(),
+                RENDER3D::GetRenderQualitySettings(),
+                &errorMessage)) {
+            viewportDropMessage_ = errorMessage;
+            return false;
+        }
+        renderQualitySavePending_ = false;
+        return true;
+#else
+        (void)scene;
+        return false;
+#endif
+    }
+
+    void DocumentSceneEditorController::ToggleGamePreview(
+        DocumentSceneBase& scene,
+        EDITOR::EditorPlaySession& playSession) {
+#if defined(HIKARI_WITH_EDITOR)
+        if (playSession.IsRunning() ||
+            playSession.GetState() == EDITOR::EditorPlayState::Starting) {
+            playSession.RequestStop();
+            viewportDropMessage_ = playSession.GetStatusMessage();
+            return;
+        }
+
+        if (!PrepareGamePreview(scene)) {
+            return;
+        }
+        playSession.RequestInProcessStart();
+        viewportDropMessage_ = playSession.GetStatusMessage();
+#else
+        (void)scene;
+        (void)playSession;
+#endif
+    }
+
+    void DocumentSceneEditorController::LaunchStandaloneGamePreview(
+        DocumentSceneBase& scene,
+        EDITOR::EditorPlaySession& playSession) {
+#if defined(HIKARI_WITH_EDITOR)
+        if (playSession.IsRunning() ||
+            playSession.GetState() == EDITOR::EditorPlayState::Starting) {
+            viewportDropMessage_ = "Stop the active Play session first.";
+            return;
+        }
+        if (!PrepareGamePreview(scene)) {
+            return;
+        }
+        playSession.RequestStandaloneStart(
+            scene.GetAssetDatabase().GetProjectRoot(),
+            scene.GetCurrentSceneAssetGuid().value);
+        viewportDropMessage_ = playSession.GetStatusMessage();
+#else
+        (void)scene;
+        (void)playSession;
+#endif
+    }
+
+    bool DocumentSceneEditorController::PrepareGamePreview(
+        DocumentSceneBase& scene) {
+#if defined(HIKARI_WITH_EDITOR)
+        const AssetGuid& sceneGuid = scene.GetCurrentSceneAssetGuid();
+        if (!sceneGuid.IsValid()) {
+            viewportDropMessage_ =
+                "Play requires the current scene to be saved as an asset";
+            return false;
+        }
+
+        scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
+        if (!scene.SaveCurrentSceneDocument()) {
+            viewportDropMessage_ = "Could not save the current scene for Play";
+            return false;
+        }
+
+        context_.sceneDirty = false;
+        scene.SetUnsavedSceneChanges(false);
+        if (!SaveRenderQualityProfile(scene)) {
+            return false;
+        }
+        return true;
+#else
+        (void)scene;
+        return false;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawGameViewportWindow(
+        DocumentSceneBase& scene,
+        bool gameOnly,
+        EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
         bool open = gameOnly ? true : context_.windows.viewport.showGameView;
         const ImGuiWindowFlags flags =
@@ -845,18 +953,67 @@ namespace HIKARI {
                 ImGui::SetCursorPosY(8.0f);
                 ImGui::Dummy(ImVec2(8.0f, 0.0f));
                 ImGui::SameLine();
+                const bool previewRunning = playSession.IsRunning();
                 if (EDITOR::EditorIconManager::IconButton(
-                    context_.windows.viewport.gameOnlyMode ? EDITOR::EditorIconKind::Stop : EDITOR::EditorIconKind::Play,
-                    "GameOnlyToggle",
+                    previewRunning
+                        ? EDITOR::EditorIconKind::Stop
+                        : EDITOR::EditorIconKind::Play,
+                    "PlayInNewWindow",
                     ImVec2(24.0f, 24.0f),
+                    previewRunning,
+                    previewRunning
+                        ? "Stop Play"
+                        : "Play in New Window")) {
+                    ToggleGamePreview(scene, playSession);
+                }
+                ImGui::SameLine(0.0f, 3.0f);
+                if (ImGui::ArrowButton("##PlayModeMenu", ImGuiDir_Down)) {
+                    ImGui::OpenPopup("Play Mode Menu");
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Play options");
+                }
+                if (ImGui::BeginPopup("Play Mode Menu")) {
+                    if (ImGui::MenuItem(
+                            "Standalone Game",
+                            nullptr,
+                            false,
+                            !previewRunning)) {
+                        LaunchStandaloneGamePreview(scene, playSession);
+                    }
+                    ImGui::EndPopup();
+                }
+                ImGui::SameLine();
+                if (EDITOR::ToggleButton(
+                    "Game Only",
+                    "GameOnlyToggle",
                     context_.windows.viewport.gameOnlyMode,
-                    context_.windows.viewport.gameOnlyMode ? "Exit Game Only" : "Enter Game Only")) {
+                    ImVec2(78.0f, 24.0f),
+                    context_.windows.viewport.gameOnlyMode
+                        ? "Exit Game Only"
+                        : "Enter Game Only")) {
                     context_.windows.viewport.gameOnlyMode = !context_.windows.viewport.gameOnlyMode;
                 }
                 ImGui::SameLine();
                 ImGui::TextUnformatted(gameOnly ? "Game Only" : "Scene View");
                 ImGui::SameLine();
                 ImGui::TextDisabled("%s", scene.GetSceneId().c_str());
+                if (playSession.GetState() != EDITOR::EditorPlayState::Stopped) {
+                    ImGui::SameLine();
+                    EDITOR::StatusText(
+                        previewRunning ? "Play Running" : "Play Status",
+                        previewRunning
+                            ? EDITOR::EditorStatusTone::Ready
+                            : (playSession.GetState() == EDITOR::EditorPlayState::Failed
+                                ? EDITOR::EditorStatusTone::Error
+                                : EDITOR::EditorStatusTone::Normal));
+                    if (ImGui::IsItemHovered() &&
+                        !playSession.GetStatusMessage().empty()) {
+                        ImGui::SetTooltip(
+                            "%s",
+                            playSession.GetStatusMessage().c_str());
+                    }
+                }
                 ImGui::SameLine();
 
                 RENDER3D::RenderQualitySettings qualitySettings = RENDER3D::GetRenderQualitySettings();
@@ -879,6 +1036,7 @@ namespace HIKARI {
                         if (ImGui::Selectable(RENDER3D::RenderResolutionPresetLabel(preset), selected)) {
                             qualitySettings.sceneResolution = preset;
                             RENDER3D::SetRenderQualitySettings(qualitySettings);
+                            renderQualitySavePending_ = true;
                         }
                         if (selected) {
                             ImGui::SetItemDefaultFocus();
@@ -1135,6 +1293,7 @@ namespace HIKARI {
 #else
         (void)scene;
         (void)gameOnly;
+        (void)playSession;
 #endif
     }
 

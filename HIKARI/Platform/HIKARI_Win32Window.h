@@ -7,6 +7,11 @@
 
 namespace HIKARI::PLATFORM {
 
+enum class WindowCloseBehavior {
+    QuitApplication,
+    SignalOnly,
+};
+
 enum class WindowMode {
     Windowed = 0,
     BorderlessWindow,
@@ -17,15 +22,24 @@ class Win32Window {
 public:
     using ResizeCallback = std::function<void(int, int)>;
 
-    bool Initialize(const wchar_t* title, int width, int height, bool resizable = true);
+    bool Initialize(
+        const wchar_t* title,
+        int width,
+        int height,
+        bool resizable = true,
+        WindowCloseBehavior closeBehavior = WindowCloseBehavior::QuitApplication,
+        bool dispatchImGuiInput = true);
     void Shutdown();
 
     bool PumpMessages();
     float ConsumeMouseWheelDelta();
+    bool SetTitle(const wchar_t* title);
 
     HWND GetHWND() const { return hwnd_; }
     int Width() const { return width_; }
     int Height() const { return height_; }
+    bool IsRunning() const { return running_; }
+    bool HasCloseRequest() const { return closeRequested_; }
     bool IsMinimized() const { return isMinimized_; }
     WindowMode GetWindowMode() const { return windowMode_; }
 
@@ -44,6 +58,9 @@ private:
     bool resizable_ = true;
     bool isMinimized_{};
     bool running_{};
+    bool closeRequested_{};
+    WindowCloseBehavior closeBehavior_ = WindowCloseBehavior::QuitApplication;
+    bool dispatchImGuiInput_ = true;
     float mouseWheelDelta_{};
     ResizeCallback onResize_{};
     WindowMode windowMode_ = WindowMode::Windowed;

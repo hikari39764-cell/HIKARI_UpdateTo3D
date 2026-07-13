@@ -20,6 +20,9 @@ namespace HIKARI::RENDER3D::UPSCALING {
 
 #if defined(HIKARI_WITH_STREAMLINE)
     namespace {
+        constexpr uint64_t kDlssRetryBaseFrames = 300u;
+        constexpr uint64_t kDlssRetryMaxFrames = 1200u;
+
         sl::DLSSMode ToSlDlssMode(StreamlineDlssMode mode) {
             switch (mode) {
             case StreamlineDlssMode::Dlaa: return sl::DLSSMode::eDLAA;
@@ -107,6 +110,51 @@ namespace HIKARI::RENDER3D::UPSCALING {
             resource.mipLevels = 1;
             resource.arrayLayers = 1;
             return resource;
+        }
+
+        bool DlssFailureSignatureChanged(
+            const INTERNAL::StreamlineState& state,
+            const TEMPORAL::TemporalInputs& inputs,
+            StreamlineDlssMode mode) {
+            return
+                state.dlssFailedMode != mode ||
+                state.dlssFailedRenderWidth != inputs.frame.renderWidth ||
+                state.dlssFailedRenderHeight != inputs.frame.renderHeight ||
+                state.dlssFailedOutputWidth != inputs.frame.outputWidth ||
+                state.dlssFailedOutputHeight != inputs.frame.outputHeight;
+        }
+
+        void ClearDlssFailure(INTERNAL::StreamlineState& state) {
+            state.dlssLastFailureResult = sl::Result::eOk;
+            state.stats.retryFrameIndex = 0;
+            state.stats.consecutiveFailureCount = 0;
+            state.stats.retryPending = false;
+        }
+
+        void RecordDlssFailure(
+            INTERNAL::StreamlineState& state,
+            const char* operation,
+            sl::Result result,
+            const TEMPORAL::TemporalInputs& inputs,
+            StreamlineDlssMode mode) {
+            (void)INTERNAL::RecordResult(state, operation, result);
+            state.dlssLastFailureResult = result;
+            state.dlssFailedMode = mode;
+            state.dlssFailedRenderWidth = inputs.frame.renderWidth;
+            state.dlssFailedRenderHeight = inputs.frame.renderHeight;
+            state.dlssFailedOutputWidth = inputs.frame.outputWidth;
+            state.dlssFailedOutputHeight = inputs.frame.outputHeight;
+            state.stats.consecutiveFailureCount =
+                (std::min)(state.stats.consecutiveFailureCount + 1u, 4u);
+            const uint64_t retryDelay = (std::min)(
+                kDlssRetryBaseFrames <<
+                    (state.stats.consecutiveFailureCount - 1u),
+                kDlssRetryMaxFrames);
+            state.stats.retryFrameIndex = inputs.frame.frameIndex + retryDelay;
+            state.stats.retryPending = true;
+            state.stats.status = result == sl::Result::eWarnOutOfVRAM
+                ? StreamlineRuntimeStatus::ResourcePressure
+                : StreamlineRuntimeStatus::RuntimeFailure;
         }
     }
 #endif
@@ -224,6 +272,18 @@ namespace HIKARI::RENDER3D::UPSCALING {
         (void)mode;
         return nullptr;
 #else
+        if (state.stats.retryPending &&
+            DlssFailureSignatureChanged(state, inputs, mode)) {
+            ClearDlssFailure(state);
+        }
+        if (state.stats.retryPending &&
+            inputs.frame.frameIndex < state.stats.retryFrameIndex) {
+            return nullptr;
+        }
+        if (state.stats.retryPending) {
+            state.stats.retryPending = false;
+        }
+
         const bool requiredInputsReady =
             inputs.sceneColor.valid &&
             inputs.sceneDepth.valid &&
@@ -289,10 +349,15 @@ namespace HIKARI::RENDER3D::UPSCALING {
                 mode,
                 inputs.frame.outputWidth,
                 inputs.frame.outputHeight);
-            if (!INTERNAL::RecordResult(
+            const sl::Result optionsResult =
+                slDLSSSetOptions(state.viewport, options);
+            if (optionsResult != sl::Result::eOk) {
+                RecordDlssFailure(
                     state,
                     "slDLSSSetOptions",
-                    slDLSSSetOptions(state.viewport, options))) {
+                    optionsResult,
+                    inputs,
+                    mode);
                 return nullptr;
             }
             state.optionsConfigured = true;
@@ -357,10 +422,13 @@ namespace HIKARI::RENDER3D::UPSCALING {
             tags.data(),
             static_cast<uint32_t>(tags.size()),
             reinterpret_cast<sl::CommandBuffer*>(cmd));
-        if (!INTERNAL::RecordResult(
+        if (tagResult != sl::Result::eOk) {
+            RecordDlssFailure(
                 state,
                 "slSetTagForFrame(DLSS)",
-                tagResult)) {
+                tagResult,
+                inputs,
+                mode);
             state.output.TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             return nullptr;
         }
@@ -373,16 +441,20 @@ namespace HIKARI::RENDER3D::UPSCALING {
             static_cast<uint32_t>(std::size(evaluateInputs)),
             reinterpret_cast<sl::CommandBuffer*>(cmd));
         state.output.TransitionColor(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        if (!INTERNAL::RecordResult(
+        if (evaluateResult != sl::Result::eOk) {
+            RecordDlssFailure(
                 state,
                 "slEvaluateFeature(DLSS)",
-                evaluateResult)) {
+                evaluateResult,
+                inputs,
+                mode);
             GFX::DumpD3D12InfoQueue(
                 state.context.device,
                 "Streamline DLSS evaluate failed");
             return nullptr;
         }
 
+        ClearDlssFailure(state);
         state.stats.dlssEvaluated = true;
         ++state.stats.evaluationCount;
         state.stats.status = StreamlineRuntimeStatus::Ready;

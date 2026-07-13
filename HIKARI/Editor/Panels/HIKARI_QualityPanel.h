@@ -4,9 +4,14 @@
 
 namespace HIKARI {
 
+    struct QualityPanelResult {
+        bool environmentChanged = false;
+        bool renderQualityChanged = false;
+    };
+
     class QualityPanel {
     public:
-        bool Draw(SceneEnvironment& environment) const;
+        QualityPanelResult Draw(SceneEnvironment& environment) const;
     };
 
 } // namespace HIKARI

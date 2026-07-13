@@ -64,6 +64,12 @@
     <Filter Include="Header Files\Editor\Style">
       <UniqueIdentifier>{A1E743A7-EA84-4FD8-BCE4-F5E8F933BE49}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Export">
+      <UniqueIdentifier>{F1A0E16E-D40E-42C2-8A7C-8BB074748815}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Play">
+      <UniqueIdentifier>{6E87B93A-B5CF-4CBA-A166-0D39E8EBFB83}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\External">
       <UniqueIdentifier>{4D99C27F-D21C-500C-B045-9C442F15C85B}</UniqueIdentifier>
     </Filter>
@@ -330,6 +336,12 @@
     </Filter>
     <Filter Include="Source Files\Editor\Style">
       <UniqueIdentifier>{E205462B-E487-4770-A020-E1D96E8A5A2A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Export">
+      <UniqueIdentifier>{738716B4-C096-4488-B6D7-22BB62F502FD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Play">
+      <UniqueIdentifier>{DB395AED-67F8-40F4-B42D-FDF5A0769CD5}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\External">
       <UniqueIdentifier>{6A12A215-0A4F-5C0C-9693-8CABE3D6A62A}</UniqueIdentifier>
@@ -670,7 +682,16 @@
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
-      <Filter>Source Files\Editor</Filter>
+      <Filter>Source Files\Editor\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.cpp">
+      <Filter>Source Files\Editor\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.cpp">
+      <Filter>Source Files\Editor\Play</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.cpp">
+      <Filter>Source Files\Editor\Play</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp">
       <Filter>Source Files\Editor</Filter>
@@ -865,6 +886,9 @@
       <Filter>Source Files\Platform</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp">
+      <Filter>Source Files\Gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\HIKARI_PresentationSurface.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp">
@@ -1293,6 +1317,12 @@
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp">
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\HIKARI_GamePresentationController.cpp">
+      <Filter>Source Files\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.cpp">
+      <Filter>Source Files\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp">
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
@@ -1361,6 +1391,12 @@
       <Filter>Source Files\Render3D\Depth</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettingsJson.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp">
@@ -1452,6 +1488,18 @@
       <Filter>Source Files\Render3D\Upscaling</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDlss.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDeployment.cpp">
       <Filter>Source Files\Render3D\Upscaling</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1963,6 +2011,9 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\HIKARI_PresentationSurface.h">
+      <Filter>Header Files\Gfx</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
@@ -2194,11 +2245,26 @@
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h">
       <Filter>Header Files\Runtime</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\HIKARI_GamePresentationController.h">
+      <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.h">
+      <Filter>Header Files\Runtime</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h">
       <Filter>Header Files\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Export\HIKARI_GameExporter.h">
-      <Filter>Header Files\Editor</Filter>
+      <Filter>Header Files\Editor\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.h">
+      <Filter>Header Files\Editor\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h">
+      <Filter>Header Files\Editor\Play</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.h">
+      <Filter>Header Files\Editor\Play</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPassResources.h" />
@@ -2249,6 +2315,12 @@
       <Filter>Header Files\Render3D\Depth</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettingsJson.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h">
@@ -2336,12 +2408,27 @@
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineInternal.h">
       <Filter>Header Files\Render3D\Upscaling</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDeployment.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json">
+      <Filter>Project\Config</Filter>
+    </None>
+    <None Include="ProjectSettings\render_quality.json">
       <Filter>Project\Config</Filter>
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">

@@ -3,6 +3,11 @@
 
 namespace HIKARI {
 
+    enum class CameraControlInputContext {
+        EditorViewport,
+        RuntimeWindow,
+    };
+
     struct DebugCamera3DSettings {
         float moveSpeed = 4.0f;
         float fastMultiplier = 3.0f;
@@ -17,7 +22,12 @@ namespace HIKARI {
         bool IsEnabled() const;
 
         void Reset(const MATH::Vec3& position, float yawRad, float pitchRad);
-        void Update(float dt, Camera3D& camera);
+        void ResetFromCamera(const Camera3D& camera);
+        void Update(
+            float dt,
+            Camera3D& camera,
+            CameraControlInputContext inputContext =
+                CameraControlInputContext::EditorViewport);
 
         const MATH::Vec3& GetPosition() const;
         float GetYaw() const;

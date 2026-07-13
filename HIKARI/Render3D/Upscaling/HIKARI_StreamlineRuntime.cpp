@@ -3,9 +3,14 @@
 #include <array>
 #include <filesystem>
 #include <iterator>
+#include <sstream>
 #include <string>
+#include <vector>
+
+#include <dxgi1_6.h>
 
 #include "Core/HIKARI_Logger.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineReflex.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineInternal.h"
 
 #if defined(HIKARI_WITH_STREAMLINE)
@@ -86,7 +91,9 @@ namespace HIKARI::RENDER3D::UPSCALING {
             if (countFailure) {
                 ++state.stats.failureCount;
             }
-            state.stats.status = StreamlineRuntimeStatus::RuntimeFailure;
+            state.stats.status = result == sl::Result::eWarnOutOfVRAM
+                ? StreamlineRuntimeStatus::ResourcePressure
+                : StreamlineRuntimeStatus::RuntimeFailure;
             HIKARI_LOG_WARN(
                 std::string("[Streamline] ") + state.stats.lastOperation +
                 " failed: " + state.stats.lastResult);
@@ -106,14 +113,16 @@ namespace HIKARI::RENDER3D::UPSCALING {
         case StreamlineRuntimeStatus::DeviceFailed: return "device failed";
         case StreamlineRuntimeStatus::FeatureUnsupported: return "unsupported";
         case StreamlineRuntimeStatus::Ready: return "ready";
+        case StreamlineRuntimeStatus::ResourcePressure: return "resource pressure";
         case StreamlineRuntimeStatus::RuntimeFailure: return "runtime failure";
         default: return "unknown";
         }
     }
 
-    bool InitializeStreamlineEarly() {
+    bool InitializeStreamlineEarly(bool enableFrameGenerationPlugins) {
         INTERNAL::StreamlineState& state = INTERNAL::GetState();
 #if !defined(HIKARI_WITH_STREAMLINE)
+        (void)enableFrameGenerationPlugins;
         state.stats.status = StreamlineRuntimeStatus::NotCompiled;
         return false;
 #else
@@ -142,7 +151,47 @@ namespace HIKARI::RENDER3D::UPSCALING {
         state.logPath = logDirectory.wstring();
 
         const wchar_t* pluginPaths[] = { state.pluginPath.c_str() };
-        const sl::Feature features[] = { sl::kFeatureDLSS };
+        state.plugins.dlss = std::filesystem::is_regular_file(
+            moduleDirectory / L"sl.dlss.dll");
+        const bool frameGenerationPluginPresent = std::filesystem::is_regular_file(
+            moduleDirectory / L"sl.dlss_g.dll");
+        const bool reflexPluginPresent = std::filesystem::is_regular_file(
+            moduleDirectory / L"sl.reflex.dll");
+        const bool pclPluginPresent = std::filesystem::is_regular_file(
+            moduleDirectory / L"sl.pcl.dll");
+        state.plugins.frameGeneration =
+            enableFrameGenerationPlugins && frameGenerationPluginPresent;
+        state.plugins.reflex =
+            enableFrameGenerationPlugins && reflexPluginPresent;
+        state.plugins.pcl =
+            enableFrameGenerationPlugins && pclPluginPresent;
+        state.stats.dlssPluginPresent = state.plugins.dlss;
+        state.reflex.stats.reflexPluginPresent = reflexPluginPresent;
+        state.reflex.stats.pclPluginPresent = pclPluginPresent;
+        state.frameGeneration.stats.pluginPresent =
+            frameGenerationPluginPresent;
+
+        std::vector<sl::Feature> features;
+        if (state.plugins.dlss) {
+            features.push_back(sl::kFeatureDLSS);
+        }
+        if (state.plugins.reflex) {
+            features.push_back(sl::kFeatureReflex);
+        }
+        if (state.plugins.pcl) {
+            features.push_back(sl::kFeaturePCL);
+        }
+        if (state.plugins.frameGeneration) {
+            features.push_back(sl::kFeatureDLSS_G);
+        }
+        if (features.empty()) {
+            state.stats.status = StreamlineRuntimeStatus::InitializationFailed;
+            state.stats.lastOperation = "discover Streamline plugins";
+            state.stats.lastResult = "no feature plugins found";
+            HIKARI_LOG_WARN(
+                "[Streamline] no feature plugins were found next to the executable.");
+            return false;
+        }
         sl::Preferences preferences{};
         preferences.showConsole = false;
         preferences.logLevel = sl::LogLevel::eDefault;
@@ -153,8 +202,8 @@ namespace HIKARI::RENDER3D::UPSCALING {
         preferences.flags =
             sl::PreferenceFlags::eDisableDebugText |
             sl::PreferenceFlags::eUseFrameBasedResourceTagging;
-        preferences.featuresToLoad = features;
-        preferences.numFeaturesToLoad = static_cast<uint32_t>(std::size(features));
+        preferences.featuresToLoad = features.data();
+        preferences.numFeaturesToLoad = static_cast<uint32_t>(features.size());
         preferences.engine = sl::EngineType::eCustom;
         preferences.engineVersion = "HIKARI-1";
         preferences.projectId = "e7cc83d6-d200-4d4a-85e4-7d93e060b066";
@@ -169,11 +218,18 @@ namespace HIKARI::RENDER3D::UPSCALING {
         }
 
         state.stats.initialized = true;
+        state.frameGeneration.stats.featureLoaded =
+            state.plugins.frameGeneration;
         state.stats.status = StreamlineRuntimeStatus::AwaitingDevice;
         HIKARI_LOG_INFO(
             std::string("[Streamline] initialized SDK ") +
             INTERNAL::kStreamlineSdkVersion +
-            " plugins=" + moduleDirectory.string());
+            " plugins=" + moduleDirectory.string() +
+            " dlss=" + (state.plugins.dlss ? "yes" : "no") +
+            " dlss_g=" + (frameGenerationPluginPresent ? "yes" : "no") +
+            " reflex=" + (reflexPluginPresent ? "yes" : "no") +
+            " pcl=" + (pclPluginPresent ? "yes" : "no") +
+            " fg_host=" + (enableFrameGenerationPlugins ? "enabled" : "disabled"));
         return true;
 #endif
     }
@@ -198,22 +254,148 @@ namespace HIKARI::RENDER3D::UPSCALING {
         sl::AdapterInfo adapter{};
         adapter.deviceLUID = reinterpret_cast<uint8_t*>(&luid);
         adapter.deviceLUIDSizeInBytes = sizeof(luid);
-        const sl::Result support = slIsFeatureSupported(sl::kFeatureDLSS, adapter);
-        state.stats.lastOperation = "slIsFeatureSupported(DLSS)";
-        state.stats.lastResult = sl::getResultAsStr(support);
-        if (support != sl::Result::eOk) {
-            state.stats.dlssSupported = false;
-            state.stats.status = StreamlineRuntimeStatus::FeatureUnsupported;
-            HIKARI_LOG_WARN(
-                std::string("[Streamline] DLSS/DLAA unavailable: ") +
-                state.stats.lastResult);
+        auto querySupport = [&adapter](sl::Feature feature) {
+            return slIsFeatureSupported(feature, adapter) == sl::Result::eOk;
+        };
+        state.stats.dlssSupported =
+            state.plugins.dlss && querySupport(sl::kFeatureDLSS);
+        state.reflex.stats.reflexSupported =
+            state.plugins.reflex && querySupport(sl::kFeatureReflex);
+        state.reflex.stats.pclSupported =
+            state.plugins.pcl && querySupport(sl::kFeaturePCL);
+        state.frameGeneration.stats.supported =
+            state.plugins.frameGeneration &&
+            state.reflex.stats.reflexSupported &&
+            state.reflex.stats.pclSupported &&
+            querySupport(sl::kFeatureDLSS_G);
+
+        if (state.reflex.stats.reflexSupported) {
+            (void)ConfigureStreamlineReflex(
+                state.frameGeneration.stats.supported
+                    ? StreamlineReflexMode::LowLatency
+                    : StreamlineReflexMode::Off);
+        }
+        const bool anySupported =
+            state.stats.dlssSupported ||
+            state.reflex.stats.reflexSupported ||
+            state.reflex.stats.pclSupported ||
+            state.frameGeneration.stats.supported;
+        state.stats.status = anySupported
+            ? StreamlineRuntimeStatus::Ready
+            : StreamlineRuntimeStatus::FeatureUnsupported;
+        state.stats.lastOperation = "query Streamline feature support";
+        state.stats.lastResult = anySupported ? "eOk" : "unsupported";
+        HIKARI_LOG_INFO(
+            std::string("[Streamline] device features dlss=") +
+            (state.stats.dlssSupported ? "yes" : "no") +
+            " dlss_g=" +
+            (state.frameGeneration.stats.supported ? "yes" : "no") +
+            " reflex=" +
+            (state.reflex.stats.reflexSupported ? "yes" : "no") +
+            " pcl=" +
+            (state.reflex.stats.pclSupported ? "yes" : "no"));
+        return anySupported;
+#endif
+    }
+
+    bool SetStreamlineFrameGenerationFeatureLoaded(bool loaded) {
+        INTERNAL::StreamlineState& state = INTERNAL::GetState();
+#if !defined(HIKARI_WITH_STREAMLINE)
+        (void)loaded;
+        return false;
+#else
+        if (!state.plugins.frameGeneration) {
+            return !loaded;
+        }
+        if (!state.stats.initialized || !state.stats.deviceAttached) {
+            return false;
+        }
+        if (state.frameGeneration.stats.featureLoaded == loaded) {
+            return true;
+        }
+
+        if (!loaded &&
+            (state.frameGeneration.stats.optionsConfigured ||
+             !state.frameGeneration.resourcesReleased)) {
+            HIKARI_LOG_ERROR(
+                "[Streamline] DLSS-G unload rejected because the feature is still active or owns viewport resources.");
+            return false;
+        }
+        if (!INTERNAL::RecordResult(
+                state,
+                loaded
+                    ? "slSetFeatureLoaded(DLSS-G, true)"
+                    : "slSetFeatureLoaded(DLSS-G, false)",
+                slSetFeatureLoaded(sl::kFeatureDLSS_G, loaded))) {
             return false;
         }
 
-        state.stats.dlssSupported = true;
-        state.stats.status = StreamlineRuntimeStatus::Ready;
-        HIKARI_LOG_INFO("[Streamline] DLSS/DLAA supported on the active D3D12 device.");
+        state.frameGeneration.stats.featureLoaded = loaded;
+        state.frameGeneration.resourcesReleased = true;
+        state.frameGeneration.stats.optionsConfigured = false;
+        state.frameGeneration.stats.tagsSubmitted = false;
+        state.frameGeneration.stats.status =
+            StreamlineFrameGenerationStatus::Suspended;
+        state.frameGeneration.stats.statusReason = loaded
+            ? "feature loaded; waiting for game presentation"
+            : "feature unloaded for editor presentation";
+        HIKARI_LOG_INFO(
+            loaded
+                ? "[Streamline] DLSS-G feature loaded for game presentation."
+                : "[Streamline] DLSS-G feature unloaded for editor presentation.");
         return true;
+#endif
+    }
+
+    bool IsStreamlineFrameGenerationFeatureLoaded() {
+        return INTERNAL::GetState().frameGeneration.stats.featureLoaded;
+    }
+
+    void InspectStreamlineSwapChain(IDXGISwapChain4* swapChain) {
+#if defined(HIKARI_WITH_STREAMLINE)
+        INTERNAL::StreamlineState& state = INTERNAL::GetState();
+        if (!state.stats.initialized || swapChain == nullptr) {
+            return;
+        }
+
+        auto describe = [](const char* label, IDXGISwapChain4* candidate) {
+            if (candidate == nullptr) {
+                return std::string(label) + "=missing";
+            }
+
+            DXGI_SWAP_CHAIN_DESC1 desc{};
+            UINT latency = 0;
+            const HRESULT descResult = candidate->GetDesc1(&desc);
+            const HRESULT latencyResult =
+                candidate->GetMaximumFrameLatency(&latency);
+            const HANDLE waitable = candidate->GetFrameLatencyWaitableObject();
+
+            std::ostringstream stream;
+            stream << label
+                << " desc=" << (SUCCEEDED(descResult) ? "ok" : "failed")
+                << " buffers=" << desc.BufferCount
+                << " flags=0x" << std::hex << desc.Flags << std::dec
+                << " latency="
+                << (SUCCEEDED(latencyResult) ? std::to_string(latency) : "failed")
+                << " waitable=" << (waitable != nullptr ? "yes" : "no");
+            return stream.str();
+        };
+
+        void* nativeInterface = nullptr;
+        const sl::Result nativeResult = slGetNativeInterface(
+            swapChain,
+            &nativeInterface);
+        IDXGISwapChain4* nativeSwapChain =
+            nativeResult != sl::Result::eOk
+            ? nullptr
+            : static_cast<IDXGISwapChain4*>(nativeInterface);
+
+        HIKARI_LOG_INFO(
+            std::string("[Streamline] swap-chain ") +
+            describe("proxy", swapChain) + " " +
+            describe("native", nativeSwapChain));
+#else
+        (void)swapChain;
 #endif
     }
 
@@ -225,6 +407,7 @@ namespace HIKARI::RENDER3D::UPSCALING {
 
     void ShutdownStreamline() {
         INTERNAL::StreamlineState& state = INTERNAL::GetState();
+        (void)DeactivateStreamlineFrameGeneration(true);
         state.output.Finalize();
         state.outputFormat = DXGI_FORMAT_UNKNOWN;
         state.outputWidth = 0;
@@ -236,14 +419,45 @@ namespace HIKARI::RENDER3D::UPSCALING {
         }
         state.stats.initialized = false;
         state.stats.deviceAttached = false;
+        state.stats.dlssPluginPresent = false;
         state.stats.dlssSupported = false;
         state.stats.frameTokenReady = false;
         state.stats.constantsSubmitted = false;
         state.optionsConfigured = false;
         state.configuredMode = StreamlineDlssMode::Off;
         state.optimalSettingsCached = false;
+        state.plugins = {};
+        state.reflex = {};
+        state.frameGeneration = {};
         state.stats.status = StreamlineRuntimeStatus::AwaitingInitialization;
 #endif
+    }
+
+    void ReleaseStreamlineTransientResources() {
+        INTERNAL::StreamlineState& state = INTERNAL::GetState();
+        (void)DeactivateStreamlineFrameGeneration(true);
+#if defined(HIKARI_WITH_STREAMLINE)
+        if (state.stats.initialized &&
+            (state.output.GetResource() != nullptr || state.optionsConfigured)) {
+            (void)INTERNAL::RecordResult(
+                state,
+                "slFreeResources(DLSS)",
+                slFreeResources(sl::kFeatureDLSS, state.viewport),
+                false);
+        }
+        state.optionsConfigured = false;
+        state.configuredMode = StreamlineDlssMode::Off;
+        state.stats.retryFrameIndex = 0;
+        state.stats.consecutiveFailureCount = 0;
+        state.stats.retryPending = false;
+        state.dlssLastFailureResult = sl::Result::eOk;
+#endif
+        state.output.Finalize();
+        state.outputWidth = 0;
+        state.outputHeight = 0;
+        state.outputFormat = DXGI_FORMAT_UNKNOWN;
+        state.stats.outputReady = false;
+        state.stats.dlssEvaluated = false;
     }
 
     bool IsStreamlineDlssAvailable() {

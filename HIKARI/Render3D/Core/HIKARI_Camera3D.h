@@ -12,6 +12,7 @@ namespace HIKARI {
         const MATH::Mat4& GetProj() const { return proj_; }
         MATH::Mat4 GetViewProj() const { return proj_ * view_; }
         MATH::Vec3 GetPosition() const { return eye_; }
+        MATH::Vec3 GetTarget() const { return target_; }
         float GetFovYRad() const { return fovYRad_; }
         float GetAspect() const { return aspect_; }
         float GetNearZ() const { return nearZ_; }

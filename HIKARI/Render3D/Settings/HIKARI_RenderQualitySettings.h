@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace HIKARI::RENDER3D {
 
@@ -54,6 +55,11 @@ namespace HIKARI::RENDER3D {
         UltraPerformance,
     };
 
+    enum class RenderFrameGenerationMode : uint8_t {
+        Off = 0,
+        Dlss,
+    };
+
     enum class VolumetricLightingQuality : uint8_t {
         Low = 0,
         Balanced,
@@ -77,6 +83,9 @@ namespace HIKARI::RENDER3D {
         bool vSync = false;
         RenderAntiAliasingMode antiAliasingMode = RenderAntiAliasingMode::TAA;
         DlssQualityMode dlssQualityMode = DlssQualityMode::Quality;
+        RenderFrameGenerationMode frameGenerationMode =
+            RenderFrameGenerationMode::Off;
+        uint8_t frameGenerationMultiplier = 2;
         VolumetricLightingQuality volumetricLightingQuality =
             VolumetricLightingQuality::Balanced;
         float taaHistoryWeight = 0.92f;
@@ -90,6 +99,11 @@ namespace HIKARI::RENDER3D {
     };
 
     RenderQualitySettings& GetRenderQualitySettings();
+    RenderQualitySettings NormalizeRenderQualitySettings(
+        RenderQualitySettings settings);
+    bool AreRenderQualitySettingsEqual(
+        const RenderQualitySettings& lhs,
+        const RenderQualitySettings& rhs);
     void SetRenderQualitySettings(const RenderQualitySettings& settings);
 
     const char* RenderResolutionPresetLabel(RenderResolutionPreset preset);
@@ -99,6 +113,7 @@ namespace HIKARI::RENDER3D {
     const char* LightProbeVolumeSamplingModeLabel(LightProbeVolumeSamplingMode mode);
     const char* RenderAntiAliasingModeLabel(RenderAntiAliasingMode mode);
     const char* DlssQualityModeLabel(DlssQualityMode mode);
+    const char* RenderFrameGenerationModeLabel(RenderFrameGenerationMode mode);
     const char* VolumetricLightingQualityLabel(VolumetricLightingQuality quality);
 
     bool IsTemporalAntiAliasingMode(RenderAntiAliasingMode mode);
@@ -107,6 +122,17 @@ namespace HIKARI::RENDER3D {
     bool IsDlssAntiAliasingMode(RenderAntiAliasingMode mode);
     bool IsFxaaAntiAliasingMode(RenderAntiAliasingMode mode);
     bool IsAntiAliasingModeAvailable(RenderAntiAliasingMode mode);
+    bool IsFrameGenerationModeAvailable(RenderFrameGenerationMode mode);
+
+    bool TryParseRenderAntiAliasingMode(
+        std::string_view name,
+        RenderAntiAliasingMode& outMode);
+    bool TryParseDlssQualityMode(
+        std::string_view name,
+        DlssQualityMode& outMode);
+    bool TryParseRenderFrameGenerationMode(
+        std::string_view name,
+        RenderFrameGenerationMode& outMode);
 
     bool IsFixedRenderResolutionPreset(RenderResolutionPreset preset);
     RenderResolution ResolveFixedRenderResolution(RenderResolutionPreset preset);

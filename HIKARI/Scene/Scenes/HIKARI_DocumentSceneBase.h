@@ -72,6 +72,12 @@ namespace HIKARI {
         bool ReloadAssets();
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
+        bool BeginRuntimePlay();
+        bool EndRuntimePlay();
+        bool IsRuntimePlayActive() const { return runtimePlayActive_; }
+        bool ParkRuntimeForStandalone();
+        bool RestoreRuntimeAfterStandalone();
+        bool IsRuntimeParkedForStandalone() const { return runtimeParkedForStandalone_; }
         bool RequestOpenSceneAsset(const AssetGuid& sceneGuid);
         bool OpenSceneAssetNow(const AssetGuid& sceneGuid);
         bool OpenStartupSceneAsset();
@@ -116,6 +122,7 @@ namespace HIKARI {
         virtual bool UseDebugCamera() const;
         virtual bool DrawDebugHelpers() const;
         virtual bool UseEnvironmentLighting() const;
+        bool HasRuntimeSceneCameraDriver() const;
         void ConfigureModelTextureResolver();
         bool ProcessReflectionProbeBakeJob();
         bool ProcessLightProbeBakeJob();
@@ -140,6 +147,18 @@ namespace HIKARI {
 
         Camera3D camera_{};
         DebugCameraController3D debugCamera_{};
+        DebugCameraController3D runtimePreviewCamera_{};
+        Camera3D editorCameraSnapshot_{};
+        DebugCameraController3D editorDebugCameraSnapshot_{};
+        ComponentGizmoState editorComponentGizmoSnapshot_{};
+        ViewportOverlayState editorViewportOverlaySnapshot_{};
+        ViewportPerformanceState editorViewportPerformanceSnapshot_{};
+        ViewportDebugViewState editorViewportDebugViewSnapshot_{};
+        SceneObjectId editorSelectedGizmoObjectSnapshot_{};
+        bool runtimePreviewCameraActive_ = false;
+        bool runtimeSceneCameraActive_ = false;
+        bool runtimePlayActive_ = false;
+        bool runtimeParkedForStandalone_ = false;
         World world_{};
         SystemScheduler systemScheduler_{};
         ModelManager modelManager_{};

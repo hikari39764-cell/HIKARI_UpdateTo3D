@@ -40,7 +40,27 @@ namespace HIKARI {
         pitch_ = resetPitch_;
     }
 
-    void DebugCameraController3D::Update(float dt, Camera3D& camera) {
+    void DebugCameraController3D::ResetFromCamera(const Camera3D& camera) {
+        const MATH::Vec3 direction = camera.GetTarget() - camera.GetPosition();
+        const float length = MATH::Length(direction);
+        if (length <= 1e-5f) {
+            Reset(camera.GetPosition(), yaw_, pitch_);
+            return;
+        }
+
+        const MATH::Vec3 forward = direction * (1.0f / length);
+        const float yaw = std::atan2(forward.x, forward.z);
+        const float pitch = std::asin(std::clamp(forward.y, -1.0f, 1.0f));
+        Reset(camera.GetPosition(), yaw, pitch);
+    }
+
+    void DebugCameraController3D::Update(
+        float dt,
+        Camera3D& camera,
+        CameraControlInputContext inputContext) {
+#if !defined(HIKARI_WITH_EDITOR)
+        (void)inputContext;
+#endif
         if (!enabled_) {
             ApplyToCamera(camera);
             return;
@@ -50,7 +70,8 @@ namespace HIKARI {
         bool wantKeyboard = false;
         bool acceptWheel = true;
 #if defined(HIKARI_WITH_EDITOR)
-        if (ImGui::GetCurrentContext() != nullptr) {
+        if (inputContext == CameraControlInputContext::EditorViewport &&
+            ImGui::GetCurrentContext() != nullptr) {
             ImGuiIO& io = ImGui::GetIO();
             wantMouse = io.WantCaptureMouse;
             wantKeyboard = io.WantCaptureKeyboard;
@@ -88,7 +109,10 @@ namespace HIKARI {
         const MATH::Vec3 right = MATH::Normalize(MATH::Cross(worldUp, forward));
 
         // WASD/QE は右クリック中だけ飛行カメラとして扱う。
-        if (!wantKeyboard && rightMouseDown) {
+        const bool movementInputActive =
+            inputContext == CameraControlInputContext::RuntimeWindow ||
+            rightMouseDown;
+        if (!wantKeyboard && movementInputActive) {
             MATH::Vec3 move{};
             if ((::GetAsyncKeyState('W') & 0x8000) != 0) move = move + forward;
             if ((::GetAsyncKeyState('S') & 0x8000) != 0) move = move - forward;

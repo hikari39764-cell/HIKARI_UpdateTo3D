@@ -25,13 +25,22 @@ std::vector<std::filesystem::path> ConsumeDroppedFiles() {
     return files;
 }
 
-bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool resizable) {
+bool Win32Window::Initialize(
+    const wchar_t* title,
+    int width,
+    int height,
+    bool resizable,
+    WindowCloseBehavior closeBehavior,
+    bool dispatchImGuiInput) {
     HIKARI_LOG_INFO("Win32Window initialization started.");
 
     hInstance_ = GetModuleHandleW(nullptr);
     width_ = width;
     height_ = height;
     resizable_ = resizable;
+    closeBehavior_ = closeBehavior;
+    dispatchImGuiInput_ = dispatchImGuiInput;
+    closeRequested_ = false;
 
     WNDCLASSW wc{};
     wc.lpfnWndProc = StaticWndProc;
@@ -97,6 +106,11 @@ bool Win32Window::Initialize(const wchar_t* title, int width, int height, bool r
     running_ = true;
     HIKARI_LOG_INFO("Win32Window initialization completed.");
     return true;
+}
+
+bool Win32Window::SetTitle(const wchar_t* title) {
+    return hwnd_ != nullptr && title != nullptr &&
+        SetWindowTextW(hwnd_, title) != FALSE;
 }
 
 bool Win32Window::ApplyWindowMode(WindowMode mode, int clientWidth, int clientHeight) {
@@ -227,6 +241,7 @@ void Win32Window::Shutdown() {
         hwnd_ = nullptr;
     }
     running_ = false;
+    closeRequested_ = false;
 }
 // 繝｡繝・そ繝ｼ繧ｸ繝ｫ繝ｼ繝励ｒ蜃ｦ逅・☆繧九８M_QUIT 繝｡繝・そ繝ｼ繧ｸ縺梧擂縺溘ｉ false 繧定ｿ斐☆縲ゅ◎繧御ｻ･螟悶・ true 繧定ｿ斐☆縲・
 bool Win32Window::PumpMessages() {
@@ -266,12 +281,19 @@ LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wparam, 
 
 LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 #if defined(HIKARI_ENABLE_IMGUI)
-    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+    if (dispatchImGuiInput_ &&
+        ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
         return TRUE;
     }
 #endif
 
     switch (msg) {
+    case WM_CLOSE:
+        if (closeBehavior_ == WindowCloseBehavior::SignalOnly) {
+            closeRequested_ = true;
+            return 0;
+        }
+        break;
     case WM_SIZE:
         width_ = LOWORD(lparam);
         height_ = HIWORD(lparam);
@@ -282,7 +304,9 @@ LRESULT Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
         break;
     case WM_DESTROY:
         running_ = false;
-        PostQuitMessage(0);
+        if (closeBehavior_ == WindowCloseBehavior::QuitApplication) {
+            PostQuitMessage(0);
+        }
         return 0;
     case WM_MOUSEWHEEL:
         mouseWheelDelta_ += static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam)) / static_cast<float>(WHEEL_DELTA);

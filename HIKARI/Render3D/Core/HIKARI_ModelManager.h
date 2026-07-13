@@ -40,6 +40,7 @@ namespace HIKARI {
         bool LoadAssetNow(const std::string& name);
         bool ReloadAssetNow(const std::string& name);
         void UnloadAsset(const std::string& name);
+        void UnloadAllAssets();
         bool LoadAllRegisteredAssets();
         bool LoadCpuAssetFromSource(ModelAsset& asset);
 

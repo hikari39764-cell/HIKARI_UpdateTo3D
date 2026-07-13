@@ -1,9 +1,12 @@
 #include "HIKARI_RuntimeLaunchConfig.h"
 
 #include <Windows.h>
+#include <shellapi.h>
 
+#include <algorithm>
 #include <array>
 #include <fstream>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -11,6 +14,10 @@
 #include <json.hpp>
 
 #include "HIKARI_Services.h"
+#include "Core/HIKARI_Logger.h"
+#include "Render3D/Settings/HIKARI_RenderQualityProfileStore.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettingsJson.h"
 
 namespace HIKARI {
 
@@ -96,6 +103,58 @@ namespace HIKARI {
             }
             return configDirectory.lexically_normal();
         }
+
+        std::filesystem::path ResolveConfiguredProjectRoot(
+            const std::filesystem::path& configPath,
+            const std::string& configuredRoot) {
+            std::filesystem::path root = configuredRoot;
+            if (root.is_relative()) {
+                root = configPath.parent_path() / root;
+            }
+
+            std::error_code ec{};
+            std::filesystem::path normalized =
+                std::filesystem::weakly_canonical(root, ec);
+            if (ec || normalized.empty()) {
+                ec.clear();
+                normalized = std::filesystem::absolute(root, ec);
+            }
+            return ec || normalized.empty()
+                ? root.lexically_normal()
+                : normalized.lexically_normal();
+        }
+
+        std::optional<std::filesystem::path> ExplicitConfigPath() {
+            std::array<wchar_t, 32768> buffer{};
+            const DWORD length = GetEnvironmentVariableW(
+                L"HIKARI_RUNTIME_CONFIG",
+                buffer.data(),
+                static_cast<DWORD>(buffer.size()));
+            if (length == 0 || length >= buffer.size()) {
+                return std::nullopt;
+            }
+            return std::filesystem::path(buffer.data());
+        }
+
+        std::optional<std::filesystem::path> CommandLineConfigPath() {
+            int argumentCount = 0;
+            LPWSTR* arguments = CommandLineToArgvW(
+                GetCommandLineW(),
+                &argumentCount);
+            if (arguments == nullptr) {
+                return std::nullopt;
+            }
+
+            std::optional<std::filesystem::path> path{};
+            for (int index = 1; index + 1 < argumentCount; ++index) {
+                if (std::wstring_view(arguments[index]) == L"--runtime-config") {
+                    path = std::filesystem::path(arguments[index + 1]);
+                    break;
+                }
+            }
+            LocalFree(arguments);
+            return path;
+        }
     }
 
     RuntimeLaunchConfig LoadRuntimeLaunchConfigFromFile(const std::filesystem::path& path) {
@@ -130,15 +189,55 @@ namespace HIKARI {
         cfg.resizableWindow = ReadBool(runtime, "resizableWindow");
         cfg.windowWidth = ReadInt(runtime, "windowWidth");
         cfg.windowHeight = ReadInt(runtime, "windowHeight");
+        if (runtime.contains("renderQuality") &&
+            runtime["renderQuality"].is_object()) {
+            RENDER3D::RenderQualitySettings renderQuality{};
+            std::string renderQualityError{};
+            if (RENDER3D::DeserializeRenderQualitySettings(
+                    runtime["renderQuality"],
+                    renderQuality,
+                    &renderQualityError)) {
+                cfg.renderQuality = renderQuality;
+            }
+            else {
+                HIKARI_LOG_WARN(
+                    "[RuntimeConfig] " + renderQualityError +
+                    " Path: " + path.string());
+            }
+        }
+        cfg.antiAliasingMode = ReadString(runtime, "antiAliasingMode");
+        cfg.dlssQualityMode = ReadString(runtime, "dlssQualityMode");
+        cfg.frameGenerationMode = ReadString(runtime, "frameGenerationMode");
+        cfg.frameGenerationMultiplier =
+            ReadInt(runtime, "frameGenerationMultiplier");
         cfg.startupSceneGuid = ReadString(runtime, "startupSceneGuid");
         cfg.exportedSceneGuids = ReadStringArray(runtime, "exportedSceneGuids");
         cfg.loaded = true;
         cfg.sourcePath = path;
         cfg.projectRoot = ResolveConfigProjectRoot(path);
+        if (const std::optional<std::string> projectRoot =
+                ReadString(runtime, "projectRoot")) {
+            cfg.projectRoot = ResolveConfiguredProjectRoot(path, *projectRoot);
+        }
         return cfg;
     }
 
     RuntimeLaunchConfig LoadRuntimeLaunchConfig() {
+        if (const std::optional<std::filesystem::path> commandLinePath =
+                CommandLineConfigPath()) {
+            RuntimeLaunchConfig cfg = LoadRuntimeLaunchConfigFromFile(*commandLinePath);
+            if (cfg.loaded) {
+                return cfg;
+            }
+        }
+        if (const std::optional<std::filesystem::path> explicitPath =
+                ExplicitConfigPath()) {
+            RuntimeLaunchConfig cfg = LoadRuntimeLaunchConfigFromFile(*explicitPath);
+            if (cfg.loaded) {
+                return cfg;
+            }
+        }
+
         std::vector<std::filesystem::path> candidates{};
         AddCandidate(candidates, std::filesystem::current_path());
         AddCandidate(candidates, ExeDirectory());
@@ -185,6 +284,68 @@ namespace HIKARI {
         if (runtimeCfg.enableDebugCamera) {
             servicesCfg.enableDebugCamera = *runtimeCfg.enableDebugCamera;
         }
+        if (runtimeCfg.startupSceneGuid) {
+            servicesCfg.startupSceneGuid = *runtimeCfg.startupSceneGuid;
+        }
+        if (runtimeCfg.exportedSceneGuids) {
+            servicesCfg.exportedSceneGuids = *runtimeCfg.exportedSceneGuids;
+        }
+
+        RENDER3D::RenderQualitySettings quality{};
+        std::error_code rootError{};
+        const std::filesystem::path projectRoot = runtimeCfg.projectRoot.empty()
+            ? std::filesystem::current_path(rootError)
+            : runtimeCfg.projectRoot;
+        std::string profileError{};
+        const bool profileLoaded = !projectRoot.empty() &&
+            RENDER3D::LoadRenderQualityProfile(
+                projectRoot,
+                quality,
+                &profileError);
+        if (!profileLoaded && !profileError.empty()) {
+            HIKARI_LOG_WARN("[RenderQualityProfile] " + profileError);
+        }
+
+        if (runtimeCfg.renderQuality) {
+            quality = *runtimeCfg.renderQuality;
+        }
+        if (runtimeCfg.antiAliasingMode) {
+            (void)RENDER3D::TryParseRenderAntiAliasingMode(
+                *runtimeCfg.antiAliasingMode,
+                quality.antiAliasingMode);
+        }
+        if (runtimeCfg.dlssQualityMode) {
+            (void)RENDER3D::TryParseDlssQualityMode(
+                *runtimeCfg.dlssQualityMode,
+                quality.dlssQualityMode);
+        }
+        if (runtimeCfg.frameGenerationMode) {
+            (void)RENDER3D::TryParseRenderFrameGenerationMode(
+                *runtimeCfg.frameGenerationMode,
+                quality.frameGenerationMode);
+        }
+        if (runtimeCfg.frameGenerationMultiplier) {
+            quality.frameGenerationMultiplier = static_cast<uint8_t>(
+                std::clamp(*runtimeCfg.frameGenerationMultiplier, 2, 6));
+        }
+        RENDER3D::SetRenderQualitySettings(quality);
+
+        if (!IsEditorHostMode(servicesCfg.hostMode)) {
+            const RENDER3D::RenderQualitySettings& resolvedQuality =
+                RENDER3D::GetRenderQualitySettings();
+            const RENDER3D::RenderResolution windowResolution =
+                RENDER3D::ResolveFixedRenderResolution(resolvedQuality.windowSize);
+            servicesCfg.resizableWindow =
+                resolvedQuality.windowMode ==
+                RENDER3D::WindowPresentationMode::Windowed;
+            if (windowResolution.width > 0) {
+                servicesCfg.windowWidth = windowResolution.width;
+            }
+            if (windowResolution.height > 0) {
+                servicesCfg.windowHeight = windowResolution.height;
+            }
+        }
+
         if (runtimeCfg.resizableWindow) {
             servicesCfg.resizableWindow = *runtimeCfg.resizableWindow;
         }
@@ -193,12 +354,6 @@ namespace HIKARI {
         }
         if (runtimeCfg.windowHeight && *runtimeCfg.windowHeight > 0) {
             servicesCfg.windowHeight = *runtimeCfg.windowHeight;
-        }
-        if (runtimeCfg.startupSceneGuid) {
-            servicesCfg.startupSceneGuid = *runtimeCfg.startupSceneGuid;
-        }
-        if (runtimeCfg.exportedSceneGuids) {
-            servicesCfg.exportedSceneGuids = *runtimeCfg.exportedSceneGuids;
         }
     }
 

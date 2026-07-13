@@ -90,6 +90,7 @@
             "MoveY",
             "OpenParticleLab",
             "CloseProgram",
+            "StopPlay",
             "ToggleEditorUI",
             "PlayTestVfx",
             "PlaySceneScan"
@@ -107,6 +108,7 @@
             "Jump",
             "OpenParticleLab",
             "CloseProgram",
+            "StopPlay",
             "ToggleEditorUI",
             "PlayTestVfx",
             "PlaySceneScan"
@@ -546,6 +548,9 @@
             ]
         },
         "CloseProgram": {
+            "keyboard": []
+        },
+        "StopPlay": {
             "keyboard": [
                 "Esc"
             ]

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 
 #include "Scene/HIKARI_RuntimeSceneContext.h"
@@ -10,6 +11,7 @@
 #endif
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
+#include "Editor/Play/HIKARI_EditorPlaySession.h"
 #endif
 
 namespace HIKARI {
@@ -21,6 +23,12 @@ namespace HIKARI {
         void Update(float dt);
         void Render();
         void RenderImGui();
+        void UpdatePlaySessions();
+        void RequestPlayStop();
+        bool IsInProcessPlayRunning() const;
+        bool IsStandalonePlayRunning() const;
+        bool IsPlayTransitioning() const;
+        void WaitForStandalonePlay(uint32_t timeoutMilliseconds) const;
         void Shutdown();
 
     private:
@@ -28,6 +36,7 @@ namespace HIKARI {
         SceneTransitionBus sceneTransitionBus_;
 #if defined(HIKARI_WITH_EDITOR)
         DocumentSceneEditorController documentSceneEditorController_{};
+        EDITOR::EditorPlaySession editorPlaySession_{};
 #endif
 #if defined(HIKARI_ENABLE_IMGUI)
         RUNTIME_TOOLS::PortableObjectToolsPanel portableObjectToolsPanel_{};

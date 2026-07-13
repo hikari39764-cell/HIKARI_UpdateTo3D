@@ -199,10 +199,12 @@ namespace HIKARI {
             return changed;
         }
 
-        bool DrawWindowModeCombo(RENDER3D::WindowPresentationMode& mode) {
+        bool DrawWindowModeCombo(
+            const char* label,
+            RENDER3D::WindowPresentationMode& mode) {
             bool changed = false;
-            ImGui::PushID("Window Mode");
-            EDITOR::PropertyLabel("Window Mode");
+            ImGui::PushID(label);
+            EDITOR::PropertyLabel(label);
             if (ImGui::BeginCombo("##Value", RENDER3D::WindowPresentationModeLabel(mode))) {
                 const RENDER3D::WindowPresentationMode modes[] = {
                     RENDER3D::WindowPresentationMode::Windowed,
@@ -369,6 +371,40 @@ namespace HIKARI {
             return changed;
         }
 
+        bool DrawFrameGenerationModeCombo(
+            RENDER3D::RenderFrameGenerationMode& mode) {
+            bool changed = false;
+            ImGui::PushID("Frame Generation");
+            EDITOR::PropertyLabel("Frame Generation");
+            if (ImGui::BeginCombo(
+                    "##Value",
+                    RENDER3D::RenderFrameGenerationModeLabel(mode))) {
+                const RENDER3D::RenderFrameGenerationMode modes[] = {
+                    RENDER3D::RenderFrameGenerationMode::Off,
+                    RENDER3D::RenderFrameGenerationMode::Dlss,
+                };
+                for (RENDER3D::RenderFrameGenerationMode candidate : modes) {
+                    const bool selected = mode == candidate;
+                    const bool available =
+                        RENDER3D::IsFrameGenerationModeAvailable(candidate);
+                    ImGui::BeginDisabled(!available);
+                    if (ImGui::Selectable(
+                            RENDER3D::RenderFrameGenerationModeLabel(candidate),
+                            selected)) {
+                        mode = candidate;
+                        changed = true;
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::PopID();
+            return changed;
+        }
+
         bool DrawVolumetricLightingQualityCombo(
             RENDER3D::VolumetricLightingQuality& quality) {
 
@@ -414,9 +450,11 @@ namespace HIKARI {
             return changed;
         }
 
-        void DrawRenderSettings() {
-            RENDER3D::RenderQualitySettings settings =
+        bool DrawRenderSettings() {
+            const RENDER3D::RenderQualitySettings beforeEdit =
                 RENDER3D::GetRenderQualitySettings();
+            RENDER3D::RenderQualitySettings settings =
+                beforeEdit;
             bool changed = false;
 
             if (ImGui::TreeNodeEx("Display", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -426,8 +464,13 @@ namespace HIKARI {
                         EDITOR::PropertyLabel("Viewport Scale");
                         changed |= ImGui::SliderFloat("##ViewportScale", &settings.viewportScale, 0.25f, 2.0f, "%.2fx");
                     }
-                    changed |= DrawResolutionPresetCombo("Window Size", settings.windowSize, false);
-                    changed |= DrawWindowModeCombo(settings.windowMode);
+                    changed |= DrawResolutionPresetCombo(
+                        "Game Window Size",
+                        settings.windowSize,
+                        false);
+                    changed |= DrawWindowModeCombo(
+                        "Game Window Mode",
+                        settings.windowMode);
                     EDITOR::PropertyLabel("VSync");
                     changed |= ImGui::Checkbox("##VSync", &settings.vSync);
 
@@ -441,15 +484,6 @@ namespace HIKARI {
                     ImGui::TextDisabled("%d x %d", captureWidth, captureHeight);
                     EDITOR::PropertyLabel("Temporal Output");
                     ImGui::TextDisabled("%d x %d", outputWidth, outputHeight);
-                    EDITOR::PropertyLabel("Window");
-                    if (EDITOR::ActionButton(
-                            "Apply",
-                            "ApplyWindowPresentation",
-                            EDITOR::EditorButtonTone::Primary)) {
-                        RENDER3D::SetRenderQualitySettings(settings);
-                        SERVICES::ApplyWindowPresentationSettings();
-                        changed = false;
-                    }
                     EDITOR::EndPropertyTable();
                 }
                 ImGui::TreePop();
@@ -465,6 +499,23 @@ namespace HIKARI {
                     changed |= DrawAntiAliasingModeCombo(settings.antiAliasingMode);
                     if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::DLSS) {
                         changed |= DrawDlssQualityModeCombo(settings.dlssQualityMode);
+                    }
+                    changed |= DrawFrameGenerationModeCombo(
+                        settings.frameGenerationMode);
+                    if (settings.frameGenerationMode ==
+                        RENDER3D::RenderFrameGenerationMode::Dlss) {
+                        int multiplier = settings.frameGenerationMultiplier;
+                        EDITOR::PropertyLabel("Frame Multiplier");
+                        if (ImGui::SliderInt(
+                                "##FrameGenerationMultiplier",
+                                &multiplier,
+                                2,
+                                6,
+                                "%dx")) {
+                            settings.frameGenerationMultiplier =
+                                static_cast<uint8_t>(multiplier);
+                            changed = true;
+                        }
                     }
                     if (settings.antiAliasingMode == RENDER3D::RenderAntiAliasingMode::TAA) {
                         EDITOR::PropertyLabel("TAA History");
@@ -516,6 +567,9 @@ namespace HIKARI {
             if (changed) {
                 RENDER3D::SetRenderQualitySettings(settings);
             }
+            return !RENDER3D::AreRenderQualitySettingsEqual(
+                beforeEdit,
+                RENDER3D::GetRenderQualitySettings());
         }
 
         void DrawDirectionalShadow(SceneEnvironment& environment) {
@@ -729,17 +783,17 @@ namespace HIKARI {
         }
     }
 
-    bool QualityPanel::Draw(SceneEnvironment& environment) const {
+    QualityPanelResult QualityPanel::Draw(SceneEnvironment& environment) const {
         if (!ImGui::Begin("Quality")) {
             ImGui::End();
-            return false;
+            return {};
         }
 
         const SceneEnvironment beforeEdit = environment;
         const RENDER3D::DIAGNOSTICS::EnvironmentDiagnosticsSnapshot runtimeSnapshot =
             RENDER3D::DIAGNOSTICS::CaptureEnvironmentSnapshot(&environment);
 
-        DrawRenderSettings();
+        const bool renderQualityChanged = DrawRenderSettings();
 
         if (ImGui::TreeNodeEx("Directional Shadow", ImGuiTreeNodeFlags_DefaultOpen)) {
             DrawDirectionalShadow(environment);
@@ -767,10 +821,13 @@ namespace HIKARI {
         }
 
         ImGui::End();
-        return !EqualQualityEnvironment(beforeEdit, environment);
+        return {
+            !EqualQualityEnvironment(beforeEdit, environment),
+            renderQualityChanged,
+        };
     }
 #else
-    bool QualityPanel::Draw(SceneEnvironment&) const { return false; }
+    QualityPanelResult QualityPanel::Draw(SceneEnvironment&) const { return {}; }
 #endif
 
 } // namespace HIKARI

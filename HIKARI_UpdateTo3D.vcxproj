@@ -330,6 +330,8 @@
     <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.cpp" />
     <ClCompile Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettingsJson.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
@@ -349,6 +351,10 @@
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.cpp" />
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrame.cpp" />
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDlss.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDeployment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.cpp" />
     <ClCompile Include="HIKARI\Render3D\Cluster\HIKARI_ClusteredGeometryAsset.cpp" />
@@ -390,6 +396,9 @@
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp" />
+    <ClCompile Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.cpp" />
+    <ClCompile Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.cpp" />
+    <ClCompile Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
@@ -440,6 +449,8 @@
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp" />
+    <ClCompile Include="HIKARI\Runtime\HIKARI_GamePresentationController.cpp" />
+    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.cpp" />
     <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp" />
@@ -479,6 +490,7 @@
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp" />
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_Dx12Core.cpp" />
+    <ClCompile Include="HIKARI\Gfx\HIKARI_PresentationSurface.cpp" />
     <ClCompile Include="HIKARI\Audio\HIKARI_Audio.cpp" />
     <ClCompile Include="HIKARI\Audio\Backends\HIKARI_AudioBackend_XAudio2.cpp" />
     <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxSystem.cpp" />
@@ -698,6 +710,8 @@
     <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidFrameResources.h" />
     <ClInclude Include="HIKARI\Render3D\Depth\HIKARI_DepthPyramidLayer.h" />
     <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettings.h" />
+    <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualitySettingsJson.h" />
+    <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.h" />
@@ -802,6 +816,10 @@
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineInternal.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDeployment.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuCullingPass.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGeometryPacked.h" />
@@ -832,6 +850,9 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.h" />
+    <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h" />
+    <ClInclude Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
@@ -879,6 +900,8 @@
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h" />
+    <ClInclude Include="HIKARI\Runtime\HIKARI_GamePresentationController.h" />
+    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h" />
     <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
@@ -921,6 +944,7 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_Dx12Core.h" />
+    <ClInclude Include="HIKARI\Gfx\HIKARI_PresentationSurface.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxDebugConfig.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GpuFrameProfiler.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GpuPipelineStatsProfiler.h" />
@@ -969,6 +993,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="input.json" />
+    <None Include="ProjectSettings\render_quality.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
     <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />

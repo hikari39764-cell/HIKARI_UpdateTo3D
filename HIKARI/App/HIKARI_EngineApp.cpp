@@ -59,13 +59,64 @@ namespace HIKARI {
         }
 
         if (auto* docScene = dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene())) {
-            documentSceneEditorController_.Draw(*docScene);
+            documentSceneEditorController_.Draw(*docScene, editorPlaySession_);
         }
 #endif
 #endif
     }
 
+    void EngineApp::UpdatePlaySessions() {
+#if defined(HIKARI_WITH_EDITOR)
+        if (auto* docScene =
+                dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene())) {
+            editorPlaySession_.Update(*docScene);
+        }
+#endif
+    }
+
+    void EngineApp::RequestPlayStop() {
+#if defined(HIKARI_WITH_EDITOR)
+        editorPlaySession_.RequestStop(EDITOR::PlayStopReason::Escape);
+#endif
+    }
+
+    bool EngineApp::IsInProcessPlayRunning() const {
+#if defined(HIKARI_WITH_EDITOR)
+        return editorPlaySession_.IsInProcessRunning();
+#else
+        return false;
+#endif
+    }
+
+    bool EngineApp::IsStandalonePlayRunning() const {
+#if defined(HIKARI_WITH_EDITOR)
+        return editorPlaySession_.IsStandaloneRunning();
+#else
+        return false;
+#endif
+    }
+
+    bool EngineApp::IsPlayTransitioning() const {
+#if defined(HIKARI_WITH_EDITOR)
+        return editorPlaySession_.IsTransitioning();
+#else
+        return false;
+#endif
+    }
+
+    void EngineApp::WaitForStandalonePlay(uint32_t timeoutMilliseconds) const {
+#if defined(HIKARI_WITH_EDITOR)
+        (void)editorPlaySession_.WaitForStandaloneExit(timeoutMilliseconds);
+#else
+        (void)timeoutMilliseconds;
+#endif
+    }
+
     void EngineApp::Shutdown() {
+#if defined(HIKARI_WITH_EDITOR)
+        editorPlaySession_.Shutdown(
+            dynamic_cast<DocumentSceneBase*>(sceneManager_.GetCurrentScene()));
+#endif
         RuntimeSceneContext::SetTransitionBus(nullptr);
         sceneManager_.ChangeScene(nullptr);
         sceneManager_.Update(0.0f);

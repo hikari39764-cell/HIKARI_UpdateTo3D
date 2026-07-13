@@ -76,11 +76,42 @@ namespace HIKARI::RENDER3D::UPSCALING {
     }
 #endif
 
-    bool BeginStreamlineFrame(
+    bool BeginStreamlineFrame(uint64_t frameIndex) {
+        INTERNAL::StreamlineState& state = INTERNAL::GetState();
+        INTERNAL::ResetFrameStats(state, frameIndex);
+        state.reflex.stats.frameIndex = frameIndex;
+        state.reflex.stats.sleepCalled = false;
+        state.reflex.stats.markerMask = 0;
+        state.frameGeneration.stats.frameIndex = frameIndex;
+        state.frameGeneration.stats.requested =
+            state.frameGeneration.settings.enabled;
+        state.frameGeneration.stats.inputsReady = false;
+        state.frameGeneration.stats.tagsSubmitted = false;
+#if !defined(HIKARI_WITH_STREAMLINE)
+        return false;
+#else
+        state.frameToken = nullptr;
+        if (!state.stats.initialized || !state.stats.deviceAttached) {
+            return false;
+        }
+
+        const uint32_t tokenIndex = static_cast<uint32_t>(frameIndex);
+        if (!INTERNAL::RecordResult(
+                state,
+                "slGetNewFrameToken",
+                slGetNewFrameToken(state.frameToken, &tokenIndex)) ||
+            state.frameToken == nullptr) {
+            return false;
+        }
+        state.stats.frameTokenReady = true;
+        return true;
+#endif
+    }
+
+    bool SubmitStreamlineFrameConstants(
         const TEMPORAL::TemporalFrameState& frame,
         StreamlineDlssMode mode) {
         INTERNAL::StreamlineState& state = INTERNAL::GetState();
-        INTERNAL::ResetFrameStats(state, frame.frameIndex);
         state.stats.mode = mode;
         state.stats.dlssRequested = mode != StreamlineDlssMode::Off;
         state.stats.renderWidth = frame.renderWidth;
@@ -90,22 +121,11 @@ namespace HIKARI::RENDER3D::UPSCALING {
 #if !defined(HIKARI_WITH_STREAMLINE)
         return false;
 #else
-        state.frameToken = nullptr;
-        if (mode == StreamlineDlssMode::Off ||
-            !IsStreamlineDlssAvailable() ||
+        if (state.frameToken == nullptr ||
+            state.stats.frameIndex != frame.frameIndex ||
             !frame.camera.valid) {
             return false;
         }
-
-        const uint32_t frameIndex = static_cast<uint32_t>(frame.frameIndex);
-        if (!INTERNAL::RecordResult(
-                state,
-                "slGetNewFrameToken",
-                slGetNewFrameToken(state.frameToken, &frameIndex)) ||
-            state.frameToken == nullptr) {
-            return false;
-        }
-        state.stats.frameTokenReady = true;
 
         const sl::Constants constants = BuildConstants(frame);
         if (!INTERNAL::RecordResult(
@@ -115,7 +135,9 @@ namespace HIKARI::RENDER3D::UPSCALING {
             return false;
         }
         state.stats.constantsSubmitted = true;
-        state.stats.status = StreamlineRuntimeStatus::Ready;
+        if (!state.stats.retryPending) {
+            state.stats.status = StreamlineRuntimeStatus::Ready;
+        }
         return true;
 #endif
     }

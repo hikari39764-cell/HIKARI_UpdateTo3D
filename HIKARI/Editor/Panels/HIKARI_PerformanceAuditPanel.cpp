@@ -17,6 +17,8 @@
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineFrameGeneration.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineReflex.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -49,6 +51,9 @@ namespace HIKARI {
             RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
             RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
             RENDER3D::UPSCALING::StreamlineDebugStats streamline{};
+            RENDER3D::UPSCALING::StreamlineReflexStats streamlineReflex{};
+            RENDER3D::UPSCALING::StreamlineFrameGenerationStats
+                streamlineFrameGeneration{};
             POST::PresentationFrameResources presentation{};
             CPU_PROFILE::FrameSnapshot cpu{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
@@ -213,6 +218,10 @@ namespace HIKARI {
                 RENDER3D::TEMPORAL::GetTemporalResourceStats();
             out.streamline =
                 RENDER3D::UPSCALING::GetStreamlineDebugStats();
+            out.streamlineReflex =
+                RENDER3D::UPSCALING::GetStreamlineReflexStats();
+            out.streamlineFrameGeneration =
+                RENDER3D::UPSCALING::GetStreamlineFrameGenerationStats();
             out.presentation =
                 POST::PostSystem::GetPresentationFrameResources();
             out.cpu = CPU_PROFILE::GetLatestSnapshot();
@@ -741,6 +750,11 @@ namespace HIKARI {
                 MetricRow("AA Mode", "%s",
                     RENDER3D::RenderAntiAliasingModeLabel(
                         renderQuality.antiAliasingMode));
+                MetricRow("Frame Generation Policy / Multiplier", "%s / %ux",
+                    RENDER3D::RenderFrameGenerationModeLabel(
+                        renderQuality.frameGenerationMode),
+                    static_cast<unsigned int>(
+                        renderQuality.frameGenerationMultiplier));
                 MetricRow("Frame / History / Reset", "%llu / %s / %s",
                     static_cast<unsigned long long>(s.temporalFrame.frameIndex),
                     s.temporalFrame.historyValid ? "valid" : "cold",
@@ -802,6 +816,14 @@ namespace HIKARI {
                     s.streamline.sdkCompiled ? "yes" : "no",
                     s.streamline.initialized ? "yes" : "no",
                     s.streamline.deviceAttached ? "yes" : "no");
+                MetricRow("SL Plugins DLSS / FG / Reflex / PCL", "%s / %s / %s / %s",
+                    s.streamline.dlssPluginPresent ? "yes" : "no",
+                    s.streamlineFrameGeneration.pluginPresent ? "yes" : "no",
+                    s.streamlineReflex.reflexPluginPresent ? "yes" : "no",
+                    s.streamlineReflex.pclPluginPresent ? "yes" : "no");
+                MetricRow("DLSS-G Loaded / Supported", "%s / %s",
+                    s.streamlineFrameGeneration.featureLoaded ? "yes" : "no",
+                    s.streamlineFrameGeneration.supported ? "yes" : "no");
                 MetricRow("DLSS Support / Token / Constants", "%s / %s / %s",
                     s.streamline.dlssSupported ? "yes" : "no",
                     s.streamline.frameTokenReady ? "yes" : "no",
@@ -838,6 +860,56 @@ namespace HIKARI {
                     s.streamline.lastResult.empty()
                         ? "none"
                         : s.streamline.lastResult.c_str());
+                MetricRow("DLSS Retry / Consecutive / Frame", "%s / %u / %llu",
+                    s.streamline.retryPending ? "cooldown" : "ready",
+                    s.streamline.consecutiveFailureCount,
+                    static_cast<unsigned long long>(
+                        s.streamline.retryFrameIndex));
+                MetricRow("Reflex Support / Options / Sleep", "%s / %s / %s",
+                    s.streamlineReflex.reflexSupported ? "yes" : "no",
+                    s.streamlineReflex.optionsConfigured ? "ready" : "missing",
+                    s.streamlineReflex.sleepCalled ? "yes" : "no");
+                MetricRow("Reflex PCL / Markers / Failures", "%s / 0x%02X / %llu",
+                    s.streamlineReflex.pclSupported ? "yes" : "no",
+                    s.streamlineReflex.markerMask,
+                    static_cast<unsigned long long>(
+                        s.streamlineReflex.failureCount));
+                MetricRow("Frame Gen Support / Host / Inputs", "%s / %s / %s",
+                    s.streamlineFrameGeneration.supported ? "yes" : "no",
+                    s.streamlineFrameGeneration.hostAllowed ? "game" : "editor-off",
+                    s.streamlineFrameGeneration.inputsReady ? "ready" : "missing");
+                MetricRow("Frame Gen Requested / BackBuffer / Inputs", "%s / %s / %s",
+                    s.streamlineFrameGeneration.requested ? "yes" : "no",
+                    s.streamlineFrameGeneration.backBufferTagged ? "tagged" : "missing",
+                    s.streamlineFrameGeneration.tagsSubmitted ? "yes" : "no");
+                MetricRow("Frame Gen Options / Tags / State", "%s / %s / %s",
+                    s.streamlineFrameGeneration.optionsConfigured
+                        ? "ready"
+                        : "missing",
+                    s.streamlineFrameGeneration.tagsSubmitted ? "yes" : "no",
+                    s.streamlineFrameGeneration.stateValid ? "valid" : "none");
+                MetricRow("Frame Gen Requested / Max / Presented", "%u / %u / %u",
+                    s.streamlineFrameGeneration.generatedFrames,
+                    s.streamlineFrameGeneration.maxGeneratedFrames,
+                    s.streamlineFrameGeneration.presentedFrames);
+                MetricRow("Frame Gen Status / VRAM MB", "0x%08X / %.2f",
+                    s.streamlineFrameGeneration.statusFlags,
+                    static_cast<double>(
+                        s.streamlineFrameGeneration.estimatedVramBytes) /
+                        (1024.0 * 1024.0));
+                MetricRow("Frame Gen Runtime / Reason", "%s / %s",
+                    RENDER3D::UPSCALING::ToString(
+                        s.streamlineFrameGeneration.status),
+                    s.streamlineFrameGeneration.statusReason.empty()
+                        ? "none"
+                        : s.streamlineFrameGeneration.statusReason.c_str());
+                MetricRow("Frame Gen Retry / Consecutive / Frame", "%s / %u / %llu",
+                    s.streamlineFrameGeneration.retryPending
+                        ? "cooldown"
+                        : "ready",
+                    s.streamlineFrameGeneration.consecutiveFailureCount,
+                    static_cast<unsigned long long>(
+                        s.streamlineFrameGeneration.retryFrameIndex));
                 MetricRow("Temporal Debug", "%s / %s",
                     ToString(s.temporalResources.debugView),
                     s.temporalResources.debugOutputReady ? "ready" : "missing");

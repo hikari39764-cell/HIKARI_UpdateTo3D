@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "Render3D/Upscaling/HIKARI_StreamlineFrameGeneration.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 
 namespace HIKARI::RENDER3D {
@@ -20,42 +21,94 @@ namespace HIKARI::RENDER3D {
         return gRenderQualitySettings;
     }
 
-    void SetRenderQualitySettings(const RenderQualitySettings& settings) {
-        gRenderQualitySettings = settings;
-        gRenderQualitySettings.viewportScale =
-            std::clamp(gRenderQualitySettings.viewportScale, 0.25f, 2.0f);
-        gRenderQualitySettings.taaHistoryWeight =
-            std::clamp(gRenderQualitySettings.taaHistoryWeight, 0.0f, 0.97f);
-        gRenderQualitySettings.taaVarianceClipGamma =
-            std::clamp(gRenderQualitySettings.taaVarianceClipGamma, 0.0f, 4.0f);
-        gRenderQualitySettings.taaDepthRejection =
-            std::clamp(gRenderQualitySettings.taaDepthRejection, 0.0001f, 0.05f);
-        gRenderQualitySettings.taaLuminanceRejection =
-            std::clamp(gRenderQualitySettings.taaLuminanceRejection, 0.05f, 4.0f);
-        gRenderQualitySettings.taaSharpness =
-            std::clamp(gRenderQualitySettings.taaSharpness, 0.0f, 1.0f);
-        if (static_cast<uint8_t>(gRenderQualitySettings.antiAliasingMode) >
+    RenderQualitySettings NormalizeRenderQualitySettings(
+        RenderQualitySettings settings) {
+        settings.viewportScale = std::clamp(settings.viewportScale, 0.25f, 2.0f);
+        settings.taaHistoryWeight =
+            std::clamp(settings.taaHistoryWeight, 0.0f, 0.97f);
+        settings.taaVarianceClipGamma =
+            std::clamp(settings.taaVarianceClipGamma, 0.0f, 4.0f);
+        settings.taaDepthRejection =
+            std::clamp(settings.taaDepthRejection, 0.0001f, 0.05f);
+        settings.taaLuminanceRejection =
+            std::clamp(settings.taaLuminanceRejection, 0.05f, 4.0f);
+        settings.taaSharpness = std::clamp(settings.taaSharpness, 0.0f, 1.0f);
+        if (static_cast<uint8_t>(settings.sceneResolution) >
+            static_cast<uint8_t>(RenderResolutionPreset::P2160)) {
+            settings.sceneResolution = RenderResolutionPreset::P1080;
+        }
+        if (static_cast<uint8_t>(settings.windowSize) >
+            static_cast<uint8_t>(RenderResolutionPreset::P2160) ||
+            settings.windowSize == RenderResolutionPreset::Viewport) {
+            settings.windowSize = RenderResolutionPreset::P720;
+        }
+        if (static_cast<uint8_t>(settings.windowMode) >
+            static_cast<uint8_t>(WindowPresentationMode::Fullscreen)) {
+            settings.windowMode = WindowPresentationMode::Windowed;
+        }
+        if (static_cast<uint8_t>(settings.geometryPipeline) >
+            static_cast<uint8_t>(GeometryPipelineMode::AutoFallback)) {
+            settings.geometryPipeline = GeometryPipelineMode::MeshShader;
+        }
+        if (static_cast<uint8_t>(settings.antiAliasingMode) >
             static_cast<uint8_t>(RenderAntiAliasingMode::DLSS)) {
-            gRenderQualitySettings.antiAliasingMode = RenderAntiAliasingMode::Off;
+            settings.antiAliasingMode = RenderAntiAliasingMode::Off;
         }
-        if (static_cast<uint8_t>(gRenderQualitySettings.dlssQualityMode) >
+        if (static_cast<uint8_t>(settings.dlssQualityMode) >
             static_cast<uint8_t>(DlssQualityMode::UltraPerformance)) {
-            gRenderQualitySettings.dlssQualityMode = DlssQualityMode::Quality;
+            settings.dlssQualityMode = DlssQualityMode::Quality;
         }
-        if (static_cast<uint8_t>(gRenderQualitySettings.volumetricLightingQuality) >
+        if (static_cast<uint8_t>(settings.frameGenerationMode) >
+            static_cast<uint8_t>(RenderFrameGenerationMode::Dlss)) {
+            settings.frameGenerationMode = RenderFrameGenerationMode::Off;
+        }
+        settings.frameGenerationMultiplier =
+            static_cast<uint8_t>(std::clamp(
+                static_cast<int>(settings.frameGenerationMultiplier),
+                2,
+                6));
+        if (static_cast<uint8_t>(settings.volumetricLightingQuality) >
             static_cast<uint8_t>(VolumetricLightingQuality::High)) {
-            gRenderQualitySettings.volumetricLightingQuality =
-                VolumetricLightingQuality::Balanced;
+            settings.volumetricLightingQuality = VolumetricLightingQuality::Balanced;
         }
-        if (static_cast<uint8_t>(gRenderQualitySettings.forwardCostMode) >
+        if (static_cast<uint8_t>(settings.forwardCostMode) >
             static_cast<uint8_t>(ForwardShadingCostMode::NoMaterialExtras)) {
-            gRenderQualitySettings.forwardCostMode = ForwardShadingCostMode::Full;
+            settings.forwardCostMode = ForwardShadingCostMode::Full;
         }
-        if (static_cast<uint8_t>(gRenderQualitySettings.lightProbeVolumeSampling) >
+        if (static_cast<uint8_t>(settings.lightProbeVolumeSampling) >
             static_cast<uint8_t>(LightProbeVolumeSamplingMode::Off)) {
-            gRenderQualitySettings.lightProbeVolumeSampling =
+            settings.lightProbeVolumeSampling =
                 LightProbeVolumeSamplingMode::FastSmooth;
         }
+        return settings;
+    }
+
+    bool AreRenderQualitySettingsEqual(
+        const RenderQualitySettings& lhs,
+        const RenderQualitySettings& rhs) {
+        return lhs.sceneResolution == rhs.sceneResolution &&
+            lhs.windowSize == rhs.windowSize &&
+            lhs.windowMode == rhs.windowMode &&
+            lhs.geometryPipeline == rhs.geometryPipeline &&
+            lhs.forwardCostMode == rhs.forwardCostMode &&
+            lhs.lightProbeVolumeSampling == rhs.lightProbeVolumeSampling &&
+            lhs.viewportScale == rhs.viewportScale &&
+            lhs.vSync == rhs.vSync &&
+            lhs.antiAliasingMode == rhs.antiAliasingMode &&
+            lhs.dlssQualityMode == rhs.dlssQualityMode &&
+            lhs.frameGenerationMode == rhs.frameGenerationMode &&
+            lhs.frameGenerationMultiplier == rhs.frameGenerationMultiplier &&
+            lhs.volumetricLightingQuality == rhs.volumetricLightingQuality &&
+            lhs.taaHistoryWeight == rhs.taaHistoryWeight &&
+            lhs.taaVarianceClipGamma == rhs.taaVarianceClipGamma &&
+            lhs.taaDepthRejection == rhs.taaDepthRejection &&
+            lhs.taaLuminanceRejection == rhs.taaLuminanceRejection &&
+            lhs.taaSharpness == rhs.taaSharpness &&
+            lhs.sceneDepthPrepass == rhs.sceneDepthPrepass;
+    }
+
+    void SetRenderQualitySettings(const RenderQualitySettings& settings) {
+        gRenderQualitySettings = NormalizeRenderQualitySettings(settings);
     }
 
     const char* RenderResolutionPresetLabel(RenderResolutionPreset preset) {
@@ -129,6 +182,15 @@ namespace HIKARI::RENDER3D {
         }
     }
 
+    const char* RenderFrameGenerationModeLabel(
+        RenderFrameGenerationMode mode) {
+        switch (mode) {
+        case RenderFrameGenerationMode::Off: return "Off";
+        case RenderFrameGenerationMode::Dlss: return "DLSS Frame Generation";
+        default: return "Unknown";
+        }
+    }
+
     const char* VolumetricLightingQualityLabel(VolumetricLightingQuality quality) {
         switch (quality) {
         case VolumetricLightingQuality::Low: return "Low";
@@ -165,6 +227,53 @@ namespace HIKARI::RENDER3D {
         if (mode == RenderAntiAliasingMode::DLAA ||
             mode == RenderAntiAliasingMode::DLSS) {
             return UPSCALING::IsStreamlineDlssAvailable();
+        }
+        return true;
+    }
+
+    bool IsFrameGenerationModeAvailable(RenderFrameGenerationMode mode) {
+        return mode == RenderFrameGenerationMode::Off ||
+            UPSCALING::IsStreamlineFrameGenerationInstalled();
+    }
+
+    bool TryParseRenderAntiAliasingMode(
+        std::string_view name,
+        RenderAntiAliasingMode& outMode) {
+        if (name == "Off" || name == "off") outMode = RenderAntiAliasingMode::Off;
+        else if (name == "FXAA" || name == "fxaa") outMode = RenderAntiAliasingMode::FXAA;
+        else if (name == "TAA" || name == "taa") outMode = RenderAntiAliasingMode::TAA;
+        else if (name == "DLAA" || name == "dlaa") outMode = RenderAntiAliasingMode::DLAA;
+        else if (name == "DLSS" || name == "dlss") outMode = RenderAntiAliasingMode::DLSS;
+        else return false;
+        return true;
+    }
+
+    bool TryParseDlssQualityMode(
+        std::string_view name,
+        DlssQualityMode& outMode) {
+        if (name == "Quality" || name == "quality") outMode = DlssQualityMode::Quality;
+        else if (name == "Balanced" || name == "balanced") outMode = DlssQualityMode::Balanced;
+        else if (name == "Performance" || name == "performance") outMode = DlssQualityMode::Performance;
+        else if (name == "Ultra Performance" || name == "UltraPerformance" ||
+            name == "ultraPerformance" || name == "ultra_performance") {
+            outMode = DlssQualityMode::UltraPerformance;
+        }
+        else return false;
+        return true;
+    }
+
+    bool TryParseRenderFrameGenerationMode(
+        std::string_view name,
+        RenderFrameGenerationMode& outMode) {
+        if (name == "Off" || name == "off") {
+            outMode = RenderFrameGenerationMode::Off;
+        }
+        else if (name == "DLSS" || name == "dlss" ||
+            name == "DLSS Frame Generation" || name == "Dlss") {
+            outMode = RenderFrameGenerationMode::Dlss;
+        }
+        else {
+            return false;
         }
         return true;
     }

@@ -201,7 +201,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
             !debugRoute.bypassTemporalUpscaler
                 ? RENDER3D::UPSCALING::ResolveStreamlineDlssMode(renderQuality)
                 : RENDER3D::UPSCALING::StreamlineDlssMode::Off;
-        (void)RENDER3D::UPSCALING::BeginStreamlineFrame(
+        (void)RENDER3D::UPSCALING::SubmitStreamlineFrameConstants(
             temporalFrame,
             streamlineMode);
         if (!POST::PostSystem::HasCurrentRenderTarget() ||

@@ -17,7 +17,11 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Core/HIKARI_Logger.h"
+#include "Editor/Export/HIKARI_NativeRuntimeDeployment.h"
 #include "Project/HIKARI_ProjectSettings.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettingsJson.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineDeployment.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
@@ -807,6 +811,14 @@ namespace HIKARI::EDITOR {
                 return false;
             }
 
+            const RENDER3D::RenderQualitySettings& quality =
+                RENDER3D::GetRenderQualitySettings();
+            RENDER3D::RenderResolution windowResolution =
+                RENDER3D::ResolveFixedRenderResolution(quality.windowSize);
+            if (windowResolution.width <= 0 || windowResolution.height <= 0) {
+                windowResolution = { 1280, 720 };
+            }
+
             nlohmann::json runtime{
                     { "hostMode", recipe.hostMode },
                     { "enableImGui", recipe.enableImGui },
@@ -814,9 +826,13 @@ namespace HIKARI::EDITOR {
                     { "enablePortableObjectTools", recipe.enablePortableObjectTools },
                     { "enableDebugLayer", false },
                     { "enableDebugCamera", false },
-                    { "resizableWindow", true },
-                    { "windowWidth", 1920 },
-                    { "windowHeight", 1080 }
+                    { "resizableWindow",
+                        quality.windowMode ==
+                        RENDER3D::WindowPresentationMode::Windowed },
+                    { "windowWidth", windowResolution.width },
+                    { "windowHeight", windowResolution.height },
+                    { "renderQuality",
+                        RENDER3D::SerializeRenderQualitySettings(quality) },
             };
 
             if (!options.startupSceneGuid.empty()) {
@@ -975,6 +991,17 @@ namespace HIKARI::EDITOR {
         const std::filesystem::path outputDirectory =
             ResolveOutputDirectory(projectRoot, recipe, options.outputDirectory);
         const std::filesystem::path outputExe = outputDirectory / "HIKARI_Game.exe";
+        const RENDER3D::RenderQualitySettings& renderQuality =
+            RENDER3D::GetRenderQualitySettings();
+        const RENDER3D::UPSCALING::StreamlineDeploymentOptions
+            streamlineDeployment{
+                RENDER3D::IsDlaaAntiAliasingMode(
+                    renderQuality.antiAliasingMode) ||
+                    RENDER3D::IsDlssAntiAliasingMode(
+                        renderQuality.antiAliasingMode),
+                renderQuality.frameGenerationMode ==
+                    RENDER3D::RenderFrameGenerationMode::Dlss,
+            };
 
         GameExportResult result{};
         result.outputDirectory = outputDirectory;
@@ -993,9 +1020,22 @@ namespace HIKARI::EDITOR {
             return result;
         }
 
+        const NativeRuntimeDeploymentResult nativeRuntime =
+            DeployNativeRuntimeDependencies(
+                sourceExe.parent_path(),
+                outputDirectory);
         if (!CopyFileChecked(sourceExe, outputExe, errorMessage) ||
+            !nativeRuntime.success ||
+            !RENDER3D::UPSCALING::DeployStreamlineRuntime(
+                sourceExe.parent_path(),
+                outputDirectory,
+                streamlineDeployment,
+                errorMessage) ||
             !WriteRuntimeConfig(outputDirectory, recipe, options, errorMessage) ||
             !CopyRuntimeContent(projectRoot, outputDirectory, recipe, options, contentManifest, errorMessage)) {
+            if (errorMessage.empty() && !nativeRuntime.success) {
+                errorMessage = nativeRuntime.message;
+            }
             result.message = errorMessage;
             HIKARI_LOG_WARN(std::string("[GameExporter] ") + result.message);
             return result;

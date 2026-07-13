@@ -911,6 +911,14 @@ namespace HIKARI {
         asset->SetState(ModelAsset::State::Unloaded);
     }
 
+    void ModelManager::UnloadAllAssets() {
+        for (const std::unique_ptr<ModelAsset>& asset : assets_) {
+            if (asset) {
+                UnloadAsset(asset->GetName());
+            }
+        }
+    }
+
     bool ModelManager::LoadCpuAssetFromSource(ModelAsset& asset) {
         const std::string sourcePath = asset.GetSourcePath();
         std::string ext = GetFileExt(sourcePath);

@@ -5,6 +5,7 @@
 namespace HIKARI::TIME {
 
 void Reset();
+void ResetFrameClock();
 const FrameContext& BeginFrame();
 const FrameContext& GetFrameContext();
 

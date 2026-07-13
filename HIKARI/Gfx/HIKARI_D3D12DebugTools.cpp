@@ -1,6 +1,8 @@
 #include "HIKARI_D3D12DebugTools.h"
 
 #include <d3d12sdklayers.h>
+#include <dxgi1_3.h>
+#include <dxgidebug.h>
 #include <wrl/client.h>
 #include <sstream>
 #include <vector>
@@ -36,6 +38,34 @@ namespace HIKARI::GFX {
             case D3D12_MESSAGE_CATEGORY_RESOURCE_MANIPULATION: return "RESOURCE_MANIPULATION";
             case D3D12_MESSAGE_CATEGORY_EXECUTION: return "EXECUTION";
             case D3D12_MESSAGE_CATEGORY_SHADER: return "SHADER";
+            default: return "UNKNOWN";
+            }
+        }
+
+        const char* ToString(DXGI_INFO_QUEUE_MESSAGE_SEVERITY severity) {
+            switch (severity) {
+            case DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION: return "CORRUPTION";
+            case DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR: return "ERROR";
+            case DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING: return "WARNING";
+            case DXGI_INFO_QUEUE_MESSAGE_SEVERITY_INFO: return "INFO";
+            case DXGI_INFO_QUEUE_MESSAGE_SEVERITY_MESSAGE: return "MESSAGE";
+            default: return "UNKNOWN";
+            }
+        }
+
+        const char* ToString(DXGI_INFO_QUEUE_MESSAGE_CATEGORY category) {
+            switch (category) {
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_UNKNOWN: return "UNKNOWN";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_MISCELLANEOUS: return "MISCELLANEOUS";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_INITIALIZATION: return "INITIALIZATION";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_CLEANUP: return "CLEANUP";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_COMPILATION: return "COMPILATION";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_STATE_CREATION: return "STATE_CREATION";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_STATE_SETTING: return "STATE_SETTING";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_STATE_GETTING: return "STATE_GETTING";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_RESOURCE_MANIPULATION: return "RESOURCE_MANIPULATION";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_EXECUTION: return "EXECUTION";
+            case DXGI_INFO_QUEUE_MESSAGE_CATEGORY_SHADER: return "SHADER";
             default: return "UNKNOWN";
             }
         }
@@ -107,6 +137,51 @@ namespace HIKARI::GFX {
         ComPtr<ID3D12InfoQueue> infoQueue;
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
             infoQueue->ClearStoredMessages();
+        }
+    }
+
+    void DumpDxgiInfoQueue(const char* reason) {
+        ComPtr<IDXGIInfoQueue> infoQueue;
+        if (FAILED(DXGIGetDebugInterface1(0u, IID_PPV_ARGS(&infoQueue)))) {
+            return;
+        }
+
+        const UINT64 count = infoQueue->GetNumStoredMessages(DXGI_DEBUG_ALL);
+        {
+            std::ostringstream oss;
+            oss << "[DXGIInfoQueue] Dump reason=" << (reason ? reason : "")
+                << " count=" << count;
+            DEBUGLOG::PushRenderError(oss.str());
+        }
+
+        for (UINT64 i = 0; i < count; ++i) {
+            SIZE_T messageLength = 0;
+            infoQueue->GetMessage(DXGI_DEBUG_ALL, i, nullptr, &messageLength);
+            if (messageLength == 0) {
+                continue;
+            }
+
+            std::vector<char> bytes(messageLength);
+            auto* message =
+                reinterpret_cast<DXGI_INFO_QUEUE_MESSAGE*>(bytes.data());
+            if (SUCCEEDED(infoQueue->GetMessage(
+                    DXGI_DEBUG_ALL,
+                    i,
+                    message,
+                    &messageLength))) {
+                std::ostringstream oss;
+                oss << "[DXGI][" << ToString(message->Severity) << "]["
+                    << ToString(message->Category) << "][" << message->ID << "] "
+                    << (message->pDescription ? message->pDescription : "");
+                DEBUGLOG::PushRenderError(oss.str());
+            }
+        }
+    }
+
+    void ClearDxgiInfoQueue() {
+        ComPtr<IDXGIInfoQueue> infoQueue;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0u, IID_PPV_ARGS(&infoQueue)))) {
+            infoQueue->ClearStoredMessages(DXGI_DEBUG_ALL);
         }
     }
 }

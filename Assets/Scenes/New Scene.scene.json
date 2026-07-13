@@ -60,6 +60,7 @@
       "strength": 0.7200000286102295
     },
     "fog": {
+      "anisotropy": 0.20000000298023224,
       "color": [
         0.11764705926179886,
         0.5607843399047852,
@@ -70,7 +71,9 @@
       "endDistance": 115.0,
       "heightFalloff": 0.25999999046325684,
       "startDistance": 58.0,
-      "useSkyHorizonColor": true
+      "temporalWeight": 0.8999999761581421,
+      "useSkyHorizonColor": true,
+      "volumetric": true
     },
     "pointLights": [
       {

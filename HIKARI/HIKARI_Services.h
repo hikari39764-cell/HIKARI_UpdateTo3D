@@ -11,6 +11,8 @@
 #include "Core/HIKARI_TimeService.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
+#include "Runtime/HIKARI_GamePresentationController.h"
+#include "Runtime/HIKARI_RuntimeRenderResourceParking.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
@@ -29,6 +31,9 @@
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineFrameGeneration.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineFrameGenerationPolicy.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineReflex.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -42,8 +47,10 @@
 #endif
 #include <objbase.h>
 #include <algorithm>
+#include <iomanip>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace HIKARI {
@@ -75,6 +82,7 @@ namespace HIKARI {
         };
 
         inline PLATFORM::Win32Window gWindow{};
+        inline RUNTIME::GamePresentationController gGamePresentationController{};
         inline GFX::Dx12Core gCore{};
         inline GFX::Context gCtx{};
         inline bool gComInitialized = false;
@@ -100,12 +108,29 @@ namespace HIKARI {
         inline bool gEditorGameViewportVisible = false;
         inline int gEditorGameViewportWidth = 0;
         inline int gEditorGameViewportHeight = 0;
+        inline std::wstring gRuntimeWindowBaseTitle{};
+        inline double gPreviewTelemetrySeconds = 0.0;
+        inline uint64_t gPreviewTelemetryRenderFrames = 0;
+        inline uint64_t gPreviewTelemetryPresentedFrames = 0;
 
         inline RuntimeHostMode GetRuntimeHostMode() { return gRuntimeHostMode; }
         inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
         inline bool IsExportedGameHost() { return IsExportedGameHostMode(gRuntimeHostMode); }
+        inline bool IsStandaloneGameHost() { return IsStandaloneGameHostMode(gRuntimeHostMode); }
+        inline bool IsInProcessGamePresentationActive() {
+            return gGamePresentationController.IsActive();
+        }
+        inline bool EndInProcessGamePresentation();
+        inline bool IsGamePresentationActive() {
+            return IsStandaloneGameHost() || IsInProcessGamePresentationActive();
+        }
         inline bool IsImGuiEnabled() { return gEnableImGui; }
         inline bool IsEditorUIEnabled() { return gEnableImGui && gEnableEditorUI; }
+        inline bool ShouldProduceEditorUiFrame() {
+            return IsEditorHost() &&
+                IsEditorUIEnabled() &&
+                !IsInProcessGamePresentationActive();
+        }
         inline bool ArePortableObjectToolsEnabled() { return gEnableImGui && gEnablePortableObjectTools; }
         inline const std::string& GetRuntimeStartupSceneGuid() { return gRuntimeStartupSceneGuid; }
         inline const std::vector<std::string>& GetRuntimeExportedSceneGuids() { return gRuntimeExportedSceneGuids; }
@@ -132,6 +157,7 @@ namespace HIKARI {
 
         inline void UpdateGpuContexts() {
             gCtx = gCore.BuildContext();
+            RENDER3D::UPSCALING::UpdateStreamlineContext(gCtx);
             DXTEX::DxTextureManager::UpdateContext(gCtx);
             RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
             RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
@@ -163,14 +189,36 @@ namespace HIKARI {
             if (width <= 0 || height <= 0) {
                 return true;
             }
+            if (width == static_cast<int>(gCtx.backBufferWidth) &&
+                height == static_cast<int>(gCtx.backBufferHeight)) {
+                return true;
+            }
 
-            if (!gCore.Resize(width, height)) {
+            const bool deactivateFrameGeneration =
+                IsInProcessGamePresentationActive() &&
+                gGamePresentationController.IsGameSurfaceActive() &&
+                RENDER3D::UPSCALING::
+                    IsStreamlineFrameGenerationFeatureLoaded();
+            if (deactivateFrameGeneration &&
+                !RENDER3D::UPSCALING::
+                    DeactivateStreamlineFrameGeneration(true)) {
+                HIKARI_LOG_ERROR(
+                    "DLSS-G could not be deactivated before presentation resize.");
+                return false;
+            }
+            const bool resized = gCore.Resize(width, height);
+            if (!resized) {
                 gGpuFrameReady = false;
                 HIKARI_LOG_ERROR("D3D12 deferred resize failed; GPU frame recording disabled.");
                 return false;
             }
 
             UpdateGpuContexts();
+            gLogicalScreenWidth = width;
+            gLogicalScreenHeight = height;
+            HIKARI_LOG_INFO(
+                std::string("Presentation resized to ") +
+                std::to_string(width) + "x" + std::to_string(height) + ".");
             HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
             return true;
@@ -217,11 +265,14 @@ namespace HIKARI {
             const RENDER3D::RenderQualitySettings& settings =
                 RENDER3D::GetRenderQualitySettings();
 
-            int viewportWidth = gWindow.Width();
-            int viewportHeight = gWindow.Height();
+            int viewportWidth = static_cast<int>(gCtx.backBufferWidth);
+            int viewportHeight = static_cast<int>(gCtx.backBufferHeight);
+            if (viewportWidth <= 0 || viewportHeight <= 0) {
+                viewportWidth = gWindow.Width();
+                viewportHeight = gWindow.Height();
+            }
 #if defined(HIKARI_WITH_EDITOR)
-            if (IsEditorHost() &&
-                IsEditorUIEnabled() &&
+            if (ShouldProduceEditorUiFrame() &&
                 gEditorGameViewportVisible &&
                 gEditorGameViewportWidth > 0 &&
                 gEditorGameViewportHeight > 0) {
@@ -330,9 +381,29 @@ namespace HIKARI {
         }
 
         inline bool Initialize(const char* title, const BootstrapConfig& cfg = {}) {
+            const bool enableFrameGenerationPlugins =
+                IsEditorHostMode(cfg.hostMode) ||
+                (IsStandaloneGameHostMode(cfg.hostMode) &&
+                    RENDER3D::GetRenderQualitySettings().frameGenerationMode ==
+                        RENDER3D::RenderFrameGenerationMode::Dlss);
+            (void)RENDER3D::UPSCALING::InitializeStreamlineEarly(
+                enableFrameGenerationPlugins);
             CORE::InitializeLogger();
             HIKARI_LOG_INFO("HIKARI boot started.");
-            (void)RENDER3D::UPSCALING::InitializeStreamlineEarly();
+            {
+                const RENDER3D::RenderQualitySettings& quality =
+                    RENDER3D::GetRenderQualitySettings();
+                std::ostringstream oss;
+                oss << "Render quality resolved"
+                    << " scene=" << RENDER3D::RenderResolutionPresetLabel(quality.sceneResolution)
+                    << " window=" << RENDER3D::RenderResolutionPresetLabel(quality.windowSize)
+                    << " aa=" << RENDER3D::RenderAntiAliasingModeLabel(quality.antiAliasingMode)
+                    << " dlss=" << RENDER3D::DlssQualityModeLabel(quality.dlssQualityMode)
+                    << " frameGeneration="
+                    << RENDER3D::RenderFrameGenerationModeLabel(quality.frameGenerationMode)
+                    << " multiplier=" << static_cast<unsigned>(quality.frameGenerationMultiplier);
+                HIKARI_LOG_INFO(oss.str());
+            }
 
             gRuntimeHostMode = cfg.hostMode;
             gEnableImGui = cfg.enableImGui;
@@ -365,6 +436,10 @@ namespace HIKARI {
 
             wchar_t wTitle[256]{};
             mbstowcs_s(nullptr, wTitle, title, _TRUNCATE);
+            gRuntimeWindowBaseTitle = wTitle;
+            gPreviewTelemetrySeconds = 0.0;
+            gPreviewTelemetryRenderFrames = 0;
+            gPreviewTelemetryPresentedFrames = 0;
 
             HIKARI_LOG_INFO("Window initialization started.");
             if (!gWindow.Initialize(wTitle, cfg.windowWidth, cfg.windowHeight, cfg.resizableWindow)) {
@@ -380,18 +455,42 @@ namespace HIKARI {
                 HIKARI_LOG_INFO(oss.str());
             }
             HIKARI_LOG_INFO("D3D12 core initialization started.");
+            GFX::GraphicsBootstrapCallbacks graphicsCallbacks{};
+            graphicsCallbacks.deviceCreated = [](ID3D12Device* device) {
+                (void)RENDER3D::UPSCALING::AttachStreamlineDevice(device);
+                if (IsEditorHost() &&
+                    !RENDER3D::UPSCALING::SetStreamlineFrameGenerationFeatureLoaded(false)) {
+                    HIKARI_LOG_WARN(
+                        "[Streamline] could not unload DLSS-G before creating the editor swap chain.");
+                }
+            };
+            graphicsCallbacks.swapChainCreated = [](IDXGISwapChain4* swapChain) {
+                RENDER3D::UPSCALING::InspectStreamlineSwapChain(swapChain);
+            };
             if (!gCore.Initialize(
                     gWindow.GetHWND(),
                     cfg.windowWidth,
                     cfg.windowHeight,
                     cfg.enableDebugLayer,
-                    [](ID3D12Device* device) {
-                        (void)RENDER3D::UPSCALING::AttachStreamlineDevice(device);
-                    })) {
+                    graphicsCallbacks)) {
                 HIKARI_LOG_ERROR("D3D12 core initialization failed.");
                 RENDER3D::UPSCALING::ShutdownStreamline();
                 return false;
             }
+            GFX::FrameSubmissionCallbacks submissionCallbacks{};
+            submissionCallbacks.renderSubmitStart = [] {
+                RENDER3D::UPSCALING::MarkStreamlineReflexRenderSubmitStart();
+            };
+            submissionCallbacks.renderSubmitEnd = [] {
+                RENDER3D::UPSCALING::MarkStreamlineReflexRenderSubmitEnd();
+            };
+            submissionCallbacks.presentStart = [] {
+                RENDER3D::UPSCALING::MarkStreamlineReflexPresentStart();
+            };
+            submissionCallbacks.presentEnd = [] {
+                RENDER3D::UPSCALING::MarkStreamlineReflexPresentEnd();
+            };
+            gCore.SetFrameSubmissionCallbacks(std::move(submissionCallbacks));
             HIKARI_LOG_INFO("D3D12 core initialized.");
 
             const int logicalScreenW = cfg.windowWidth;
@@ -481,6 +580,17 @@ namespace HIKARI {
 
         inline void FinalizeAll() {
             HIKARI_LOG_INFO("HIKARI shutdown started.");
+            if (IsInProcessGamePresentationActive() &&
+                !EndInProcessGamePresentation()) {
+                HIKARI_LOG_ERROR(
+                    "In-process presentation could not be fully stopped during shutdown.");
+                (void)RENDER3D::UPSCALING::
+                    DeactivateStreamlineFrameGeneration(true);
+                if (!gGamePresentationController.IsGameSurfaceReleased() &&
+                    gCore.WaitForIdle()) {
+                    (void)gGamePresentationController.ReleaseGameSurface(gCore);
+                }
+            }
             if (gImGuiInitialized) {
 #if defined(HIKARI_ENABLE_IMGUI)
                 if (gImGuiBackendInitialized) {
@@ -520,6 +630,7 @@ namespace HIKARI {
             HIKARI_LOG_INFO("Audio shutdown.");
             RENDER3D::UPSCALING::ShutdownStreamline();
             HIKARI_LOG_INFO("Streamline shutdown.");
+            gGamePresentationController.Shutdown();
             gCore.Shutdown();
             HIKARI_LOG_INFO("D3D12 core shutdown.");
             GFX::PIX::Shutdown();
@@ -532,12 +643,303 @@ namespace HIKARI {
             }
             gRuntimeStartupSceneGuid.clear();
             gRuntimeExportedSceneGuids.clear();
+            gRuntimeWindowBaseTitle.clear();
+            gPreviewTelemetrySeconds = 0.0;
+            gPreviewTelemetryRenderFrames = 0;
+            gPreviewTelemetryPresentedFrames = 0;
             HIKARI_LOG_INFO("HIKARI shutdown completed.");
             CORE::ShutdownLogger();
         }
 
         inline bool PumpMessages() {
             return gWindow.PumpMessages();
+        }
+
+        inline bool BeginInProcessGamePresentation() {
+            if (!IsEditorHost() ||
+                gGpuFrameReady ||
+                IsInProcessGamePresentationActive()) {
+                return false;
+            }
+
+            const RENDER3D::RenderQualitySettings& settings =
+                RENDER3D::GetRenderQualitySettings();
+            RENDER3D::RenderResolution size =
+                RENDER3D::ResolveFixedRenderResolution(settings.windowSize);
+            if (size.width <= 0 || size.height <= 0) {
+                size = { 1280, 720 };
+            }
+            if (!gCore.WaitForIdle()) {
+                HIKARI_LOG_ERROR(
+                    "Could not flush GPU work before entering game presentation.");
+                return false;
+            }
+
+            RUNTIME::GamePresentationConfig config{};
+            config.title = L"HIKARI Game Preview";
+            config.width = size.width;
+            config.height = size.height;
+            config.resizable =
+                settings.windowMode ==
+                RENDER3D::WindowPresentationMode::Windowed;
+            switch (settings.windowMode) {
+            case RENDER3D::WindowPresentationMode::BorderlessWindow:
+                config.windowMode = PLATFORM::WindowMode::BorderlessWindow;
+                break;
+            case RENDER3D::WindowPresentationMode::Fullscreen:
+                config.windowMode = PLATFORM::WindowMode::Fullscreen;
+                break;
+            case RENDER3D::WindowPresentationMode::Windowed:
+            default:
+                config.windowMode = PLATFORM::WindowMode::Windowed;
+                break;
+            }
+
+            const bool wantsFrameGeneration =
+                settings.frameGenerationMode ==
+                RENDER3D::RenderFrameGenerationMode::Dlss;
+            bool frameGenerationLoaded = false;
+            (void)RENDER3D::UPSCALING::
+                DeactivateStreamlineFrameGeneration(true);
+            if (wantsFrameGeneration) {
+                frameGenerationLoaded =
+                    RENDER3D::UPSCALING::SetStreamlineFrameGenerationFeatureLoaded(true);
+                if (!frameGenerationLoaded) {
+                    HIKARI_LOG_WARN(
+                        "[Streamline] game preview will continue without DLSS-G because the feature could not be loaded.");
+                }
+            }
+            if (!gGamePresentationController.Begin(
+                    gCore,
+                    gWindow,
+                    config,
+                    [](int width, int height) {
+                        QueueWindowResize(width, height);
+                    })) {
+                if (frameGenerationLoaded) {
+                    (void)RENDER3D::UPSCALING::SetStreamlineFrameGenerationFeatureLoaded(false);
+                }
+                return false;
+            }
+
+            gHasPendingWindowResize = false;
+            gPendingWindowWidth = 0;
+            gPendingWindowHeight = 0;
+            UpdateGpuContexts();
+            PLATFORM::Win32Window* gameWindow =
+                gGamePresentationController.GetGameWindow();
+            if (gameWindow == nullptr) {
+                (void)RENDER3D::UPSCALING::
+                    DeactivateStreamlineFrameGeneration(true);
+                if (gGamePresentationController.IsGameSurfaceActive()) {
+                    (void)gGamePresentationController.ReleaseGameSurface(gCore);
+                }
+                (void)RENDER3D::UPSCALING::
+                    SetStreamlineFrameGenerationFeatureLoaded(false);
+                (void)gGamePresentationController.RestoreEditorSurface(
+                    gCore, gWindow);
+                UpdateGpuContexts();
+                return false;
+            }
+            HIKARI::HINPUT::SetHostWindow(gameWindow->GetHWND());
+            gLogicalScreenWidth = gameWindow->Width();
+            gLogicalScreenHeight = gameWindow->Height();
+            HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
+            HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
+            gPreviewTelemetrySeconds = 0.0;
+            gPreviewTelemetryRenderFrames = 0;
+            gPreviewTelemetryPresentedFrames = 0;
+            RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+            HIKARI_LOG_INFO("In-process game presentation started.");
+            return true;
+        }
+
+        inline bool BeginInProcessGamePresentationStop() {
+            if (!IsInProcessGamePresentationActive()) {
+                return true;
+            }
+            if (gGpuFrameReady) {
+                return false;
+            }
+            gGamePresentationController.MarkStopping();
+            if (!RENDER3D::UPSCALING::
+                    DeactivateStreamlineFrameGeneration(true)) {
+                HIKARI_LOG_ERROR("Could not deactivate DLSS-G before stopping Play.");
+                return false;
+            }
+            HIKARI_LOG_INFO("In-process game presentation stop requested.");
+            return true;
+        }
+
+        inline bool DrainInProcessGamePresentation() {
+            if (!IsInProcessGamePresentationActive() ||
+                gGamePresentationController.IsGameSurfaceReleased()) {
+                return true;
+            }
+            if (gGpuFrameReady || !gCore.WaitForIdle()) {
+                HIKARI_LOG_ERROR(
+                    "Could not drain GPU work before releasing the game presentation surface.");
+                return false;
+            }
+            return gGamePresentationController.ReleaseGameSurface(gCore);
+        }
+
+        inline bool RestoreEditorPresentation() {
+            if (!IsInProcessGamePresentationActive()) {
+                return true;
+            }
+            if (!gGamePresentationController.IsGameSurfaceReleased()) {
+                return false;
+            }
+            const bool featureUnloaded =
+                !RENDER3D::UPSCALING::
+                    IsStreamlineFrameGenerationFeatureLoaded() ||
+                RENDER3D::UPSCALING::
+                    SetStreamlineFrameGenerationFeatureLoaded(false);
+            const bool editorRestored =
+                gGamePresentationController.RestoreEditorSurface(
+                    gCore, gWindow);
+            if (!editorRestored) {
+                return false;
+            }
+            gHasPendingWindowResize = false;
+            gPendingWindowWidth = 0;
+            gPendingWindowHeight = 0;
+            UpdateGpuContexts();
+            HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
+            gLogicalScreenWidth = gWindow.Width();
+            gLogicalScreenHeight = gWindow.Height();
+            HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
+            HIKARI::CAMERA::SetScreenCenter({ 0.0f, 0.0f });
+            gPreviewTelemetrySeconds = 0.0;
+            gPreviewTelemetryRenderFrames = 0;
+            gPreviewTelemetryPresentedFrames = 0;
+            RENDER3D::TEMPORAL::ResetTemporalFrameHistory(
+                RENDER3D::TEMPORAL::TemporalHistoryResetReason::ExplicitReset);
+            HIKARI_LOG_INFO("In-process game presentation stopped.");
+            if (!featureUnloaded) {
+                HIKARI_LOG_ERROR(
+                    "Editor presentation recovered, but DLSS-G could not be unloaded. Frame generation is unavailable until restart.");
+            }
+            return featureUnloaded;
+        }
+
+        inline bool EndInProcessGamePresentation() {
+            if (!BeginInProcessGamePresentationStop()) {
+                return false;
+            }
+            if (!DrainInProcessGamePresentation()) {
+                return false;
+            }
+            return RestoreEditorPresentation();
+        }
+
+        inline bool ConsumeInProcessGameCloseRequest() {
+            return gGamePresentationController.HasCloseRequest();
+        }
+
+        inline bool ParkEditorForStandalone(DocumentSceneBase& scene) {
+            if (!IsEditorHost() || gGpuFrameReady) {
+                return false;
+            }
+            if (!RUNTIME::ParkEditorForStandalone(scene, gCore)) {
+                return false;
+            }
+            ShowWindow(gWindow.GetHWND(), SW_MINIMIZE);
+            return true;
+        }
+
+        inline bool RestoreEditorAfterStandalone(DocumentSceneBase& scene) {
+            const bool restored =
+                RUNTIME::RestoreEditorAfterStandalone(scene, gCtx);
+            ShowWindow(gWindow.GetHWND(), SW_RESTORE);
+            SetForegroundWindow(gWindow.GetHWND());
+            return restored;
+        }
+
+        inline void UpdateGamePresentationPerformanceTitle() {
+            PLATFORM::Win32Window* presentationWindow = nullptr;
+            const wchar_t* baseTitle = nullptr;
+            if (gRuntimeHostMode == RuntimeHostMode::GamePreview) {
+                presentationWindow = &gWindow;
+                baseTitle = gRuntimeWindowBaseTitle.c_str();
+            }
+            else if (IsInProcessGamePresentationActive()) {
+                presentationWindow = gGamePresentationController.GetGameWindow();
+                baseTitle = L"HIKARI Game Preview";
+            }
+            if (presentationWindow == nullptr ||
+                presentationWindow->GetHWND() == nullptr) {
+                return;
+            }
+
+            const FrameContext& frame = TIME::GetFrameContext();
+            gPreviewTelemetrySeconds += (std::max)(0.0f, frame.rawDt);
+            ++gPreviewTelemetryRenderFrames;
+
+            const auto& frameGeneration =
+                RENDER3D::UPSCALING::GetStreamlineFrameGenerationStats();
+            const bool frameGenerationActive =
+                frameGeneration.status ==
+                    RENDER3D::UPSCALING::StreamlineFrameGenerationStatus::Active &&
+                frameGeneration.tagsSubmitted;
+            gPreviewTelemetryPresentedFrames += frameGenerationActive
+                ? (std::max)(1u, frameGeneration.presentedFrames)
+                : 1u;
+
+            constexpr double kTelemetryIntervalSeconds = 0.5;
+            if (gPreviewTelemetrySeconds < kTelemetryIntervalSeconds) {
+                return;
+            }
+
+            const double renderFps =
+                static_cast<double>(gPreviewTelemetryRenderFrames) /
+                gPreviewTelemetrySeconds;
+            const double displayFps =
+                static_cast<double>(gPreviewTelemetryPresentedFrames) /
+                gPreviewTelemetrySeconds;
+            const double actualMultiplier =
+                gPreviewTelemetryRenderFrames > 0
+                ? static_cast<double>(gPreviewTelemetryPresentedFrames) /
+                    static_cast<double>(gPreviewTelemetryRenderFrames)
+                : 1.0;
+
+            std::wostringstream title;
+            title << baseTitle
+                << L" | Render " << std::fixed << std::setprecision(1)
+                << renderFps << L" FPS"
+                << L" | Display " << displayFps << L" FPS";
+            if (frameGeneration.requested) {
+                title << L" | DLSS-G ";
+                if (frameGenerationActive) {
+                    title << std::setprecision(2) << actualMultiplier << L"x";
+                } else {
+                    const auto& streamline =
+                        RENDER3D::UPSCALING::GetStreamlineDebugStats();
+                    if (frameGeneration.status ==
+                            RENDER3D::UPSCALING::StreamlineFrameGenerationStatus::ResourcePressure ||
+                        (frameGeneration.status ==
+                            RENDER3D::UPSCALING::StreamlineFrameGenerationStatus::BlockedByUpscaler &&
+                         streamline.status ==
+                            RENDER3D::UPSCALING::StreamlineRuntimeStatus::ResourcePressure)) {
+                        title << L"blocked: VRAM";
+                    } else {
+                        const char* status =
+                            RENDER3D::UPSCALING::ToString(frameGeneration.status);
+                        std::wstring wideStatus;
+                        while (status != nullptr && *status != '\0') {
+                            wideStatus.push_back(static_cast<wchar_t>(*status++));
+                        }
+                        title << wideStatus;
+                    }
+                }
+            }
+            (void)presentationWindow->SetTitle(title.str().c_str());
+
+            gPreviewTelemetrySeconds = 0.0;
+            gPreviewTelemetryRenderFrames = 0;
+            gPreviewTelemetryPresentedFrames = 0;
         }
 
         inline bool BeginFrame(const BootstrapConfig& cfg = {}) {
@@ -555,6 +957,9 @@ namespace HIKARI {
             }
             UpdateGpuContexts();
 
+            (void)RENDER3D::UPSCALING::BeginStreamlineFrame(frame.frameIndex);
+            (void)RENDER3D::UPSCALING::BeginStreamlineReflexFrame();
+
             if (!gCore.BeginFrame(0.05f, 0.08f, 0.12f, 1.0f)) {
                 HIKARI_LOG_ERROR("D3D12 BeginFrame failed; skipping frame.");
                 return false;
@@ -565,17 +970,24 @@ namespace HIKARI {
             ApplyFrameSceneCaptureSize();
             HIKARI::POST::PostSystem::UpdateCommonParams(frame.gameDt);
 #if defined(HIKARI_WITH_EDITOR)
-            if (!IsEditorHost() || !IsEditorUIEnabled()) {
+            if (!ShouldProduceEditorUiFrame()) {
                 HIKARI::EDITOR::ClearGameViewportInputRect();
             }
 #endif
             HIKARI::POST::PostSystem::BeginSceneCapture();
 
             DX::DxRenderer::BeginFrame();
-            HIKARI::HINPUT::SetExternalMouseWheelDelta(gWindow.ConsumeMouseWheelDelta());
+            PLATFORM::Win32Window* inputWindow =
+                gGamePresentationController.GetGameWindow();
+            HIKARI::HINPUT::SetExternalMouseWheelDelta(
+                inputWindow != nullptr
+                    ? inputWindow->ConsumeMouseWheelDelta()
+                    : gWindow.ConsumeMouseWheelDelta());
             HIKARI::HINPUT::Update(frame.unscaledDt);
             HIKARI::VFX::BeginFrame(frame.gameDt);
-            if (gEnableImGui && gImGuiInitialized) {
+            if (gEnableImGui &&
+                gImGuiInitialized &&
+                ShouldProduceEditorUiFrame()) {
 #if defined(HIKARI_ENABLE_IMGUI)
                 if (!ImGui::GetCurrentContext()) {
                     ImGui::CreateContext();
@@ -695,6 +1107,21 @@ namespace HIKARI {
                 return false;
             }
 
+            const HIKARI::POST::PresentationFrameResources& presentation =
+                HIKARI::POST::PostSystem::GetPresentationFrameResources();
+            RENDER3D::UPSCALING::SynchronizeStreamlineFrameGenerationPolicy(
+                RENDER3D::GetRenderQualitySettings());
+            if (presentation.HasFrameGenerationInputs()) {
+                const RENDER3D::TEMPORAL::TemporalInputs temporal =
+                    RENDER3D::TEMPORAL::GetCurrentTemporalInputs();
+                (void)RENDER3D::UPSCALING::SubmitStreamlineFrameGenerationInputs(
+                    temporal,
+                    *presentation.hudlessColor,
+                    *presentation.uiColorAndAlpha,
+                    presentation.frameIndex,
+                    IsGamePresentationActive());
+            }
+
             gPresentationPrepared = true;
             return true;
         }
@@ -713,7 +1140,10 @@ namespace HIKARI {
                 gImGuiFrameBegun = false;
 #endif
             }
-            if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
+            if (gEnableImGui &&
+                gImGuiInitialized &&
+                gImGuiBackendInitialized &&
+                ShouldProduceEditorUiFrame()) {
 #if defined(HIKARI_ENABLE_IMGUI)
                 CPU_PROFILE::ScopedCpuTimer cpuImGui(
                     CPU_PROFILE::Pass::ImGui);
@@ -741,6 +1171,7 @@ namespace HIKARI {
                 CPU_PROFILE::EndFrame();
                 return false;
             }
+            UpdateGamePresentationPerformanceTitle();
             gGpuFrameReady = false;
             GFX::PIX::Update();
             CPU_PROFILE::EndFrame();

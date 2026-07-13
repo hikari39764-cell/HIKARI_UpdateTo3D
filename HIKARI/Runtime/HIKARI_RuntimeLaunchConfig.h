@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "HIKARI_RuntimeHost.h"
+#include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 
 namespace HIKARI {
 
@@ -27,6 +28,13 @@ namespace HIKARI {
         std::optional<bool> resizableWindow{};
         std::optional<int> windowWidth{};
         std::optional<int> windowHeight{};
+        std::optional<RENDER3D::RenderQualitySettings> renderQuality{};
+
+        // Legacy flat launch overrides. New configs use renderQuality.
+        std::optional<std::string> antiAliasingMode{};
+        std::optional<std::string> dlssQualityMode{};
+        std::optional<std::string> frameGenerationMode{};
+        std::optional<int> frameGenerationMultiplier{};
         std::optional<std::string> startupSceneGuid{};
         std::optional<std::vector<std::string>> exportedSceneGuids{};
     };

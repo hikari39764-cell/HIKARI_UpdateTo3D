@@ -22,10 +22,15 @@
 namespace HIKARI {
 
     class DocumentSceneBase;
+    namespace EDITOR {
+        class EditorPlaySession;
+    }
 
     class DocumentSceneEditorController {
     public:
-        void Draw(DocumentSceneBase& scene);
+        void Draw(
+            DocumentSceneBase& scene,
+            EDITOR::EditorPlaySession& playSession);
 
     private:
         EditorContext context_{};
@@ -47,8 +52,18 @@ namespace HIKARI {
         LightingBakePanel lightingBakePanel_{};
         DebugCameraPanel debugCameraPanel_{};
         EDITOR::EditorTransformGizmo transformGizmo_{};
-
-        void DrawGameViewportWindow(DocumentSceneBase& scene, bool gameOnly);
+        void DrawGameViewportWindow(
+            DocumentSceneBase& scene,
+            bool gameOnly,
+            EDITOR::EditorPlaySession& playSession);
+        void ToggleGamePreview(
+            DocumentSceneBase& scene,
+            EDITOR::EditorPlaySession& playSession);
+        void LaunchStandaloneGamePreview(
+            DocumentSceneBase& scene,
+            EDITOR::EditorPlaySession& playSession);
+        bool PrepareGamePreview(DocumentSceneBase& scene);
+        bool SaveRenderQualityProfile(DocumentSceneBase& scene);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugViewWindow(DocumentSceneBase& scene, bool& open);
@@ -58,6 +73,7 @@ namespace HIKARI {
 
         AssetGuid pendingSceneOpenGuid_{};
         std::string viewportDropMessage_{};
+        bool renderQualitySavePending_ = false;
     };
 
 } // namespace HIKARI

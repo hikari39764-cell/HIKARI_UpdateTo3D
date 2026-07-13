@@ -2,6 +2,9 @@
 #include "HIKARI/App/HIKARI_EngineApp.h"
 #include "HIKARI/Core/HIKARI_TimeService.h"
 #include "HIKARI/Diagnostics/HIKARI_CpuFrameProfiler.h"
+#include "HIKARI/Render2D/HIKARI_Camera.h"
+#include "HIKARI/Render2D/HIKARI_Renderer.h"
+#include "HIKARI/Render2D/HIKARI_SpineActor.h"
 #include "HIKARI/Runtime/HIKARI_RuntimeLaunchConfig.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
@@ -15,12 +18,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	if (!HIKARI::SERVICES::Initialize(kWindowTitle, servicesCfg)) {
 		return -1;
 	}
+	if (!HIKARI::SERVICES::IsEditorHost()) {
+		(void)HIKARI::SERVICES::ApplyWindowPresentationSettings();
+	}
 
 	HIKARI::HINPUT::SwitchLayer("Debug");
 	HIKARI::MATH::RunMathConventionSelfCheck();
 	HIKARI::SpineActor op;
 	op.Load("./Assets/Spine/op.atlas", "./Assets/Spine/op.json");
-	op.transform.position = { 640.0f, 360.0f };
+	op.enableCamera = false;
 	op.SetAnimation("op", false);
 
 	HIKARI::EngineApp app;
@@ -30,6 +36,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 
 	while (HIKARI::SERVICES::PumpMessages()) {
+		app.UpdatePlaySessions();
+		if (app.IsPlayTransitioning()) {
+			Sleep(1);
+			continue;
+		}
+		if (app.IsStandalonePlayRunning()) {
+			app.WaitForStandalonePlay(50u);
+			continue;
+		}
 		if (!HIKARI::SERVICES::BeginFrame(servicesCfg)) {
 			break;
 		}
@@ -43,10 +58,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					HIKARI::CPU_PROFILE::Pass::AppUpdate);
 				op.Update(frame.gameDt);
 			}
+			HIKARI::RENDER3D::UPSCALING::EndStreamlineReflexSimulation();
 			{
 				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuRender(
 					HIKARI::CPU_PROFILE::Pass::AppRender);
+				constexpr float kOpCanvasWidth = 1280.0f;
+				constexpr float kOpCanvasHeight = 720.0f;
+				const float screenWidth = static_cast<float>(
+					HIKARI::CAMERA::GetScreenWidth());
+				const float screenHeight = static_cast<float>(
+					HIKARI::CAMERA::GetScreenHeight());
+				if (screenWidth > 0.0f && screenHeight > 0.0f) {
+					const float scaleX = screenWidth / kOpCanvasWidth;
+					const float scaleY = screenHeight / kOpCanvasHeight;
+					const float fitScale = scaleX < scaleY ? scaleX : scaleY;
+					op.transform.position = {
+						screenWidth * 0.5f,
+						screenHeight * 0.5f };
+					op.transform.scale = { fitScale, fitScale };
+				}
+				const HIKARI::RENDERER::RenderLayer previousLayer =
+					HIKARI::RENDERER::GetCurrentLayer();
+				HIKARI::RENDERER::SetCurrentLayer(
+					HIKARI::RENDERER::RenderLayer::UI);
 				op.Draw();
+				HIKARI::RENDERER::SetCurrentLayer(previousLayer);
 			}
 		} else {
 			{
@@ -54,12 +90,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					HIKARI::CPU_PROFILE::Pass::AppUpdate);
 				app.Update(frame.gameDt);
 			}
+			HIKARI::RENDER3D::UPSCALING::EndStreamlineReflexSimulation();
 			{
 				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuRender(
 					HIKARI::CPU_PROFILE::Pass::AppRender);
 				app.Render();
 			}
-			renderEditorUi = true;
+			renderEditorUi = HIKARI::SERVICES::ShouldProduceEditorUiFrame();
 		}
 
 		const HIKARI::SERVICES::FramePresentationDestination presentation =
@@ -74,7 +111,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 
-		if (HIKARI::SERVICES::IsEditorHost() && HIKARI::HINPUT::IsPressed("ToggleEditorUI")) {
+		if (HIKARI::SERVICES::ShouldProduceEditorUiFrame() &&
+			HIKARI::HINPUT::IsPressed("ToggleEditorUI")) {
 			HIKARI::SERVICES::SetEditorUIEnabled(!HIKARI::SERVICES::IsEditorUIEnabled());
 		}
 
@@ -82,6 +120,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			break;
 		}
 
+		if (app.IsInProcessPlayRunning() &&
+			HIKARI::HINPUT::IsPressed("StopPlay")) {
+			app.RequestPlayStop();
+		}
 		if (HIKARI::HINPUT::IsPressed("CloseProgram")) {
 			break;
 		}

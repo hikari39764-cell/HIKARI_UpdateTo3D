@@ -27,6 +27,11 @@ void Reset() {
     gMaxDeltaSeconds = 0.1f;
 }
 
+void ResetFrameClock() {
+    gLastTick = Clock::time_point{};
+    gHasLastTick = false;
+}
+
 const FrameContext& BeginFrame() {
     const Clock::time_point now = Clock::now();
 
