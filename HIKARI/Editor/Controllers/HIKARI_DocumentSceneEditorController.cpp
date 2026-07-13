@@ -1098,7 +1098,7 @@ namespace HIKARI {
             ImGui::SetCursorScreenPos(savedCursor);
         };
 
-        const bool ready = POST::PostSystem::EndSceneCaptureToEditorViewport();
+        const bool ready = POST::PostSystem::IsEditorViewportReady();
         const D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv = POST::PostSystem::GetEditorViewportSrv();
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));

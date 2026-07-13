@@ -186,6 +186,23 @@ float4 main(PS_IN i) : SV_TARGET
                 return false;
             }
 
+            blendDesc.SrcBlend = D3D12_BLEND_ONE;
+            blendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+            blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+            blendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+            blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            pso.BlendState.RenderTarget[0] = blendDesc;
+            if (!HIKARI_DX_CHECK(
+                    device->CreateGraphicsPipelineState(
+                        &pso,
+                        IID_PPV_ARGS(outSet.blendPremultipliedAlpha.GetAddressOf())),
+                    "Create Premultiplied Alpha Blend PSO")) {
+                DEBUGLOG::PushRenderError(
+                    std::string("[PostQuadDrawer][ERROR] Create Premultiplied Alpha Blend PSO failed. format=") +
+                    GFX::FormatToString(format) + " " + DumpState());
+                return false;
+            }
+
             blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
             blendDesc.DestBlend = D3D12_BLEND_ONE;
             blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -430,6 +447,9 @@ float4 main(PS_IN i) : SV_TARGET
             ID3D12PipelineState* selectedPso = nullptr;
             if (mode == BlendOption::Additive) {
                 selectedPso = currentPipelineSet_->blendAdd.Get();
+            }
+            else if (mode == BlendOption::PremultipliedAlpha) {
+                selectedPso = currentPipelineSet_->blendPremultipliedAlpha.Get();
             }
             else if (mode == BlendOption::Multiply) {
                 selectedPso = currentPipelineSet_->blendMultiply.Get();

@@ -9,6 +9,7 @@
 #include "Scene/HIKARI_SceneTransitionBus.h"
 #include "Vfx/Post/HIKARI_PostProcessingTypes.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"
+#include "Vfx/Post/HIKARI_PresentationFrame.h"
 
 namespace HIKARI {
     class RenderTarget2D;
@@ -18,6 +19,7 @@ namespace HIKARI::POST {
 
     class PostEffect;
     class PostChain;
+    class GameUiCompositionStage;
     class PostPresentationStage;
     class PostProcessingStage;
     class SceneCaptureStage;
@@ -62,6 +64,12 @@ namespace HIKARI::POST {
         static D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetReadOnlyDsv();
         static bool BeginCurrentRenderTargetDepthRead();
         static void EndCurrentRenderTargetDepthRead();
+        static bool PrepareGameUiComposition(
+            bool editorViewport,
+            int uiLogicalWidth = 0,
+            int uiLogicalHeight = 0);
+        static bool FinalizeGameUiComposition(bool editorViewport);
+        static const PresentationFrameResources& GetPresentationFrameResources();
         static void EndSceneCaptureAndPresent();
         static bool EndSceneCaptureToEditorViewport();
 
@@ -107,6 +115,7 @@ namespace HIKARI::POST {
         static QuadDrawer quad_;
         static SceneCaptureStage captureStage_;
         static PostProcessingStage processingStage_;
+        static GameUiCompositionStage gameUiCompositionStage_;
         static PostPresentationStage presentationStage_;
         static int requestedRenderWidth_;
         static int requestedRenderHeight_;

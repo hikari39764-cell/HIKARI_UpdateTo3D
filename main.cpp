@@ -35,6 +35,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		const HIKARI::FrameContext& frame = HIKARI::TIME::GetFrameContext();
 
+		bool renderEditorUi = false;
 		if (!op.IsAnimationFinished("op"))
 		{
 			{
@@ -58,11 +59,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					HIKARI::CPU_PROFILE::Pass::AppRender);
 				app.Render();
 			}
-			{
-				HIKARI::CPU_PROFILE::ScopedCpuTimer cpuImGui(
-					HIKARI::CPU_PROFILE::Pass::AppImGui);
-				app.RenderImGui();
-			}
+			renderEditorUi = true;
+		}
+
+		const HIKARI::SERVICES::FramePresentationDestination presentation =
+			renderEditorUi
+			? HIKARI::SERVICES::FramePresentationDestination::EditorViewport
+			: HIKARI::SERVICES::FramePresentationDestination::BackBuffer;
+		(void)HIKARI::SERVICES::PrepareFramePresentation(presentation);
+		if (renderEditorUi) {
+			HIKARI::CPU_PROFILE::ScopedCpuTimer cpuImGui(
+				HIKARI::CPU_PROFILE::Pass::AppImGui);
+			app.RenderImGui();
 		}
 
 

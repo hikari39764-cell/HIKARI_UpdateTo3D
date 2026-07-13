@@ -31,6 +31,11 @@ namespace HIKARI {
             static void Init(const GFX::Context& ctx);
             static void UpdateContext(const GFX::Context& ctx);
             static void SetScreenSize(int width, int height);
+            static bool SetOutputTarget(
+                DXGI_FORMAT format,
+                int width,
+                int height);
+            static DXGI_FORMAT GetOutputFormat();
             static void Finalize();
 
             static void BeginFrame();
@@ -99,16 +104,12 @@ namespace HIKARI {
             DxRenderer& operator=(const DxRenderer&) = delete;
 
             static Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig_;
-            static Microsoft::WRL::ComPtr<ID3D12PipelineState> colorPsos_[static_cast<size_t>(BlendMode::Count)];
-            static Microsoft::WRL::ComPtr<ID3D12PipelineState> psoLine_;
-
             static BlendMode currentBlendMode_;
 
             // ==========================================
             // [新增] 遮罩相?私有?源
             // ==========================================
             static Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSigMask_; // ?用的 RootSig (? b1 参数)
-            static Microsoft::WRL::ComPtr<ID3D12PipelineState> psoMask_;     // ?用的 PSO
         };
 
     } // namespace DX

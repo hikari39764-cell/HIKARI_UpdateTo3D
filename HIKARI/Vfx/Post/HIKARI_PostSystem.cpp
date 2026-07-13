@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "Core/HIKARI_TimeService.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
@@ -12,6 +13,7 @@
 #include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
 #include "Render3D/Temporal/HIKARI_TemporalResolveStage.h"
+#include "Vfx/Post/HIKARI_GameUiCompositionStage.h"
 #include "Vfx/Post/HIKARI_PostChain.h"
 #include "Vfx/Post/HIKARI_PostPresentationStage.h"
 #include "Vfx/Post/HIKARI_PostProcessingStage.h"
@@ -29,6 +31,7 @@ namespace HIKARI::POST {
     QuadDrawer PostSystem::quad_{};
     SceneCaptureStage PostSystem::captureStage_{};
     PostProcessingStage PostSystem::processingStage_{};
+    GameUiCompositionStage PostSystem::gameUiCompositionStage_{};
     PostPresentationStage PostSystem::presentationStage_{};
     int PostSystem::requestedRenderWidth_ = 0;
     int PostSystem::requestedRenderHeight_ = 0;
@@ -57,6 +60,7 @@ namespace HIKARI::POST {
         quad_.UpdateContext(context);
         captureStage_.UpdateContext(context);
         processingStage_.UpdateContext(context);
+        gameUiCompositionStage_.UpdateContext(context);
         presentationStage_.UpdateContext(context);
     }
 
@@ -64,6 +68,7 @@ namespace HIKARI::POST {
         if (!initialized_) return;
         captureStage_.Shutdown();
         processingStage_.Shutdown();
+        gameUiCompositionStage_.Shutdown();
         presentationStage_.Shutdown();
         quad_.Finalize();
         initialized_ = false;
@@ -257,37 +262,110 @@ namespace HIKARI::POST {
             captureStage_.GetLightTarget());
     }
 
-    bool PostSystem::EndSceneCaptureToEditorViewport() {
-        if (!captureStage_.IsActive()) return IsEditorViewportReady();
+    bool PostSystem::PrepareGameUiComposition(
+        bool editorViewport,
+        int uiLogicalWidth,
+        int uiLogicalHeight) {
+        if (gameUiCompositionStage_.IsActive()) {
+            return true;
+        }
+        if (!captureStage_.IsActive()) {
+            return false;
+        }
+
         RenderTarget2D* hdr = EndSceneCaptureAndResolveFinal();
         if (!hdr || !context_.cmdList) {
             presentationStage_.BindBackBufferFullViewport();
-            presentationStage_.InvalidateEditorOutput();
+            if (editorViewport) {
+                presentationStage_.InvalidateEditorOutput();
+            }
             return false;
         }
-        GFX::GPU_PROFILE::ScopedGpuTimer timer(
-            context_.cmdList, GFX::GPU_PROFILE::Pass::GameViewResolve);
+
         RenderTarget2D* ldr = ResolveFinalSceneToLdr(*hdr, DXGI_FORMAT_R8G8B8A8_UNORM);
         if (!ldr) {
             presentationStage_.BindBackBufferFullViewport();
-            presentationStage_.InvalidateEditorOutput();
+            if (editorViewport) {
+                presentationStage_.InvalidateEditorOutput();
+            }
             return false;
         }
-        return presentationStage_.PresentToEditor(
-            *ldr, quad_, requestedOutputWidth_, requestedOutputHeight_);
+
+        int outputWidth = editorViewport
+            ? requestedOutputWidth_
+            : context_.backBufferWidth;
+        int outputHeight = editorViewport
+            ? requestedOutputHeight_
+            : context_.backBufferHeight;
+        if (outputWidth <= 0 || outputHeight <= 0) {
+            outputWidth = ldr->GetWidth();
+            outputHeight = ldr->GetHeight();
+        }
+
+        const int logicalWidth = uiLogicalWidth > 0
+            ? uiLogicalWidth
+            : outputWidth;
+        const int logicalHeight = uiLogicalHeight > 0
+            ? uiLogicalHeight
+            : outputHeight;
+        return gameUiCompositionStage_.Begin(
+            *ldr,
+            quad_,
+            outputWidth,
+            outputHeight,
+            logicalWidth,
+            logicalHeight,
+            TIME::GetFrameContext().frameIndex);
+    }
+
+    bool PostSystem::FinalizeGameUiComposition(bool editorViewport) {
+        if (!gameUiCompositionStage_.IsActive()) {
+            return false;
+        }
+
+        RenderTarget2D* finalColor = gameUiCompositionStage_.End(quad_);
+        if (finalColor == nullptr) {
+            presentationStage_.BindBackBufferFullViewport();
+            if (editorViewport) {
+                presentationStage_.InvalidateEditorOutput();
+            }
+            return false;
+        }
+
+        if (editorViewport) {
+            GFX::GPU_PROFILE::ScopedGpuTimer timer(
+                context_.cmdList,
+                GFX::GPU_PROFILE::Pass::GameViewResolve);
+            return presentationStage_.PresentToEditor(
+                *finalColor,
+                quad_,
+                requestedOutputWidth_,
+                requestedOutputHeight_);
+        }
+
+        return presentationStage_.PresentToBackBuffer(*finalColor, quad_);
+    }
+
+    const PresentationFrameResources& PostSystem::GetPresentationFrameResources() {
+        return gameUiCompositionStage_.GetFrameResources();
+    }
+
+    bool PostSystem::EndSceneCaptureToEditorViewport() {
+        if (!captureStage_.IsActive()) {
+            return IsEditorViewportReady();
+        }
+        return
+            PrepareGameUiComposition(true) &&
+            FinalizeGameUiComposition(true);
     }
 
     void PostSystem::EndSceneCaptureAndPresent() {
-        if (!captureStage_.IsActive()) return;
-        RenderTarget2D* hdr = EndSceneCaptureAndResolveFinal();
-        RenderTarget2D* ldr = hdr
-            ? ResolveFinalSceneToLdr(*hdr, DXGI_FORMAT_R8G8B8A8_UNORM)
-            : nullptr;
-        if (!ldr) {
-            presentationStage_.BindBackBufferFullViewport();
+        if (!captureStage_.IsActive()) {
             return;
         }
-        (void)presentationStage_.PresentToBackBuffer(*ldr, quad_);
+        if (PrepareGameUiComposition(false)) {
+            (void)FinalizeGameUiComposition(false);
+        }
     }
 
     void PostSystem::BeginLayer(

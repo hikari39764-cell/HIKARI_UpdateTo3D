@@ -40,6 +40,8 @@
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
+#include "Render3D/Shadow/HIKARI_ShadowCachePolicy.h"
+#include "Render3D/Shadow/HIKARI_ShadowLightFrame.h"
 #include "Render3D/Shadow/HIKARI_ShadowRecordExecutor.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -64,17 +66,6 @@ namespace HIKARI::SHADOW {
             MATH::Vec4 lightPosition{};
             MATH::Vec4 timeParams{};
             MATH::Vec4 screenParams{};
-        };
-
-        struct ShadowLightFrame {
-            MATH::Mat4 view{};
-            MATH::Mat4 viewProj{};
-            MATH::Vec3 anchor{};
-            MATH::Vec3 lightPosition{};
-            MATH::Vec3 lightDirection{};
-            MATH::Vec3 right{};
-            MATH::Vec3 up{};
-            float anchorGrid = 0.0f;
         };
 
         struct ShadowObjectCB {
@@ -166,12 +157,7 @@ namespace HIKARI::SHADOW {
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> staticShadowPrimaryMaterialSources{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> dynamicShadowPrimaryInstances{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> dynamicShadowPrimaryMaterialSources{};
-            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource* shadowSourceCacheIdentity = nullptr;
-            uint64_t shadowSourceCacheLayoutVersion = 0;
-            uint64_t shadowSourceCacheSourceVersion = 0;
-            uint64_t shadowSourceCacheDirtyBaseVersion = 0;
-            size_t shadowSourceCacheInstanceCount = 0;
-            bool shadowSourceCacheValid = false;
+            ShadowSourceCacheState shadowSourceCache{};
             RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer surfaceGpuSceneBuffer{};
             RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer traditionalCommandStreamBuffer{};
             RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
@@ -184,77 +170,25 @@ namespace HIKARI::SHADOW {
             std::unordered_map<std::string, RENDER3D::TextureResourceHandle> materialTextureCache;
             ShadowMapDebugStats debugStats;
             size_t shadowMapRecreateCount = 0;
-            bool shadowCacheValid = false;
-            bool shadowCacheHitThisFrame = false;
-            bool finalShadowMapMatchesStaticCache = false;
-            uint32_t shadowCacheMissReasonFlags = ShadowCacheMissReasonNone;
-            uint32_t shadowCacheLastMissReasonFlags = ShadowCacheMissReasonNone;
-            uint64_t shadowCacheLayoutVersion = 0;
-            uint64_t shadowCacheSourceVersion = 0;
-            size_t shadowCacheSourceInstanceCount = 0;
-            uint32_t shadowCacheResolution = 0;
-            MATH::Mat4 shadowCacheLightViewProj = MATH::Mat4::Identity();
-            size_t shadowCacheHitCount = 0;
-            size_t shadowCacheMissCount = 0;
-            size_t staticShadowCacheCopyCount = 0;
-            size_t staticShadowCacheUpdateCount = 0;
+            ShadowCachePolicy shadowCache{};
         };
 
         State g;
 
         void InvalidateShadowSourceCache() {
-            g.shadowSourceCacheIdentity = nullptr;
-            g.shadowSourceCacheLayoutVersion = 0;
-            g.shadowSourceCacheSourceVersion = 0;
-            g.shadowSourceCacheDirtyBaseVersion = 0;
-            g.shadowSourceCacheInstanceCount = 0;
-            g.shadowSourceCacheValid = false;
+            g.shadowSourceCache.Invalidate();
         }
 
         bool CanReuseShadowSourceCache() {
-            return
-                g.shadowSourceCacheValid &&
-                g.gpuDrivenSceneSource != nullptr &&
-                g.shadowSourceCacheIdentity == g.gpuDrivenSceneSource &&
-                g.shadowSourceCacheLayoutVersion ==
-                    g.gpuDrivenSceneSource->layoutVersion &&
-                g.shadowSourceCacheSourceVersion ==
-                    g.gpuDrivenSceneSource->sourceVersion &&
-                g.shadowSourceCacheDirtyBaseVersion ==
-                    g.gpuDrivenSceneSource->dirtyBaseSourceVersion &&
-                g.shadowSourceCacheInstanceCount ==
-                    g.gpuDrivenSceneSource->sourceInstanceCount;
-        }
-
-        bool AlmostEqualMat4(const MATH::Mat4& lhs, const MATH::Mat4& rhs) {
-            constexpr float kEpsilon = 0.0001f;
-            for (int col = 0; col < 4; ++col) {
-                for (int row = 0; row < 4; ++row) {
-                    if (std::fabs(lhs.m[col][row] - rhs.m[col][row]) > kEpsilon) {
-                        return false;
-                    }
-                }
-            }
-            return true;
+            return g.shadowSourceCache.Matches(g.gpuDrivenSceneSource);
         }
 
         void PublishShadowCacheStats() {
-            g.debugStats.shadowCacheValid = g.shadowCacheValid;
-            g.debugStats.shadowCacheHit = g.shadowCacheHitThisFrame;
-            g.debugStats.shadowCacheMissReasonFlags = g.shadowCacheMissReasonFlags;
-            g.debugStats.shadowCacheLastMissReasonFlags =
-                g.shadowCacheLastMissReasonFlags;
-            g.debugStats.shadowCacheHitCount = g.shadowCacheHitCount;
-            g.debugStats.shadowCacheMissCount = g.shadowCacheMissCount;
-            g.debugStats.shadowStaticCacheCopyCount = g.staticShadowCacheCopyCount;
-            g.debugStats.shadowStaticCacheUpdateCount = g.staticShadowCacheUpdateCount;
+            g.shadowCache.PublishStats(g.debugStats);
         }
 
         void InvalidateShadowCache() {
-            g.shadowCacheValid = false;
-            g.shadowCacheHitThisFrame = false;
-            g.finalShadowMapMatchesStaticCache = false;
-            g.shadowCacheMissReasonFlags = ShadowCacheMissReasonInvalid;
+            g.shadowCache.Invalidate();
             PublishShadowCacheStats();
         }
 
@@ -288,48 +222,24 @@ namespace HIKARI::SHADOW {
             return false;
         }
 
-        uint32_t ResolveShadowCacheMissReason(uint32_t resolution) {
-            uint32_t reason = ShadowCacheMissReasonNone;
-            if (!g.frameHasStaticShadowWork) {
-                reason |= ShadowCacheMissReasonNoStaticWork;
-            }
-            if (!g.shadowCacheValid) {
-                reason |= ShadowCacheMissReasonInvalid;
-            }
-            if (g.staticShadowMap == nullptr ||
-                g.shadowMap == nullptr ||
-                !RENDER3D::IsTextureResourceValid(g.shadowSrvResource)) {
-                reason |= ShadowCacheMissReasonResource;
-            }
-            if (g.staticShadowState != D3D12_RESOURCE_STATE_COPY_SOURCE &&
-                g.staticShadowState != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) {
-                reason |= ShadowCacheMissReasonState;
-            }
-            if (g.shadowCacheResolution != resolution) {
-                reason |= ShadowCacheMissReasonResolution;
-            }
-            if (g.shadowCacheLayoutVersion != g.staticShadowSceneSource.layoutVersion) {
-                reason |= ShadowCacheMissReasonLayout;
-            }
-            if (g.shadowCacheSourceVersion != g.staticShadowSceneSource.sourceVersion) {
-                reason |= ShadowCacheMissReasonSource;
-            }
-            if (g.shadowCacheSourceInstanceCount !=
-                g.staticShadowSceneSource.sourceInstanceCount) {
-                reason |= ShadowCacheMissReasonInstanceCount;
-            }
-            if (!AlmostEqualMat4(g.shadowCacheLightViewProj, g.lightViewProj)) {
-                reason |= ShadowCacheMissReasonMatrix;
-            }
-            if (HasStaticShadowDirtyRanges()) {
-                reason |= ShadowCacheMissReasonStaticDirty;
-            }
-            return reason;
-        }
-
         bool CanReuseShadowCache(uint32_t resolution) {
-            g.shadowCacheMissReasonFlags = ResolveShadowCacheMissReason(resolution);
-            return g.shadowCacheMissReasonFlags == ShadowCacheMissReasonNone;
+            ShadowCacheReuseInput input{};
+            input.key.layoutVersion = g.staticShadowSceneSource.layoutVersion;
+            input.key.sourceVersion = g.staticShadowSceneSource.sourceVersion;
+            input.key.sourceInstanceCount =
+                g.staticShadowSceneSource.sourceInstanceCount;
+            input.key.resolution = resolution;
+            input.key.lightViewProj = g.lightViewProj;
+            input.hasStaticWork = g.frameHasStaticShadowWork;
+            input.resourcesReady =
+                g.staticShadowMap != nullptr &&
+                g.shadowMap != nullptr &&
+                RENDER3D::IsTextureResourceValid(g.shadowSrvResource);
+            input.stateReusable =
+                g.staticShadowState == D3D12_RESOURCE_STATE_COPY_SOURCE ||
+                g.staticShadowState == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            input.hasStaticDirtyRanges = HasStaticShadowDirtyRanges();
+            return g.shadowCache.EvaluateReuse(input);
         }
 
         size_t StatDelta(size_t after, size_t before) {
@@ -362,36 +272,24 @@ namespace HIKARI::SHADOW {
         }
 
         void MarkShadowCacheHit() {
-            g.shadowCacheHitThisFrame = true;
-            g.shadowCacheMissReasonFlags = ShadowCacheMissReasonNone;
-            g.shadowCacheLastMissReasonFlags = ShadowCacheMissReasonNone;
-            ++g.shadowCacheHitCount;
+            g.shadowCache.MarkHit();
             PublishShadowCacheStats();
         }
 
         void MarkShadowCacheMiss() {
-            g.shadowCacheHitThisFrame = false;
-            g.shadowCacheValid = false;
-            g.finalShadowMapMatchesStaticCache = false;
-            if (g.shadowCacheMissReasonFlags == ShadowCacheMissReasonNone) {
-                g.shadowCacheMissReasonFlags = ShadowCacheMissReasonInvalid;
-            }
-            g.shadowCacheLastMissReasonFlags = g.shadowCacheMissReasonFlags;
-            ++g.shadowCacheMissCount;
+            g.shadowCache.MarkMiss();
             PublishShadowCacheStats();
         }
 
         void MarkShadowCacheValidAfterRender() {
-            g.shadowCacheValid = true;
-            g.shadowCacheHitThisFrame = false;
-            g.shadowCacheMissReasonFlags = ShadowCacheMissReasonNone;
-            g.shadowCacheLayoutVersion = g.staticShadowSceneSource.layoutVersion;
-            g.shadowCacheSourceVersion = g.staticShadowSceneSource.sourceVersion;
-            g.shadowCacheSourceInstanceCount =
+            ShadowCacheKey key{};
+            key.layoutVersion = g.staticShadowSceneSource.layoutVersion;
+            key.sourceVersion = g.staticShadowSceneSource.sourceVersion;
+            key.sourceInstanceCount =
                 g.staticShadowSceneSource.sourceInstanceCount;
-            g.shadowCacheResolution = g.resolution;
-            g.shadowCacheLightViewProj = g.lightViewProj;
-            ++g.staticShadowCacheUpdateCount;
+            key.resolution = g.resolution;
+            key.lightViewProj = g.lightViewProj;
+            g.shadowCache.MarkValid(key);
             PublishShadowCacheStats();
         }
 
@@ -1581,16 +1479,7 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowDynamicSourceInstanceCount =
                 g.dynamicShadowSceneSource.sourceInstanceCount;
 
-            g.shadowSourceCacheIdentity = g.gpuDrivenSceneSource;
-            g.shadowSourceCacheLayoutVersion =
-                g.gpuDrivenSceneSource->layoutVersion;
-            g.shadowSourceCacheSourceVersion =
-                g.gpuDrivenSceneSource->sourceVersion;
-            g.shadowSourceCacheDirtyBaseVersion =
-                g.gpuDrivenSceneSource->dirtyBaseSourceVersion;
-            g.shadowSourceCacheInstanceCount =
-                g.gpuDrivenSceneSource->sourceInstanceCount;
-            g.shadowSourceCacheValid = true;
+            g.shadowSourceCache.Capture(*g.gpuDrivenSceneSource);
             return g.shadowSceneSource.sourceInstanceCount != 0;
         }
 
@@ -1867,7 +1756,7 @@ namespace HIKARI::SHADOW {
             g.staticShadowMap.Reset();
             g.dsvHeap.Reset();
             g.staticShadowState = D3D12_RESOURCE_STATE_COMMON;
-            g.finalShadowMapMatchesStaticCache = false;
+            g.shadowCache.SetFinalMatchesStaticCache(false);
 
             D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
             dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
@@ -2243,117 +2132,6 @@ namespace HIKARI::SHADOW {
             return g.initialized;
         }
 
-        uint32_t ResolveShadowResolution(uint32_t resolution) {
-            if (resolution <= 1024) {
-                return 1024;
-            }
-            if (resolution <= 2048) {
-                return 2048;
-            }
-            return 4096;
-        }
-
-        float SnapShadowAnchorValue(float value, float grid) {
-            if (grid <= 0.0001f) {
-                return value;
-            }
-            return std::round(value / grid) * grid;
-        }
-
-        float ResolveShadowAnchorGrid(
-            const SceneEnvironment& environment,
-            float orthoSize) {
-
-            if (!environment.directionalShadow.stabilize ||
-                g.resolution == 0u) {
-                return 0.0f;
-            }
-
-            constexpr float kSnapTexels = 8.0f;
-            const float texelWorldSize =
-                orthoSize / static_cast<float>((std::max)(1u, g.resolution));
-            return (std::max)(texelWorldSize * kSnapTexels, 0.0001f);
-        }
-
-        float ResolveShadowDepthSpan(
-            const SceneEnvironment& environment,
-            float orthoSize) {
-
-            const float configuredFar =
-                (std::max)(0.01f, environment.directionalShadow.farPlane);
-            const float configuredDistance =
-                (std::max)(1.0f, environment.directionalShadow.shadowDistance);
-            return (std::max)(
-                configuredFar,
-                (std::max)(configuredDistance * 2.0f, orthoSize * 1.5f));
-        }
-
-        MATH::Vec3 ResolveLightDirection(const SceneEnvironment& environment) {
-            MATH::Vec3 lightDir = MATH::Normalize(environment.directional.direction);
-            if (MATH::Length(lightDir) <= 1e-6f) {
-                lightDir = MATH::Normalize(MATH::Vec3{ 0.4f, -1.0f, -0.6f });
-            }
-            return lightDir;
-        }
-
-        ShadowLightFrame BuildShadowLightFrame(
-            const SceneEnvironment& environment,
-            const Camera3D& camera) {
-
-            ShadowLightFrame frame{};
-            const MATH::Vec3 lightDir = ResolveLightDirection(environment);
-            MATH::Vec3 up{ 0.0f, 1.0f, 0.0f };
-            if (std::abs(MATH::Dot(lightDir, up)) > 0.95f) {
-                up = { 1.0f, 0.0f, 0.0f };
-            }
-
-            MATH::Vec3 right = MATH::Normalize(MATH::Cross(up, lightDir));
-            if (MATH::Length(right) <= 1e-6f) {
-                right = { 1.0f, 0.0f, 0.0f };
-            }
-            MATH::Vec3 actualUp = MATH::Normalize(MATH::Cross(lightDir, right));
-            if (MATH::Length(actualUp) <= 1e-6f) {
-                actualUp = up;
-            }
-
-            const float orthoSize = std::max(1.0f, environment.directionalShadow.orthoSize);
-            const float nearPlane = std::max(0.001f, environment.directionalShadow.nearPlane);
-            const float depthSpan = ResolveShadowDepthSpan(environment, orthoSize);
-            const float farPlane = std::max(nearPlane + 0.01f, depthSpan);
-            const float anchorGrid = ResolveShadowAnchorGrid(environment, orthoSize);
-
-            const MATH::Vec3 cameraCenter = camera.GetPosition();
-            MATH::Vec3 anchor = cameraCenter;
-            if (anchorGrid > 0.0f) {
-                const float depthAnchorGrid =
-                    (std::max)(anchorGrid * 32.0f, depthSpan / 16.0f);
-                const float snappedX =
-                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, right), anchorGrid);
-                const float snappedY =
-                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, actualUp), anchorGrid);
-                const float snappedZ =
-                    SnapShadowAnchorValue(MATH::Dot(cameraCenter, lightDir), depthAnchorGrid);
-                anchor =
-                    right * snappedX +
-                    actualUp * snappedY +
-                    lightDir * snappedZ;
-            }
-
-            const float lightDistance = std::max(1.0f, farPlane * 0.5f);
-            const MATH::Vec3 lightPos = anchor - lightDir * lightDistance;
-            frame.view = MATH::Mat4::LookAtRH(lightPos, anchor, actualUp);
-            frame.viewProj =
-                MATH::Mat4::OrthoRH_ZO(orthoSize, orthoSize, nearPlane, farPlane) *
-                frame.view;
-            frame.anchor = anchor;
-            frame.lightPosition = lightPos;
-            frame.lightDirection = lightDir;
-            frame.right = right;
-            frame.up = actualUp;
-            frame.anchorGrid = anchorGrid;
-            return frame;
-        }
-
         void UploadShadowCameraConstants(const ShadowLightFrame& frame) {
             if (g.cameraMapped == nullptr) {
                 return;
@@ -2391,7 +2169,7 @@ namespace HIKARI::SHADOW {
             }
 
             const ShadowLightFrame frame =
-                BuildShadowLightFrame(environment, camera);
+                BuildShadowLightFrame(environment, camera, g.resolution);
             const MATH::Vec3 lightPos = frame.lightPosition;
             const MATH::Vec3 forward = frame.lightDirection;
             const MATH::Vec3 right = frame.right;
@@ -2519,12 +2297,12 @@ namespace HIKARI::SHADOW {
             if (cmd == nullptr ||
                 g.staticShadowMap == nullptr ||
                 g.shadowMap == nullptr ||
-                !g.shadowCacheValid) {
+                !g.shadowCache.IsValid()) {
                 return false;
             }
 
             if (!g.frameHasDynamicShadowWork &&
-                g.finalShadowMapMatchesStaticCache &&
+                g.shadowCache.FinalMatchesStaticCache() &&
                 g.shadowState == kShadowShaderReadState) {
                 return true;
             }
@@ -2540,8 +2318,7 @@ namespace HIKARI::SHADOW {
                 g.shadowState,
                 D3D12_RESOURCE_STATE_COPY_DEST);
             cmd->CopyResource(g.shadowMap.Get(), g.staticShadowMap.Get());
-            g.finalShadowMapMatchesStaticCache = !g.frameHasDynamicShadowWork;
-            ++g.staticShadowCacheCopyCount;
+            g.shadowCache.RecordCopy(!g.frameHasDynamicShadowWork);
             PublishShadowCacheStats();
             return true;
         }
@@ -2579,7 +2356,7 @@ namespace HIKARI::SHADOW {
             g.frameHasShadowWork = false;
             g.frameHasStaticShadowWork = false;
             g.frameHasDynamicShadowWork = false;
-            g.shadowCacheHitThisFrame = false;
+            g.shadowCache.BeginFrame();
             PublishShadowCacheStats();
         }
 
@@ -2952,7 +2729,7 @@ namespace HIKARI::SHADOW {
             g.debugStats.shadowMapRecreateCount = g.shadowMapRecreateCount;
         }
         const ShadowLightFrame shadowFrame =
-            BuildShadowLightFrame(environment, camera);
+            BuildShadowLightFrame(environment, camera, resolution);
         g.lightViewProj = shadowFrame.viewProj;
         g.lightCullPosition = shadowFrame.lightPosition;
         g.lightAnchor = shadowFrame.anchor;
@@ -3010,7 +2787,7 @@ namespace HIKARI::SHADOW {
         bool dynamicRendered = false;
         bool fallbackRendered = false;
 
-        if (g.shadowCacheHitThisFrame) {
+        if (g.shadowCache.WasHitThisFrame()) {
             if (!CopyStaticShadowCacheToFinal(cmd)) {
                 MarkShadowCacheMiss();
             } else {
@@ -3028,14 +2805,15 @@ namespace HIKARI::SHADOW {
             if (staticRendered) {
                 finalHasDepth = true;
                 (void)UpdateStaticShadowCacheFromFinal(cmd);
-                g.finalShadowMapMatchesStaticCache = !g.frameHasDynamicShadowWork;
+                g.shadowCache.SetFinalMatchesStaticCache(
+                    !g.frameHasDynamicShadowWork);
             } else {
                 InvalidateShadowCache();
             }
         }
 
         const bool staticSplitFailed =
-            !g.shadowCacheHitThisFrame &&
+            !g.shadowCache.WasHitThisFrame() &&
             g.frameHasStaticShadowWork &&
             !staticRendered;
 
@@ -3053,7 +2831,7 @@ namespace HIKARI::SHADOW {
                         GFX::GPU_PROFILE::Pass::MeshletDrawShadowDynamic);
                 }
                 if (dynamicRendered) {
-                    g.finalShadowMapMatchesStaticCache = false;
+                    g.shadowCache.SetFinalMatchesStaticCache(false);
                 }
             }
         }
@@ -3070,7 +2848,7 @@ namespace HIKARI::SHADOW {
             }
             finalHasDepth = fallbackRendered;
             if (fallbackRendered) {
-                g.finalShadowMapMatchesStaticCache = false;
+                g.shadowCache.SetFinalMatchesStaticCache(false);
             }
         }
 

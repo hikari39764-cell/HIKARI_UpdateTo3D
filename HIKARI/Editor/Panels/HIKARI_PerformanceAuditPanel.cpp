@@ -18,6 +18,7 @@
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineRuntime.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
+#include "Vfx/Post/HIKARI_PostSystem.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -48,6 +49,7 @@ namespace HIKARI {
             RENDER3D::TEMPORAL::TemporalFrameState temporalFrame{};
             RENDER3D::TEMPORAL::TemporalResourceStats temporalResources{};
             RENDER3D::UPSCALING::StreamlineDebugStats streamline{};
+            POST::PresentationFrameResources presentation{};
             CPU_PROFILE::FrameSnapshot cpu{};
             GFX::GPU_PROFILE::FrameSnapshot gpu{};
             GFX::GPU_PIPELINE_STATS::FrameSnapshot pipelineStats{};
@@ -211,6 +213,8 @@ namespace HIKARI {
                 RENDER3D::TEMPORAL::GetTemporalResourceStats();
             out.streamline =
                 RENDER3D::UPSCALING::GetStreamlineDebugStats();
+            out.presentation =
+                POST::PostSystem::GetPresentationFrameResources();
             out.cpu = CPU_PROFILE::GetLatestSnapshot();
             out.gpu = GFX::GPU_PROFILE::GetLatestSnapshot();
             out.pipelineStats = GFX::GPU_PIPELINE_STATS::GetLatestSnapshot();
@@ -746,6 +750,19 @@ namespace HIKARI {
                     s.temporalFrame.renderHeight,
                     s.temporalFrame.outputWidth,
                     s.temporalFrame.outputHeight);
+                MetricRow("Presentation H / UI / Final", "%s / %s / %s",
+                    s.presentation.hudlessReady ? "ready" : "missing",
+                    s.presentation.uiReady ? "ready" : "missing",
+                    s.presentation.finalReady ? "ready" : "missing");
+                MetricRow("Presentation Size / FG Inputs", "%d x %d / %s",
+                    s.presentation.width,
+                    s.presentation.height,
+                    s.presentation.HasFrameGenerationInputs()
+                        ? "ready"
+                        : "missing");
+                MetricRow("Presentation UI Logical", "%d x %d",
+                    s.presentation.uiLogicalWidth,
+                    s.presentation.uiLogicalHeight);
                 MetricRow("Jitter / Phase / Pixels", "%s / %u / %.3f, %.3f",
                     s.temporalFrame.jitterEnabled ? "on" : "off",
                     s.temporalFrame.jitterPhase,

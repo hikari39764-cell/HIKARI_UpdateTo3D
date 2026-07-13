@@ -10,6 +10,7 @@
 #include <d3dx12.h>
 
 #include <cassert>
+#include <array>
 #include <cstring>
 #include <vector>
 #include <cmath> // for max
@@ -30,6 +31,30 @@ namespace HIKARI {
 
             float g_screenW = kScreenW;
             float g_screenH = kScreenH;
+
+            struct PipelineSet {
+                DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+                std::array<ComPtr<ID3D12PipelineState>,
+                    static_cast<size_t>(BlendMode::Count)> colorPsos{};
+                ComPtr<ID3D12PipelineState> linePso{};
+                ComPtr<ID3D12PipelineState> maskPso{};
+            };
+
+            std::array<PipelineSet, 2> g_pipelineSets{};
+            DXGI_FORMAT g_outputFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+            PipelineSet* FindPipelineSet(DXGI_FORMAT format) {
+                for (PipelineSet& set : g_pipelineSets) {
+                    if (set.format == format) {
+                        return &set;
+                    }
+                }
+                return nullptr;
+            }
+
+            PipelineSet* GetActivePipelineSet() {
+                return FindPipelineSet(g_outputFormat);
+            }
 
             DynamicUploadBuffer& ActiveUploadCB()
             {
@@ -288,13 +313,10 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         } // anonymous namespace
 
         Microsoft::WRL::ComPtr<ID3D12RootSignature> DxRenderer::rootSig_;
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::colorPsos_[static_cast<size_t>(BlendMode::Count)];
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::psoLine_;
         BlendMode DxRenderer::currentBlendMode_ = BlendMode::StraightAlpha;
 
         // [新增]
         Microsoft::WRL::ComPtr<ID3D12RootSignature> DxRenderer::rootSigMask_;
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> DxRenderer::psoMask_;
 
         void DxRenderer::Init(const GFX::Context& ctx)
         {
@@ -304,6 +326,10 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
 
             auto* device = g_ctx.device;
+            g_pipelineSets = {};
+            g_pipelineSets[0].format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            g_pipelineSets[1].format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            g_outputFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
             // === UploadBuffers ===
             for (uint32_t frameIndex = 0;
@@ -420,18 +446,24 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                         desc.DepthStencilState.DepthEnable = FALSE;
                         desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
                         desc.NumRenderTargets = 1;
-                        desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
                         desc.SampleDesc.Count = 1;
                     };
                 D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc{};
                 FillBasePSO(baseDesc);
 
-                for (size_t i = 0; i < static_cast<size_t>(BlendMode::Count); ++i) {
-                    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-                    desc.BlendState = MakeBlendDesc(static_cast<BlendMode>(i));
-                    HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&colorPsos_[i]));
-                    (void)hr;
-                    assert(SUCCEEDED(hr));
+                for (PipelineSet& set : g_pipelineSets) {
+                    for (size_t i = 0;
+                        i < static_cast<size_t>(BlendMode::Count);
+                        ++i) {
+
+                        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+                        desc.RTVFormats[0] = set.format;
+                        desc.BlendState = MakeBlendDesc(static_cast<BlendMode>(i));
+                        const HRESULT hr = device->CreateGraphicsPipelineState(
+                            &desc,
+                            IID_PPV_ARGS(set.colorPsos[i].GetAddressOf()));
+                        assert(SUCCEEDED(hr));
+                    }
                 }
 
                 // === [新增] PSO: Mask ===
@@ -443,9 +475,13 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 maskDesc.PS = CD3DX12_SHADER_BYTECODE(psMask.Get()); // 使用 Mask PS
                 maskDesc.BlendState = MakeBlendDesc(BlendMode::StraightAlpha); // 使用?准透明混合
 
-                HRESULT hr = device->CreateGraphicsPipelineState(&maskDesc, IID_PPV_ARGS(&psoMask_));
-                (void)hr;
-                assert(SUCCEEDED(hr));
+                for (PipelineSet& set : g_pipelineSets) {
+                    maskDesc.RTVFormats[0] = set.format;
+                    const HRESULT hr = device->CreateGraphicsPipelineState(
+                        &maskDesc,
+                        IID_PPV_ARGS(set.maskPso.GetAddressOf()));
+                    assert(SUCCEEDED(hr));
+                }
             }
 
             // === PSO: Line (保持不?) ===
@@ -470,14 +506,17 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 d.DepthStencilState.DepthEnable = FALSE;
                 d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
                 d.NumRenderTargets = 1;
-                d.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
                 d.SampleDesc.Count = 1;
 
                 d.BlendState = MakeBlendDesc(BlendMode::StraightAlpha);
 
-                HRESULT hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&psoLine_));
-                (void)hr;
-                assert(SUCCEEDED(hr));
+                for (PipelineSet& set : g_pipelineSets) {
+                    d.RTVFormats[0] = set.format;
+                    const HRESULT hr = device->CreateGraphicsPipelineState(
+                        &d,
+                        IID_PPV_ARGS(set.linePso.GetAddressOf()));
+                    assert(SUCCEEDED(hr));
+                }
             }
 
             OutputDebugStringA("[DxRenderer] Init OK.\n");
@@ -501,6 +540,30 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             g_screenH = static_cast<float>(height);
         }
 
+        bool DxRenderer::SetOutputTarget(
+            DXGI_FORMAT format,
+            int width,
+            int height) {
+
+            PipelineSet* pipelines = FindPipelineSet(format);
+            if (pipelines == nullptr ||
+                pipelines->colorPsos[0] == nullptr ||
+                pipelines->linePso == nullptr ||
+                pipelines->maskPso == nullptr ||
+                width <= 0 ||
+                height <= 0) {
+                return false;
+            }
+
+            g_outputFormat = format;
+            SetScreenSize(width, height);
+            return true;
+        }
+
+        DXGI_FORMAT DxRenderer::GetOutputFormat() {
+            return g_outputFormat;
+        }
+
         void DxRenderer::Finalize()
         {
             for (uint32_t frameIndex = 0;
@@ -509,6 +572,8 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 g_uploadCB[frameIndex].Finalize();
                 g_uploadVB[frameIndex].Finalize();
             }
+            g_pipelineSets = {};
+            g_outputFormat = DXGI_FORMAT_UNKNOWN;
         }
 
 
@@ -554,9 +619,15 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
                 blendIdx = 0;
             }
 
-            ID3D12PipelineState* pso = colorPsos_[blendIdx].Get();
+            PipelineSet* pipelines = GetActivePipelineSet();
+            if (pipelines == nullptr) {
+                return;
+            }
+
+            ID3D12PipelineState* pso = pipelines->colorPsos[blendIdx].Get();
             if (!pso) {
-                pso = colorPsos_[static_cast<size_t>(BlendMode::StraightAlpha)].Get();
+                pso = pipelines->colorPsos[
+                    static_cast<size_t>(BlendMode::StraightAlpha)].Get();
             }
 
             cmd->SetGraphicsRootSignature(rootSig_.Get());
@@ -674,7 +745,11 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
 
             // 1. 切?到 Mask ?用的 RootSig 和 PSO
             cmd->SetGraphicsRootSignature(rootSigMask_.Get());
-            cmd->SetPipelineState(psoMask_.Get());
+            PipelineSet* pipelines = GetActivePipelineSet();
+            if (pipelines == nullptr || pipelines->maskPso == nullptr) {
+                return;
+            }
+            cmd->SetPipelineState(pipelines->maskPso.Get());
 
             // ?色解析
             float r, g, b, a;
@@ -784,7 +859,11 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
             auto* cmd = g_ctx.cmdList;
 
             cmd->SetGraphicsRootSignature(rootSig_.Get());
-            cmd->SetPipelineState(psoLine_.Get());
+            PipelineSet* pipelines = GetActivePipelineSet();
+            if (pipelines == nullptr || pipelines->linePso == nullptr) {
+                return;
+            }
+            cmd->SetPipelineState(pipelines->linePso.Get());
 
             float r, g, b, a;
             DecodeRGBA(color, r, g, b, a);

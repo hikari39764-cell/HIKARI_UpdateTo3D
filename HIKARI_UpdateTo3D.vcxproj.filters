@@ -552,6 +552,9 @@
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostPresentationStage.cpp">
       <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Post\HIKARI_GameUiCompositionStage.cpp">
+      <Filter>Source Files\Vfx\Post</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostProcessingStage.cpp">
       <Filter>Source Files\Vfx\Post</Filter>
     </ClCompile>
@@ -1218,6 +1221,12 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCachePolicy.cpp">
+      <Filter>Source Files\Render3D\Shadow</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.cpp">
+      <Filter>Source Files\Render3D\Shadow</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
@@ -1339,6 +1348,9 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneRegistry.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuScenePoseBuilder.cpp">
+      <Filter>Source Files\Render3D\GpuDriven</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
@@ -1434,6 +1446,12 @@
       <Filter>Source Files\Render3D\Temporal</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrame.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDlss.cpp">
       <Filter>Source Files\Render3D\Upscaling</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1999,6 +2017,12 @@
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostPresentationStage.h">
       <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_GameUiCompositionStage.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PresentationFrame.h">
+      <Filter>Header Files\Vfx\Post</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostProcessingStage.h">
       <Filter>Header Files\Vfx\Post</Filter>
     </ClInclude>
@@ -2093,6 +2117,15 @@
       <Filter>Header Files\Render3D\Render</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.h">
+      <Filter>Header Files\Render3D\Shadow</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCachePolicy.h">
+      <Filter>Header Files\Render3D\Shadow</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCacheTypes.h">
+      <Filter>Header Files\Render3D\Shadow</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h">
@@ -2203,6 +2236,9 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuSceneRegistry.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuScenePoseBuilder.h">
+      <Filter>Header Files\Render3D\GpuDriven</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
@@ -2295,6 +2331,9 @@
       <Filter>Header Files\Render3D\Temporal</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineInternal.h">
       <Filter>Header Files\Render3D\Upscaling</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h">

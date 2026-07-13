@@ -25,15 +25,10 @@ namespace HIKARI::RENDER3D::DEPTH {
     void BeginDepthPyramidFrame(uint32_t frameIndex = 0);
     bool PublishFrameDepthPyramid(const DepthPyramidView& view);
     bool PublishFrameDepthPyramid(DepthPyramidView view, DepthPyramidViewKind viewKind);
-    const DepthPyramidFrameResources& GetDepthPyramidFrameResources();
     const DepthPyramidView* TryGetFrameDepthPyramidView();
     const DepthPyramidView* TryGetFrameDepthPyramidView(DepthPyramidSourceKind requiredSource);
     const DepthPyramidView* TryGetFrameDepthPyramidView(
         DepthPyramidSourceKind requiredSource,
         DepthPyramidViewKind requiredViewKind);
-
-    // Legacy wrappers while older passes are being retired.
-    void ResetDepthPyramidFrameResources(uint32_t frameIndex = 0);
-    void PublishDepthPyramidView(const DepthPyramidView& view);
 
 } // namespace HIKARI::RENDER3D::DEPTH

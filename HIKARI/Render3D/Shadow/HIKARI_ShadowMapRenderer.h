@@ -8,6 +8,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Shadow/HIKARI_ShadowCacheTypes.h"
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI::RENDER3D::GPUDRIVEN {
@@ -15,20 +16,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 }
 
 namespace HIKARI::SHADOW {
-
-    enum ShadowCacheMissReasonFlags : uint32_t {
-        ShadowCacheMissReasonNone = 0u,
-        ShadowCacheMissReasonInvalid = 1u << 0,
-        ShadowCacheMissReasonResource = 1u << 1,
-        ShadowCacheMissReasonState = 1u << 2,
-        ShadowCacheMissReasonResolution = 1u << 3,
-        ShadowCacheMissReasonLayout = 1u << 4,
-        ShadowCacheMissReasonSource = 1u << 5,
-        ShadowCacheMissReasonInstanceCount = 1u << 6,
-        ShadowCacheMissReasonMatrix = 1u << 7,
-        ShadowCacheMissReasonStaticDirty = 1u << 8,
-        ShadowCacheMissReasonNoStaticWork = 1u << 9,
-    };
 
     struct ShadowMapDebugStats {
         bool enabled = false;

@@ -77,10 +77,6 @@ namespace HIKARI::RENDER3D::DEPTH {
         return gFrameResources.PublishCurrent(std::move(view), viewKind);
     }
 
-    const DepthPyramidFrameResources& GetDepthPyramidFrameResources() {
-        return gFrameResources;
-    }
-
     const DepthPyramidView* TryGetFrameDepthPyramidView() {
         return gFrameResources.TryGetCurrent();
     }
@@ -94,14 +90,6 @@ namespace HIKARI::RENDER3D::DEPTH {
         DepthPyramidViewKind requiredViewKind) {
 
         return gFrameResources.TryGetCurrent(requiredSource, requiredViewKind);
-    }
-
-    void ResetDepthPyramidFrameResources(uint32_t frameIndex) {
-        BeginDepthPyramidFrame(frameIndex);
-    }
-
-    void PublishDepthPyramidView(const DepthPyramidView& view) {
-        (void)PublishFrameDepthPyramid(view);
     }
 
 } // namespace HIKARI::RENDER3D::DEPTH

@@ -90,6 +90,8 @@ namespace HIKARI {
         inline D3D12_CPU_DESCRIPTOR_HANDLE gImGuiFontSrvCpu{};
         inline D3D12_GPU_DESCRIPTOR_HANDLE gImGuiFontSrvGpu{};
         inline bool gGpuFrameReady = false;
+        inline bool gPresentationPrepared = false;
+        inline bool gVfxFrameEnded = false;
         inline bool gHasPendingWindowResize = false;
         inline int gPendingWindowWidth = 0;
         inline int gPendingWindowHeight = 0;
@@ -204,6 +206,11 @@ namespace HIKARI {
             RENDER3D::RenderResolution output{};
             RENDER3D::UPSCALING::StreamlineDlssMode streamlineMode =
                 RENDER3D::UPSCALING::StreamlineDlssMode::Off;
+        };
+
+        enum class FramePresentationDestination {
+            BackBuffer,
+            EditorViewport
         };
 
         inline FrameSceneResolutionPlan ResolveFrameSceneResolutionPlan() {
@@ -536,6 +543,8 @@ namespace HIKARI {
         inline bool BeginFrame(const BootstrapConfig& cfg = {}) {
             (void)cfg;
             gGpuFrameReady = false;
+            gPresentationPrepared = false;
+            gVfxFrameEnded = false;
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.BeginFrame");
             const FrameContext& frame = HIKARI::TIME::BeginFrame();
             CPU_PROFILE::BeginFrame(frame.frameIndex);
@@ -599,44 +608,111 @@ namespace HIKARI {
             return true;
         }
 
+        inline bool PrepareFramePresentation(
+            FramePresentationDestination destination =
+                FramePresentationDestination::EditorViewport) {
+            if (!gGpuFrameReady) {
+                return false;
+            }
+            if (gPresentationPrepared) {
+                return true;
+            }
+
+            if (!gVfxFrameEnded) {
+                HIKARI::VFX::EndFrame();
+                gVfxFrameEnded = true;
+            }
+
+            int renderWidth = 0;
+            int renderHeight = 0;
+            HIKARI::POST::PostSystem::GetSceneCaptureSize(
+                renderWidth,
+                renderHeight);
+            if (!HIKARI::DX::DxRenderer::SetOutputTarget(
+                    DXGI_FORMAT_R16G16B16A16_FLOAT,
+                    renderWidth,
+                    renderHeight)) {
+                HIKARI_LOG_ERROR("Render2D HDR output target is unavailable.");
+                return false;
+            }
+
+            {
+                GFX::PIX::ScopedGpuEvent pixScene(
+                    gCtx.cmdList,
+                    GFX::PIX::kColorRender,
+                    "Scene Layers");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuScene(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::SceneLayers);
+                HIKARI::RENDERER::RenderLayerRange(
+                    HIKARI::RENDERER::RenderLayer::Background,
+                    HIKARI::RENDERER::RenderLayer::VFX,
+                    false);
+            }
+
+            const bool editorViewport =
+                destination == FramePresentationDestination::EditorViewport &&
+                IsEditorHost() &&
+                IsEditorUIEnabled();
+            {
+                CPU_PROFILE::ScopedCpuTimer cpuPost(
+                    CPU_PROFILE::Pass::PostResolve);
+                GFX::PIX::ScopedGpuEvent pixPost(
+                    gCtx.cmdList,
+                    GFX::PIX::kColorPost,
+                    "PostSystem");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuPost(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::PostResolve);
+                if (!HIKARI::POST::PostSystem::PrepareGameUiComposition(
+                        editorViewport,
+                        gLogicalScreenWidth,
+                        gLogicalScreenHeight)) {
+                    HIKARI_LOG_ERROR("Game UI composition preparation failed.");
+                    return false;
+                }
+            }
+
+            {
+                CPU_PROFILE::ScopedCpuTimer cpuUi(
+                    CPU_PROFILE::Pass::UiLayers);
+                GFX::PIX::ScopedGpuEvent pixUi(
+                    gCtx.cmdList,
+                    GFX::PIX::kColorEditor,
+                    "Game UI and Debug Layers");
+                GFX::GPU_PROFILE::ScopedGpuTimer gpuUi(
+                    gCtx.cmdList,
+                    GFX::GPU_PROFILE::Pass::UiLayers);
+                HIKARI::RENDERER::RenderLayerRange(
+                    HIKARI::RENDERER::RenderLayer::UI,
+                    HIKARI::RENDERER::RenderLayer::Debug,
+                    true);
+            }
+
+            if (!HIKARI::POST::PostSystem::FinalizeGameUiComposition(
+                    editorViewport)) {
+                HIKARI_LOG_ERROR("Game UI composition finalization failed.");
+                return false;
+            }
+
+            gPresentationPrepared = true;
+            return true;
+        }
+
         inline bool EndFrame() {
             if (!gGpuFrameReady) {
                 return false;
             }
             GFX::PIX::ScopedCpuEvent pixCpuFrame(GFX::PIX::kColorFrame, "Services.EndFrame");
-            HIKARI::VFX::EndFrame();
+            if (!PrepareFramePresentation()) {
+                HIKARI::RENDERER::ClearSubmittedCommands();
+            }
             if (gEnableImGui && gImGuiInitialized && gImGuiFrameBegun) {
 #if defined(HIKARI_ENABLE_IMGUI)
                 ImGui::Render();
                 gImGuiFrameBegun = false;
 #endif
             }
-            {
-                GFX::PIX::ScopedGpuEvent pixScene(gCtx.cmdList, GFX::PIX::kColorRender, "Scene Layers");
-                GFX::GPU_PROFILE::ScopedGpuTimer gpuScene(
-                    gCtx.cmdList,
-                    GFX::GPU_PROFILE::Pass::SceneLayers);
-                HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::Background, HIKARI::RENDERER::RenderLayer::VFX, false);
-            }
-            {
-                CPU_PROFILE::ScopedCpuTimer cpuPost(
-                    CPU_PROFILE::Pass::PostResolve);
-                GFX::PIX::ScopedGpuEvent pixPost(gCtx.cmdList, GFX::PIX::kColorPost, "PostSystem");
-                GFX::GPU_PROFILE::ScopedGpuTimer gpuPost(
-                    gCtx.cmdList,
-                    GFX::GPU_PROFILE::Pass::PostResolve);
-                HIKARI::POST::PostSystem::EndSceneCaptureAndPresent();
-            }
-            {
-                CPU_PROFILE::ScopedCpuTimer cpuUi(
-                    CPU_PROFILE::Pass::UiLayers);
-                GFX::PIX::ScopedGpuEvent pixUi(gCtx.cmdList, GFX::PIX::kColorEditor, "UI and Debug Layers");
-                GFX::GPU_PROFILE::ScopedGpuTimer gpuUi(
-                    gCtx.cmdList,
-                    GFX::GPU_PROFILE::Pass::UiLayers);
-                HIKARI::RENDERER::RenderLayerRange(HIKARI::RENDERER::RenderLayer::UI, HIKARI::RENDERER::RenderLayer::Debug, true);
-            }
-
             if (gEnableImGui && gImGuiInitialized && gImGuiBackendInitialized) {
 #if defined(HIKARI_ENABLE_IMGUI)
                 CPU_PROFILE::ScopedCpuTimer cpuImGui(
