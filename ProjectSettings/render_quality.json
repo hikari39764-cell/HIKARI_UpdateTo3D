@@ -1,7 +1,7 @@
 {
   "renderQuality": {
     "antiAliasingMode": "DLSS",
-    "dlssQualityMode": "Quality",
+    "dlssQualityMode": "UltraPerformance",
     "forwardCostMode": "Full",
     "frameGenerationMode": "DLSS",
     "frameGenerationMultiplier": 2,
@@ -17,7 +17,7 @@
     "vSync": false,
     "viewportScale": 1.0,
     "volumetricLightingQuality": "Balanced",
-    "windowMode": "Fullscreen",
+    "windowMode": "Windowed",
     "windowSize": "1080p"
   },
   "version": 1

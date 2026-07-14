@@ -1231,7 +1231,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 31;
+        return 32;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {

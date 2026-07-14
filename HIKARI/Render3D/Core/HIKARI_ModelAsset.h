@@ -160,10 +160,16 @@ namespace HIKARI {
             if (!material.doubleSided) {
                 return false;
             }
-            return
-                HasAlphaMaskedSurface(material) ||
-                HasBlendedSurface(material) ||
-                HasExplicitThinTransparentSurface(material);
+
+            if (HasBlendedSurface(material)) {
+                return true;
+            }
+
+            if (HasAlphaMaskedSurface(material)) {
+                return HasThinTransparentSurfaceHint(material);
+            }
+
+            return HasExplicitThinTransparentSurface(material);
         }
 
     } // namespace MATERIAL_POLICY
@@ -265,11 +271,8 @@ namespace HIKARI {
                 return true;
             }
 
-            if (MATERIAL_POLICY::HasAlphaMaskedSurface(material)) {
-                return true;
-            }
-
-            if (MATERIAL_POLICY::HasExplicitThinTransparentSurface(material)) {
+            if (MATERIAL_POLICY::HasAlphaMaskedSurface(material) ||
+                MATERIAL_POLICY::HasExplicitThinTransparentSurface(material)) {
                 return
                     HasThinSurfaceMaterialCue(material) ||
                     HasThinSurfaceCue(primitive.name) ||

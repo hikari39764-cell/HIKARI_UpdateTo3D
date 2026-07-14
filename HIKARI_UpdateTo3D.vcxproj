@@ -320,6 +320,8 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_Material.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.cpp" />
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.cpp" />
@@ -703,7 +705,9 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererState.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h" />

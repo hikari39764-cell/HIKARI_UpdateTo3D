@@ -630,6 +630,12 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.cpp">
+      <Filter>Source Files\Render3D\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
@@ -2271,6 +2277,8 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />

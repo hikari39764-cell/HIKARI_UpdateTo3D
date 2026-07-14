@@ -2,20 +2,15 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
-
-#include <d3dx12.h>
-#include <wrl/client.h>
 
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
-#include "Gfx/HIKARI_ResourceStateTracker.h"
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/Core/HIKARI_Material.h"
@@ -51,122 +46,49 @@ namespace HIKARI::MESHRENDERER {
         MeshRendererState g;
         constexpr size_t kMaxMaterialTextureGpuLoadsPerFrame = 2;
 
+        MeshRendererFrameResources& ActiveFrameResources() {
+            return g.frameResources.Active();
+        }
+
         MATH::Mat4 ResolveGpuDrivenCullingViewProj() {
-            return g.cullingCameraMapped != nullptr
-                ? g.cullingCameraMapped->viewProj
+            const MeshRendererFrameResources& frame = ActiveFrameResources();
+            return frame.cullingCameraMapped != nullptr
+                ? frame.cullingCameraMapped->viewProj
                 : MATH::Mat4::Identity();
         }
 
         MATH::Vec3 ResolveGpuDrivenCullingCameraPosition() {
-            return g.cullingCameraMapped != nullptr
+            const MeshRendererFrameResources& frame = ActiveFrameResources();
+            return frame.cullingCameraMapped != nullptr
                 ? MATH::Vec3{
-                    g.cullingCameraMapped->cameraPos.x,
-                    g.cullingCameraMapped->cameraPos.y,
-                    g.cullingCameraMapped->cameraPos.z
+                    frame.cullingCameraMapped->cameraPos.x,
+                    frame.cullingCameraMapped->cameraPos.y,
+                    frame.cullingCameraMapped->cameraPos.z
                 }
                 : MATH::Vec3{};
         }
 
         D3D12_GPU_VIRTUAL_ADDRESS ResolveCameraAddressForPass(MeshDrawPassKind passKind) {
+            const MeshRendererFrameResources& frame = ActiveFrameResources();
             if (passKind == MeshDrawPassKind::DepthPrepass) {
-                return g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0;
+                return frame.cameraCB != nullptr
+                    ? frame.cameraCB->GetGPUVirtualAddress()
+                    : 0;
             }
-            return g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0;
+            return frame.cameraCB != nullptr
+                ? frame.cameraCB->GetGPUVirtualAddress()
+                : 0;
         }
 
         D3D12_GPU_VIRTUAL_ADDRESS ResolveCullingCameraAddress() {
-            return g.cullingCameraCB != nullptr
-                ? g.cullingCameraCB->GetGPUVirtualAddress()
-                : (g.cameraCB != nullptr ? g.cameraCB->GetGPUVirtualAddress() : 0);
+            const MeshRendererFrameResources& frame = ActiveFrameResources();
+            return frame.cullingCameraCB != nullptr
+                ? frame.cullingCameraCB->GetGPUVirtualAddress()
+                : (frame.cameraCB != nullptr
+                    ? frame.cameraCB->GetGPUVirtualAddress()
+                    : 0);
         }
 
-        struct OwnedTraditionalIndirectStream {
-            std::vector<RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord> records{};
-            std::vector<uint32_t> executableRecordIndices{};
-            std::vector<RENDER3D::RUNTIME::SurfaceDrawCommand> commands{};
-            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> instances{};
-            std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> materialSources{};
-            std::vector<std::vector<MATH::Mat4>> jointPalettes{};
-            std::vector<VFX::VariantKey> bucketVariants{};
-            uint32_t gpuSceneBaseIndex = 0;
-            uint32_t gpuSceneInstanceCount = 0;
-            uint32_t staticCommandCount = 0;
-            uint32_t skinnedCommandCount = 0;
-
-            void Clear() {
-                records.clear();
-                executableRecordIndices.clear();
-                commands.clear();
-                instances.clear();
-                materialSources.clear();
-                jointPalettes.clear();
-                bucketVariants.clear();
-                gpuSceneBaseIndex = 0;
-                gpuSceneInstanceCount = 0;
-                staticCommandCount = 0;
-                skinnedCommandCount = 0;
-            }
-
-            bool CopyFrom(
-                const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView& view) {
-
-                Clear();
-                if (!view.HasCommands()) {
-                    return false;
-                }
-                records = *view.records;
-                executableRecordIndices = *view.executableRecordIndices;
-                commands = *view.commands;
-                if (view.instances != nullptr) {
-                    instances = *view.instances;
-                }
-                if (view.materialSources != nullptr) {
-                    materialSources = *view.materialSources;
-                }
-                if (view.jointPalettes != nullptr) {
-                    jointPalettes = *view.jointPalettes;
-                }
-                if (view.bucketVariants != nullptr) {
-                    bucketVariants = *view.bucketVariants;
-                }
-                gpuSceneBaseIndex = view.gpuSceneBaseIndex;
-                gpuSceneInstanceCount = view.gpuSceneInstanceCount;
-                staticCommandCount = view.staticCommandCount;
-                skinnedCommandCount = view.skinnedCommandCount;
-                return true;
-            }
-
-            void AttachTo(RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass) const {
-                pass.traditionalIndirect.Reset();
-                if (commands.empty() || records.empty() || executableRecordIndices.empty()) {
-                    return;
-                }
-                pass.traditionalIndirect.records = &records;
-                pass.traditionalIndirect.executableRecordIndices =
-                    &executableRecordIndices;
-                pass.traditionalIndirect.commands = &commands;
-                pass.traditionalIndirect.instances =
-                    instances.empty() ? nullptr : &instances;
-                pass.traditionalIndirect.materialSources =
-                    materialSources.empty() ? nullptr : &materialSources;
-                pass.traditionalIndirect.jointPalettes =
-                    jointPalettes.empty() ? nullptr : &jointPalettes;
-                pass.traditionalIndirect.bucketVariants =
-                    bucketVariants.empty() ? nullptr : &bucketVariants;
-                pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
-                pass.traditionalIndirect.gpuSceneInstanceCount =
-                    gpuSceneInstanceCount;
-                pass.traditionalIndirect.staticCommandCount =
-                    staticCommandCount;
-                pass.traditionalIndirect.skinnedCommandCount =
-                    skinnedCommandCount;
-            }
-        };
-
-        std::array<
-            OwnedTraditionalIndirectStream,
-            RENDER3D::GPUDRIVEN::kGpuDrivenPassCount>
-            gOwnedTraditionalIndirectStreams{};
         void UpdateMeshletBackendDebugStats();
         void SyncGpuDrivenBackendAvailability();
         void UpdateGpuDrivenWorkReadyDebugStats();
@@ -196,190 +118,18 @@ namespace HIKARI::MESHRENDERER {
             return g.gpuDrivenSceneSource.GetPass(passKind);
         }
 
-        const MeshPrimitive* ResolveTraditionalRecordPrimitive(
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record) {
+        MeshRendererTraditionalIndirectHydrationContext
+        BuildTraditionalIndirectHydrationContext() {
 
-            if (record.model == nullptr ||
-                record.meshIndex >= record.model->meshes.size()) {
-                return nullptr;
-            }
-
-            const MeshAsset& meshAsset = record.model->meshes[record.meshIndex];
-            if (record.primitiveIndex >= meshAsset.primitives.size()) {
-                return nullptr;
-            }
-
-            return &meshAsset.primitives[record.primitiveIndex];
-        }
-
-        Mesh* GetOrCreateTraditionalRecordMesh(
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
-            bool skinned) {
-
-            const MeshPrimitive* primitive = ResolveTraditionalRecordPrimitive(record);
-            if (primitive == nullptr) {
-                return nullptr;
-            }
-
-            return skinned
-                ? g.primitiveCache.GetOrCreateSkinned(
-                    SERVICES::gCtx.device,
-                    *primitive,
-                    &g.debugStats)
-                : g.primitiveCache.GetOrCreateStatic(
-                    SERVICES::gCtx.device,
-                    *primitive,
-                    &g.debugStats);
-        }
-
-        bool FillTraditionalCommandMeshView(
-            RENDER3D::RUNTIME::SurfaceDrawCommand& command,
-            const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record,
-            bool skinned) {
-
-            command.triangleMeshView = {};
-            Mesh* mesh = GetOrCreateTraditionalRecordMesh(record, skinned);
-            if (mesh == nullptr || !mesh->IsValid()) {
-                return false;
-            }
-
-            command.triangleMeshView.vertexBuffer = mesh->GetVBView();
-            command.triangleMeshView.indexBuffer = mesh->GetIBView();
-            return command.HasTriangleMeshGpuView();
-        }
-
-        D3D12_GPU_VIRTUAL_ADDRESS ResolveTraditionalJointPaletteAddress(
-            size_t objectIndex) {
-
-            if (g.jointPaletteCB == nullptr || objectIndex >= kMaxObjectCount) {
-                return 0;
-            }
-
-            constexpr UINT kJointPaletteStride =
-                AlignConstantBufferSize(sizeof(JointPaletteCB));
-            return g.jointPaletteCB->GetGPUVirtualAddress() +
-                static_cast<UINT64>(kJointPaletteStride) * objectIndex;
-        }
-
-        void HydrateOwnedTraditionalIndirectStream(
-            OwnedTraditionalIndirectStream& stream) {
-
-            if (stream.commands.empty() ||
-                stream.records.empty() ||
-                stream.executableRecordIndices.empty()) {
-                return;
-            }
-
-            for (RENDER3D::RUNTIME::SurfaceDrawCommand& command :
-                stream.commands) {
-
-                command.triangleMeshView = {};
-                command.jointPaletteGpuAddress = 0;
-                if (command.recordCount == 0 ||
-                    command.firstExecutableIndex >=
-                        stream.executableRecordIndices.size()) {
-                    continue;
-                }
-
-                const uint32_t recordIndex =
-                    stream.executableRecordIndices[command.firstExecutableIndex];
-                if (recordIndex >= stream.records.size()) {
-                    continue;
-                }
-
-                const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
-                    stream.records[recordIndex];
-                const bool hasJointPalette =
-                    command.firstRecordIndex !=
-                        RENDER3D::RUNTIME::kInvalidRenderSurfaceIndex &&
-                    command.firstRecordIndex < stream.jointPalettes.size() &&
-                    !stream.jointPalettes[command.firstRecordIndex].empty();
-                const bool skinnedCommand = record.skinned && hasJointPalette;
-                if (!FillTraditionalCommandMeshView(
-                    command,
-                    record,
-                    skinnedCommand)) {
-                    continue;
-                }
-
-                if (!skinnedCommand) {
-                    continue;
-                }
-
-                const size_t paletteSlot =
-                    static_cast<size_t>(stream.gpuSceneBaseIndex) +
-                    static_cast<size_t>(command.firstGpuSceneInstanceIndex);
-                if (paletteSlot >= kMaxObjectCount ||
-                    g.jointPaletteMapped == nullptr ||
-                    g.jointPaletteCB == nullptr) {
-                    command.jointPaletteGpuAddress = 0;
-                    continue;
-                }
-
-                (void)UploadJointPalette(
-                    g.jointPaletteMapped,
-                    paletteSlot,
-                    stream.jointPalettes[command.firstRecordIndex]);
-                command.jointPaletteGpuAddress =
-                    ResolveTraditionalJointPaletteAddress(paletteSlot);
-            }
-        }
-
-        bool HasGpuDrivenTraditionalIndirectCommands() {
-            for (const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass :
-                g.gpuDrivenSceneSource.passes) {
-                if (pass.traditionalIndirect.HasCommands()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        void CopyOwnedTraditionalIndirectStreamsFromSceneSource() {
-            for (size_t passIndex = 0;
-                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
-                ++passIndex) {
-
-                OwnedTraditionalIndirectStream& owned =
-                    gOwnedTraditionalIndirectStreams[passIndex];
-                RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
-                    g.gpuDrivenSceneSource.passes[passIndex];
-                (void)owned.CopyFrom(pass.traditionalIndirect);
-            }
-        }
-
-        void AttachOwnedTraditionalIndirectStreamsToSceneSource() {
-            for (size_t passIndex = 0;
-                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
-                ++passIndex) {
-
-                gOwnedTraditionalIndirectStreams[passIndex].AttachTo(
-                    g.gpuDrivenSceneSource.passes[passIndex]);
-            }
-        }
-
-        void ClearOwnedTraditionalIndirectStreams() {
-            for (OwnedTraditionalIndirectStream& stream :
-                gOwnedTraditionalIndirectStreams) {
-                stream.Clear();
-            }
-        }
-
-        void RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline() {
-            if (!HasGpuDrivenTraditionalIndirectCommands()) {
-                AttachOwnedTraditionalIndirectStreamsToSceneSource();
-                return;
-            }
-
-            for (size_t passIndex = 0;
-                passIndex < RENDER3D::GPUDRIVEN::kGpuDrivenPassCount;
-                ++passIndex) {
-
-                OwnedTraditionalIndirectStream& owned =
-                    gOwnedTraditionalIndirectStreams[passIndex];
-                HydrateOwnedTraditionalIndirectStream(owned);
-                owned.AttachTo(g.gpuDrivenSceneSource.passes[passIndex]);
-            }
+            MeshRendererTraditionalIndirectHydrationContext context{};
+            context.device = SERVICES::gCtx.device;
+            context.primitiveCache = &g.primitiveCache;
+            context.debugStats = &g.debugStats;
+            context.jointPaletteMapped =
+                ActiveFrameResources().jointPaletteMapped;
+            context.jointPaletteBuffer =
+                ActiveFrameResources().jointPaletteCB.Get();
+            return context;
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
@@ -398,329 +148,42 @@ namespace HIKARI::MESHRENDERER {
                 GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
         }
 
-        bool CreateMappedUploadBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
-            void** mapped) {
-
-            if (device == nullptr || byteSize == 0 || mapped == nullptr) {
-                return false;
-            }
-
-            resource.Reset();
-            *mapped = nullptr;
-            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-            if (FAILED(device->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &desc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(resource.GetAddressOf())))) {
-                return false;
-            }
-
-            return SUCCEEDED(resource->Map(0, nullptr, mapped));
-        }
-
-        bool CreateDefaultBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& resource) {
-
-            if (device == nullptr || byteSize == 0) {
-                return false;
-            }
-
-            resource.Reset();
-            auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-            return SUCCEEDED(device->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &desc,
-                D3D12_RESOURCE_STATE_COMMON,
-                nullptr,
-                IID_PPV_ARGS(resource.GetAddressOf())));
-        }
-
-        bool CreateGpuResidentMappedBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& uploadResource,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& defaultResource,
-            void** mapped) {
-
-            if (!CreateMappedUploadBuffer(device, byteSize, uploadResource, mapped) ||
-                !CreateDefaultBuffer(device, byteSize, defaultResource)) {
-                return false;
-            }
-            if (mapped != nullptr && *mapped != nullptr) {
-                std::memset(*mapped, 0, static_cast<size_t>(byteSize));
-            }
-            return true;
-        }
-
-        void CommitMappedBufferToGpu(
-            ID3D12GraphicsCommandList* commandList,
-            ID3D12Resource* uploadResource,
-            ID3D12Resource* defaultResource,
-            D3D12_RESOURCE_STATES& defaultState,
-            UINT64 byteCount) {
-
-            if (commandList == nullptr ||
-                uploadResource == nullptr ||
-                defaultResource == nullptr ||
-                byteCount == 0) {
-                return;
-            }
-
-            if (defaultState != D3D12_RESOURCE_STATE_COPY_DEST) {
-                const auto toCopyDest = CD3DX12_RESOURCE_BARRIER::Transition(
-                    defaultResource,
-                    defaultState,
-                    D3D12_RESOURCE_STATE_COPY_DEST);
-                commandList->ResourceBarrier(1, &toCopyDest);
-                defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
-            }
-
-            commandList->CopyBufferRegion(
-                defaultResource,
-                0,
-                uploadResource,
-                0,
-                byteCount);
-
-            const D3D12_RESOURCE_STATES shaderState =
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            const auto toShader = CD3DX12_RESOURCE_BARRIER::Transition(
-                defaultResource,
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                shaderState);
-            commandList->ResourceBarrier(1, &toShader);
-            defaultState = shaderState;
-        }
-
-        void CommitMappedBufferRangesToGpu(
-            ID3D12GraphicsCommandList* commandList,
-            ID3D12Resource* uploadResource,
-            ID3D12Resource* defaultResource,
-            D3D12_RESOURCE_STATES& defaultState,
-            size_t elementStride,
-            const std::vector<RENDER3D::MATERIAL::GpuMaterialUploadRange>& ranges) {
-
-            if (commandList == nullptr ||
-                uploadResource == nullptr ||
-                defaultResource == nullptr ||
-                elementStride == 0u ||
-                ranges.empty()) {
-                return;
-            }
-
-            if (defaultState != D3D12_RESOURCE_STATE_COPY_DEST) {
-                const auto toCopyDest = CD3DX12_RESOURCE_BARRIER::Transition(
-                    defaultResource,
-                    defaultState,
-                    D3D12_RESOURCE_STATE_COPY_DEST);
-                commandList->ResourceBarrier(1, &toCopyDest);
-                defaultState = D3D12_RESOURCE_STATE_COPY_DEST;
-            }
-
-            for (const RENDER3D::MATERIAL::GpuMaterialUploadRange& range : ranges) {
-                if (range.slotCount == 0u) {
-                    continue;
-                }
-                const UINT64 byteOffset =
-                    static_cast<UINT64>(elementStride) * range.firstSlot;
-                const UINT64 byteCount =
-                    static_cast<UINT64>(elementStride) * range.slotCount;
-                commandList->CopyBufferRegion(
-                    defaultResource,
-                    byteOffset,
-                    uploadResource,
-                    byteOffset,
-                    byteCount);
-            }
-
-            const D3D12_RESOURCE_STATES shaderState =
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            const auto toShader = CD3DX12_RESOURCE_BARRIER::Transition(
-                defaultResource,
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                shaderState);
-            commandList->ResourceBarrier(1, &toShader);
-            defaultState = shaderState;
-        }
-
-        void BindActiveFrameResources(uint32_t frameIndex) {
-            g.activeFrameResourceIndex = frameIndex % GFX::kFrameResourceCount;
-            MeshRendererFrameResources& frame =
-                g.frameResources[g.activeFrameResourceIndex];
-
-            g.cameraCB = frame.cameraCB;
-            g.cullingCameraCB = frame.cullingCameraCB;
-            g.objectCB = frame.objectCB;
-            g.objectDataBuffer = frame.objectDataBuffer;
-            g.materialDataBuffer = frame.materialDataBuffer;
-            g.lightCB = frame.lightCB;
-            g.shadowCB = frame.shadowCB;
-            g.skyEnvironmentCB = frame.skyEnvironmentCB;
-            g.jointPaletteCB = frame.jointPaletteCB;
-
-            g.cameraMapped = frame.cameraMapped;
-            g.cullingCameraMapped = frame.cullingCameraMapped;
-            g.objectMapped = frame.objectMapped;
-            g.objectDataMapped = frame.objectDataMapped;
-            g.materialDataMapped = frame.materialDataMapped;
-            g.lightMapped = frame.lightMapped;
-            g.shadowMapped = frame.shadowMapped;
-            g.skyEnvironmentMapped = frame.skyEnvironmentMapped;
-            g.jointPaletteMapped = frame.jointPaletteMapped;
-
-            g.objectDataSrvCpu = frame.objectDataSrvCpu;
-            g.objectDataSrvGpu = frame.objectDataSrvGpu;
-            g.materialDataSrvCpu = frame.materialDataSrvCpu;
-            g.materialDataSrvGpu = frame.materialDataSrvGpu;
-        }
-
         bool CreateBuffers(ID3D12Device* device) {
-            const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
-            const UINT objectBytes = AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
-            const UINT objectDataBytes = static_cast<UINT>(sizeof(ObjectGpuData) * kMaxObjectCount);
-            const UINT materialDataBytes = static_cast<UINT>(sizeof(MaterialGpuData) * kMaxMaterialDataCount);
-            const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
-            const UINT shadowBytes = AlignConstantBufferSize(sizeof(ShadowCB));
-            const UINT skyEnvironmentBytes = AlignConstantBufferSize(sizeof(SkyEnvironmentCB));
-            const UINT jointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
-            const UINT jointPaletteBytes = jointPaletteStride * kMaxObjectCount;
-
             ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
-            if (srvHeap == nullptr) {
+            if (device == nullptr || srvHeap == nullptr) {
                 return false;
             }
+
             const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                device->GetDescriptorHandleIncrementSize(
+                    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             const UINT surfaceGpuSceneSrvIndex =
                 GFX::DESCRIPTOR::ToFrameIndex(
                     GFX::DESCRIPTOR::SystemSrv::MeshSurfaceGpuSceneFrame0,
                     0u);
             const D3D12_CPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvCpu =
-                GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, surfaceGpuSceneSrvIndex);
+                GFX::DESCRIPTOR::CpuAt(
+                    srvHeap,
+                    descriptorSize,
+                    surfaceGpuSceneSrvIndex);
             const D3D12_GPU_DESCRIPTOR_HANDLE surfaceGpuSceneSrvGpu =
-                GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, surfaceGpuSceneSrvIndex);
+                GFX::DESCRIPTOR::GpuAt(
+                    srvHeap,
+                    descriptorSize,
+                    surfaceGpuSceneSrvIndex);
             if (!g.surfaceGpuSceneBuffer.Initialize(
-                device,
-                surfaceGpuSceneSrvCpu,
-                surfaceGpuSceneSrvGpu,
-                descriptorSize)) {
-                DEBUGLOG::PushRenderError("[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. GPU-driven mesh pass will be unavailable.");
-            }
-
-            D3D12_SHADER_RESOURCE_VIEW_DESC objectDataSrv{};
-            objectDataSrv.Format = DXGI_FORMAT_UNKNOWN;
-            objectDataSrv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-            objectDataSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            objectDataSrv.Buffer.FirstElement = 0;
-            objectDataSrv.Buffer.NumElements = kMaxObjectCount;
-            objectDataSrv.Buffer.StructureByteStride = sizeof(ObjectGpuData);
-            objectDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-
-            D3D12_SHADER_RESOURCE_VIEW_DESC materialDataSrv{};
-            materialDataSrv.Format = DXGI_FORMAT_UNKNOWN;
-            materialDataSrv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-            materialDataSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            materialDataSrv.Buffer.FirstElement = 0;
-            materialDataSrv.Buffer.NumElements = kMaxMaterialDataCount;
-            materialDataSrv.Buffer.StructureByteStride = sizeof(MaterialGpuData);
-            materialDataSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-
-            for (uint32_t frameIndex = 0; frameIndex < GFX::kFrameResourceCount; ++frameIndex) {
-                MeshRendererFrameResources& frame = g.frameResources[frameIndex];
-
-                if (!CreateMappedUploadBuffer(
                     device,
-                    cameraBytes,
-                    frame.cameraCB,
-                    reinterpret_cast<void**>(&frame.cameraMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        cameraBytes,
-                        frame.cullingCameraCB,
-                        reinterpret_cast<void**>(&frame.cullingCameraMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        objectBytes,
-                        frame.objectCB,
-                        reinterpret_cast<void**>(&frame.objectMapped)) ||
-                    !CreateGpuResidentMappedBuffer(
-                        device,
-                        objectDataBytes,
-                        frame.objectDataUploadBuffer,
-                        frame.objectDataBuffer,
-                        reinterpret_cast<void**>(&frame.objectDataMapped)) ||
-                    !CreateGpuResidentMappedBuffer(
-                        device,
-                        materialDataBytes,
-                        frame.materialDataUploadBuffer,
-                        frame.materialDataBuffer,
-                        reinterpret_cast<void**>(&frame.materialDataMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        lightBytes,
-                        frame.lightCB,
-                        reinterpret_cast<void**>(&frame.lightMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        shadowBytes,
-                        frame.shadowCB,
-                        reinterpret_cast<void**>(&frame.shadowMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        skyEnvironmentBytes,
-                        frame.skyEnvironmentCB,
-                        reinterpret_cast<void**>(&frame.skyEnvironmentMapped)) ||
-                    !CreateMappedUploadBuffer(
-                        device,
-                        jointPaletteBytes,
-                        frame.jointPaletteCB,
-                        reinterpret_cast<void**>(&frame.jointPaletteMapped))) {
-                    return false;
-                }
-                frame.objectDataState = D3D12_RESOURCE_STATE_COMMON;
-                frame.materialDataState = D3D12_RESOURCE_STATE_COMMON;
-
-                const UINT objectDataSrvIndex =
-                    GFX::DESCRIPTOR::ToFrameIndex(
-                        GFX::DESCRIPTOR::SystemSrv::MeshObjectDataFrame0,
-                        frameIndex);
-                frame.objectDataSrvCpu =
-                    GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
-                frame.objectDataSrvGpu =
-                    GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, objectDataSrvIndex);
-                device->CreateShaderResourceView(
-                    frame.objectDataBuffer.Get(),
-                    &objectDataSrv,
-                    frame.objectDataSrvCpu);
-
-                const UINT materialDataSrvIndex =
-                    GFX::DESCRIPTOR::ToFrameIndex(
-                        GFX::DESCRIPTOR::SystemSrv::MeshMaterialDataFrame0,
-                        frameIndex);
-                frame.materialDataSrvCpu =
-                    GFX::DESCRIPTOR::CpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
-                frame.materialDataSrvGpu =
-                    GFX::DESCRIPTOR::GpuAt(srvHeap, descriptorSize, materialDataSrvIndex);
-                device->CreateShaderResourceView(
-                    frame.materialDataBuffer.Get(),
-                    &materialDataSrv,
-                    frame.materialDataSrvCpu);
+                    surfaceGpuSceneSrvCpu,
+                    surfaceGpuSceneSrvGpu,
+                    descriptorSize)) {
+                DEBUGLOG::PushRenderError(
+                    "[MeshRenderer][WARN] SurfaceGpuScene buffer initialization failed. GPU-driven mesh pass will be unavailable.");
             }
 
-            BindActiveFrameResources(SERVICES::gCtx.frameIndex);
+            if (!g.frameResources.Initialize(device, srvHeap)) {
+                return false;
+            }
+            g.frameResources.Activate(SERVICES::gCtx.frameIndex);
             return true;
         }
 
@@ -894,21 +357,17 @@ namespace HIKARI::MESHRENDERER {
         void CommitActiveMaterialDataFrame(ID3D12GraphicsCommandList* commandList) {
             CPU_PROFILE::ScopedCpuTimer cpuTimer(
                 CPU_PROFILE::Pass::MaterialPrepare);
-            MeshRendererFrameResources& frame =
-                g.frameResources[g.activeFrameResourceIndex % GFX::kFrameResourceCount];
+            MeshRendererFrameResources& frame = ActiveFrameResources();
             if (!g.gpuMaterialRegistry.StageFrame(
-                    g.activeFrameResourceIndex,
+                    g.frameResources.GetActiveFrameIndex(),
                     frame.materialDataMapped,
                     kMaxMaterialDataCount,
                     g.materialUploadRanges)) {
                 return;
             }
 
-            CommitMappedBufferRangesToGpu(
+            g.frameResources.CommitActiveMaterialRanges(
                 commandList,
-                frame.materialDataUploadBuffer.Get(),
-                frame.materialDataBuffer.Get(),
-                frame.materialDataState,
                 sizeof(MaterialGpuData),
                 g.materialUploadRanges);
 
@@ -1161,7 +620,8 @@ namespace HIKARI::MESHRENDERER {
             workContext.passMask = passMask;
             workContext.collectCounterReadback = collectCounterReadback;
             workContext.emitTraditionalDrawArgs =
-                HasGpuDrivenTraditionalIndirectCommands();
+                g.traditionalIndirectOwner.HasSourceCommands(
+                    g.gpuDrivenSceneSource);
             if (depthPyramid != nullptr &&
                 depthPyramid->valid &&
                 depthPyramid->pyramidSrv.ptr != 0 &&
@@ -1895,36 +1355,51 @@ namespace HIKARI::MESHRENDERER {
             uint32_t overrideScreenWidth = 0,
             uint32_t overrideScreenHeight = 0,
             const MeshFrameCameraOverrides* cameraOverrides = nullptr) {
-            if (g.cameraMapped == nullptr || g.cullingCameraMapped == nullptr || g.lightMapped == nullptr || g.shadowMapped == nullptr || g.skyEnvironmentMapped == nullptr) {
+            MeshRendererFrameResources& frameResources = ActiveFrameResources();
+            if (frameResources.cameraMapped == nullptr ||
+                frameResources.cullingCameraMapped == nullptr ||
+                frameResources.lightMapped == nullptr ||
+                frameResources.shadowMapped == nullptr ||
+                frameResources.skyEnvironmentMapped == nullptr) {
                 return false;
             }
 
-            g.cameraMapped->viewProj =
+            frameResources.cameraMapped->viewProj =
                 cameraOverrides != nullptr && cameraOverrides->HasRenderMatrices()
                     ? *cameraOverrides->renderViewProj
                     : camera.GetViewProj();
-            g.cameraMapped->invViewProj =
+            frameResources.cameraMapped->invViewProj =
                 cameraOverrides != nullptr && cameraOverrides->HasRenderMatrices()
                     ? *cameraOverrides->renderInvViewProj
-                    : MATH::Inverse(g.cameraMapped->viewProj);
+                    : MATH::Inverse(frameResources.cameraMapped->viewProj);
             const MATH::Vec3 cameraPos = camera.GetPosition();
-            g.cameraMapped->cameraPos = { cameraPos.x, cameraPos.y, cameraPos.z, 1.0f };
+            frameResources.cameraMapped->cameraPos = {
+                cameraPos.x,
+                cameraPos.y,
+                cameraPos.z,
+                1.0f
+            };
             const FrameContext& frame = TIME::GetFrameContext();
             g.elapsedTimeSec += std::max(0.0f, frame.unscaledDt);
-            g.cameraMapped->timeParams = { g.elapsedTimeSec, frame.unscaledDt, frame.gameDt, static_cast<float>(frame.frameIndex) };
+            frameResources.cameraMapped->timeParams = {
+                g.elapsedTimeSec,
+                frame.unscaledDt,
+                frame.gameDt,
+                static_cast<float>(frame.frameIndex)
+            };
             int screenW = static_cast<int>(overrideScreenWidth);
             int screenH = static_cast<int>(overrideScreenHeight);
             if (screenW <= 0 || screenH <= 0) {
                 screenW = std::max(1, SERVICES::gCtx.backBufferWidth);
                 screenH = std::max(1, SERVICES::gCtx.backBufferHeight);
             }
-            g.cameraMapped->screenParams = {
+            frameResources.cameraMapped->screenParams = {
                 static_cast<float>(screenW),
                 static_cast<float>(screenH),
                 1.0f / static_cast<float>(screenW),
                 1.0f / static_cast<float>(screenH)
             };
-            CameraCB cullingCamera = *g.cameraMapped;
+            CameraCB cullingCamera = *frameResources.cameraMapped;
             if (cameraOverrides != nullptr && cameraOverrides->HasCullingMatrices()) {
                 cullingCamera.viewProj = *cameraOverrides->cullingViewProj;
                 cullingCamera.invViewProj = *cameraOverrides->cullingInvViewProj;
@@ -1941,19 +1416,25 @@ namespace HIKARI::MESHRENDERER {
                     g.frozenCullingCameraWidth = cullingWidth;
                     g.frozenCullingCameraHeight = cullingHeight;
                 }
-                *g.cullingCameraMapped = g.frozenCullingCamera;
+                *frameResources.cullingCameraMapped = g.frozenCullingCamera;
             } else {
                 g.frozenCullingCameraValid = false;
                 g.frozenCullingCameraWidth = 0;
                 g.frozenCullingCameraHeight = 0;
-                *g.cullingCameraMapped = cullingCamera;
+                *frameResources.cullingCameraMapped = cullingCamera;
             }
             g.debugStats.gpuDrivenCullingCameraFrozen =
                 g.freezeGpuDrivenCullingCamera && g.frozenCullingCameraValid;
 
-            FillLightCB(environment, debugView, *g.lightMapped, g.debugStats);
-            FillShadowCB(environment, *g.shadowMapped);
-            FillSkyEnvironmentCB(environment, *g.skyEnvironmentMapped);
+            FillLightCB(
+                environment,
+                debugView,
+                *frameResources.lightMapped,
+                g.debugStats);
+            FillShadowCB(environment, *frameResources.shadowMapped);
+            FillSkyEnvironmentCB(
+                environment,
+                *frameResources.skyEnvironmentMapped);
             return true;
         }
 
@@ -1962,28 +1443,35 @@ namespace HIKARI::MESHRENDERER {
             MeshDrawPassKind passKind,
             const MeshPassResources& passResources) {
             MeshDrawContext ctx{};
+            MeshRendererFrameResources& frame = ActiveFrameResources();
             ctx.cmd = SERVICES::gCtx.cmdList;
             ctx.staticRootSig = GetStaticRootSignature(g.pipelines);
             ctx.skinnedRootSig = GetSkinnedRootSignature(g.pipelines);
-            ctx.objectCB = g.objectCB.Get();
-            ctx.objectDataBuffer = g.objectDataBuffer.Get();
-            ctx.materialDataBuffer = g.materialDataBuffer.Get();
-            ctx.jointPaletteCB = g.jointPaletteCB.Get();
-            ctx.objectMapped = g.objectMapped;
-            ctx.objectDataMapped = g.objectDataMapped;
-            ctx.materialDataMapped = g.materialDataMapped;
-            ctx.jointPaletteMapped = g.jointPaletteMapped;
+            ctx.objectCB = frame.objectCB.Get();
+            ctx.objectDataBuffer = frame.objectDataBuffer.Get();
+            ctx.materialDataBuffer = frame.materialDataBuffer.Get();
+            ctx.jointPaletteCB = frame.jointPaletteCB.Get();
+            ctx.objectMapped = frame.objectMapped;
+            ctx.objectDataMapped = frame.objectDataMapped;
+            ctx.materialDataMapped = frame.materialDataMapped;
+            ctx.jointPaletteMapped = frame.jointPaletteMapped;
             ctx.gpuMaterialRegistry = &g.gpuMaterialRegistry;
-            ctx.objectDataSrv = g.objectDataSrvGpu;
-            ctx.materialDataSrv = g.materialDataSrvGpu;
+            ctx.objectDataSrv = frame.objectDataSrvGpu;
+            ctx.materialDataSrv = frame.materialDataSrvGpu;
             ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
             ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
             ctx.traditionalCommandStreamBuffer = &g.traditionalCommandStreamBuffer;
             ctx.cameraAddress = ResolveCameraAddressForPass(passKind);
             ctx.cullingCameraAddress = ResolveCullingCameraAddress();
-            ctx.lightAddress = g.lightCB ? g.lightCB->GetGPUVirtualAddress() : 0;
-            ctx.shadowAddress = g.shadowCB ? g.shadowCB->GetGPUVirtualAddress() : 0;
-            ctx.skyEnvironmentAddress = g.skyEnvironmentCB ? g.skyEnvironmentCB->GetGPUVirtualAddress() : 0;
+            ctx.lightAddress = frame.lightCB
+                ? frame.lightCB->GetGPUVirtualAddress()
+                : 0;
+            ctx.shadowAddress = frame.shadowCB
+                ? frame.shadowCB->GetGPUVirtualAddress()
+                : 0;
+            ctx.skyEnvironmentAddress = frame.skyEnvironmentCB
+                ? frame.skyEnvironmentCB->GetGPUVirtualAddress()
+                : 0;
             ctx.passKind = passKind;
             ctx.binding.cmd = ctx.cmd;
             ctx.binding.depthAwarePhase = depthAwarePhase;
@@ -2020,8 +1508,11 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
-            const uint32_t width = static_cast<uint32_t>(std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.x : 1.0f));
-            const uint32_t height = static_cast<uint32_t>(std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.y : 1.0f));
+            const CameraCB* camera = ActiveFrameResources().cameraMapped;
+            const uint32_t width = static_cast<uint32_t>(
+                std::max(1.0f, camera ? camera->screenParams.x : 1.0f));
+            const uint32_t height = static_cast<uint32_t>(
+                std::max(1.0f, camera ? camera->screenParams.y : 1.0f));
             if (!geometryAux.EnsureSize(width, height)) {
                 return false;
             }
@@ -2054,10 +1545,11 @@ namespace HIKARI::MESHRENDERER {
                 return false;
             }
 
+            const CameraCB* camera = ActiveFrameResources().cameraMapped;
             const uint32_t width = static_cast<uint32_t>(
-                std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.x : 1.0f));
+                std::max(1.0f, camera ? camera->screenParams.x : 1.0f));
             const uint32_t height = static_cast<uint32_t>(
-                std::max(1.0f, g.cameraMapped ? g.cameraMapped->screenParams.y : 1.0f));
+                std::max(1.0f, camera ? camera->screenParams.y : 1.0f));
             D3D12_VIEWPORT viewport{};
             viewport.Width = static_cast<float>(width);
             viewport.Height = static_cast<float>(height);
@@ -2078,6 +1570,61 @@ namespace HIKARI::MESHRENDERER {
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::DepthPrepass,
                     passResources);
             return backendResult.gpuBackendExecuted;
+        }
+
+        bool BeginFrameInternal(
+            const Camera3D& camera,
+            const SceneEnvironment& environment,
+            uint32_t screenWidth,
+            uint32_t screenHeight,
+            RenderDebugView debugView,
+            const MeshFrameCameraOverrides* cameraOverrides) {
+
+            if (!EnsureInitialized()) {
+                return false;
+            }
+
+            g.frameResources.Activate(SERVICES::gCtx.frameIndex);
+            g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
+            g.gpuMaterialRegistry.BeginFrame();
+            // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
+            if (!PrepareMeshFrame(
+                    camera,
+                    environment,
+                    debugView,
+                    screenWidth,
+                    screenHeight,
+                    cameraOverrides)) {
+                return false;
+            }
+
+            ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
+            if (cmd == nullptr ||
+                !g.frameResources.HasActiveDrawResources()) {
+                return false;
+            }
+
+            g.frameObjectIndex = 0;
+            SyncSurfaceGpuSceneMaterialFrame();
+            CommitActiveMaterialDataFrame(cmd);
+            if (HasGpuDrivenSceneSource()) {
+                g.traditionalIndirectOwner.RefreshForActivePipeline(
+                    g.gpuDrivenSceneSource,
+                    BuildTraditionalIndirectHydrationContext());
+                PrepareGpuDrivenFrameState();
+            } else {
+                ResetGpuDrivenFrameState();
+            }
+
+            cmd->IASetPrimitiveTopology(
+                D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            ID3D12DescriptorHeap* srvHeap =
+                RENDER3D::GetTextureResourceSrvHeap();
+            if (srvHeap != nullptr) {
+                ID3D12DescriptorHeap* heaps[] = { srvHeap };
+                cmd->SetDescriptorHeaps(1, heaps);
+            }
+            return true;
         }
 
     }
@@ -2122,15 +1669,17 @@ namespace HIKARI::MESHRENDERER {
         }
 
         g.gpuDrivenSceneSource.Reset();
-        ClearOwnedTraditionalIndirectStreams();
+        g.traditionalIndirectOwner.Clear();
         g.gpuDrivenSceneSourceIdentity = source;
         if (source == nullptr) {
             g.gpuMaterialRegistry.Clear();
             return;
         }
         g.gpuDrivenSceneSource = *source;
-        CopyOwnedTraditionalIndirectStreamsFromSceneSource();
-        AttachOwnedTraditionalIndirectStreamsToSceneSource();
+        g.traditionalIndirectOwner.CopyFromSceneSource(
+            g.gpuDrivenSceneSource);
+        g.traditionalIndirectOwner.AttachToSceneSource(
+            g.gpuDrivenSceneSource);
     }
 
     bool HasSubmittedItems() {
@@ -2141,44 +1690,13 @@ namespace HIKARI::MESHRENDERER {
         const Camera3D& camera,
         const SceneEnvironment& environment,
         RenderDebugView debugView) {
-        if (!EnsureInitialized()) {
-            return false;
-        }
-        BindActiveFrameResources(SERVICES::gCtx.frameIndex);
-        g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
-        g.gpuMaterialRegistry.BeginFrame();
-        if (!PrepareMeshFrame(camera, environment, debugView)) {
-            return false;
-        }
-
-        ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-        if (cmd == nullptr ||
-            g.objectMapped == nullptr ||
-            g.objectCB == nullptr ||
-            g.objectDataMapped == nullptr ||
-            g.objectDataBuffer == nullptr ||
-            g.materialDataMapped == nullptr ||
-            g.materialDataBuffer == nullptr) {
-            return false;
-        }
-
-        g.frameObjectIndex = 0;
-        SyncSurfaceGpuSceneMaterialFrame();
-        CommitActiveMaterialDataFrame(cmd);
-        if (HasGpuDrivenSceneSource()) {
-            RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
-            PrepareGpuDrivenFrameState();
-        } else {
-            ResetGpuDrivenFrameState();
-        }
-        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
-        if (srvHeap != nullptr) {
-            ID3D12DescriptorHeap* heaps[] = { srvHeap };
-            cmd->SetDescriptorHeaps(1, heaps);
-        }
-
-        return true;
+        return BeginFrameInternal(
+            camera,
+            environment,
+            0u,
+            0u,
+            debugView,
+            nullptr);
     }
 
     bool BeginFrame(
@@ -2188,52 +1706,13 @@ namespace HIKARI::MESHRENDERER {
         uint32_t screenHeight,
         RenderDebugView debugView,
         const MeshFrameCameraOverrides* cameraOverrides) {
-
-        if (!EnsureInitialized()) {
-            return false;
-        }
-        BindActiveFrameResources(SERVICES::gCtx.frameIndex);
-        g.materialResolver.BeginFrame(kMaxMaterialTextureGpuLoadsPerFrame);
-        g.gpuMaterialRegistry.BeginFrame();
-        // Capture 逕ｨ縺ｮ蝗ｺ螳夊ｧ｣蜒丞ｺｦ繧・camera constants 縺ｫ蜿肴丐縺吶ｋ縲・
-        if (!PrepareMeshFrame(
-                camera,
-                environment,
-                debugView,
-                screenWidth,
-                screenHeight,
-                cameraOverrides)) {
-            return false;
-        }
-
-        ID3D12GraphicsCommandList* cmd = SERVICES::gCtx.cmdList;
-        if (cmd == nullptr ||
-            g.objectMapped == nullptr ||
-            g.objectCB == nullptr ||
-            g.objectDataMapped == nullptr ||
-            g.objectDataBuffer == nullptr ||
-            g.materialDataMapped == nullptr ||
-            g.materialDataBuffer == nullptr) {
-            return false;
-        }
-
-        g.frameObjectIndex = 0;
-        SyncSurfaceGpuSceneMaterialFrame();
-        CommitActiveMaterialDataFrame(cmd);
-        if (HasGpuDrivenSceneSource()) {
-            RefreshGpuDrivenTraditionalIndirectStreamsForActivePipeline();
-            PrepareGpuDrivenFrameState();
-        } else {
-            ResetGpuDrivenFrameState();
-        }
-        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
-        if (srvHeap != nullptr) {
-            ID3D12DescriptorHeap* heaps[] = { srvHeap };
-            cmd->SetDescriptorHeaps(1, heaps);
-        }
-
-        return true;
+        return BeginFrameInternal(
+            camera,
+            environment,
+            screenWidth,
+            screenHeight,
+            debugView,
+            cameraOverrides);
     }
 
     void SetGpuDrivenCullingCameraFreezeEnabled(bool enabled) {
@@ -2255,13 +1734,14 @@ namespace HIKARI::MESHRENDERER {
     }
 
     const CameraCB* GetCameraConstants() {
-        return g.cameraMapped;
+        return ActiveFrameResources().cameraMapped;
     }
 
     const CameraCB* GetGpuDrivenCullingCameraConstants() {
-        return g.cullingCameraMapped != nullptr
-            ? g.cullingCameraMapped
-            : g.cameraMapped;
+        const MeshRendererFrameResources& frame = ActiveFrameResources();
+        return frame.cullingCameraMapped != nullptr
+            ? frame.cullingCameraMapped
+            : frame.cameraMapped;
     }
 
     bool RenderGeometryAuxPass(
@@ -2382,8 +1862,10 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void SetAmbientOcclusionRuntimeEnabled(bool enabled) {
-        if (g.skyEnvironmentMapped != nullptr) {
-            g.skyEnvironmentMapped->aoParams.x = enabled ? 1.0f : 0.0f;
+        SkyEnvironmentCB* skyEnvironment =
+            ActiveFrameResources().skyEnvironmentMapped;
+        if (skyEnvironment != nullptr) {
+            skyEnvironment->aoParams.x = enabled ? 1.0f : 0.0f;
         }
     }
 
@@ -2455,25 +1937,30 @@ namespace HIKARI::MESHRENDERER {
         // Skinned records carry the current palette in the traditional
         // sidecar. They are appended separately and deduplicated by object and
         // geometry identity.
-        const OwnedTraditionalIndirectStream& stream =
-            gOwnedTraditionalIndirectStreams[
-                RENDER3D::GPUDRIVEN::ToPassIndex(
-                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)];
-        for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : stream.commands) {
+        const RENDER3D::GPUDRIVEN::GpuDrivenTraditionalIndirectView stream =
+            g.traditionalIndirectOwner.GetView(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+        if (stream.commands == nullptr ||
+            stream.executableRecordIndices == nullptr ||
+            stream.records == nullptr ||
+            stream.jointPalettes == nullptr) {
+            return;
+        }
+        for (const RENDER3D::RUNTIME::SurfaceDrawCommand& command : *stream.commands) {
             if (!command.drawArgsValid ||
                 !command.HasTriangleMeshGpuView() ||
-                command.firstExecutableIndex >= stream.executableRecordIndices.size()) {
+                command.firstExecutableIndex >= stream.executableRecordIndices->size()) {
                 continue;
             }
             const uint32_t recordIndex =
-                stream.executableRecordIndices[command.firstExecutableIndex];
-            if (recordIndex >= stream.records.size() ||
-                recordIndex >= stream.jointPalettes.size()) {
+                (*stream.executableRecordIndices)[command.firstExecutableIndex];
+            if (recordIndex >= stream.records->size() ||
+                recordIndex >= stream.jointPalettes->size()) {
                 continue;
             }
             const RENDER3D::GPUDRIVEN::GpuSceneSurfaceRecord& record =
-                stream.records[recordIndex];
-            if (!record.skinned || stream.jointPalettes[recordIndex].empty()) {
+                (*stream.records)[recordIndex];
+            if (!record.skinned || (*stream.jointPalettes)[recordIndex].empty()) {
                 continue;
             }
 
@@ -2488,7 +1975,7 @@ namespace HIKARI::MESHRENDERER {
             draw.skinned = true;
             draw.doubleSided = record.key.doubleSided;
             draw.alphaMasked = record.key.alphaMasked;
-            draw.jointPalette = &stream.jointPalettes[recordIndex];
+            draw.jointPalette = &(*stream.jointPalettes)[recordIndex];
             outDraws.push_back(draw);
         }
     }

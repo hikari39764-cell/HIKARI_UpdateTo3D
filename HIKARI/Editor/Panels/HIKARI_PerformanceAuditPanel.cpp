@@ -618,6 +618,10 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullGpuLod1SelectedCount,
                     s.mesh.clusterGpuCullGpuLod2SelectedCount,
                     s.mesh.clusterGpuCullGpuLod3PlusSelectedCount);
+                MetricRow("Double Sided Clusters / Draw Args / Cone Skips", "%zu / %zu / %zu",
+                    s.mesh.clusterGpuCullGpuDoubleSidedClusterCount,
+                    s.mesh.clusterGpuCullGpuDoubleSidedDrawCommandCount,
+                    s.mesh.clusterGpuCullGpuConeSkippedDoubleSidedCount);
                 MetricRow("LOD Policy Error / Radius Relax / Error Relax", "%.4f / %.2f / %.2f",
                     s.mesh.clusterGpuCullLodTargetErrorNdc,
                     s.mesh.clusterGpuCullLodTransitionRelaxPerLevel,
