@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeEditor.h"
+#include "Editor/Workspaces/HIKARI_CameraTimelineShotEditor.h"
 #include "Scene/HIKARI_CinematicSequence.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
@@ -17,7 +19,7 @@ namespace HIKARI::EDITOR {
     public:
         CameraTimelineCanvasResult Draw(
             const SceneDocument& document,
-            CameraCinematicSequence& sequence,
+            CinematicSequence& sequence,
             float playheadTimeSeconds,
             bool playing,
             bool editingAllowed);
@@ -28,25 +30,31 @@ namespace HIKARI::EDITOR {
         void SetSelectedShotId(uint64_t shotId) noexcept;
         float GetPixelsPerSecond() const noexcept;
         void SetPixelsPerSecond(float pixelsPerSecond) noexcept;
+        bool IsSnapEnabled() const noexcept;
+        void SetSnapEnabled(bool enabled) noexcept;
+        int GetSnapFramesPerSecond() const noexcept;
+        void SetSnapFramesPerSecond(int framesPerSecond) noexcept;
+        bool HasSelectedKeyframe() const noexcept;
+        bool DeleteSelectedKeyframe(CinematicSequence& sequence);
+        bool DrawSelectedKeyframeInspector(
+            CinematicSequence& sequence,
+            bool editingAllowed);
+        void SelectTransformKeyframe(
+            SEQUENCER::SequenceBindingId bindingId,
+            uint64_t keyframeId) noexcept;
+        void SelectLensKeyframe(
+            SEQUENCER::SequenceBindingId bindingId,
+            uint64_t keyframeId) noexcept;
 
     private:
-        enum class DragMode : uint8_t {
-            None,
-            Move,
-            ResizeLeft,
-            ResizeRight,
-        };
-
         float pixelsPerSecond_ = 90.0f;
         float scrollTimeSeconds_ = 0.0f;
-        uint64_t selectedShotId_ = 0;
-        uint64_t draggedShotId_ = 0;
-        DragMode dragMode_ = DragMode::None;
-        float dragStartMouseX_ = 0.0f;
-        float dragStartShotTime_ = 0.0f;
-        float dragStartShotDuration_ = 0.0f;
         float panStartMouseX_ = 0.0f;
         float panStartScrollTime_ = 0.0f;
+        CameraTimelineShotEditor shotEditor_{};
+        CameraTimelineKeyframeEditor keyframeEditor_{};
+        int snapFramesPerSecond_ = 30;
+        bool snapEnabled_ = true;
         bool scrubbing_ = false;
         bool panning_ = false;
     };

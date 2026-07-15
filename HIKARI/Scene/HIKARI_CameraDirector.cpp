@@ -96,6 +96,7 @@ namespace HIKARI {
     void CameraDirector::Reset() {
         baseCameraObjectId_ = {};
         activeSourceCameraObjectId_ = {};
+        activeOverrideToken_ = {};
         overrides_.clear();
         resolvedFrame_ = {};
         controlCamera_ = {};
@@ -177,6 +178,47 @@ namespace HIKARI {
         return true;
     }
 
+    bool CameraDirector::SetOverrideCamera(
+        CameraOverrideToken token,
+        const Camera3D& camera) {
+
+        if (!token.IsValid() || token.epoch != epoch_) {
+            return false;
+        }
+        const auto found = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [token](const OverrideEntry& entry) {
+                return entry.token.value == token.value &&
+                    entry.token.epoch == token.epoch;
+            });
+        if (found == overrides_.end()) {
+            return false;
+        }
+        found->cameraOverride = camera;
+        found->hasCameraOverride = true;
+        return true;
+    }
+
+    bool CameraDirector::ClearOverrideCamera(CameraOverrideToken token) {
+        if (!token.IsValid() || token.epoch != epoch_) {
+            return false;
+        }
+        const auto found = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [token](const OverrideEntry& entry) {
+                return entry.token.value == token.value &&
+                    entry.token.epoch == token.epoch;
+            });
+        if (found == overrides_.end()) {
+            return false;
+        }
+        found->hasCameraOverride = false;
+        found->cameraOverride = {};
+        return true;
+    }
+
     bool CameraDirector::HasActiveOverride() const noexcept {
         return !overrides_.empty();
     }
@@ -195,6 +237,10 @@ namespace HIKARI {
         const SceneObjectId requestedSource = winningOverride != nullptr
             ? winningOverride->request.cameraObjectId
             : baseCameraObjectId_;
+        const CameraOverrideToken requestedOverrideToken =
+            winningOverride != nullptr
+                ? winningOverride->token
+                : CameraOverrideToken{};
 
         Camera3D targetCamera{};
         const bool requestedSourceValid = TryResolveCameraObject(
@@ -202,6 +248,15 @@ namespace HIKARI {
             requestedSource,
             resolvedAspect,
             targetCamera);
+        if (requestedSourceValid && winningOverride != nullptr &&
+            winningOverride->hasCameraOverride) {
+            targetCamera = winningOverride->cameraOverride;
+            targetCamera.SetPerspective(
+                targetCamera.GetFovYRad(),
+                resolvedAspect,
+                targetCamera.GetNearZ(),
+                targetCamera.GetFarZ());
+        }
         if (!requestedSourceValid) {
             targetCamera = fallbackCamera;
             targetCamera.SetPerspective(
@@ -217,6 +272,8 @@ namespace HIKARI {
         const bool sourceChanged =
             !resolvedFrame_.valid ||
             !(activeSourceCameraObjectId_ == requestedSource) ||
+            activeOverrideToken_.value != requestedOverrideToken.value ||
+            activeOverrideToken_.epoch != requestedOverrideToken.epoch ||
             resolvedFrame_.sourceCameraObjectId != resolvedSource.value;
 
         if (sourceChanged) {
@@ -231,6 +288,7 @@ namespace HIKARI {
             }
 
             activeSourceCameraObjectId_ = requestedSource;
+            activeOverrideToken_ = requestedOverrideToken;
             BeginSourceTransition(resolvedSource, targetCamera, transitionBlend);
         }
 

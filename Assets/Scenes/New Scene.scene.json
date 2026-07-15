@@ -2,6 +2,59 @@
   "camera": {
     "defaultCameraObjectId": 2
   },
+  "cinematics": {
+    "defaultSequenceId": 1,
+    "sequences": [
+      {
+        "bindings": [
+          {
+            "id": 1,
+            "name": "Binding 1",
+            "sceneObjectId": 2,
+            "targetKind": "sceneObject"
+          },
+          {
+            "id": 2,
+            "name": "Binding 2",
+            "sceneObjectId": 3,
+            "targetKind": "sceneObject"
+          }
+        ],
+        "durationSeconds": 10.0,
+        "id": 1,
+        "name": "Main Sequence",
+        "tracks": [
+          {
+            "clips": [
+              {
+                "cameraBindingId": 1,
+                "durationSeconds": 2.0,
+                "id": 1,
+                "startTimeSeconds": 0.0,
+                "transition": {
+                  "durationSeconds": 0.0,
+                  "mode": "cut"
+                }
+              },
+              {
+                "cameraBindingId": 2,
+                "durationSeconds": 2.0,
+                "id": 2,
+                "startTimeSeconds": 1.9777778387069702,
+                "transition": {
+                  "durationSeconds": 0.5,
+                  "mode": "easeInOut"
+                }
+              }
+            ],
+            "enabled": true,
+            "id": 1,
+            "type": "cameraCut"
+          }
+        ]
+      }
+    ]
+  },
   "environment": {
     "ambient": {
       "color": [
@@ -369,7 +422,7 @@
       "components": [
         {
           "properties": {
-            "enabled": false,
+            "enabled": true,
             "farClip": 82.60199737548828,
             "nearClip": 0.6010000109672546,
             "verticalFovDegrees": 73.19999694824219
@@ -398,6 +451,42 @@
           0.9343090653419495,
           1.162758708000183,
           1.8899997472763062
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "enabled": true,
+            "farClip": 100.0,
+            "nearClip": 0.10000000149011612,
+            "verticalFovDegrees": 60.0
+          },
+          "type": "CameraComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 3,
+      "name": "GameObject_3",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -6.711541652679443,
+          6.71356725692749,
+          -6.637121200561523
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
         ]
       }
     }

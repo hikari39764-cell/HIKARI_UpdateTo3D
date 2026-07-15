@@ -13,54 +13,10 @@ namespace HIKARI::EDITOR {
     namespace {
         constexpr float kTimelineRulerHeight = 28.0f;
         constexpr float kTimelineTrackHeight = 58.0f;
+        constexpr float kTimelineKeyframeTrackHeight = 40.0f;
         constexpr float kTimelineTrackLabelWidth = 112.0f;
-        constexpr float kShotEdgeGrabWidth = 7.0f;
-
-        CinematicShotClip* FindShot(
-            CameraCinematicSequence& sequence,
-            uint64_t shotId) {
-
-            const auto found = std::find_if(
-                sequence.shots.begin(),
-                sequence.shots.end(),
-                [shotId](const CinematicShotClip& shot) {
-                    return shot.id == shotId;
-                });
-            return found != sequence.shots.end() ? &*found : nullptr;
-        }
-
-        const char* CameraLabel(
-            const SceneDocument& document,
-            SceneObjectId cameraObjectId) {
-
-            const auto found = std::find_if(
-                document.objects.begin(),
-                document.objects.end(),
-                [cameraObjectId](const SceneObjectData& object) {
-                    return object.id == cameraObjectId;
-                });
-            return found != document.objects.end() && !found->name.empty()
-                ? found->name.c_str()
-                : "Missing Camera";
-        }
 
 #if defined(HIKARI_WITH_EDITOR)
-        ImU32 ShotColor(SceneObjectId cameraObjectId, bool selected) {
-            const uint32_t hash = static_cast<uint32_t>(
-                cameraObjectId.value ^ (cameraObjectId.value >> 32u));
-            const float hue = static_cast<float>(hash % 360u) / 360.0f;
-            ImVec4 color{};
-            ImGui::ColorConvertHSVtoRGB(
-                hue,
-                selected ? 0.55f : 0.48f,
-                selected ? 0.92f : 0.72f,
-                color.x,
-                color.y,
-                color.z);
-            color.w = 1.0f;
-            return ImGui::ColorConvertFloat4ToU32(color);
-        }
-
         float ChooseMajorTickStep(float pixelsPerSecond) {
             if (pixelsPerSecond >= 150.0f) {
                 return 0.5f;
@@ -78,7 +34,7 @@ namespace HIKARI::EDITOR {
 
     CameraTimelineCanvasResult CameraTimelineCanvas::Draw(
         const SceneDocument& document,
-        CameraCinematicSequence& sequence,
+        CinematicSequence& sequence,
         float playheadTimeSeconds,
         bool playing,
         bool editingAllowed) {
@@ -89,7 +45,10 @@ namespace HIKARI::EDITOR {
         const ImVec2 canvasPosition = ImGui::GetCursorScreenPos();
         ImVec2 canvasSize = ImGui::GetContentRegionAvail();
         canvasSize.x = (std::max)(canvasSize.x, 320.0f);
-        canvasSize.y = (std::max)(canvasSize.y, 104.0f);
+        canvasSize.y = (std::max)(
+            canvasSize.y,
+            kTimelineRulerHeight + kTimelineTrackHeight +
+                kTimelineKeyframeTrackHeight * 2.0f + 8.0f);
         ImGui::InvisibleButton(
             "##CameraTimelineCanvas",
             canvasSize,
@@ -104,6 +63,14 @@ namespace HIKARI::EDITOR {
         const float trackTop = canvasPosition.y + kTimelineRulerHeight;
         const float trackBottom = (std::min)(
             trackTop + kTimelineTrackHeight,
+            canvasPosition.y + canvasSize.y);
+        const float transformTrackTop = trackBottom;
+        const float transformTrackBottom = (std::min)(
+            transformTrackTop + kTimelineKeyframeTrackHeight,
+            canvasPosition.y + canvasSize.y);
+        const float lensTrackTop = transformTrackBottom;
+        const float lensTrackBottom = (std::min)(
+            lensTrackTop + kTimelineKeyframeTrackHeight,
             canvasPosition.y + canvasSize.y);
 
         if (canvasHovered && ImGui::GetIO().MouseWheel != 0.0f) {
@@ -179,7 +146,7 @@ namespace HIKARI::EDITOR {
             ImDrawFlags_RoundCornersTop);
         drawList->AddRectFilled(
             ImVec2(canvasPosition.x, trackTop),
-            ImVec2(timelineLeft, trackBottom),
+            ImVec2(timelineLeft, lensTrackBottom),
             labelColor);
         drawList->AddRect(
             canvasPosition,
@@ -194,6 +161,24 @@ namespace HIKARI::EDITOR {
             ImVec2(canvasPosition.x + 10.0f, trackTop + 20.0f),
             IM_COL32(205, 211, 222, 255),
             "Camera Shots");
+        drawList->AddText(
+            ImVec2(
+                canvasPosition.x + 10.0f,
+                transformTrackTop + 12.0f),
+            IM_COL32(205, 211, 222, 255),
+            "Transform");
+        drawList->AddText(
+            ImVec2(canvasPosition.x + 10.0f, lensTrackTop + 12.0f),
+            IM_COL32(205, 211, 222, 255),
+            "Lens");
+        drawList->AddLine(
+            ImVec2(canvasPosition.x, transformTrackTop),
+            ImVec2(timelineRight, transformTrackTop),
+            borderColor);
+        drawList->AddLine(
+            ImVec2(canvasPosition.x, lensTrackTop),
+            ImVec2(timelineRight, lensTrackTop),
+            borderColor);
 
         const float majorStep = ChooseMajorTickStep(pixelsPerSecond_);
         const float firstMajorTime =
@@ -208,7 +193,7 @@ namespace HIKARI::EDITOR {
             }
             drawList->AddLine(
                 ImVec2(x, canvasPosition.y + 17.0f),
-                ImVec2(x, trackBottom),
+                ImVec2(x, lensTrackBottom),
                 gridColor);
             char timeLabel[32]{};
             std::snprintf(timeLabel, sizeof(timeLabel), "%.1f", time);
@@ -218,69 +203,55 @@ namespace HIKARI::EDITOR {
                 timeLabel);
         }
 
-        CinematicShotClip* hoveredShot = nullptr;
-        DragMode hoveredDragMode = DragMode::None;
         const ImVec2 mousePosition = ImGui::GetIO().MousePos;
-        for (CinematicShotClip& shot : sequence.shots) {
-            const float shotLeft = timelineLeft +
-                (shot.startTimeSeconds - scrollTimeSeconds_) *
-                    pixelsPerSecond_;
-            const float shotRight = shotLeft +
-                shot.durationSeconds * pixelsPerSecond_;
-            const float visibleLeft = (std::max)(shotLeft, timelineLeft);
-            const float visibleRight = (std::min)(shotRight, timelineRight);
-            if (visibleRight <= visibleLeft) {
-                continue;
-            }
+        const CameraTimelineShotEditorResult shotResult = shotEditor_.Draw(
+            document,
+            sequence,
+            CameraTimelineShotLayout{
+                timelineLeft,
+                timelineRight,
+                trackTop,
+                trackBottom,
+                scrollTimeSeconds_,
+                pixelsPerSecond_,
+                canvasHovered,
+                editingAllowed,
+                snapEnabled_,
+                snapFramesPerSecond_
+            });
+        result.sequenceChanged |= shotResult.sequenceChanged;
 
-            const bool selected = shot.id == selectedShotId_;
-            const ImVec2 shotMin{ visibleLeft, trackTop + 8.0f };
-            const ImVec2 shotMax{ visibleRight, trackBottom - 8.0f };
-            drawList->AddRectFilled(
-                shotMin,
-                shotMax,
-                ShotColor(shot.cameraObjectId, selected),
-                4.0f);
-            drawList->AddRect(
-                shotMin,
-                shotMax,
-                selected
-                    ? IM_COL32(255, 222, 126, 255)
-                    : IM_COL32(180, 190, 205, 210),
-                4.0f,
-                ImDrawFlags_None,
-                selected ? 2.0f : 1.0f);
-            drawList->PushClipRect(shotMin, shotMax, true);
-            drawList->AddText(
-                ImVec2(shotMin.x + 8.0f, shotMin.y + 9.0f),
-                IM_COL32(244, 247, 251, 255),
-                CameraLabel(document, shot.cameraObjectId));
-            drawList->PopClipRect();
-
-            if (mousePosition.x >= shotMin.x && mousePosition.x <= shotMax.x &&
-                mousePosition.y >= shotMin.y && mousePosition.y <= shotMax.y) {
-                hoveredShot = &shot;
-                if (std::abs(mousePosition.x - shotLeft) <= kShotEdgeGrabWidth) {
-                    hoveredDragMode = DragMode::ResizeLeft;
-                } else if (std::abs(mousePosition.x - shotRight) <=
-                        kShotEdgeGrabWidth) {
-                    hoveredDragMode = DragMode::ResizeRight;
-                } else {
-                    hoveredDragMode = DragMode::Move;
-                }
-            }
+        const CameraTimelineKeyframeEditorResult keyframeResult =
+            keyframeEditor_.Draw(
+                sequence,
+                CameraTimelineKeyframeLayout{
+                    timelineLeft,
+                    timelineRight,
+                    transformTrackTop,
+                    transformTrackBottom,
+                    lensTrackTop,
+                    lensTrackBottom,
+                    scrollTimeSeconds_,
+                    pixelsPerSecond_,
+                    sequence.durationSeconds,
+                    canvasHovered,
+                    editingAllowed,
+                    snapEnabled_,
+                    static_cast<float>(snapFramesPerSecond_)
+                });
+        result.sequenceChanged |= keyframeResult.sequenceChanged;
+        if (shotResult.selectionChanged) {
+            keyframeEditor_.ClearSelection();
+        }
+        if (keyframeResult.selectionChanged) {
+            shotEditor_.ClearSelection();
         }
 
         if (canvasHovered && editingAllowed &&
-            ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            if (hoveredShot != nullptr) {
-                selectedShotId_ = hoveredShot->id;
-                draggedShotId_ = hoveredShot->id;
-                dragMode_ = hoveredDragMode;
-                dragStartMouseX_ = mousePosition.x;
-                dragStartShotTime_ = hoveredShot->startTimeSeconds;
-                dragStartShotDuration_ = hoveredShot->durationSeconds;
-            } else if (mousePosition.x >= timelineLeft) {
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+            !shotResult.capturedLeftClick &&
+            !keyframeResult.capturedLeftClick) {
+            if (mousePosition.x >= timelineLeft) {
                 scrubbing_ = true;
                 result.playheadChanged = true;
                 result.playheadTimeSeconds = std::clamp(
@@ -288,51 +259,6 @@ namespace HIKARI::EDITOR {
                         (mousePosition.x - timelineLeft) / pixelsPerSecond_,
                     0.0f,
                     sequence.durationSeconds);
-            }
-        }
-
-        if (dragMode_ != DragMode::None) {
-            if (editingAllowed && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                if (CinematicShotClip* shot = FindShot(
-                        sequence,
-                        draggedShotId_)) {
-                    const float deltaTimeSeconds =
-                        (mousePosition.x - dragStartMouseX_) /
-                            pixelsPerSecond_;
-                    const float originalEnd = dragStartShotTime_ +
-                        dragStartShotDuration_;
-                    switch (dragMode_) {
-                    case DragMode::Move:
-                        shot->startTimeSeconds = (std::max)(
-                            0.0f,
-                            dragStartShotTime_ + deltaTimeSeconds);
-                        break;
-                    case DragMode::ResizeLeft:
-                        shot->startTimeSeconds = std::clamp(
-                            dragStartShotTime_ + deltaTimeSeconds,
-                            0.0f,
-                            originalEnd -
-                                kMinCinematicShotDurationSeconds);
-                        shot->durationSeconds = originalEnd -
-                            shot->startTimeSeconds;
-                        break;
-                    case DragMode::ResizeRight:
-                        shot->durationSeconds = (std::max)(
-                            kMinCinematicShotDurationSeconds,
-                            dragStartShotDuration_ + deltaTimeSeconds);
-                        break;
-                    default:
-                        break;
-                    }
-                    sequence.durationSeconds = (std::max)(
-                        sequence.durationSeconds,
-                        shot->startTimeSeconds + shot->durationSeconds);
-                    result.sequenceChanged = true;
-                }
-            } else {
-                dragMode_ = DragMode::None;
-                draggedShotId_ = 0;
-                NormalizeCameraCinematicSequence(sequence);
             }
         }
 
@@ -366,17 +292,6 @@ namespace HIKARI::EDITOR {
                 playheadColor);
         }
 
-        if (canvasHovered && hoveredShot != nullptr) {
-            ImGui::SetMouseCursor(
-                hoveredDragMode == DragMode::Move
-                    ? ImGuiMouseCursor_Hand
-                    : ImGuiMouseCursor_ResizeEW);
-            ImGui::SetTooltip(
-                "%s\nStart %.2f s  Duration %.2f s",
-                CameraLabel(document, hoveredShot->cameraObjectId),
-                hoveredShot->startTimeSeconds,
-                hoveredShot->durationSeconds);
-        }
 #else
         (void)document;
         (void)sequence;
@@ -389,23 +304,29 @@ namespace HIKARI::EDITOR {
     void CameraTimelineCanvas::Reset() {
         pixelsPerSecond_ = 90.0f;
         scrollTimeSeconds_ = 0.0f;
-        selectedShotId_ = 0;
+        snapEnabled_ = true;
+        snapFramesPerSecond_ = 30;
+        shotEditor_.Reset();
+        keyframeEditor_.Reset();
         CancelInteraction();
     }
 
     void CameraTimelineCanvas::CancelInteraction() {
-        draggedShotId_ = 0;
-        dragMode_ = DragMode::None;
+        shotEditor_.CancelInteraction();
         scrubbing_ = false;
         panning_ = false;
+        keyframeEditor_.CancelInteraction();
     }
 
     uint64_t CameraTimelineCanvas::GetSelectedShotId() const noexcept {
-        return selectedShotId_;
+        return shotEditor_.GetSelectedShotId();
     }
 
     void CameraTimelineCanvas::SetSelectedShotId(uint64_t shotId) noexcept {
-        selectedShotId_ = shotId;
+        shotEditor_.SetSelectedShotId(shotId);
+        if (shotId != 0) {
+            keyframeEditor_.ClearSelection();
+        }
     }
 
     float CameraTimelineCanvas::GetPixelsPerSecond() const noexcept {
@@ -416,6 +337,61 @@ namespace HIKARI::EDITOR {
         float pixelsPerSecond) noexcept {
 
         pixelsPerSecond_ = std::clamp(pixelsPerSecond, 24.0f, 220.0f);
+    }
+
+    bool CameraTimelineCanvas::IsSnapEnabled() const noexcept {
+        return snapEnabled_;
+    }
+
+    void CameraTimelineCanvas::SetSnapEnabled(bool enabled) noexcept {
+        snapEnabled_ = enabled;
+    }
+
+    int CameraTimelineCanvas::GetSnapFramesPerSecond() const noexcept {
+        return snapFramesPerSecond_;
+    }
+
+    void CameraTimelineCanvas::SetSnapFramesPerSecond(
+        int framesPerSecond) noexcept {
+
+        snapFramesPerSecond_ = std::clamp(framesPerSecond, 1, 240);
+    }
+
+    bool CameraTimelineCanvas::HasSelectedKeyframe() const noexcept {
+        return keyframeEditor_.HasSelection();
+    }
+
+    bool CameraTimelineCanvas::DeleteSelectedKeyframe(
+        CinematicSequence& sequence) {
+
+        return keyframeEditor_.DeleteSelected(sequence);
+    }
+
+    bool CameraTimelineCanvas::DrawSelectedKeyframeInspector(
+        CinematicSequence& sequence,
+        bool editingAllowed) {
+
+        return keyframeEditor_.DrawSelectedKeyInspector(
+            sequence,
+            editingAllowed,
+            snapEnabled_,
+            static_cast<float>(snapFramesPerSecond_));
+    }
+
+    void CameraTimelineCanvas::SelectTransformKeyframe(
+        SEQUENCER::SequenceBindingId bindingId,
+        uint64_t keyframeId) noexcept {
+
+        shotEditor_.ClearSelection();
+        keyframeEditor_.SelectTransformKeyframe(bindingId, keyframeId);
+    }
+
+    void CameraTimelineCanvas::SelectLensKeyframe(
+        SEQUENCER::SequenceBindingId bindingId,
+        uint64_t keyframeId) noexcept {
+
+        shotEditor_.ClearSelection();
+        keyframeEditor_.SelectLensKeyframe(bindingId, keyframeId);
     }
 
 } // namespace HIKARI::EDITOR

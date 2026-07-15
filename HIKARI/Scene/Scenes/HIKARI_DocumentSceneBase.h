@@ -84,7 +84,12 @@ namespace HIKARI {
         bool ApplyCameraRuntimeChanges();
         bool SetGameDefaultCamera(SceneObjectId cameraObjectId);
         void ClearGameDefaultCamera();
-        bool BeginEditorCameraPreview(SceneObjectId cameraObjectId);
+        bool BeginEditorCameraPreview(
+            SceneObjectId cameraObjectId,
+            const CameraBlendDesc& blend = {},
+            bool forceRestart = false);
+        bool UpdateEditorCameraPreview(
+            const CinematicCameraEvaluation& evaluation);
         void EndEditorCameraPreview();
         bool IsEditorCameraPreviewActive() const;
         SceneObjectId GetEditorCameraPreviewObjectId() const;
@@ -149,7 +154,6 @@ namespace HIKARI {
         void SetViewportOverlayState(const ViewportOverlayState& state);
         void SetViewportPerformanceState(const ViewportPerformanceState& state);
         void SetViewportDebugViewState(const ViewportDebugViewState& state);
-        void SetViewportGizmoInteracting(bool interacting);
         void SetSelectedGizmoObjectId(SceneObjectId id);
         void SyncReflectionProbeRuntimeFromAuthoring();
 
@@ -232,7 +236,6 @@ namespace HIKARI {
         ViewportOverlayState viewportOverlayState_{};
         ViewportPerformanceState viewportPerformanceState_{};
         ViewportDebugViewState viewportDebugViewState_{};
-        bool viewportGizmoInteracting_ = false;
         SceneObjectId selectedGizmoObjectId_{};
         std::unique_ptr<ReflectionProbeBakeJob> reflectionProbeBakeJob_{};
         std::unique_ptr<LightProbeBakeJob> lightProbeBakeJob_{};

@@ -1,39 +1,22 @@
 #include "Scene/HIKARI_CinematicSequencePlayer.h"
 
-#include <algorithm>
-#include <cmath>
-
 namespace HIKARI {
-
-    namespace {
-        float ClampPlaybackRate(float playbackRate) noexcept {
-            if (!std::isfinite(playbackRate)) {
-                return 1.0f;
-            }
-            return std::clamp(playbackRate, 0.01f, 8.0f);
-        }
-    }
 
     bool CinematicSequencePlayer::Bind(
         const SceneCinematicsSettings& settings,
         CinematicSequenceId sequenceId,
         float timeSeconds) {
 
-        const CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, sequenceId);
-        if (sequence == nullptr) {
+        const CinematicSequence* sequence =
+            FindCinematicSequence(settings, sequenceId);
+        if (sequence == nullptr ||
+            !playbackCursor_.Bind(
+                sequence->durationSeconds,
+                timeSeconds)) {
             Clear();
             return false;
         }
-
         sequenceId_ = sequenceId;
-        timeSeconds_ = std::clamp(
-            std::isfinite(timeSeconds) ? timeSeconds : 0.0f,
-            0.0f,
-            sequence->durationSeconds);
-        state_ = CinematicPlaybackState::Stopped;
-        options_ = {};
-        completedThisTick_ = false;
         return true;
     }
 
@@ -43,111 +26,58 @@ namespace HIKARI {
         float startTimeSeconds,
         const CinematicPlaybackOptions& options) {
 
-        if (!Bind(settings, sequenceId, startTimeSeconds)) {
-            return false;
-        }
-        options_ = options;
-        options_.playbackRate = ClampPlaybackRate(options.playbackRate);
-        state_ = CinematicPlaybackState::Playing;
-        return true;
+        return Bind(settings, sequenceId, startTimeSeconds) &&
+            playbackCursor_.Play(options);
     }
 
     bool CinematicSequencePlayer::Play() {
-        if (!sequenceId_.IsValid()) {
-            return false;
-        }
-        state_ = CinematicPlaybackState::Playing;
-        completedThisTick_ = false;
-        return true;
+        return sequenceId_.IsValid() && playbackCursor_.Play();
     }
 
     void CinematicSequencePlayer::Pause() {
-        if (state_ == CinematicPlaybackState::Playing) {
-            state_ = CinematicPlaybackState::Paused;
-        }
+        playbackCursor_.Pause();
     }
 
     bool CinematicSequencePlayer::Resume() {
-        if (state_ != CinematicPlaybackState::Paused) {
-            return false;
-        }
-        state_ = CinematicPlaybackState::Playing;
-        completedThisTick_ = false;
-        return true;
+        return sequenceId_.IsValid() && playbackCursor_.Resume();
     }
 
     void CinematicSequencePlayer::Stop() {
-        state_ = CinematicPlaybackState::Stopped;
-        timeSeconds_ = 0.0f;
-        completedThisTick_ = false;
+        playbackCursor_.Stop();
     }
 
     void CinematicSequencePlayer::Clear() {
         sequenceId_ = {};
-        state_ = CinematicPlaybackState::Stopped;
-        options_ = {};
-        timeSeconds_ = 0.0f;
-        completedThisTick_ = false;
+        playbackCursor_.Clear();
     }
 
     bool CinematicSequencePlayer::Seek(
         const SceneCinematicsSettings& settings,
         float timeSeconds) {
 
-        const CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, sequenceId_);
-        if (sequence == nullptr) {
+        const CinematicSequence* sequence =
+            FindCinematicSequence(settings, sequenceId_);
+        if (sequence == nullptr ||
+            !playbackCursor_.SetDuration(sequence->durationSeconds)) {
             Clear();
             return false;
         }
-        timeSeconds_ = std::clamp(
-            std::isfinite(timeSeconds) ? timeSeconds : 0.0f,
-            0.0f,
-            sequence->durationSeconds);
-        completedThisTick_ = false;
-        return true;
+        return playbackCursor_.Seek(timeSeconds);
     }
 
-    CinematicSequenceEvaluation CinematicSequencePlayer::Tick(
+    SEQUENCER::SequenceEvaluationContext CinematicSequencePlayer::Tick(
         const SceneCinematicsSettings& settings,
-        float deltaTime) {
+        float deltaTime,
+        SEQUENCER::SequenceEvaluationMode mode) {
 
-        completedThisTick_ = false;
-        const CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, sequenceId_);
-        if (sequence == nullptr) {
+        const CinematicSequence* sequence =
+            FindCinematicSequence(settings, sequenceId_);
+        if (sequence == nullptr ||
+            !playbackCursor_.SetDuration(sequence->durationSeconds)) {
             Clear();
             return {};
         }
-
-        if (state_ == CinematicPlaybackState::Playing) {
-            const float safeDelta = std::isfinite(deltaTime)
-                ? std::clamp(deltaTime, 0.0f, 0.25f)
-                : 0.0f;
-            timeSeconds_ += safeDelta * options_.playbackRate;
-            if (timeSeconds_ >= sequence->durationSeconds) {
-                if (options_.loop) {
-                    timeSeconds_ = std::fmod(
-                        timeSeconds_,
-                        sequence->durationSeconds);
-                } else {
-                    timeSeconds_ = sequence->durationSeconds;
-                    state_ = CinematicPlaybackState::Stopped;
-                    completedThisTick_ = true;
-                }
-            }
-        }
-        return Evaluate(settings);
-    }
-
-    CinematicSequenceEvaluation CinematicSequencePlayer::Evaluate(
-        const SceneCinematicsSettings& settings) const noexcept {
-
-        const CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, sequenceId_);
-        return sequence != nullptr
-            ? EvaluateCameraCinematicSequence(*sequence, timeSeconds_)
-            : CinematicSequenceEvaluation{};
+        return playbackCursor_.Tick(deltaTime, mode);
     }
 
     CinematicSequenceId CinematicSequencePlayer::GetSequenceId() const noexcept {
@@ -155,23 +85,28 @@ namespace HIKARI {
     }
 
     CinematicPlaybackState CinematicSequencePlayer::GetState() const noexcept {
-        return state_;
+        return playbackCursor_.GetState();
     }
 
     float CinematicSequencePlayer::GetTimeSeconds() const noexcept {
-        return timeSeconds_;
+        return playbackCursor_.GetTimeSeconds();
     }
 
     bool CinematicSequencePlayer::IsPlaying() const noexcept {
-        return state_ == CinematicPlaybackState::Playing;
+        return playbackCursor_.IsPlaying();
     }
 
     bool CinematicSequencePlayer::IsPaused() const noexcept {
-        return state_ == CinematicPlaybackState::Paused;
+        return playbackCursor_.IsPaused();
     }
 
     bool CinematicSequencePlayer::CompletedThisTick() const noexcept {
-        return completedThisTick_;
+        return playbackCursor_.CompletedThisTick();
+    }
+
+    const SEQUENCER::SequenceEvaluationContext&
+        CinematicSequencePlayer::GetLastEvaluationContext() const noexcept {
+        return playbackCursor_.GetLastEvaluationContext();
     }
 
 } // namespace HIKARI

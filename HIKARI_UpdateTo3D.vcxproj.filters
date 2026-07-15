@@ -169,6 +169,15 @@
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Scene\Sequencer">
+      <UniqueIdentifier>{862BD71C-43E8-4E86-9B5E-A035DA87D0D1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Sequencer\Tracks">
+      <UniqueIdentifier>{716C364C-E272-4D2C-BC4B-0DC46660EE6E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Sequencer\Serialization">
+      <UniqueIdentifier>{C804EA28-77D3-48E7-9F44-C76112515F0F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene\Components">
       <UniqueIdentifier>{F00B23EA-3B1C-53CB-B0AC-2F0ECD5136A2}</UniqueIdentifier>
     </Filter>
@@ -453,6 +462,15 @@
     </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Sequencer">
+      <UniqueIdentifier>{048A3C7C-73F9-44AE-81B3-DA3CC511D84E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Sequencer\Tracks">
+      <UniqueIdentifier>{AD553111-6F03-40E5-989F-5D550794882E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Sequencer\Serialization">
+      <UniqueIdentifier>{5D10BFFD-BB38-47B0-BC1E-7953C8D5EFC7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Components">
       <UniqueIdentifier>{B16A3B17-051C-5A7F-ACAF-CD825550867C}</UniqueIdentifier>
@@ -745,6 +763,21 @@
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.cpp">
@@ -1326,6 +1359,27 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.cpp">
+      <Filter>Source Files\Scene\Sequencer</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp">
+      <Filter>Source Files\Scene\Sequencer</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.cpp">
+      <Filter>Source Files\Scene\Sequencer\Tracks</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.cpp">
+      <Filter>Source Files\Scene\Sequencer\Tracks</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.cpp">
+      <Filter>Source Files\Scene\Sequencer\Tracks</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CinematicSequenceJson.cpp">
+      <Filter>Source Files\Scene\Sequencer\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CameraAnimationTrackJson.cpp">
+      <Filter>Source Files\Scene\Sequencer\Serialization</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1858,6 +1912,21 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
@@ -2325,6 +2394,30 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.h">
       <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.h">
+      <Filter>Header Files\Scene\Sequencer</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.h">
+      <Filter>Header Files\Scene\Sequencer</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceTrack.h">
+      <Filter>Header Files\Scene\Sequencer</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.h">
+      <Filter>Header Files\Scene\Sequencer\Tracks</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.h">
+      <Filter>Header Files\Scene\Sequencer\Tracks</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.h">
+      <Filter>Header Files\Scene\Sequencer\Tracks</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CinematicSequenceJson.h">
+      <Filter>Header Files\Scene\Sequencer\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CameraAnimationTrackJson.h">
+      <Filter>Header Files\Scene\Sequencer\Serialization</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneObjectId.h">
       <Filter>Header Files\Scene</Filter>

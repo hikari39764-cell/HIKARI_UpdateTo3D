@@ -200,7 +200,6 @@ namespace HIKARI {
             DrawReflectionProbeEditTargetCombo(overlays.reflectionProbeEditTarget);
             ImGui::Separator();
             ImGui::Checkbox("Disable SSAO In Editor", &performance.disableSsaoInEditorViewport);
-            ImGui::Checkbox("Disable SSAO While Gizmo Active", &performance.disableSsaoWhileGizmoActive);
         }
 
         struct RenderDebugViewOption {
@@ -738,7 +737,6 @@ namespace HIKARI {
         } else {
             EDITOR::ClearGameViewportInputRect();
             SERVICES::SetEditorGameViewportSize(0, 0, false);
-            scene.SetViewportGizmoInteracting(false);
         }
         if (context_.windows.authoring.showSceneWorkspace) {
             DrawSceneWorkspaceWindow(scene);
@@ -1007,7 +1005,6 @@ namespace HIKARI {
             }
             EDITOR::ClearGameViewportInputRect();
             SERVICES::SetEditorGameViewportSize(0, 0, false);
-            scene.SetViewportGizmoInteracting(false);
             ImGui::End();
             ImGui::PopStyleVar();
             return;
@@ -1252,7 +1249,6 @@ namespace HIKARI {
             }
 
             EDITOR::SetGameViewportGizmoCapture(gizmoCapture);
-            scene.SetViewportGizmoInteracting(gizmoCapture);
         };
 
         auto drawViewportFloatingTools = [&]() {

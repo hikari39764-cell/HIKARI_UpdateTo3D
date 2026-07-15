@@ -22,6 +22,10 @@ namespace HIKARI::EDITOR {
 
     namespace {
 #if defined(HIKARI_WITH_EDITOR)
+        constexpr float kTimelineHeightRatio = 0.25f;
+        constexpr float kRightColumnWidthRatio = 0.30f;
+        constexpr float kCameraPanelHeightRatio = 0.60f;
+
         bool CanUseViewportShortcut(bool focused) {
             if (!focused) {
                 return false;
@@ -81,7 +85,7 @@ namespace HIKARI::EDITOR {
 
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         const ImGuiID dockspaceId =
-            ImGui::GetID("HIKARI_CinematicsDockSpace_v3");
+            ImGui::GetID("HIKARI_CinematicsDockSpace_v4");
         const ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
         const bool needsDefaultLayout =
             ImGui::DockBuilderGetNode(dockspaceId) == nullptr;
@@ -98,7 +102,7 @@ namespace HIKARI::EDITOR {
             ImGui::DockBuilderSplitNode(
                 contentNode,
                 ImGuiDir_Down,
-                0.25f,
+                kTimelineHeightRatio,
                 &timelineNode,
                 &contentNode);
 
@@ -109,13 +113,13 @@ namespace HIKARI::EDITOR {
             ImGui::DockBuilderSplitNode(
                 directorNode,
                 ImGuiDir_Right,
-                0.32f,
+                kRightColumnWidthRatio,
                 &rightNode,
                 &directorNode);
             ImGui::DockBuilderSplitNode(
                 rightNode,
                 ImGuiDir_Down,
-                0.60f,
+                kCameraPanelHeightRatio,
                 &cameraNode,
                 &gameNode);
 
@@ -195,7 +199,6 @@ namespace HIKARI::EDITOR {
             }
         }
 
-        scene.SetViewportGizmoInteracting(false);
         DrawTimelineWindow(scene, context, workspaceHost);
         DrawDirectorViewWindow(
             scene,

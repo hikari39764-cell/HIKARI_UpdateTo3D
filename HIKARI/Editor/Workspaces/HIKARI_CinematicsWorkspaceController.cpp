@@ -61,6 +61,21 @@ namespace HIKARI::EDITOR {
             pose.rotation = MATH::Quat::FromEulerXYZ(-pitch, yaw, 0.0f);
             return pose;
         }
+
+        CameraBlendDesc CameraBlendFromTimelineResult(
+            const CameraTimelinePanelResult& result) {
+
+            CameraBlendDesc blend{};
+            if (result.forceCameraCut ||
+                result.evaluation.transition.mode ==
+                    SEQUENCER::CameraCutTransitionMode::Cut) {
+                return blend;
+            }
+            blend.mode = CameraBlendMode::EaseInOut;
+            blend.durationSeconds =
+                result.evaluation.transition.durationSeconds;
+            return blend;
+        }
     }
 
     void CinematicsWorkspaceController::PrepareForRuntimePlay() {
@@ -77,6 +92,7 @@ namespace HIKARI::EDITOR {
             activation.current != EditorWorkspaceId::Cinematics) {
             cameraTimelinePanel_.PausePlayback();
             timelinePreviewOwned_ = false;
+            timelinePreviewShotId_ = 0;
             timelineRestoreCameraObjectId_.reset();
             if (cameraPreviewOwned_) {
                 scene.EndEditorCameraPreview();
@@ -185,6 +201,7 @@ namespace HIKARI::EDITOR {
         cameraTimelinePanel_.ResetForScene();
         cameraPreviewOwned_ = false;
         timelinePreviewOwned_ = false;
+        timelinePreviewShotId_ = 0;
         preWorkspacePreviewObjectId_.reset();
         timelineRestoreCameraObjectId_.reset();
         if (sceneChanged ||
@@ -238,6 +255,7 @@ namespace HIKARI::EDITOR {
         case CameraOverviewActionKind::ViewThrough:
             cameraTimelinePanel_.SuspendPreview();
             timelinePreviewOwned_ = false;
+            timelinePreviewShotId_ = 0;
             timelineRestoreCameraObjectId_.reset();
             directorViewPanel_.SetTargetCamera(action.cameraObjectId);
             if (scene.IsRuntimePlayActive()) {
@@ -255,6 +273,7 @@ namespace HIKARI::EDITOR {
         case CameraOverviewActionKind::ExitView:
             cameraTimelinePanel_.SuspendPreview();
             timelinePreviewOwned_ = false;
+            timelinePreviewShotId_ = 0;
             timelineRestoreCameraObjectId_.reset();
             scene.EndEditorCameraPreview();
             cameraPreviewOwned_ = false;
@@ -371,7 +390,6 @@ namespace HIKARI::EDITOR {
                 scene.SetUnsavedSceneChanges(true);
             }
         }
-        scene.SetViewportGizmoInteracting(result.gizmo.interacting);
     }
 
     void CinematicsWorkspaceController::ApplyCameraTimelineResult(
@@ -398,11 +416,17 @@ namespace HIKARI::EDITOR {
         if (!timelinePreviewOwned_) {
             timelineRestoreCameraObjectId_ = boundCameraObjectId_;
         }
+        const bool shotChanged = timelinePreviewOwned_ &&
+            timelinePreviewShotId_ != result.evaluation.shotId;
         if (BindCameraPreview(
                 scene,
                 result.evaluation.cameraObjectId,
-                workspaceHost)) {
+                workspaceHost,
+                CameraBlendFromTimelineResult(result),
+                shotChanged)) {
+            (void)scene.UpdateEditorCameraPreview(result.evaluation);
             timelinePreviewOwned_ = true;
+            timelinePreviewShotId_ = result.evaluation.shotId;
         } else {
             RestoreTimelinePreview(scene, workspaceHost);
         }
@@ -411,15 +435,20 @@ namespace HIKARI::EDITOR {
     bool CinematicsWorkspaceController::BindCameraPreview(
         DocumentSceneBase& scene,
         SceneObjectId cameraObjectId,
-        EditorWorkspaceHost& workspaceHost) {
+        EditorWorkspaceHost& workspaceHost,
+        const CameraBlendDesc& blend,
+        bool forceRebind) {
 
         if (scene.IsRuntimePlayActive() ||
             !IsEnabledCameraObject(scene, cameraObjectId)) {
             return false;
         }
-        if (!scene.IsEditorCameraPreviewActive() ||
+        if (forceRebind || !scene.IsEditorCameraPreviewActive() ||
             !(scene.GetEditorCameraPreviewObjectId() == cameraObjectId)) {
-            if (!scene.BeginEditorCameraPreview(cameraObjectId)) {
+            if (!scene.BeginEditorCameraPreview(
+                    cameraObjectId,
+                    blend,
+                    forceRebind)) {
                 return false;
             }
         }
@@ -445,6 +474,7 @@ namespace HIKARI::EDITOR {
         const std::optional<SceneObjectId> restoreCamera =
             timelineRestoreCameraObjectId_;
         timelinePreviewOwned_ = false;
+        timelinePreviewShotId_ = 0;
         timelineRestoreCameraObjectId_.reset();
 
         if (scene.IsRuntimePlayActive()) {

@@ -12,8 +12,9 @@ namespace HIKARI::EDITOR {
     struct CameraTimelinePanelResult {
         bool documentChanged = false;
         bool previewEnabled = false;
+        bool forceCameraCut = false;
         CinematicSequenceId sequenceId{};
-        CinematicSequenceEvaluation evaluation{};
+        CinematicCameraEvaluation evaluation{};
     };
 
     class CameraTimelinePanel {
@@ -33,13 +34,14 @@ namespace HIKARI::EDITOR {
         bool SetActiveSequence(
             SceneCinematicsSettings& settings,
             CinematicSequenceId sequenceId);
-        void SyncNameBuffer(const CameraCinematicSequence& sequence);
+        void SyncNameBuffer(const CinematicSequence& sequence);
 
         CinematicSequencePlayer player_{};
         CameraTimelineCanvas canvas_{};
         CinematicSequenceId activeSequenceId_{};
         std::array<char, 128> sequenceNameBuffer_{};
         bool previewEnabled_ = true;
+        bool previewCutPending_ = true;
     };
 
 } // namespace HIKARI::EDITOR

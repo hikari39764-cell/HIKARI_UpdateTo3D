@@ -1,0 +1,189 @@
+#include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeAuthoring.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace HIKARI::EDITOR {
+
+    namespace {
+        const SceneObjectData* FindSceneObject(
+            const SceneDocument& document,
+            SceneObjectId objectId) noexcept {
+
+            const auto found = std::find_if(
+                document.objects.begin(),
+                document.objects.end(),
+                [objectId](const SceneObjectData& object) {
+                    return object.id == objectId;
+                });
+            return found != document.objects.end() ? &*found : nullptr;
+        }
+
+        struct CameraLensValues {
+            float verticalFovDegrees = 60.0f;
+            float nearClip = 0.1f;
+            float farClip = 100.0f;
+        };
+
+        bool IsFinite(const MATH::Vec3& value) noexcept {
+            return std::isfinite(value.x) &&
+                std::isfinite(value.y) &&
+                std::isfinite(value.z);
+        }
+
+        bool TryGetCameraLensValues(
+            const SceneObjectData& object,
+            CameraLensValues& outValues) {
+
+            const auto found = std::find_if(
+                object.components.begin(),
+                object.components.end(),
+                [](const SceneComponentData& component) {
+                    return component.type == "CameraComponent";
+                });
+            if (found == object.components.end()) {
+                return false;
+            }
+            outValues.verticalFovDegrees = found->properties.value(
+                "verticalFovDegrees",
+                60.0f);
+            outValues.nearClip = found->properties.value(
+                "nearClip",
+                0.1f);
+            outValues.farClip = found->properties.value(
+                "farClip",
+                100.0f);
+            return std::isfinite(outValues.verticalFovDegrees) &&
+                std::isfinite(outValues.nearClip) &&
+                std::isfinite(outValues.farClip);
+        }
+    }
+
+    CameraKeyframeCaptureResult CaptureCameraTransformKeyframe(
+        SceneDocument& document,
+        CinematicSequence& sequence,
+        SceneObjectId cameraObjectId,
+        float timeSeconds) {
+
+        CameraKeyframeCaptureResult result{};
+        const SceneObjectData* cameraObject = FindSceneObject(
+            document,
+            cameraObjectId);
+        CameraLensValues cameraLens{};
+        if (cameraObject == nullptr || !std::isfinite(timeSeconds) ||
+            !IsFinite(cameraObject->transform.position) ||
+            !IsFinite(cameraObject->transform.rotationEulerDeg) ||
+            !TryGetCameraLensValues(*cameraObject, cameraLens)) {
+            return result;
+        }
+        result.cameraBindingId =
+            SEQUENCER::FindOrCreateSceneObjectBinding(
+                sequence.bindings,
+                cameraObjectId,
+                cameraObject->name);
+        result.transformKeyframeId =
+            SEQUENCER::SetCameraTransformKeyframe(
+                sequence.cameraTransformTrack,
+                result.cameraBindingId,
+                timeSeconds,
+                cameraObject->transform.position,
+                cameraObject->transform.rotationEulerDeg);
+        if (!result.Succeeded()) {
+            return {};
+        }
+        sequence.durationSeconds = (std::max)(
+            sequence.durationSeconds,
+            timeSeconds);
+        NormalizeCinematicSequence(sequence);
+        return result;
+    }
+
+    CameraKeyframeCaptureResult CaptureCameraLensKeyframe(
+        SceneDocument& document,
+        CinematicSequence& sequence,
+        SceneObjectId cameraObjectId,
+        float timeSeconds) {
+
+        CameraKeyframeCaptureResult result{};
+        const SceneObjectData* cameraObject = FindSceneObject(
+            document,
+            cameraObjectId);
+        CameraLensValues lens{};
+        if (cameraObject == nullptr ||
+            !std::isfinite(timeSeconds) ||
+            !TryGetCameraLensValues(*cameraObject, lens)) {
+            return result;
+        }
+        result.cameraBindingId =
+            SEQUENCER::FindOrCreateSceneObjectBinding(
+                sequence.bindings,
+                cameraObjectId,
+                cameraObject->name);
+        result.lensKeyframeId = SEQUENCER::SetCameraLensKeyframe(
+            sequence.cameraLensTrack,
+            result.cameraBindingId,
+            timeSeconds,
+            lens.verticalFovDegrees,
+            lens.nearClip,
+            lens.farClip);
+        if (!result.Succeeded()) {
+            return {};
+        }
+        sequence.durationSeconds = (std::max)(
+            sequence.durationSeconds,
+            timeSeconds);
+        NormalizeCinematicSequence(sequence);
+        return result;
+    }
+
+    CameraKeyframeCaptureResult CaptureCameraKeyframe(
+        SceneDocument& document,
+        CinematicSequence& sequence,
+        SceneObjectId cameraObjectId,
+        float timeSeconds) {
+
+        CameraKeyframeCaptureResult result{};
+        const SceneObjectData* cameraObject = FindSceneObject(
+            document,
+            cameraObjectId);
+        CameraLensValues lens{};
+        if (cameraObject == nullptr || !std::isfinite(timeSeconds) ||
+            !IsFinite(cameraObject->transform.position) ||
+            !IsFinite(cameraObject->transform.rotationEulerDeg) ||
+            !TryGetCameraLensValues(*cameraObject, lens)) {
+            return result;
+        }
+
+        result.cameraBindingId =
+            SEQUENCER::FindOrCreateSceneObjectBinding(
+                sequence.bindings,
+                cameraObjectId,
+                cameraObject->name);
+        if (!result.cameraBindingId.IsValid()) {
+            return {};
+        }
+        result.transformKeyframeId =
+            SEQUENCER::SetCameraTransformKeyframe(
+                sequence.cameraTransformTrack,
+                result.cameraBindingId,
+                timeSeconds,
+                cameraObject->transform.position,
+                cameraObject->transform.rotationEulerDeg);
+        result.lensKeyframeId = SEQUENCER::SetCameraLensKeyframe(
+            sequence.cameraLensTrack,
+            result.cameraBindingId,
+            timeSeconds,
+            lens.verticalFovDegrees,
+            lens.nearClip,
+            lens.farClip);
+        if (!result.CapturedBoth()) {
+            return {};
+        }
+        sequence.durationSeconds = (std::max)(
+            sequence.durationSeconds,
+            timeSeconds);
+        NormalizeCinematicSequence(sequence);
+        return result;
+    }
+
+} // namespace HIKARI::EDITOR

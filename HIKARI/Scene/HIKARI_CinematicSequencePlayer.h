@@ -3,19 +3,12 @@
 #include <cstdint>
 
 #include "Scene/HIKARI_CinematicSequence.h"
+#include "Scene/Sequencer/HIKARI_SequencePlayback.h"
 
 namespace HIKARI {
 
-    enum class CinematicPlaybackState : uint8_t {
-        Stopped,
-        Playing,
-        Paused,
-    };
-
-    struct CinematicPlaybackOptions {
-        bool loop = false;
-        float playbackRate = 1.0f;
-    };
+    using CinematicPlaybackState = SEQUENCER::SequencePlaybackState;
+    using CinematicPlaybackOptions = SEQUENCER::SequencePlaybackOptions;
 
     class CinematicSequencePlayer {
     public:
@@ -37,11 +30,11 @@ namespace HIKARI {
             const SceneCinematicsSettings& settings,
             float timeSeconds);
 
-        CinematicSequenceEvaluation Tick(
+        SEQUENCER::SequenceEvaluationContext Tick(
             const SceneCinematicsSettings& settings,
-            float deltaTime);
-        CinematicSequenceEvaluation Evaluate(
-            const SceneCinematicsSettings& settings) const noexcept;
+            float deltaTime,
+            SEQUENCER::SequenceEvaluationMode mode =
+                SEQUENCER::SequenceEvaluationMode::Runtime);
 
         CinematicSequenceId GetSequenceId() const noexcept;
         CinematicPlaybackState GetState() const noexcept;
@@ -49,13 +42,12 @@ namespace HIKARI {
         bool IsPlaying() const noexcept;
         bool IsPaused() const noexcept;
         bool CompletedThisTick() const noexcept;
+        const SEQUENCER::SequenceEvaluationContext&
+            GetLastEvaluationContext() const noexcept;
 
     private:
         CinematicSequenceId sequenceId_{};
-        CinematicPlaybackState state_ = CinematicPlaybackState::Stopped;
-        CinematicPlaybackOptions options_{};
-        float timeSeconds_ = 0.0f;
-        bool completedThisTick_ = false;
+        SEQUENCER::SequencePlaybackCursor playbackCursor_{};
     };
 
 } // namespace HIKARI

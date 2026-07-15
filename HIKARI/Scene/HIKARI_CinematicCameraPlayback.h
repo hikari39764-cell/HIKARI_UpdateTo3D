@@ -57,6 +57,7 @@ namespace HIKARI {
         CinematicPlaybackHandle currentHandle_{};
         CameraOverrideToken cameraOverrideToken_{};
         SceneObjectId overriddenCameraObjectId_{};
+        uint64_t overriddenShotId_ = 0;
         uint64_t nextHandleValue_ = 1;
         uint64_t epoch_ = 1;
     };

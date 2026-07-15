@@ -666,8 +666,7 @@ namespace HIKARI {
         activeEnvironment.directional.direction = MATH::Normalize(activeEnvironment.directional.direction);
         const bool editorSsaoSuppressed =
             DrawDebugHelpers() &&
-            (viewportPerformanceState_.disableSsaoInEditorViewport ||
-                (viewportPerformanceState_.disableSsaoWhileGizmoActive && viewportGizmoInteracting_));
+            viewportPerformanceState_.disableSsaoInEditorViewport;
         activeEnvironment.ambientOcclusion.editorViewportSuppressed = editorSsaoSuppressed;
         if (!UseEnvironmentLighting()) {
             activeEnvironment.directional.intensity = 0.0f;
@@ -823,9 +822,6 @@ namespace HIKARI {
     }
     void DocumentSceneBase::SetViewportDebugViewState(const ViewportDebugViewState& state) {
         viewportDebugViewState_ = state;
-    }
-    void DocumentSceneBase::SetViewportGizmoInteracting(bool interacting) {
-        viewportGizmoInteracting_ = interacting;
     }
     void DocumentSceneBase::SetSelectedGizmoObjectId(SceneObjectId id) {
         selectedGizmoObjectId_ = id;
@@ -1114,11 +1110,16 @@ namespace HIKARI {
         sceneDocumentDirty_ = true;
         ApplyCameraRuntimeChanges();
     }
-    bool DocumentSceneBase::BeginEditorCameraPreview(SceneObjectId cameraObjectId) {
+    bool DocumentSceneBase::BeginEditorCameraPreview(
+        SceneObjectId cameraObjectId,
+        const CameraBlendDesc& blend,
+        bool forceRestart) {
+
         if (runtimePlayActive_ || cameraObjectId.value == 0) {
             return false;
         }
-        if (IsEditorCameraPreviewActive() && editorCameraPreviewObjectId_ == cameraObjectId) {
+        if (!forceRestart && IsEditorCameraPreviewActive() &&
+            editorCameraPreviewObjectId_ == cameraObjectId) {
             return true;
         }
 
@@ -1135,13 +1136,21 @@ namespace HIKARI {
             return false;
         }
 
-        EndEditorCameraPreview();
-        editorCameraPreviewSnapshot_ = camera_;
+        const bool replacingActivePreview =
+            IsEditorCameraPreviewActive();
+        if (replacingActivePreview) {
+            (void)cameraDirector_.ReleaseOverride(
+                editorCameraPreviewToken_);
+            editorCameraPreviewObjectId_ = {};
+            editorCameraPreviewToken_ = {};
+        } else {
+            editorCameraPreviewSnapshot_ = camera_;
+        }
         cameraDirector_.SetBaseCamera(
             sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
         CameraActivationRequest request{};
         request.cameraObjectId = cameraObjectId;
-        request.blend.mode = CameraBlendMode::Cut;
+        request.blend = blend;
         request.priority = 1000;
         request.affectsControlBasis = false;
         editorCameraPreviewToken_ = cameraDirector_.PushOverride(request);
@@ -1150,6 +1159,35 @@ namespace HIKARI {
         }
         editorCameraPreviewObjectId_ = cameraObjectId;
         return true;
+    }
+    bool DocumentSceneBase::UpdateEditorCameraPreview(
+        const CinematicCameraEvaluation& evaluation) {
+
+        if (!IsEditorCameraPreviewActive() || !evaluation.IsValid() ||
+            !(editorCameraPreviewObjectId_ == evaluation.cameraObjectId)) {
+            return false;
+        }
+        if (!evaluation.HasCameraAnimation()) {
+            return cameraDirector_.ClearOverrideCamera(
+                editorCameraPreviewToken_);
+        }
+
+        Camera3D sourceCamera{};
+        if (!TryResolveCameraObjectView(
+                evaluation.cameraObjectId,
+                camera_.GetAspect(),
+                sourceCamera)) {
+            return false;
+        }
+        Camera3D evaluatedCamera{};
+        return BuildEvaluatedCinematicCamera(
+                evaluation,
+                sourceCamera,
+                camera_.GetAspect(),
+                evaluatedCamera) &&
+            cameraDirector_.SetOverrideCamera(
+                editorCameraPreviewToken_,
+                evaluatedCamera);
     }
     void DocumentSceneBase::EndEditorCameraPreview() {
         if (!IsEditorCameraPreviewActive()) {
@@ -1331,7 +1369,6 @@ namespace HIKARI {
         componentGizmoState_ = {};
         viewportOverlayState_ = {};
         viewportDebugViewState_ = {};
-        viewportGizmoInteracting_ = false;
         selectedGizmoObjectId_ = {};
         runtimePlayActive_ = true;
         HIKARI_LOG_INFO("Document scene entered runtime Play state.");
@@ -1355,7 +1392,6 @@ namespace HIKARI {
         viewportOverlayState_ = editorViewportOverlaySnapshot_;
         viewportPerformanceState_ = editorViewportPerformanceSnapshot_;
         viewportDebugViewState_ = editorViewportDebugViewSnapshot_;
-        viewportGizmoInteracting_ = false;
         selectedGizmoObjectId_ = editorSelectedGizmoObjectSnapshot_;
         resolvedCameraFrame_ = {};
         resolvedCameraFrame_.camera = camera_;

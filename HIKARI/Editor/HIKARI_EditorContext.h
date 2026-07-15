@@ -79,7 +79,6 @@ namespace HIKARI {
 
     struct ViewportPerformanceState {
         bool disableSsaoInEditorViewport = false;
-        bool disableSsaoWhileGizmoActive = true;
     };
 
     struct ViewportDebugViewState {

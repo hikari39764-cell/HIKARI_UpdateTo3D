@@ -8,6 +8,7 @@
 #include "Editor/Workspaces/HIKARI_CameraOverviewPanel.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelinePanel.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
+#include "Scene/HIKARI_CameraDirector.h"
 #include "Scene/HIKARI_SceneObjectId.h"
 
 namespace HIKARI {
@@ -87,7 +88,9 @@ namespace HIKARI {
             bool BindCameraPreview(
                 DocumentSceneBase& scene,
                 SceneObjectId cameraObjectId,
-                EditorWorkspaceHost& workspaceHost);
+                EditorWorkspaceHost& workspaceHost,
+                const CameraBlendDesc& blend = {},
+                bool forceRebind = false);
             void RestoreTimelinePreview(
                 DocumentSceneBase& scene,
                 EditorWorkspaceHost& workspaceHost);
@@ -98,6 +101,7 @@ namespace HIKARI {
             DirectorViewPanel directorViewPanel_{};
             bool cameraPreviewOwned_ = false;
             bool timelinePreviewOwned_ = false;
+            uint64_t timelinePreviewShotId_ = 0;
             std::optional<SceneObjectId> preWorkspacePreviewObjectId_{};
             std::optional<SceneObjectId> boundCameraObjectId_{};
             std::optional<SceneObjectId> timelineRestoreCameraObjectId_{};

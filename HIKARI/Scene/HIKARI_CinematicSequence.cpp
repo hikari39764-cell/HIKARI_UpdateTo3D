@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <unordered_set>
+
+#include "Render3D/Core/HIKARI_Camera3D.h"
 
 namespace HIKARI {
 
@@ -11,54 +14,46 @@ namespace HIKARI {
         float FiniteOr(float value, float fallback) noexcept {
             return std::isfinite(value) ? value : fallback;
         }
-    }
 
-    void NormalizeCameraCinematicSequence(CameraCinematicSequence& sequence) {
-        sequence.durationSeconds = std::clamp(
-            FiniteOr(
-                sequence.durationSeconds,
-                kMinCinematicSequenceDurationSeconds),
-            kMinCinematicSequenceDurationSeconds,
-            kMaxCinematicSequenceDurationSeconds);
+        MATH::Vec3 ExtractAxis(
+            const MATH::Mat4& matrix,
+            int column) noexcept {
 
-        sequence.shots.erase(
-            std::remove_if(
-                sequence.shots.begin(),
-                sequence.shots.end(),
-                [](const CinematicShotClip& shot) {
-                    return shot.id == 0 || shot.cameraObjectId.value == 0;
-                }),
-            sequence.shots.end());
-
-        for (CinematicShotClip& shot : sequence.shots) {
-            shot.startTimeSeconds = std::clamp(
-                FiniteOr(shot.startTimeSeconds, 0.0f),
-                0.0f,
-                kMaxCinematicSequenceDurationSeconds -
-                    kMinCinematicShotDurationSeconds);
-            shot.durationSeconds = std::clamp(
-                FiniteOr(
-                    shot.durationSeconds,
-                    kMinCinematicShotDurationSeconds),
-                kMinCinematicShotDurationSeconds,
-                kMaxCinematicSequenceDurationSeconds -
-                    shot.startTimeSeconds);
+            return {
+                matrix.m[column][0],
+                matrix.m[column][1],
+                matrix.m[column][2]
+            };
         }
 
-        std::sort(
-            sequence.shots.begin(),
-            sequence.shots.end(),
-            [](const CinematicShotClip& lhs, const CinematicShotClip& rhs) {
-                if (lhs.startTimeSeconds != rhs.startTimeSeconds) {
-                    return lhs.startTimeSeconds < rhs.startTimeSeconds;
-                }
-                return lhs.id < rhs.id;
-            });
+        MATH::Vec3 SafeUp(
+            const MATH::Vec3& forward,
+            MATH::Vec3 up) noexcept {
 
+            up = MATH::Normalize(up);
+            if (MATH::Length(up) <= 0.00001f ||
+                std::abs(MATH::Dot(forward, up)) >= 0.999f) {
+                up = { 0.0f, 1.0f, 0.0f };
+            }
+            if (std::abs(MATH::Dot(forward, up)) >= 0.999f) {
+                up = { 1.0f, 0.0f, 0.0f };
+            }
+            return up;
+        }
+    }
+
+    void NormalizeCinematicSequence(CinematicSequence& sequence) {
+        SEQUENCER::NormalizeSequenceBindings(sequence.bindings);
+        SEQUENCER::NormalizeCameraCutTrack(sequence.cameraCutTrack);
+        SEQUENCER::NormalizeCameraTransformTrack(
+            sequence.cameraTransformTrack);
+        SEQUENCER::NormalizeCameraLensTrack(sequence.cameraLensTrack);
         sequence.durationSeconds = std::clamp(
             (std::max)(
-                sequence.durationSeconds,
-                GetCameraCinematicSequenceContentEnd(sequence)),
+                FiniteOr(
+                    sequence.durationSeconds,
+                    kMinCinematicSequenceDurationSeconds),
+                GetCinematicSequenceContentEnd(sequence)),
             kMinCinematicSequenceDurationSeconds,
             kMaxCinematicSequenceDurationSeconds);
     }
@@ -66,14 +61,13 @@ namespace HIKARI {
     void NormalizeSceneCinematicsSettings(
         SceneCinematicsSettings& settings) {
 
-        if (settings.cameraSequences.empty()) {
-            settings.cameraSequences.push_back(CameraCinematicSequence{});
+        if (settings.sequences.empty()) {
+            settings.sequences.push_back(CinematicSequence{});
         }
 
         std::unordered_set<uint64_t> usedIds{};
-        CinematicSequenceId nextId =
-            AllocateCameraCinematicSequenceId(settings);
-        for (CameraCinematicSequence& sequence : settings.cameraSequences) {
+        CinematicSequenceId nextId = AllocateCinematicSequenceId(settings);
+        for (CinematicSequence& sequence : settings.sequences) {
             if (!sequence.id.IsValid() ||
                 !usedIds.insert(sequence.id.value).second) {
                 while (!usedIds.insert(nextId.value).second) {
@@ -92,32 +86,32 @@ namespace HIKARI {
                 sequence.name = "Sequence " +
                     std::to_string(sequence.id.value);
             }
-            NormalizeCameraCinematicSequence(sequence);
+            NormalizeCinematicSequence(sequence);
         }
 
-        if (FindCameraCinematicSequence(
+        if (FindCinematicSequence(
                 settings,
                 settings.defaultSequenceId) == nullptr) {
-            settings.defaultSequenceId = settings.cameraSequences.front().id;
+            settings.defaultSequenceId = settings.sequences.front().id;
         }
     }
 
-    CinematicSequenceId AllocateCameraCinematicSequenceId(
+    CinematicSequenceId AllocateCinematicSequenceId(
         const SceneCinematicsSettings& settings) {
 
         CinematicSequenceId nextId{ 1 };
-        for (const CameraCinematicSequence& sequence :
-                settings.cameraSequences) {
-            if (sequence.id.value >= nextId.value) {
-                if (sequence.id.value ==
-                    (std::numeric_limits<uint64_t>::max)()) {
-                    nextId.value = 1;
-                    break;
-                }
-                nextId.value = sequence.id.value + 1;
+        for (const CinematicSequence& sequence : settings.sequences) {
+            if (sequence.id.value < nextId.value) {
+                continue;
             }
+            if (sequence.id.value ==
+                (std::numeric_limits<uint64_t>::max)()) {
+                nextId.value = 1;
+                break;
+            }
+            nextId.value = sequence.id.value + 1;
         }
-        while (FindCameraCinematicSequence(settings, nextId) != nullptr) {
+        while (FindCinematicSequence(settings, nextId) != nullptr) {
             ++nextId.value;
             if (nextId.value == 0) {
                 nextId.value = 1;
@@ -126,108 +120,131 @@ namespace HIKARI {
         return nextId;
     }
 
-    CameraCinematicSequence* FindCameraCinematicSequence(
+    CinematicSequence* FindCinematicSequence(
         SceneCinematicsSettings& settings,
         CinematicSequenceId sequenceId) noexcept {
 
         const auto found = std::find_if(
-            settings.cameraSequences.begin(),
-            settings.cameraSequences.end(),
-            [sequenceId](const CameraCinematicSequence& sequence) {
+            settings.sequences.begin(),
+            settings.sequences.end(),
+            [sequenceId](const CinematicSequence& sequence) {
                 return sequence.id == sequenceId;
             });
-        return found != settings.cameraSequences.end() ? &*found : nullptr;
+        return found != settings.sequences.end() ? &*found : nullptr;
     }
 
-    const CameraCinematicSequence* FindCameraCinematicSequence(
+    const CinematicSequence* FindCinematicSequence(
         const SceneCinematicsSettings& settings,
         CinematicSequenceId sequenceId) noexcept {
 
         const auto found = std::find_if(
-            settings.cameraSequences.begin(),
-            settings.cameraSequences.end(),
-            [sequenceId](const CameraCinematicSequence& sequence) {
+            settings.sequences.begin(),
+            settings.sequences.end(),
+            [sequenceId](const CinematicSequence& sequence) {
                 return sequence.id == sequenceId;
             });
-        return found != settings.cameraSequences.end() ? &*found : nullptr;
+        return found != settings.sequences.end() ? &*found : nullptr;
     }
 
-    uint64_t AllocateCinematicShotId(
-        const CameraCinematicSequence& sequence) {
+    float GetCinematicSequenceContentEnd(
+        const CinematicSequence& sequence) noexcept {
 
-        uint64_t nextId = 1;
-        for (const CinematicShotClip& shot : sequence.shots) {
-            if (shot.id >= nextId) {
-                if (shot.id == (std::numeric_limits<uint64_t>::max)()) {
-                    nextId = 1;
-                    break;
-                }
-                nextId = shot.id + 1;
-            }
-        }
-
-        while (std::any_of(
-                sequence.shots.begin(),
-                sequence.shots.end(),
-                [nextId](const CinematicShotClip& shot) {
-                    return shot.id == nextId;
-                })) {
-            ++nextId;
-            if (nextId == 0) {
-                nextId = 1;
-            }
-        }
-        return nextId;
+        return (std::max)({
+            SEQUENCER::GetCameraCutTrackContentEnd(
+                sequence.cameraCutTrack),
+            SEQUENCER::GetCameraTransformTrackContentEnd(
+                sequence.cameraTransformTrack),
+            SEQUENCER::GetCameraLensTrackContentEnd(
+                sequence.cameraLensTrack)
+        });
     }
 
-    float GetCameraCinematicSequenceContentEnd(
-        const CameraCinematicSequence& sequence) noexcept {
-
-        float contentEnd = 0.0f;
-        for (const CinematicShotClip& shot : sequence.shots) {
-            const float start = FiniteOr(shot.startTimeSeconds, 0.0f);
-            const float duration = FiniteOr(shot.durationSeconds, 0.0f);
-            contentEnd = (std::max)(contentEnd, start + duration);
-        }
-        return contentEnd;
-    }
-
-    CinematicSequenceEvaluation EvaluateCameraCinematicSequence(
-        const CameraCinematicSequence& sequence,
+    CinematicCameraEvaluation EvaluateCinematicCameraTrack(
+        const CinematicSequence& sequence,
         float timeSeconds) noexcept {
 
-        CinematicSequenceEvaluation result{};
-        if (!std::isfinite(timeSeconds) || timeSeconds < 0.0f) {
+        CinematicCameraEvaluation result{};
+        const SEQUENCER::CameraCutTrackEvaluation trackEvaluation =
+            SEQUENCER::EvaluateCameraCutTrack(
+                sequence.cameraCutTrack,
+                timeSeconds);
+        if (!trackEvaluation.IsValid()) {
             return result;
         }
 
-        const CinematicShotClip* activeShot = nullptr;
-        for (const CinematicShotClip& shot : sequence.shots) {
-            if (shot.id == 0 || shot.cameraObjectId.value == 0 ||
-                !std::isfinite(shot.startTimeSeconds) ||
-                !std::isfinite(shot.durationSeconds) ||
-                shot.durationSeconds < kMinCinematicShotDurationSeconds) {
-                continue;
-            }
-            const float shotEnd = shot.startTimeSeconds + shot.durationSeconds;
-            if (timeSeconds < shot.startTimeSeconds || timeSeconds >= shotEnd) {
-                continue;
-            }
-            if (activeShot == nullptr ||
-                shot.startTimeSeconds > activeShot->startTimeSeconds ||
-                (shot.startTimeSeconds == activeShot->startTimeSeconds &&
-                    shot.id > activeShot->id)) {
-                activeShot = &shot;
-            }
+        SceneObjectId cameraObjectId{};
+        if (!SEQUENCER::ResolveSceneObjectBinding(
+                sequence.bindings,
+                trackEvaluation.cameraBindingId,
+                cameraObjectId)) {
+            return result;
         }
 
-        if (activeShot != nullptr) {
-            result.shotId = activeShot->id;
-            result.cameraObjectId = activeShot->cameraObjectId;
-            result.sequenceTimeSeconds = timeSeconds;
-            result.localTimeSeconds = timeSeconds - activeShot->startTimeSeconds;
-        }
+        result.shotId = trackEvaluation.clipId;
+        result.cameraBindingId = trackEvaluation.cameraBindingId;
+        result.cameraObjectId = cameraObjectId;
+        result.transition = trackEvaluation.transition;
+        result.transform = SEQUENCER::EvaluateCameraTransformTrack(
+            sequence.cameraTransformTrack,
+            trackEvaluation.cameraBindingId,
+            timeSeconds);
+        result.lens = SEQUENCER::EvaluateCameraLensTrack(
+            sequence.cameraLensTrack,
+            trackEvaluation.cameraBindingId,
+            timeSeconds);
+        result.sequenceTimeSeconds = trackEvaluation.sequenceTimeSeconds;
+        result.localTimeSeconds = trackEvaluation.localTimeSeconds;
         return result;
+    }
+
+    bool BuildEvaluatedCinematicCamera(
+        const CinematicCameraEvaluation& evaluation,
+        const Camera3D& sourceCamera,
+        float aspect,
+        Camera3D& outCamera) noexcept {
+
+        if (!evaluation.IsValid()) {
+            return false;
+        }
+        outCamera = sourceCamera;
+        const float safeAspect = std::isfinite(aspect) && aspect > 0.0001f
+            ? aspect
+            : sourceCamera.GetAspect();
+        const float fovYRadians = evaluation.lens.valid
+            ? std::clamp(
+                evaluation.lens.verticalFovDegrees,
+                1.0f,
+                179.0f) * std::numbers::pi_v<float> / 180.0f
+            : sourceCamera.GetFovYRad();
+        const float nearClip = evaluation.lens.valid
+            ? evaluation.lens.nearClip
+            : sourceCamera.GetNearZ();
+        const float farClip = evaluation.lens.valid
+            ? evaluation.lens.farClip
+            : sourceCamera.GetFarZ();
+        outCamera.SetPerspective(
+            fovYRadians,
+            safeAspect,
+            nearClip,
+            farClip);
+
+        if (evaluation.transform.valid) {
+            const MATH::Mat4 rotationMatrix = MATH::Mat4::Rotate(
+                evaluation.transform.rotation);
+            MATH::Vec3 forward = MATH::Normalize(
+                ExtractAxis(rotationMatrix, 2));
+            if (MATH::Length(forward) <= 0.00001f) {
+                forward = { 0.0f, 0.0f, 1.0f };
+            }
+            const MATH::Vec3 up = SafeUp(
+                forward,
+                ExtractAxis(rotationMatrix, 1));
+            outCamera.SetLookAt(
+                evaluation.transform.position,
+                evaluation.transform.position + forward,
+                up);
+        }
+        return true;
     }
 
 } // namespace HIKARI

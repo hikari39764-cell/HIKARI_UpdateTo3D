@@ -6,6 +6,21 @@ namespace HIKARI {
 
     namespace {
         constexpr int kCinematicCameraPriority = 100;
+
+        CameraBlendDesc ToCameraBlendDesc(
+            const SEQUENCER::CameraCutTransition& transition,
+            const SEQUENCER::SequenceEvaluationContext& context) {
+
+            CameraBlendDesc blend{};
+            if (context.IsDiscontinuous() ||
+                transition.mode ==
+                    SEQUENCER::CameraCutTransitionMode::Cut) {
+                return blend;
+            }
+            blend.mode = CameraBlendMode::EaseInOut;
+            blend.durationSeconds = transition.durationSeconds;
+            return blend;
+        }
     }
 
     CinematicPlaybackHandle CinematicCameraPlayback::Play(
@@ -79,8 +94,18 @@ namespace HIKARI {
             return;
         }
 
-        const CinematicSequenceEvaluation evaluation =
-            player_.Tick(settings, deltaTime);
+        const SEQUENCER::SequenceEvaluationContext context =
+            player_.Tick(
+                settings,
+                deltaTime,
+                SEQUENCER::SequenceEvaluationMode::Runtime);
+        const CinematicSequence* sequence =
+            FindCinematicSequence(settings, player_.GetSequenceId());
+        const CinematicCameraEvaluation evaluation = sequence != nullptr
+            ? EvaluateCinematicCameraTrack(
+                *sequence,
+                context.currentTimeSeconds)
+            : CinematicCameraEvaluation{};
         Camera3D resolvedCamera{};
         const bool cameraValid = evaluation.IsValid() &&
             cameraDirector.TryResolveCameraObject(
@@ -93,21 +118,44 @@ namespace HIKARI {
             return;
         }
 
+        Camera3D evaluatedCamera{};
+        const bool hasCameraAnimation =
+            evaluation.HasCameraAnimation() &&
+            BuildEvaluatedCinematicCamera(
+                evaluation,
+                resolvedCamera,
+                aspect,
+                evaluatedCamera);
+
         if (cameraOverrideToken_.IsValid() &&
-            overriddenCameraObjectId_ == evaluation.cameraObjectId) {
+            overriddenCameraObjectId_ == evaluation.cameraObjectId &&
+            overriddenShotId_ == evaluation.shotId) {
+            if (hasCameraAnimation) {
+                (void)cameraDirector.SetOverrideCamera(
+                    cameraOverrideToken_,
+                    evaluatedCamera);
+            } else {
+                (void)cameraDirector.ClearOverrideCamera(
+                    cameraOverrideToken_);
+            }
             return;
         }
 
         ReleaseCameraOverride(cameraDirector);
         CameraActivationRequest request{};
         request.cameraObjectId = evaluation.cameraObjectId;
-        request.blend.mode = CameraBlendMode::Cut;
-        request.blend.durationSeconds = 0.0f;
+        request.blend = ToCameraBlendDesc(evaluation.transition, context);
         request.priority = kCinematicCameraPriority;
         request.affectsControlBasis = false;
         cameraOverrideToken_ = cameraDirector.PushOverride(request);
         if (cameraOverrideToken_.IsValid()) {
             overriddenCameraObjectId_ = evaluation.cameraObjectId;
+            overriddenShotId_ = evaluation.shotId;
+            if (hasCameraAnimation) {
+                (void)cameraDirector.SetOverrideCamera(
+                    cameraOverrideToken_,
+                    evaluatedCamera);
+            }
         }
     }
 
@@ -147,6 +195,7 @@ namespace HIKARI {
         }
         cameraOverrideToken_ = {};
         overriddenCameraObjectId_ = {};
+        overriddenShotId_ = 0;
     }
 
     void CinematicCameraPlayback::AdvanceHandleEpoch() {

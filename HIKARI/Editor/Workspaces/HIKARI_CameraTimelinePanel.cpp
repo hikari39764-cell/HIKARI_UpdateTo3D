@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeToolbar.h"
+
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
@@ -12,18 +14,84 @@ namespace HIKARI::EDITOR {
     namespace {
         constexpr float kDefaultShotDurationSeconds = 2.0f;
 
-        CinematicShotClip* FindShot(
-            CameraCinematicSequence& sequence,
+        SEQUENCER::CameraCutClip* FindShot(
+            CinematicSequence& sequence,
             uint64_t shotId) {
 
             const auto found = std::find_if(
-                sequence.shots.begin(),
-                sequence.shots.end(),
-                [shotId](const CinematicShotClip& shot) {
+                sequence.cameraCutTrack.clips.begin(),
+                sequence.cameraCutTrack.clips.end(),
+                [shotId](const SEQUENCER::CameraCutClip& shot) {
                     return shot.id == shotId;
                 });
-            return found != sequence.shots.end() ? &*found : nullptr;
+            return found != sequence.cameraCutTrack.clips.end()
+                ? &*found
+                : nullptr;
         }
+
+#if defined(HIKARI_WITH_EDITOR)
+        bool DrawShotTransitionSettings(
+            SEQUENCER::CameraCutClip& shot,
+            bool editingAllowed) {
+
+            bool changed = false;
+            ImGui::SameLine();
+            ImGui::TextDisabled("Transition");
+            ImGui::SameLine();
+            if (!editingAllowed) {
+                ImGui::BeginDisabled();
+            }
+            ImGui::SetNextItemWidth(92.0f);
+            const char* transitionLabel =
+                shot.transition.mode ==
+                    SEQUENCER::CameraCutTransitionMode::EaseInOut
+                ? "Blend"
+                : "Cut";
+            if (ImGui::BeginCombo(
+                    "##CameraShotTransition",
+                    transitionLabel)) {
+                if (ImGui::Selectable(
+                        "Cut",
+                        shot.transition.mode ==
+                            SEQUENCER::CameraCutTransitionMode::Cut)) {
+                    shot.transition.mode =
+                        SEQUENCER::CameraCutTransitionMode::Cut;
+                    shot.transition.durationSeconds = 0.0f;
+                    changed = true;
+                }
+                if (ImGui::Selectable(
+                        "Blend",
+                        shot.transition.mode ==
+                            SEQUENCER::CameraCutTransitionMode::EaseInOut)) {
+                    shot.transition.mode =
+                        SEQUENCER::CameraCutTransitionMode::EaseInOut;
+                    if (shot.transition.durationSeconds <= 0.0f) {
+                        shot.transition.durationSeconds = 0.5f;
+                    }
+                    changed = true;
+                }
+                ImGui::EndCombo();
+            }
+            if (shot.transition.mode ==
+                    SEQUENCER::CameraCutTransitionMode::EaseInOut) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(76.0f);
+                changed |= ImGui::DragFloat(
+                    "##CameraShotBlendDuration",
+                    &shot.transition.durationSeconds,
+                    0.02f,
+                    0.0f,
+                    (std::min)(
+                        shot.durationSeconds,
+                        SEQUENCER::kMaxCameraBlendDurationSeconds),
+                    "%.2f s");
+            }
+            if (!editingAllowed) {
+                ImGui::EndDisabled();
+            }
+            return changed;
+        }
+#endif
     }
 
     CameraTimelinePanelResult CameraTimelinePanel::Draw(
@@ -43,11 +111,14 @@ namespace HIKARI::EDITOR {
         if (!previewAllowed) {
             PausePlayback();
         } else {
-            (void)player_.Tick(settings, deltaTime);
+            (void)player_.Tick(
+                settings,
+                deltaTime,
+                SEQUENCER::SequenceEvaluationMode::Preview);
         }
 
-        CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, activeSequenceId_);
+        CinematicSequence* sequence =
+            FindCinematicSequence(settings, activeSequenceId_);
         if (sequence == nullptr) {
             return result;
         }
@@ -56,8 +127,7 @@ namespace HIKARI::EDITOR {
         if (ImGui::BeginCombo(
                 "##CameraSequenceSelector",
                 sequence->name.c_str())) {
-            for (const CameraCinematicSequence& candidate :
-                    settings.cameraSequences) {
+            for (const CinematicSequence& candidate : settings.sequences) {
                 const bool selected = candidate.id == activeSequenceId_;
                 std::string label = candidate.name;
                 if (candidate.id == settings.defaultSequenceId) {
@@ -78,29 +148,29 @@ namespace HIKARI::EDITOR {
         }
         ImGui::SameLine();
         if (ImGui::Button("New Sequence")) {
-            CameraCinematicSequence newSequence{};
-            newSequence.id = AllocateCameraCinematicSequenceId(settings);
+            CinematicSequence newSequence{};
+            newSequence.id = AllocateCinematicSequenceId(settings);
             newSequence.name = "Sequence " +
                 std::to_string(newSequence.id.value);
-            settings.cameraSequences.push_back(newSequence);
+            settings.sequences.push_back(newSequence);
             (void)SetActiveSequence(settings, newSequence.id);
             result.documentChanged = true;
         }
 
         ImGui::SameLine();
-        const bool canDeleteSequence = settings.cameraSequences.size() > 1;
+        const bool canDeleteSequence = settings.sequences.size() > 1;
         if (!canDeleteSequence) {
             ImGui::BeginDisabled();
         }
         if (ImGui::Button("Delete Sequence")) {
-            settings.cameraSequences.erase(
+            settings.sequences.erase(
                 std::remove_if(
-                    settings.cameraSequences.begin(),
-                    settings.cameraSequences.end(),
-                    [this](const CameraCinematicSequence& candidate) {
+                    settings.sequences.begin(),
+                    settings.sequences.end(),
+                    [this](const CinematicSequence& candidate) {
                         return candidate.id == activeSequenceId_;
                     }),
-                settings.cameraSequences.end());
+                settings.sequences.end());
             NormalizeSceneCinematicsSettings(settings);
             (void)SetActiveSequence(
                 settings,
@@ -111,7 +181,7 @@ namespace HIKARI::EDITOR {
             ImGui::EndDisabled();
         }
 
-        sequence = FindCameraCinematicSequence(settings, activeSequenceId_);
+        sequence = FindCinematicSequence(settings, activeSequenceId_);
         if (sequence == nullptr) {
             if (!previewAllowed) {
                 ImGui::EndDisabled();
@@ -156,18 +226,23 @@ namespace HIKARI::EDITOR {
             ImGui::BeginDisabled();
         }
         if (ImGui::Button("Add Shot")) {
-            CinematicShotClip shot{};
-            shot.id = AllocateCinematicShotId(*sequence);
-            shot.cameraObjectId = selectedCameraObjectId;
+            SEQUENCER::CameraCutClip shot{};
+            shot.id = SEQUENCER::AllocateCameraCutClipId(
+                sequence->cameraCutTrack);
+            shot.cameraBindingId =
+                SEQUENCER::FindOrCreateSceneObjectBinding(
+                    sequence->bindings,
+                    selectedCameraObjectId);
             shot.startTimeSeconds = player_.GetTimeSeconds();
             shot.durationSeconds = kDefaultShotDurationSeconds;
-            sequence->shots.push_back(shot);
+            sequence->cameraCutTrack.clips.push_back(shot);
             sequence->durationSeconds = (std::max)(
                 sequence->durationSeconds,
                 shot.startTimeSeconds + shot.durationSeconds);
-            NormalizeCameraCinematicSequence(*sequence);
+            NormalizeCinematicSequence(*sequence);
             canvas_.SetSelectedShotId(shot.id);
             previewEnabled_ = true;
+            previewCutPending_ = true;
             result.documentChanged = true;
         }
         if (!canAddShot) {
@@ -199,6 +274,7 @@ namespace HIKARI::EDITOR {
         if (ImGui::Button("Stop")) {
             player_.Stop();
             previewEnabled_ = true;
+            previewCutPending_ = true;
         }
         if (!previewAllowed) {
             ImGui::EndDisabled();
@@ -217,6 +293,7 @@ namespace HIKARI::EDITOR {
             player_.Pause();
             (void)player_.Seek(settings, currentTimeSeconds);
             previewEnabled_ = true;
+            previewCutPending_ = true;
         }
 
         ImGui::SameLine();
@@ -234,19 +311,32 @@ namespace HIKARI::EDITOR {
         }
         if (ImGui::Button("Delete Shot")) {
             const uint64_t selectedShotId = canvas_.GetSelectedShotId();
-            sequence->shots.erase(
+            sequence->cameraCutTrack.clips.erase(
                 std::remove_if(
-                    sequence->shots.begin(),
-                    sequence->shots.end(),
-                    [selectedShotId](const CinematicShotClip& shot) {
+                    sequence->cameraCutTrack.clips.begin(),
+                    sequence->cameraCutTrack.clips.end(),
+                    [selectedShotId](
+                        const SEQUENCER::CameraCutClip& shot) {
                         return shot.id == selectedShotId;
                     }),
-                sequence->shots.end());
+                sequence->cameraCutTrack.clips.end());
             canvas_.SetSelectedShotId(0);
+            previewCutPending_ = true;
             result.documentChanged = true;
         }
         if (!canDeleteSelectedShot) {
             ImGui::EndDisabled();
+        }
+
+        if (SEQUENCER::CameraCutClip* selectedShot = FindShot(
+                *sequence,
+                canvas_.GetSelectedShotId())) {
+            if (DrawShotTransitionSettings(
+                    *selectedShot,
+                    previewAllowed)) {
+                NormalizeCinematicSequence(*sequence);
+                result.documentChanged = true;
+            }
         }
 
         ImGui::SameLine();
@@ -265,7 +355,7 @@ namespace HIKARI::EDITOR {
                 kMaxCinematicSequenceDurationSeconds,
                 "%.1f s")) {
             sequence->durationSeconds = sequenceDuration;
-            NormalizeCameraCinematicSequence(*sequence);
+            NormalizeCinematicSequence(*sequence);
             (void)player_.Seek(settings, player_.GetTimeSeconds());
             result.documentChanged = true;
         }
@@ -287,6 +377,23 @@ namespace HIKARI::EDITOR {
             canvas_.SetPixelsPerSecond(pixelsPerSecond);
         }
 
+        const CameraTimelineKeyframeToolbarResult keyframeToolbar =
+            DrawCameraTimelineKeyframeToolbar(
+                document,
+                *sequence,
+                selectedCameraObjectId,
+                player_.GetTimeSeconds(),
+                previewAllowed,
+                canvas_);
+        if (keyframeToolbar.sequenceChanged) {
+            NormalizeCinematicSequence(*sequence);
+            (void)player_.Seek(settings, player_.GetTimeSeconds());
+            result.documentChanged = true;
+        }
+        if (keyframeToolbar.previewRequested) {
+            previewEnabled_ = true;
+        }
+
         ImGui::Separator();
         const CameraTimelineCanvasResult canvasResult = canvas_.Draw(
             document,
@@ -300,18 +407,24 @@ namespace HIKARI::EDITOR {
                 settings,
                 canvasResult.playheadTimeSeconds);
             previewEnabled_ = true;
+            previewCutPending_ = true;
         }
         if (canvasResult.sequenceChanged) {
-            NormalizeCameraCinematicSequence(*sequence);
+            NormalizeCinematicSequence(*sequence);
             (void)player_.Seek(settings, player_.GetTimeSeconds());
             result.documentChanged = true;
         }
 
         result.previewEnabled = previewAllowed && previewEnabled_;
+        result.forceCameraCut = previewCutPending_ ||
+            player_.GetLastEvaluationContext().IsDiscontinuous();
         result.sequenceId = activeSequenceId_;
         if (result.previewEnabled) {
-            result.evaluation = player_.Evaluate(settings);
+            result.evaluation = EvaluateCinematicCameraTrack(
+                *sequence,
+                player_.GetTimeSeconds());
         }
+        previewCutPending_ = false;
 #else
         (void)selectedCameraObjectId;
         (void)deltaTime;
@@ -326,6 +439,7 @@ namespace HIKARI::EDITOR {
         activeSequenceId_ = {};
         sequenceNameBuffer_.fill('\0');
         previewEnabled_ = true;
+        previewCutPending_ = true;
     }
 
     void CameraTimelinePanel::PausePlayback() {
@@ -336,13 +450,14 @@ namespace HIKARI::EDITOR {
     void CameraTimelinePanel::SuspendPreview() {
         PausePlayback();
         previewEnabled_ = false;
+        previewCutPending_ = true;
     }
 
     bool CameraTimelinePanel::EnsureActiveSequence(
         SceneCinematicsSettings& settings) {
 
-        CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, activeSequenceId_);
+        CinematicSequence* sequence =
+            FindCinematicSequence(settings, activeSequenceId_);
         if (sequence == nullptr) {
             return SetActiveSequence(settings, settings.defaultSequenceId);
         }
@@ -356,8 +471,8 @@ namespace HIKARI::EDITOR {
         SceneCinematicsSettings& settings,
         CinematicSequenceId sequenceId) {
 
-        CameraCinematicSequence* sequence =
-            FindCameraCinematicSequence(settings, sequenceId);
+        CinematicSequence* sequence =
+            FindCinematicSequence(settings, sequenceId);
         if (sequence == nullptr ||
             !player_.Bind(settings, sequenceId, 0.0f)) {
             return false;
@@ -366,11 +481,12 @@ namespace HIKARI::EDITOR {
         canvas_.Reset();
         SyncNameBuffer(*sequence);
         previewEnabled_ = true;
+        previewCutPending_ = true;
         return true;
     }
 
     void CameraTimelinePanel::SyncNameBuffer(
-        const CameraCinematicSequence& sequence) {
+        const CinematicSequence& sequence) {
 
         sequenceNameBuffer_.fill('\0');
         std::snprintf(

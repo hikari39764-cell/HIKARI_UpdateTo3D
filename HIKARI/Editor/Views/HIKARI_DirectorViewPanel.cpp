@@ -27,7 +27,6 @@ namespace HIKARI::EDITOR {
         constexpr float kMinimumCanvasSize = 64.0f;
         constexpr float kCameraHitDistance = 7.0f;
         constexpr float kRadiansToDegrees = 57.2957795131f;
-        constexpr float kDirectorViewportAspect = 4.0f / 3.0f;
 
         struct CameraOverlayEntry {
             SceneObjectId objectId{};
@@ -714,15 +713,8 @@ namespace HIKARI::EDITOR {
         canvasSize.x = (std::max)(canvasSize.x, kMinimumCanvasSize);
         canvasSize.y = (std::max)(canvasSize.y, kMinimumCanvasSize);
         const ImVec2 canvasOrigin = ImGui::GetCursorScreenPos();
-        const EditorViewportFit viewportFit = FitEditorViewport(
-            canvasSize.x,
-            canvasSize.y,
-            kDirectorViewportAspect);
-        const ImVec2 imageSize{ viewportFit.width, viewportFit.height };
-        const ImVec2 imageOrigin{
-            canvasOrigin.x + viewportFit.offsetX,
-            canvasOrigin.y + viewportFit.offsetY
-        };
+        const ImVec2 imageSize = canvasSize;
+        const ImVec2 imageOrigin = canvasOrigin;
         ImGui::GetWindowDrawList()->AddRectFilled(
             canvasOrigin,
             { canvasOrigin.x + canvasSize.x, canvasOrigin.y + canvasSize.y },

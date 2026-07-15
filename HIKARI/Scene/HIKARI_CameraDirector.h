@@ -44,6 +44,10 @@ namespace HIKARI {
 
         CameraOverrideToken PushOverride(const CameraActivationRequest& request);
         bool ReleaseOverride(CameraOverrideToken token);
+        bool SetOverrideCamera(
+            CameraOverrideToken token,
+            const Camera3D& camera);
+        bool ClearOverrideCamera(CameraOverrideToken token);
         bool HasActiveOverride() const noexcept;
 
         const RENDER3D::ResolvedCameraFrame& Resolve(
@@ -64,6 +68,8 @@ namespace HIKARI {
         struct OverrideEntry {
             CameraOverrideToken token{};
             CameraActivationRequest request{};
+            Camera3D cameraOverride{};
+            bool hasCameraOverride = false;
             uint64_t insertionOrder = 0;
         };
 
@@ -76,6 +82,7 @@ namespace HIKARI {
 
         SceneObjectId baseCameraObjectId_{};
         SceneObjectId activeSourceCameraObjectId_{};
+        CameraOverrideToken activeOverrideToken_{};
         std::vector<OverrideEntry> overrides_{};
 
         RENDER3D::ResolvedCameraFrame resolvedFrame_{};
