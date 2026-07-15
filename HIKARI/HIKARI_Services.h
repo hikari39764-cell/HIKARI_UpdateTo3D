@@ -24,6 +24,9 @@
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#if defined(HIKARI_WITH_EDITOR)
+#include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
+#endif
 #include "Render3D/Temporal/HIKARI_TaaResolvePass.h"
 #include "Render3D/Temporal/HIKARI_TemporalMotionVectorPass.h"
 #include "Render3D/Temporal/HIKARI_TemporalGeometryPass.h"
@@ -617,6 +620,14 @@ namespace HIKARI {
                 HIKARI_LOG_INFO("ImGui shutdown.");
             }
             gImGuiFrameBegun = false;
+#if defined(HIKARI_WITH_EDITOR)
+            if (!gCore.WaitForIdle()) {
+                HIKARI_LOG_ERROR(
+                    "GPU idle wait failed before editor interactive view shutdown.");
+            }
+            HIKARI::RENDER3D::EDITORVIEW::Shutdown();
+            HIKARI_LOG_INFO("Editor interactive view renderer shutdown.");
+#endif
             HIKARI::POST::PostSystem::Shutdown();
             HIKARI_LOG_INFO("PostSystem shutdown.");
             DX::DxRenderer::Finalize();

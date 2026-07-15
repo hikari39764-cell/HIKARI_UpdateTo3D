@@ -163,6 +163,9 @@
     <Filter Include="Header Files\Render3D\Upscaling">
       <UniqueIdentifier>{4b88dc06-c6eb-4f86-a92a-f8870bd6a381}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Views">
+      <UniqueIdentifier>{4B78F6F6-2029-4C2A-A1B2-E239E6A9C9DA}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
@@ -340,6 +343,9 @@
     <Filter Include="Source Files\Editor\Tools">
       <UniqueIdentifier>{D4F447D2-5D56-48E9-98DF-AC84FB14244B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Editor\Views">
+      <UniqueIdentifier>{81401D97-FCB9-410E-A2FA-E9A53585F148}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Editor\Workspaces">
       <UniqueIdentifier>{81401D97-FCB9-410E-A2FA-E9A53585F147}</UniqueIdentifier>
     </Filter>
@@ -441,6 +447,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Upscaling">
       <UniqueIdentifier>{cd3d2495-f0b5-45ac-9bc8-1abc0bbf56ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Views">
+      <UniqueIdentifier>{49DE44F8-A090-44A2-B12D-F217A893E986}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
@@ -705,6 +714,9 @@
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.cpp">
       <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Views\HIKARI_EditorInteractiveViewRenderer.cpp">
+      <Filter>Source Files\Render3D\Views</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
@@ -714,10 +726,31 @@
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.cpp">
       <Filter>Source Files\Editor\Tools</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.cpp">
+      <Filter>Source Files\Editor\Views</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.cpp">
+      <Filter>Source Files\Editor\Views</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.cpp">
+      <Filter>Source Files\Editor\Views</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
@@ -1284,6 +1317,15 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_CameraDirector.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequence.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1789,6 +1831,15 @@
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.h">
       <Filter>Header Files\Editor\Tools</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.h">
+      <Filter>Header Files\Editor\Views</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.h">
+      <Filter>Header Files\Editor\Views</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.h">
+      <Filter>Header Files\Editor\Views</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInstance.h">
       <Filter>Header Files\Editor\Views</Filter>
     </ClInclude>
@@ -1799,6 +1850,15 @@
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
@@ -2191,6 +2251,9 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_RenderView.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Views\HIKARI_EditorInteractiveViewRenderer.h">
+      <Filter>Header Files\Render3D\Views</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
@@ -2252,6 +2315,18 @@
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraDirector.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequence.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneObjectId.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h">

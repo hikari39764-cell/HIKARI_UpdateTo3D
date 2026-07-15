@@ -10,6 +10,7 @@ namespace HIKARI::EDITOR {
 
     enum class EditorViewRole : uint8_t {
         Game,
+        Director,
         Overview,
     };
 
@@ -21,7 +22,23 @@ namespace HIKARI::EDITOR {
 
     enum class EditorViewExecutionMode : uint8_t {
         PrimaryFullQuality,
+        SecondaryEditorScene,
         LightweightEditorOverview,
+    };
+
+    enum class EditorViewShadingMode : uint8_t {
+        Lit,
+        Neutral,
+        Unlit,
+    };
+
+    struct EditorViewVisualizationState {
+        EditorViewShadingMode shadingMode = EditorViewShadingMode::Lit;
+        float displayExposure = 1.0f;
+        bool showCameraOverlays = true;
+        bool showOnlySelectedCamera = false;
+        bool showSceneObjectMarkers = true;
+        float cameraOverlayScale = 1.0f;
     };
 
     struct EditorViewportExtent {
@@ -38,6 +55,38 @@ namespace HIKARI::EDITOR {
                 : 1.0f;
         }
     };
+
+    struct EditorViewportFit {
+        float offsetX = 0.0f;
+        float offsetY = 0.0f;
+        float width = 1.0f;
+        float height = 1.0f;
+    };
+
+    inline EditorViewportFit FitEditorViewport(
+        float availableWidth,
+        float availableHeight,
+        float targetAspect) noexcept {
+
+        const float width = availableWidth > 1.0f ? availableWidth : 1.0f;
+        const float height = availableHeight > 1.0f ? availableHeight : 1.0f;
+        if (targetAspect <= 0.05f) {
+            return { 0.0f, 0.0f, width, height };
+        }
+
+        EditorViewportFit result{};
+        const float availableAspect = width / height;
+        if (availableAspect > targetAspect) {
+            result.height = height;
+            result.width = height * targetAspect;
+            result.offsetX = (width - result.width) * 0.5f;
+        } else {
+            result.width = width;
+            result.height = width / targetAspect;
+            result.offsetY = (height - result.height) * 0.5f;
+        }
+        return result;
+    }
 
     struct EditorViewInteractionState {
         bool visible = false;
@@ -59,6 +108,7 @@ namespace HIKARI::EDITOR {
         RENDER3D::RenderViewPurpose purpose = RENDER3D::RenderViewPurpose::EditorScene;
         EditorViewCameraBinding cameraBinding{};
         EditorViewExecutionMode execution = EditorViewExecutionMode::PrimaryFullQuality;
+        EditorViewVisualizationState visualization{};
         EditorViewportExtent extent{};
         EditorViewInteractionState interaction{};
 
@@ -66,6 +116,7 @@ namespace HIKARI::EDITOR {
         float overviewUnitsPerScreen = 40.0f;
     };
 
-    inline constexpr RENDER3D::RenderViewId kEditorOverviewRenderViewId{ 2 };
+    inline constexpr RENDER3D::RenderViewId kEditorDirectorRenderViewId{ 2 };
+    inline constexpr RENDER3D::RenderViewId kEditorOverviewRenderViewId{ 3 };
 
 } // namespace HIKARI::EDITOR

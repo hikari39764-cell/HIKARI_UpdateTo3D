@@ -17,6 +17,7 @@
 #endif
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_CameraDirector.h"
+#include "Scene/HIKARI_CinematicCameraPlayback.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
@@ -87,7 +88,28 @@ namespace HIKARI {
         void EndEditorCameraPreview();
         bool IsEditorCameraPreviewActive() const;
         SceneObjectId GetEditorCameraPreviewObjectId() const;
+        bool TryResolveCameraObjectView(
+            SceneObjectId cameraObjectId,
+            float aspect,
+            Camera3D& outCamera) const;
+        bool ApplyCameraObjectPose(
+            SceneObjectId cameraObjectId,
+            const MATH::Vec3& position,
+            const MATH::Quat& rotation,
+            bool markDirty = true);
         bool SnapCameraObjectToEditorView(SceneObjectId cameraObjectId);
+        CinematicPlaybackHandle PlayCameraSequence(
+            CinematicSequenceId sequenceId,
+            const CinematicPlaybackOptions& options = {},
+            float startTimeSeconds = 0.0f);
+        bool StopCameraSequence(CinematicPlaybackHandle handle);
+        bool PauseCameraSequence(CinematicPlaybackHandle handle);
+        bool ResumeCameraSequence(CinematicPlaybackHandle handle);
+        bool SeekCameraSequence(
+            CinematicPlaybackHandle handle,
+            float timeSeconds);
+        bool IsCameraSequencePlaying() const noexcept;
+        CinematicPlaybackHandle GetCameraSequencePlaybackHandle() const noexcept;
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
         bool IsRuntimePlayActive() const { return runtimePlayActive_; }
@@ -165,6 +187,7 @@ namespace HIKARI {
         Camera3D camera_{};
         Camera3D gameplayCamera_{};
         CameraDirector cameraDirector_{};
+        CinematicCameraPlayback cinematicCameraPlayback_{};
         RENDER3D::ResolvedCameraFrame resolvedCameraFrame_{};
         DebugCameraController3D debugCamera_{};
         DebugCameraController3D runtimePreviewCamera_{};

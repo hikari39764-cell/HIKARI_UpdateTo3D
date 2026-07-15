@@ -40,10 +40,17 @@ namespace HIKARI::RENDERER3D::DEBUG {
 
         struct State {
             bool initialized = false;
+#if defined(HIKARI_WITH_EDITOR)
+            bool editorViewResourcesInitialized = false;
+#endif
             ComPtr<ID3D12RootSignature> rootSig;
             ComPtr<ID3D12PipelineState> depthTestPso;
             ComPtr<ID3D12PipelineState> xrayPso;
             std::array<FrameResources, GFX::kFrameResourceCount> frameResources{};
+#if defined(HIKARI_WITH_EDITOR)
+            std::array<FrameResources, GFX::kFrameResourceCount>
+                editorViewFrameResources{};
+#endif
         };
 
         std::vector<WireCube> g_cubes;
@@ -56,6 +63,9 @@ namespace HIKARI::RENDERER3D::DEBUG {
         State g_state;
         DebugRendererFrameStats g_submitStats{};
         DebugRendererFrameStats g_frameStats{};
+#if defined(HIKARI_WITH_EDITOR)
+        bool g_renderingEditorView = false;
+#endif
 
         MATH::Vec4 DecodeRgba(uint32_t rgba) {
             constexpr float inv255 = 1.0f / 255.0f;
@@ -215,9 +225,19 @@ namespace HIKARI::RENDERER3D::DEBUG {
             return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(outPso)));
         }
 
-        FrameResources& ActiveFrameResources() {
+        FrameResources& ActiveFrameResources(
+#if defined(HIKARI_WITH_EDITOR)
+            bool editorView = false
+#endif
+        ) {
             const uint32_t frameIndex = SERVICES::gCtx.frameIndex % GFX::kFrameResourceCount;
+#if defined(HIKARI_WITH_EDITOR)
+            return editorView
+                ? g_state.editorViewFrameResources[frameIndex]
+                : g_state.frameResources[frameIndex];
+#else
             return g_state.frameResources[frameIndex];
+#endif
         }
 
         bool CreateCameraBuffer(ID3D12Device* device, FrameResources& frame) {
@@ -277,6 +297,32 @@ namespace HIKARI::RENDERER3D::DEBUG {
             g_state.initialized = true;
             return true;
         }
+
+#if defined(HIKARI_WITH_EDITOR)
+        bool EnsureEditorViewResources() {
+            if (g_state.editorViewResourcesInitialized) {
+                return true;
+            }
+            if (!EnsureInitialized() || SERVICES::gCtx.device == nullptr) {
+                return false;
+            }
+            for (FrameResources& frame : g_state.editorViewFrameResources) {
+                if (frame.cameraCB != nullptr &&
+                    frame.cameraMapped != nullptr) {
+                    continue;
+                }
+                frame.cameraCB.Reset();
+                frame.cameraMapped = nullptr;
+                if (!CreateCameraBuffer(SERVICES::gCtx.device, frame)) {
+                    frame.cameraCB.Reset();
+                    frame.cameraMapped = nullptr;
+                    return false;
+                }
+            }
+            g_state.editorViewResourcesInitialized = true;
+            return true;
+        }
+#endif
 
         size_t WriteLineVertices(DebugLineVertex3D* dst, size_t startVertex, const std::vector<Line3D>& lines) {
             size_t vertexIndex = startVertex;
@@ -364,8 +410,15 @@ namespace HIKARI::RENDERER3D::DEBUG {
         (void)screenH;
 
         ExpandSubmittedLines(g_expandedScratch);
+#if defined(HIKARI_WITH_EDITOR)
+        if (!g_renderingEditorView) {
+            g_frameStats = g_submitStats;
+            g_frameStats.expandedLineCount = g_expandedScratch.size();
+        }
+#else
         g_frameStats = g_submitStats;
         g_frameStats.expandedLineCount = g_expandedScratch.size();
+#endif
         if (g_expandedScratch.empty()) {
             return;
         }
@@ -382,14 +435,32 @@ namespace HIKARI::RENDERER3D::DEBUG {
                 g_depthTestScratch.push_back(line);
             }
         }
+#if defined(HIKARI_WITH_EDITOR)
+        if (!g_renderingEditorView) {
+            g_frameStats.depthTestLineCount = g_depthTestScratch.size();
+            g_frameStats.xrayLineCount = g_xrayScratch.size();
+        }
+#else
         g_frameStats.depthTestLineCount = g_depthTestScratch.size();
         g_frameStats.xrayLineCount = g_xrayScratch.size();
+#endif
 
+#if defined(HIKARI_WITH_EDITOR)
+        if (!EnsureInitialized() ||
+            (g_renderingEditorView && !EnsureEditorViewResources())) {
+            return;
+        }
+#else
         if (!EnsureInitialized()) {
             return;
         }
+#endif
         ID3D12Device* device = SERVICES::gCtx.device;
+#if defined(HIKARI_WITH_EDITOR)
+        FrameResources& frame = ActiveFrameResources(g_renderingEditorView);
+#else
         FrameResources& frame = ActiveFrameResources();
+#endif
         const size_t depthVertexCount = g_depthTestScratch.size() * 2u;
         const size_t xrayVertexCount = g_xrayScratch.size() * 2u;
         const size_t totalVertexCount = depthVertexCount + xrayVertexCount;
@@ -410,5 +481,40 @@ namespace HIKARI::RENDERER3D::DEBUG {
         RenderLineBatch(frame, depthVertexStart, depthVertexCount, g_state.depthTestPso.Get());
         RenderLineBatch(frame, xrayVertexStart, xrayVertexCount, g_state.xrayPso.Get());
     }
+
+#if defined(HIKARI_WITH_EDITOR)
+    void RenderAllForView(
+        RENDER3D::RenderViewId viewId,
+        const Camera3D& camera,
+        float screenW,
+        float screenH) {
+
+        if (viewId == RENDER3D::kPrimaryRenderViewId) {
+            RenderAll(camera, screenW, screenH);
+            return;
+        }
+        g_renderingEditorView = true;
+        RenderAll(camera, screenW, screenH);
+        g_renderingEditorView = false;
+    }
+
+    void ShutdownEditorViewResources() {
+        g_renderingEditorView = false;
+        for (FrameResources& frame : g_state.editorViewFrameResources) {
+            if (frame.cameraCB != nullptr && frame.cameraMapped != nullptr) {
+                frame.cameraCB->Unmap(0, nullptr);
+            }
+            if (frame.vertexBuffer != nullptr && frame.vertexMapped != nullptr) {
+                frame.vertexBuffer->Unmap(0, nullptr);
+            }
+            frame.cameraCB.Reset();
+            frame.vertexBuffer.Reset();
+            frame.cameraMapped = nullptr;
+            frame.vertexMapped = nullptr;
+            frame.vertexCapacity = 0;
+        }
+        g_state.editorViewResourcesInitialized = false;
+    }
+#endif
 
 } // namespace HIKARI::RENDERER3D::DEBUG

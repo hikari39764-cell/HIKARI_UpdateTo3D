@@ -5,6 +5,7 @@
 #include "ImGuizmo.h"
 #endif
 
+#include "Core/HIKARI_Logger.h"
 #include "Scene/HIKARI_GameObject.h"
 
 #include <algorithm>
@@ -14,6 +15,8 @@ namespace HIKARI::EDITOR {
 
 #if defined(HIKARI_WITH_EDITOR)
     namespace {
+        constexpr float kDegreesToRadians = 0.01745329251994329577f;
+
         struct DecomposedGizmoMatrix {
             TransformData transform{};
             MATH::Quat rotation = MATH::Quat::Identity();
@@ -35,6 +38,26 @@ namespace HIKARI::EDITOR {
 
             const float invLength = 1.0f / length;
             return { x * invLength, y * invLength, z * invLength };
+        }
+
+        bool IsFinite(const MATH::Vec3& value) {
+            return std::isfinite(value.x) &&
+                std::isfinite(value.y) &&
+                std::isfinite(value.z);
+        }
+
+        bool IsFinite(const MATH::Quat& value) {
+            return std::isfinite(value.x) &&
+                std::isfinite(value.y) &&
+                std::isfinite(value.z) &&
+                std::isfinite(value.w);
+        }
+
+        bool IsFinite(const DecomposedGizmoMatrix& value) {
+            return IsFinite(value.transform.position) &&
+                IsFinite(value.transform.rotationEulerDeg) &&
+                IsFinite(value.transform.scale) &&
+                IsFinite(value.rotation);
         }
 
         MATH::Quat ExtractRotationFromMatrix(const float matrix[16]) {
@@ -138,15 +161,69 @@ namespace HIKARI::EDITOR {
                 (std::max)(0.001f, scale[1]),
                 (std::max)(0.001f, scale[2])
             };
-            // ImGuizmo 縺ｮ Euler 蛟､縺ｧ縺ｯ縺ｪ縺上∬｡悟・縺九ｉ蠕ｩ蜈・＠縺・Quaternion 繧剃ｽｿ縺・・            decomposed.rotation = ExtractRotationFromMatrix(matrix);
+            // Keep the edited orientation in quaternion form to avoid Euler discontinuities.
+            decomposed.rotation = ExtractRotationFromMatrix(matrix);
             decomposed.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(decomposed.rotation);
             return decomposed;
+        }
+
+        DecomposedGizmoMatrix MakeGizmoTransform(const Transform3D& transform) {
+            if (transform.useExplicitMatrix) {
+                float matrix[16]{};
+                CopyMat4ToFloat16(transform.explicitMatrix, matrix);
+                return DecomposeEditedMatrix(matrix);
+            }
+
+            DecomposedGizmoMatrix result{};
+            result.transform.position = transform.position;
+            result.transform.scale = transform.scale;
+            result.rotation = MATH::NormalizeQ(transform.rotation);
+            result.transform.rotationEulerDeg =
+                MATH::EulerXYZDegreesFromQuat(result.rotation);
+            return result;
+        }
+
+        DecomposedGizmoMatrix MakeGizmoTransform(const TransformData& transform) {
+            DecomposedGizmoMatrix result{};
+            result.transform = transform;
+            result.rotation = MATH::NormalizeQ(MATH::Quat::FromEulerXYZ(
+                transform.rotationEulerDeg.x * kDegreesToRadians,
+                transform.rotationEulerDeg.y * kDegreesToRadians,
+                transform.rotationEulerDeg.z * kDegreesToRadians));
+            result.transform.rotationEulerDeg =
+                MATH::EulerXYZDegreesFromQuat(result.rotation);
+            return result;
+        }
+
+        DecomposedGizmoMatrix SelectEditedComponent(
+            const DecomposedGizmoMatrix& initial,
+            const DecomposedGizmoMatrix& edited,
+            EditorTransformGizmoOperation operation) {
+
+            DecomposedGizmoMatrix result = initial;
+            switch (operation) {
+            case EditorTransformGizmoOperation::Rotate:
+                result.rotation = edited.rotation;
+                result.transform.rotationEulerDeg =
+                    MATH::EulerXYZDegreesFromQuat(result.rotation);
+                break;
+            case EditorTransformGizmoOperation::Scale:
+                result.transform.scale = edited.transform.scale;
+                break;
+            case EditorTransformGizmoOperation::Translate:
+            default:
+                result.transform.position = edited.transform.position;
+                break;
+            }
+            return result;
         }
 
         EditorTransformGizmoResult DrawTransformMatrix(
             const Camera3D& camera,
             const EditorTransformGizmoState& state,
             const EditorViewportRect& viewportRect,
+            const void* stableId,
+            const DecomposedGizmoMatrix& initial,
             float model[16]) {
 
             EditorTransformGizmoResult result{};
@@ -172,6 +249,7 @@ namespace HIKARI::EDITOR {
             }
 
             // The caller applies the per-object transform delta.
+            ImGuizmo::PushID(stableId);
             result.changed = ImGuizmo::Manipulate(
                 view,
                 projection,
@@ -183,10 +261,21 @@ namespace HIKARI::EDITOR {
             result.interacting = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 
             if (result.changed) {
-                const DecomposedGizmoMatrix decomposed = DecomposeEditedMatrix(model);
-                result.transform = decomposed.transform;
-                result.rotation = decomposed.rotation;
+                const DecomposedGizmoMatrix edited = DecomposeEditedMatrix(model);
+                if (IsFinite(edited)) {
+                    const DecomposedGizmoMatrix selected = SelectEditedComponent(
+                        initial,
+                        edited,
+                        state.operation);
+                    result.transform = selected.transform;
+                    result.rotation = selected.rotation;
+                } else {
+                    result.changed = false;
+                    HIKARI_LOG_WARN(
+                        "[EditorTransformGizmo] rejected non-finite transform output");
+                }
             }
+            ImGuizmo::PopID();
             return result;
         }
     }
@@ -201,10 +290,20 @@ namespace HIKARI::EDITOR {
         EditorTransformGizmoResult result{};
 
 #if defined(HIKARI_WITH_EDITOR)
+        const Transform3D& sourceTransform =
+            static_cast<const GameObject&>(object).Transform();
+        const DecomposedGizmoMatrix initial =
+            MakeGizmoTransform(sourceTransform);
         float model[16]{};
-        CopyMat4ToFloat16(object.Transform().GetLocalMatrix(), model);
+        CopyMat4ToFloat16(sourceTransform.GetLocalMatrix(), model);
 
-        result = DrawTransformMatrix(camera, state, viewportRect, model);
+        result = DrawTransformMatrix(
+            camera,
+            state,
+            viewportRect,
+            this,
+            initial,
+            model);
         if (result.changed) {
             Transform3D& runtimeTransform = object.Transform();
             runtimeTransform.useExplicitMatrix = false;
@@ -231,14 +330,21 @@ namespace HIKARI::EDITOR {
         EditorTransformGizmoResult result{};
 
 #if defined(HIKARI_WITH_EDITOR)
+        const DecomposedGizmoMatrix initial = MakeGizmoTransform(transform);
         float model[16]{};
         CopyMat4ToFloat16(
             MATH::Mat4::TRS(
                 transform.position,
-                MATH::Quat::Identity(),
+                initial.rotation,
                 transform.scale),
             model);
-        result = DrawTransformMatrix(camera, state, viewportRect, model);
+        result = DrawTransformMatrix(
+            camera,
+            state,
+            viewportRect,
+            this,
+            initial,
+            model);
 #else
         (void)transform;
         (void)camera;

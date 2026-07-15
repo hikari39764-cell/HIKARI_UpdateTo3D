@@ -125,6 +125,41 @@ namespace HIKARI::MATH {
         return radians * kRadToDeg;
     }
 
+    Vec3 EulerXYZDegreesFromQuatNearest(
+        const Quat& q,
+        const Vec3& referenceDegrees) {
+
+        const auto wrapNear = [](float degrees, float reference) {
+            return reference + std::remainder(degrees - reference, 360.0f);
+        };
+        const auto wrapCandidate = [&wrapNear](
+            const Vec3& candidate,
+            const Vec3& reference) {
+            return Vec3{
+                wrapNear(candidate.x, reference.x),
+                wrapNear(candidate.y, reference.y),
+                wrapNear(candidate.z, reference.z)
+            };
+        };
+        const auto distanceSquared = [](const Vec3& a, const Vec3& b) {
+            const Vec3 delta = a - b;
+            return Dot(delta, delta);
+        };
+
+        const Vec3 canonical = EulerXYZDegreesFromQuat(q);
+        const Vec3 alternate{
+            canonical.x + 180.0f,
+            180.0f - canonical.y,
+            canonical.z + 180.0f
+        };
+        const Vec3 canonicalNear = wrapCandidate(canonical, referenceDegrees);
+        const Vec3 alternateNear = wrapCandidate(alternate, referenceDegrees);
+        return distanceSquared(alternateNear, referenceDegrees) <
+                distanceSquared(canonicalNear, referenceDegrees)
+            ? alternateNear
+            : canonicalNear;
+    }
+
     Mat4 Mat4::Identity() {
         Mat4 r{};
         r.m[0][0] = 1.0f; r.m[1][1] = 1.0f; r.m[2][2] = 1.0f; r.m[3][3] = 1.0f;

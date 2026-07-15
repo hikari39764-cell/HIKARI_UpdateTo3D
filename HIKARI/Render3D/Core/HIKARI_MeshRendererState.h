@@ -1,8 +1,11 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
+#include <wrl/client.h>
 
 #include "Render3D/Core/HIKARI_MeshMaterialResolver.h"
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
@@ -22,6 +25,40 @@
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI::MESHRENDERER {
+
+#if defined(HIKARI_WITH_EDITOR)
+    struct EditorInteractiveMeshFrameResources {
+        Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB{};
+        Microsoft::WRL::ComPtr<ID3D12Resource> lightCB{};
+        Microsoft::WRL::ComPtr<ID3D12Resource> shadowCB{};
+        Microsoft::WRL::ComPtr<ID3D12Resource> skyEnvironmentCB{};
+        CameraCB* cameraMapped = nullptr;
+        LightCB* lightMapped = nullptr;
+        ShadowCB* shadowMapped = nullptr;
+        SkyEnvironmentCB* skyEnvironmentMapped = nullptr;
+
+        bool IsReady() const {
+            return cameraCB != nullptr &&
+                lightCB != nullptr &&
+                shadowCB != nullptr &&
+                skyEnvironmentCB != nullptr &&
+                cameraMapped != nullptr &&
+                lightMapped != nullptr &&
+                shadowMapped != nullptr &&
+                skyEnvironmentMapped != nullptr;
+        }
+    };
+
+    struct EditorInteractiveMeshResources {
+        bool initialized = false;
+        std::array<
+            EditorInteractiveMeshFrameResources,
+            GFX::kFrameResourceCount> frames{};
+        RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer
+            traditionalCommandStreamBuffer{};
+        RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
+    };
+#endif
 
     struct MeshRendererState {
         bool initialized = false;
@@ -56,6 +93,9 @@ namespace HIKARI::MESHRENDERER {
         MeshRendererTraditionalIndirectOwner traditionalIndirectOwner{};
         RENDER3D::GPUDRIVEN::GpuDrivenFrame gpuDrivenFrame{};
         RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
+#if defined(HIKARI_WITH_EDITOR)
+        EditorInteractiveMeshResources editorInteractive{};
+#endif
         RENDER3D::CLUSTER::ClusterGpuCullingPass clusterGpuCullingPass{};
         RENDER3D::GPUDRIVEN::ClusterGpuDrivenProducerAdapter clusterGpuDrivenProducer{};
         RENDER3D::MESHLET::MeshletRenderBackend meshletRenderBackend{};

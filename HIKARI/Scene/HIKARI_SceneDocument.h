@@ -9,16 +9,10 @@
 #include <json.hpp>
 
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Scene/HIKARI_CinematicSequence.h"
+#include "Scene/HIKARI_SceneObjectId.h"
 
 namespace HIKARI {
-
-    struct SceneObjectId {
-        uint64_t value = 0;
-
-        bool operator==(const SceneObjectId& rhs) const {
-            return value == rhs.value;
-        }
-    };
 
     struct TransformData {
         MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
@@ -123,6 +117,7 @@ namespace HIKARI {
         SceneEnvironment environment{};
         SceneLightingBakeSettings lightingBake{};
         SceneCameraSettings camera{};
+        SceneCinematicsSettings cinematics{};
         std::vector<SceneObjectData> objects{};
         std::vector<SceneSystemData> systems{};
     };

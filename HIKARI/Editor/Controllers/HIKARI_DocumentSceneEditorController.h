@@ -14,7 +14,7 @@
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/Panels/HIKARI_ValidationLabPanel.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
-#include "Editor/Workspaces/HIKARI_CameraOverviewPanel.h"
+#include "Editor/Workspaces/HIKARI_CinematicsWorkspaceController.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
@@ -57,29 +57,13 @@ namespace HIKARI {
         QualityPanel qualityPanel_{};
         EDITOR::EditorToolHost toolHost_{};
         EDITOR::EditorWorkspaceHost workspaceHost_{};
-        EDITOR::CameraOverviewPanel cameraOverviewPanel_{};
+        EDITOR::CinematicsWorkspaceController cinematicsWorkspaceController_{};
         DebugCameraPanel debugCameraPanel_{};
         EDITOR::EditorTransformGizmo transformGizmo_{};
         void DrawGameViewportWindow(
             DocumentSceneBase& scene,
             bool gameOnly,
             EDITOR::EditorPlaySession& playSession);
-        void DrawCinematicsWorkspace(
-            DocumentSceneBase& scene,
-            EDITOR::EditorPlaySession& playSession);
-        void DrawCinematicsGameViewWindow(
-            DocumentSceneBase& scene,
-            EDITOR::EditorPlaySession& playSession);
-        void DrawCinematicsOverviewWindow(DocumentSceneBase& scene);
-        void DrawCinematicsCameraListWindow(DocumentSceneBase& scene);
-        void ApplyWorkspaceActivation(
-            DocumentSceneBase& scene,
-            const EDITOR::EditorWorkspaceActivation& activation);
-        void ApplyCameraOverviewAction(
-            DocumentSceneBase& scene,
-            const EDITOR::CameraOverviewAction& action);
-        void ClearCinematicsCameraBinding();
-        void SyncCinematicsSceneIdentity(DocumentSceneBase& scene);
         void ToggleGamePreview(
             DocumentSceneBase& scene,
             EDITOR::EditorPlaySession& playSession);
@@ -98,11 +82,6 @@ namespace HIKARI {
         AssetGuid pendingSceneOpenGuid_{};
         std::string viewportDropMessage_{};
         bool renderQualitySavePending_ = false;
-        bool cinematicsCameraPreviewOwned_ = false;
-        std::optional<SceneObjectId> preCinematicsPreviewObjectId_{};
-        std::optional<SceneObjectId> cinematicsBoundCameraObjectId_{};
-        std::string cinematicsSceneIdentity_{};
-        uint64_t cinematicsSceneDocumentRevision_ = 0;
     };
 
 } // namespace HIKARI

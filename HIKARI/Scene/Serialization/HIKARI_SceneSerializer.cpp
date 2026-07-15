@@ -3,6 +3,7 @@
 #include <fstream>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <utility>
 
 #include <json.hpp>
@@ -546,6 +547,134 @@ namespace HIKARI {
             }
         }
 
+        CameraCinematicSequence DeserializeCameraSequence(
+            const json& sequenceNode,
+            CinematicSequenceId fallbackId,
+            std::string fallbackName) {
+
+            CameraCinematicSequence sequence{};
+            sequence.id = fallbackId;
+            sequence.name = std::move(fallbackName);
+            if (const auto idIt = sequenceNode.find("id");
+                idIt != sequenceNode.end() && idIt->is_number_unsigned()) {
+                sequence.id.value = idIt->get<uint64_t>();
+            }
+            if (const auto nameIt = sequenceNode.find("name");
+                nameIt != sequenceNode.end() && nameIt->is_string()) {
+                sequence.name = nameIt->get<std::string>();
+            }
+            if (const auto durationIt = sequenceNode.find("durationSeconds");
+                durationIt != sequenceNode.end() && durationIt->is_number()) {
+                sequence.durationSeconds = durationIt->get<float>();
+            }
+
+            const auto shotsIt = sequenceNode.find("shots");
+            if (shotsIt != sequenceNode.end() && shotsIt->is_array()) {
+                for (const json& shotNode : *shotsIt) {
+                    if (!shotNode.is_object()) {
+                        continue;
+                    }
+
+                    CinematicShotClip shot{};
+                    if (const auto idIt = shotNode.find("id");
+                        idIt != shotNode.end() && idIt->is_number_unsigned()) {
+                        shot.id = idIt->get<uint64_t>();
+                    }
+                    if (const auto cameraIt = shotNode.find("cameraObjectId");
+                        cameraIt != shotNode.end() && cameraIt->is_number_unsigned()) {
+                        shot.cameraObjectId.value = cameraIt->get<uint64_t>();
+                    }
+                    if (const auto startIt = shotNode.find("startTimeSeconds");
+                        startIt != shotNode.end() && startIt->is_number()) {
+                        shot.startTimeSeconds = startIt->get<float>();
+                    }
+                    if (const auto shotDurationIt = shotNode.find("durationSeconds");
+                        shotDurationIt != shotNode.end() && shotDurationIt->is_number()) {
+                        shot.durationSeconds = shotDurationIt->get<float>();
+                    }
+                    sequence.shots.push_back(shot);
+                }
+            }
+            NormalizeCameraCinematicSequence(sequence);
+            return sequence;
+        }
+
+        void DeserializeCinematics(
+            const json& in,
+            SceneCinematicsSettings& settings) {
+
+            if (!in.is_object()) {
+                NormalizeSceneCinematicsSettings(settings);
+                return;
+            }
+
+            settings.cameraSequences.clear();
+            if (const auto defaultIt = in.find("defaultSequenceId");
+                defaultIt != in.end() && defaultIt->is_number_unsigned()) {
+                settings.defaultSequenceId.value =
+                    defaultIt->get<uint64_t>();
+            }
+
+            const auto sequencesIt = in.find("cameraSequences");
+            if (sequencesIt != in.end() && sequencesIt->is_array()) {
+                for (const json& sequenceNode : *sequencesIt) {
+                    if (!sequenceNode.is_object()) {
+                        continue;
+                    }
+                    const CinematicSequenceId fallbackId{
+                        static_cast<uint64_t>(
+                            settings.cameraSequences.size() + 1)
+                    };
+                    settings.cameraSequences.push_back(
+                        DeserializeCameraSequence(
+                            sequenceNode,
+                            fallbackId,
+                            "Sequence " +
+                                std::to_string(fallbackId.value)));
+                }
+            } else {
+                // Stage 1 scenes stored one unnamed sequence. Promote it to the
+                // multi-sequence representation without changing any shots.
+                const auto legacyIt = in.find("cameraSequence");
+                if (legacyIt != in.end() && legacyIt->is_object()) {
+                    settings.cameraSequences.push_back(
+                        DeserializeCameraSequence(
+                            *legacyIt,
+                            CinematicSequenceId{ 1 },
+                            "Main Sequence"));
+                    settings.defaultSequenceId = { 1 };
+                }
+            }
+            NormalizeSceneCinematicsSettings(settings);
+        }
+
+        void SerializeCinematics(
+            const SceneCinematicsSettings& settings,
+            json& out) {
+
+            out = json::object();
+            out["defaultSequenceId"] = settings.defaultSequenceId.value;
+            out["cameraSequences"] = json::array();
+            for (const CameraCinematicSequence& sequence :
+                    settings.cameraSequences) {
+                json sequenceNode = {
+                    { "id", sequence.id.value },
+                    { "name", sequence.name },
+                    { "durationSeconds", sequence.durationSeconds },
+                    { "shots", json::array() }
+                };
+                for (const CinematicShotClip& shot : sequence.shots) {
+                    sequenceNode["shots"].push_back({
+                        { "id", shot.id },
+                        { "cameraObjectId", shot.cameraObjectId.value },
+                        { "startTimeSeconds", shot.startTimeSeconds },
+                        { "durationSeconds", shot.durationSeconds }
+                    });
+                }
+                out["cameraSequences"].push_back(std::move(sequenceNode));
+            }
+        }
+
         void SerializeSystems(const SceneDocument& document, json& out) {
             out = json::array();
             const std::vector<SceneSystemData> systems = document.systems.empty()
@@ -594,6 +723,10 @@ namespace HIKARI {
                 }
             }
         }
+
+        DeserializeCinematics(
+            root.value("cinematics", json::object()),
+            outDocument.cinematics);
 
         DeserializeSystems(root.value("systems", json{}), outDocument);
 
@@ -653,6 +786,7 @@ namespace HIKARI {
         } else {
             root["camera"]["defaultCameraObjectId"] = nullptr;
         }
+        SerializeCinematics(document.cinematics, root["cinematics"]);
         SerializeSystems(document, root["systems"]);
 
         root["objects"] = json::array();

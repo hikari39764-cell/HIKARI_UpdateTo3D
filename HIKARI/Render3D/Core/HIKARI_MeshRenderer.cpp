@@ -6,6 +6,10 @@
 #include <string>
 #include <vector>
 
+#if defined(HIKARI_WITH_EDITOR)
+#include <d3dx12.h>
+#endif
+
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
@@ -45,6 +49,18 @@ namespace HIKARI::MESHRENDERER {
     namespace {
         MeshRendererState g;
         constexpr size_t kMaxMaterialTextureGpuLoadsPerFrame = 2;
+
+#if defined(HIKARI_WITH_EDITOR)
+        struct MeshFrameBindingOverrides {
+            D3D12_GPU_VIRTUAL_ADDRESS cameraAddress = 0;
+            D3D12_GPU_VIRTUAL_ADDRESS cullingCameraAddress = 0;
+            D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
+            D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
+            D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress = 0;
+            RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer*
+                traditionalCommandStreamBuffer = nullptr;
+        };
+#endif
 
         MeshRendererFrameResources& ActiveFrameResources() {
             return g.frameResources.Active();
@@ -187,6 +203,133 @@ namespace HIKARI::MESHRENDERER {
             return true;
         }
 
+#if defined(HIKARI_WITH_EDITOR)
+        template <typename T>
+        bool CreateEditorInteractiveConstantBuffer(
+            ID3D12Device* device,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
+            T*& mapped) {
+
+            if (device == nullptr) {
+                return false;
+            }
+            const UINT byteSize = AlignConstantBufferSize(sizeof(T));
+            const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+            if (FAILED(device->CreateCommittedResource(
+                    &heap,
+                    D3D12_HEAP_FLAG_NONE,
+                    &desc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    IID_PPV_ARGS(resource.ReleaseAndGetAddressOf())))) {
+                return false;
+            }
+            if (FAILED(resource->Map(
+                    0,
+                    nullptr,
+                    reinterpret_cast<void**>(&mapped)))) {
+                resource.Reset();
+                mapped = nullptr;
+                return false;
+            }
+            return true;
+        }
+
+        void ResetEditorInteractiveResources() {
+            for (EditorInteractiveMeshFrameResources& frame :
+                g.editorInteractive.frames) {
+
+                if (frame.cameraCB != nullptr && frame.cameraMapped != nullptr) {
+                    frame.cameraCB->Unmap(0, nullptr);
+                }
+                if (frame.lightCB != nullptr && frame.lightMapped != nullptr) {
+                    frame.lightCB->Unmap(0, nullptr);
+                }
+                if (frame.shadowCB != nullptr && frame.shadowMapped != nullptr) {
+                    frame.shadowCB->Unmap(0, nullptr);
+                }
+                if (frame.skyEnvironmentCB != nullptr &&
+                    frame.skyEnvironmentMapped != nullptr) {
+                    frame.skyEnvironmentCB->Unmap(0, nullptr);
+                }
+                frame = {};
+            }
+            g.editorInteractive.traditionalCommandStreamBuffer = {};
+            g.editorInteractive.gpuDrivenLayer = {};
+            g.editorInteractive.initialized = false;
+        }
+
+        bool EnsureEditorInteractiveResources() {
+            if (g.editorInteractive.initialized) {
+                return true;
+            }
+            ID3D12Device* device = SERVICES::gCtx.device;
+            if (device == nullptr ||
+                GetStaticRootSignature(g.pipelines) == nullptr ||
+                GetSkinnedRootSignature(g.pipelines) == nullptr) {
+                return false;
+            }
+
+            for (EditorInteractiveMeshFrameResources& frame :
+                g.editorInteractive.frames) {
+
+                if (!CreateEditorInteractiveConstantBuffer(
+                        device,
+                        frame.cameraCB,
+                        frame.cameraMapped) ||
+                    !CreateEditorInteractiveConstantBuffer(
+                        device,
+                        frame.lightCB,
+                        frame.lightMapped) ||
+                    !CreateEditorInteractiveConstantBuffer(
+                        device,
+                        frame.shadowCB,
+                        frame.shadowMapped) ||
+                    !CreateEditorInteractiveConstantBuffer(
+                        device,
+                        frame.skyEnvironmentCB,
+                        frame.skyEnvironmentMapped)) {
+
+                    ResetEditorInteractiveResources();
+                    return false;
+                }
+            }
+
+            if (!g.editorInteractive.traditionalCommandStreamBuffer.Initialize(
+                    device,
+                    GetStaticRootSignature(g.pipelines),
+                    ROOT_PARAM::SurfaceGpuSceneControl,
+                    4u) ||
+                !g.editorInteractive.traditionalCommandStreamBuffer
+                    .InitializeSkinnedCommandStream(
+                        device,
+                        GetSkinnedRootSignature(g.pipelines),
+                        ROOT_PARAM::SurfaceGpuSceneControl,
+                        ROOT_PARAM::JointPalette)) {
+
+                ResetEditorInteractiveResources();
+                return false;
+            }
+
+            g.editorInteractive.gpuDrivenLayer.Attach(
+                &g.surfaceGpuSceneBuffer,
+                &g.editorInteractive.traditionalCommandStreamBuffer,
+                nullptr);
+            if (!g.editorInteractive.gpuDrivenLayer.Initialize(
+                    device,
+                    GetStaticRootSignature(g.pipelines),
+                    ROOT_PARAM::SurfaceGpuSceneControl,
+                    4u)) {
+
+                ResetEditorInteractiveResources();
+                return false;
+            }
+            g.editorInteractive.initialized = true;
+            return true;
+        }
+#endif
+
         bool EnsureInitialized() {
             if (g.initialized) {
                 return true;
@@ -288,7 +431,11 @@ namespace HIKARI::MESHRENDERER {
         MeshDrawContext BuildDrawContext(
             bool depthAwarePhase,
             MeshDrawPassKind passKind,
-            const MeshPassResources& passResources);
+            const MeshPassResources& passResources
+#if defined(HIKARI_WITH_EDITOR)
+            , const MeshFrameBindingOverrides* overrides = nullptr
+#endif
+        );
 
         void UploadGpuDrivenSceneFrame() {
             g.gpuDrivenLayer.BeginFrame(&g.gpuDrivenSceneSource);
@@ -1104,14 +1251,35 @@ namespace HIKARI::MESHRENDERER {
         bool ExecuteTraditionalDrawFrame(
             const MeshPassResources& passResources,
             RENDER3D::GPUDRIVEN::GpuDrivenPassKind gpuPass,
-            MeshDrawPassKind passKind) {
+            MeshDrawPassKind passKind
+#if defined(HIKARI_WITH_EDITOR)
+            ,
+            RENDER3D::GPUDRIVEN::GpuDrivenLayer* layerOverride = nullptr,
+            const MeshFrameBindingOverrides* bindingOverrides = nullptr
+#endif
+        ) {
 
+#if defined(HIKARI_WITH_EDITOR)
+            RENDER3D::GPUDRIVEN::GpuDrivenLayer& layer =
+                layerOverride != nullptr ? *layerOverride : g.gpuDrivenLayer;
+            if (layerOverride == nullptr) {
+                SyncGpuDrivenBackendAvailability();
+            }
+            if (!layer.IsPassGpuReady(gpuPass)) {
+                return false;
+            }
+#else
             if (!IsGpuDrivenWorkPreparedForPass(gpuPass)) {
                 return false;
             }
+#endif
 
             const RENDER3D::GPUDRIVEN::GeometryBackendContext backendContext =
+#if defined(HIKARI_WITH_EDITOR)
+                layer.BuildGeometryBackendContext(
+#else
                 g.gpuDrivenLayer.BuildGeometryBackendContext(
+#endif
                     SERVICES::gCtx.cmdList,
                     gpuPass,
                     RENDER3D::GPUDRIVEN::GeometryBackendKind::GpuDrivenTraditionalVsPs);
@@ -1166,7 +1334,16 @@ namespace HIKARI::MESHRENDERER {
             const bool depthAwarePhase =
                 gpuPass == RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardDepthAware;
             MeshDrawContext drawCtx =
-                BuildDrawContext(depthAwarePhase, passKind, passResources);
+                BuildDrawContext(
+                    depthAwarePhase,
+                    passKind,
+                    passResources
+#if defined(HIKARI_WITH_EDITOR)
+                    ,
+                    bindingOverrides);
+#else
+                );
+#endif
             drawCtx.binding.cache = &bindingCache;
             drawCtx.surfaceGpuSceneBaseOffset = range->gpuSceneBaseIndex;
             BindSurfaceRecordFrameResources(drawCtx);
@@ -1441,7 +1618,11 @@ namespace HIKARI::MESHRENDERER {
         MeshDrawContext BuildDrawContext(
             bool depthAwarePhase,
             MeshDrawPassKind passKind,
-            const MeshPassResources& passResources) {
+            const MeshPassResources& passResources
+#if defined(HIKARI_WITH_EDITOR)
+            , const MeshFrameBindingOverrides* overrides
+#endif
+        ) {
             MeshDrawContext ctx{};
             MeshRendererFrameResources& frame = ActiveFrameResources();
             ctx.cmd = SERVICES::gCtx.cmdList;
@@ -1460,6 +1641,40 @@ namespace HIKARI::MESHRENDERER {
             ctx.materialDataSrv = frame.materialDataSrvGpu;
             ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
             ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
+#if defined(HIKARI_WITH_EDITOR)
+            ctx.traditionalCommandStreamBuffer =
+                overrides != nullptr &&
+                    overrides->traditionalCommandStreamBuffer != nullptr
+                    ? overrides->traditionalCommandStreamBuffer
+                    : &g.traditionalCommandStreamBuffer;
+            ctx.cameraAddress =
+                overrides != nullptr && overrides->cameraAddress != 0
+                    ? overrides->cameraAddress
+                    : ResolveCameraAddressForPass(passKind);
+            ctx.cullingCameraAddress =
+                overrides != nullptr && overrides->cullingCameraAddress != 0
+                    ? overrides->cullingCameraAddress
+                    : ResolveCullingCameraAddress();
+            ctx.lightAddress =
+                overrides != nullptr && overrides->lightAddress != 0
+                    ? overrides->lightAddress
+                    : (frame.lightCB
+                        ? frame.lightCB->GetGPUVirtualAddress()
+                        : 0);
+            ctx.shadowAddress =
+                overrides != nullptr && overrides->shadowAddress != 0
+                    ? overrides->shadowAddress
+                    : (frame.shadowCB
+                        ? frame.shadowCB->GetGPUVirtualAddress()
+                        : 0);
+            ctx.skyEnvironmentAddress =
+                overrides != nullptr &&
+                    overrides->skyEnvironmentAddress != 0
+                    ? overrides->skyEnvironmentAddress
+                    : (frame.skyEnvironmentCB
+                        ? frame.skyEnvironmentCB->GetGPUVirtualAddress()
+                        : 0);
+#else
             ctx.traditionalCommandStreamBuffer = &g.traditionalCommandStreamBuffer;
             ctx.cameraAddress = ResolveCameraAddressForPass(passKind);
             ctx.cullingCameraAddress = ResolveCullingCameraAddress();
@@ -1472,6 +1687,7 @@ namespace HIKARI::MESHRENDERER {
             ctx.skyEnvironmentAddress = frame.skyEnvironmentCB
                 ? frame.skyEnvironmentCB->GetGPUVirtualAddress()
                 : 0;
+#endif
             ctx.passKind = passKind;
             ctx.binding.cmd = ctx.cmd;
             ctx.binding.depthAwarePhase = depthAwarePhase;
@@ -1626,6 +1842,122 @@ namespace HIKARI::MESHRENDERER {
             }
             return true;
         }
+
+#if defined(HIKARI_WITH_EDITOR)
+        bool RenderEditorInteractiveMainlineStatic(
+            const MeshPassResources& passResources,
+            const MeshFrameBindingOverrides& overrides) {
+
+            const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
+                g.gpuDrivenSceneSource.GetPass(
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
+            if (pass.instances == nullptr ||
+                pass.materialSources == nullptr ||
+                pass.instances->empty() ||
+                SERVICES::gCtx.cmdList == nullptr) {
+                return false;
+            }
+
+            const size_t instanceCount = (std::min)(
+                pass.instances->size(),
+                pass.materialSources->size());
+            MeshBindingStateCache bindingCache{};
+            MeshDrawContext drawCtx = BuildDrawContext(
+                false,
+                MeshDrawPassKind::Forward,
+                passResources,
+                &overrides);
+            drawCtx.binding.cache = &bindingCache;
+            BindSurfaceRecordFrameResources(drawCtx);
+            BindObjectDataIndex(drawCtx.binding, 0u);
+            BindMaterialDataIndex(drawCtx.binding, 0u);
+
+            bool rendered = false;
+            for (size_t instanceIndex = 0;
+                instanceIndex < instanceCount;
+                ++instanceIndex) {
+
+                const RENDER3D::RUNTIME::SurfaceGpuSceneInstance& instance =
+                    (*pass.instances)[instanceIndex];
+                const RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource& source =
+                    (*pass.materialSources)[instanceIndex];
+                if (source.model == nullptr ||
+                    instance.meshIndex >= source.model->meshes.size()) {
+                    continue;
+                }
+                const MeshAsset& meshAsset =
+                    source.model->meshes[instance.meshIndex];
+                if (instance.primitiveIndex >= meshAsset.primitives.size()) {
+                    continue;
+                }
+                const MeshPrimitive& primitive =
+                    meshAsset.primitives[instance.primitiveIndex];
+                if (primitive.layout != VertexLayoutKind::StaticPNTT) {
+                    continue;
+                }
+
+                Mesh* mesh = g.primitiveCache.GetOrCreateStatic(
+                    SERVICES::gCtx.device,
+                    primitive,
+                    &g.debugStats);
+                if (mesh == nullptr || !mesh->IsValid()) {
+                    continue;
+                }
+
+                DrawItem variantItem{};
+                variantItem.asset = source.model;
+                variantItem.materialOverride = source.materialOverride;
+                variantItem.fxFlags = source.fxFlags;
+                for (size_t fxIndex = 0;
+                    fxIndex < VFX::kMaterialFxUserCount;
+                    ++fxIndex) {
+                    variantItem.fxValues[fxIndex] = source.fxUser[fxIndex];
+                }
+                ResolveDrawVariant(variantItem);
+                const MaterialAsset* materialAsset =
+                    primitive.materialIndex < source.model->materials.size()
+                        ? &source.model->materials[primitive.materialIndex]
+                        : nullptr;
+                const VFX::VariantKey variant = ResolvePrimitiveVariant(
+                    variantItem,
+                    source.materialOverride != nullptr
+                        ? nullptr
+                        : materialAsset,
+                    &primitive);
+                ID3D12PipelineState* pso = ResolveTraditionalStaticPso(
+                    MeshDrawPassKind::Forward,
+                    RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
+                    variant);
+                if (pso == nullptr) {
+                    continue;
+                }
+
+                BindPipelineState(drawCtx.binding, pso);
+                BindSurfaceGpuSceneControl(
+                    drawCtx.binding,
+                    pass.gpuSceneBaseIndex +
+                        static_cast<uint32_t>(instanceIndex),
+                    true);
+                const D3D12_VERTEX_BUFFER_VIEW vertexBuffer =
+                    mesh->GetVBView();
+                const D3D12_INDEX_BUFFER_VIEW indexBuffer =
+                    mesh->GetIBView();
+                SERVICES::gCtx.cmdList->IASetVertexBuffers(
+                    0,
+                    1,
+                    &vertexBuffer);
+                SERVICES::gCtx.cmdList->IASetIndexBuffer(&indexBuffer);
+                SERVICES::gCtx.cmdList->DrawIndexedInstanced(
+                    mesh->GetIndexCount(),
+                    1u,
+                    0u,
+                    0,
+                    0u);
+                rendered = true;
+            }
+            return rendered;
+        }
+#endif
 
     }
 
@@ -1983,6 +2315,144 @@ namespace HIKARI::MESHRENDERER {
     void EndFrame() {
         g.frameObjectIndex = 0;
     }
+
+#if defined(HIKARI_WITH_EDITOR)
+    bool RenderEditorInteractiveOpaque(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        uint32_t screenWidth,
+        uint32_t screenHeight,
+        const EditorInteractiveRenderSettings& settings) {
+
+        if (view.cameraFrame == nullptr ||
+            !view.cameraFrame->valid ||
+            screenWidth == 0 ||
+            screenHeight == 0 ||
+            SERVICES::gCtx.cmdList == nullptr ||
+            !EnsureInitialized() ||
+            !g.frameResources.HasActiveDrawResources() ||
+            !EnsureEditorInteractiveResources()) {
+            return false;
+        }
+
+        EditorInteractiveMeshFrameResources& editorFrame =
+            g.editorInteractive.frames[
+                SERVICES::gCtx.frameIndex % GFX::kFrameResourceCount];
+        if (!editorFrame.IsReady()) {
+            return false;
+        }
+
+        const Camera3D& camera = view.cameraFrame->camera;
+        CameraCB& cameraData = *editorFrame.cameraMapped;
+        cameraData = {};
+        cameraData.viewProj = camera.GetViewProj();
+        cameraData.invViewProj = MATH::Inverse(cameraData.viewProj);
+        const MATH::Vec3 cameraPosition = camera.GetPosition();
+        cameraData.cameraPos = {
+            cameraPosition.x,
+            cameraPosition.y,
+            cameraPosition.z,
+            1.0f
+        };
+        const FrameContext& timeFrame = TIME::GetFrameContext();
+        cameraData.timeParams = {
+            g.elapsedTimeSec,
+            timeFrame.unscaledDt,
+            timeFrame.gameDt,
+            static_cast<float>(timeFrame.frameIndex)
+        };
+        cameraData.screenParams = {
+            static_cast<float>(screenWidth),
+            static_cast<float>(screenHeight),
+            1.0f / static_cast<float>(screenWidth),
+            1.0f / static_cast<float>(screenHeight)
+        };
+        FillLightCB(
+            environment,
+            settings.debugView,
+            *editorFrame.lightMapped,
+            g.debugStats);
+        FillShadowCB(environment, *editorFrame.shadowMapped);
+        FillSkyEnvironmentCB(
+            environment,
+            *editorFrame.skyEnvironmentMapped);
+        if (settings.neutralLighting) {
+            LightCB& light = *editorFrame.lightMapped;
+            light.directionalDir = { 0.35f, -0.82f, 0.45f, 0.0f };
+            light.directionalColor = { 1.0f, 0.98f, 0.94f, 1.0f };
+            light.directionalIntensity = 0.75f;
+            light.ambientColor = { 0.92f, 0.96f, 1.0f, 1.0f };
+            light.ambientIntensity = 0.55f;
+            light.specularParams.x = 0.12f;
+            light.pointLightCount = 0;
+            light.fogParams.x = 0.0f;
+            editorFrame.shadowMapped->enabled = 0;
+        }
+
+        RENDER3D::GPUDRIVEN::GpuDrivenLayer& layer =
+            g.editorInteractive.gpuDrivenLayer;
+        layer.BeginFrame(&g.gpuDrivenSceneSource);
+        RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
+        availability.traditionalIndirectPipelineReady =
+            GetStaticRootSignature(g.pipelines) != nullptr &&
+            GetSkinnedRootSignature(g.pipelines) != nullptr &&
+            g.pipelines.pso != nullptr &&
+            g.pipelines.skinnedPso != nullptr;
+        layer.SetBackendAvailability(availability);
+
+        const MATH::Mat4 cullViewProj = cameraData.viewProj;
+        RENDER3D::GPUDRIVEN::GpuDrivenCommandFrameDesc commandFrameDesc{};
+        commandFrameDesc.commandList = SERVICES::gCtx.cmdList;
+        commandFrameDesc.cullViewProj = &cullViewProj;
+        commandFrameDesc.frameIndex = SERVICES::gCtx.frameIndex;
+        commandFrameDesc.enableSurfaceFrustumCull = true;
+        layer.BuildCommandFrame(commandFrameDesc);
+
+        ID3D12DescriptorHeap* srvHeap = RENDER3D::GetTextureResourceSrvHeap();
+        if (srvHeap != nullptr) {
+            ID3D12DescriptorHeap* heaps[] = { srvHeap };
+            SERVICES::gCtx.cmdList->SetDescriptorHeaps(1, heaps);
+        }
+        SERVICES::gCtx.cmdList->IASetPrimitiveTopology(
+            D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        if (!HasGpuDrivenPassSource(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
+            return true;
+        }
+
+        MeshFrameBindingOverrides overrides{};
+        overrides.cameraAddress =
+            editorFrame.cameraCB->GetGPUVirtualAddress();
+        overrides.cullingCameraAddress = overrides.cameraAddress;
+        overrides.lightAddress =
+            editorFrame.lightCB->GetGPUVirtualAddress();
+        overrides.shadowAddress =
+            editorFrame.shadowCB->GetGPUVirtualAddress();
+        overrides.skyEnvironmentAddress =
+            editorFrame.skyEnvironmentCB->GetGPUVirtualAddress();
+        overrides.traditionalCommandStreamBuffer =
+            &g.editorInteractive.traditionalCommandStreamBuffer;
+
+        MeshPassResources passResources{};
+        passResources.fallbackAoTextureHandle = g.fallbackTextureHandle;
+        const bool mainlineRendered =
+            RenderEditorInteractiveMainlineStatic(
+                passResources,
+                overrides);
+        const bool sidecarRendered = ExecuteTraditionalDrawFrame(
+            passResources,
+            RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque,
+            MeshDrawPassKind::Forward,
+            &layer,
+            &overrides);
+        return mainlineRendered || sidecarRendered;
+    }
+
+    void ShutdownEditorInteractiveResources() {
+        ResetEditorInteractiveResources();
+    }
+#endif
 
     void RenderAll(
         const RENDER3D::RenderViewContext& view,

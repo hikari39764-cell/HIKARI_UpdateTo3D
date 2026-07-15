@@ -89,6 +89,20 @@ namespace HIKARI::MESHRENDERER {
         const Camera3D& camera,
         const SceneEnvironment& environment,
         RenderDebugView debugView = RenderDebugView::None);
+#if defined(HIKARI_WITH_EDITOR)
+    struct EditorInteractiveRenderSettings {
+        RenderDebugView debugView = RenderDebugView::None;
+        bool neutralLighting = false;
+    };
+
+    bool RenderEditorInteractiveOpaque(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        uint32_t screenWidth,
+        uint32_t screenHeight,
+        const EditorInteractiveRenderSettings& settings);
+    void ShutdownEditorInteractiveResources();
+#endif
     const MeshRendererDebugStats& GetDebugStats();
     const RENDER3D::MATERIAL::GpuMaterialRegistryStats&
         GetGpuMaterialRegistryStats();

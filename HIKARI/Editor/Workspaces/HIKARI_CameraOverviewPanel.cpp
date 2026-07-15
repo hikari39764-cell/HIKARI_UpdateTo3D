@@ -230,17 +230,29 @@ namespace HIKARI::EDITOR {
                 kMaxOverviewUnits);
         }
 
+        const OverviewCameraEntry* FindSelectedCamera(
+            const std::vector<OverviewCameraEntry>& cameras) {
+
+            const auto found = std::find_if(
+                cameras.begin(),
+                cameras.end(),
+                [](const OverviewCameraEntry& camera) {
+                    return camera.isSelected;
+                });
+            return found == cameras.end() ? nullptr : &*found;
+        }
+
         ImU32 ResolveCameraColor(const OverviewCameraEntry& camera) {
             if (!camera.enabled) {
-                return IM_COL32(110, 116, 126, 230);
+                return IM_COL32(154, 162, 174, 235);
             }
             if (camera.isSelected) {
-                return IM_COL32(255, 194, 92, 255);
+                return IM_COL32(255, 206, 108, 255);
             }
             if (camera.isDefault) {
-                return IM_COL32(90, 222, 148, 255);
+                return IM_COL32(96, 235, 158, 255);
             }
-            return IM_COL32(94, 189, 246, 250);
+            return IM_COL32(105, 205, 255, 255);
         }
 
         void DrawGrid(
@@ -259,8 +271,8 @@ namespace HIKARI::EDITOR {
             const float minZ = view.overviewCenterXZ.y - halfHeightWorld;
             const float maxZ = view.overviewCenterXZ.y + halfHeightWorld;
 
-            const ImU32 minorColor = IM_COL32(70, 82, 96, 105);
-            const ImU32 axisColor = IM_COL32(116, 132, 150, 180);
+            const ImU32 minorColor = IM_COL32(96, 112, 130, 145);
+            const ImU32 axisColor = IM_COL32(158, 178, 198, 225);
             int lineCount = 0;
             for (float x = std::floor(minX / gridStep) * gridStep;
                  x <= maxX && lineCount < 256;
@@ -321,8 +333,8 @@ namespace HIKARI::EDITOR {
                     pixelsPerUnit);
                 drawList.AddCircleFilled(
                     screen,
-                    2.2f,
-                    IM_COL32(155, 166, 178, 150),
+                    2.6f,
+                    IM_COL32(186, 198, 211, 195),
                     8);
             }
         }
@@ -340,10 +352,14 @@ namespace HIKARI::EDITOR {
                 canvasCenter,
                 pixelsPerUnit);
             const ImU32 color = ResolveCameraColor(camera);
+            const float overlayScale = std::clamp(
+                view.visualization.cameraOverlayScale,
+                0.5f,
+                2.0f);
             const float frustumWorldLength = std::clamp(
                 camera.farClip * 0.08f,
                 view.overviewUnitsPerScreen * 0.025f,
-                view.overviewUnitsPerScreen * 0.14f);
+                view.overviewUnitsPerScreen * 0.14f) * overlayScale;
             const float halfAngle = std::clamp(camera.fovYRad * 0.5f, 0.05f, 1.45f);
             const float cosine = std::cos(halfAngle);
             const float sine = std::sin(halfAngle);
@@ -371,16 +387,26 @@ namespace HIKARI::EDITOR {
                 canvasCenter,
                 pixelsPerUnit);
 
-            drawList.AddLine(position, leftEnd, color, 1.2f);
-            drawList.AddLine(position, rightEnd, color, 1.2f);
-            drawList.AddLine(leftEnd, rightEnd, color, 1.0f);
-            drawList.AddLine(position, forwardEnd, color, 1.8f);
-            drawList.AddCircleFilled(position, 5.0f, color, 12);
+            drawList.AddLine(position, leftEnd, color, 1.35f);
+            drawList.AddLine(position, rightEnd, color, 1.35f);
+            drawList.AddLine(leftEnd, rightEnd, color, 1.1f);
+            drawList.AddLine(position, forwardEnd, color, 2.0f);
+            drawList.AddCircleFilled(position, 5.0f * overlayScale, color, 12);
             if (camera.isDefault) {
-                drawList.AddCircle(position, 8.0f, IM_COL32(105, 240, 164, 255), 16, 1.5f);
+                drawList.AddCircle(
+                    position,
+                    8.0f * overlayScale,
+                    IM_COL32(105, 240, 164, 255),
+                    16,
+                    1.5f);
             }
             if (camera.isPreviewed) {
-                drawList.AddCircle(position, 10.5f, IM_COL32(198, 142, 255, 255), 16, 1.4f);
+                drawList.AddCircle(
+                    position,
+                    10.5f * overlayScale,
+                    IM_COL32(208, 157, 255, 255),
+                    16,
+                    1.4f);
             }
 
             std::string label = camera.name.empty()
@@ -390,7 +416,10 @@ namespace HIKARI::EDITOR {
                 label += " [Disabled]";
             }
             drawList.AddText(
-                { position.x + 9.0f, position.y - 8.0f },
+                {
+                    position.x + 9.0f * overlayScale,
+                    position.y - 8.0f * overlayScale
+                },
                 color,
                 label.c_str());
         }
@@ -420,7 +449,31 @@ namespace HIKARI::EDITOR {
         if (ImGui::Button("Fit Cameras")) {
             FitCameras(view, cameras);
         }
+        const OverviewCameraEntry* selectedCamera = FindSelectedCamera(cameras);
         ImGui::SameLine();
+        if (selectedCamera == nullptr) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Focus Selected")) {
+            view.overviewCenterXZ = selectedCamera->positionXZ;
+        }
+        if (selectedCamera == nullptr) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        ImGui::Checkbox(
+            "Objects",
+            &view.visualization.showSceneObjectMarkers);
+        ImGui::SameLine();
+        ImGui::TextUnformatted("Markers");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(82.0f);
+        ImGui::SliderFloat(
+            "##OverviewCameraMarkerScale",
+            &view.visualization.cameraOverlayScale,
+            0.5f,
+            2.0f,
+            "%.1fx");
         ImGui::TextDisabled(
             "%zu cameras | Middle-drag pan | Wheel zoom",
             cameras.size());
@@ -493,7 +546,11 @@ namespace HIKARI::EDITOR {
         if (cameraSelectionClicked) {
             const ImVec2 mousePosition = ImGui::GetMousePos();
             const OverviewCameraEntry* nearestCamera = nullptr;
-            float nearestDistanceSquared = kCameraHitRadius * kCameraHitRadius;
+            const float hitRadius = kCameraHitRadius * std::clamp(
+                view.visualization.cameraOverlayScale,
+                0.5f,
+                2.0f);
+            float nearestDistanceSquared = hitRadius * hitRadius;
             for (const OverviewCameraEntry& camera : cameras) {
                 const ImVec2 screen = WorldToScreen(
                     camera.positionXZ,
@@ -524,7 +581,7 @@ namespace HIKARI::EDITOR {
         drawList->AddRectFilled(
             canvasMin,
             canvasMax,
-            IM_COL32(18, 23, 30, 255));
+            IM_COL32(32, 41, 52, 255));
         DrawGrid(
             *drawList,
             canvasMin,
@@ -532,12 +589,14 @@ namespace HIKARI::EDITOR {
             canvasCenter,
             view,
             pixelsPerUnit);
-        DrawSceneObjectPoints(
-            *drawList,
-            scene,
-            view,
-            canvasCenter,
-            pixelsPerUnit);
+        if (view.visualization.showSceneObjectMarkers) {
+            DrawSceneObjectPoints(
+                *drawList,
+                scene,
+                view,
+                canvasCenter,
+                pixelsPerUnit);
+        }
         for (const OverviewCameraEntry& camera : cameras) {
             DrawCameraMarker(
                 *drawList,
@@ -549,7 +608,7 @@ namespace HIKARI::EDITOR {
         drawList->AddRect(
             canvasMin,
             canvasMax,
-            IM_COL32(84, 101, 120, 220),
+            IM_COL32(128, 151, 174, 240),
             3.0f,
             0,
             1.0f);

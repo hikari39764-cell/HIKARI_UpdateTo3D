@@ -29,6 +29,9 @@
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
+#if defined(HIKARI_WITH_EDITOR)
+#include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
+#endif
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
@@ -538,6 +541,7 @@ namespace HIKARI {
         }
     }
     void DocumentSceneBase::OnExit() {
+        cinematicCameraPlayback_.Reset(cameraDirector_);
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
         RuntimeSceneContext::SetCurrentWorld(nullptr);
@@ -561,6 +565,12 @@ namespace HIKARI {
         systemScheduler_.LateUpdate(world_, frame);
 
         if (runtimePlayActive_) {
+            cinematicCameraPlayback_.Update(
+                sceneDocument_.cinematics,
+                cameraDirector_,
+                world_,
+                camera_.GetAspect(),
+                dt);
             resolvedCameraFrame_ = cameraDirector_.Resolve(
                 world_,
                 gameplayCamera_,
@@ -705,6 +715,11 @@ namespace HIKARI {
         SubmitFrozenCullingCameraDebugFrustum();
         RENDERER3D::RenderAll(renderCamera, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(renderCamera);
+#if defined(HIKARI_WITH_EDITOR)
+        (void)RENDER3D::EDITORVIEW::RenderPending(
+            activeEnvironment,
+            sceneDocumentRevision_);
+#endif
     }
     void DocumentSceneBase::RenderImGui() {
         if (!SERVICES::IsEditorUIEnabled() && !SERVICES::ArePortableObjectToolsEnabled()) {
@@ -1157,7 +1172,23 @@ namespace HIKARI {
     SceneObjectId DocumentSceneBase::GetEditorCameraPreviewObjectId() const {
         return editorCameraPreviewObjectId_;
     }
-    bool DocumentSceneBase::SnapCameraObjectToEditorView(SceneObjectId cameraObjectId) {
+    bool DocumentSceneBase::TryResolveCameraObjectView(
+        SceneObjectId cameraObjectId,
+        float aspect,
+        Camera3D& outCamera) const {
+
+        return cameraDirector_.TryResolveCameraObject(
+            world_,
+            cameraObjectId,
+            aspect,
+            outCamera);
+    }
+    bool DocumentSceneBase::ApplyCameraObjectPose(
+        SceneObjectId cameraObjectId,
+        const MATH::Vec3& position,
+        const MATH::Quat& rotation,
+        bool markDirty) {
+
         if (runtimePlayActive_ || cameraObjectId.value == 0) {
             return false;
         }
@@ -1168,16 +1199,8 @@ namespace HIKARI {
             [cameraObjectId](const SceneObjectData& object) {
                 return object.id == cameraObjectId;
             });
-        if (documentObject == sceneDocument_.objects.end() || documentObject->parent.has_value()) {
-            return false;
-        }
-        const bool hasCameraComponent = std::any_of(
-            documentObject->components.begin(),
-            documentObject->components.end(),
-            [](const SceneComponentData& component) {
-                return component.type == "CameraComponent";
-            });
-        if (!hasCameraComponent) {
+        if (documentObject == sceneDocument_.objects.end() ||
+            documentObject->parent.has_value()) {
             return false;
         }
 
@@ -1188,24 +1211,90 @@ namespace HIKARI {
                 break;
             }
         }
-        if (runtimeObject == nullptr || runtimeObject->GetComponent<CameraComponent>() == nullptr) {
+        CameraComponent* cameraComponent =
+            runtimeObject != nullptr
+                ? runtimeObject->GetComponent<CameraComponent>()
+                : nullptr;
+        if (cameraComponent == nullptr) {
             return false;
         }
 
+        const MATH::Quat normalizedRotation = MATH::NormalizeQ(rotation);
+        documentObject->transform.position = position;
+        documentObject->transform.rotationEulerDeg =
+            MATH::EulerXYZDegreesFromQuatNearest(
+                normalizedRotation,
+                documentObject->transform.rotationEulerDeg);
+        documentObject->transform.scale = { 1.0f, 1.0f, 1.0f };
+
+        Transform3D& runtimeTransform = runtimeObject->Transform();
+        runtimeTransform.position = position;
+        runtimeTransform.rotation = normalizedRotation;
+        runtimeTransform.scale = { 1.0f, 1.0f, 1.0f };
+        runtimeTransform.useExplicitMatrix = false;
+        runtimeObject->MarkRenderStateDirty();
+
+        if (markDirty) {
+            sceneDocumentDirty_ = true;
+        }
+        return true;
+    }
+    bool DocumentSceneBase::SnapCameraObjectToEditorView(SceneObjectId cameraObjectId) {
         const MATH::Quat rotation = MATH::Quat::FromEulerXYZ(
             -debugCamera_.GetPitch(),
             debugCamera_.GetYaw(),
             0.0f);
-        documentObject->transform.position = debugCamera_.GetPosition();
-        documentObject->transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(rotation);
+        return ApplyCameraObjectPose(
+            cameraObjectId,
+            debugCamera_.GetPosition(),
+            rotation,
+            true);
+    }
+    CinematicPlaybackHandle DocumentSceneBase::PlayCameraSequence(
+        CinematicSequenceId sequenceId,
+        const CinematicPlaybackOptions& options,
+        float startTimeSeconds) {
 
-        Transform3D& runtimeTransform = runtimeObject->Transform();
-        runtimeTransform.position = documentObject->transform.position;
-        runtimeTransform.rotation = rotation;
-        runtimeTransform.useExplicitMatrix = false;
-        runtimeObject->MarkRenderStateDirty();
-        sceneDocumentDirty_ = true;
-        return true;
+        if (!runtimePlayActive_) {
+            return {};
+        }
+        return cinematicCameraPlayback_.Play(
+            sceneDocument_.cinematics,
+            sequenceId,
+            cameraDirector_,
+            options,
+            startTimeSeconds);
+    }
+    bool DocumentSceneBase::StopCameraSequence(
+        CinematicPlaybackHandle handle) {
+
+        return cinematicCameraPlayback_.Stop(handle, cameraDirector_);
+    }
+    bool DocumentSceneBase::PauseCameraSequence(
+        CinematicPlaybackHandle handle) {
+
+        return cinematicCameraPlayback_.Pause(handle);
+    }
+    bool DocumentSceneBase::ResumeCameraSequence(
+        CinematicPlaybackHandle handle) {
+
+        return cinematicCameraPlayback_.Resume(handle);
+    }
+    bool DocumentSceneBase::SeekCameraSequence(
+        CinematicPlaybackHandle handle,
+        float timeSeconds) {
+
+        return cinematicCameraPlayback_.Seek(
+            sceneDocument_.cinematics,
+            handle,
+            timeSeconds);
+    }
+    bool DocumentSceneBase::IsCameraSequencePlaying() const noexcept {
+        return cinematicCameraPlayback_.IsPlaying();
+    }
+    CinematicPlaybackHandle
+    DocumentSceneBase::GetCameraSequencePlaybackHandle() const noexcept {
+        return cinematicCameraPlayback_.GetCurrentHandle();
     }
     bool DocumentSceneBase::BeginRuntimePlay() {
         if (runtimePlayActive_ || !currentSceneAssetGuid_.IsValid()) {
@@ -1229,6 +1318,7 @@ namespace HIKARI {
 
         camera_ = editorCameraSnapshot_;
         gameplayCamera_ = editorCameraSnapshot_;
+        cinematicCameraPlayback_.Reset(cameraDirector_);
         cameraDirector_.Reset();
         cameraDirector_.SetBaseCamera(
             sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
@@ -1255,6 +1345,7 @@ namespace HIKARI {
         runtimePlayActive_ = false;
         runtimePreviewCameraActive_ = false;
         runtimeSceneCameraActive_ = false;
+        cinematicCameraPlayback_.Reset(cameraDirector_);
         cameraDirector_.Reset();
         const bool restored = ReloadSceneDocument();
         camera_ = editorCameraSnapshot_;
@@ -1408,6 +1499,7 @@ namespace HIKARI {
     }
     bool DocumentSceneBase::CreateTransientEmptySceneDocument() {
         EndEditorCameraPreview();
+        cinematicCameraPlayback_.Reset(cameraDirector_);
         cameraDirector_.Reset();
         sceneDocument_ = SceneDocument{};
         ++sceneDocumentRevision_;

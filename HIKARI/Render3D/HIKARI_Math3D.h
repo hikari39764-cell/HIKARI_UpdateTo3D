@@ -67,6 +67,8 @@ namespace HIKARI::MATH {
     Vec3 EulerXYZFromQuat(const Quat& q);
     // SceneDocument / Inspector用の度数版。
     Vec3 EulerXYZDegreesFromQuat(const Quat& q);
+    // Select the equivalent Euler representation nearest to the current editor value.
+    Vec3 EulerXYZDegreesFromQuatNearest(const Quat& q, const Vec3& referenceDegrees);
 
     // Runtime sanity checks for convention consistency.
     bool RunMathConventionSelfCheck();

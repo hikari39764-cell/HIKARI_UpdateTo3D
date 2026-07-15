@@ -54,6 +54,11 @@ namespace HIKARI {
 
         const RENDER3D::ResolvedCameraFrame& GetResolvedFrame() const noexcept;
         const Camera3D& GetControlCamera() const noexcept;
+        bool TryResolveCameraObject(
+            const World& world,
+            SceneObjectId cameraObjectId,
+            float aspect,
+            Camera3D& outCamera) const;
 
     private:
         struct OverrideEntry {
@@ -63,11 +68,6 @@ namespace HIKARI {
         };
 
         const OverrideEntry* FindWinningOverride() const;
-        bool ResolveCameraObject(
-            const World& world,
-            SceneObjectId cameraObjectId,
-            float aspect,
-            Camera3D& outCamera) const;
         bool BeginSourceTransition(
             SceneObjectId sourceCameraObjectId,
             const Camera3D& targetCamera,

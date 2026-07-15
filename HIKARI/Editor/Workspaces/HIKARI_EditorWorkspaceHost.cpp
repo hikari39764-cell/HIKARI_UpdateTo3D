@@ -11,6 +11,15 @@ namespace HIKARI::EDITOR {
         cinematicsGameView_.cameraBinding.kind = EditorViewCameraSourceKind::SceneDirector;
         cinematicsGameView_.execution = EditorViewExecutionMode::PrimaryFullQuality;
 
+        cinematicsDirectorView_.renderViewId = kEditorDirectorRenderViewId;
+        cinematicsDirectorView_.role = EditorViewRole::Director;
+        cinematicsDirectorView_.purpose = RENDER3D::RenderViewPurpose::EditorScene;
+        cinematicsDirectorView_.cameraBinding.kind = EditorViewCameraSourceKind::OwnedEditorCamera;
+        cinematicsDirectorView_.execution = EditorViewExecutionMode::SecondaryEditorScene;
+        cinematicsDirectorView_.visualization.shadingMode =
+            EditorViewShadingMode::Neutral;
+        cinematicsDirectorView_.visualization.displayExposure = 1.25f;
+
         cinematicsOverviewView_.renderViewId = kEditorOverviewRenderViewId;
         cinematicsOverviewView_.role = EditorViewRole::Overview;
         cinematicsOverviewView_.purpose = RENDER3D::RenderViewPurpose::EditorScene;
@@ -75,6 +84,14 @@ namespace HIKARI::EDITOR {
 
     const EditorViewInstance& EditorWorkspaceHost::GetCinematicsGameView() const noexcept {
         return cinematicsGameView_;
+    }
+
+    EditorViewInstance& EditorWorkspaceHost::GetCinematicsDirectorView() noexcept {
+        return cinematicsDirectorView_;
+    }
+
+    const EditorViewInstance& EditorWorkspaceHost::GetCinematicsDirectorView() const noexcept {
+        return cinematicsDirectorView_;
     }
 
     EditorViewInstance& EditorWorkspaceHost::GetCinematicsOverviewView() noexcept {

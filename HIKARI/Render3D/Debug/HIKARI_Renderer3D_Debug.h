@@ -6,6 +6,9 @@
 
 #include "Render2D/HIKARI_Transform2D.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
+#if defined(HIKARI_WITH_EDITOR)
+#include "Render3D/Core/HIKARI_RenderView.h"
+#endif
 #include "Render3D/HIKARI_Transform3D.h"
 
 namespace HIKARI::RENDERER3D::DEBUG {
@@ -73,5 +76,13 @@ namespace HIKARI::RENDERER3D::DEBUG {
         bool capped);
     const DebugRendererFrameStats& GetDebugRendererFrameStats();
     void RenderAll(const Camera3D& camera, float screenW, float screenH);
+#if defined(HIKARI_WITH_EDITOR)
+    void RenderAllForView(
+        RENDER3D::RenderViewId viewId,
+        const Camera3D& camera,
+        float screenW,
+        float screenH);
+    void ShutdownEditorViewResources();
+#endif
 
 } // namespace HIKARI::RENDERER3D::DEBUG

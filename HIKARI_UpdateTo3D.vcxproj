@@ -290,6 +290,9 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequence.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_CameraDirector.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_CameraFollowSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp" />
@@ -398,11 +401,23 @@
     <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.cpp" />
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugOutput.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Views\HIKARI_EditorInteractiveViewRenderer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.cpp" />
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.cpp" />
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.cpp" />
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp" />
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp" />
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.cpp" />
     <ClCompile Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.cpp" />
@@ -762,7 +777,11 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequence.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraDirector.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_SceneObjectId.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraFollowSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.h" />
@@ -796,10 +815,16 @@
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.h" />
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorTool.h" />
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.h" />
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.h" />
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.h" />
     <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInstance.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspace.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h" />
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
@@ -1000,6 +1025,7 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_Renderer3D.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Camera3D.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_RenderView.h" />
+    <ClInclude Include="HIKARI\Render3D\Views\HIKARI_EditorInteractiveViewRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Transform3D.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Math3D.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />

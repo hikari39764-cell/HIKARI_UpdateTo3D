@@ -956,7 +956,7 @@ namespace IMGUIZMO_NAMESPACE
       gContext.mWidth = width;
       gContext.mHeight = height;
       gContext.mXMax = gContext.mX + gContext.mWidth;
-      gContext.mYMax = gContext.mY + gContext.mXMax;
+      gContext.mYMax = gContext.mY + gContext.mHeight;
       gContext.mDisplayRatio = width / height;
    }
 
@@ -977,6 +977,16 @@ namespace IMGUIZMO_NAMESPACE
 
    void BeginFrame()
    {
+      // A gizmo may disappear or be replaced before its active ID observes the
+      // mouse release. Recover here so one interrupted drag cannot lock every
+      // subsequent gizmo interaction in the global ImGuizmo context.
+      if (gContext.mbUsing && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+      {
+         gContext.mbUsing = false;
+         gContext.mEditingID = -1;
+         gContext.mCurrentHandleType = MT_NONE;
+      }
+
       const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
 #ifdef IMGUI_HAS_VIEWPORT

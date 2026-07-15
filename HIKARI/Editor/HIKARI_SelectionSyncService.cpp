@@ -76,7 +76,10 @@ namespace HIKARI {
             documentObject->transform.scale = runtimeTransform.scale;
             changed = true;
         }
-        const MATH::Vec3 runtimeRotationEulerDeg = MATH::EulerXYZDegreesFromQuat(runtimeTransform.rotation);
+        const MATH::Vec3 runtimeRotationEulerDeg =
+            MATH::EulerXYZDegreesFromQuatNearest(
+                runtimeTransform.rotation,
+                documentObject->transform.rotationEulerDeg);
         if (!NearlyEqualVec3(documentObject->transform.rotationEulerDeg, runtimeRotationEulerDeg)) {
             // RuntimeのQuaternionを保存用Euler角へ同期する。
             documentObject->transform.rotationEulerDeg = runtimeRotationEulerDeg;

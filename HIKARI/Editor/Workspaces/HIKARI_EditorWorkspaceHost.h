@@ -22,6 +22,8 @@ namespace HIKARI::EDITOR {
 
         EditorViewInstance& GetCinematicsGameView() noexcept;
         const EditorViewInstance& GetCinematicsGameView() const noexcept;
+        EditorViewInstance& GetCinematicsDirectorView() noexcept;
+        const EditorViewInstance& GetCinematicsDirectorView() const noexcept;
         EditorViewInstance& GetCinematicsOverviewView() noexcept;
         const EditorViewInstance& GetCinematicsOverviewView() const noexcept;
 
@@ -31,6 +33,7 @@ namespace HIKARI::EDITOR {
         bool resetSceneLayoutRequested_ = false;
         bool resetCinematicsLayoutRequested_ = false;
         EditorViewInstance cinematicsGameView_{};
+        EditorViewInstance cinematicsDirectorView_{};
         EditorViewInstance cinematicsOverviewView_{};
     };
 

@@ -197,7 +197,7 @@ namespace HIKARI {
             : baseCameraObjectId_;
 
         Camera3D targetCamera{};
-        const bool requestedSourceValid = ResolveCameraObject(
+        const bool requestedSourceValid = TryResolveCameraObject(
             world,
             requestedSource,
             resolvedAspect,
@@ -246,7 +246,7 @@ namespace HIKARI {
         resolvedFrame_.valid = true;
 
         Camera3D baseControlCamera{};
-        const bool baseControlValid = ResolveCameraObject(
+        const bool baseControlValid = TryResolveCameraObject(
             world,
             baseCameraObjectId_,
             resolvedAspect,
@@ -292,7 +292,7 @@ namespace HIKARI {
         return winner;
     }
 
-    bool CameraDirector::ResolveCameraObject(
+    bool CameraDirector::TryResolveCameraObject(
         const World& world,
         SceneObjectId cameraObjectId,
         float aspect,
