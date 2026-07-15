@@ -1985,10 +1985,30 @@ namespace HIKARI::MESHRENDERER {
     }
 
     void RenderAll(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
+
+        if (view.cameraFrame == nullptr || !view.cameraFrame->valid) {
+            return;
+        }
+        (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(view, environment, debugView);
+    }
+
+    void RenderAll(
         const Camera3D& camera,
         const SceneEnvironment& environment,
         RenderDebugView debugView) {
-        (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(camera, environment, debugView);
+
+        RENDER3D::ResolvedCameraFrame cameraFrame{};
+        cameraFrame.camera = camera;
+        cameraFrame.valid = true;
+
+        RENDER3D::RenderViewContext view{};
+        view.viewId = RENDER3D::kPrimaryRenderViewId;
+        view.purpose = RENDER3D::RenderViewPurpose::Game;
+        view.cameraFrame = &cameraFrame;
+        RenderAll(view, environment, debugView);
     }
 
     const MeshRendererDebugStats& GetDebugStats() {

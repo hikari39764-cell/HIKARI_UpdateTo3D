@@ -59,14 +59,35 @@ namespace HIKARI::MODELRENDERER {
     }
 
     void RenderAll(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
+
+        if (view.cameraFrame == nullptr || !view.cameraFrame->valid) {
+            return;
+        }
+
+        const Camera3D& camera = view.cameraFrame->camera;
+        BeginModelRendererFrame(ModelRendererFrameKind::MainView);
+        SHADOW::BeginFrame(environment, camera);
+        SHADOW::RenderDirectionalShadowMap();
+        MESHRENDERER::RenderAll(view, environment, debugView);
+    }
+
+    void RenderAll(
         const Camera3D& camera,
         const SceneEnvironment& environment,
         RenderDebugView debugView) {
 
-        BeginModelRendererFrame(ModelRendererFrameKind::MainView);
-        SHADOW::BeginFrame(environment, camera);
-        SHADOW::RenderDirectionalShadowMap();
-        MESHRENDERER::RenderAll(camera, environment, debugView);
+        RENDER3D::ResolvedCameraFrame cameraFrame{};
+        cameraFrame.camera = camera;
+        cameraFrame.valid = true;
+
+        RENDER3D::RenderViewContext view{};
+        view.viewId = RENDER3D::kPrimaryRenderViewId;
+        view.purpose = RENDER3D::RenderViewPurpose::Game;
+        view.cameraFrame = &cameraFrame;
+        RenderAll(view, environment, debugView);
     }
 
     void RenderOpaqueForReflectionProbeCapture(

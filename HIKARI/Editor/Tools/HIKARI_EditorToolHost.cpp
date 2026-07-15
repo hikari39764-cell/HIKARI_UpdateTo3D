@@ -38,12 +38,23 @@ namespace HIKARI::EDITOR {
         return true;
     }
 
+    bool EditorToolHost::RequestOpen(EditorToolOpenRequest request) {
+        ToolEntry* entry = Find(request.toolId);
+        if (!entry) {
+            return false;
+        }
+        entry->open = true;
+        entry->pendingOpenRequest = std::move(request);
+        return true;
+    }
+
     bool EditorToolHost::CloseTool(std::string_view toolId) {
         ToolEntry* entry = Find(toolId);
         if (!entry) {
             return false;
         }
         entry->open = false;
+        entry->pendingOpenRequest.reset();
         return true;
     }
 
@@ -106,13 +117,22 @@ namespace HIKARI::EDITOR {
                 entry.instance = entry.factory();
                 if (!entry.instance) {
                     entry.open = false;
+                    entry.pendingOpenRequest.reset();
                     HIKARI_LOG_ERROR(
                         "[EditorTool] factory failed: " + entry.toolId);
                     continue;
                 }
             }
 
-            entry.instance->Draw(context, entry.open);
+            EditorToolContext toolContext{
+                context.scene,
+                context.editorContext,
+                entry.pendingOpenRequest
+                    ? &*entry.pendingOpenRequest
+                    : nullptr
+            };
+            entry.instance->Draw(toolContext, entry.open);
+            entry.pendingOpenRequest.reset();
         }
     }
 

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_RenderDebugView.h"
 
 namespace HIKARI {
@@ -10,6 +11,11 @@ namespace HIKARI {
 }
 
 namespace HIKARI::RENDER3D::PIPELINE {
+
+    bool RenderMeshLightingFrame(
+        const RenderViewContext& view,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
 
     bool RenderMeshLightingFrame(
         const Camera3D& camera,

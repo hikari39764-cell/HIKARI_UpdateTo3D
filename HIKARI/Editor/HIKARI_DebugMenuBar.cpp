@@ -3,6 +3,7 @@
 #include "Editor/Export/HIKARI_GameExporter.h"
 #include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
+#include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
@@ -14,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #ifndef NOMINMAX
@@ -440,11 +442,36 @@ namespace HIKARI {
     void DebugMenuBar::Draw(
         DebugWindowState& windows,
         EDITOR::EditorToolHost& toolHost,
+        EDITOR::EditorWorkspaceHost& workspaceHost,
         DebugCameraController3D& debugCamera,
         bool& environmentLightingEnabled,
         bool& resetDockingLayoutRequested) const {
         if (!ImGui::BeginMainMenuBar()) {
             return;
+        }
+
+        if (ImGui::BeginMenu("Workspace")) {
+            const bool sceneWorkspaceActive = workspaceHost.IsActive(
+                EDITOR::EditorWorkspaceId::Scene);
+            if (ImGui::MenuItem("Scene", nullptr, sceneWorkspaceActive)) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId = EDITOR::EditorWorkspaceId::Scene;
+                (void)workspaceHost.RequestOpen(std::move(request));
+            }
+
+            const bool cinematicsWorkspaceActive = workspaceHost.IsActive(
+                EDITOR::EditorWorkspaceId::Cinematics);
+            if (ImGui::MenuItem("Cinematics", nullptr, cinematicsWorkspaceActive)) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId = EDITOR::EditorWorkspaceId::Cinematics;
+                (void)workspaceHost.RequestOpen(std::move(request));
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reset Active Layout")) {
+                workspaceHost.RequestResetActiveLayout();
+            }
+            ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Windows")) {
@@ -536,6 +563,7 @@ namespace HIKARI {
     void DebugMenuBar::Draw(
         DebugWindowState&,
         EDITOR::EditorToolHost&,
+        EDITOR::EditorWorkspaceHost&,
         DebugCameraController3D&,
         bool&,
         bool&) const {}

@@ -175,6 +175,12 @@ namespace HIKARI {
             gHasPendingWindowResize = true;
         }
 
+        inline void ClearPendingWindowResize() {
+            gHasPendingWindowResize = false;
+            gPendingWindowWidth = 0;
+            gPendingWindowHeight = 0;
+        }
+
         inline bool ApplyPendingWindowResize() {
             if (!gHasPendingWindowResize) {
                 return true;
@@ -182,15 +188,14 @@ namespace HIKARI {
 
             const int width = gPendingWindowWidth;
             const int height = gPendingWindowHeight;
-            gHasPendingWindowResize = false;
-            gPendingWindowWidth = 0;
-            gPendingWindowHeight = 0;
 
             if (width <= 0 || height <= 0) {
+                ClearPendingWindowResize();
                 return true;
             }
             if (width == static_cast<int>(gCtx.backBufferWidth) &&
                 height == static_cast<int>(gCtx.backBufferHeight)) {
+                ClearPendingWindowResize();
                 return true;
             }
 
@@ -199,12 +204,18 @@ namespace HIKARI {
                 gGamePresentationController.IsGameSurfaceActive() &&
                 RENDER3D::UPSCALING::
                     IsStreamlineFrameGenerationFeatureLoaded();
-            if (deactivateFrameGeneration &&
-                !RENDER3D::UPSCALING::
-                    DeactivateStreamlineFrameGeneration(true)) {
-                HIKARI_LOG_ERROR(
-                    "DLSS-G could not be deactivated before presentation resize.");
-                return false;
+            if (deactivateFrameGeneration) {
+                if (!gCore.WaitForIdle()) {
+                    HIKARI_LOG_ERROR(
+                        "Could not drain presentation work before DLSS-G resize suspension.");
+                    return false;
+                }
+                if (!RENDER3D::UPSCALING::
+                        DeactivateStreamlineFrameGeneration(true)) {
+                    HIKARI_LOG_ERROR(
+                        "DLSS-G could not be deactivated before presentation resize.");
+                    return false;
+                }
             }
             const bool resized = gCore.Resize(width, height);
             if (!resized) {
@@ -213,6 +224,7 @@ namespace HIKARI {
                 return false;
             }
 
+            ClearPendingWindowResize();
             UpdateGpuContexts();
             gLogicalScreenWidth = width;
             gLogicalScreenHeight = height;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <string_view>
 
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_SelectionSyncService.h"
@@ -69,6 +70,76 @@ namespace HIKARI {
             runtimeComponent->Deserialize(componentData.properties);
             return true;
         }
+
+#if defined(HIKARI_WITH_EDITOR)
+        bool HasDocumentComponent(const SceneObjectData& object, std::string_view typeName) {
+            return std::any_of(
+                object.components.begin(),
+                object.components.end(),
+                [typeName](const SceneComponentData& component) {
+                    return component.type == typeName;
+                });
+        }
+
+        void DrawCameraAuthoring(
+            DocumentSceneBase& scene,
+            EditorContext& context,
+            const SceneObjectData& object,
+            std::optional<SceneObjectId>& openCinematicsWorkspaceCameraRequest) {
+
+            if (!HasDocumentComponent(object, "CameraComponent")) {
+                return;
+            }
+
+            const bool isGameDefault =
+                scene.GetSceneDocument().camera.defaultCameraObjectId == object.id;
+            const bool previewingThisCamera =
+                scene.IsEditorCameraPreviewActive() &&
+                scene.GetEditorCameraPreviewObjectId() == object.id;
+
+            ImGui::SeparatorText("Camera Authoring");
+            ImGui::Text("Game Default: %s", isGameDefault ? "Yes" : "No");
+
+            if (isGameDefault) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("Set as Game Default")) {
+                if (scene.SetGameDefaultCamera(object.id)) {
+                    context.sceneDirty = true;
+                }
+            }
+            if (isGameDefault) {
+                ImGui::EndDisabled();
+            }
+
+            ImGui::SameLine();
+            if (previewingThisCamera) {
+                if (ImGui::Button("Exit Camera View")) {
+                    scene.EndEditorCameraPreview();
+                }
+            } else if (ImGui::Button("View Through Camera")) {
+                (void)scene.BeginEditorCameraPreview(object.id);
+            }
+
+            const bool snapDisabled = object.parent.has_value();
+            if (snapDisabled) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("Snap Camera to Current View")) {
+                if (scene.SnapCameraObjectToEditorView(object.id)) {
+                    context.sceneDirty = true;
+                }
+            }
+            if (snapDisabled) {
+                ImGui::EndDisabled();
+                ImGui::TextDisabled("Snap is available for root Camera objects only.");
+            }
+
+            if (ImGui::Button("Open in Cinematics Workspace")) {
+                openCinematicsWorkspaceCameraRequest = object.id;
+            }
+        }
+#endif
     }
 
     void SceneObjectAuthoringPanel::Draw(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) {
@@ -108,6 +179,13 @@ namespace HIKARI {
                 SceneObjectData* target = selectionSync.FindDocumentObjectByRuntime(scene, context.selection.selectedObject);
                 if (target != nullptr) {
                     const SceneObjectId targetId = target->id;
+                    if (scene.GetSceneDocument().camera.defaultCameraObjectId == targetId) {
+                        scene.ClearGameDefaultCamera();
+                    }
+                    if (scene.IsEditorCameraPreviewActive() &&
+                        scene.GetEditorCameraPreviewObjectId() == targetId) {
+                        scene.EndEditorCameraPreview();
+                    }
                     auto& objects = scene.GetSceneDocument().objects;
                     objects.erase(
                         std::remove_if(objects.begin(), objects.end(),
@@ -214,6 +292,12 @@ namespace HIKARI {
                     }
                 }
 
+                DrawCameraAuthoring(
+                    scene,
+                    context,
+                    *target,
+                    openCinematicsWorkspaceCameraRequest_);
+
                 ImGui::SeparatorText("Document Components");
                 bool needsRebuild = false;
                 const InspectorContext inspectorContext{
@@ -231,8 +315,12 @@ namespace HIKARI {
 
                     if (componentDocumentEditor_.DrawComponent(scene.GetComponentRegistry(), component, componentInspectorBuilder_, inspectorContext)) {
                         context.sceneDirty = true;
-                        if (!ApplyDocumentComponentToRuntime(component, componentIndex, context)) {
+                        const bool appliedToRuntime =
+                            ApplyDocumentComponentToRuntime(component, componentIndex, context);
+                        if (!appliedToRuntime) {
                             needsRebuild = true;
+                        } else if (component.type == "CameraComponent") {
+                            (void)scene.ApplyCameraRuntimeChanges();
                         }
                     }
 
@@ -261,6 +349,13 @@ namespace HIKARI {
         (void)context;
         (void)selectionSync;
 #endif
+    }
+
+    std::optional<SceneObjectId>
+        SceneObjectAuthoringPanel::ConsumeOpenCinematicsWorkspaceCameraRequest() {
+        std::optional<SceneObjectId> request = openCinematicsWorkspaceCameraRequest_;
+        openCinematicsWorkspaceCameraRequest_.reset();
+        return request;
     }
 
 } // namespace HIKARI

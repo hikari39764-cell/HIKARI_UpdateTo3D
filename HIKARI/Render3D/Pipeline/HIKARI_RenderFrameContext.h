@@ -4,6 +4,8 @@
 
 #include <d3d12.h>
 
+#include "Render3D/Core/HIKARI_RenderView.h"
+
 namespace HIKARI {
     class Camera3D;
     struct SceneEnvironment;
@@ -46,6 +48,9 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
     // Immutable per-frame contract shared by renderer stages.
     struct RenderFrameContext {
+        RenderViewId viewId{ kPrimaryRenderViewId };
+        RenderViewPurpose purpose = RenderViewPurpose::Game;
+        bool cameraCut = false;
         ID3D12GraphicsCommandList* cmd = nullptr;
         const Camera3D* camera = nullptr;
         const SceneEnvironment* environment = nullptr;

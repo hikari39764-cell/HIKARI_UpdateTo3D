@@ -1,8 +1,12 @@
 #include "HIKARI_ComponentGizmoRenderer.h"
 
+#include <array>
+#include <cmath>
+
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
+#include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
@@ -22,6 +26,8 @@ namespace HIKARI {
         constexpr unsigned int kUiRectColor = 0xFFAA33FF;
         constexpr unsigned int kPlayerBoundsColor = 0x43D9FFFF;
         constexpr unsigned int kPlayerBoundsCornerColor = 0x96FF8AFF;
+        constexpr unsigned int kCameraFrustumColor = 0x65D9FFFF;
+        constexpr unsigned int kSelectedCameraFrustumColor = 0xFFD166FF;
 
         bool ShouldDrawForObject(const GameObject& object, const ComponentGizmoState& state, SceneObjectId selectedObjectId) {
             if (!state.showOnlySelectedObject) {
@@ -78,9 +84,67 @@ namespace HIKARI {
             SubmitXRayLine({ minX, y, center.z }, { maxX, y, center.z }, 0x43D9FF88);
             SubmitXRayLine({ center.x, y, minZ }, { center.x, y, maxZ }, 0x43D9FF88);
         }
+
+        MATH::Vec3 TransformFrustumPoint(
+            const MATH::Mat4& world,
+            float x,
+            float y,
+            float z) {
+
+            const MATH::Vec4 point = world.TransformPoint({ x, y, z, 1.0f });
+            return { point.x, point.y, point.z };
+        }
+
+        void SubmitCameraFrustum(
+            const CameraComponent& camera,
+            const Transform3D& transform,
+            float aspect,
+            unsigned int color) {
+
+            if (!camera.IsEnabled()) {
+                return;
+            }
+            const float safeAspect = std::isfinite(aspect) && aspect > 0.0001f
+                ? aspect
+                : 16.0f / 9.0f;
+            const float nearDistance = camera.GetNearClip();
+            const float farDistance = (std::min)(
+                camera.GetFarClip(),
+                (std::max)(8.0f, nearDistance * 4.0f));
+            const float tangent = std::tan(camera.GetFovYRad() * 0.5f);
+            const float nearHalfHeight = tangent * nearDistance;
+            const float nearHalfWidth = nearHalfHeight * safeAspect;
+            const float farHalfHeight = tangent * farDistance;
+            const float farHalfWidth = farHalfHeight * safeAspect;
+            const MATH::Mat4 world = transform.GetWorldMatrix();
+
+            const std::array<MATH::Vec3, 8> corners{ {
+                TransformFrustumPoint(world, -nearHalfWidth, -nearHalfHeight, nearDistance),
+                TransformFrustumPoint(world,  nearHalfWidth, -nearHalfHeight, nearDistance),
+                TransformFrustumPoint(world,  nearHalfWidth,  nearHalfHeight, nearDistance),
+                TransformFrustumPoint(world, -nearHalfWidth,  nearHalfHeight, nearDistance),
+                TransformFrustumPoint(world, -farHalfWidth, -farHalfHeight, farDistance),
+                TransformFrustumPoint(world,  farHalfWidth, -farHalfHeight, farDistance),
+                TransformFrustumPoint(world,  farHalfWidth,  farHalfHeight, farDistance),
+                TransformFrustumPoint(world, -farHalfWidth,  farHalfHeight, farDistance),
+            } };
+            constexpr std::array<std::array<int, 2>, 12> kEdges{ {
+                { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+                { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+                { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+            } };
+            for (const auto& edge : kEdges) {
+                RENDERER3D::DEBUG::SubmitLine3D(
+                    RENDERER3D::DEBUG::Line3D{ corners[edge[0]], corners[edge[1]], color });
+            }
+        }
     }
 
-    void ComponentGizmoRenderer::SubmitWorldGizmos(const World& world, const ComponentGizmoState& state, SceneObjectId selectedObjectId) const {
+    void ComponentGizmoRenderer::SubmitWorldGizmos(
+        const World& world,
+        const ComponentGizmoState& state,
+        SceneObjectId selectedObjectId,
+        float cameraAspect) const {
         if (!state.showComponentGizmos) {
             return;
         }
@@ -94,6 +158,14 @@ namespace HIKARI {
             }
 
             const Transform3D& transform = object->Transform();
+
+            const CameraComponent* camera = object->GetComponent<CameraComponent>();
+            if (camera && state.showCameraFrustums) {
+                const unsigned int color = object->GetDocumentId() == selectedObjectId
+                    ? kSelectedCameraFrustumColor
+                    : kCameraFrustumColor;
+                SubmitCameraFrustum(*camera, transform, cameraAspect, color);
+            }
 
             const TriggerVolumeComponent* trigger = object->GetComponent<TriggerVolumeComponent>();
             const DoorTransitionComponent* door = object->GetComponent<DoorTransitionComponent>();

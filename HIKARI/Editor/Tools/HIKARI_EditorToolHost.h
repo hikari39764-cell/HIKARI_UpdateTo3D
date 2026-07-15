@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -15,6 +16,7 @@ namespace HIKARI::EDITOR {
         bool Register(EditorToolDescriptor descriptor);
 
         bool OpenTool(std::string_view toolId);
+        bool RequestOpen(EditorToolOpenRequest request);
         bool CloseTool(std::string_view toolId);
         bool IsToolOpen(std::string_view toolId) const;
 
@@ -32,6 +34,7 @@ namespace HIKARI::EDITOR {
             bool open = false;
             EditorToolFactoryFn factory = nullptr;
             std::unique_ptr<IEditorTool> instance{};
+            std::optional<EditorToolOpenRequest> pendingOpenRequest{};
         };
 
         ToolEntry* Find(std::string_view toolId);

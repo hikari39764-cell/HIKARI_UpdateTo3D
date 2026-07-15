@@ -602,19 +602,20 @@ namespace HIKARI {
         }
     }
 
-    bool EnvironmentPanel::Draw(
+    EnvironmentPanelResult EnvironmentPanel::Draw(
         SceneEnvironment& environment,
         const SKYRENDERER::SkyRendererDebugState*,
         const AssetRegistry* assetRegistry,
         const AssetDatabase* assetDatabase) const {
         if (!ImGui::Begin("Environment")) {
             ImGui::End();
-            return false;
+            return {};
         }
 
         // UI 陷茨ｽｨ闖ｴ阮吶・驍ｱ・ｨ鬮ｮ繝ｻ辯戊募ｾ鯉ｽ定ｱ育｢托ｽｼ繝ｻ・邵ｲ・｣reset 郢ｧ繝ｻ繝ｻ陋ｻ邇ｲ譯・抄諛奇ｽらｸｺ・ｾ邵ｺ・ｨ郢ｧ竏壺ｻ隶諛ｷ繝ｻ邵ｺ蜷ｶ・狗ｸｲ繝ｻ
         // 驍ｱ・ｨ鬮ｮ繝ｻﾂ・､邵ｺ・ｯ陷奇ｽｳ隴弱ｅ竊・runtime 邵ｺ・ｸ陷ｿ閧ｴ荳千ｸｺ蜉ｱﾂ竏ｬ・ｩ・ｳ驍擾ｽｰ髫ｪ・ｺ隴・ｽｭ邵ｺ・ｯ log 邵ｺ・ｸ鬨ｾ繝ｻ窶ｲ邵ｺ蜷ｶﾂ繝ｻ
         const SceneEnvironment beforeEdit = environment;
+        bool openLightingBakeRequested = false;
 
         ImGui::SeparatorText("Scene Environment");
         const RENDER3D::DIAGNOSTICS::EnvironmentDiagnosticsSnapshot runtimeSnapshot =
@@ -840,6 +841,9 @@ namespace HIKARI {
                 probe.influenceBoxSize = ReflectionProbeRadiusBoxSize(probe.radius);
                 probe.projectionBoxSize = probe.influenceBoxSize;
             }
+            if (ImGui::Button("Open Lighting Bake Tool")) {
+                openLightingBakeRequested = true;
+            }
             ImGui::TextDisabled("Runtime Probe: %s",
                 RENDER3D::DIAGNOSTICS::ResolveReflectionProbeSummaryLabel(runtimeSnapshot));
             ImGui::TreePop();
@@ -889,10 +893,19 @@ namespace HIKARI {
 
         const bool changed = !EqualSceneEnvironment(beforeEdit, environment);
         ImGui::End();
-        return changed;
+        return EnvironmentPanelResult{
+            changed,
+            openLightingBakeRequested
+        };
     }
 #else
-    bool EnvironmentPanel::Draw(SceneEnvironment&, const SKYRENDERER::SkyRendererDebugState*, const AssetRegistry*, const AssetDatabase*) const { return false; }
+    EnvironmentPanelResult EnvironmentPanel::Draw(
+        SceneEnvironment&,
+        const SKYRENDERER::SkyRendererDebugState*,
+        const AssetRegistry*,
+        const AssetDatabase*) const {
+        return {};
+    }
 #endif
 
 } // namespace HIKARI

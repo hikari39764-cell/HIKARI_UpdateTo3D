@@ -34,6 +34,7 @@
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/HIKARI_AnimationSystem.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
+#include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_CameraFollowComponent.h"
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
@@ -518,6 +519,7 @@ namespace HIKARI {
 
     void DocumentSceneBase::OnEnter() {
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
+        gameplayCamera_ = camera_;
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
         RegisterDefaultComponentTypes();
@@ -545,9 +547,9 @@ namespace HIKARI {
         if (runtimePlayActive_ && runtimePreviewCameraActive_) {
             runtimePreviewCamera_.Update(
                 dt,
-                camera_,
+                gameplayCamera_,
                 CameraControlInputContext::RuntimeWindow);
-        } else if (UseDebugCamera()) {
+        } else if (UseDebugCamera() && !IsEditorCameraPreviewActive()) {
             debugCamera_.Update(
                 dt,
                 camera_,
@@ -557,17 +559,47 @@ namespace HIKARI {
         world_.Update(dt);
         systemScheduler_.Update(world_, frame);
         systemScheduler_.LateUpdate(world_, frame);
+
+        if (runtimePlayActive_) {
+            resolvedCameraFrame_ = cameraDirector_.Resolve(
+                world_,
+                gameplayCamera_,
+                camera_.GetAspect(),
+                dt);
+            camera_ = resolvedCameraFrame_.camera;
+            gameplayCamera_ = cameraDirector_.GetControlCamera();
+        } else if (IsEditorCameraPreviewActive()) {
+            resolvedCameraFrame_ = cameraDirector_.Resolve(
+                world_,
+                editorCameraPreviewSnapshot_,
+                camera_.GetAspect(),
+                dt);
+            camera_ = resolvedCameraFrame_.camera;
+        } else {
+            resolvedCameraFrame_.camera = camera_;
+            resolvedCameraFrame_.sourceCameraObjectId = 0;
+            resolvedCameraFrame_.cameraCut = editorCameraCutPending_;
+            resolvedCameraFrame_.projectionChanged = false;
+            resolvedCameraFrame_.valid = true;
+            editorCameraCutPending_ = false;
+        }
     }
     void DocumentSceneBase::Render() {
         int captureW = 0;
         int captureH = 0;
         POST::PostSystem::GetSceneCaptureSize(captureW, captureH);
         if (captureW > 0 && captureH > 0) {
+            const float aspect = static_cast<float>(captureW) / static_cast<float>(captureH);
+            const bool projectionChanged = std::abs(camera_.GetAspect() - aspect) > 1.0e-5f;
             camera_.SetPerspective(
-                60.0f * std::numbers::pi_v<float> / 180.0f,
-                static_cast<float>(captureW) / static_cast<float>(captureH),
-                0.1f,
-                100.0f);
+                camera_.GetFovYRad(),
+                aspect,
+                camera_.GetNearZ(),
+                camera_.GetFarZ());
+            resolvedCameraFrame_.camera = camera_;
+            resolvedCameraFrame_.projectionChanged =
+                resolvedCameraFrame_.projectionChanged || projectionChanged;
+            resolvedCameraFrame_.valid = true;
         }
 
         if (ProcessReflectionProbeBakeJob()) {
@@ -660,9 +692,16 @@ namespace HIKARI {
             componentGizmoRenderer_.SubmitWorldGizmos(
                 world_,
                 componentGizmoState_,
-                selectedGizmoObjectId_);
+                selectedGizmoObjectId_,
+                renderCamera.GetAspect());
         }
-        MODELRENDERER::RenderAll(renderCamera, activeEnvironment, viewportDebugViewState_.renderView);
+        RENDER3D::RenderViewContext primaryView{};
+        primaryView.viewId = RENDER3D::kPrimaryRenderViewId;
+        primaryView.purpose = runtimePlayActive_
+            ? RENDER3D::RenderViewPurpose::Game
+            : RENDER3D::RenderViewPurpose::EditorScene;
+        primaryView.cameraFrame = &resolvedCameraFrame_;
+        MODELRENDERER::RenderAll(primaryView, activeEnvironment, viewportDebugViewState_.renderView);
         SubmitFrozenCullingCameraDebugFrustum();
         RENDERER3D::RenderAll(renderCamera, static_cast<float>(captureW), static_cast<float>(captureH));
         VFX::Render(renderCamera);
@@ -678,6 +717,9 @@ namespace HIKARI {
     }
     const std::string& DocumentSceneBase::GetScenePath() const {
         return scenePath_;
+    }
+    uint64_t DocumentSceneBase::GetSceneDocumentRevision() const noexcept {
+        return sceneDocumentRevision_;
     }
 
     void DocumentSceneBase::SetSceneId(std::string sceneId) {
@@ -739,6 +781,15 @@ namespace HIKARI {
     }
     const Camera3D& DocumentSceneBase::GetCamera() const {
         return camera_;
+    }
+    CameraDirector& DocumentSceneBase::GetCameraDirector() {
+        return cameraDirector_;
+    }
+    const CameraDirector& DocumentSceneBase::GetCameraDirector() const {
+        return cameraDirector_;
+    }
+    const RENDER3D::ResolvedCameraFrame& DocumentSceneBase::GetResolvedCameraFrame() const {
+        return resolvedCameraFrame_;
     }
     DebugCameraController3D& DocumentSceneBase::GetDebugCamera() {
         return debugCamera_;
@@ -958,6 +1009,7 @@ namespace HIKARI {
             BuildSystemScheduleFromDocument();
             systemScheduler_.AttachWorld(world_);
         }
+        ApplyCameraRuntimeChanges();
         return built;
     }
     bool DocumentSceneBase::ApplySystemRuntimeChanges() {
@@ -974,11 +1026,193 @@ namespace HIKARI {
         }
         return configured;
     }
+    bool DocumentSceneBase::ApplyCameraRuntimeChanges() {
+        const SceneObjectId defaultCamera = sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{});
+        cameraDirector_.SetBaseCamera(defaultCamera);
+
+        if (editorCameraPreviewObjectId_.value != 0) {
+            const auto previewObject = std::find_if(
+                sceneDocument_.objects.begin(),
+                sceneDocument_.objects.end(),
+                [this](const SceneObjectData& object) {
+                    return object.id == editorCameraPreviewObjectId_;
+                });
+            bool previewCameraValid = previewObject != sceneDocument_.objects.end();
+            if (previewCameraValid) {
+                previewCameraValid = false;
+                for (const auto& runtimeObject : world_.GetObjects()) {
+                    if (!runtimeObject ||
+                        !(runtimeObject->GetDocumentId() == editorCameraPreviewObjectId_)) {
+                        continue;
+                    }
+                    const CameraComponent* camera = runtimeObject->GetComponent<CameraComponent>();
+                    previewCameraValid = camera != nullptr && camera->IsEnabled();
+                    break;
+                }
+            }
+            if (!previewCameraValid) {
+                EndEditorCameraPreview();
+            }
+        }
+
+        if (runtimePlayActive_) {
+            runtimeSceneCameraActive_ = HasRuntimeSceneCameraDriver();
+            runtimePreviewCameraActive_ = !runtimeSceneCameraActive_;
+        }
+        return true;
+    }
+    bool DocumentSceneBase::SetGameDefaultCamera(SceneObjectId cameraObjectId) {
+        if (cameraObjectId.value == 0) {
+            return false;
+        }
+
+        const auto object = std::find_if(
+            sceneDocument_.objects.begin(),
+            sceneDocument_.objects.end(),
+            [cameraObjectId](const SceneObjectData& candidate) {
+                if (!(candidate.id == cameraObjectId)) {
+                    return false;
+                }
+                return std::any_of(
+                    candidate.components.begin(),
+                    candidate.components.end(),
+                    [](const SceneComponentData& component) {
+                        return component.type == "CameraComponent";
+                    });
+            });
+        if (object == sceneDocument_.objects.end()) {
+            return false;
+        }
+
+        if (!sceneDocument_.camera.defaultCameraObjectId.has_value() ||
+            !(sceneDocument_.camera.defaultCameraObjectId.value() == cameraObjectId)) {
+            sceneDocument_.camera.defaultCameraObjectId = cameraObjectId;
+            sceneDocumentDirty_ = true;
+        }
+        return ApplyCameraRuntimeChanges();
+    }
+    void DocumentSceneBase::ClearGameDefaultCamera() {
+        if (!sceneDocument_.camera.defaultCameraObjectId.has_value()) {
+            return;
+        }
+        sceneDocument_.camera.defaultCameraObjectId.reset();
+        sceneDocumentDirty_ = true;
+        ApplyCameraRuntimeChanges();
+    }
+    bool DocumentSceneBase::BeginEditorCameraPreview(SceneObjectId cameraObjectId) {
+        if (runtimePlayActive_ || cameraObjectId.value == 0) {
+            return false;
+        }
+        if (IsEditorCameraPreviewActive() && editorCameraPreviewObjectId_ == cameraObjectId) {
+            return true;
+        }
+
+        GameObject* cameraObject = nullptr;
+        for (const auto& object : world_.GetObjects()) {
+            if (object && object->GetDocumentId() == cameraObjectId) {
+                cameraObject = object.get();
+                break;
+            }
+        }
+        const CameraComponent* cameraComponent =
+            cameraObject != nullptr ? cameraObject->GetComponent<CameraComponent>() : nullptr;
+        if (cameraComponent == nullptr || !cameraComponent->IsEnabled()) {
+            return false;
+        }
+
+        EndEditorCameraPreview();
+        editorCameraPreviewSnapshot_ = camera_;
+        cameraDirector_.SetBaseCamera(
+            sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
+        CameraActivationRequest request{};
+        request.cameraObjectId = cameraObjectId;
+        request.blend.mode = CameraBlendMode::Cut;
+        request.priority = 1000;
+        request.affectsControlBasis = false;
+        editorCameraPreviewToken_ = cameraDirector_.PushOverride(request);
+        if (!editorCameraPreviewToken_.IsValid()) {
+            return false;
+        }
+        editorCameraPreviewObjectId_ = cameraObjectId;
+        return true;
+    }
+    void DocumentSceneBase::EndEditorCameraPreview() {
+        if (!IsEditorCameraPreviewActive()) {
+            editorCameraPreviewObjectId_ = {};
+            editorCameraPreviewToken_ = {};
+            return;
+        }
+        (void)cameraDirector_.ReleaseOverride(editorCameraPreviewToken_);
+        editorCameraPreviewObjectId_ = {};
+        editorCameraPreviewToken_ = {};
+        camera_ = editorCameraPreviewSnapshot_;
+        resolvedCameraFrame_.camera = camera_;
+        resolvedCameraFrame_.sourceCameraObjectId = 0;
+        resolvedCameraFrame_.valid = true;
+        editorCameraCutPending_ = true;
+    }
+    bool DocumentSceneBase::IsEditorCameraPreviewActive() const {
+        return editorCameraPreviewObjectId_.value != 0 && editorCameraPreviewToken_.IsValid();
+    }
+    SceneObjectId DocumentSceneBase::GetEditorCameraPreviewObjectId() const {
+        return editorCameraPreviewObjectId_;
+    }
+    bool DocumentSceneBase::SnapCameraObjectToEditorView(SceneObjectId cameraObjectId) {
+        if (runtimePlayActive_ || cameraObjectId.value == 0) {
+            return false;
+        }
+
+        auto documentObject = std::find_if(
+            sceneDocument_.objects.begin(),
+            sceneDocument_.objects.end(),
+            [cameraObjectId](const SceneObjectData& object) {
+                return object.id == cameraObjectId;
+            });
+        if (documentObject == sceneDocument_.objects.end() || documentObject->parent.has_value()) {
+            return false;
+        }
+        const bool hasCameraComponent = std::any_of(
+            documentObject->components.begin(),
+            documentObject->components.end(),
+            [](const SceneComponentData& component) {
+                return component.type == "CameraComponent";
+            });
+        if (!hasCameraComponent) {
+            return false;
+        }
+
+        GameObject* runtimeObject = nullptr;
+        for (const auto& object : world_.GetObjects()) {
+            if (object && object->GetDocumentId() == cameraObjectId) {
+                runtimeObject = object.get();
+                break;
+            }
+        }
+        if (runtimeObject == nullptr || runtimeObject->GetComponent<CameraComponent>() == nullptr) {
+            return false;
+        }
+
+        const MATH::Quat rotation = MATH::Quat::FromEulerXYZ(
+            -debugCamera_.GetPitch(),
+            debugCamera_.GetYaw(),
+            0.0f);
+        documentObject->transform.position = debugCamera_.GetPosition();
+        documentObject->transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(rotation);
+
+        Transform3D& runtimeTransform = runtimeObject->Transform();
+        runtimeTransform.position = documentObject->transform.position;
+        runtimeTransform.rotation = rotation;
+        runtimeTransform.useExplicitMatrix = false;
+        runtimeObject->MarkRenderStateDirty();
+        sceneDocumentDirty_ = true;
+        return true;
+    }
     bool DocumentSceneBase::BeginRuntimePlay() {
         if (runtimePlayActive_ || !currentSceneAssetGuid_.IsValid()) {
             return false;
         }
 
+        EndEditorCameraPreview();
         editorCameraSnapshot_ = camera_;
         editorDebugCameraSnapshot_ = debugCamera_;
         editorComponentGizmoSnapshot_ = componentGizmoState_;
@@ -994,8 +1228,13 @@ namespace HIKARI {
         }
 
         camera_ = editorCameraSnapshot_;
+        gameplayCamera_ = editorCameraSnapshot_;
+        cameraDirector_.Reset();
+        cameraDirector_.SetBaseCamera(
+            sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
+        resolvedCameraFrame_ = {};
         runtimePreviewCamera_ = editorDebugCameraSnapshot_;
-        runtimePreviewCamera_.ResetFromCamera(camera_);
+        runtimePreviewCamera_.ResetFromCamera(gameplayCamera_);
         runtimePreviewCamera_.SetEnabled(true);
         runtimeSceneCameraActive_ = HasRuntimeSceneCameraDriver();
         runtimePreviewCameraActive_ = !runtimeSceneCameraActive_;
@@ -1016,8 +1255,10 @@ namespace HIKARI {
         runtimePlayActive_ = false;
         runtimePreviewCameraActive_ = false;
         runtimeSceneCameraActive_ = false;
+        cameraDirector_.Reset();
         const bool restored = ReloadSceneDocument();
         camera_ = editorCameraSnapshot_;
+        gameplayCamera_ = camera_;
         debugCamera_ = editorDebugCameraSnapshot_;
         componentGizmoState_ = editorComponentGizmoSnapshot_;
         viewportOverlayState_ = editorViewportOverlaySnapshot_;
@@ -1025,6 +1266,11 @@ namespace HIKARI {
         viewportDebugViewState_ = editorViewportDebugViewSnapshot_;
         viewportGizmoInteracting_ = false;
         selectedGizmoObjectId_ = editorSelectedGizmoObjectSnapshot_;
+        resolvedCameraFrame_ = {};
+        resolvedCameraFrame_.camera = camera_;
+        resolvedCameraFrame_.cameraCut = true;
+        resolvedCameraFrame_.valid = true;
+        editorCameraCutPending_ = true;
         if (!restored) {
             HIKARI_LOG_ERROR("Editor scene restoration after runtime Play failed.");
             return false;
@@ -1099,7 +1345,11 @@ namespace HIKARI {
             return false;
         }
 
+        if (!runtimePlayActive_) {
+            EndEditorCameraPreview();
+        }
         sceneDocument_ = std::move(loaded);
+        ++sceneDocumentRevision_;
         scenePath_ = scenePath.generic_string();
         sceneId_ = sceneGuid.value;
         currentSceneAssetGuid_ = sceneGuid;
@@ -1157,7 +1407,10 @@ namespace HIKARI {
         return false;
     }
     bool DocumentSceneBase::CreateTransientEmptySceneDocument() {
+        EndEditorCameraPreview();
+        cameraDirector_.Reset();
         sceneDocument_ = SceneDocument{};
+        ++sceneDocumentRevision_;
         sceneDocument_.sceneName = "Untitled Scene";
         sceneDocument_.systems = CreateDefaultSceneSystems();
         environment_ = sceneDocument_.environment;
@@ -1166,6 +1419,7 @@ namespace HIKARI {
         currentSceneAssetGuid_ = {};
         sceneDocumentDirty_ = false;
         RenderSubmissionSystem::InvalidateSceneResources(true);
+        cameraDirector_.SetBaseCamera({});
         return true;
     }
     bool DocumentSceneBase::HasUnsavedSceneChanges() const {
@@ -2196,7 +2450,7 @@ namespace HIKARI {
         systemTypeRegistry_.Register(SystemTypeInfo{
             "PlayerMovementSystem",
             [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<PlayerMovementSystem>(&camera_);
+                return std::make_unique<PlayerMovementSystem>(&gameplayCamera_);
             }
         });
         systemTypeRegistry_.Register(SystemTypeInfo{
@@ -2208,7 +2462,7 @@ namespace HIKARI {
         systemTypeRegistry_.Register(SystemTypeInfo{
             "CameraFollowSystem",
             [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<CameraFollowSystem>(camera_, runtimeSceneCameraActive_);
+                return std::make_unique<CameraFollowSystem>(gameplayCamera_, runtimeSceneCameraActive_);
             }
         });
     }
@@ -2263,6 +2517,22 @@ namespace HIKARI {
         return fullyConfigured;
     }
     void DocumentSceneBase::RegisterDefaultComponentTypes() {
+        if (!componentRegistry_.Find("CameraComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "CameraComponent",
+                []() -> std::unique_ptr<IComponent> { return std::make_unique<CameraComponent>(); },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&, nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["verticalFovDegrees"] = 60.0f;
+                    properties["nearClip"] = 0.1f;
+                    properties["farClip"] = 100.0f;
+                }
+            });
+        }
         if (!componentRegistry_.Find("ModelComponent")) {
             componentRegistry_.Register(ComponentTypeInfo{
                 "ModelComponent",
@@ -2458,6 +2728,20 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBase::HasRuntimeSceneCameraDriver() const {
+        if (sceneDocument_.camera.defaultCameraObjectId.has_value()) {
+            for (const auto& object : world_.GetObjects()) {
+                if (!object ||
+                    !(object->GetDocumentId() == sceneDocument_.camera.defaultCameraObjectId.value())) {
+                    continue;
+                }
+                const CameraComponent* camera = object->GetComponent<CameraComponent>();
+                if (camera != nullptr && camera->IsEnabled()) {
+                    return true;
+                }
+                break;
+            }
+        }
+
         const auto system = std::find_if(
             sceneDocument_.systems.begin(),
             sceneDocument_.systems.end(),

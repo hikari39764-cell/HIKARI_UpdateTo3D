@@ -6,6 +6,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
@@ -15,6 +16,7 @@
 #include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
 #endif
 #include "Scene/HIKARI_ComponentRegistry.h"
+#include "Scene/HIKARI_CameraDirector.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
@@ -44,6 +46,7 @@ namespace HIKARI {
 
         const std::string& GetSceneId() const override;
         const std::string& GetScenePath() const;
+        uint64_t GetSceneDocumentRevision() const noexcept;
         void SetSceneId(std::string sceneId);
         void SetScenePath(std::string scenePath);
 
@@ -67,6 +70,9 @@ namespace HIKARI {
 
         Camera3D& GetCamera();
         const Camera3D& GetCamera() const;
+        CameraDirector& GetCameraDirector();
+        const CameraDirector& GetCameraDirector() const;
+        const RENDER3D::ResolvedCameraFrame& GetResolvedCameraFrame() const;
         DebugCameraController3D& GetDebugCamera();
 
         bool& GetEnvironmentLightingEnabled();
@@ -74,6 +80,14 @@ namespace HIKARI {
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
         bool ApplySystemRuntimeChanges();
+        bool ApplyCameraRuntimeChanges();
+        bool SetGameDefaultCamera(SceneObjectId cameraObjectId);
+        void ClearGameDefaultCamera();
+        bool BeginEditorCameraPreview(SceneObjectId cameraObjectId);
+        void EndEditorCameraPreview();
+        bool IsEditorCameraPreviewActive() const;
+        SceneObjectId GetEditorCameraPreviewObjectId() const;
+        bool SnapCameraObjectToEditorView(SceneObjectId cameraObjectId);
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
         bool IsRuntimePlayActive() const { return runtimePlayActive_; }
@@ -149,15 +163,22 @@ namespace HIKARI {
         std::string scenePath_{};
 
         Camera3D camera_{};
+        Camera3D gameplayCamera_{};
+        CameraDirector cameraDirector_{};
+        RENDER3D::ResolvedCameraFrame resolvedCameraFrame_{};
         DebugCameraController3D debugCamera_{};
         DebugCameraController3D runtimePreviewCamera_{};
         Camera3D editorCameraSnapshot_{};
+        Camera3D editorCameraPreviewSnapshot_{};
         DebugCameraController3D editorDebugCameraSnapshot_{};
         ComponentGizmoState editorComponentGizmoSnapshot_{};
         ViewportOverlayState editorViewportOverlaySnapshot_{};
         ViewportPerformanceState editorViewportPerformanceSnapshot_{};
         ViewportDebugViewState editorViewportDebugViewSnapshot_{};
         SceneObjectId editorSelectedGizmoObjectSnapshot_{};
+        SceneObjectId editorCameraPreviewObjectId_{};
+        CameraOverrideToken editorCameraPreviewToken_{};
+        bool editorCameraCutPending_ = false;
         bool runtimePreviewCameraActive_ = false;
         bool runtimeSceneCameraActive_ = false;
         bool runtimePlayActive_ = false;
@@ -176,6 +197,7 @@ namespace HIKARI {
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};
         SceneDocument sceneDocument_{};
+        uint64_t sceneDocumentRevision_ = 0;
         AssetGuid currentSceneAssetGuid_{};
         bool sceneDocumentDirty_ = false;
 #if defined(HIKARI_WITH_EDITOR)

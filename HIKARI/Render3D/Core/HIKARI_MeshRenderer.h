@@ -5,6 +5,7 @@
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/HIKARI_Transform3D.h"
@@ -80,6 +81,10 @@ namespace HIKARI::MESHRENDERER {
         std::vector<TemporalVelocityDraw>& outDraws);
     void SetAmbientOcclusionRuntimeEnabled(bool enabled);
     void EndFrame();
+    void RenderAll(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
     void RenderAll(
         const Camera3D& camera,
         const SceneEnvironment& environment,

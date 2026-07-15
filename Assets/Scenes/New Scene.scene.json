@@ -1,4 +1,7 @@
 {
+  "camera": {
+    "defaultCameraObjectId": 2
+  },
   "environment": {
     "ambient": {
       "color": [
@@ -60,19 +63,19 @@
       "strength": 0.7200000286102295
     },
     "fog": {
-      "anisotropy": 0.20000000298023224,
+      "anisotropy": 0.19300000369548798,
       "color": [
-        0.11764705926179886,
-        0.5607843399047852,
-        1.0
+        1.0,
+        0.6467971801757813,
+        0.5469387769699097
       ],
       "density": 0.02199999988079071,
       "enabled": true,
-      "endDistance": 115.0,
-      "heightFalloff": 0.25999999046325684,
-      "startDistance": 58.0,
-      "temporalWeight": 0.8999999761581421,
-      "useSkyHorizonColor": true,
+      "endDistance": 67.0,
+      "heightFalloff": 0.05000000074505806,
+      "startDistance": 24.200000762939453,
+      "temporalWeight": 0.7960000038146973,
+      "useSkyHorizonColor": false,
       "volumetric": true
     },
     "pointLights": [
@@ -359,6 +362,42 @@
           1.0,
           1.0,
           1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "enabled": false,
+            "farClip": 82.60199737548828,
+            "nearClip": 0.6010000109672546,
+            "verticalFovDegrees": 73.19999694824219
+          },
+          "type": "CameraComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 2,
+      "name": "GameObject_2",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -16.567821502685547,
+          6.156315803527832,
+          -1.939609408378601
+        ],
+        "rotationEulerDeg": [
+          -178.10923767089844,
+          66.89814758300781,
+          -180.0
+        ],
+        "scale": [
+          0.9343090653419495,
+          1.162758708000183,
+          1.8899997472763062
         ]
       }
     }

@@ -65,6 +65,10 @@ namespace HIKARI {
         LightProbeVolumeSettings lightProbeVolume{};
     };
 
+    struct SceneCameraSettings {
+        std::optional<SceneObjectId> defaultCameraObjectId{};
+    };
+
     inline uint32_t NormalizeLightProbeCaptureResolution(uint32_t resolution) {
         if (resolution <= 16u) {
             return 16u;
@@ -118,6 +122,7 @@ namespace HIKARI {
         std::string sceneName = "Untitled";
         SceneEnvironment environment{};
         SceneLightingBakeSettings lightingBake{};
+        SceneCameraSettings camera{};
         std::vector<SceneObjectData> objects{};
         std::vector<SceneSystemData> systems{};
     };

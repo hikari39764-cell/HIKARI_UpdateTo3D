@@ -584,6 +584,17 @@ namespace HIKARI {
 
         DeserializeLightingBakeSettings(root.value("lightingBake", json::object()), outDocument.lightingBake);
 
+        if (root.contains("camera") && root["camera"].is_object()) {
+            const json& camera = root["camera"];
+            if (camera.contains("defaultCameraObjectId") &&
+                camera["defaultCameraObjectId"].is_number_unsigned()) {
+                const uint64_t objectId = camera["defaultCameraObjectId"].get<uint64_t>();
+                if (objectId != 0) {
+                    outDocument.camera.defaultCameraObjectId = SceneObjectId{ objectId };
+                }
+            }
+        }
+
         DeserializeSystems(root.value("systems", json{}), outDocument);
 
         if (root.contains("objects") && root["objects"].is_array()) {
@@ -636,6 +647,12 @@ namespace HIKARI {
 
         SerializeEnvironment(document.environment, root["environment"]);
         SerializeLightingBakeSettings(document.lightingBake, root["lightingBake"]);
+        if (document.camera.defaultCameraObjectId.has_value()) {
+            root["camera"]["defaultCameraObjectId"] =
+                document.camera.defaultCameraObjectId->value;
+        } else {
+            root["camera"]["defaultCameraObjectId"] = nullptr;
+        }
         SerializeSystems(document, root["systems"]);
 
         root["objects"] = json::array();

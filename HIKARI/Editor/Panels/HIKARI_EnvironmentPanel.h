@@ -10,9 +10,14 @@ namespace HIKARI {
         struct SkyRendererDebugState;
     }
 
+    struct EnvironmentPanelResult {
+        bool environmentChanged = false;
+        bool openLightingBakeRequested = false;
+    };
+
     class EnvironmentPanel {
     public:
-        bool Draw(
+        EnvironmentPanelResult Draw(
             SceneEnvironment& environment,
             const SKYRENDERER::SkyRendererDebugState* skyDebugState,
             const AssetRegistry* assetRegistry = nullptr,

@@ -24,6 +24,7 @@ namespace HIKARI {
         bool showTriggerVolumes = false;
         bool showSpawnPoints = false;
         bool showDoorTransitions = false;
+        bool showCameraFrustums = true;
         bool showPlayerBounds = true;
         bool showUIScreenRects = false;
         bool showOnlySelectedObject = false;

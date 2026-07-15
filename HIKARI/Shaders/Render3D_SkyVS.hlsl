@@ -23,7 +23,9 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     VSOutput output;
-    output.position = mul(gWorldViewProj, float4(input.position, 1.0f));
+    float4 clipPosition = mul(gWorldViewProj, float4(input.position, 1.0f));
+    clipPosition.z = clipPosition.w;
+    output.position = clipPosition;
     output.localDir = input.position;
     return output;
 }

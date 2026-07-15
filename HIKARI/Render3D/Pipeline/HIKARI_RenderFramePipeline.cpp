@@ -39,12 +39,15 @@ namespace HIKARI::RENDER3D::PIPELINE {
         }
 
         RenderFrameContext BuildRenderFrameContext(
-            const Camera3D& camera,
+            const RenderViewContext& view,
             const SceneEnvironment& environment) {
 
             RenderFrameContext context{};
+            context.viewId = view.viewId;
+            context.purpose = view.purpose;
+            context.cameraCut = view.cameraFrame->cameraCut;
             context.cmd = SERVICES::gCtx.cmdList;
-            context.camera = &camera;
+            context.camera = &view.cameraFrame->camera;
             context.environment = &environment;
             context.scene.dsv = POST::PostSystem::GetCurrentRenderTargetDsv();
             context.scene.readOnlyDsv =
@@ -133,10 +136,15 @@ namespace HIKARI::RENDER3D::PIPELINE {
     }
 
     bool RenderMeshLightingFrame(
-        const Camera3D& camera,
+        const RenderViewContext& view,
         const SceneEnvironment& environment,
         RenderDebugView debugView) {
 
+        if (view.cameraFrame == nullptr || !view.cameraFrame->valid) {
+            return false;
+        }
+
+        const Camera3D& camera = view.cameraFrame->camera;
         RENDER3D::SetRenderDebugOutputView(debugView);
         const RENDER3D::RenderDebugOutputRoute& debugRoute =
             RENDER3D::GetRenderDebugOutputRoute();
@@ -146,7 +154,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
         GFX::PIX::ScopedGpuEvent pixFrame(SERVICES::gCtx.cmdList, GFX::PIX::kColorRender, "RenderFrame.MeshLighting");
         const RenderFrameContext frame =
-            BuildRenderFrameContext(camera, environment);
+            BuildRenderFrameContext(view, environment);
         const ScreenSpacePassContext screenSpaceContext =
             BuildScreenSpaceContext(frame);
         const RENDER3D::RenderQualitySettings& renderQuality =
@@ -176,6 +184,7 @@ namespace HIKARI::RENDER3D::PIPELINE {
         temporalDesc.renderHeight = frame.renderHeight;
         temporalDesc.outputWidth = frame.outputWidth;
         temporalDesc.outputHeight = frame.outputHeight;
+        temporalDesc.cameraCut = frame.cameraCut;
         const bool temporalDebugView = debugRoute.temporalVisualization;
         const bool volumetricDebugView = debugRoute.volumetricVisualization;
         const bool temporalPipelineAllowed =
@@ -401,6 +410,22 @@ namespace HIKARI::RENDER3D::PIPELINE {
 
         MESHRENDERER::EndFrame();
         return opaqueOk && depthAwareOk && transparentOk;
+    }
+
+    bool RenderMeshLightingFrame(
+        const Camera3D& camera,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView) {
+
+        ResolvedCameraFrame cameraFrame{};
+        cameraFrame.camera = camera;
+        cameraFrame.valid = true;
+
+        RenderViewContext view{};
+        view.viewId = kPrimaryRenderViewId;
+        view.purpose = RenderViewPurpose::Game;
+        view.cameraFrame = &cameraFrame;
+        return RenderMeshLightingFrame(view, environment, debugView);
     }
 
     bool RenderMeshCaptureOpaqueFrame(

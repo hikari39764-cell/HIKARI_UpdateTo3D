@@ -1,0 +1,396 @@
+#include "HIKARI_CameraDirector.h"
+
+#include <algorithm>
+#include <cmath>
+
+#include "Scene/Components/HIKARI_CameraComponent.h"
+#include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_World.h"
+
+namespace HIKARI {
+
+    namespace {
+        constexpr float kMinAspect = 0.0001f;
+        constexpr float kVectorEpsilon = 0.00001f;
+        constexpr float kFloatEpsilon = 0.00001f;
+
+        float ClampAspect(float aspect, const Camera3D& fallbackCamera) {
+            if (std::isfinite(aspect) && aspect >= kMinAspect) {
+                return aspect;
+            }
+            const float fallbackAspect = fallbackCamera.GetAspect();
+            return std::isfinite(fallbackAspect) && fallbackAspect >= kMinAspect
+                ? fallbackAspect
+                : 16.0f / 9.0f;
+        }
+
+        float SmoothStep(float value) {
+            const float t = std::clamp(value, 0.0f, 1.0f);
+            return t * t * (3.0f - 2.0f * t);
+        }
+
+        float Lerp(float from, float to, float amount) {
+            return from + (to - from) * amount;
+        }
+
+        MATH::Vec3 Lerp(const MATH::Vec3& from, const MATH::Vec3& to, float amount) {
+            return from + (to - from) * amount;
+        }
+
+        bool NearlyEqual(float lhs, float rhs) {
+            return std::abs(lhs - rhs) <= kFloatEpsilon;
+        }
+
+        bool ProjectionDiffers(const Camera3D& lhs, const Camera3D& rhs) {
+            return !NearlyEqual(lhs.GetFovYRad(), rhs.GetFovYRad()) ||
+                !NearlyEqual(lhs.GetAspect(), rhs.GetAspect()) ||
+                !NearlyEqual(lhs.GetNearZ(), rhs.GetNearZ()) ||
+                !NearlyEqual(lhs.GetFarZ(), rhs.GetFarZ());
+        }
+
+        MATH::Vec3 SafeUpForForward(const MATH::Vec3& forward, MATH::Vec3 up);
+
+        Camera3D BlendCamera(const Camera3D& from, const Camera3D& to, float amount) {
+            Camera3D result{};
+            const MATH::Vec3 eye = Lerp(from.GetPosition(), to.GetPosition(), amount);
+            MATH::Vec3 target = Lerp(from.GetTarget(), to.GetTarget(), amount);
+            MATH::Vec3 up = MATH::Normalize(Lerp(from.GetUp(), to.GetUp(), amount));
+            if (MATH::Length(target - eye) <= kVectorEpsilon) {
+                target = eye + MATH::Vec3{ 0.0f, 0.0f, 1.0f };
+            }
+            if (MATH::Length(up) <= kVectorEpsilon) {
+                up = { 0.0f, 1.0f, 0.0f };
+            }
+            up = SafeUpForForward(MATH::Normalize(target - eye), up);
+
+            result.SetPerspective(
+                Lerp(from.GetFovYRad(), to.GetFovYRad(), amount),
+                Lerp(from.GetAspect(), to.GetAspect(), amount),
+                Lerp(from.GetNearZ(), to.GetNearZ(), amount),
+                Lerp(from.GetFarZ(), to.GetFarZ(), amount));
+            result.SetLookAt(eye, target, up);
+            return result;
+        }
+
+        MATH::Vec3 ExtractAxis(const MATH::Mat4& matrix, int column) {
+            return {
+                matrix.m[column][0],
+                matrix.m[column][1],
+                matrix.m[column][2]
+            };
+        }
+
+        MATH::Vec3 SafeUpForForward(const MATH::Vec3& forward, MATH::Vec3 up) {
+            up = MATH::Normalize(up);
+            if (MATH::Length(up) <= kVectorEpsilon ||
+                std::abs(MATH::Dot(forward, up)) >= 0.999f) {
+                up = { 0.0f, 1.0f, 0.0f };
+            }
+            if (std::abs(MATH::Dot(forward, up)) >= 0.999f) {
+                up = { 1.0f, 0.0f, 0.0f };
+            }
+            return up;
+        }
+    }
+
+    void CameraDirector::Reset() {
+        baseCameraObjectId_ = {};
+        activeSourceCameraObjectId_ = {};
+        overrides_.clear();
+        resolvedFrame_ = {};
+        controlCamera_ = {};
+        blendStartCamera_ = {};
+        activeBlend_ = {};
+        blendElapsedSeconds_ = 0.0f;
+        blendActive_ = false;
+        activeOverrideAffectsControlBasis_ = false;
+        revision_ = 0;
+
+        ++epoch_;
+        if (epoch_ == 0) {
+            epoch_ = 1;
+        }
+        nextTokenValue_ = 1;
+        nextInsertionOrder_ = 1;
+    }
+
+    void CameraDirector::SetBaseCamera(SceneObjectId cameraObjectId) {
+        if (!(baseCameraObjectId_ == cameraObjectId)) {
+            baseCameraObjectId_ = cameraObjectId;
+            activeBlend_ = {};
+            // ベースカメラの変更自体はブレンド設定を持たないため、Cut として扱う。
+            activeBlend_ = {};
+        }
+    }
+
+    SceneObjectId CameraDirector::GetBaseCamera() const noexcept {
+        return baseCameraObjectId_;
+    }
+
+    CameraOverrideToken CameraDirector::PushOverride(const CameraActivationRequest& request) {
+        CameraOverrideToken token{};
+        token.value = nextTokenValue_++;
+        if (nextTokenValue_ == 0) {
+            nextTokenValue_ = 1;
+        }
+        token.epoch = epoch_;
+
+        OverrideEntry entry{};
+        entry.token = token;
+        entry.request = request;
+        entry.insertionOrder = nextInsertionOrder_++;
+        if (nextInsertionOrder_ == 0) {
+            nextInsertionOrder_ = 1;
+        }
+        overrides_.push_back(entry);
+        return token;
+    }
+
+    bool CameraDirector::ReleaseOverride(CameraOverrideToken token) {
+        if (!token.IsValid() || token.epoch != epoch_) {
+            return false;
+        }
+
+        const OverrideEntry* winning = FindWinningOverride();
+        const bool releasingWinner = winning != nullptr &&
+            winning->token.value == token.value &&
+            winning->token.epoch == token.epoch;
+
+        const auto found = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [token](const OverrideEntry& entry) {
+                return entry.token.value == token.value && entry.token.epoch == token.epoch;
+            });
+        if (found == overrides_.end()) {
+            return false;
+        }
+
+        if (releasingWinner) {
+            activeBlend_ = found->request.blend;
+            // Override 解除後にベースへ戻る場合は、解除対象のブレンド設定を使う。
+            activeBlend_ = found->request.blend;
+            blendActive_ = false;
+            blendElapsedSeconds_ = 0.0f;
+        }
+        overrides_.erase(found);
+        return true;
+    }
+
+    bool CameraDirector::HasActiveOverride() const noexcept {
+        return !overrides_.empty();
+    }
+
+    const RENDER3D::ResolvedCameraFrame& CameraDirector::Resolve(
+        const World& world,
+        const Camera3D& fallbackCamera,
+        float aspect,
+        float deltaTime) {
+
+        resolvedFrame_.cameraCut = false;
+        resolvedFrame_.projectionChanged = false;
+
+        const float resolvedAspect = ClampAspect(aspect, fallbackCamera);
+        const OverrideEntry* winningOverride = FindWinningOverride();
+        const SceneObjectId requestedSource = winningOverride != nullptr
+            ? winningOverride->request.cameraObjectId
+            : baseCameraObjectId_;
+
+        Camera3D targetCamera{};
+        const bool requestedSourceValid = ResolveCameraObject(
+            world,
+            requestedSource,
+            resolvedAspect,
+            targetCamera);
+        if (!requestedSourceValid) {
+            targetCamera = fallbackCamera;
+            targetCamera.SetPerspective(
+                fallbackCamera.GetFovYRad(),
+                resolvedAspect,
+                fallbackCamera.GetNearZ(),
+                fallbackCamera.GetFarZ());
+        }
+
+        const SceneObjectId resolvedSource = requestedSourceValid
+            ? requestedSource
+            : SceneObjectId{};
+        const bool sourceChanged =
+            !resolvedFrame_.valid ||
+            !(activeSourceCameraObjectId_ == requestedSource) ||
+            resolvedFrame_.sourceCameraObjectId != resolvedSource.value;
+
+        if (sourceChanged) {
+            CameraBlendDesc transitionBlend{};
+            if (requestedSourceValid && winningOverride != nullptr) {
+                transitionBlend = winningOverride->request.blend;
+            } else if (requestedSourceValid && winningOverride == nullptr) {
+                transitionBlend = activeBlend_;
+            }
+            if (!requestedSourceValid) {
+                transitionBlend = {};
+            }
+
+            activeSourceCameraObjectId_ = requestedSource;
+            BeginSourceTransition(resolvedSource, targetCamera, transitionBlend);
+        }
+
+        if (blendActive_) {
+            AdvanceBlend(targetCamera, deltaTime);
+        } else if (!sourceChanged) {
+            resolvedFrame_.projectionChanged = ProjectionDiffers(resolvedFrame_.camera, targetCamera);
+            resolvedFrame_.camera = targetCamera;
+        }
+
+        resolvedFrame_.sourceCameraObjectId = resolvedSource.value;
+        resolvedFrame_.revision = revision_;
+        resolvedFrame_.valid = true;
+
+        Camera3D baseControlCamera{};
+        const bool baseControlValid = ResolveCameraObject(
+            world,
+            baseCameraObjectId_,
+            resolvedAspect,
+            baseControlCamera);
+        if (!baseControlValid) {
+            baseControlCamera = fallbackCamera;
+            baseControlCamera.SetPerspective(
+                fallbackCamera.GetFovYRad(),
+                resolvedAspect,
+                fallbackCamera.GetNearZ(),
+                fallbackCamera.GetFarZ());
+        }
+
+        activeOverrideAffectsControlBasis_ =
+            winningOverride != nullptr &&
+            requestedSourceValid &&
+            winningOverride->request.affectsControlBasis;
+        controlCamera_ = activeOverrideAffectsControlBasis_
+            ? resolvedFrame_.camera
+            : baseControlCamera;
+
+        return resolvedFrame_;
+    }
+
+    const RENDER3D::ResolvedCameraFrame& CameraDirector::GetResolvedFrame() const noexcept {
+        return resolvedFrame_;
+    }
+
+    const Camera3D& CameraDirector::GetControlCamera() const noexcept {
+        return controlCamera_;
+    }
+
+    const CameraDirector::OverrideEntry* CameraDirector::FindWinningOverride() const {
+        const OverrideEntry* winner = nullptr;
+        for (const OverrideEntry& entry : overrides_) {
+            if (winner == nullptr ||
+                entry.request.priority > winner->request.priority ||
+                (entry.request.priority == winner->request.priority &&
+                    entry.insertionOrder > winner->insertionOrder)) {
+                winner = &entry;
+            }
+        }
+        return winner;
+    }
+
+    bool CameraDirector::ResolveCameraObject(
+        const World& world,
+        SceneObjectId cameraObjectId,
+        float aspect,
+        Camera3D& outCamera) const {
+
+        if (cameraObjectId.value == 0) {
+            return false;
+        }
+
+        const GameObject* cameraObject = nullptr;
+        for (const auto& object : world.GetObjects()) {
+            if (object && object->GetDocumentId() == cameraObjectId) {
+                cameraObject = object.get();
+                break;
+            }
+        }
+        if (cameraObject == nullptr) {
+            return false;
+        }
+
+        const CameraComponent* component = cameraObject->GetComponent<CameraComponent>();
+        if (component == nullptr || !component->IsEnabled()) {
+            return false;
+        }
+
+        const MATH::Mat4 worldMatrix = cameraObject->Transform().GetWorldMatrix();
+        const MATH::Vec3 eye = ExtractAxis(worldMatrix, 3);
+        MATH::Vec3 forward = MATH::Normalize(ExtractAxis(worldMatrix, 2));
+        if (MATH::Length(forward) <= kVectorEpsilon) {
+            forward = { 0.0f, 0.0f, 1.0f };
+        }
+        const MATH::Vec3 up = SafeUpForForward(forward, ExtractAxis(worldMatrix, 1));
+
+        outCamera.SetPerspective(
+            component->GetFovYRad(),
+            (std::max)(aspect, kMinAspect),
+            component->GetNearClip(),
+            component->GetFarClip());
+        outCamera.SetLookAt(eye, eye + forward, up);
+        return true;
+    }
+
+    bool CameraDirector::BeginSourceTransition(
+        SceneObjectId sourceCameraObjectId,
+        const Camera3D& targetCamera,
+        const CameraBlendDesc& blend) {
+
+        const bool hadResolvedCamera = resolvedFrame_.valid;
+        const bool projectionChanged =
+            !hadResolvedCamera || ProjectionDiffers(resolvedFrame_.camera, targetCamera);
+
+        ++revision_;
+        if (revision_ == 0) {
+            revision_ = 1;
+        }
+
+        activeBlend_ = blend;
+        if (!std::isfinite(activeBlend_.durationSeconds)) {
+            activeBlend_.durationSeconds = 0.0f;
+        }
+        activeBlend_.durationSeconds = (std::max)(activeBlend_.durationSeconds, 0.0f);
+        blendElapsedSeconds_ = 0.0f;
+        blendStartCamera_ = hadResolvedCamera ? resolvedFrame_.camera : targetCamera;
+
+        const bool canBlend =
+            hadResolvedCamera &&
+            activeBlend_.mode == CameraBlendMode::EaseInOut &&
+            activeBlend_.durationSeconds > 0.0f;
+        blendActive_ = canBlend;
+
+        resolvedFrame_.sourceCameraObjectId = sourceCameraObjectId.value;
+        resolvedFrame_.projectionChanged = projectionChanged;
+        resolvedFrame_.cameraCut = !canBlend;
+        resolvedFrame_.camera = canBlend ? blendStartCamera_ : targetCamera;
+        resolvedFrame_.revision = revision_;
+        resolvedFrame_.valid = true;
+        return canBlend;
+    }
+
+    void CameraDirector::AdvanceBlend(const Camera3D& targetCamera, float deltaTime) {
+        if (!blendActive_) {
+            return;
+        }
+
+        const float safeDeltaTime = std::isfinite(deltaTime)
+            ? (std::max)(deltaTime, 0.0f)
+            : 0.0f;
+        blendElapsedSeconds_ += safeDeltaTime;
+        const float normalizedTime = activeBlend_.durationSeconds > 0.0f
+            ? blendElapsedSeconds_ / activeBlend_.durationSeconds
+            : 1.0f;
+        const float blendAmount = SmoothStep(normalizedTime);
+        resolvedFrame_.camera = BlendCamera(blendStartCamera_, targetCamera, blendAmount);
+
+        if (normalizedTime >= 1.0f) {
+            resolvedFrame_.camera = targetCamera;
+            blendActive_ = false;
+        }
+    }
+
+} // namespace HIKARI

@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Core/HIKARI_MeshRendererTypes.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
@@ -42,6 +43,10 @@ namespace HIKARI::MODELRENDERER {
     void ResetFrame();
     void ResetModelRendererFrameStats();
     void BeginModelRendererFrame(ModelRendererFrameKind kind);
+    void RenderAll(
+        const RENDER3D::RenderViewContext& view,
+        const SceneEnvironment& environment,
+        RenderDebugView debugView = RenderDebugView::None);
     void RenderAll(
         const Camera3D& camera,
         const SceneEnvironment& environment,

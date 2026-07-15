@@ -9,7 +9,11 @@ namespace HIKARI {
 
     class ComponentGizmoRenderer {
     public:
-        void SubmitWorldGizmos(const World& world, const ComponentGizmoState& state, SceneObjectId selectedObjectId) const;
+        void SubmitWorldGizmos(
+            const World& world,
+            const ComponentGizmoState& state,
+            SceneObjectId selectedObjectId,
+            float cameraAspect) const;
         void DrawScreenSpaceGizmos(const World& world, const ComponentGizmoState& state, SceneObjectId selectedObjectId) const;
     };
 
