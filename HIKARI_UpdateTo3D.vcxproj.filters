@@ -52,6 +52,9 @@
     <Filter Include="Header Files\Editor\Panels">
       <UniqueIdentifier>{DDC228B8-08A1-55B1-A9BC-E6AAA3E568F3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Tools">
+      <UniqueIdentifier>{1CA6A825-F0C3-4EA6-B5B2-B7B67E5D4E36}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Authoring">
       <UniqueIdentifier>{C39F7C8D-426C-44D1-8B41-D091436B275B}</UniqueIdentifier>
     </Filter>
@@ -162,6 +165,9 @@
     </Filter>
     <Filter Include="Header Files\Scene\Debug">
       <UniqueIdentifier>{4C3EB3DD-15E0-5D1C-85D7-4AA8807C63FE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Features">
+      <UniqueIdentifier>{A527CC7E-6B32-4D8A-A90D-C8C1A16C96B2}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Scene\Prefab">
       <UniqueIdentifier>{0D697DE1-8847-580E-9C3D-9C62C434BF48}</UniqueIdentifier>
@@ -325,6 +331,9 @@
     <Filter Include="Source Files\Editor\Panels">
       <UniqueIdentifier>{34A5A9E3-66B5-542D-8726-306B268D5013}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Editor\Tools">
+      <UniqueIdentifier>{D4F447D2-5D56-48E9-98DF-AC84FB14244B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Editor\Authoring">
       <UniqueIdentifier>{FA88E7C2-F209-438E-9CF6-C10C65E0A334}</UniqueIdentifier>
     </Filter>
@@ -432,6 +441,9 @@
     </Filter>
     <Filter Include="Source Files\Scene\Debug">
       <UniqueIdentifier>{61D0EB26-341C-5110-87A3-AEEF1F6750A6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Features">
+      <UniqueIdentifier>{5A7D469C-EE5D-4B99-989F-5861661049DE}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Prefab">
       <UniqueIdentifier>{C1264B45-8BA5-5A2B-A4D8-F8D173EB557C}</UniqueIdentifier>
@@ -686,6 +698,12 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.cpp">
+      <Filter>Source Files\Editor\Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.cpp">
+      <Filter>Source Files\Editor\Tools</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
       <Filter>Source Files\Editor\Export</Filter>
@@ -1230,6 +1248,15 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_SceneScanFxFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1729,6 +1756,15 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.h">
+      <Filter>Header Files\Editor\Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorTool.h">
+      <Filter>Header Files\Editor\Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.h">
+      <Filter>Header Files\Editor\Tools</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -2146,6 +2182,9 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_DefaultSceneSystems.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -2154,6 +2193,18 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h">
       <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_SceneScanFxFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>

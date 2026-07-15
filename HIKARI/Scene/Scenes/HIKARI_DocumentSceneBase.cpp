@@ -38,7 +38,6 @@
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
-#include "Scene/Components/HIKARI_SceneScanFxComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
@@ -49,10 +48,11 @@
 #include "Scene/Components/HIKARI_ComponentLinkComponent.h"
 #include "Scene/Components/HIKARI_VfxPlayerComponent.h"
 #include "Scene/HIKARI_CameraFollowSystem.h"
+#include "Scene/HIKARI_DefaultSceneSystems.h"
+#include "Scene/Features/HIKARI_BuiltInRuntimeFeatures.h"
 #include "Scene/HIKARI_PlayerMovementSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
-#include "Scene/HIKARI_SceneScanFxSystem.h"
 #include "Tools/Baking/HIKARI_ProbeCubemapCaptureTarget.h"
 #include "Tools/Baking/HIKARI_LightProbeBaker.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeBaker.h"
@@ -150,21 +150,6 @@ namespace HIKARI {
                     RENDERER3D::DEBUG::DebugDepthMode::XRay
                 });
             }
-        }
-
-        // Scene Asset 縺ｧ髢九￥騾壼ｸｸ scene 縺ｮ讓呎ｺ・System 荳隕ｧ縲・
-        std::vector<SceneSystemData> CreateDefaultSceneSystems() {
-            return {
-                SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
-                SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
-                SceneSystemData{ "PlayerMovementSystem", true, 140, nlohmann::json::object() },
-                SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
-                SceneSystemData{ "SceneScanFxSystem", true, 180, nlohmann::json::object() },
-                SceneSystemData{ "CameraFollowSystem", true, 190, nlohmann::json::object() },
-                SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
-                SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
-                SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
-            };
         }
 
         std::string ToLowerCopy(std::string value) {
@@ -536,16 +521,18 @@ namespace HIKARI {
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
         RegisterDefaultComponentTypes();
+        RegisterDefaultSystemTypes();
+        RuntimeFeatureContext runtimeFeatureContext{
+            componentRegistry_,
+            systemTypeRegistry_
+        };
+        RegisterBuiltInRuntimeFeatures(runtimeFeatureContext);
 
         ReloadAssets();
         VFX::SetAssetRegistry(&assetRegistry_);
         if (!OpenStartupSceneAsset()) {
             CreateTransientEmptySceneDocument();
-        }
-        if (RebuildRuntimeWorld()) {
-            systemScheduler_.Clear();
-            RegisterDefaultSystems();
-            systemScheduler_.AttachWorld(world_);
+            RebuildRuntimeWorld();
         }
     }
     void DocumentSceneBase::OnExit() {
@@ -935,6 +922,10 @@ namespace HIKARI {
         return OpenStartupSceneAsset();
     }
     bool DocumentSceneBase::RebuildRuntimeWorld() {
+        systemScheduler_.DetachWorld(world_);
+        systemScheduler_.Clear();
+        RenderSubmissionSystem::InvalidateSceneResources(true);
+
         SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
         if (NeedsRuntimeDependencyRegistryRefresh(assetRegistry_, deps)) {
             // Editor 側で追加・再import された asset descriptor を runtime build 前に同期する。
@@ -964,9 +955,24 @@ namespace HIKARI {
         RuntimeSceneContext::ResolvePendingSceneEntry(world_, sceneId_);
 
         if (built) {
-            RenderSubmissionSystem::InvalidateSceneResources(true);
+            BuildSystemScheduleFromDocument();
+            systemScheduler_.AttachWorld(world_);
         }
         return built;
+    }
+    bool DocumentSceneBase::ApplySystemRuntimeChanges() {
+        systemScheduler_.DetachWorld(world_);
+        systemScheduler_.Clear();
+        RenderSubmissionSystem::InvalidateSceneResources(true);
+
+        const bool configured = BuildSystemScheduleFromDocument();
+        systemScheduler_.AttachWorld(world_);
+
+        if (runtimePlayActive_) {
+            runtimeSceneCameraActive_ = HasRuntimeSceneCameraDriver();
+            runtimePreviewCameraActive_ = !runtimeSceneCameraActive_;
+        }
+        return configured;
     }
     bool DocumentSceneBase::BeginRuntimePlay() {
         if (runtimePlayActive_ || !currentSceneAssetGuid_.IsValid()) {
@@ -1057,9 +1063,6 @@ namespace HIKARI {
                 "Editor scene runtime restoration after Standalone Game failed.");
             return false;
         }
-        systemScheduler_.Clear();
-        RegisterDefaultSystems();
-        systemScheduler_.AttachWorld(world_);
         VFX::SetAssetRegistry(&assetRegistry_);
         runtimeParkedForStandalone_ = false;
         HIKARI_LOG_INFO("Editor scene runtime restored after Standalone Game.");
@@ -2183,12 +2186,81 @@ namespace HIKARI {
         }
         return sceneDocument_.sceneName;
     }
-    void DocumentSceneBase::RegisterDefaultSystems() {
-        systemScheduler_.AddSystem(std::make_unique<PlayerMovementSystem>(&camera_));
-        systemScheduler_.AddSystem(std::make_unique<AnimationSystem>());
-        systemScheduler_.AddSystem(std::make_unique<SceneScanFxSystem>());
-        systemScheduler_.AddSystem(std::make_unique<CameraFollowSystem>(camera_, runtimeSceneCameraActive_));
-        systemScheduler_.AddSystem(std::make_unique<RenderSubmissionSystem>());
+    void DocumentSceneBase::RegisterDefaultSystemTypes() {
+        systemTypeRegistry_.Register(SystemTypeInfo{
+            "ModelRenderSystem",
+            [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                return std::make_unique<RenderSubmissionSystem>();
+            }
+        });
+        systemTypeRegistry_.Register(SystemTypeInfo{
+            "PlayerMovementSystem",
+            [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                return std::make_unique<PlayerMovementSystem>(&camera_);
+            }
+        });
+        systemTypeRegistry_.Register(SystemTypeInfo{
+            "AnimationSystem",
+            [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                return std::make_unique<AnimationSystem>();
+            }
+        });
+        systemTypeRegistry_.Register(SystemTypeInfo{
+            "CameraFollowSystem",
+            [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                return std::make_unique<CameraFollowSystem>(camera_, runtimeSceneCameraActive_);
+            }
+        });
+    }
+    bool DocumentSceneBase::BuildSystemScheduleFromDocument() {
+        if (sceneDocument_.systems.empty()) {
+            sceneDocument_.systems = CreateDefaultSceneSystems();
+        }
+
+        bool fullyConfigured = true;
+        for (const SceneSystemData& entry : sceneDocument_.systems) {
+            if (!entry.enabled) {
+                continue;
+            }
+
+            if (!systemTypeRegistry_.Find(entry.systemId)) {
+                HIKARI_LOG_WARN(
+                    "[SceneSystem] unavailable system skipped: " + entry.systemId);
+                fullyConfigured = false;
+                continue;
+            }
+
+            std::unique_ptr<ISystem> system =
+                systemTypeRegistry_.Create(entry.systemId, entry.settings);
+            if (!system) {
+                HIKARI_LOG_ERROR(
+                    "[SceneSystem] factory failed: " + entry.systemId);
+                fullyConfigured = false;
+                continue;
+            }
+
+            if (!systemScheduler_.AddSystem(
+                    entry.systemId,
+                    entry.executionOrder,
+                    std::move(system))) {
+                HIKARI_LOG_WARN(
+                    "[SceneSystem] duplicate or invalid system skipped: " + entry.systemId);
+                fullyConfigured = false;
+            }
+        }
+
+        std::ostringstream schedule;
+        const std::vector<std::string> order = systemScheduler_.GetExecutionOrder();
+        for (size_t i = 0; i < order.size(); ++i) {
+            if (i > 0) {
+                schedule << ", ";
+            }
+            schedule << order[i];
+        }
+        HIKARI_LOG_INFO(
+            "[SceneSystem] active schedule: " +
+            (order.empty() ? std::string("<none>") : schedule.str()));
+        return fullyConfigured;
     }
     void DocumentSceneBase::RegisterDefaultComponentTypes() {
         if (!componentRegistry_.Find("ModelComponent")) {
@@ -2351,34 +2423,6 @@ namespace HIKARI {
                             { "restartIfAlreadyPlaying", true }
                         }
                     });
-                }
-            });
-        }
-        if (!componentRegistry_.Find("SceneScanFxComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "SceneScanFxComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<SceneScanFxComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["triggerActionName"] = "PlaySceneScan";
-                    properties["autoPlay"] = false;
-                    properties["sourceObjectId"] = 0;
-                    properties["skipSourceObject"] = true;
-                    properties["overrideExistingFx"] = false;
-                    properties["restoreOnStop"] = true;
-                    properties["radius"] = 28.0f;
-                    properties["speed"] = 16.0f;
-                    properties["bandWidth"] = 3.2f;
-                    properties["triangleCellSize"] = 2.8f;
-                    properties["triangleLineWidth"] = 0.12f;
-                    properties["noiseScale"] = 0.65f;
-                    properties["flickerStrength"] = 0.35f;
-                    properties["intensity"] = 3.2f;
-                    properties["color"] = nlohmann::json::array({ 0.08f, 1.0f, 0.92f, 0.88f });
                 }
             });
         }

@@ -7,11 +7,11 @@
 #include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
-#include "Editor/Panels/HIKARI_LightingBakePanel.h"
 #include "Editor/Panels/HIKARI_PerformanceAuditPanel.h"
 #include "Editor/Panels/HIKARI_QualityPanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/Panels/HIKARI_ValidationLabPanel.h"
+#include "Editor/Tools/HIKARI_EditorToolHost.h"
 #include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
@@ -28,6 +28,8 @@ namespace HIKARI {
 
     class DocumentSceneEditorController {
     public:
+        DocumentSceneEditorController();
+
         void Draw(
             DocumentSceneBase& scene,
             EDITOR::EditorPlaySession& playSession);
@@ -49,7 +51,7 @@ namespace HIKARI {
         ValidationLabPanel validationLabPanel_{};
         EnvironmentPanel environmentPanel_{};
         QualityPanel qualityPanel_{};
-        LightingBakePanel lightingBakePanel_{};
+        EDITOR::EditorToolHost toolHost_{};
         DebugCameraPanel debugCameraPanel_{};
         EDITOR::EditorTransformGizmo transformGizmo_{};
         void DrawGameViewportWindow(

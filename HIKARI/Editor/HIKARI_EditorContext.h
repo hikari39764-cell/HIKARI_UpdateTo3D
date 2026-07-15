@@ -101,7 +101,6 @@ namespace HIKARI {
         bool showAssetBrowser = true;
         bool showEnvironment = true;
         bool showQuality = true;
-        bool showLightingBake = false;
     };
 
     struct RuntimeDebugWindowState {

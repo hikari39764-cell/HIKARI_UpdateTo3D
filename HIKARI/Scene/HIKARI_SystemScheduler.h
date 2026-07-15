@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 #include "Scene/HIKARI_ISystem.h"
 namespace HIKARI {
@@ -12,7 +16,10 @@ class SystemScheduler {
 public:
     void Clear();
 
-    void AddSystem(std::unique_ptr<ISystem> system);
+    bool AddSystem(std::string systemId, int executionOrder, std::unique_ptr<ISystem> system);
+    bool HasSystem(std::string_view systemId) const;
+    size_t GetSystemCount() const;
+    std::vector<std::string> GetExecutionOrder() const;
 
     void AttachWorld(World& world);
     void DetachWorld(World& world);
@@ -26,7 +33,15 @@ public:
     void PostRender(World& world, const FrameContext& frame);
 
 private:
-    std::vector<std::unique_ptr<ISystem>> systems_{};
+    struct SystemEntry {
+        std::string systemId{};
+        int executionOrder = 0;
+        uint64_t insertionIndex = 0;
+        std::unique_ptr<ISystem> system{};
+    };
+
+    std::vector<SystemEntry> systems_{};
+    uint64_t nextInsertionIndex_ = 0;
 };
 
 } // namespace HIKARI

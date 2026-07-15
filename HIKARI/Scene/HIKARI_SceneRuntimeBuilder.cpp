@@ -510,6 +510,10 @@ namespace HIKARI {
             for (const SceneComponentData& componentData : objectData.components) {
                 IComponent* component = componentRegistry.AddComponentToObject(*object, componentData.type);
                 if (!component) {
+                    HIKARI_LOG_WARN(
+                        "[SceneRuntime] unavailable component skipped: " +
+                        componentData.type +
+                        " objectId=" + std::to_string(objectData.id.value));
                     continue;
                 }
                 component->Deserialize(componentData.properties);

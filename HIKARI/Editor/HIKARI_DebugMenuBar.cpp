@@ -1,6 +1,8 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Export/HIKARI_GameExporter.h"
+#include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
+#include "Editor/Tools/HIKARI_EditorToolHost.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 
@@ -437,6 +439,7 @@ namespace HIKARI {
 
     void DebugMenuBar::Draw(
         DebugWindowState& windows,
+        EDITOR::EditorToolHost& toolHost,
         DebugCameraController3D& debugCamera,
         bool& environmentLightingEnabled,
         bool& resetDockingLayoutRequested) const {
@@ -461,7 +464,7 @@ namespace HIKARI {
                 ImGui::MenuItem("Asset Browser", nullptr, &windows.resources.showAssetBrowser);
                 ImGui::MenuItem("Environment", nullptr, &windows.resources.showEnvironment);
                 ImGui::MenuItem("Quality", nullptr, &windows.resources.showQuality);
-                ImGui::MenuItem("Lighting Bake", nullptr, &windows.resources.showLightingBake);
+                toolHost.DrawMenuItem(EDITOR::kLightingBakeToolId);
                 ImGui::EndMenu();
             }
 
@@ -478,6 +481,11 @@ namespace HIKARI {
                 resetDockingLayoutRequested = true;
             }
 
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Tools")) {
+            toolHost.DrawMenuContents();
             ImGui::EndMenu();
         }
 
@@ -525,7 +533,12 @@ namespace HIKARI {
         DrawGameExportWindow();
     }
 #else
-    void DebugMenuBar::Draw(DebugWindowState&, DebugCameraController3D&, bool&, bool&) const {}
+    void DebugMenuBar::Draw(
+        DebugWindowState&,
+        EDITOR::EditorToolHost&,
+        DebugCameraController3D&,
+        bool&,
+        bool&) const {}
 #endif
 
 } // namespace HIKARI

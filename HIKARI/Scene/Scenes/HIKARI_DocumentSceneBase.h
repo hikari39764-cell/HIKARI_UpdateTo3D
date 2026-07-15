@@ -19,6 +19,7 @@
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
 #include "Scene/HIKARI_SystemScheduler.h"
+#include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
@@ -72,6 +73,7 @@ namespace HIKARI {
         bool ReloadAssets();
         bool ReloadSceneDocument();
         bool RebuildRuntimeWorld();
+        bool ApplySystemRuntimeChanges();
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
         bool IsRuntimePlayActive() const { return runtimePlayActive_; }
@@ -117,7 +119,8 @@ namespace HIKARI {
 
     protected:
         void RegisterDefaultComponentTypes();
-        void RegisterDefaultSystems();
+        void RegisterDefaultSystemTypes();
+        bool BuildSystemScheduleFromDocument();
 
         virtual bool UseDebugCamera() const;
         virtual bool DrawDebugHelpers() const;
@@ -160,6 +163,7 @@ namespace HIKARI {
         bool runtimePlayActive_ = false;
         bool runtimeParkedForStandalone_ = false;
         World world_{};
+        SystemTypeRegistry systemTypeRegistry_{};
         SystemScheduler systemScheduler_{};
         ModelManager modelManager_{};
         SkyManager skyManager_{};

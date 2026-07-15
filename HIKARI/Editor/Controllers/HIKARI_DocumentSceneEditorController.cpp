@@ -5,6 +5,7 @@
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
+#include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
@@ -18,6 +19,7 @@
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_DefaultSceneSystems.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
@@ -642,6 +644,10 @@ namespace HIKARI {
 #endif
     }
 
+    DocumentSceneEditorController::DocumentSceneEditorController() {
+        EDITOR::RegisterBuiltInEditorTools(toolHost_);
+    }
+
     void DocumentSceneEditorController::Draw(
         DocumentSceneBase& scene,
         EDITOR::EditorPlaySession& playSession) {
@@ -666,6 +672,7 @@ namespace HIKARI {
         bool resetDockingLayoutRequested = false;
         debugMenuBar_.Draw(
             context_.windows,
+            toolHost_,
             scene.GetDebugCamera(),
             scene.GetEnvironmentLightingEnabled(),
             resetDockingLayoutRequested);
@@ -796,9 +803,8 @@ namespace HIKARI {
             }
             renderQualitySavePending_ |= qualityResult.renderQualityChanged;
         }
-        if (context_.windows.resources.showLightingBake) {
-            lightingBakePanel_.Draw(scene, context_.windows.resources.showLightingBake);
-        }
+        EDITOR::EditorToolContext toolContext{ scene, context_ };
+        toolHost_.Draw(toolContext);
         if (context_.windows.runtime.showDebugWorkspace) {
             DrawDebugWorkspaceWindow(scene);
         }
@@ -1497,21 +1503,11 @@ namespace HIKARI {
             }
             if (ImGui::BeginTabItem("Systems")) {
                 ImGui::SeparatorText("Scene Systems");
-                ImGui::TextDisabled("Runtime switching is reserved; this edits scene document data for now.");
+                ImGui::TextDisabled("Enabled systems and execution order are applied to the runtime schedule.");
 
                 SceneDocument& document = scene.GetSceneDocument();
                 if (document.systems.empty()) {
-                    document.systems = {
-                        SceneSystemData{ "TransformSystem", true, 0, nlohmann::json::object() },
-                        SceneSystemData{ "ModelRenderSystem", true, 100, nlohmann::json::object() },
-                        SceneSystemData{ "PlayerMovementSystem", true, 140, nlohmann::json::object() },
-                        SceneSystemData{ "AnimationSystem", true, 150, nlohmann::json::object() },
-                        SceneSystemData{ "SceneScanFxSystem", true, 180, nlohmann::json::object() },
-                        SceneSystemData{ "CameraFollowSystem", true, 190, nlohmann::json::object() },
-                        SceneSystemData{ "VfxSystem", true, 200, nlohmann::json::object() },
-                        SceneSystemData{ "PhysicsSystem", false, 300, nlohmann::json::object() },
-                        SceneSystemData{ "ScriptSystem", false, 400, nlohmann::json::object() },
-                    };
+                    document.systems = CreateDefaultSceneSystems();
                 }
 
                 if (ImGui::BeginTable("SceneSystemsTable", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
@@ -1528,6 +1524,7 @@ namespace HIKARI {
                         if (ImGui::Checkbox("##enabled", &system.enabled)) {
                             context_.sceneDirty = true;
                             scene.SetUnsavedSceneChanges(true);
+                            scene.ApplySystemRuntimeChanges();
                         }
 
                         ImGui::TableSetColumnIndex(1);
@@ -1540,6 +1537,9 @@ namespace HIKARI {
                         if (ImGui::DragInt("##order", &system.executionOrder, 1.0f, -10000, 10000)) {
                             context_.sceneDirty = true;
                             scene.SetUnsavedSceneChanges(true);
+                        }
+                        if (ImGui::IsItemDeactivatedAfterEdit()) {
+                            scene.ApplySystemRuntimeChanges();
                         }
                         ImGui::PopID();
                     }
