@@ -78,6 +78,80 @@ namespace HIKARI::EDITOR {
         }
     }
 
+    bool CinematicsWorkspaceController::RequestOpenSequenceAsset(
+        DocumentSceneBase& scene,
+        const AssetGuid& assetGuid,
+        std::string& outMessage) {
+
+        const bool opened = sequenceDocumentController_.RequestOpenAsset(
+            scene.GetAssetDatabase(),
+            assetGuid,
+            outMessage);
+        sequenceLibraryPanel_.Select(assetGuid);
+        if (sequenceDocumentController_.ConsumeTimelineResetRequested()) {
+            cameraTimelinePanel_.ResetForScene();
+        }
+        return opened;
+    }
+
+    bool CinematicsWorkspaceController::IsEditingSequenceAsset()
+        const noexcept {
+
+        return sequenceDocumentController_.GetDocument()
+            .IsExternalDocument();
+    }
+
+    bool CinematicsWorkspaceController::IsSequenceDocumentDirty()
+        const noexcept {
+
+        return sequenceDocumentController_.GetDocument().IsDirty();
+    }
+
+    bool CinematicsWorkspaceController::CanUndoSequenceDocument()
+        const noexcept {
+
+        return sequenceDocumentController_.GetDocument().CanUndo();
+    }
+
+    bool CinematicsWorkspaceController::CanRedoSequenceDocument()
+        const noexcept {
+
+        return sequenceDocumentController_.GetDocument().CanRedo();
+    }
+
+    bool CinematicsWorkspaceController::SaveSequenceDocument(
+        DocumentSceneBase& scene,
+        std::string& outMessage) {
+
+        const bool saved = sequenceDocumentController_.Save(
+            scene.GetAssetDatabase(),
+            outMessage);
+        if (sequenceDocumentController_.ConsumeTimelineResetRequested()) {
+            cameraTimelinePanel_.ResetForScene();
+        }
+        return saved;
+    }
+
+    bool CinematicsWorkspaceController::UndoSequenceDocument(
+        std::string& outMessage) {
+
+        const bool changed = sequenceDocumentController_.Undo(outMessage);
+        if (sequenceDocumentController_.ConsumeTimelineResetRequested()) {
+            cameraTimelinePanel_.ResetForScene();
+        }
+        return changed;
+    }
+
+    bool CinematicsWorkspaceController::RedoSequenceDocument(
+        std::string& outMessage) {
+
+        const bool changed = sequenceDocumentController_.Redo(outMessage);
+        if (sequenceDocumentController_.ConsumeTimelineResetRequested()) {
+            cameraTimelinePanel_.ResetForScene();
+        }
+        return changed;
+    }
+
     void CinematicsWorkspaceController::PrepareForRuntimePlay() {
         directorViewPanel_.ExitPilot();
     }
@@ -98,6 +172,15 @@ namespace HIKARI::EDITOR {
         const EditorWorkspaceActivation& activation,
         EditorContext& context,
         EditorWorkspaceHost& workspaceHost) {
+
+        if (activation.current == EditorWorkspaceId::Cinematics &&
+            activation.sequenceAssetGuid &&
+            activation.sequenceAssetGuid->IsValid()) {
+            (void)RequestOpenSequenceAsset(
+                scene,
+                *activation.sequenceAssetGuid,
+                pendingStatusMessage_);
+        }
 
         if (activation.previous == EditorWorkspaceId::Cinematics &&
             activation.current != EditorWorkspaceId::Cinematics) {
@@ -124,7 +207,8 @@ namespace HIKARI::EDITOR {
             return;
         }
         if (activation.previous == EditorWorkspaceId::Cinematics &&
-            !activation.targetCameraObjectId) {
+            !activation.targetCameraObjectId &&
+            !activation.sequenceAssetGuid) {
             return;
         }
 
@@ -407,9 +491,10 @@ namespace HIKARI::EDITOR {
         DocumentSceneBase& scene,
         const CameraTimelinePanelResult& result,
         EditorContext& context,
-        EditorWorkspaceHost& workspaceHost) {
+        EditorWorkspaceHost& workspaceHost,
+        bool affectsSceneDocument) {
 
-        if (result.documentChanged) {
+        if (affectsSceneDocument && result.documentChanged) {
             context.sceneDirty = true;
             scene.SetUnsavedSceneChanges(true);
         }

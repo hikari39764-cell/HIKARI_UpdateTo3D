@@ -33,6 +33,7 @@ namespace HIKARI::EDITOR {
             case AssetType::VfxEffect: return "VFX";
             case AssetType::Animation: return "Animation";
             case AssetType::Particle: return "Particle";
+            case AssetType::Sequence: return "Sequence";
             case AssetType::Unknown:
             default: return "Asset";
             }
@@ -46,6 +47,7 @@ namespace HIKARI::EDITOR {
             case AssetType::Sky: return "[S]";
             case AssetType::Material: return "[Mat]";
             case AssetType::VfxEffect: return "[V]";
+            case AssetType::Sequence: return "[Seq]";
             default: return "[?]";
             }
         }

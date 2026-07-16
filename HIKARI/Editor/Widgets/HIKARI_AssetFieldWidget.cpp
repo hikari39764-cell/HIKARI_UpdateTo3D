@@ -30,6 +30,7 @@ namespace HIKARI::EDITOR {
             case AssetType::Sky: return "Sky";
             case AssetType::Material: return "Material";
             case AssetType::VfxEffect: return "VFX";
+            case AssetType::Sequence: return "Sequence";
             default: return "Asset";
             }
         }

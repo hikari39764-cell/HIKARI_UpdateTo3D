@@ -80,6 +80,10 @@ namespace HIKARI {
     CinematicCameraEvaluation EvaluateCinematicCameraTrack(
         const CinematicSequence& sequence,
         float timeSeconds) noexcept;
+    CinematicCameraEvaluation EvaluateCinematicCameraTrack(
+        const CinematicSequence& sequence,
+        float timeSeconds,
+        const SEQUENCER::SequenceBindingContext& bindingContext) noexcept;
     bool BuildEvaluatedCinematicCamera(
         const CinematicCameraEvaluation& evaluation,
         const Camera3D& sourceCamera,

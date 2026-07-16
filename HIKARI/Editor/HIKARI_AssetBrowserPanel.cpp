@@ -46,6 +46,7 @@ namespace HIKARI {
             case AssetType::Animation: return "Animation";
             case AssetType::Particle: return "Particle";
             case AssetType::VfxEffect: return "Vfx";
+            case AssetType::Sequence: return "Sequence";
             case AssetType::Unknown:
             default: return "Unknown";
             }
@@ -676,6 +677,7 @@ namespace HIKARI {
             case 4: return AssetType::Sky;
             case 5: return AssetType::Material;
             case 6: return AssetType::VfxEffect;
+            case 7: return AssetType::Sequence;
             default: return AssetType::Unknown;
             }
         }
@@ -853,6 +855,8 @@ namespace HIKARI {
                 return record.type == AssetType::Sky;
             case AssetBrowserScope::Vfx:
                 return record.type == AssetType::VfxEffect;
+            case AssetBrowserScope::Sequences:
+                return record.type == AssetType::Sequence;
             case AssetBrowserScope::Project:
             default:
                 return true;
@@ -870,6 +874,7 @@ namespace HIKARI {
             case AssetBrowserScope::Materials: return "Materials";
             case AssetBrowserScope::Skies: return "Skies";
             case AssetBrowserScope::Vfx: return "VFX";
+            case AssetBrowserScope::Sequences: return "Sequences";
             case AssetBrowserScope::Project:
             default: return "Project Assets";
             }
@@ -921,6 +926,7 @@ namespace HIKARI {
             case AssetType::VfxEffect: return "VFX";
             case AssetType::Animation: return "ANI";
             case AssetType::Particle: return "PTC";
+            case AssetType::Sequence: return "SEQ";
             case AssetType::Unknown:
             default: return "UNK";
             }
@@ -1431,6 +1437,7 @@ namespace HIKARI {
             case AssetType::Material: return ImVec4(1.0f, 0.78f, 0.48f, 1.0f);
             case AssetType::Sky: return ImVec4(0.54f, 0.90f, 0.92f, 1.0f);
             case AssetType::VfxEffect: return ImVec4(1.0f, 0.62f, 0.74f, 1.0f);
+            case AssetType::Sequence: return ImVec4(0.72f, 0.68f, 1.0f, 1.0f);
             default: return ImVec4(0.72f, 0.74f, 0.78f, 1.0f);
             }
         }
@@ -1492,11 +1499,18 @@ namespace HIKARI {
         void HandleRecordActivated(
             const AssetRecord& record,
             std::string& lastOperationMessage,
-            std::string& activatedSceneGuid) {
+            std::string& activatedSceneGuid,
+            std::string& activatedSequenceGuid) {
             if (record.type == AssetType::Scene) {
                 activatedSceneGuid = record.guid.value;
                 lastOperationMessage = "Scene open requested: " + record.displayName;
                 LogSceneAssetInfo("open requested: " + record.sourcePath.generic_string());
+                return;
+            }
+            if (record.type == AssetType::Sequence) {
+                activatedSequenceGuid = record.guid.value;
+                lastOperationMessage =
+                    "Sequence open requested: " + record.displayName;
                 return;
             }
             if (record.type == AssetType::Model) {
@@ -1586,6 +1600,7 @@ namespace HIKARI {
             std::string& lastOperationMessage,
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
+            std::string& activatedSequenceGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
@@ -1653,6 +1668,16 @@ namespace HIKARI {
                 ImGui::Separator();
             }
 
+            if (record.type == AssetType::Sequence) {
+                if (ImGui::MenuItem("Open in Cinematics")) {
+                    SelectRecord(record, selection);
+                    activatedSequenceGuid = record.guid.value;
+                    lastOperationMessage =
+                        "Sequence open requested: " + record.displayName;
+                }
+                ImGui::Separator();
+            }
+
             if (ImGui::MenuItem("Reimport")) {
                 SelectRecord(record, selection);
                 const bool ok = assetDatabase.ImportAsset(record.guid);
@@ -1711,6 +1736,7 @@ namespace HIKARI {
             std::string& lastOperationMessage,
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
+            std::string& activatedSequenceGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
@@ -1761,7 +1787,11 @@ namespace HIKARI {
                 if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
                     SelectRecord(*record, selection);
                     if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                        HandleRecordActivated(*record, lastOperationMessage, activatedSceneGuid);
+                        HandleRecordActivated(
+                            *record,
+                            lastOperationMessage,
+                            activatedSceneGuid,
+                            activatedSequenceGuid);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1778,6 +1808,7 @@ namespace HIKARI {
                         lastOperationMessage,
                         context,
                         activatedSceneGuid,
+                        activatedSequenceGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
@@ -1814,6 +1845,7 @@ namespace HIKARI {
             std::string& lastOperationMessage,
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
+            std::string& activatedSequenceGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
@@ -1863,7 +1895,11 @@ namespace HIKARI {
                     ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick)) {
                     SelectRecord(*record, selection);
                     if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                        HandleRecordActivated(*record, lastOperationMessage, activatedSceneGuid);
+                        HandleRecordActivated(
+                            *record,
+                            lastOperationMessage,
+                            activatedSceneGuid,
+                            activatedSequenceGuid);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1879,6 +1915,7 @@ namespace HIKARI {
                         lastOperationMessage,
                         context,
                         activatedSceneGuid,
+                        activatedSequenceGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
@@ -1917,6 +1954,7 @@ namespace HIKARI {
             std::string& lastOperationMessage,
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
+            std::string& activatedSequenceGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
@@ -1976,7 +2014,11 @@ namespace HIKARI {
                 }
                 if (cardDoubleClicked) {
                     SelectRecord(*record, selection);
-                    HandleRecordActivated(*record, lastOperationMessage, activatedSceneGuid);
+                    HandleRecordActivated(
+                        *record,
+                        lastOperationMessage,
+                        activatedSceneGuid,
+                        activatedSequenceGuid);
                 }
                 if (ImGui::BeginPopupContextItem()) {
                     DrawRecordContextMenu(
@@ -1986,6 +2028,7 @@ namespace HIKARI {
                         lastOperationMessage,
                         context,
                         activatedSceneGuid,
+                        activatedSequenceGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
@@ -2306,7 +2349,7 @@ namespace HIKARI {
             ImGui::SetNextItemWidth((std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
             ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
             ImGui::SameLine();
-            static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX" };
+            static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX", "Sequence" };
             ImGui::TextUnformatted("Type");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(120.0f);
@@ -2404,6 +2447,7 @@ namespace HIKARI {
                 lastOperationMessage_,
                 context,
                 activatedSceneGuid_,
+                activatedSequenceGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
@@ -2421,6 +2465,7 @@ namespace HIKARI {
                 lastOperationMessage_,
                 context,
                 activatedSceneGuid_,
+                activatedSequenceGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
@@ -2438,6 +2483,7 @@ namespace HIKARI {
                 lastOperationMessage_,
                 context,
                 activatedSceneGuid_,
+                activatedSequenceGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
@@ -2476,6 +2522,16 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(activatedSceneGuid_);
         activatedSceneGuid_.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeActivatedSequenceGuid() const {
+#if defined(HIKARI_WITH_EDITOR)
+        std::string value = std::move(activatedSequenceGuid_);
+        activatedSequenceGuid_.clear();
         return value;
 #else
         return {};

@@ -55,6 +55,7 @@ namespace HIKARI {
             case AssetBrowserScope::Materials: return "Materials";
             case AssetBrowserScope::Skies: return "Skies";
             case AssetBrowserScope::Vfx: return "VFX";
+            case AssetBrowserScope::Sequences: return "Sequences";
             case AssetBrowserScope::Project:
             default:
                 return "Project";
@@ -87,6 +88,8 @@ namespace HIKARI {
                 return CountByType(assetDatabase, AssetType::Sky);
             case AssetBrowserScope::Vfx:
                 return CountByType(assetDatabase, AssetType::VfxEffect);
+            case AssetBrowserScope::Sequences:
+                return CountByType(assetDatabase, AssetType::Sequence);
             case AssetBrowserScope::Project:
             default:
                 return total;
@@ -136,6 +139,7 @@ namespace HIKARI {
             DrawScopeMenuItem(assetDatabase, usageSummary, "Materials", AssetBrowserScope::Materials, activeScope);
             DrawScopeMenuItem(assetDatabase, usageSummary, "Skies", AssetBrowserScope::Skies, activeScope);
             DrawScopeMenuItem(assetDatabase, usageSummary, "VFX", AssetBrowserScope::Vfx, activeScope);
+            DrawScopeMenuItem(assetDatabase, usageSummary, "Sequences", AssetBrowserScope::Sequences, activeScope);
 
             if (!usageSummary.missingReferences.empty()) {
                 ImGui::Separator();
@@ -390,6 +394,10 @@ namespace HIKARI {
 
     std::string ResourceWorkspacePanel::ConsumeActivatedSceneGuid() const {
         return assetBrowserPanel_.ConsumeActivatedSceneGuid();
+    }
+
+    std::string ResourceWorkspacePanel::ConsumeActivatedSequenceGuid() const {
+        return assetBrowserPanel_.ConsumeActivatedSequenceGuid();
     }
 
     std::string ResourceWorkspacePanel::ConsumeSaveSceneAsGuid() const {

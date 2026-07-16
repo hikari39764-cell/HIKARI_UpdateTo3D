@@ -139,6 +139,7 @@ namespace HIKARI::EDITOR {
             case EditorIconKind::Sky: return 4;
             case EditorIconKind::Scene: return 5;
             case EditorIconKind::Vfx: return 6;
+            case EditorIconKind::Sequence: return 5;
             default: return 10;
             }
         }
@@ -175,6 +176,7 @@ namespace HIKARI::EDITOR {
             case AssetType::Sky: return EditorIconKind::Sky;
             case AssetType::Scene: return EditorIconKind::Scene;
             case AssetType::VfxEffect: return EditorIconKind::Vfx;
+            case AssetType::Sequence: return EditorIconKind::Sequence;
             case AssetType::Unknown:
             default: return EditorIconKind::Unknown;
             }
@@ -277,6 +279,7 @@ namespace HIKARI::EDITOR {
         case EditorIconKind::Sky: return "[Sky]";
         case EditorIconKind::Scene: return "[Scn]";
         case EditorIconKind::Vfx: return "[Vfx]";
+        case EditorIconKind::Sequence: return "[Seq]";
         case EditorIconKind::File: return "[File]";
         case EditorIconKind::Music: return "[Mus]";
         case EditorIconKind::Component: return "[Cmp]";

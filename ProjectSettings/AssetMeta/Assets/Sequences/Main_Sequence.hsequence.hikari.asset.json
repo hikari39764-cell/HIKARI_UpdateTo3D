@@ -1,0 +1,13 @@
+{
+  "displayName": "Main_Sequence",
+  "guid": "1d4d0e35b277e347fe64ec66cbbe02b5",
+  "importSettings": {
+    "runtimeLoader": "SequenceAssetStore",
+    "sourceAuthoritative": true
+  },
+  "importerId": "SequenceAssetImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Sequences/Main_Sequence.hsequence",
+  "type": "Sequence"
+}

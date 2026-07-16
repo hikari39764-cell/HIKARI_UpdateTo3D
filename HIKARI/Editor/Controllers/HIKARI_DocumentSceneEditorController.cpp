@@ -724,6 +724,15 @@ namespace HIKARI {
     void DocumentSceneEditorController::SaveCurrentDocument(
         DocumentSceneBase& scene) {
 
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::Cinematics) &&
+            cinematicsWorkspaceController_.IsEditingSequenceAsset()) {
+            (void)cinematicsWorkspaceController_.SaveSequenceDocument(
+                scene,
+                viewportDropMessage_);
+            return;
+        }
+
         scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
         if (scene.SaveCurrentSceneDocument()) {
             documentHistory_.MarkSaved();
@@ -740,6 +749,19 @@ namespace HIKARI {
     void DocumentSceneEditorController::ExecuteDocumentHistory(
         DocumentSceneBase& scene,
         bool redo) {
+
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::Cinematics) &&
+            cinematicsWorkspaceController_.IsEditingSequenceAsset()) {
+            if (redo) {
+                (void)cinematicsWorkspaceController_.RedoSequenceDocument(
+                    viewportDropMessage_);
+            } else {
+                (void)cinematicsWorkspaceController_.UndoSequenceDocument(
+                    viewportDropMessage_);
+            }
+            return;
+        }
 
         ApplyHistoryResult(
             scene,
@@ -821,13 +843,28 @@ namespace HIKARI {
 
         bool resetDockingLayoutRequested = false;
         EDITOR::EditorDocumentMenuState documentMenu{};
-        documentMenu.canUndo = documentHistory_.CanUndo();
-        documentMenu.canRedo = documentHistory_.CanRedo();
-        if (const std::string* label = documentHistory_.GetUndoLabel()) {
-            documentMenu.undoLabel = *label;
-        }
-        if (const std::string* label = documentHistory_.GetRedoLabel()) {
-            documentMenu.redoLabel = *label;
+        const bool sequenceAssetDocument =
+            workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::Cinematics) &&
+            cinematicsWorkspaceController_.IsEditingSequenceAsset();
+        if (sequenceAssetDocument) {
+            documentMenu.canUndo =
+                cinematicsWorkspaceController_.CanUndoSequenceDocument();
+            documentMenu.canRedo =
+                cinematicsWorkspaceController_.CanRedoSequenceDocument();
+            documentMenu.undoLabel = "Edit Sequence Asset";
+            documentMenu.redoLabel = "Edit Sequence Asset";
+        } else {
+            documentMenu.canUndo = documentHistory_.CanUndo();
+            documentMenu.canRedo = documentHistory_.CanRedo();
+            if (const std::string* label =
+                    documentHistory_.GetUndoLabel()) {
+                documentMenu.undoLabel = *label;
+            }
+            if (const std::string* label =
+                    documentHistory_.GetRedoLabel()) {
+                documentMenu.redoLabel = *label;
+            }
         }
         debugMenuBar_.Draw(
             context_.windows,
@@ -884,6 +921,9 @@ namespace HIKARI {
                     externalDirtyBefore);
             } else if (result.timelineEditMergeId == 0) {
                 documentHistory_.SealMerge();
+            }
+            if (result.saveSceneRequested) {
+                SaveCurrentDocument(scene);
             }
             if (result.toggleGamePreviewRequested) {
                 ToggleGamePreview(scene, playSession);
@@ -1479,6 +1519,17 @@ namespace HIKARI {
                     ImGui::SetTooltip(
                         "Camera scale is not a lens control. Edit Camera FOV instead.");
                 }
+            }
+
+            const std::string activatedSequenceGuid =
+                resourceWorkspacePanel_.ConsumeActivatedSequenceGuid();
+            if (!activatedSequenceGuid.empty()) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId =
+                    EDITOR::EditorWorkspaceId::Cinematics;
+                request.sequenceAssetGuid =
+                    AssetGuid{ activatedSequenceGuid };
+                (void)workspaceHost_.RequestOpen(std::move(request));
             }
             if (scaleClicked) {
                 context_.transformGizmo.operation = EditorTransformGizmoOperation::Scale;

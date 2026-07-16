@@ -43,6 +43,7 @@
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
+#include "Scene/Sequencer/Drivers/HIKARI_CameraSequenceTrackDriver.h"
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/Runtime/HIKARI_VfxAsset.h"
@@ -516,6 +517,12 @@ namespace HIKARI {
     
     DocumentSceneBase::DocumentSceneBase(std::string sceneId)
         : sceneId_(std::move(sceneId)) {
+
+        (void)sequencePlaybackService_.RegisterDriver(
+            std::make_unique<SEQUENCER::CameraSequenceTrackDriver>(
+                cameraDirector_,
+                world_,
+                camera_));
     }
 
     DocumentSceneBase::~DocumentSceneBase() = default;
@@ -534,6 +541,8 @@ namespace HIKARI {
         RegisterBuiltInRuntimeFeatures(runtimeFeatureContext);
 
         ReloadAssets();
+        sequenceAssetStore_.SetAssetDatabase(&assetDatabase_);
+        sequencePlaybackService_.SetAssetStore(&sequenceAssetStore_);
         VFX::SetAssetRegistry(&assetRegistry_);
         if (!OpenStartupSceneAsset()) {
             CreateTransientEmptySceneDocument();
@@ -541,7 +550,9 @@ namespace HIKARI {
         }
     }
     void DocumentSceneBase::OnExit() {
-        cinematicCameraPlayback_.Reset(cameraDirector_);
+        sequencePlaybackService_.Reset();
+        currentCameraSequenceHandle_ = {};
+        sequenceAssetStore_.Clear();
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
         RuntimeSceneContext::SetCurrentWorld(nullptr);
@@ -565,12 +576,7 @@ namespace HIKARI {
         systemScheduler_.LateUpdate(world_, frame);
 
         if (runtimePlayActive_) {
-            cinematicCameraPlayback_.Update(
-                sceneDocument_.cinematics,
-                cameraDirector_,
-                world_,
-                camera_.GetAspect(),
-                dt);
+            sequencePlaybackService_.Update(dt);
             resolvedCameraFrame_ = cameraDirector_.Resolve(
                 world_,
                 gameplayCamera_,
@@ -1296,43 +1302,100 @@ namespace HIKARI {
         if (!runtimePlayActive_) {
             return {};
         }
-        return cinematicCameraPlayback_.Play(
+        const CinematicSequence* sequence = FindCinematicSequence(
             sceneDocument_.cinematics,
-            sequenceId,
-            cameraDirector_,
-            options,
-            startTimeSeconds);
+            sequenceId);
+        if (sequence == nullptr) {
+            return {};
+        }
+        currentCameraSequenceHandle_ =
+            sequencePlaybackService_.PlayInline(
+                *sequence,
+                {},
+                options,
+                startTimeSeconds,
+                "Camera.Sequence",
+                0,
+                true);
+        return currentCameraSequenceHandle_;
     }
     bool DocumentSceneBase::StopCameraSequence(
         CinematicPlaybackHandle handle) {
 
-        return cinematicCameraPlayback_.Stop(handle, cameraDirector_);
+        const bool stopped = sequencePlaybackService_.Stop(handle);
+        if (stopped && currentCameraSequenceHandle_ == handle) {
+            currentCameraSequenceHandle_ = {};
+        }
+        return stopped;
     }
     bool DocumentSceneBase::PauseCameraSequence(
         CinematicPlaybackHandle handle) {
 
-        return cinematicCameraPlayback_.Pause(handle);
+        return sequencePlaybackService_.Pause(handle);
     }
     bool DocumentSceneBase::ResumeCameraSequence(
         CinematicPlaybackHandle handle) {
 
-        return cinematicCameraPlayback_.Resume(handle);
+        return sequencePlaybackService_.Resume(handle);
     }
     bool DocumentSceneBase::SeekCameraSequence(
         CinematicPlaybackHandle handle,
         float timeSeconds) {
 
-        return cinematicCameraPlayback_.Seek(
-            sceneDocument_.cinematics,
-            handle,
-            timeSeconds);
+        return sequencePlaybackService_.Seek(handle, timeSeconds);
     }
     bool DocumentSceneBase::IsCameraSequencePlaying() const noexcept {
-        return cinematicCameraPlayback_.IsPlaying();
+        return sequencePlaybackService_.IsPlaying(
+            currentCameraSequenceHandle_);
     }
     CinematicPlaybackHandle
     DocumentSceneBase::GetCameraSequencePlaybackHandle() const noexcept {
-        return cinematicCameraPlayback_.GetCurrentHandle();
+        return currentCameraSequenceHandle_;
+    }
+    SEQUENCER::SequencePlaybackHandle DocumentSceneBase::PlaySequence(
+        const SEQUENCER::SequencePlayRequest& request) {
+
+        return runtimePlayActive_
+            ? sequencePlaybackService_.Play(request)
+            : SEQUENCER::SequencePlaybackHandle{};
+    }
+    bool DocumentSceneBase::StopSequence(
+        SEQUENCER::SequencePlaybackHandle handle) {
+
+        return sequencePlaybackService_.Stop(handle);
+    }
+    bool DocumentSceneBase::PauseSequence(
+        SEQUENCER::SequencePlaybackHandle handle) {
+
+        return sequencePlaybackService_.Pause(handle);
+    }
+    bool DocumentSceneBase::ResumeSequence(
+        SEQUENCER::SequencePlaybackHandle handle) {
+
+        return sequencePlaybackService_.Resume(handle);
+    }
+    bool DocumentSceneBase::SeekSequence(
+        SEQUENCER::SequencePlaybackHandle handle,
+        float timeSeconds) {
+
+        return sequencePlaybackService_.Seek(handle, timeSeconds);
+    }
+    uint64_t DocumentSceneBase::SubmitSequenceCommand(
+        SEQUENCER::SequencePlaybackCommand command) {
+
+        return runtimePlayActive_
+            ? sequencePlaybackService_.Submit(std::move(command))
+            : 0;
+    }
+    bool DocumentSceneBase::IsSequencePlaying(
+        SEQUENCER::SequencePlaybackHandle handle) const noexcept {
+
+        return sequencePlaybackService_.IsPlaying(handle);
+    }
+    std::vector<SEQUENCER::SequencePlaybackEvent>
+        DocumentSceneBase::ConsumeSequencePlaybackEvents() {
+
+        return sequencePlaybackService_.ConsumeEvents();
     }
     bool DocumentSceneBase::BeginRuntimePlay() {
         if (runtimePlayActive_ || !currentSceneAssetGuid_.IsValid()) {
@@ -1356,7 +1419,8 @@ namespace HIKARI {
 
         camera_ = editorCameraSnapshot_;
         gameplayCamera_ = editorCameraSnapshot_;
-        cinematicCameraPlayback_.Reset(cameraDirector_);
+        sequencePlaybackService_.Reset();
+        currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
         cameraDirector_.SetBaseCamera(
             sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
@@ -1382,7 +1446,8 @@ namespace HIKARI {
         runtimePlayActive_ = false;
         runtimePreviewCameraActive_ = false;
         runtimeSceneCameraActive_ = false;
-        cinematicCameraPlayback_.Reset(cameraDirector_);
+        sequencePlaybackService_.Reset();
+        currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
         const bool restored = ReloadSceneDocument();
         camera_ = editorCameraSnapshot_;
@@ -1535,7 +1600,8 @@ namespace HIKARI {
     }
     bool DocumentSceneBase::CreateTransientEmptySceneDocument() {
         EndEditorCameraPreview();
-        cinematicCameraPlayback_.Reset(cameraDirector_);
+        sequencePlaybackService_.Reset();
+        currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
         sceneDocument_ = SceneDocument{};
         ++sceneDocumentRevision_;

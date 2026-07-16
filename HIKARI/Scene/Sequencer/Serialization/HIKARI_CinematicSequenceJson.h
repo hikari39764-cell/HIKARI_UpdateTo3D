@@ -6,6 +6,13 @@
 
 namespace HIKARI {
 
+    void DeserializeCinematicSequenceJson(
+        const nlohmann::json& input,
+        CinematicSequence& sequence);
+    void SerializeCinematicSequenceJson(
+        const CinematicSequence& sequence,
+        nlohmann::json& output);
+
     void DeserializeSceneCinematicsJson(
         const nlohmann::json& input,
         SceneCinematicsSettings& settings);

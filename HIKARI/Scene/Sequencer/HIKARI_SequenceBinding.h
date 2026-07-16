@@ -22,6 +22,7 @@ namespace HIKARI::SEQUENCER {
 
     enum class SequenceBindingTargetKind : uint8_t {
         SceneObject,
+        Slot,
     };
 
     struct SequenceBinding {
@@ -30,9 +31,37 @@ namespace HIKARI::SEQUENCER {
         SequenceBindingTargetKind targetKind =
             SequenceBindingTargetKind::SceneObject;
         SceneObjectId sceneObjectId{};
+        std::string slotName{};
+    };
+
+    struct SequenceBindingOverride {
+        SequenceBindingId bindingId{};
+        std::string slotName{};
+        SceneObjectId sceneObjectId{};
     };
 
     using SequenceBindingTable = std::vector<SequenceBinding>;
+
+    class SequenceBindingContext {
+    public:
+        bool Bind(
+            SequenceBindingId bindingId,
+            SceneObjectId sceneObjectId);
+        bool BindSlot(
+            std::string slotName,
+            SceneObjectId sceneObjectId);
+        bool Resolve(
+            const SequenceBindingTable& bindings,
+            SequenceBindingId bindingId,
+            SceneObjectId& outSceneObjectId) const noexcept;
+        bool Empty() const noexcept;
+        void Clear() noexcept;
+        const std::vector<SequenceBindingOverride>& GetOverrides()
+            const noexcept;
+
+    private:
+        std::vector<SequenceBindingOverride> overrides_{};
+    };
 
     void NormalizeSequenceBindings(SequenceBindingTable& bindings);
     SequenceBindingId AllocateSequenceBindingId(
@@ -41,6 +70,10 @@ namespace HIKARI::SEQUENCER {
         SequenceBindingTable& bindings,
         SceneObjectId sceneObjectId,
         const std::string& name = {});
+    SequenceBindingId FindOrCreateSlotBinding(
+        SequenceBindingTable& bindings,
+        const std::string& slotName,
+        const std::string& displayName = {});
     SequenceBinding* FindSequenceBinding(
         SequenceBindingTable& bindings,
         SequenceBindingId bindingId) noexcept;
@@ -50,6 +83,11 @@ namespace HIKARI::SEQUENCER {
     bool ResolveSceneObjectBinding(
         const SequenceBindingTable& bindings,
         SequenceBindingId bindingId,
+        SceneObjectId& outSceneObjectId) noexcept;
+    bool ResolveSceneObjectBinding(
+        const SequenceBindingTable& bindings,
+        SequenceBindingId bindingId,
+        const SequenceBindingContext& context,
         SceneObjectId& outSceneObjectId) noexcept;
 
 } // namespace HIKARI::SEQUENCER

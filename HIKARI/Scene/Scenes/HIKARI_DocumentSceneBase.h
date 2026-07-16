@@ -1,10 +1,13 @@
 #pragma once
 
-#include <string>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
+#include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
@@ -24,6 +27,7 @@
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
+#include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackService.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 #include "Tools/Baking/HIKARI_LightingBakeReport.h"
@@ -115,6 +119,20 @@ namespace HIKARI {
             float timeSeconds);
         bool IsCameraSequencePlaying() const noexcept;
         CinematicPlaybackHandle GetCameraSequencePlaybackHandle() const noexcept;
+        SEQUENCER::SequencePlaybackHandle PlaySequence(
+            const SEQUENCER::SequencePlayRequest& request);
+        bool StopSequence(SEQUENCER::SequencePlaybackHandle handle);
+        bool PauseSequence(SEQUENCER::SequencePlaybackHandle handle);
+        bool ResumeSequence(SEQUENCER::SequencePlaybackHandle handle);
+        bool SeekSequence(
+            SEQUENCER::SequencePlaybackHandle handle,
+            float timeSeconds);
+        uint64_t SubmitSequenceCommand(
+            SEQUENCER::SequencePlaybackCommand command);
+        bool IsSequencePlaying(
+            SEQUENCER::SequencePlaybackHandle handle) const noexcept;
+        std::vector<SEQUENCER::SequencePlaybackEvent>
+            ConsumeSequencePlaybackEvents();
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
         bool IsRuntimePlayActive() const { return runtimePlayActive_; }
@@ -191,7 +209,7 @@ namespace HIKARI {
         Camera3D camera_{};
         Camera3D gameplayCamera_{};
         CameraDirector cameraDirector_{};
-        CinematicCameraPlayback cinematicCameraPlayback_{};
+        CinematicPlaybackHandle currentCameraSequenceHandle_{};
         RENDER3D::ResolvedCameraFrame resolvedCameraFrame_{};
         DebugCameraController3D debugCamera_{};
         DebugCameraController3D runtimePreviewCamera_{};
@@ -220,6 +238,8 @@ namespace HIKARI {
 
         AssetDatabase assetDatabase_{};
         AssetRegistry assetRegistry_{};
+        SequenceAssetStore sequenceAssetStore_{};
+        SEQUENCER::SequencePlaybackService sequencePlaybackService_{};
         ComponentRegistry componentRegistry_{};
         SceneSerializer sceneSerializer_{};
         SceneRuntimeBuilder runtimeBuilder_{};

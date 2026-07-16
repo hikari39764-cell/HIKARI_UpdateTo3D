@@ -22,13 +22,17 @@ namespace HIKARI::EDITOR {
     public:
         CameraTimelinePanelResult Draw(
             SceneDocument& document,
+            SceneCinematicsSettings& settings,
             SceneObjectId selectedCameraObjectId,
             float deltaTime,
-            bool previewAllowed);
+            bool previewAllowed,
+            bool collectionEditingAllowed);
 
         void ResetForScene();
         void PausePlayback();
         void SuspendPreview();
+        CinematicSequence* GetActiveSequence(
+            SceneCinematicsSettings& settings);
 
     private:
         bool EnsureActiveSequence(SceneCinematicsSettings& settings);

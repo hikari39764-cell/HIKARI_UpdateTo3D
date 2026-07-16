@@ -5,9 +5,12 @@
 #include <string>
 
 #include "Editor/Views/HIKARI_DirectorViewPanel.h"
+#include "Editor/Documents/HIKARI_SequenceEditorDocumentController.h"
 #include "Editor/Workspaces/HIKARI_CameraOverviewPanel.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelinePanel.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
+#include "Editor/Workspaces/HIKARI_SequenceEditorDocumentToolbar.h"
+#include "Editor/Workspaces/HIKARI_SequenceLibraryPanel.h"
 #include "Scene/HIKARI_CameraDirector.h"
 #include "Scene/HIKARI_SceneObjectId.h"
 
@@ -23,6 +26,7 @@ namespace HIKARI {
         struct CinematicsWorkspaceResult {
             bool toggleGamePreviewRequested = false;
             bool cinematicsChanged = false;
+            bool saveSceneRequested = false;
             uint64_t timelineEditMergeId = 0;
             std::string statusMessage{};
         };
@@ -48,6 +52,19 @@ namespace HIKARI {
                 EditorContext& context,
                 SelectionSyncService& selectionSync,
                 EditorWorkspaceHost& workspaceHost);
+            bool RequestOpenSequenceAsset(
+                DocumentSceneBase& scene,
+                const AssetGuid& assetGuid,
+                std::string& outMessage);
+            bool IsEditingSequenceAsset() const noexcept;
+            bool IsSequenceDocumentDirty() const noexcept;
+            bool CanUndoSequenceDocument() const noexcept;
+            bool CanRedoSequenceDocument() const noexcept;
+            bool SaveSequenceDocument(
+                DocumentSceneBase& scene,
+                std::string& outMessage);
+            bool UndoSequenceDocument(std::string& outMessage);
+            bool RedoSequenceDocument(std::string& outMessage);
 
         private:
             void DrawDirectorViewWindow(
@@ -90,7 +107,8 @@ namespace HIKARI {
                 DocumentSceneBase& scene,
                 const CameraTimelinePanelResult& result,
                 EditorContext& context,
-                EditorWorkspaceHost& workspaceHost);
+                EditorWorkspaceHost& workspaceHost,
+                bool affectsSceneDocument);
             bool BindCameraPreview(
                 DocumentSceneBase& scene,
                 SceneObjectId cameraObjectId,
@@ -104,7 +122,11 @@ namespace HIKARI {
 
             CameraOverviewPanel cameraOverviewPanel_{};
             CameraTimelinePanel cameraTimelinePanel_{};
+            SequenceEditorDocumentController sequenceDocumentController_{};
+            SequenceEditorDocumentToolbar sequenceDocumentToolbar_{};
+            SequenceLibraryPanel sequenceLibraryPanel_{};
             DirectorViewPanel directorViewPanel_{};
+            bool sequenceLibraryVisible_ = true;
             bool cameraPreviewOwned_ = false;
             bool timelinePreviewOwned_ = false;
             uint64_t timelinePreviewShotId_ = 0;
@@ -112,6 +134,7 @@ namespace HIKARI {
             std::optional<SceneObjectId> boundCameraObjectId_{};
             std::optional<SceneObjectId> timelineRestoreCameraObjectId_{};
             std::string sceneIdentity_{};
+            std::string pendingStatusMessage_{};
             uint64_t sceneDocumentRevision_ = 0;
         };
 

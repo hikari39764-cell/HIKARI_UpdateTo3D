@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <limits>
 #include <unordered_set>
+#include <utility>
 
 namespace HIKARI::SEQUENCER {
 
@@ -25,8 +26,15 @@ namespace HIKARI::SEQUENCER {
                 }
             }
             if (binding.name.empty()) {
-                binding.name = "Binding " +
-                    std::to_string(binding.id.value);
+                binding.name = binding.targetKind ==
+                        SequenceBindingTargetKind::Slot &&
+                        !binding.slotName.empty()
+                    ? binding.slotName
+                    : "Binding " + std::to_string(binding.id.value);
+            }
+            if (binding.targetKind == SequenceBindingTargetKind::Slot &&
+                binding.slotName.empty()) {
+                binding.slotName = binding.name;
             }
         }
     }
@@ -84,6 +92,36 @@ namespace HIKARI::SEQUENCER {
         return binding.id;
     }
 
+    SequenceBindingId FindOrCreateSlotBinding(
+        SequenceBindingTable& bindings,
+        const std::string& slotName,
+        const std::string& displayName) {
+
+        if (slotName.empty()) {
+            return {};
+        }
+        const auto found = std::find_if(
+            bindings.begin(),
+            bindings.end(),
+            [&slotName](const SequenceBinding& binding) {
+                return binding.targetKind ==
+                        SequenceBindingTargetKind::Slot &&
+                    binding.slotName == slotName;
+            });
+        if (found != bindings.end()) {
+            return found->id;
+        }
+
+        SequenceBinding binding{};
+        binding.id = AllocateSequenceBindingId(bindings);
+        binding.name = displayName.empty() ? slotName : displayName;
+        binding.targetKind = SequenceBindingTargetKind::Slot;
+        binding.slotName = slotName;
+        bindings.push_back(std::move(binding));
+        NormalizeSequenceBindings(bindings);
+        return binding.id;
+    }
+
     SequenceBinding* FindSequenceBinding(
         SequenceBindingTable& bindings,
         SequenceBindingId bindingId) noexcept {
@@ -125,6 +163,118 @@ namespace HIKARI::SEQUENCER {
         }
         outSceneObjectId = binding->sceneObjectId;
         return true;
+    }
+
+    bool ResolveSceneObjectBinding(
+        const SequenceBindingTable& bindings,
+        SequenceBindingId bindingId,
+        const SequenceBindingContext& context,
+        SceneObjectId& outSceneObjectId) noexcept {
+
+        return context.Resolve(bindings, bindingId, outSceneObjectId);
+    }
+
+    bool SequenceBindingContext::Bind(
+        SequenceBindingId bindingId,
+        SceneObjectId sceneObjectId) {
+
+        if (!bindingId.IsValid() || sceneObjectId.value == 0) {
+            return false;
+        }
+        const auto found = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [bindingId](const SequenceBindingOverride& overrideValue) {
+                return overrideValue.bindingId == bindingId;
+            });
+        if (found != overrides_.end()) {
+            found->sceneObjectId = sceneObjectId;
+            return true;
+        }
+        overrides_.push_back({ bindingId, {}, sceneObjectId });
+        return true;
+    }
+
+    bool SequenceBindingContext::BindSlot(
+        std::string slotName,
+        SceneObjectId sceneObjectId) {
+
+        if (slotName.empty() || sceneObjectId.value == 0) {
+            return false;
+        }
+        const auto found = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [&slotName](const SequenceBindingOverride& overrideValue) {
+                return overrideValue.slotName == slotName;
+            });
+        if (found != overrides_.end()) {
+            found->sceneObjectId = sceneObjectId;
+            return true;
+        }
+        overrides_.push_back({ {}, std::move(slotName), sceneObjectId });
+        return true;
+    }
+
+    bool SequenceBindingContext::Resolve(
+        const SequenceBindingTable& bindings,
+        SequenceBindingId bindingId,
+        SceneObjectId& outSceneObjectId) const noexcept {
+
+        outSceneObjectId = {};
+        if (!bindingId.IsValid()) {
+            return false;
+        }
+        const auto directOverride = std::find_if(
+            overrides_.begin(),
+            overrides_.end(),
+            [bindingId](const SequenceBindingOverride& overrideValue) {
+                return overrideValue.bindingId == bindingId &&
+                    overrideValue.sceneObjectId.value != 0;
+            });
+        if (directOverride != overrides_.end()) {
+            outSceneObjectId = directOverride->sceneObjectId;
+            return true;
+        }
+
+        const SequenceBinding* binding =
+            FindSequenceBinding(bindings, bindingId);
+        if (binding == nullptr) {
+            return false;
+        }
+        if (binding->targetKind == SequenceBindingTargetKind::Slot) {
+            const auto slotOverride = std::find_if(
+                overrides_.begin(),
+                overrides_.end(),
+                [binding](const SequenceBindingOverride& overrideValue) {
+                    return overrideValue.slotName == binding->slotName &&
+                        overrideValue.sceneObjectId.value != 0;
+                });
+            if (slotOverride == overrides_.end()) {
+                return false;
+            }
+            outSceneObjectId = slotOverride->sceneObjectId;
+            return true;
+        }
+        if (binding->sceneObjectId.value == 0) {
+            return false;
+        }
+        outSceneObjectId = binding->sceneObjectId;
+        return true;
+    }
+
+    bool SequenceBindingContext::Empty() const noexcept {
+        return overrides_.empty();
+    }
+
+    void SequenceBindingContext::Clear() noexcept {
+        overrides_.clear();
+    }
+
+    const std::vector<SequenceBindingOverride>&
+        SequenceBindingContext::GetOverrides() const noexcept {
+
+        return overrides_;
     }
 
 } // namespace HIKARI::SEQUENCER

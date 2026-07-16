@@ -50,6 +50,16 @@ namespace HIKARI {
                     nameIt != bindingNode.end() && nameIt->is_string()) {
                     binding.name = nameIt->get<std::string>();
                 }
+                const std::string targetKind = bindingNode.value(
+                    "targetKind",
+                    std::string{ "sceneObject" });
+                if (targetKind == "slot") {
+                    binding.targetKind =
+                        SEQUENCER::SequenceBindingTargetKind::Slot;
+                    binding.slotName = bindingNode.value(
+                        "slotName",
+                        binding.name);
+                }
                 if (const auto objectIt = bindingNode.find("sceneObjectId");
                     objectIt != bindingNode.end() &&
                     objectIt->is_number_unsigned()) {
@@ -205,12 +215,21 @@ namespace HIKARI {
         json SerializeBinding(
             const SEQUENCER::SequenceBinding& binding) {
 
-            return {
+            json output = {
                 { "id", binding.id.value },
                 { "name", binding.name },
-                { "targetKind", "sceneObject" },
-                { "sceneObjectId", binding.sceneObjectId.value }
+                { "targetKind", binding.targetKind ==
+                        SEQUENCER::SequenceBindingTargetKind::Slot
+                    ? "slot"
+                    : "sceneObject" }
             };
+            if (binding.targetKind ==
+                    SEQUENCER::SequenceBindingTargetKind::Slot) {
+                output["slotName"] = binding.slotName;
+            } else {
+                output["sceneObjectId"] = binding.sceneObjectId.value;
+            }
+            return output;
         }
 
         json SerializeCameraCutClip(
@@ -311,6 +330,36 @@ namespace HIKARI {
                 sequence,
                 sequenceNode["tracks"]);
             output["sequences"].push_back(std::move(sequenceNode));
+        }
+    }
+
+    void DeserializeCinematicSequenceJson(
+        const nlohmann::json& input,
+        CinematicSequence& sequence) {
+
+        sequence = DeserializeSequence(
+            input,
+            CinematicSequenceId{ 1 },
+            "Sequence");
+    }
+
+    void SerializeCinematicSequenceJson(
+        const CinematicSequence& sequence,
+        nlohmann::json& output) {
+
+        SceneCinematicsSettings settings{};
+        settings.sequences = { sequence };
+        settings.defaultSequenceId = sequence.id.IsValid()
+            ? sequence.id
+            : CinematicSequenceId{ 1 };
+        nlohmann::json wrapper{};
+        SerializeSceneCinematicsJson(settings, wrapper);
+        if (wrapper.contains("sequences") &&
+            wrapper["sequences"].is_array() &&
+            !wrapper["sequences"].empty()) {
+            output = std::move(wrapper["sequences"][0]);
+        } else {
+            output = nlohmann::json::object();
         }
     }
 

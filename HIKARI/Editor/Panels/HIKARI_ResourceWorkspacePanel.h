@@ -35,6 +35,7 @@ namespace HIKARI {
             EditorSelection& selection,
             const ResourceWorkspaceContext& context) const;
         std::string ConsumeActivatedSceneGuid() const;
+        std::string ConsumeActivatedSequenceGuid() const;
         std::string ConsumeSaveSceneAsGuid() const;
         std::string ConsumeRefreshRuntimeAssetGuid() const;
         std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;

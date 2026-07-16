@@ -23,6 +23,7 @@ namespace HIKARI {
         Materials,
         Skies,
         Vfx,
+        Sequences,
     };
 
     struct AssetBrowserContext {
@@ -42,6 +43,7 @@ namespace HIKARI {
             AssetBrowserScope scope,
             const AssetBrowserContext* context = nullptr) const;
         std::string ConsumeActivatedSceneGuid() const;
+        std::string ConsumeActivatedSequenceGuid() const;
         std::string ConsumeSaveSceneAsGuid() const;
         std::string ConsumeRefreshRuntimeAssetGuid() const;
         std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;
@@ -58,6 +60,7 @@ namespace HIKARI {
         mutable bool filtersExpanded_ = false;
         mutable std::string lastOperationMessage_{};
         mutable std::string activatedSceneGuid_{};
+        mutable std::string activatedSequenceGuid_{};
         mutable std::string saveSceneAsGuid_{};
         mutable std::string refreshRuntimeAssetGuid_{};
         mutable std::string reimportAndRefreshRuntimeAssetGuid_{};

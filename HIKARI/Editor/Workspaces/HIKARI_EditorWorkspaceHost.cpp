@@ -48,6 +48,7 @@ namespace HIKARI::EDITOR {
         activation.previous = activeWorkspace_;
         activation.current = request.workspaceId;
         activation.targetCameraObjectId = request.targetCameraObjectId;
+        activation.sequenceAssetGuid = request.sequenceAssetGuid;
         activeWorkspace_ = request.workspaceId;
 
         return activation;

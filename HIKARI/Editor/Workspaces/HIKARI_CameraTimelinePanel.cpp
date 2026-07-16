@@ -97,12 +97,13 @@ namespace HIKARI::EDITOR {
 
     CameraTimelinePanelResult CameraTimelinePanel::Draw(
         SceneDocument& document,
+        SceneCinematicsSettings& settings,
         SceneObjectId selectedCameraObjectId,
         float deltaTime,
-        bool previewAllowed) {
+        bool previewAllowed,
+        bool collectionEditingAllowed) {
 
         CameraTimelinePanelResult result{};
-        SceneCinematicsSettings& settings = document.cinematics;
         NormalizeSceneCinematicsSettings(settings);
         if (!EnsureActiveSequence(settings)) {
             return result;
@@ -124,62 +125,68 @@ namespace HIKARI::EDITOR {
             return result;
         }
 
-        ImGui::SetNextItemWidth(180.0f);
-        if (ImGui::BeginCombo(
-                "##CameraSequenceSelector",
-                sequence->name.c_str())) {
-            for (const CinematicSequence& candidate : settings.sequences) {
-                const bool selected = candidate.id == activeSequenceId_;
-                std::string label = candidate.name;
-                if (candidate.id == settings.defaultSequenceId) {
-                    label += "  [Default]";
-                }
-                if (ImGui::Selectable(label.c_str(), selected)) {
-                    (void)SetActiveSequence(settings, candidate.id);
-                }
-                if (selected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-
         if (!previewAllowed) {
             ImGui::BeginDisabled();
         }
-        ImGui::SameLine();
-        if (ImGui::Button("New Sequence")) {
-            CinematicSequence newSequence{};
-            newSequence.id = AllocateCinematicSequenceId(settings);
-            newSequence.name = "Sequence " +
-                std::to_string(newSequence.id.value);
-            settings.sequences.push_back(newSequence);
-            (void)SetActiveSequence(settings, newSequence.id);
-            result.documentChanged = true;
-        }
+        if (collectionEditingAllowed) {
+            ImGui::SetNextItemWidth(180.0f);
+            if (ImGui::BeginCombo(
+                    "##CameraSequenceSelector",
+                    sequence->name.c_str())) {
+                for (const CinematicSequence& candidate :
+                        settings.sequences) {
+                    const bool selected =
+                        candidate.id == activeSequenceId_;
+                    std::string label = candidate.name;
+                    if (candidate.id == settings.defaultSequenceId) {
+                        label += "  [Default]";
+                    }
+                    if (ImGui::Selectable(label.c_str(), selected)) {
+                        (void)SetActiveSequence(settings, candidate.id);
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
 
-        ImGui::SameLine();
-        const bool canDeleteSequence = settings.sequences.size() > 1;
-        if (!canDeleteSequence) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Delete Sequence")) {
-            settings.sequences.erase(
-                std::remove_if(
-                    settings.sequences.begin(),
-                    settings.sequences.end(),
-                    [this](const CinematicSequence& candidate) {
-                        return candidate.id == activeSequenceId_;
-                    }),
-                settings.sequences.end());
-            NormalizeSceneCinematicsSettings(settings);
-            (void)SetActiveSequence(
-                settings,
-                settings.defaultSequenceId);
-            result.documentChanged = true;
-        }
-        if (!canDeleteSequence) {
-            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button("New Sequence")) {
+                CinematicSequence newSequence{};
+                newSequence.id = AllocateCinematicSequenceId(settings);
+                newSequence.name = "Sequence " +
+                    std::to_string(newSequence.id.value);
+                settings.sequences.push_back(newSequence);
+                (void)SetActiveSequence(settings, newSequence.id);
+                result.documentChanged = true;
+            }
+
+            ImGui::SameLine();
+            const bool canDeleteSequence = settings.sequences.size() > 1;
+            if (!canDeleteSequence) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("Delete Sequence")) {
+                settings.sequences.erase(
+                    std::remove_if(
+                        settings.sequences.begin(),
+                        settings.sequences.end(),
+                        [this](const CinematicSequence& candidate) {
+                            return candidate.id == activeSequenceId_;
+                        }),
+                    settings.sequences.end());
+                NormalizeSceneCinematicsSettings(settings);
+                (void)SetActiveSequence(
+                    settings,
+                    settings.defaultSequenceId);
+                result.documentChanged = true;
+            }
+            if (!canDeleteSequence) {
+                ImGui::EndDisabled();
+            }
+        } else {
+            ImGui::TextDisabled("Asset Sequence");
         }
 
         sequence = FindCinematicSequence(settings, activeSequenceId_);
@@ -190,18 +197,20 @@ namespace HIKARI::EDITOR {
             return result;
         }
 
-        ImGui::SameLine();
-        const bool isDefaultSequence =
-            sequence->id == settings.defaultSequenceId;
-        if (isDefaultSequence) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Set Default")) {
-            settings.defaultSequenceId = sequence->id;
-            result.documentChanged = true;
-        }
-        if (isDefaultSequence) {
-            ImGui::EndDisabled();
+        if (collectionEditingAllowed) {
+            ImGui::SameLine();
+            const bool isDefaultSequence =
+                sequence->id == settings.defaultSequenceId;
+            if (isDefaultSequence) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("Set Default")) {
+                settings.defaultSequenceId = sequence->id;
+                result.documentChanged = true;
+            }
+            if (isDefaultSequence) {
+                ImGui::EndDisabled();
+            }
         }
 
         ImGui::SameLine();
@@ -453,6 +462,15 @@ namespace HIKARI::EDITOR {
         PausePlayback();
         previewEnabled_ = false;
         previewCutPending_ = true;
+    }
+
+    CinematicSequence* CameraTimelinePanel::GetActiveSequence(
+        SceneCinematicsSettings& settings) {
+
+        NormalizeSceneCinematicsSettings(settings);
+        return EnsureActiveSequence(settings)
+            ? FindCinematicSequence(settings, activeSequenceId_)
+            : nullptr;
     }
 
     bool CameraTimelinePanel::EnsureActiveSequence(

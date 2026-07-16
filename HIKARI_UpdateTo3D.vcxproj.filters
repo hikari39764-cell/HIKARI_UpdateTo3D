@@ -25,6 +25,9 @@
     <Filter Include="Header Files\Assets\Lighting">
       <UniqueIdentifier>{F1ED72F6-0B07-4D55-AA9E-E9A0E3D0F681}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Sequence">
+      <UniqueIdentifier>{35791952-5E4C-4A9E-A795-8A94363BE84F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -63,6 +66,9 @@
     </Filter>
     <Filter Include="Header Files\Editor\Workspaces">
       <UniqueIdentifier>{81401D97-FCB9-410E-A2FA-E9A53585F146}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Documents">
+      <UniqueIdentifier>{2DE7B41F-D243-45D8-819E-5A69908D56E7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Editor\Authoring">
       <UniqueIdentifier>{C39F7C8D-426C-44D1-8B41-D091436B275B}</UniqueIdentifier>
@@ -180,6 +186,12 @@
     </Filter>
     <Filter Include="Header Files\Scene\Sequencer\Serialization">
       <UniqueIdentifier>{C804EA28-77D3-48E7-9F44-C76112515F0F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Sequencer\Runtime">
+      <UniqueIdentifier>{DE661CC9-0AF7-498E-B8A1-E1A8BD04F5B9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Sequencer\Drivers">
+      <UniqueIdentifier>{A3D4E28E-FD3C-47B0-8A85-0F5ECA7E87E6}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Scene\Components">
       <UniqueIdentifier>{F00B23EA-3B1C-53CB-B0AC-2F0ECD5136A2}</UniqueIdentifier>
@@ -325,6 +337,9 @@
     <Filter Include="Source Files\Assets\Lighting">
       <UniqueIdentifier>{8C0B7758-A873-4CAD-8936-13CE85DE6A35}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Sequence">
+      <UniqueIdentifier>{A6CF16EE-1C1F-4754-87D4-57079616B706}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
     </Filter>
@@ -363,6 +378,9 @@
     </Filter>
     <Filter Include="Source Files\Editor\Workspaces">
       <UniqueIdentifier>{81401D97-FCB9-410E-A2FA-E9A53585F147}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Documents">
+      <UniqueIdentifier>{A824C3E4-D455-4566-9A6A-E190EEA4CB43}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Authoring">
       <UniqueIdentifier>{FA88E7C2-F209-438E-9CF6-C10C65E0A334}</UniqueIdentifier>
@@ -477,6 +495,12 @@
     </Filter>
     <Filter Include="Source Files\Scene\Sequencer\Serialization">
       <UniqueIdentifier>{5D10BFFD-BB38-47B0-BC1E-7953C8D5EFC7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Sequencer\Runtime">
+      <UniqueIdentifier>{64D62112-AFCE-4BA6-B522-B87CD24B8875}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Sequencer\Drivers">
+      <UniqueIdentifier>{5A196359-B234-409B-BC4B-79B232FC22D5}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Components">
       <UniqueIdentifier>{B16A3B17-051C-5A7F-ACAF-CD825550867C}</UniqueIdentifier>
@@ -831,6 +855,21 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.cpp">
+      <Filter>Source Files\Editor\Documents</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp">
+      <Filter>Source Files\Editor\Documents</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp">
       <Filter>Source Files\Editor\DragDrop</Filter>
     </ClCompile>
@@ -929,6 +968,15 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SceneAssetImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.cpp">
+      <Filter>Source Files\Assets\Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.cpp">
+      <Filter>Source Files\Assets\Sequence</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
@@ -1388,6 +1436,12 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp">
       <Filter>Source Files\Scene\Sequencer</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.cpp">
+      <Filter>Source Files\Scene\Sequencer\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.cpp">
+      <Filter>Source Files\Scene\Sequencer\Drivers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.cpp">
       <Filter>Source Files\Scene\Sequencer\Tracks</Filter>
@@ -1981,6 +2035,21 @@
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h">
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.h">
+      <Filter>Header Files\Editor\Documents</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.h">
+      <Filter>Header Files\Editor\Documents</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h">
       <Filter>Header Files\Editor\DragDrop</Filter>
     </ClInclude>
@@ -2175,6 +2244,15 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SceneAssetImporter.h">
       <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.h">
+      <Filter>Header Files\Assets\Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.h">
+      <Filter>Header Files\Assets\Sequence</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h">
       <Filter>Header Files\Assets\Importers</Filter>
@@ -2445,6 +2523,18 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceTrack.h">
       <Filter>Header Files\Scene\Sequencer</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.h">
+      <Filter>Header Files\Scene\Sequencer\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackTypes.h">
+      <Filter>Header Files\Scene\Sequencer\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequenceTrackDriver.h">
+      <Filter>Header Files\Scene\Sequencer\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.h">
+      <Filter>Header Files\Scene\Sequencer\Drivers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.h">
       <Filter>Header Files\Scene\Sequencer\Tracks</Filter>

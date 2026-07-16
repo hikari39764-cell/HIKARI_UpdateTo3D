@@ -295,6 +295,8 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp" />
+    <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.cpp" />
+    <ClCompile Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.cpp" />
@@ -443,6 +445,11 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp" />
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.cpp" />
+    <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.cpp" />
+    <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
@@ -480,11 +487,14 @@
     <ClCompile Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_ModelImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SceneAssetImporter.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_HtexTextureWriter_DirectXTex.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend_DirectXTex.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.cpp" />
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_VfxAssetImporter.cpp" />
+    <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.cpp" />
+    <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
@@ -801,6 +811,10 @@
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceTrack.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackTypes.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequenceTrackDriver.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.h" />
@@ -865,6 +879,11 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h" />
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h" />
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.h" />
+    <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.h" />
+    <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
@@ -969,6 +988,7 @@
     <ClInclude Include="HIKARI\Assets\Material\HIKARI_MaterialAssetData.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_ModelImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SceneAssetImporter.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_HtexTextureWriter_DirectXTex.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportBackend.h" />
@@ -976,6 +996,8 @@
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImporter.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_TextureImportSettings.h" />
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_VfxAssetImporter.h" />
+    <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.h" />
+    <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.h" />

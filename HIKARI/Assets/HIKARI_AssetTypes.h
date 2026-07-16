@@ -18,6 +18,7 @@ namespace HIKARI {
         Animation,
         Particle,
         VfxEffect,
+        Sequence,
         Unknown
     };
 

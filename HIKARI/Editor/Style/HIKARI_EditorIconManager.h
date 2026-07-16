@@ -17,6 +17,7 @@ namespace HIKARI::EDITOR {
         Sky,
         Scene,
         Vfx,
+        Sequence,
         File,
         Music,
         Component,

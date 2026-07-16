@@ -1,22 +1,15 @@
 #pragma once
 
-#include <cstdint>
-
 #include "Scene/HIKARI_CameraDirector.h"
 #include "Scene/HIKARI_CinematicSequencePlayer.h"
+#include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackTypes.h"
 
 namespace HIKARI {
 
     class World;
 
-    struct CinematicPlaybackHandle {
-        uint64_t value = 0;
-        uint64_t epoch = 0;
-
-        bool IsValid() const noexcept {
-            return value != 0 && epoch != 0;
-        }
-    };
+    using CinematicPlaybackHandle =
+        SEQUENCER::SequencePlaybackHandle;
 
     class CinematicCameraPlayback {
     public:

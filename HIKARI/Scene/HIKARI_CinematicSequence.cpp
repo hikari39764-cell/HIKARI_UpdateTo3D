@@ -159,9 +159,11 @@ namespace HIKARI {
         });
     }
 
-    CinematicCameraEvaluation EvaluateCinematicCameraTrack(
+    namespace {
+        CinematicCameraEvaluation EvaluateCinematicCameraTrackInternal(
         const CinematicSequence& sequence,
-        float timeSeconds) noexcept {
+        float timeSeconds,
+        const SEQUENCER::SequenceBindingContext* bindingContext) noexcept {
 
         CinematicCameraEvaluation result{};
         const SEQUENCER::CameraCutTrackEvaluation trackEvaluation =
@@ -173,10 +175,17 @@ namespace HIKARI {
         }
 
         SceneObjectId cameraObjectId{};
-        if (!SEQUENCER::ResolveSceneObjectBinding(
+        const bool resolved = bindingContext != nullptr
+            ? SEQUENCER::ResolveSceneObjectBinding(
                 sequence.bindings,
                 trackEvaluation.cameraBindingId,
-                cameraObjectId)) {
+                *bindingContext,
+                cameraObjectId)
+            : SEQUENCER::ResolveSceneObjectBinding(
+                sequence.bindings,
+                trackEvaluation.cameraBindingId,
+                cameraObjectId);
+        if (!resolved) {
             return result;
         }
 
@@ -195,6 +204,28 @@ namespace HIKARI {
         result.sequenceTimeSeconds = trackEvaluation.sequenceTimeSeconds;
         result.localTimeSeconds = trackEvaluation.localTimeSeconds;
         return result;
+        }
+    }
+
+    CinematicCameraEvaluation EvaluateCinematicCameraTrack(
+        const CinematicSequence& sequence,
+        float timeSeconds) noexcept {
+
+        return EvaluateCinematicCameraTrackInternal(
+            sequence,
+            timeSeconds,
+            nullptr);
+    }
+
+    CinematicCameraEvaluation EvaluateCinematicCameraTrack(
+        const CinematicSequence& sequence,
+        float timeSeconds,
+        const SEQUENCER::SequenceBindingContext& bindingContext) noexcept {
+
+        return EvaluateCinematicCameraTrackInternal(
+            sequence,
+            timeSeconds,
+            &bindingContext);
     }
 
     bool BuildEvaluatedCinematicCamera(

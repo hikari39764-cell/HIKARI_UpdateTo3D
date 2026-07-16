@@ -19,6 +19,7 @@
 #include "Importers/HIKARI_MaterialImporter.h"
 #include "Importers/HIKARI_ModelImporter.h"
 #include "Importers/HIKARI_SceneAssetImporter.h"
+#include "Importers/HIKARI_SequenceAssetImporter.h"
 #include "Importers/HIKARI_SkyCubemapImporter.h"
 #include "Importers/HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Importers/HIKARI_TextureImporter.h"
@@ -131,6 +132,7 @@ namespace HIKARI {
             case AssetType::Animation: return "Animation";
             case AssetType::Particle: return "Particle";
             case AssetType::VfxEffect: return "VfxEffect";
+            case AssetType::Sequence: return "Sequence";
             case AssetType::Unknown:
             default: return "Unknown";
             }
@@ -145,6 +147,7 @@ namespace HIKARI {
             if (text == "Animation") return AssetType::Animation;
             if (text == "Particle") return AssetType::Particle;
             if (text == "VfxEffect" || text == "Vfx") return AssetType::VfxEffect;
+            if (text == "Sequence") return AssetType::Sequence;
             return AssetType::Unknown;
         }
 
@@ -299,6 +302,8 @@ namespace HIKARI {
             case AssetType::Model:
                 return 4;
             case AssetType::Scene:
+                return 5;
+            case AssetType::Sequence:
                 return 5;
             default:
                 return 6;
@@ -1140,6 +1145,9 @@ namespace HIKARI {
         if (IsScenePath(sourcePath)) {
             return AssetType::Scene;
         }
+        if (ext == ".hsequence") {
+            return AssetType::Sequence;
+        }
         if (ext == ".hmat" || EndsWith(generic, ".material.json")) {
             return AssetType::Material;
         }
@@ -1162,6 +1170,9 @@ namespace HIKARI {
         if (type == AssetType::Scene) {
             return "SceneAssetImporter";
         }
+        if (type == AssetType::Sequence) {
+            return "SequenceAssetImporter";
+        }
         if (type == AssetType::Material) {
             return "MaterialImporter";
         }
@@ -1182,6 +1193,7 @@ namespace HIKARI {
             std::make_unique<DirectXTexTextureImportBackend>()));
         importerRegistry_.Register(std::make_unique<ModelImporter>());
         importerRegistry_.Register(std::make_unique<SceneAssetImporter>());
+        importerRegistry_.Register(std::make_unique<SequenceAssetImporter>());
         importerRegistry_.Register(std::make_unique<MaterialImporter>());
         importerRegistry_.Register(std::make_unique<VfxAssetImporter>());
     }
@@ -1198,6 +1210,7 @@ namespace HIKARI {
             assetsRoot_ / "Vfx",
             assetsRoot_ / "Shaders",
             assetsRoot_ / "Scenes",
+            assetsRoot_ / "Sequences",
             libraryRoot_,
             libraryRoot_ / "Imported",
             libraryRoot_ / "Thumbnails",
