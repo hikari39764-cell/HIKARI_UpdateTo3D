@@ -7,6 +7,7 @@
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
+#include "imgui_internal.h"
 #endif
 
 namespace HIKARI::EDITOR {
@@ -416,6 +417,7 @@ namespace HIKARI::EDITOR {
         }
 
         result.previewEnabled = previewAllowed && previewEnabled_;
+        result.editMergeId = static_cast<uint64_t>(ImGui::GetActiveID());
         result.forceCameraCut = previewCutPending_ ||
             player_.GetLastEvaluationContext().IsDiscontinuous();
         result.sequenceId = activeSequenceId_;

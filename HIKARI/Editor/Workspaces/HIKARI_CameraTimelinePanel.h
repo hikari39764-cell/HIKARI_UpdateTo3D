@@ -13,6 +13,7 @@ namespace HIKARI::EDITOR {
         bool documentChanged = false;
         bool previewEnabled = false;
         bool forceCameraCut = false;
+        uint64_t editMergeId = 0;
         CinematicSequenceId sequenceId{};
         CinematicCameraEvaluation evaluation{};
     };

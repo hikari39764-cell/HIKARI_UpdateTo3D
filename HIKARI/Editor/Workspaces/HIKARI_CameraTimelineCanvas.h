@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeClipboard.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeEditor.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelineShotEditor.h"
 #include "Scene/HIKARI_CinematicSequence.h"
@@ -35,6 +36,7 @@ namespace HIKARI::EDITOR {
         int GetSnapFramesPerSecond() const noexcept;
         void SetSnapFramesPerSecond(int framesPerSecond) noexcept;
         bool HasSelectedKeyframe() const noexcept;
+        size_t GetSelectedKeyframeCount() const noexcept;
         bool DeleteSelectedKeyframe(CinematicSequence& sequence);
         bool DrawSelectedKeyframeInspector(
             CinematicSequence& sequence,
@@ -53,6 +55,7 @@ namespace HIKARI::EDITOR {
         float panStartScrollTime_ = 0.0f;
         CameraTimelineShotEditor shotEditor_{};
         CameraTimelineKeyframeEditor keyframeEditor_{};
+        CameraTimelineKeyframeClipboard keyframeClipboard_{};
         int snapFramesPerSecond_ = 30;
         bool snapEnabled_ = true;
         bool scrubbing_ = false;

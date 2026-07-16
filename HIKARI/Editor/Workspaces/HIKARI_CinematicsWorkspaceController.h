@@ -22,6 +22,8 @@ namespace HIKARI {
 
         struct CinematicsWorkspaceResult {
             bool toggleGamePreviewRequested = false;
+            bool cinematicsChanged = false;
+            uint64_t timelineEditMergeId = 0;
             std::string statusMessage{};
         };
 
@@ -32,6 +34,9 @@ namespace HIKARI {
                 DocumentSceneBase& scene,
                 EditorWorkspaceHost& workspaceHost);
             void PrepareForRuntimePlay();
+            void OnCinematicsDocumentRestored(
+                DocumentSceneBase& scene,
+                EditorWorkspaceHost& workspaceHost);
             void ApplyWorkspaceActivation(
                 DocumentSceneBase& scene,
                 const EditorWorkspaceActivation& activation,
@@ -67,7 +72,8 @@ namespace HIKARI {
             void DrawTimelineWindow(
                 DocumentSceneBase& scene,
                 EditorContext& context,
-                EditorWorkspaceHost& workspaceHost);
+                EditorWorkspaceHost& workspaceHost,
+                CinematicsWorkspaceResult& result);
 
             void ApplyCameraOverviewAction(
                 DocumentSceneBase& scene,

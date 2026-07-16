@@ -199,7 +199,7 @@ namespace HIKARI::EDITOR {
             }
         }
 
-        DrawTimelineWindow(scene, context, workspaceHost);
+        DrawTimelineWindow(scene, context, workspaceHost, result);
         DrawDirectorViewWindow(
             scene,
             context,
@@ -490,7 +490,8 @@ namespace HIKARI::EDITOR {
     void CinematicsWorkspaceController::DrawTimelineWindow(
         DocumentSceneBase& scene,
         EditorContext& context,
-        EditorWorkspaceHost& workspaceHost) {
+        EditorWorkspaceHost& workspaceHost,
+        CinematicsWorkspaceResult& result) {
 #if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin(
                 "Timeline###Cinematics/Timeline",
@@ -513,6 +514,8 @@ namespace HIKARI::EDITOR {
                 selectedCameraObjectId,
                 ImGui::GetIO().DeltaTime,
                 !scene.IsRuntimePlayActive());
+        result.cinematicsChanged |= panelResult.documentChanged;
+        result.timelineEditMergeId = panelResult.editMergeId;
         ApplyCameraTimelineResult(
             scene,
             panelResult,
@@ -523,6 +526,7 @@ namespace HIKARI::EDITOR {
         (void)scene;
         (void)context;
         (void)workspaceHost;
+        (void)result;
 #endif
     }
 

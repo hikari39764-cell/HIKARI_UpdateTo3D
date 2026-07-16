@@ -414,6 +414,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.cpp" />
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp" />
+    <ClCompile Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.cpp" />
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.cpp" />
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.cpp" />
     <ClCompile Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.cpp" />
@@ -423,10 +426,13 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp" />
@@ -832,6 +838,9 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h" />
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.h" />
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h" />
+    <ClInclude Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.h" />
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.h" />
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorTool.h" />
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.h" />
@@ -844,10 +853,13 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />

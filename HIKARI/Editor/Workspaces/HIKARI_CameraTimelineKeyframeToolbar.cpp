@@ -2,6 +2,8 @@
 
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeAuthoring.h"
 
+#include <string>
+
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
@@ -86,7 +88,11 @@ namespace HIKARI::EDITOR {
         if (!canDelete) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Delete Key")) {
+        const size_t selectedKeyCount = canvas.GetSelectedKeyframeCount();
+        const std::string deleteLabel = selectedKeyCount > 1
+            ? "Delete Keys (" + std::to_string(selectedKeyCount) + ")"
+            : "Delete Key";
+        if (ImGui::Button(deleteLabel.c_str())) {
             const bool deleted = canvas.DeleteSelectedKeyframe(sequence);
             result.sequenceChanged |= deleted;
             result.previewRequested |= deleted;
@@ -140,6 +146,10 @@ namespace HIKARI::EDITOR {
             result.sequenceChanged = true;
             result.previewRequested = true;
         }
+
+        ImGui::TextDisabled(
+            "Shift: add | Ctrl: toggle | Drag empty lane: box select | "
+            "Ctrl+A/C/V/D | Delete");
 #else
         (void)document;
         (void)sequence;

@@ -82,6 +82,17 @@ namespace HIKARI::EDITOR {
         directorViewPanel_.ExitPilot();
     }
 
+    void CinematicsWorkspaceController::OnCinematicsDocumentRestored(
+        DocumentSceneBase& scene,
+        EditorWorkspaceHost& workspaceHost) {
+
+        cameraTimelinePanel_.ResetForScene();
+        RestoreTimelinePreview(scene, workspaceHost);
+        timelinePreviewOwned_ = false;
+        timelinePreviewShotId_ = 0;
+        timelineRestoreCameraObjectId_.reset();
+    }
+
     void CinematicsWorkspaceController::ApplyWorkspaceActivation(
         DocumentSceneBase& scene,
         const EditorWorkspaceActivation& activation,

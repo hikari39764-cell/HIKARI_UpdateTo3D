@@ -43,6 +43,9 @@
     <Filter Include="Header Files\Editor">
       <UniqueIdentifier>{30D89BA9-6610-5B19-B909-7CBDC62C1A2A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\History">
+      <UniqueIdentifier>{23B34C6A-4647-4D6C-A230-7B44F079F028}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Controllers">
       <UniqueIdentifier>{E28B7FA2-22E4-5153-995B-8B37C61D9D2D}</UniqueIdentifier>
     </Filter>
@@ -339,6 +342,9 @@
     </Filter>
     <Filter Include="Source Files\Editor">
       <UniqueIdentifier>{B0E6EB35-2869-5CC7-B270-F62A45D5D646}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\History">
+      <UniqueIdentifier>{F8E345D5-F940-4AF7-B0A9-AF6CBA0A99E4}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Controllers">
       <UniqueIdentifier>{556FDF65-8B17-5D07-B27B-266BB695A766}</UniqueIdentifier>
@@ -738,6 +744,15 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.cpp">
+      <Filter>Source Files\Editor\History</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp">
+      <Filter>Source Files\Editor\History</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.cpp">
+      <Filter>Source Files\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.cpp">
       <Filter>Source Files\Editor\Tools</Filter>
     </ClCompile>
@@ -765,6 +780,12 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
@@ -775,6 +796,9 @@
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.cpp">
@@ -1876,6 +1900,15 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.h">
+      <Filter>Header Files\Editor\History</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h">
+      <Filter>Header Files\Editor\History</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.h">
+      <Filter>Header Files\Editor</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_BuiltInEditorTools.h">
       <Filter>Header Files\Editor\Tools</Filter>
     </ClInclude>
@@ -1912,6 +1945,12 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
@@ -1922,6 +1961,9 @@
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.h">

@@ -1,6 +1,7 @@
 #include "HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Export/HIKARI_GameExporter.h"
+#include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
 #include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
@@ -445,7 +446,8 @@ namespace HIKARI {
         EDITOR::EditorWorkspaceHost& workspaceHost,
         DebugCameraController3D& debugCamera,
         bool& environmentLightingEnabled,
-        bool& resetDockingLayoutRequested) const {
+        bool& resetDockingLayoutRequested,
+        EDITOR::EditorDocumentMenuState& documentMenu) const {
         if (!ImGui::BeginMainMenuBar()) {
             return;
         }
@@ -473,6 +475,8 @@ namespace HIKARI {
             }
             ImGui::EndMenu();
         }
+
+        EDITOR::DrawEditorDocumentMenu(documentMenu);
 
         if (ImGui::BeginMenu("Windows")) {
             if (ImGui::BeginMenu("Viewport")) {
@@ -566,7 +570,8 @@ namespace HIKARI {
         EDITOR::EditorWorkspaceHost&,
         DebugCameraController3D&,
         bool&,
-        bool&) const {}
+        bool&,
+        EDITOR::EditorDocumentMenuState&) const {}
 #endif
 
 } // namespace HIKARI

@@ -5,6 +5,7 @@
 #include "Editor/HIKARI_DebugCameraPanel.h"
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
+#include "Editor/History/HIKARI_EditorDocumentHistory.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
@@ -78,10 +79,27 @@ namespace HIKARI {
         void HandleGameViewportAssetDrop(DocumentSceneBase& scene);
         void DrawPendingSceneOpenModal(DocumentSceneBase& scene);
         bool OpenSceneAssetFromEditor(DocumentSceneBase& scene, const AssetGuid& sceneGuid);
+        void SyncDocumentHistory(DocumentSceneBase& scene);
+        void HandleGlobalDocumentShortcuts(DocumentSceneBase& scene);
+        void SaveCurrentDocument(DocumentSceneBase& scene);
+        void ExecuteDocumentHistory(
+            DocumentSceneBase& scene,
+            bool redo);
+        void ApplyHistoryResult(
+            DocumentSceneBase& scene,
+            const EDITOR::EditorHistoryResult& result,
+            bool redo);
+        void RecordCinematicsHistory(
+            DocumentSceneBase& scene,
+            SceneCinematicsSettings before,
+            uint64_t mergeGroup,
+            bool externalDirtyBefore);
 
         AssetGuid pendingSceneOpenGuid_{};
         std::string viewportDropMessage_{};
         bool renderQualitySavePending_ = false;
+        EDITOR::EditorDocumentHistory documentHistory_{};
+        bool historyExternalDirty_ = false;
     };
 
 } // namespace HIKARI

@@ -247,6 +247,61 @@ namespace HIKARI::EDITOR {
             shotEditor_.ClearSelection();
         }
 
+        const ImGuiIO& io = ImGui::GetIO();
+        const bool shortcutContext = editingAllowed &&
+            ImGui::IsWindowFocused(
+                ImGuiFocusedFlags_RootAndChildWindows) &&
+            !io.WantTextInput && !ImGui::IsAnyItemActive() &&
+            !keyframeEditor_.IsInteractionActive();
+        if (shortcutContext && io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+            if (keyframeEditor_.SelectAll(sequence)) {
+                shotEditor_.ClearSelection();
+            }
+        }
+        if (shortcutContext && io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+            (void)keyframeClipboard_.Copy(
+                sequence,
+                keyframeEditor_.GetSelections());
+        }
+        if (shortcutContext && io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+            const CameraTimelineClipboardPasteResult paste =
+                keyframeClipboard_.Paste(sequence, playheadTimeSeconds);
+            if (paste.sequenceChanged) {
+                keyframeEditor_.SetSelections(paste.selections);
+                shotEditor_.ClearSelection();
+                result.sequenceChanged = true;
+            }
+        }
+        if (shortcutContext && io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_D, false)) {
+            CameraTimelineKeyframeClipboard duplicate{};
+            if (duplicate.Copy(
+                    sequence,
+                    keyframeEditor_.GetSelections())) {
+                const float frameDuration = 1.0f /
+                    static_cast<float>(snapFramesPerSecond_);
+                const CameraTimelineClipboardPasteResult paste =
+                    duplicate.Paste(
+                        sequence,
+                        duplicate.GetSourceStartTimeSeconds() +
+                            frameDuration);
+                if (paste.sequenceChanged) {
+                    keyframeEditor_.SetSelections(paste.selections);
+                    shotEditor_.ClearSelection();
+                    result.sequenceChanged = true;
+                }
+            }
+        }
+        if (shortcutContext &&
+            (ImGui::IsKeyPressed(ImGuiKey_Delete, false) ||
+             ImGui::IsKeyPressed(ImGuiKey_Backspace, false))) {
+            result.sequenceChanged |=
+                keyframeEditor_.DeleteSelected(sequence);
+        }
+
         if (canvasHovered && editingAllowed &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
             !shotResult.capturedLeftClick &&
@@ -359,6 +414,10 @@ namespace HIKARI::EDITOR {
 
     bool CameraTimelineCanvas::HasSelectedKeyframe() const noexcept {
         return keyframeEditor_.HasSelection();
+    }
+
+    size_t CameraTimelineCanvas::GetSelectedKeyframeCount() const noexcept {
+        return keyframeEditor_.GetSelectionCount();
     }
 
     bool CameraTimelineCanvas::DeleteSelectedKeyframe(

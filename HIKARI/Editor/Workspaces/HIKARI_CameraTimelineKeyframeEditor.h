@@ -1,27 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
+#include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeDrag.h"
+#include "Editor/Workspaces/HIKARI_CameraTimelineSelection.h"
 #include "Scene/HIKARI_CinematicSequence.h"
 
 namespace HIKARI::EDITOR {
-
-    enum class CameraTimelineKeyframeKind : uint8_t {
-        None,
-        Transform,
-        Lens,
-    };
-
-    struct CameraTimelineKeyframeSelection {
-        CameraTimelineKeyframeKind kind = CameraTimelineKeyframeKind::None;
-        SEQUENCER::SequenceBindingId bindingId{};
-        uint64_t keyframeId = 0;
-
-        bool IsValid() const noexcept {
-            return kind != CameraTimelineKeyframeKind::None &&
-                bindingId.IsValid() && keyframeId != 0;
-        }
-    };
 
     struct CameraTimelineKeyframeLayout {
         float timelineLeft = 0.0f;
@@ -55,7 +41,14 @@ namespace HIKARI::EDITOR {
         void CancelInteraction();
         void ClearSelection();
         bool HasSelection() const noexcept;
+        size_t GetSelectionCount() const noexcept;
         CameraTimelineKeyframeSelection GetSelection() const noexcept;
+        const std::vector<CameraTimelineKeyframeSelection>& GetSelections()
+            const noexcept;
+        bool IsInteractionActive() const noexcept;
+        bool SelectAll(CinematicSequence& sequence);
+        void SetSelections(
+            const std::vector<CameraTimelineKeyframeSelection>& selections);
         bool DeleteSelected(CinematicSequence& sequence);
         bool DrawSelectedKeyInspector(
             CinematicSequence& sequence,
@@ -70,13 +63,13 @@ namespace HIKARI::EDITOR {
             uint64_t keyframeId) noexcept;
 
     private:
-        CameraTimelineKeyframeKind selectedKind_ =
-            CameraTimelineKeyframeKind::None;
-        SEQUENCER::SequenceBindingId selectedBindingId_{};
-        uint64_t selectedKeyframeId_ = 0;
-        float dragStartMouseX_ = 0.0f;
-        float dragStartTimeSeconds_ = 0.0f;
-        bool dragging_ = false;
+        CameraTimelineSelectionSet selection_{};
+        CameraTimelineKeyframeDragSession dragSession_{};
+        float marqueeStartX_ = 0.0f;
+        float marqueeStartY_ = 0.0f;
+        CameraTimelineSelectionOperation marqueeOperation_ =
+            CameraTimelineSelectionOperation::Replace;
+        bool marqueeActive_ = false;
     };
 
 } // namespace HIKARI::EDITOR

@@ -2,6 +2,8 @@
 
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
+#include "Editor/History/HIKARI_CinematicsHistoryCommand.h"
+#include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
@@ -74,6 +76,14 @@ namespace HIKARI {
                 ", failed " + std::to_string(report.failedCount);
         }
 
+        bool HasImpact(
+            EDITOR::EditorDocumentImpact value,
+            EDITOR::EditorDocumentImpact flag) noexcept {
+
+            return (static_cast<uint32_t>(value) &
+                static_cast<uint32_t>(flag)) != 0;
+        }
+
 #if defined(HIKARI_WITH_EDITOR)
         bool CanUseViewportShortcut(bool focused) {
             if (!focused) {
@@ -90,6 +100,17 @@ namespace HIKARI {
                 return false;
             }
             return true;
+        }
+
+        bool CouldMutateEditorDocumentThisFrame() {
+            const ImGuiIO& io = ImGui::GetIO();
+            return ImGui::IsAnyItemActive() || io.WantTextInput ||
+                io.KeyCtrl ||
+                ImGui::IsMouseDown(ImGuiMouseButton_Left) ||
+                ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+                ImGui::IsMouseReleased(ImGuiMouseButton_Left) ||
+                ImGui::IsKeyPressed(ImGuiKey_Delete, false) ||
+                ImGui::IsKeyPressed(ImGuiKey_Backspace, false);
         }
 
         void HandleTransformGizmoShortcuts(EditorTransformGizmoState& state, bool gameViewFocused) {
@@ -649,10 +670,135 @@ namespace HIKARI {
         EDITOR::RegisterBuiltInEditorTools(toolHost_);
     }
 
+    void DocumentSceneEditorController::SyncDocumentHistory(
+        DocumentSceneBase& scene) {
+
+        const bool dirty =
+            context_.sceneDirty || scene.HasUnsavedSceneChanges();
+        if (documentHistory_.SyncDocumentRevision(
+                scene.GetSceneDocumentRevision(),
+                dirty)) {
+            historyExternalDirty_ = dirty;
+            return;
+        }
+
+        if (!dirty && documentHistory_.IsDirty()) {
+            documentHistory_.MarkSaved();
+            historyExternalDirty_ = false;
+        }
+    }
+
+    void DocumentSceneEditorController::HandleGlobalDocumentShortcuts(
+        DocumentSceneBase& scene) {
+#if defined(HIKARI_WITH_EDITOR)
+        ImGuiIO& io = ImGui::GetIO();
+        if (!io.KeyCtrl) {
+            return;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+            SaveCurrentDocument(scene);
+            return;
+        }
+
+        if (io.WantTextInput || ImGui::IsAnyItemActive() ||
+            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
+            return;
+        }
+
+        const bool redo =
+            ImGui::IsKeyPressed(ImGuiKey_Y, false) ||
+            (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false));
+        if (redo) {
+            ExecuteDocumentHistory(scene, true);
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+            ExecuteDocumentHistory(scene, false);
+        }
+#else
+        (void)scene;
+#endif
+    }
+
+    void DocumentSceneEditorController::SaveCurrentDocument(
+        DocumentSceneBase& scene) {
+
+        scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
+        if (scene.SaveCurrentSceneDocument()) {
+            documentHistory_.MarkSaved();
+            historyExternalDirty_ = false;
+            context_.sceneDirty = false;
+            scene.SetUnsavedSceneChanges(false);
+            viewportDropMessage_ = "Scene saved";
+        } else {
+            viewportDropMessage_ =
+                "Save failed; save the scene as an asset first";
+        }
+    }
+
+    void DocumentSceneEditorController::ExecuteDocumentHistory(
+        DocumentSceneBase& scene,
+        bool redo) {
+
+        ApplyHistoryResult(
+            scene,
+            redo
+                ? documentHistory_.Redo(scene.GetSceneDocument())
+                : documentHistory_.Undo(scene.GetSceneDocument()),
+            redo);
+    }
+
+    void DocumentSceneEditorController::ApplyHistoryResult(
+        DocumentSceneBase& scene,
+        const EDITOR::EditorHistoryResult& result,
+        bool redo) {
+
+        if (!result.changed) {
+            viewportDropMessage_ = redo
+                ? "Nothing to redo"
+                : "Nothing to undo";
+            return;
+        }
+        if (HasImpact(
+                result.impact,
+                EDITOR::EditorDocumentImpact::Cinematics)) {
+            cinematicsWorkspaceController_.OnCinematicsDocumentRestored(
+                scene,
+                workspaceHost_);
+        }
+
+        const bool dirty =
+            historyExternalDirty_ || documentHistory_.IsDirty();
+        context_.sceneDirty = dirty;
+        scene.SetUnsavedSceneChanges(dirty);
+        viewportDropMessage_ = std::string(redo ? "Redo: " : "Undo: ") +
+            result.label;
+    }
+
+    void DocumentSceneEditorController::RecordCinematicsHistory(
+        DocumentSceneBase& scene,
+        SceneCinematicsSettings before,
+        uint64_t mergeGroup,
+        bool externalDirtyBefore) {
+
+        historyExternalDirty_ |= externalDirtyBefore;
+        documentHistory_.RecordApplied(
+            EDITOR::MakeCinematicsHistoryCommand(
+                "Edit Camera Timeline",
+                std::move(before),
+                scene.GetSceneDocument().cinematics),
+            mergeGroup);
+        context_.sceneDirty = true;
+        scene.SetUnsavedSceneChanges(true);
+    }
+
     void DocumentSceneEditorController::Draw(
         DocumentSceneBase& scene,
         EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
+        SyncDocumentHistory(scene);
+        HandleGlobalDocumentShortcuts(scene);
         if (!IsObjectAlive(scene.GetWorld(), context_.selection.selectedObject)) {
             context_.selection.selectedObject = nullptr;
             context_.selection.selectedAsset = nullptr;
@@ -674,13 +820,30 @@ namespace HIKARI {
         scene.SetViewportDebugViewState(context_.viewportDebug);
 
         bool resetDockingLayoutRequested = false;
+        EDITOR::EditorDocumentMenuState documentMenu{};
+        documentMenu.canUndo = documentHistory_.CanUndo();
+        documentMenu.canRedo = documentHistory_.CanRedo();
+        if (const std::string* label = documentHistory_.GetUndoLabel()) {
+            documentMenu.undoLabel = *label;
+        }
+        if (const std::string* label = documentHistory_.GetRedoLabel()) {
+            documentMenu.redoLabel = *label;
+        }
         debugMenuBar_.Draw(
             context_.windows,
             toolHost_,
             workspaceHost_,
             scene.GetDebugCamera(),
             scene.GetEnvironmentLightingEnabled(),
-            resetDockingLayoutRequested);
+            resetDockingLayoutRequested,
+            documentMenu);
+        if (documentMenu.saveRequested) {
+            SaveCurrentDocument(scene);
+        } else if (documentMenu.redoRequested) {
+            ExecuteDocumentHistory(scene, true);
+        } else if (documentMenu.undoRequested) {
+            ExecuteDocumentHistory(scene, false);
+        }
 
         if (resetDockingLayoutRequested) {
             workspaceHost_.RequestResetActiveLayout();
@@ -695,6 +858,14 @@ namespace HIKARI {
         }
 
         if (workspaceHost_.IsActive(EDITOR::EditorWorkspaceId::Cinematics)) {
+            const bool externalDirtyBefore =
+                historyExternalDirty_ ||
+                ((context_.sceneDirty || scene.HasUnsavedSceneChanges()) &&
+                    !documentHistory_.IsDirty());
+            std::optional<SceneCinematicsSettings> cinematicsBefore{};
+            if (CouldMutateEditorDocumentThisFrame()) {
+                cinematicsBefore = scene.GetSceneDocument().cinematics;
+            }
             cinematicsWorkspaceController_.DrawDockSpace(
                 workspaceHost_.ConsumeReset(
                     EDITOR::EditorWorkspaceId::Cinematics));
@@ -705,6 +876,15 @@ namespace HIKARI {
                     context_,
                     selectionSync_,
                     workspaceHost_);
+            if (result.cinematicsChanged && cinematicsBefore) {
+                RecordCinematicsHistory(
+                    scene,
+                    std::move(*cinematicsBefore),
+                    result.timelineEditMergeId,
+                    externalDirtyBefore);
+            } else if (result.timelineEditMergeId == 0) {
+                documentHistory_.SealMerge();
+            }
             if (result.toggleGamePreviewRequested) {
                 ToggleGamePreview(scene, playSession);
             }

@@ -1,6 +1,7 @@
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeInspector.h"
 
 #include <cmath>
+#include <optional>
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -36,7 +37,8 @@ namespace HIKARI::EDITOR {
                     const char* label,
                     SEQUENCER::SequenceInterpolationMode optionMode) {
 
-                    if (ImGui::Selectable(label, mode == optionMode)) {
+                    if (ImGui::Selectable(label, mode == optionMode) &&
+                        mode != optionMode) {
                         mode = optionMode;
                         changed = true;
                     }
@@ -64,6 +66,111 @@ namespace HIKARI::EDITOR {
             }
             return std::round(timeSeconds * snapFramesPerSecond) /
                 snapFramesPerSecond;
+        }
+
+        bool DrawMultiInterpolation(
+            CinematicSequence& sequence,
+            const std::vector<CameraTimelineKeyframeSelection>& selections) {
+
+            std::optional<SEQUENCER::SequenceInterpolationMode> commonMode{};
+            bool mixed = false;
+            size_t validCount = 0;
+            for (const CameraTimelineKeyframeSelection& selection :
+                    selections) {
+                SEQUENCER::SequenceInterpolationMode* mode = nullptr;
+                if (selection.kind ==
+                        CameraTimelineKeyframeKind::Transform) {
+                    if (SEQUENCER::CameraTransformKeyframe* keyframe =
+                            SEQUENCER::FindCameraTransformKeyframe(
+                                sequence.cameraTransformTrack,
+                                selection.bindingId,
+                                selection.keyframeId)) {
+                        mode = &keyframe->interpolation;
+                    }
+                } else if (selection.kind ==
+                        CameraTimelineKeyframeKind::Lens) {
+                    if (SEQUENCER::CameraLensKeyframe* keyframe =
+                            SEQUENCER::FindCameraLensKeyframe(
+                                sequence.cameraLensTrack,
+                                selection.bindingId,
+                                selection.keyframeId)) {
+                        mode = &keyframe->interpolation;
+                    }
+                }
+                if (mode == nullptr) {
+                    continue;
+                }
+                ++validCount;
+                if (!commonMode) {
+                    commonMode = *mode;
+                } else if (*commonMode != *mode) {
+                    mixed = true;
+                }
+            }
+            if (validCount == 0) {
+                return false;
+            }
+
+            ImGui::TextDisabled("%zu Keys", validCount);
+            ImGui::SameLine();
+            ImGui::TextDisabled("Interpolation");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(92.0f);
+            const char* preview = mixed || !commonMode
+                ? "Mixed"
+                : InterpolationLabel(*commonMode);
+            bool changed = false;
+            if (ImGui::BeginCombo(
+                    "##CameraMultiKeyInterpolation",
+                    preview)) {
+                const auto option = [&](
+                    const char* label,
+                    SEQUENCER::SequenceInterpolationMode optionMode) {
+
+                    const bool selected = !mixed && commonMode &&
+                        *commonMode == optionMode;
+                    if (!ImGui::Selectable(label, selected)) {
+                        return;
+                    }
+                    for (const CameraTimelineKeyframeSelection& selection :
+                            selections) {
+                        if (selection.kind ==
+                                CameraTimelineKeyframeKind::Transform) {
+                            if (auto* keyframe =
+                                    SEQUENCER::FindCameraTransformKeyframe(
+                                        sequence.cameraTransformTrack,
+                                        selection.bindingId,
+                                        selection.keyframeId)) {
+                                if (keyframe->interpolation != optionMode) {
+                                    keyframe->interpolation = optionMode;
+                                    changed = true;
+                                }
+                            }
+                        } else if (selection.kind ==
+                                CameraTimelineKeyframeKind::Lens) {
+                            if (auto* keyframe =
+                                    SEQUENCER::FindCameraLensKeyframe(
+                                        sequence.cameraLensTrack,
+                                        selection.bindingId,
+                                        selection.keyframeId)) {
+                                if (keyframe->interpolation != optionMode) {
+                                    keyframe->interpolation = optionMode;
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                };
+                option("Hold", SEQUENCER::SequenceInterpolationMode::Hold);
+                option(
+                    "Linear",
+                    SEQUENCER::SequenceInterpolationMode::Linear);
+                option(
+                    "Smooth",
+                    SEQUENCER::SequenceInterpolationMode::Smooth);
+                ImGui::EndCombo();
+            }
+            return changed;
         }
 #endif
     }
@@ -210,6 +317,46 @@ namespace HIKARI::EDITOR {
 #else
         (void)sequence;
         (void)selection;
+        (void)editingAllowed;
+        (void)snapEnabled;
+        (void)snapFramesPerSecond;
+#endif
+        return changed;
+    }
+
+    bool DrawCameraTimelineKeyframeInspector(
+        CinematicSequence& sequence,
+        const std::vector<CameraTimelineKeyframeSelection>& selections,
+        bool editingAllowed,
+        bool snapEnabled,
+        float snapFramesPerSecond) {
+
+        if (selections.empty()) {
+            return false;
+        }
+        if (selections.size() == 1) {
+            return DrawCameraTimelineKeyframeInspector(
+                sequence,
+                selections.front(),
+                editingAllowed,
+                snapEnabled,
+                snapFramesPerSecond);
+        }
+
+        bool changed = false;
+#if defined(HIKARI_WITH_EDITOR)
+        if (!editingAllowed) {
+            ImGui::BeginDisabled();
+        }
+        changed = DrawMultiInterpolation(sequence, selections);
+        if (changed) {
+            NormalizeCinematicSequence(sequence);
+        }
+        if (!editingAllowed) {
+            ImGui::EndDisabled();
+        }
+#else
+        (void)sequence;
         (void)editingAllowed;
         (void)snapEnabled;
         (void)snapFramesPerSecond;
