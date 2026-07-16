@@ -66,6 +66,7 @@ namespace HIKARI {
                     binding.sceneObjectId.value =
                         objectIt->get<uint64_t>();
                 }
+                binding.required = bindingNode.value("required", true);
                 bindings.push_back(std::move(binding));
             }
             SEQUENCER::NormalizeSequenceBindings(bindings);
@@ -218,6 +219,7 @@ namespace HIKARI {
             json output = {
                 { "id", binding.id.value },
                 { "name", binding.name },
+                { "required", binding.required },
                 { "targetKind", binding.targetKind ==
                         SEQUENCER::SequenceBindingTargetKind::Slot
                     ? "slot"

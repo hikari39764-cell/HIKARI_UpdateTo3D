@@ -42,8 +42,10 @@
 #include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
+#include "Scene/Components/HIKARI_SequencePlayerComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Sequencer/Drivers/HIKARI_CameraSequenceTrackDriver.h"
+#include "Scene/Sequencer/Runtime/HIKARI_SequencePlayerSystem.h"
 #include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
 #include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/Runtime/HIKARI_VfxAsset.h"
@@ -1316,7 +1318,7 @@ namespace HIKARI {
                 startTimeSeconds,
                 "Camera.Sequence",
                 0,
-                true);
+                SEQUENCER::SequenceChannelPolicy::Replace);
         return currentCameraSequenceHandle_;
     }
     bool DocumentSceneBase::StopCameraSequence(
@@ -1359,6 +1361,22 @@ namespace HIKARI {
             ? sequencePlaybackService_.Play(request)
             : SEQUENCER::SequencePlaybackHandle{};
     }
+    SEQUENCER::SequencePlayResult
+        DocumentSceneBase::PlaySequenceDetailed(
+            const SEQUENCER::SequencePlayRequest& request) {
+
+        if (!runtimePlayActive_) {
+            SEQUENCER::SequencePlayResult result{};
+            result.diagnostics.push_back({
+                SEQUENCER::SequenceDiagnosticSeverity::Error,
+                "RuntimePlayInactive",
+                {},
+                "Sequence playback requires an active runtime Play session"
+            });
+            return result;
+        }
+        return sequencePlaybackService_.PlayDetailed(request);
+    }
     bool DocumentSceneBase::StopSequence(
         SEQUENCER::SequencePlaybackHandle handle) {
 
@@ -1391,6 +1409,19 @@ namespace HIKARI {
         SEQUENCER::SequencePlaybackHandle handle) const noexcept {
 
         return sequencePlaybackService_.IsPlaying(handle);
+    }
+    bool DocumentSceneBase::IsSequenceActive(
+        SEQUENCER::SequencePlaybackHandle handle) const noexcept {
+
+        return sequencePlaybackService_.IsActive(handle);
+    }
+    bool DocumentSceneBase::TryGetSequencePlaybackSnapshot(
+        SEQUENCER::SequencePlaybackHandle handle,
+        SEQUENCER::SequencePlaybackSnapshot& outSnapshot) const noexcept {
+
+        return sequencePlaybackService_.TryGetSnapshot(
+            handle,
+            outSnapshot);
     }
     std::vector<SEQUENCER::SequencePlaybackEvent>
         DocumentSceneBase::ConsumeSequencePlaybackEvents() {
@@ -2697,6 +2728,32 @@ namespace HIKARI {
             }
         }
 
+        const bool hasSequencePlayerComponent = std::any_of(
+            sceneDocument_.objects.begin(),
+            sceneDocument_.objects.end(),
+            [](const SceneObjectData& object) {
+                return std::any_of(
+                    object.components.begin(),
+                    object.components.end(),
+                    [](const SceneComponentData& component) {
+                        return component.type ==
+                            "SequencePlayerComponent";
+                    });
+            });
+        if (hasSequencePlayerComponent &&
+            !systemScheduler_.HasSystem("SequencePlayerSystem")) {
+            if (!systemScheduler_.AddSystem(
+                    "SequencePlayerSystem",
+                    170,
+                    std::make_unique<SequencePlayerSystem>(
+                        sequencePlaybackService_,
+                        runtimePlayActive_))) {
+                HIKARI_LOG_ERROR(
+                    "[SceneSystem] SequencePlayerSystem could not be attached");
+                fullyConfigured = false;
+            }
+        }
+
         std::ostringstream schedule;
         const std::vector<std::string> order = systemScheduler_.GetExecutionOrder();
         for (size_t i = 0; i < order.size(); ++i) {
@@ -2807,6 +2864,36 @@ namespace HIKARI {
                     properties["lookAtOffset"] = nlohmann::json::array({ 0.0f, 1.2f, 0.0f });
                     properties["followSmooth"] = 10.0f;
                     properties["lookSmooth"] = 12.0f;
+                }
+            });
+        }
+
+        if (!componentRegistry_.Find("SequencePlayerComponent")) {
+            componentRegistry_.Register(ComponentTypeInfo{
+                "SequencePlayerComponent",
+                []() -> std::unique_ptr<IComponent> {
+                    return std::make_unique<SequencePlayerComponent>();
+                },
+                {},
+                {},
+                {},
+                false,
+                [](const SceneObjectData&,
+                    nlohmann::json& properties) {
+                    properties["enabled"] = true;
+                    properties["sequenceAssetGuid"] = "";
+                    properties["playOnStart"] = false;
+                    properties["loop"] = false;
+                    properties["playbackRate"] = 1.0f;
+                    properties["startTimeSeconds"] = 0.0f;
+                    properties["channel"] = "Cinematics";
+                    properties["priority"] = 0;
+                    properties["channelPolicy"] =
+                        "ReplaceIfHigherOrEqual";
+                    properties["stopOnDisable"] = true;
+                    properties["restartIfPlaying"] = true;
+                    properties["ownerSlotName"] = "Owner";
+                    properties["bindings"] = nlohmann::json::array();
                 }
             });
         }

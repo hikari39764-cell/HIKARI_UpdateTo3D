@@ -17,6 +17,8 @@ namespace HIKARI::SEQUENCER {
 
         SequencePlaybackHandle Play(
             const SequencePlayRequest& request);
+        SequencePlayResult PlayDetailed(
+            const SequencePlayRequest& request);
         SequencePlaybackHandle PlayInline(
             const CinematicSequence& sequence,
             const SequenceBindingContext& bindings = {},
@@ -24,8 +26,11 @@ namespace HIKARI::SEQUENCER {
             float startTimeSeconds = 0.0f,
             std::string channel = {},
             int priority = 0,
-            bool replaceChannel = true);
-        bool Stop(SequencePlaybackHandle handle);
+            SequenceChannelPolicy channelPolicy =
+                SequenceChannelPolicy::ReplaceIfHigherOrEqual);
+        bool Stop(
+            SequencePlaybackHandle handle,
+            SequenceStopReason reason = SequenceStopReason::Stopped);
         bool Pause(SequencePlaybackHandle handle);
         bool Resume(SequencePlaybackHandle handle);
         bool Seek(SequencePlaybackHandle handle, float timeSeconds);
@@ -36,7 +41,11 @@ namespace HIKARI::SEQUENCER {
 
         bool IsPlaying(SequencePlaybackHandle handle) const noexcept;
         bool IsPaused(SequencePlaybackHandle handle) const noexcept;
+        bool IsActive(SequencePlaybackHandle handle) const noexcept;
         float GetTimeSeconds(SequencePlaybackHandle handle) const noexcept;
+        bool TryGetSnapshot(
+            SequencePlaybackHandle handle,
+            SequencePlaybackSnapshot& outSnapshot) const noexcept;
         size_t GetActiveInstanceCount() const noexcept;
         std::vector<SequencePlaybackEvent> ConsumeEvents();
 
@@ -51,10 +60,17 @@ namespace HIKARI::SEQUENCER {
             uint64_t requestId = 0;
         };
 
-        SequencePlaybackHandle PlayLoaded(
+        SequencePlayResult PlayLoaded(
             std::shared_ptr<const SequenceAsset> asset,
             const SequencePlayRequest& request,
             uint64_t requestId);
+        bool ValidateBindings(
+            const SequencePlaybackInstanceView& instance,
+            std::vector<SequencePlaybackDiagnostic>& diagnostics) const;
+        bool ResolveChannelConflict(
+            const SequencePlayRequest& request,
+            uint64_t requestId,
+            std::vector<SequencePlaybackDiagnostic>& diagnostics);
         bool StopInternal(
             SequencePlaybackHandle handle,
             SequenceStopReason reason,

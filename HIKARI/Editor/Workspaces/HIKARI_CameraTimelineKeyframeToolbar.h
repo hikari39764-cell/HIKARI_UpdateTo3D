@@ -16,6 +16,8 @@ namespace HIKARI::EDITOR {
         SceneObjectId selectedCameraObjectId,
         float playheadTimeSeconds,
         bool editingAllowed,
+        bool portableAsset,
+        SEQUENCER::SequenceBindingContext* previewBindings,
         CameraTimelineCanvas& canvas);
 
 } // namespace HIKARI::EDITOR

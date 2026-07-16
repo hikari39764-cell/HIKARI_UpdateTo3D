@@ -65,6 +65,21 @@ namespace HIKARI::RUNTIME_TOOLS {
                 context_ = context;
             }
 
+            const InspectorContext& GetContext() const noexcept override {
+                return context_;
+            }
+
+            void Text(std::string_view text) override {
+                ImGui::TextWrapped(
+                    "%.*s",
+                    static_cast<int>(text.size()),
+                    text.data());
+            }
+
+            bool Button(std::string_view label) override {
+                return ImGui::Button(std::string(label).c_str());
+            }
+
             bool Bool(std::string_view label, bool& value) override {
                 return ImGui::Checkbox(std::string(label).c_str(), &value);
             }
@@ -86,6 +101,35 @@ namespace HIKARI::RUNTIME_TOOLS {
                 }
                 value = buffer.data();
                 return true;
+            }
+
+            bool Choice(
+                std::string_view label,
+                int& selectedIndex,
+                std::span<const char* const> choices) override {
+
+                if (choices.empty()) {
+                    return false;
+                }
+                selectedIndex = std::clamp(
+                    selectedIndex,
+                    0,
+                    static_cast<int>(choices.size() - 1));
+                bool changed = false;
+                if (ImGui::BeginCombo(
+                        std::string(label).c_str(),
+                        choices[static_cast<size_t>(selectedIndex)])) {
+                    for (size_t index = 0; index < choices.size(); ++index) {
+                        const bool selected = static_cast<int>(index) ==
+                            selectedIndex;
+                        if (ImGui::Selectable(choices[index], selected)) {
+                            selectedIndex = static_cast<int>(index);
+                            changed = true;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                return changed;
             }
 
             bool Vec2(std::string_view label, float& x, float& y) override {
@@ -213,6 +257,21 @@ namespace HIKARI::RUNTIME_TOOLS {
                     ImGui::EndCombo();
                 }
                 return changed;
+            }
+
+            bool SceneObjectIdPicker(
+                std::string_view label,
+                SceneObjectId& value) override {
+
+                uint64_t rawValue = value.value;
+                if (!ImGui::InputScalar(
+                        std::string(label).c_str(),
+                        ImGuiDataType_U64,
+                        &rawValue)) {
+                    return false;
+                }
+                value.value = rawValue;
+                return true;
             }
 
         private:

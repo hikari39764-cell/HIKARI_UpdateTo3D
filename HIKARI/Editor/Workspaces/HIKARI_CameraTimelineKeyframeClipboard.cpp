@@ -6,6 +6,26 @@
 
 namespace HIKARI::EDITOR {
 
+    namespace {
+        SEQUENCER::SequenceBindingId ResolveClipboardBinding(
+            CinematicSequence& sequence,
+            SEQUENCER::SequenceBindingTargetKind targetKind,
+            SceneObjectId cameraObjectId,
+            const std::string& bindingName,
+            const std::string& slotName) {
+
+            return targetKind == SEQUENCER::SequenceBindingTargetKind::Slot
+                ? SEQUENCER::FindOrCreateSlotBinding(
+                    sequence.bindings,
+                    slotName,
+                    bindingName)
+                : SEQUENCER::FindOrCreateSceneObjectBinding(
+                    sequence.bindings,
+                    cameraObjectId,
+                    bindingName);
+        }
+    }
+
     bool CameraTimelineKeyframeClipboard::Copy(
         const CinematicSequence& sequence,
         const std::vector<CameraTimelineKeyframeSelection>& selections) {
@@ -63,7 +83,7 @@ namespace HIKARI::EDITOR {
                 SEQUENCER::FindSequenceBinding(
                     sequence.bindings,
                     selection.bindingId);
-            if (binding == nullptr || binding->sceneObjectId.value == 0) {
+            if (binding == nullptr) {
                 continue;
             }
             if (selection.kind == CameraTimelineKeyframeKind::Transform) {
@@ -82,8 +102,10 @@ namespace HIKARI::EDITOR {
                     });
                 if (found != channel->keyframes.end()) {
                     transforms_.push_back({
+                        binding->targetKind,
                         binding->sceneObjectId,
                         binding->name,
+                        binding->slotName,
                         found->timeSeconds - firstTime,
                         found->position,
                         found->rotationEulerDeg,
@@ -107,8 +129,10 @@ namespace HIKARI::EDITOR {
                     });
                 if (found != channel->keyframes.end()) {
                     lenses_.push_back({
+                        binding->targetKind,
                         binding->sceneObjectId,
                         binding->name,
+                        binding->slotName,
                         found->timeSeconds - firstTime,
                         found->verticalFovDegrees,
                         found->nearClip,
@@ -138,10 +162,12 @@ namespace HIKARI::EDITOR {
 
         for (const TransformPayload& payload : transforms_) {
             const SEQUENCER::SequenceBindingId bindingId =
-                SEQUENCER::FindOrCreateSceneObjectBinding(
-                    sequence.bindings,
+                ResolveClipboardBinding(
+                    sequence,
+                    payload.bindingTargetKind,
                     payload.cameraObjectId,
-                    payload.bindingName);
+                    payload.bindingName,
+                    payload.slotName);
             const float timeSeconds = std::clamp(
                 safeAnchor + payload.timeOffsetSeconds,
                 0.0f,
@@ -170,10 +196,12 @@ namespace HIKARI::EDITOR {
         }
         for (const LensPayload& payload : lenses_) {
             const SEQUENCER::SequenceBindingId bindingId =
-                SEQUENCER::FindOrCreateSceneObjectBinding(
-                    sequence.bindings,
+                ResolveClipboardBinding(
+                    sequence,
+                    payload.bindingTargetKind,
                     payload.cameraObjectId,
-                    payload.bindingName);
+                    payload.bindingName,
+                    payload.slotName);
             const float timeSeconds = std::clamp(
                 safeAnchor + payload.timeOffsetSeconds,
                 0.0f,

@@ -288,6 +288,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp" />
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequence.cpp" />
@@ -296,6 +297,7 @@
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.cpp" />
+    <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlayerSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.cpp" />
@@ -449,6 +451,7 @@
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.cpp" />
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
@@ -803,6 +806,7 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequence.h" />
@@ -812,6 +816,7 @@
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlayerSystem.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackTypes.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequenceTrackDriver.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.h" />
@@ -883,6 +888,7 @@
     <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.h" />
     <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />

@@ -22,6 +22,10 @@ namespace SEQUENCER {
         std::string_view GetDriverId() const noexcept override;
         void OnSequenceStarted(
             const SequencePlaybackInstanceView& instance) override;
+        void Validate(
+            const SequencePlaybackInstanceView& instance,
+            std::vector<SequencePlaybackDiagnostic>& diagnostics)
+            const override;
         void Evaluate(
             const SequencePlaybackInstanceView& instance,
             const SequenceEvaluationContext& context) override;

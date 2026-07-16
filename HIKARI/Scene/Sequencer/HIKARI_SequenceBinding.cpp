@@ -216,6 +216,36 @@ namespace HIKARI::SEQUENCER {
         return true;
     }
 
+    bool SequenceBindingContext::Unbind(
+        SequenceBindingId bindingId) noexcept {
+
+        const size_t oldSize = overrides_.size();
+        overrides_.erase(
+            std::remove_if(
+                overrides_.begin(),
+                overrides_.end(),
+                [bindingId](const SequenceBindingOverride& overrideValue) {
+                    return overrideValue.bindingId == bindingId;
+                }),
+            overrides_.end());
+        return overrides_.size() != oldSize;
+    }
+
+    bool SequenceBindingContext::UnbindSlot(
+        std::string_view slotName) noexcept {
+
+        const size_t oldSize = overrides_.size();
+        overrides_.erase(
+            std::remove_if(
+                overrides_.begin(),
+                overrides_.end(),
+                [slotName](const SequenceBindingOverride& overrideValue) {
+                    return overrideValue.slotName == slotName;
+                }),
+            overrides_.end());
+        return overrides_.size() != oldSize;
+    }
+
     bool SequenceBindingContext::Resolve(
         const SequenceBindingTable& bindings,
         SequenceBindingId bindingId,

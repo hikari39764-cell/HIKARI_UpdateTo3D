@@ -27,16 +27,19 @@ namespace HIKARI::EDITOR {
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds);
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId = {});
     CameraKeyframeCaptureResult CaptureCameraLensKeyframe(
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds);
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId = {});
     CameraKeyframeCaptureResult CaptureCameraKeyframe(
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds);
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId = {});
 
 } // namespace HIKARI::EDITOR

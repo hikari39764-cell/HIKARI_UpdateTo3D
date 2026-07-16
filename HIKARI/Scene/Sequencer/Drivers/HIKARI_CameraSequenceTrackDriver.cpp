@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <limits>
+#include <unordered_set>
 
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Scene/HIKARI_CinematicSequence.h"
+#include "Scene/Components/HIKARI_CameraComponent.h"
+#include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI::SEQUENCER {
@@ -57,6 +60,60 @@ namespace HIKARI::SEQUENCER {
             return;
         }
         states_.push_back({ instance.handle });
+    }
+
+    void CameraSequenceTrackDriver::Validate(
+        const SequencePlaybackInstanceView& instance,
+        std::vector<SequencePlaybackDiagnostic>& diagnostics) const {
+
+        if (instance.asset == nullptr || instance.bindings == nullptr ||
+            !instance.asset->sequence.cameraCutTrack.enabled) {
+            return;
+        }
+        std::unordered_set<uint64_t> validatedBindings{};
+        for (const CameraCutClip& clip :
+                instance.asset->sequence.cameraCutTrack.clips) {
+            if (!clip.cameraBindingId.IsValid() ||
+                !validatedBindings.insert(
+                    clip.cameraBindingId.value).second) {
+                continue;
+            }
+            SceneObjectId cameraObjectId{};
+            if (!instance.bindings->Resolve(
+                    instance.asset->sequence.bindings,
+                    clip.cameraBindingId,
+                    cameraObjectId)) {
+                continue;
+            }
+            const GameObject* cameraObject = nullptr;
+            for (const auto& object : world_.GetObjects()) {
+                if (object && object->GetDocumentId() == cameraObjectId) {
+                    cameraObject = object.get();
+                    break;
+                }
+            }
+            const CameraComponent* camera = cameraObject
+                ? cameraObject->GetComponent<CameraComponent>()
+                : nullptr;
+            if (camera != nullptr && camera->IsEnabled()) {
+                continue;
+            }
+            const SequenceBinding* binding = FindSequenceBinding(
+                instance.asset->sequence.bindings,
+                clip.cameraBindingId);
+            diagnostics.push_back({
+                SequenceDiagnosticSeverity::Error,
+                cameraObject == nullptr
+                    ? "CameraBindingObjectMissing"
+                    : "CameraBindingComponentMissing",
+                "Camera",
+                cameraObject == nullptr
+                    ? "Camera binding resolves to an object that is not in the active scene"
+                    : "Camera binding target has no enabled CameraComponent",
+                clip.cameraBindingId,
+                binding != nullptr ? binding->slotName : std::string{}
+            });
+        }
     }
 
     void CameraSequenceTrackDriver::Evaluate(

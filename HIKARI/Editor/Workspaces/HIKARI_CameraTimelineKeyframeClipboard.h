@@ -29,8 +29,11 @@ namespace HIKARI::EDITOR {
 
     private:
         struct TransformPayload {
+            SEQUENCER::SequenceBindingTargetKind bindingTargetKind =
+                SEQUENCER::SequenceBindingTargetKind::SceneObject;
             SceneObjectId cameraObjectId{};
             std::string bindingName{};
+            std::string slotName{};
             float timeOffsetSeconds = 0.0f;
             MATH::Vec3 position{};
             MATH::Vec3 rotationEulerDeg{};
@@ -39,8 +42,11 @@ namespace HIKARI::EDITOR {
         };
 
         struct LensPayload {
+            SEQUENCER::SequenceBindingTargetKind bindingTargetKind =
+                SEQUENCER::SequenceBindingTargetKind::SceneObject;
             SceneObjectId cameraObjectId{};
             std::string bindingName{};
+            std::string slotName{};
             float timeOffsetSeconds = 0.0f;
             float verticalFovDegrees = 60.0f;
             float nearClip = 0.1f;

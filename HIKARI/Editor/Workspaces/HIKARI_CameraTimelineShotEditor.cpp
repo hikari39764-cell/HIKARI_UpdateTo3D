@@ -42,14 +42,31 @@ namespace HIKARI::EDITOR {
         const char* CameraLabel(
             const SceneDocument& document,
             const CinematicSequence& sequence,
+            const SEQUENCER::SequenceBindingContext* previewBindings,
             SEQUENCER::SequenceBindingId cameraBindingId) {
 
             SceneObjectId cameraObjectId{};
-            if (!SEQUENCER::ResolveSceneObjectBinding(
+            const bool resolved = previewBindings != nullptr
+                ? SEQUENCER::ResolveSceneObjectBinding(
                     sequence.bindings,
                     cameraBindingId,
-                    cameraObjectId)) {
-                return "Unbound Camera";
+                    *previewBindings,
+                    cameraObjectId)
+                : SEQUENCER::ResolveSceneObjectBinding(
+                    sequence.bindings,
+                    cameraBindingId,
+                    cameraObjectId);
+            if (!resolved) {
+                const SEQUENCER::SequenceBinding* binding =
+                    SEQUENCER::FindSequenceBinding(
+                        sequence.bindings,
+                        cameraBindingId);
+                return binding != nullptr &&
+                        binding->targetKind ==
+                            SEQUENCER::SequenceBindingTargetKind::Slot &&
+                        !binding->slotName.empty()
+                    ? binding->slotName.c_str()
+                    : "Unbound Camera";
             }
             const auto found = std::find_if(
                 document.objects.begin(),
@@ -87,6 +104,7 @@ namespace HIKARI::EDITOR {
     CameraTimelineShotEditorResult CameraTimelineShotEditor::Draw(
         const SceneDocument& document,
         CinematicSequence& sequence,
+        const SEQUENCER::SequenceBindingContext* previewBindings,
         const CameraTimelineShotLayout& layout) {
 
         CameraTimelineShotEditorResult result{};
@@ -153,7 +171,11 @@ namespace HIKARI::EDITOR {
             drawList.AddText(
                 ImVec2(shotMin.x + 8.0f, shotMin.y + 9.0f),
                 IM_COL32(244, 247, 251, 255),
-                CameraLabel(document, sequence, shot.cameraBindingId));
+                CameraLabel(
+                    document,
+                    sequence,
+                    previewBindings,
+                    shot.cameraBindingId));
             drawList.PopClipRect();
 
             if (mousePosition.x >= shotMin.x &&
@@ -255,6 +277,7 @@ namespace HIKARI::EDITOR {
                     CameraLabel(
                         document,
                         sequence,
+                        previewBindings,
                         hoveredShot->cameraBindingId),
                     hoveredShot->startTimeSeconds,
                     hoveredShot->durationSeconds,
@@ -265,6 +288,7 @@ namespace HIKARI::EDITOR {
                     CameraLabel(
                         document,
                         sequence,
+                        previewBindings,
                         hoveredShot->cameraBindingId),
                     hoveredShot->startTimeSeconds,
                     hoveredShot->durationSeconds);
@@ -273,6 +297,7 @@ namespace HIKARI::EDITOR {
 #else
         (void)document;
         (void)sequence;
+        (void)previewBindings;
         (void)layout;
 #endif
         return result;

@@ -41,16 +41,40 @@ namespace HIKARI::SEQUENCER {
     SequencePlaybackHandle SequencePlaybackService::Play(
         const SequencePlayRequest& request) {
 
+        return PlayDetailed(request).handle;
+    }
+
+    SequencePlayResult SequencePlaybackService::PlayDetailed(
+        const SequencePlayRequest& request) {
+
         if (assetStore_ == nullptr || !request.assetGuid.IsValid()) {
-            PushRejected(0, request.assetGuid, "Invalid sequence asset request");
-            return {};
+            const std::string message = "Invalid sequence asset request";
+            PushRejected(0, request.assetGuid, message);
+            return {
+                {},
+                { SequencePlaybackDiagnostic{
+                    SequenceDiagnosticSeverity::Error,
+                    "InvalidAssetRequest",
+                    {},
+                    message } }
+            };
         }
         std::string error{};
         std::shared_ptr<const SequenceAsset> asset =
             assetStore_->Load(request.assetGuid, &error);
         if (!asset) {
-            PushRejected(0, request.assetGuid, std::move(error));
-            return {};
+            if (error.empty()) {
+                error = "Sequence asset could not be loaded";
+            }
+            PushRejected(0, request.assetGuid, error);
+            return {
+                {},
+                { SequencePlaybackDiagnostic{
+                    SequenceDiagnosticSeverity::Error,
+                    "AssetLoadFailed",
+                    {},
+                    std::move(error) } }
+            };
         }
         return PlayLoaded(std::move(asset), request, 0);
     }
@@ -62,7 +86,7 @@ namespace HIKARI::SEQUENCER {
         float startTimeSeconds,
         std::string channel,
         int priority,
-        bool replaceChannel) {
+        SequenceChannelPolicy channelPolicy) {
 
         auto asset = std::make_shared<SequenceAsset>();
         asset->displayName = sequence.name;
@@ -74,28 +98,26 @@ namespace HIKARI::SEQUENCER {
         request.startTimeSeconds = startTimeSeconds;
         request.channel = std::move(channel);
         request.priority = priority;
-        request.replaceChannel = replaceChannel;
-        return PlayLoaded(std::move(asset), request, 0);
+        request.channelPolicy = channelPolicy;
+        return PlayLoaded(std::move(asset), request, 0).handle;
     }
 
-    SequencePlaybackHandle SequencePlaybackService::PlayLoaded(
+    SequencePlayResult SequencePlaybackService::PlayLoaded(
         std::shared_ptr<const SequenceAsset> asset,
         const SequencePlayRequest& request,
         uint64_t requestId) {
 
         if (!asset) {
-            PushRejected(requestId, request.assetGuid, "Sequence asset is null");
-            return {};
-        }
-        if (request.replaceChannel && !request.channel.empty()) {
-            for (size_t index = instances_.size(); index-- > 0;) {
-                if (instances_[index].channel == request.channel) {
-                    StopInstanceAt(
-                        index,
-                        SequenceStopReason::Replaced,
-                        requestId);
-                }
-            }
+            const std::string message = "Sequence asset is null";
+            PushRejected(requestId, request.assetGuid, message);
+            return {
+                {},
+                { SequencePlaybackDiagnostic{
+                    SequenceDiagnosticSeverity::Error,
+                    "NullAsset",
+                    {},
+                    message } }
+            };
         }
 
         Instance instance{};
@@ -108,15 +130,33 @@ namespace HIKARI::SEQUENCER {
         instance.channel = request.channel;
         instance.priority = request.priority;
         instance.requestId = requestId;
+        SequencePlayResult result{};
+        const SequencePlaybackInstanceView validationView = MakeView(instance);
+        if (!ValidateBindings(validationView, result.diagnostics) ||
+            !ResolveChannelConflict(
+                request,
+                requestId,
+                result.diagnostics)) {
+            const std::string message = !result.diagnostics.empty()
+                ? result.diagnostics.front().message
+                : "Sequence playback request was rejected";
+            PushRejected(requestId, request.assetGuid, message);
+            return result;
+        }
         if (!instance.cursor.Bind(
                 instance.asset->sequence.durationSeconds,
                 request.startTimeSeconds) ||
             !instance.cursor.Play(request.options)) {
-            PushRejected(
-                requestId,
-                request.assetGuid,
-                "Sequence playback cursor rejected the request");
-            return {};
+            const std::string message =
+                "Sequence playback cursor rejected the request";
+            result.diagnostics.push_back({
+                SequenceDiagnosticSeverity::Error,
+                "InvalidPlaybackRange",
+                {},
+                message
+            });
+            PushRejected(requestId, request.assetGuid, message);
+            return result;
         }
 
         instances_.push_back(std::move(instance));
@@ -131,13 +171,141 @@ namespace HIKARI::SEQUENCER {
             started.asset->guid,
             requestId,
             started.cursor.GetTimeSeconds(),
+            SequenceStopReason::Stopped,
             {}
         });
-        return started.handle;
+        result.handle = started.handle;
+        return result;
     }
 
-    bool SequencePlaybackService::Stop(SequencePlaybackHandle handle) {
-        return StopInternal(handle, SequenceStopReason::Stopped, 0);
+    bool SequencePlaybackService::ValidateBindings(
+        const SequencePlaybackInstanceView& instance,
+        std::vector<SequencePlaybackDiagnostic>& diagnostics) const {
+
+        if (instance.asset == nullptr || instance.bindings == nullptr) {
+            diagnostics.push_back({
+                SequenceDiagnosticSeverity::Error,
+                "InvalidPlaybackInstance",
+                {},
+                "Sequence playback instance is incomplete"
+            });
+            return false;
+        }
+
+        for (const SequenceBinding& binding :
+                instance.asset->sequence.bindings) {
+            SceneObjectId resolved{};
+            if (instance.bindings->Resolve(
+                    instance.asset->sequence.bindings,
+                    binding.id,
+                    resolved)) {
+                continue;
+            }
+            diagnostics.push_back({
+                binding.required
+                    ? SequenceDiagnosticSeverity::Error
+                    : SequenceDiagnosticSeverity::Warning,
+                binding.targetKind == SequenceBindingTargetKind::Slot
+                    ? (binding.required
+                        ? "MissingSlotBinding"
+                        : "OptionalSlotUnbound")
+                    : (binding.required
+                        ? "MissingSceneObjectBinding"
+                        : "OptionalSceneObjectUnbound"),
+                {},
+                binding.targetKind == SequenceBindingTargetKind::Slot
+                    ? (binding.required
+                        ? "Required sequence slot is not bound: "
+                        : "Optional sequence slot is not bound: ") +
+                        binding.slotName
+                    : (binding.required
+                        ? "Sequence binding has no scene object: "
+                        : "Optional binding has no scene object: ") +
+                        binding.name,
+                binding.id,
+                binding.slotName
+            });
+        }
+
+        for (const auto& driver : drivers_) {
+            if (driver) {
+                driver->Validate(instance, diagnostics);
+            }
+        }
+        return std::none_of(
+            diagnostics.begin(),
+            diagnostics.end(),
+            [](const SequencePlaybackDiagnostic& diagnostic) {
+                return diagnostic.severity ==
+                    SequenceDiagnosticSeverity::Error;
+            });
+    }
+
+    bool SequencePlaybackService::ResolveChannelConflict(
+        const SequencePlayRequest& request,
+        uint64_t requestId,
+        std::vector<SequencePlaybackDiagnostic>& diagnostics) {
+
+        if (request.channel.empty() || request.channelPolicy ==
+                SequenceChannelPolicy::Parallel) {
+            return true;
+        }
+
+        bool occupied = false;
+        int highestPriority = (std::numeric_limits<int>::min)();
+        for (const Instance& instance : instances_) {
+            if (instance.channel != request.channel) {
+                continue;
+            }
+            occupied = true;
+            highestPriority = (std::max)(
+                highestPriority,
+                instance.priority);
+        }
+        if (!occupied) {
+            return true;
+        }
+
+        if (request.channelPolicy ==
+                SequenceChannelPolicy::RejectIfOccupied) {
+            diagnostics.push_back({
+                SequenceDiagnosticSeverity::Error,
+                "ChannelOccupied",
+                {},
+                "Sequence channel is already occupied: " +
+                    request.channel
+            });
+            return false;
+        }
+        if (request.channelPolicy ==
+                SequenceChannelPolicy::ReplaceIfHigherOrEqual &&
+            request.priority < highestPriority) {
+            diagnostics.push_back({
+                SequenceDiagnosticSeverity::Error,
+                "ChannelPriorityRejected",
+                {},
+                "Sequence channel has a higher-priority owner: " +
+                    request.channel
+            });
+            return false;
+        }
+
+        for (size_t index = instances_.size(); index-- > 0;) {
+            if (instances_[index].channel == request.channel) {
+                StopInstanceAt(
+                    index,
+                    SequenceStopReason::Replaced,
+                    requestId);
+            }
+        }
+        return true;
+    }
+
+    bool SequencePlaybackService::Stop(
+        SequencePlaybackHandle handle,
+        SequenceStopReason reason) {
+
+        return StopInternal(handle, reason, 0);
     }
 
     bool SequencePlaybackService::Pause(SequencePlaybackHandle handle) {
@@ -184,6 +352,7 @@ namespace HIKARI::SEQUENCER {
             instances_[index].asset->guid,
             requestId,
             instances_[index].cursor.GetTimeSeconds(),
+            SequenceStopReason::Stopped,
             {}
         });
         return true;
@@ -204,6 +373,7 @@ namespace HIKARI::SEQUENCER {
             instances_[index].asset->guid,
             requestId,
             instances_[index].cursor.GetTimeSeconds(),
+            SequenceStopReason::Stopped,
             {}
         });
         return true;
@@ -229,6 +399,7 @@ namespace HIKARI::SEQUENCER {
             instances_[index].asset->guid,
             requestId,
             instances_[index].cursor.GetTimeSeconds(),
+            SequenceStopReason::Stopped,
             {}
         });
         return true;
@@ -279,7 +450,7 @@ namespace HIKARI::SEQUENCER {
                 accepted = PlayLoaded(
                     std::move(asset),
                     command.play,
-                    command.requestId).IsValid();
+                    command.requestId).IsAccepted();
                 break;
             }
             case SequencePlaybackCommandKind::Stop:
@@ -393,6 +564,7 @@ namespace HIKARI::SEQUENCER {
             instance.asset->guid,
             requestId,
             instance.cursor.GetTimeSeconds(),
+            reason,
             reason == SequenceStopReason::Replaced ? "Replaced" : ""
         });
         instances_.erase(instances_.begin() + index);
@@ -428,6 +600,12 @@ namespace HIKARI::SEQUENCER {
             instances_[index].cursor.IsPaused();
     }
 
+    bool SequencePlaybackService::IsActive(
+        SequencePlaybackHandle handle) const noexcept {
+
+        return FindInstanceIndex(handle) != kInvalidInstanceIndex;
+    }
+
     float SequencePlaybackService::GetTimeSeconds(
         SequencePlaybackHandle handle) const noexcept {
 
@@ -435,6 +613,28 @@ namespace HIKARI::SEQUENCER {
         return index != kInvalidInstanceIndex
             ? instances_[index].cursor.GetTimeSeconds()
             : 0.0f;
+    }
+
+    bool SequencePlaybackService::TryGetSnapshot(
+        SequencePlaybackHandle handle,
+        SequencePlaybackSnapshot& outSnapshot) const noexcept {
+
+        const size_t index = FindInstanceIndex(handle);
+        if (index == kInvalidInstanceIndex) {
+            outSnapshot = {};
+            return false;
+        }
+        const Instance& instance = instances_[index];
+        outSnapshot.handle = instance.handle;
+        outSnapshot.assetGuid = instance.asset
+            ? instance.asset->guid
+            : AssetGuid{};
+        outSnapshot.state = instance.cursor.GetState();
+        outSnapshot.timeSeconds = instance.cursor.GetTimeSeconds();
+        outSnapshot.durationSeconds = instance.cursor.GetDurationSeconds();
+        outSnapshot.channel = instance.channel;
+        outSnapshot.priority = instance.priority;
+        return true;
     }
 
     size_t SequencePlaybackService::GetActiveInstanceCount() const noexcept {
@@ -460,6 +660,7 @@ namespace HIKARI::SEQUENCER {
             assetGuid,
             requestId,
             0.0f,
+            SequenceStopReason::Stopped,
             std::move(message)
         });
     }

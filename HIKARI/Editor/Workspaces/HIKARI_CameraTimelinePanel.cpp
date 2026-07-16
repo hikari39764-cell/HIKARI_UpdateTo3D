@@ -230,6 +230,21 @@ namespace HIKARI::EDITOR {
 
         ImGui::Separator();
 
+        const bool portableAsset = !collectionEditingAllowed;
+        const SequenceBindingPanelResult bindingResult =
+            bindingPanel_.Draw(
+                document,
+                *sequence,
+                portableAsset,
+                previewAllowed);
+        if (bindingResult.sequenceChanged) {
+            NormalizeCinematicSequence(*sequence);
+            result.documentChanged = true;
+            previewCutPending_ = true;
+        }
+
+        ImGui::Separator();
+
         const bool canAddShot =
             previewAllowed && selectedCameraObjectId.value != 0;
         if (!canAddShot) {
@@ -239,8 +254,13 @@ namespace HIKARI::EDITOR {
             SEQUENCER::CameraCutClip shot{};
             shot.id = SEQUENCER::AllocateCameraCutClipId(
                 sequence->cameraCutTrack);
-            shot.cameraBindingId =
-                SEQUENCER::FindOrCreateSceneObjectBinding(
+            shot.cameraBindingId = portableAsset
+                ? FindOrCreatePortableCameraBinding(
+                    document,
+                    *sequence,
+                    selectedCameraObjectId,
+                    bindingPanel_.GetPreviewBindings())
+                : SEQUENCER::FindOrCreateSceneObjectBinding(
                     sequence->bindings,
                     selectedCameraObjectId);
             shot.startTimeSeconds = player_.GetTimeSeconds();
@@ -394,6 +414,8 @@ namespace HIKARI::EDITOR {
                 selectedCameraObjectId,
                 player_.GetTimeSeconds(),
                 previewAllowed,
+                portableAsset,
+                &bindingPanel_.GetPreviewBindings(),
                 canvas_);
         if (keyframeToolbar.sequenceChanged) {
             NormalizeCinematicSequence(*sequence);
@@ -410,7 +432,8 @@ namespace HIKARI::EDITOR {
             *sequence,
             player_.GetTimeSeconds(),
             player_.IsPlaying(),
-            previewAllowed);
+            previewAllowed,
+            &bindingPanel_.GetPreviewBindings());
         if (canvasResult.playheadChanged) {
             player_.Pause();
             (void)player_.Seek(
@@ -433,19 +456,23 @@ namespace HIKARI::EDITOR {
         if (result.previewEnabled) {
             result.evaluation = EvaluateCinematicCameraTrack(
                 *sequence,
-                player_.GetTimeSeconds());
+                player_.GetTimeSeconds(),
+                bindingPanel_.GetPreviewBindings());
         }
         previewCutPending_ = false;
 #else
+        (void)document;
         (void)selectedCameraObjectId;
         (void)deltaTime;
         (void)previewAllowed;
+        (void)collectionEditingAllowed;
 #endif
         return result;
     }
 
     void CameraTimelinePanel::ResetForScene() {
         player_.Clear();
+        bindingPanel_.Reset();
         canvas_.Reset();
         activeSequenceId_ = {};
         sequenceNameBuffer_.fill('\0');

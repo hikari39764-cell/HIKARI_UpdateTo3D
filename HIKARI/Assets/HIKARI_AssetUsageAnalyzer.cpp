@@ -122,6 +122,16 @@ namespace HIKARI {
                                 summary);
                         }
                     }
+                } else if (component.type ==
+                        "SequencePlayerComponent") {
+                    AddReference(
+                        component.properties.value(
+                            "sequenceAssetGuid",
+                            std::string{}),
+                        owner,
+                        "Sequence",
+                        assetDatabase,
+                        summary);
                 } else if (component.type == "UIButtonSceneTransitionComponent" ||
                     component.type == "DoorTransitionComponent") {
                     AddReference(

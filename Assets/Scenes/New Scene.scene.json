@@ -10,12 +10,14 @@
           {
             "id": 1,
             "name": "Binding 1",
+            "required": true,
             "sceneObjectId": 2,
             "targetKind": "sceneObject"
           },
           {
             "id": 2,
             "name": "Binding 2",
+            "required": true,
             "sceneObjectId": 3,
             "targetKind": "sceneObject"
           }
@@ -50,6 +52,18 @@
             "enabled": true,
             "id": 1,
             "type": "cameraCut"
+          },
+          {
+            "channels": [],
+            "enabled": true,
+            "id": 2,
+            "type": "cameraTransform"
+          },
+          {
+            "channels": [],
+            "enabled": true,
+            "id": 3,
+            "type": "cameraLens"
           }
         ]
       }
@@ -477,6 +491,60 @@
           -6.711541652679443,
           6.71356725692749,
           -6.637121200561523
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "bindings": [
+              {
+                "sceneObjectId": 2,
+                "slotName": "Camera.GameObject_2"
+              },
+              {
+                "sceneObjectId": 3,
+                "slotName": "Camera.GameObject_3"
+              }
+            ],
+            "channel": "Cinematics",
+            "channelPolicy": "ReplaceIfHigherOrEqual",
+            "enabled": true,
+            "loop": false,
+            "ownerSlotName": "Owner",
+            "playOnStart": true,
+            "playbackRate": 1.0,
+            "priority": 0,
+            "restartIfPlaying": true,
+            "sequenceAssetGuid": "1d4d0e35b277e347fe64ec66cbbe02b5",
+            "startTimeSeconds": 0.0,
+            "stopOnDisable": true
+          },
+          "type": "SequencePlayerComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 4,
+      "name": "GameObject_4",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
         ],
         "rotationEulerDeg": [
           0.0,

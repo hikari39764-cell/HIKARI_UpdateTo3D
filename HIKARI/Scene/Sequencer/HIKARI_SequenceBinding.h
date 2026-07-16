@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Scene/HIKARI_SceneObjectId.h"
@@ -32,6 +33,7 @@ namespace HIKARI::SEQUENCER {
             SequenceBindingTargetKind::SceneObject;
         SceneObjectId sceneObjectId{};
         std::string slotName{};
+        bool required = true;
     };
 
     struct SequenceBindingOverride {
@@ -50,6 +52,8 @@ namespace HIKARI::SEQUENCER {
         bool BindSlot(
             std::string slotName,
             SceneObjectId sceneObjectId);
+        bool Unbind(SequenceBindingId bindingId) noexcept;
+        bool UnbindSlot(std::string_view slotName) noexcept;
         bool Resolve(
             const SequenceBindingTable& bindings,
             SequenceBindingId bindingId,

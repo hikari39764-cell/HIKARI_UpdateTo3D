@@ -37,7 +37,8 @@ namespace HIKARI::EDITOR {
         CinematicSequence& sequence,
         float playheadTimeSeconds,
         bool playing,
-        bool editingAllowed) {
+        bool editingAllowed,
+        const SEQUENCER::SequenceBindingContext* previewBindings) {
 
         CameraTimelineCanvasResult result{};
         result.playheadTimeSeconds = playheadTimeSeconds;
@@ -207,6 +208,7 @@ namespace HIKARI::EDITOR {
         const CameraTimelineShotEditorResult shotResult = shotEditor_.Draw(
             document,
             sequence,
+            previewBindings,
             CameraTimelineShotLayout{
                 timelineLeft,
                 timelineRight,
@@ -352,6 +354,7 @@ namespace HIKARI::EDITOR {
         (void)sequence;
         (void)playing;
         (void)editingAllowed;
+        (void)previewBindings;
 #endif
         return result;
     }

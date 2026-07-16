@@ -121,6 +121,8 @@ namespace HIKARI {
         CinematicPlaybackHandle GetCameraSequencePlaybackHandle() const noexcept;
         SEQUENCER::SequencePlaybackHandle PlaySequence(
             const SEQUENCER::SequencePlayRequest& request);
+        SEQUENCER::SequencePlayResult PlaySequenceDetailed(
+            const SEQUENCER::SequencePlayRequest& request);
         bool StopSequence(SEQUENCER::SequencePlaybackHandle handle);
         bool PauseSequence(SEQUENCER::SequencePlaybackHandle handle);
         bool ResumeSequence(SEQUENCER::SequencePlaybackHandle handle);
@@ -131,6 +133,12 @@ namespace HIKARI {
             SEQUENCER::SequencePlaybackCommand command);
         bool IsSequencePlaying(
             SEQUENCER::SequencePlaybackHandle handle) const noexcept;
+        bool IsSequenceActive(
+            SEQUENCER::SequencePlaybackHandle handle) const noexcept;
+        bool TryGetSequencePlaybackSnapshot(
+            SEQUENCER::SequencePlaybackHandle handle,
+            SEQUENCER::SequencePlaybackSnapshot& outSnapshot)
+            const noexcept;
         std::vector<SEQUENCER::SequencePlaybackEvent>
             ConsumeSequencePlaybackEvents();
         bool BeginRuntimePlay();

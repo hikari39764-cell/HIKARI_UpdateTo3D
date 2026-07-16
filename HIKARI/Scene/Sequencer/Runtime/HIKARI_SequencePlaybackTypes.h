@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "Assets/HIKARI_AssetGuid.h"
 #include "Scene/Sequencer/HIKARI_SequenceBinding.h"
@@ -25,7 +26,16 @@ namespace HIKARI::SEQUENCER {
         Stopped,
         Replaced,
         Completed,
+        Disabled,
+        OwnerDestroyed,
         Reset,
+    };
+
+    enum class SequenceChannelPolicy : uint8_t {
+        Parallel,
+        Replace,
+        ReplaceIfHigherOrEqual,
+        RejectIfOccupied,
     };
 
     struct SequencePlayRequest {
@@ -35,7 +45,43 @@ namespace HIKARI::SEQUENCER {
         std::string channel{};
         float startTimeSeconds = 0.0f;
         int priority = 0;
-        bool replaceChannel = true;
+        SequenceChannelPolicy channelPolicy =
+            SequenceChannelPolicy::ReplaceIfHigherOrEqual;
+    };
+
+    enum class SequenceDiagnosticSeverity : uint8_t {
+        Info,
+        Warning,
+        Error,
+    };
+
+    struct SequencePlaybackDiagnostic {
+        SequenceDiagnosticSeverity severity =
+            SequenceDiagnosticSeverity::Info;
+        std::string code{};
+        std::string driverId{};
+        std::string message{};
+        SequenceBindingId bindingId{};
+        std::string slotName{};
+    };
+
+    struct SequencePlayResult {
+        SequencePlaybackHandle handle{};
+        std::vector<SequencePlaybackDiagnostic> diagnostics{};
+
+        bool IsAccepted() const noexcept {
+            return handle.IsValid();
+        }
+    };
+
+    struct SequencePlaybackSnapshot {
+        SequencePlaybackHandle handle{};
+        AssetGuid assetGuid{};
+        SequencePlaybackState state = SequencePlaybackState::Stopped;
+        float timeSeconds = 0.0f;
+        float durationSeconds = 0.0f;
+        std::string channel{};
+        int priority = 0;
     };
 
     enum class SequencePlaybackEventKind : uint8_t {
@@ -55,6 +101,7 @@ namespace HIKARI::SEQUENCER {
         AssetGuid assetGuid{};
         uint64_t requestId = 0;
         float timeSeconds = 0.0f;
+        SequenceStopReason stopReason = SequenceStopReason::Stopped;
         std::string message{};
     };
 

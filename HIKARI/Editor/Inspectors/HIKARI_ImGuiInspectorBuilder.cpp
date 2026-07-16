@@ -11,6 +11,7 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
+#include "Scene/HIKARI_SceneDocument.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -80,6 +81,29 @@ namespace HIKARI {
         context_ = context;
     }
 
+    const InspectorContext&
+        ImGuiInspectorBuilder::GetContext() const noexcept {
+
+        return context_;
+    }
+
+    void ImGuiInspectorBuilder::Text(std::string_view text) {
+#if defined(HIKARI_WITH_EDITOR)
+        ImGui::TextWrapped("%.*s", static_cast<int>(text.size()), text.data());
+#else
+        (void)text;
+#endif
+    }
+
+    bool ImGuiInspectorBuilder::Button(std::string_view label) {
+#if defined(HIKARI_WITH_EDITOR)
+        return ImGui::Button(std::string(label).c_str());
+#else
+        (void)label;
+        return false;
+#endif
+    }
+
     bool ImGuiInspectorBuilder::Bool(std::string_view label, bool& value) {
 #if defined(HIKARI_WITH_EDITOR)
         return ImGui::Checkbox(std::string(label).c_str(), &value);
@@ -122,6 +146,45 @@ namespace HIKARI {
 #else
         (void)label;
         (void)value;
+        return false;
+#endif
+    }
+
+    bool ImGuiInspectorBuilder::Choice(
+        std::string_view label,
+        int& selectedIndex,
+        std::span<const char* const> choices) {
+#if defined(HIKARI_WITH_EDITOR)
+        if (choices.empty()) {
+            return false;
+        }
+        selectedIndex = std::clamp(
+            selectedIndex,
+            0,
+            static_cast<int>(choices.size() - 1));
+        bool changed = false;
+        const std::string labelText(label);
+        if (ImGui::BeginCombo(
+                labelText.c_str(),
+                choices[static_cast<size_t>(selectedIndex)])) {
+            for (size_t index = 0; index < choices.size(); ++index) {
+                const bool selected = static_cast<int>(index) ==
+                    selectedIndex;
+                if (ImGui::Selectable(choices[index], selected)) {
+                    selectedIndex = static_cast<int>(index);
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        return changed;
+#else
+        (void)label;
+        (void)selectedIndex;
+        (void)choices;
         return false;
 #endif
     }
@@ -318,6 +381,69 @@ namespace HIKARI {
             }
         }
 
+        return changed;
+#else
+        (void)label;
+        (void)value;
+        return false;
+#endif
+    }
+
+    bool ImGuiInspectorBuilder::SceneObjectIdPicker(
+        std::string_view label,
+        SceneObjectId& value) {
+#if defined(HIKARI_WITH_EDITOR)
+        const std::string labelText(label);
+        if (context_.sceneDocument == nullptr) {
+            uint64_t rawValue = value.value;
+            if (ImGui::InputScalar(
+                    labelText.c_str(),
+                    ImGuiDataType_U64,
+                    &rawValue)) {
+                value.value = rawValue;
+                return true;
+            }
+            return false;
+        }
+
+        const SceneObjectData* current = nullptr;
+        for (const SceneObjectData& object :
+                context_.sceneDocument->objects) {
+            if (object.id == value) {
+                current = &object;
+                break;
+            }
+        }
+        const std::string preview = value.value == 0
+            ? std::string("<none>")
+            : (current != nullptr
+                ? current->name + "  [" +
+                    std::to_string(value.value) + "]"
+                : "Missing Object [" +
+                    std::to_string(value.value) + "]");
+        bool changed = false;
+        if (ImGui::BeginCombo(labelText.c_str(), preview.c_str())) {
+            if (ImGui::Selectable("<none>", value.value == 0)) {
+                value = {};
+                changed = true;
+            }
+            for (const SceneObjectData& object :
+                    context_.sceneDocument->objects) {
+                const bool selected = object.id == value;
+                const std::string itemLabel =
+                    (object.name.empty() ? "GameObject" : object.name) +
+                    "  [" + std::to_string(object.id.value) + "]##" +
+                    std::to_string(object.id.value);
+                if (ImGui::Selectable(itemLabel.c_str(), selected)) {
+                    value = object.id;
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
         return changed;
 #else
         (void)label;

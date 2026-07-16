@@ -57,13 +57,32 @@ namespace HIKARI::EDITOR {
                 std::isfinite(outValues.nearClip) &&
                 std::isfinite(outValues.farClip);
         }
+
+        SEQUENCER::SequenceBindingId ResolveCaptureBinding(
+            CinematicSequence& sequence,
+            SceneObjectId cameraObjectId,
+            const std::string& cameraName,
+            SEQUENCER::SequenceBindingId preferredBindingId) {
+
+            if (preferredBindingId.IsValid() &&
+                SEQUENCER::FindSequenceBinding(
+                    sequence.bindings,
+                    preferredBindingId) != nullptr) {
+                return preferredBindingId;
+            }
+            return SEQUENCER::FindOrCreateSceneObjectBinding(
+                sequence.bindings,
+                cameraObjectId,
+                cameraName);
+        }
     }
 
     CameraKeyframeCaptureResult CaptureCameraTransformKeyframe(
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds) {
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId) {
 
         CameraKeyframeCaptureResult result{};
         const SceneObjectData* cameraObject = FindSceneObject(
@@ -76,11 +95,11 @@ namespace HIKARI::EDITOR {
             !TryGetCameraLensValues(*cameraObject, cameraLens)) {
             return result;
         }
-        result.cameraBindingId =
-            SEQUENCER::FindOrCreateSceneObjectBinding(
-                sequence.bindings,
-                cameraObjectId,
-                cameraObject->name);
+        result.cameraBindingId = ResolveCaptureBinding(
+            sequence,
+            cameraObjectId,
+            cameraObject->name,
+            preferredBindingId);
         result.transformKeyframeId =
             SEQUENCER::SetCameraTransformKeyframe(
                 sequence.cameraTransformTrack,
@@ -102,7 +121,8 @@ namespace HIKARI::EDITOR {
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds) {
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId) {
 
         CameraKeyframeCaptureResult result{};
         const SceneObjectData* cameraObject = FindSceneObject(
@@ -114,11 +134,11 @@ namespace HIKARI::EDITOR {
             !TryGetCameraLensValues(*cameraObject, lens)) {
             return result;
         }
-        result.cameraBindingId =
-            SEQUENCER::FindOrCreateSceneObjectBinding(
-                sequence.bindings,
-                cameraObjectId,
-                cameraObject->name);
+        result.cameraBindingId = ResolveCaptureBinding(
+            sequence,
+            cameraObjectId,
+            cameraObject->name,
+            preferredBindingId);
         result.lensKeyframeId = SEQUENCER::SetCameraLensKeyframe(
             sequence.cameraLensTrack,
             result.cameraBindingId,
@@ -140,7 +160,8 @@ namespace HIKARI::EDITOR {
         SceneDocument& document,
         CinematicSequence& sequence,
         SceneObjectId cameraObjectId,
-        float timeSeconds) {
+        float timeSeconds,
+        SEQUENCER::SequenceBindingId preferredBindingId) {
 
         CameraKeyframeCaptureResult result{};
         const SceneObjectData* cameraObject = FindSceneObject(
@@ -154,11 +175,11 @@ namespace HIKARI::EDITOR {
             return result;
         }
 
-        result.cameraBindingId =
-            SEQUENCER::FindOrCreateSceneObjectBinding(
-                sequence.bindings,
-                cameraObjectId,
-                cameraObject->name);
+        result.cameraBindingId = ResolveCaptureBinding(
+            sequence,
+            cameraObjectId,
+            cameraObject->name,
+            preferredBindingId);
         if (!result.cameraBindingId.IsValid()) {
             return {};
         }

@@ -31,6 +31,7 @@ namespace HIKARI::EDITOR {
         CameraTimelineShotEditorResult Draw(
             const SceneDocument& document,
             CinematicSequence& sequence,
+            const SEQUENCER::SequenceBindingContext* previewBindings,
             const CameraTimelineShotLayout& layout);
 
         void Reset();

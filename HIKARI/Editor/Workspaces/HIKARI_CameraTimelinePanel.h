@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "Editor/Workspaces/HIKARI_CameraTimelineCanvas.h"
+#include "Editor/Workspaces/HIKARI_SequenceBindingPanel.h"
 #include "Scene/HIKARI_CinematicSequencePlayer.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
@@ -42,6 +43,7 @@ namespace HIKARI::EDITOR {
         void SyncNameBuffer(const CinematicSequence& sequence);
 
         CinematicSequencePlayer player_{};
+        SequenceBindingPanel bindingPanel_{};
         CameraTimelineCanvas canvas_{};
         CinematicSequenceId activeSequenceId_{};
         std::array<char, 128> sequenceNameBuffer_{};

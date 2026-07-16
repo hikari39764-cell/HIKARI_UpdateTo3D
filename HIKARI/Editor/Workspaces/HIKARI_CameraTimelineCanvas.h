@@ -23,7 +23,9 @@ namespace HIKARI::EDITOR {
             CinematicSequence& sequence,
             float playheadTimeSeconds,
             bool playing,
-            bool editingAllowed);
+            bool editingAllowed,
+            const SEQUENCER::SequenceBindingContext* previewBindings =
+                nullptr);
 
         void Reset();
         void CancelInteraction();

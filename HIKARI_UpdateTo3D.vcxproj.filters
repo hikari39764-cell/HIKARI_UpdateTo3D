@@ -867,6 +867,9 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
@@ -1096,6 +1099,9 @@
       <Filter>Source Files\Vfx\Backends</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp">
@@ -1438,6 +1444,9 @@
       <Filter>Source Files\Scene\Sequencer</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.cpp">
+      <Filter>Source Files\Scene\Sequencer\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlayerSystem.cpp">
       <Filter>Source Files\Scene\Sequencer\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Sequencer\Drivers\HIKARI_CameraSequenceTrackDriver.cpp">
@@ -1933,6 +1942,9 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
@@ -2045,6 +2057,9 @@
       <Filter>Header Files\Editor\Documents</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.h">
@@ -2525,6 +2540,9 @@
       <Filter>Header Files\Scene\Sequencer</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.h">
+      <Filter>Header Files\Scene\Sequencer\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlayerSystem.h">
       <Filter>Header Files\Scene\Sequencer\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackTypes.h">

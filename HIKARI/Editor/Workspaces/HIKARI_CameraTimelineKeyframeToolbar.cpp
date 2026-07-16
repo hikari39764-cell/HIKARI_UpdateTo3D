@@ -1,6 +1,7 @@
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeToolbar.h"
 
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeAuthoring.h"
+#include "Editor/Workspaces/HIKARI_SequenceBindingPanel.h"
 
 #include <string>
 
@@ -16,12 +17,23 @@ namespace HIKARI::EDITOR {
         SceneObjectId selectedCameraObjectId,
         float playheadTimeSeconds,
         bool editingAllowed,
+        bool portableAsset,
+        SEQUENCER::SequenceBindingContext* previewBindings,
         CameraTimelineCanvas& canvas) {
 
         CameraTimelineKeyframeToolbarResult result{};
 #if defined(HIKARI_WITH_EDITOR)
         const bool canCapture = editingAllowed &&
             selectedCameraObjectId.value != 0;
+        const auto resolveCaptureBinding = [&]() {
+            return portableAsset && previewBindings != nullptr
+                ? FindOrCreatePortableCameraBinding(
+                    document,
+                    sequence,
+                    selectedCameraObjectId,
+                    *previewBindings)
+                : SEQUENCER::SequenceBindingId{};
+        };
         if (!canCapture) {
             ImGui::BeginDisabled();
         }
@@ -31,7 +43,8 @@ namespace HIKARI::EDITOR {
                     document,
                     sequence,
                     selectedCameraObjectId,
-                    playheadTimeSeconds);
+                    playheadTimeSeconds,
+                    resolveCaptureBinding());
             if (capture.Succeeded()) {
                 canvas.SelectTransformKeyframe(
                     capture.cameraBindingId,
@@ -47,7 +60,8 @@ namespace HIKARI::EDITOR {
                     document,
                     sequence,
                     selectedCameraObjectId,
-                    playheadTimeSeconds);
+                    playheadTimeSeconds,
+                    resolveCaptureBinding());
             if (capture.Succeeded()) {
                 canvas.SelectLensKeyframe(
                     capture.cameraBindingId,
@@ -63,7 +77,8 @@ namespace HIKARI::EDITOR {
                     document,
                     sequence,
                     selectedCameraObjectId,
-                    playheadTimeSeconds);
+                    playheadTimeSeconds,
+                    resolveCaptureBinding());
             if (capture.CapturedBoth()) {
                 canvas.SelectTransformKeyframe(
                     capture.cameraBindingId,
@@ -156,6 +171,8 @@ namespace HIKARI::EDITOR {
         (void)selectedCameraObjectId;
         (void)playheadTimeSeconds;
         (void)editingAllowed;
+        (void)portableAsset;
+        (void)previewBindings;
         (void)canvas;
 #endif
         return result;
