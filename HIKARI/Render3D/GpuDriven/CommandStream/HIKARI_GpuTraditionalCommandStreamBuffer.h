@@ -60,6 +60,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         size_t gpuBuildDispatchCount = 0;
         size_t gpuCompactedCommandCapacity = 0;
         size_t commandBucketCount = 0;
+        size_t inputUploadBytes = 0;
+        size_t inputUploadCopyCount = 0;
         bool initialized = false;
         bool commandSignatureReady = false;
         bool skinnedCommandSignatureReady = false;
@@ -69,6 +71,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool gpuCompactionPipelineReady = false;
         bool gpuCompactionReady = false;
         bool gpuCounterBacked = false;
+        bool reusedResidentInput = false;
         D3D12_GPU_VIRTUAL_ADDRESS argumentBufferAddress = 0;
         D3D12_GPU_VIRTUAL_ADDRESS skinnedArgumentBufferAddress = 0;
         UINT commandStride = 0;
@@ -91,6 +94,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         void BeginFrame(uint32_t frameIndex);
         void ResetFrame();
+        bool PrepareCommandInputs(
+            uintptr_t sourceIdentity,
+            uint64_t layoutVersion,
+            uint64_t sourceVersion);
         void UploadCommandSeeds(
             const GpuDrivenTraditionalIndirectView& view);
         bool BuildGpuCompactedCommands(
@@ -144,6 +151,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 D3D12_RESOURCE_STATE_COMMON;
             D3D12_RESOURCE_STATES counterBufferState =
                 D3D12_RESOURCE_STATE_COMMON;
+            GpuTraditionalCommandStreamStats residentInputStats{};
+            uintptr_t inputSourceIdentity = 0;
+            uint64_t inputLayoutVersion = 0;
+            uint64_t inputSourceVersion = 0;
+            size_t residentSeedCount = 0;
+            size_t residentPayloadCount = 0;
+            bool inputResident = false;
         };
 
         void BindFrameResources(uint32_t frameIndex);
@@ -182,6 +196,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_RESOURCE_STATE_COMMON;
         std::array<FrameResources, GFX::kFrameResourceCount> frameResources_{};
         uint32_t activeFrameResourceIndex_ = 0;
+        uintptr_t pendingInputSourceIdentity_ = 0;
+        uint64_t pendingInputLayoutVersion_ = 0;
+        uint64_t pendingInputSourceVersion_ = 0;
+        bool inputUploadPending_ = false;
         std::unordered_map<uint64_t, size_t> payloadIndexByCommandKey_{};
         GpuTraditionalCommandStreamStats stats_{};
     };

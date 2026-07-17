@@ -30,7 +30,7 @@
             "clips": [
               {
                 "cameraBindingId": 1,
-                "durationSeconds": 3.6666667461395264,
+                "durationSeconds": 6.5,
                 "id": 1,
                 "startTimeSeconds": 0.0,
                 "transition": {
@@ -76,22 +76,22 @@
                       135.11904907226563,
                       -180.0
                     ],
-                    "timeSeconds": 1.8050000667572021
+                    "timeSeconds": 1.7999999523162842
                   },
                   {
                     "id": 3,
                     "interpolation": "smooth",
                     "position": [
-                      -12.168262481689453,
-                      5.751866340637207,
-                      -9.894811630249023
+                      -11.630000114440918,
+                      8.899999618530273,
+                      -6.869999885559082
                     ],
                     "rotationEulerDeg": [
-                      -346.5144958496094,
-                      210.034912109375,
+                      -365.1000061035156,
+                      150.8000030517578,
                       -361.5832824707031
                     ],
-                    "timeSeconds": 3.156111001968384
+                    "timeSeconds": 6.300000190734863
                   }
                 ]
               }
@@ -119,14 +119,14 @@
                     "interpolation": "smooth",
                     "nearClip": 0.6010000109672546,
                     "timeSeconds": 1.7666666507720947,
-                    "verticalFovDegrees": 102.0
+                    "verticalFovDegrees": 16.100000381469727
                   },
                   {
                     "farClip": 82.60199737548828,
                     "id": 5,
                     "interpolation": "smooth",
                     "nearClip": 0.6010000109672546,
-                    "timeSeconds": 3.156111001968384,
+                    "timeSeconds": 6.233333110809326,
                     "verticalFovDegrees": 73.19999694824219
                   }
                 ]
@@ -507,7 +507,7 @@
       "components": [
         {
           "properties": {
-            "enabled": true,
+            "enabled": false,
             "farClip": 82.60199737548828,
             "nearClip": 0.6010000109672546,
             "verticalFovDegrees": 73.19999694824219
@@ -543,7 +543,7 @@
       "components": [
         {
           "properties": {
-            "enabled": true,
+            "enabled": false,
             "farClip": 100.0,
             "nearClip": 0.10000000149011612,
             "verticalFovDegrees": 60.0
@@ -582,14 +582,14 @@
             "bindings": [],
             "channel": "Cinematics",
             "channelPolicy": "ReplaceIfHigherOrEqual",
-            "enabled": true,
+            "enabled": false,
             "loop": false,
             "ownerSlotName": "Owner",
             "playOnStart": true,
             "playbackRate": 1.0,
             "priority": 0,
             "restartIfPlaying": true,
-            "sequenceAssetGuid": "a2dcc5ae4faaa2c734bff22307ca103f",
+            "sequenceAssetGuid": "60dbdb6d4111deef4a41cbd789343696",
             "startTimeSeconds": 0.0,
             "stopOnDisable": true
           },

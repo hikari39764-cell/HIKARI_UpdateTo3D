@@ -778,6 +778,18 @@ namespace HIKARI {
     ComponentRegistry& DocumentSceneBase::GetComponentRegistry() {
         return componentRegistry_;
     }
+    const ComponentSystemPolicy&
+        DocumentSceneBase::GetComponentSystemPolicy() const noexcept {
+        return componentSystemPolicy_;
+    }
+    const SystemTypeRegistry&
+        DocumentSceneBase::GetSystemTypeRegistry() const noexcept {
+        return systemTypeRegistry_;
+    }
+    const SystemScheduler&
+        DocumentSceneBase::GetSystemScheduler() const noexcept {
+        return systemScheduler_;
+    }
     const RuntimeFeatureCatalog&
         DocumentSceneBase::GetRuntimeFeatureCatalog() const noexcept {
         return runtimeFeatureCatalog_;
@@ -2780,10 +2792,6 @@ namespace HIKARI {
 
         bool fullyConfigured = true;
         for (const SceneSystemData& entry : sceneDocument_.systems) {
-            if (componentSystemPolicy_.IsComponentDrivenSystem(
-                    entry.systemId)) {
-                continue;
-            }
             if (!entry.enabled) {
                 continue;
             }

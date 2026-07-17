@@ -3,7 +3,7 @@
     "antiAliasingMode": "DLSS",
     "dlssQualityMode": "UltraPerformance",
     "forwardCostMode": "Full",
-    "frameGenerationMode": "DLSS",
+    "frameGenerationMode": "Off",
     "frameGenerationMultiplier": 2,
     "geometryPipeline": "MeshShader",
     "lightProbeVolumeSampling": "FastSmooth",

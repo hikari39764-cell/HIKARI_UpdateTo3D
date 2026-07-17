@@ -1,5 +1,7 @@
 #include "HIKARI_EditorViewportInput.h"
 
+#include "Editor/Views/HIKARI_EditorViewInputGate.h"
+
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
@@ -101,7 +103,9 @@ namespace HIKARI::EDITOR {
     bool IsGameViewportMouseHovered()
     {
 #if defined(HIKARI_WITH_EDITOR)
-        return IsMouseInsideGameViewport();
+        return
+            !QueryEditorViewInputBlockState().pointer &&
+            IsMouseInsideGameViewport();
 #else
         return false;
 #endif
@@ -113,7 +117,9 @@ namespace HIKARI::EDITOR {
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
             return false;
         }
-        if (gGameViewportInput.gizmoCaptured) {
+        if (gGameViewportInput.gizmoCaptured ||
+            QueryEditorViewInputBlockState().pointer) {
+            gGameViewportInput.mouseCaptured = false;
             return false;
         }
 
@@ -140,12 +146,10 @@ namespace HIKARI::EDITOR {
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
             return false;
         }
-        if (gGameViewportInput.gizmoCaptured) {
-            return false;
-        }
-
-        const ImGuiIO& io = ImGui::GetIO();
-        if (io.WantTextInput) {
+        const EditorViewInputBlockState block =
+            QueryEditorViewInputBlockState();
+        if (gGameViewportInput.gizmoCaptured ||
+            block.pointer || block.keyboard) {
             return false;
         }
 
@@ -161,12 +165,9 @@ namespace HIKARI::EDITOR {
         if (!gGameViewportInput.hasRect || !HasImGuiContext()) {
             return false;
         }
-        if (gGameViewportInput.gizmoCaptured) {
-            return false;
-        }
-
-        const ImGuiIO& io = ImGui::GetIO();
-        if (io.WantTextInput) {
+        const EditorViewInputBlockState block =
+            QueryEditorViewInputBlockState();
+        if (gGameViewportInput.gizmoCaptured || block.keyboard) {
             return false;
         }
 

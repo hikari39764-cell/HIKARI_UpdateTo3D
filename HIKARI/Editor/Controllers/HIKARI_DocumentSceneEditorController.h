@@ -6,12 +6,14 @@
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/History/HIKARI_EditorDocumentHistory.h"
+#include "Editor/SystemAuthoring/HIKARI_SystemAuthoringRegistry.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
 #include "Editor/Panels/HIKARI_PerformanceAuditPanel.h"
 #include "Editor/Panels/HIKARI_ProjectFeaturesPanel.h"
+#include "Editor/Panels/HIKARI_SceneSystemsPanel.h"
 #include "Editor/Panels/HIKARI_InputActionMapPanel.h"
 #include "Editor/Panels/HIKARI_QualityPanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
@@ -56,11 +58,13 @@ namespace HIKARI {
         StatsPanel statsPanel_{};
         PerformanceAuditPanel performanceAuditPanel_{};
         ProjectFeaturesPanel projectFeaturesPanel_{};
+        SceneSystemsPanel sceneSystemsPanel_{};
         InputActionMapPanel inputActionMapPanel_{};
         ValidationLabPanel validationLabPanel_{};
         EnvironmentPanel environmentPanel_{};
         QualityPanel qualityPanel_{};
         EDITOR::EditorToolHost toolHost_{};
+        EDITOR::SystemAuthoringRegistry systemAuthoringRegistry_{};
         EDITOR::EditorWorkspaceHost workspaceHost_{};
         EDITOR::CinematicsWorkspaceController cinematicsWorkspaceController_{};
         DebugCameraPanel debugCameraPanel_{};

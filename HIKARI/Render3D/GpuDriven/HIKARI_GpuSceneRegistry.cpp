@@ -732,7 +732,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool AppendTraditionalRecordInstance(
             const std::vector<GpuSceneSurfaceRecord>& records,
             uint32_t sourceRecordIndex,
-            uint32_t streamRecordIndex,
             GpuSceneRegistry::TraditionalIndirectStream& stream) {
 
             std::vector<uint32_t> singleRecordIndex{ sourceRecordIndex };
@@ -749,9 +748,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             const uint32_t streamInstanceIndex =
                 ClampToUint32(stream.instances.size());
-            singleInstance.front().sourceRecordIndex = streamRecordIndex;
             singleMaterial.front().localGpuSceneInstanceIndex = streamInstanceIndex;
-            singleMaterial.front().sourceRecordIndex = streamRecordIndex;
+            // Material residency is indexed by the global scene record table.
+            // The command stream has its own local record index; mixing the two
+            // makes pass-local records overwrite unrelated material bindings.
+            singleInstance.front().sourceRecordIndex = sourceRecordIndex;
+            singleMaterial.front().sourceRecordIndex = sourceRecordIndex;
             singleMaterial.front().sourceSurfaceInstanceIndex =
                 singleInstance.front().sourceSurfaceInstanceIndex;
             stream.instances.push_back(singleInstance.front());
@@ -785,7 +787,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (!AppendTraditionalRecordInstance(
                 records,
                 recordIndex,
-                recordIndexInStream,
                 stream)) {
                 stream.records.pop_back();
                 stream.executableRecordIndices.pop_back();
@@ -849,7 +850,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             if (!AppendTraditionalRecordInstance(
                 records,
                 recordIndex,
-                recordIndexInStream,
                 stream)) {
                 stream.records.pop_back();
                 stream.executableRecordIndices.pop_back();

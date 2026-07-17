@@ -316,6 +316,9 @@ namespace HIKARI::MESHRENDERER {
         size_t traditionalCommandStreamOverflowCommandCount = 0;
         size_t traditionalCommandStreamMissingDrawArgsCommandCount = 0;
         size_t traditionalCommandStreamUploadCallCount = 0;
+        size_t traditionalCommandStreamInputUploadBytes = 0;
+        size_t traditionalCommandStreamInputUploadCopyCount = 0;
+        size_t traditionalCommandStreamResidentInputReuseCount = 0;
         size_t traditionalCommandStreamCommandStride = 0;
         size_t traditionalCommandStreamExecutedDrawCount = 0;
         size_t traditionalCommandStreamExecutedRecordCount = 0;

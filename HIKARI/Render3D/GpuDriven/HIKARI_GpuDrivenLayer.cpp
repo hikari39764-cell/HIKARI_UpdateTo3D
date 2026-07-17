@@ -489,17 +489,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             traditionalCommandStreamBuffer_->BeginFrame(desc.frameIndex);
         }
 
-        if (traditionalCommandStreamBuffer_ != nullptr &&
-            !reuseTraditionalCommands &&
-            (desc.resetTraditionalIndirectBuffer || !buildTraditionalStream)) {
-            traditionalCommandStreamBuffer_->ResetFrame();
-        }
-
         if (traditionalCommandStreamBuffer_ != nullptr && buildTraditionalStream) {
             if (!reuseTraditionalCommands && frameSource_ != nullptr) {
-                UploadTraditionalIndirectCommands(
-                    *traditionalCommandStreamBuffer_,
-                    *frameSource_);
+                const bool reusedResidentInput =
+                    traditionalCommandStreamBuffer_->PrepareCommandInputs(
+                        reinterpret_cast<uintptr_t>(frameSource_),
+                        frameSource_->layoutVersion,
+                        frameSource_->sourceVersion);
+                if (!reusedResidentInput) {
+                    UploadTraditionalIndirectCommands(
+                        *traditionalCommandStreamBuffer_,
+                        *frameSource_);
+                }
                 if (desc.cullViewProj != nullptr) {
                     (void)traditionalCommandStreamBuffer_->BuildGpuCompactedCommands(
                         desc.commandList,
@@ -511,6 +512,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             commandFrameStats_.traditionalCommandStreamStats =
                 traditionalCommandStreamBuffer_->GetStats();
         } else {
+            if (traditionalCommandStreamBuffer_ != nullptr &&
+                !reuseTraditionalCommands) {
+                traditionalCommandStreamBuffer_->ResetFrame();
+            }
             traditionalCommandFrameKey_ = {};
         }
 

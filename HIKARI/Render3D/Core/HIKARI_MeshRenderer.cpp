@@ -630,6 +630,12 @@ namespace HIKARI::MESHRENDERER {
             g.debugStats.traditionalCommandStreamOverflowCommandCount = indirectStats.overflowCommandCount;
             g.debugStats.traditionalCommandStreamMissingDrawArgsCommandCount = indirectStats.missingDrawArgsCommandCount;
             g.debugStats.traditionalCommandStreamUploadCallCount = indirectStats.uploadCallCount;
+            g.debugStats.traditionalCommandStreamInputUploadBytes =
+                indirectStats.inputUploadBytes;
+            g.debugStats.traditionalCommandStreamInputUploadCopyCount =
+                indirectStats.inputUploadCopyCount;
+            g.debugStats.traditionalCommandStreamResidentInputReuseCount =
+                indirectStats.reusedResidentInput ? 1u : 0u;
             g.debugStats.traditionalCommandStreamCommandStride = indirectStats.commandStride;
             g.debugStats.traditionalCommandStreamArgumentBufferReady = indirectStats.initialized;
             g.debugStats.traditionalCommandStreamCommandSignatureReady = indirectStats.commandSignatureReady;

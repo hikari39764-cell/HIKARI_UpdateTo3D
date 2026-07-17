@@ -3,6 +3,8 @@
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/History/HIKARI_CinematicsHistoryCommand.h"
+#include "Editor/History/HIKARI_SceneSystemsHistoryCommand.h"
+#include "Editor/SystemAuthoring/HIKARI_BuiltInSystemAuthoring.h"
 #include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
@@ -667,6 +669,8 @@ namespace HIKARI {
 
     DocumentSceneEditorController::DocumentSceneEditorController() {
         EDITOR::RegisterBuiltInEditorTools(toolHost_);
+        EDITOR::RegisterBuiltInSystemAuthoring(
+            systemAuthoringRegistry_);
     }
 
     void DocumentSceneEditorController::SyncDocumentHistory(
@@ -787,6 +791,12 @@ namespace HIKARI {
             cinematicsWorkspaceController_.OnCinematicsDocumentRestored(
                 scene,
                 workspaceHost_);
+        }
+        if (HasImpact(
+                result.impact,
+                EDITOR::EditorDocumentImpact::Systems)) {
+            sceneSystemsPanel_.SetRuntimeApplyStatus(
+                scene.ApplySystemRuntimeChanges());
         }
 
         const bool dirty =
@@ -1856,49 +1866,24 @@ namespace HIKARI {
             }
             if (ImGui::BeginTabItem("Systems")) {
                 ImGui::SeparatorText("Scene Systems");
-                ImGui::TextDisabled("Enabled systems and execution order are applied to the runtime schedule.");
-
-                SceneDocument& document = scene.GetSceneDocument();
-                if (document.systems.empty()) {
-                    document.systems =
-                        scene.CreateProjectDefaultSceneSystems();
-                }
-
-                if (ImGui::BeginTable("SceneSystemsTable", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
-                    ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 72.0f);
-                    ImGui::TableSetupColumn("System");
-                    ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 96.0f);
-                    ImGui::TableHeadersRow();
-
-                    for (SceneSystemData& system : document.systems) {
-                        ImGui::PushID(system.systemId.c_str());
-                        ImGui::TableNextRow();
-
-                        ImGui::TableSetColumnIndex(0);
-                        if (ImGui::Checkbox("##enabled", &system.enabled)) {
-                            context_.sceneDirty = true;
-                            scene.SetUnsavedSceneChanges(true);
-                            scene.ApplySystemRuntimeChanges();
-                        }
-
-                        ImGui::TableSetColumnIndex(1);
-                        EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::System, ImVec2(16.0f, 16.0f));
-                        ImGui::SameLine();
-                        ImGui::TextUnformatted(system.systemId.c_str());
-
-                        ImGui::TableSetColumnIndex(2);
-                        ImGui::SetNextItemWidth(-1.0f);
-                        if (ImGui::DragInt("##order", &system.executionOrder, 1.0f, -10000, 10000)) {
-                            context_.sceneDirty = true;
-                            scene.SetUnsavedSceneChanges(true);
-                        }
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            scene.ApplySystemRuntimeChanges();
-                        }
-                        ImGui::PopID();
-                    }
-
-                    ImGui::EndTable();
+                SceneSystemsPanelResult systemsResult =
+                    sceneSystemsPanel_.Draw(
+                        scene,
+                        systemAuthoringRegistry_,
+                        toolHost_);
+                if (systemsResult.changed) {
+                    historyExternalDirty_ |=
+                        context_.sceneDirty ||
+                        scene.HasUnsavedSceneChanges();
+                    documentHistory_.RecordApplied(
+                        EDITOR::MakeSceneSystemsHistoryCommand(
+                            systemsResult.label,
+                            std::move(systemsResult.before),
+                            scene.GetSceneDocument().systems));
+                    context_.sceneDirty = true;
+                    scene.SetUnsavedSceneChanges(true);
+                    sceneSystemsPanel_.SetRuntimeApplyStatus(
+                        scene.ApplySystemRuntimeChanges());
                 }
                 ImGui::EndTabItem();
             }

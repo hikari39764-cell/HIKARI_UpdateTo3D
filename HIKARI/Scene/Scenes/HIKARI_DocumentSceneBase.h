@@ -73,6 +73,10 @@ namespace HIKARI {
         ModelManager& GetModelManager();
         SkyManager& GetSkyManager();
         ComponentRegistry& GetComponentRegistry();
+        const ComponentSystemPolicy&
+            GetComponentSystemPolicy() const noexcept;
+        const SystemTypeRegistry& GetSystemTypeRegistry() const noexcept;
+        const SystemScheduler& GetSystemScheduler() const noexcept;
         const RuntimeFeatureCatalog& GetRuntimeFeatureCatalog() const noexcept;
         const RuntimeFeatureInstallReport&
             GetRuntimeFeatureInstallReport() const noexcept;

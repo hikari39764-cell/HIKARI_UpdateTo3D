@@ -16,6 +16,7 @@
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
 #endif
 #include "Scene/Components/HIKARI_CameraComponent.h"
+#include "Editor/Views/HIKARI_EditorViewInputGate.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -755,6 +756,8 @@ namespace HIKARI::EDITOR {
         const bool windowFocused =
             ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         const ImGuiIO& io = ImGui::GetIO();
+        const EditorViewInputBlockState inputBlock =
+            QueryEditorViewInputBlockState();
         EditorViewInputSubmission inputSubmission{};
         inputSubmission.rect = {
             imageOrigin.x,
@@ -778,6 +781,8 @@ namespace HIKARI::EDITOR {
         inputSubmission.leftMouseClicked =
             ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         inputSubmission.altDown = io.KeyAlt;
+        inputSubmission.pointerBlocked = inputBlock.pointer;
+        inputSubmission.keyboardBlocked = inputBlock.keyboard;
         // Gizmo capture belongs to the current frame. Clear the previous-frame
         // value before arbitrating a new RMB/MMB/Alt+LMB press.
         inputRouter_.SetGizmoCapture(view.renderViewId, false);
@@ -785,7 +790,7 @@ namespace HIKARI::EDITOR {
             view.renderViewId,
             inputSubmission);
 
-        const bool navigationPressed = imageHovered &&
+        const bool navigationPressed = !inputBlock.pointer && imageHovered &&
             (inputSubmission.rightMouseClicked ||
                 inputSubmission.middleMouseClicked ||
                 (inputSubmission.leftMouseClicked && inputSubmission.altDown));
@@ -801,13 +806,15 @@ namespace HIKARI::EDITOR {
         view.interaction.keyboardActive = inputState.AcceptsKeyboard();
 
         if (mode_ == DirectorViewMode::Pilot &&
+            !inputBlock.keyboard &&
             ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
             SetMode(DirectorViewMode::Free);
         }
 
         EditorDirectorCameraInput cameraInput{};
         const bool allowNavigation = mode_ != DirectorViewMode::LookThrough &&
-            !runtimePlayActive && !inputState.gizmoCaptured;
+            !runtimePlayActive && !inputState.gizmoCaptured &&
+            !inputBlock.pointer;
         if (allowNavigation) {
             cameraInput.lookActive = inputState.rightMouseCaptured;
             cameraInput.orbitActive = inputState.orbitMouseCaptured;
@@ -883,7 +890,7 @@ namespace HIKARI::EDITOR {
         }
         lastAspect_ = aspect;
 
-        const bool gizmoAllowed = !runtimePlayActive &&
+        const bool gizmoAllowed = !runtimePlayActive && !inputBlock.pointer &&
             mode_ != DirectorViewMode::Pilot;
         if (gizmoAllowed &&
             !(selectedObjectIsCamera &&
@@ -923,7 +930,7 @@ namespace HIKARI::EDITOR {
             result.gizmo.interacting);
         view.interaction.gizmoCaptured = result.gizmo.interacting;
 
-        const bool cameraSelectionClicked = imageHovered &&
+        const bool cameraSelectionClicked = !inputBlock.pointer && imageHovered &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
             !io.KeyAlt && !result.gizmo.interacting;
         const SceneObjectId clickedCamera = DrawCameraOverlays(

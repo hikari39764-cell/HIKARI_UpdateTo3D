@@ -29,6 +29,8 @@ namespace HIKARI::EDITOR {
         bool leftMouseDown = false;
         bool leftMouseClicked = false;
         bool altDown = false;
+        bool pointerBlocked = false;
+        bool keyboardBlocked = false;
     };
 
     struct EditorViewInputState {
@@ -40,6 +42,8 @@ namespace HIKARI::EDITOR {
         bool middleMouseCaptured = false;
         bool orbitMouseCaptured = false;
         bool gizmoCaptured = false;
+        bool pointerBlocked = false;
+        bool keyboardBlocked = false;
 
         bool IsMouseCaptured() const noexcept {
             return rightMouseCaptured || middleMouseCaptured ||
@@ -48,11 +52,12 @@ namespace HIKARI::EDITOR {
 
         bool AcceptsKeyboard() const noexcept {
             return visible && (focused || IsMouseCaptured()) &&
-                !gizmoCaptured;
+                !gizmoCaptured && !keyboardBlocked;
         }
 
         bool AcceptsWheel() const noexcept {
-            return visible && hovered && !gizmoCaptured;
+            return visible && hovered && !gizmoCaptured &&
+                !pointerBlocked && !keyboardBlocked;
         }
     };
 

@@ -11,12 +11,16 @@ namespace HIKARI::EDITOR {
         state.visible = submission.visible && submission.rect.IsValid();
         state.focused = state.visible && submission.focused;
         state.hovered = state.visible && submission.hovered;
+        state.pointerBlocked = submission.pointerBlocked;
+        state.keyboardBlocked = submission.keyboardBlocked;
 
-        if (!state.visible) {
+        if (!state.visible || state.pointerBlocked) {
             state.rightMouseCaptured = false;
             state.middleMouseCaptured = false;
             state.orbitMouseCaptured = false;
-            state.gizmoCaptured = false;
+            if (!state.visible) {
+                state.gizmoCaptured = false;
+            }
             return state;
         }
 

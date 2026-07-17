@@ -311,6 +311,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         capacity_ = 0;
         seedCursor_ = 0;
         payloadCursor_ = 0;
+        pendingInputSourceIdentity_ = 0;
+        pendingInputLayoutVersion_ = 0;
+        pendingInputSourceVersion_ = 0;
+        inputUploadPending_ = false;
         rootConstantCount_ = rootConstantCount;
         payloadIndexByCommandKey_.clear();
         stats_ = {};
@@ -646,6 +650,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         seedCursor_ = 0;
         payloadCursor_ = 0;
         payloadIndexByCommandKey_.clear();
+        FrameResources& frame = frameResources_[activeFrameResourceIndex_];
+        frame.inputResident = false;
+        frame.inputSourceIdentity = 0;
+        frame.inputLayoutVersion = 0;
+        frame.inputSourceVersion = 0;
+        frame.residentSeedCount = 0;
+        frame.residentPayloadCount = 0;
+        frame.residentInputStats = {};
+        pendingInputSourceIdentity_ = 0;
+        pendingInputLayoutVersion_ = 0;
+        pendingInputSourceVersion_ = 0;
+        inputUploadPending_ = true;
 
         const size_t capacity = capacity_;
         const bool initialized =
@@ -689,6 +705,43 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.commandStride = static_cast<UINT>(sizeof(GpuTraditionalCommandArgument));
         stats_.skinnedCommandStride =
             static_cast<UINT>(sizeof(GpuTraditionalSkinnedCommandArgument));
+    }
+
+    bool GpuTraditionalCommandStreamBuffer::PrepareCommandInputs(
+        uintptr_t sourceIdentity,
+        uint64_t layoutVersion,
+        uint64_t sourceVersion) {
+
+        FrameResources& frame = frameResources_[activeFrameResourceIndex_];
+        const bool canReuse =
+            frame.inputResident &&
+            frame.inputSourceIdentity == sourceIdentity &&
+            frame.inputLayoutVersion == layoutVersion &&
+            frame.inputSourceVersion == sourceVersion;
+        if (!canReuse) {
+            ResetFrame();
+            pendingInputSourceIdentity_ = sourceIdentity;
+            pendingInputLayoutVersion_ = layoutVersion;
+            pendingInputSourceVersion_ = sourceVersion;
+            return false;
+        }
+
+        seedCursor_ = frame.residentSeedCount;
+        payloadCursor_ = frame.residentPayloadCount;
+        payloadIndexByCommandKey_.clear();
+        stats_ = frame.residentInputStats;
+        stats_.uploadCallCount = 0;
+        stats_.inputUploadBytes = 0;
+        stats_.inputUploadCopyCount = 0;
+        stats_.gpuBuildDispatchCount = 0;
+        stats_.gpuCompactionReady = false;
+        stats_.gpuCounterBacked = false;
+        stats_.reusedResidentInput = true;
+        pendingInputSourceIdentity_ = 0;
+        pendingInputLayoutVersion_ = 0;
+        pendingInputSourceVersion_ = 0;
+        inputUploadPending_ = false;
+        return true;
     }
 
     void GpuTraditionalCommandStreamBuffer::UploadCommandSeeds(
@@ -845,56 +898,70 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             counterResetMapped_ + kGpuTraditionalCommandStreamCounterBufferBytes,
             std::byte{ 0 });
 
-        if (seedBufferState_ != D3D12_RESOURCE_STATE_COPY_DEST) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                seedBuffer_.Get(),
-                seedBufferState_,
-                D3D12_RESOURCE_STATE_COPY_DEST);
-            commandList->ResourceBarrier(1, &barrier);
-            seedBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        }
-        if (payloadBufferState_ != D3D12_RESOURCE_STATE_COPY_DEST) {
-            auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                payloadBuffer_.Get(),
-                payloadBufferState_,
-                D3D12_RESOURCE_STATE_COPY_DEST);
-            commandList->ResourceBarrier(1, &barrier);
-            payloadBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
-        }
-
         const UINT64 seedBytes =
             static_cast<UINT64>(seedCursor_) *
             static_cast<UINT64>(sizeof(GpuTraditionalCommandSeed));
-        commandList->CopyBufferRegion(
-            seedBuffer_.Get(),
-            0,
-            seedUploadBuffer_.Get(),
-            0,
-            seedBytes);
         const UINT64 payloadBytes =
             static_cast<UINT64>(payloadCursor_) *
             static_cast<UINT64>(sizeof(GpuTraditionalCommandPayload));
-        commandList->CopyBufferRegion(
-            payloadBuffer_.Get(),
-            0,
-            payloadUploadBuffer_.Get(),
-            0,
-            payloadBytes);
+        if (inputUploadPending_) {
+            if (seedBufferState_ != D3D12_RESOURCE_STATE_COPY_DEST) {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    seedBuffer_.Get(),
+                    seedBufferState_,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+                commandList->ResourceBarrier(1, &barrier);
+                seedBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+            }
+            if (payloadBufferState_ != D3D12_RESOURCE_STATE_COPY_DEST) {
+                auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    payloadBuffer_.Get(),
+                    payloadBufferState_,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+                commandList->ResourceBarrier(1, &barrier);
+                payloadBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+            }
+
+            if (seedBytes != 0u) {
+                commandList->CopyBufferRegion(
+                    seedBuffer_.Get(),
+                    0,
+                    seedUploadBuffer_.Get(),
+                    0,
+                    seedBytes);
+                ++stats_.inputUploadCopyCount;
+            }
+            if (payloadBytes != 0u) {
+                commandList->CopyBufferRegion(
+                    payloadBuffer_.Get(),
+                    0,
+                    payloadUploadBuffer_.Get(),
+                    0,
+                    payloadBytes);
+                ++stats_.inputUploadCopyCount;
+            }
+            stats_.inputUploadBytes =
+                static_cast<size_t>(seedBytes + payloadBytes);
+        }
 
         D3D12_RESOURCE_BARRIER preDispatchBarriers[5]{};
         UINT preDispatchBarrierCount = 0;
-        preDispatchBarriers[preDispatchBarrierCount++] =
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                seedBuffer_.Get(),
-                seedBufferState_,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        seedBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        preDispatchBarriers[preDispatchBarrierCount++] =
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                payloadBuffer_.Get(),
-                payloadBufferState_,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        payloadBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        if (seedBufferState_ != D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) {
+            preDispatchBarriers[preDispatchBarrierCount++] =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    seedBuffer_.Get(),
+                    seedBufferState_,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            seedBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        }
+        if (payloadBufferState_ != D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) {
+            preDispatchBarriers[preDispatchBarrierCount++] =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    payloadBuffer_.Get(),
+                    payloadBufferState_,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            payloadBufferState_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        }
         if (argumentBufferState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
             preDispatchBarriers[preDispatchBarrierCount++] =
                 CD3DX12_RESOURCE_BARRIER::Transition(
@@ -919,7 +986,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     D3D12_RESOURCE_STATE_COPY_DEST);
             counterBufferState_ = D3D12_RESOURCE_STATE_COPY_DEST;
         }
-        commandList->ResourceBarrier(preDispatchBarrierCount, preDispatchBarriers);
+        if (preDispatchBarrierCount != 0u) {
+            commandList->ResourceBarrier(
+                preDispatchBarrierCount,
+                preDispatchBarriers);
+        }
 
         commandList->CopyBufferRegion(
             counterBuffer_.Get(),
@@ -994,6 +1065,29 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         stats_.gpuBuildDispatchCount = 1u;
         stats_.gpuCompactionReady = true;
         stats_.gpuCounterBacked = true;
+        if (inputUploadPending_) {
+            FrameResources& frame = frameResources_[activeFrameResourceIndex_];
+            const bool completeInput =
+                stats_.overflowCommandCount == 0u &&
+                stats_.missingDrawArgsCommandCount == 0u &&
+                stats_.missingJointPaletteCommandCount == 0u &&
+                stats_.uploadedCommandCount == stats_.requestedCommandCount;
+            if (pendingInputSourceIdentity_ != 0u && completeInput) {
+                frame.inputResident = true;
+                frame.inputSourceIdentity = pendingInputSourceIdentity_;
+                frame.inputLayoutVersion = pendingInputLayoutVersion_;
+                frame.inputSourceVersion = pendingInputSourceVersion_;
+                frame.residentSeedCount = seedCursor_;
+                frame.residentPayloadCount = payloadCursor_;
+                frame.residentInputStats = stats_;
+            } else {
+                frame.inputResident = false;
+            }
+            pendingInputSourceIdentity_ = 0;
+            pendingInputLayoutVersion_ = 0;
+            pendingInputSourceVersion_ = 0;
+            inputUploadPending_ = false;
+        }
         StoreActiveFrameResourceStates();
         return true;
     }

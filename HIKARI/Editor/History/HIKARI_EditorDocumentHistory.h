@@ -16,6 +16,7 @@ namespace HIKARI::EDITOR {
         Cinematics = 1u << 0u,
         RuntimeWorld = 1u << 1u,
         Environment = 1u << 2u,
+        Systems = 1u << 3u,
     };
 
     struct EditorHistoryResult {

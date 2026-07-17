@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Editor/HIKARI_EditorContext.h"
+#include "Editor/Views/HIKARI_EditorViewInputGate.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
@@ -498,7 +499,10 @@ namespace HIKARI::EDITOR {
         view.interaction.visible = ImGui::IsItemVisible();
         view.interaction.focused =
             ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-        view.interaction.hovered = ImGui::IsItemHovered();
+        const EditorViewInputBlockState inputBlock =
+            QueryEditorViewInputBlockState();
+        view.interaction.hovered =
+            !inputBlock.pointer && ImGui::IsItemHovered();
         view.interaction.gizmoCaptured = false;
         view.interaction.keyboardActive = false;
         view.overviewUnitsPerScreen = std::clamp(

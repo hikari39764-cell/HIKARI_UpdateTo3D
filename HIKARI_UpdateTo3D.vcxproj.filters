@@ -61,6 +61,9 @@
     <Filter Include="Header Files\Editor\History">
       <UniqueIdentifier>{23B34C6A-4647-4D6C-A230-7B44F079F028}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\SystemAuthoring">
+      <UniqueIdentifier>{EFC6FEA0-4152-4D21-9B0B-77E7976C72B6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Controllers">
       <UniqueIdentifier>{E28B7FA2-22E4-5153-995B-8B37C61D9D2D}</UniqueIdentifier>
     </Filter>
@@ -384,6 +387,9 @@
     </Filter>
     <Filter Include="Source Files\Editor\History">
       <UniqueIdentifier>{F8E345D5-F940-4AF7-B0A9-AF6CBA0A99E4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\SystemAuthoring">
+      <UniqueIdentifier>{9FE5C057-F922-4263-8DB6-4710799C8550}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Controllers">
       <UniqueIdentifier>{556FDF65-8B17-5D07-B27B-266BB695A766}</UniqueIdentifier>
@@ -819,6 +825,33 @@
     <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp">
       <Filter>Source Files\Editor\History</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.cpp">
+      <Filter>Source Files\Editor\History</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemAuthoringTypes.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemAuthoringRegistry.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_BuiltInSystemAuthoring.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SceneSystemAuthoringModel.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_AddSystemPopup.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SceneSystemsManager.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemSettingsInspector.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemSettingsFieldRenderer.cpp">
+      <Filter>Source Files\Editor\SystemAuthoring</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
@@ -835,6 +868,9 @@
       <Filter>Source Files\Editor\Views</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.cpp">
+      <Filter>Source Files\Editor\Views</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorViewInputGate.cpp">
       <Filter>Source Files\Editor\Views</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.cpp">
@@ -1572,6 +1608,9 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneSystemsPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -2035,6 +2074,33 @@
     <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h">
       <Filter>Header Files\Editor\History</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.h">
+      <Filter>Header Files\Editor\History</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemAuthoringTypes.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemAuthoringRegistry.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_BuiltInSystemAuthoring.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SceneSystemAuthoringModel.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_AddSystemPopup.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SceneSystemsManager.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemSettingsInspector.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\SystemAuthoring\HIKARI_SystemSettingsFieldRenderer.h">
+      <Filter>Header Files\Editor\SystemAuthoring</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Menus\HIKARI_EditorDocumentMenu.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -2054,6 +2120,9 @@
       <Filter>Header Files\Editor\Views</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.h">
+      <Filter>Header Files\Editor\Views</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInputGate.h">
       <Filter>Header Files\Editor\Views</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInstance.h">
@@ -2738,6 +2807,9 @@
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneSystemsPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_InputActionMapPanel.h">

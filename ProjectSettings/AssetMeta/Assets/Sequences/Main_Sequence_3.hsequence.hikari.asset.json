@@ -1,0 +1,13 @@
+{
+  "displayName": "test",
+  "guid": "60dbdb6d4111deef4a41cbd789343696",
+  "importSettings": {
+    "runtimeLoader": "SequenceAssetStore",
+    "sourceAuthoritative": true
+  },
+  "importerId": "SequenceAssetImporter",
+  "importerVersion": 1,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Sequences/Main_Sequence_3.hsequence",
+  "type": "Sequence"
+}

@@ -458,6 +458,12 @@ namespace HIKARI {
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount,
                     s.mesh.traditionalCommandStreamOverflowCommandCount);
+                MetricRow("Traditional Input KB / Copies / Resident Reuse", "%.2f / %zu / %s",
+                    static_cast<double>(s.mesh.traditionalCommandStreamInputUploadBytes) / 1024.0,
+                    s.mesh.traditionalCommandStreamInputUploadCopyCount,
+                    s.mesh.traditionalCommandStreamResidentInputReuseCount != 0u
+                        ? "yes"
+                        : "no");
                 ImGui::EndTable();
             }
         }
