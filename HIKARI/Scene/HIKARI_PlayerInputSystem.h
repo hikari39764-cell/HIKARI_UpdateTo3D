@@ -1,0 +1,18 @@
+#pragma once
+
+#include "Scene/HIKARI_ISystem.h"
+
+namespace HIKARI {
+namespace INPUT { class InputService; }
+
+class PlayerInputSystem final : public ISystem {
+public:
+    explicit PlayerInputSystem(INPUT::InputService* inputService);
+    std::string_view GetName() const override { return "PlayerInputSystem"; }
+    void PreUpdate(World& world, const FrameContext& frame) override;
+
+private:
+    INPUT::InputService* inputService_ = nullptr;
+};
+
+} // namespace HIKARI

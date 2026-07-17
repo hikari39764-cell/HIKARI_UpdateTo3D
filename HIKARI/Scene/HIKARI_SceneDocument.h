@@ -14,6 +14,8 @@
 
 namespace HIKARI {
 
+    inline constexpr uint32_t kCurrentSceneDocumentVersion = 2;
+
     struct TransformData {
         MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };
         MATH::Vec3 rotationEulerDeg{ 0.0f, 0.0f, 0.0f };
@@ -112,7 +114,7 @@ namespace HIKARI {
     }
 
     struct SceneDocument {
-        uint32_t version = 1;
+        uint32_t version = kCurrentSceneDocumentVersion;
         std::string sceneName = "Untitled";
         SceneEnvironment environment{};
         SceneLightingBakeSettings lightingBake{};

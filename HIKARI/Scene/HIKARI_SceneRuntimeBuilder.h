@@ -9,6 +9,8 @@
 
 namespace HIKARI {
 
+    class ComponentRegistry;
+
     class AssetRegistry;
     class ComponentRegistry;
     class ModelManager;
@@ -40,7 +42,9 @@ namespace HIKARI {
 
     class SceneRuntimeBuilder {
     public:
-        SceneDependencySet CollectDependencies(const SceneDocument& document) const;
+        SceneDependencySet CollectDependencies(
+            const SceneDocument& document,
+            const ComponentRegistry* enabledComponents = nullptr) const;
         bool PreloadDependencies(
             const SceneDependencySet& dependencies,
             const AssetRegistry& assetRegistry,

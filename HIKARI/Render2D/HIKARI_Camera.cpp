@@ -1,5 +1,6 @@
 #include "Render2D/HIKARI_Camera.h"
-#include "HIKARI_Input.h"
+#include "Input/Runtime/HIKARI_InputActionIds.h"
+#include "Input/Runtime/HIKARI_InputTypes.h"
 #include <cmath>
 #include <string>
 
@@ -13,15 +14,6 @@ namespace HIKARI {
         static Matrix3x3 gView = Matrix3x3::MakeIdentity();
 
         static bool      gDebugControlEnabled = true;
-        static std::string gDebugLayerName = "DebugCamera";
-        struct DebugActionsConfig {
-            std::string dragButton = "CameraDrag";
-            std::string dragAxisX = "CameraDragX";
-            std::string dragAxisY = "CameraDragY";
-            std::string zoomAxis = "CameraZoom"; 
-            std::string lookButton = "CameraLook"; 
-        } gDebugActions;
-
         static float     gDebugZoomStep = 0.02f;
         static float     gDebugZoomMin = 0.05f;
         static float     gDebugZoomMax = 12.0f;
@@ -76,17 +68,21 @@ namespace HIKARI {
                 (gScreenH * 0.5f) / (gState.scale.y * gState.pitch)
             };
         }
-        static void ApplyDebugControl(float dt) {
+        static void ApplyDebugControl(
+            float dt,
+            const INPUT::InputSnapshot* input) {
             (void)dt;
-            if (!gDebugControlEnabled) return;
-            if (!HINPUT::IsLayerActive(gDebugLayerName)) return;
+            if (!gDebugControlEnabled || input == nullptr) return;
 
             // --- 1. ??平移 (??修改：屏幕空? -> 世界空?) ---
-            const bool dragging = HINPUT::IsDown(gDebugActions.dragButton);
+            const bool dragging = input->IsDown(
+                INPUT::ActionIds::EditorCameraPanHeld);
 
             // ?取原始鼠?移?量
-            float rawDragX = dragging ? HINPUT::GetAxis(gDebugActions.dragAxisX) : 0.0f;
-            float rawDragY = dragging ? HINPUT::GetAxis(gDebugActions.dragAxisY) : 0.0f;
+            const std::array<float, 2> pan = input->GetAxis2D(
+                INPUT::ActionIds::EditorCameraPan);
+            float rawDragX = dragging ? pan[0] : 0.0f;
+            float rawDragY = dragging ? pan[1] : 0.0f;
 
             if (std::fabs(rawDragX) > 0.0001f || std::fabs(rawDragY) > 0.0001f) {
                 // ?算当前旋?角度的 sin/cos
@@ -111,7 +107,8 @@ namespace HIKARI {
             }
 
             // --- 2. ?放 (保持不?) ---
-            float zoomInput = HINPUT::GetAxis(gDebugActions.zoomAxis);
+            float zoomInput = input->GetAxis1D(
+                INPUT::ActionIds::EditorCameraZoom);
             if (std::fabs(zoomInput) > 0.0001f) {
                 float factor = 1.0f + zoomInput * gDebugZoomStep;
                 if (factor < 0.1f) factor = 0.1f;
@@ -120,11 +117,13 @@ namespace HIKARI {
             }
 
             // --- 3. 旋??角 (保持不?) ---
-            const bool looking = HINPUT::IsDown(gDebugActions.lookButton);
+            const bool looking = input->IsDown(
+                INPUT::ActionIds::EditorCameraLookHeld);
             if (looking) {
-                Vector2 delta = HINPUT::GetMouseDelta();
-                float lookX = -delta.x;
-                float lookY = -delta.y;
+                const std::array<float, 2> look = input->GetAxis2D(
+                    INPUT::ActionIds::EditorCameraLook);
+                float lookX = -look[0];
+                float lookY = -look[1];
 
                 if (std::fabs(lookX) > 0.0001f || std::fabs(lookY) > 0.0001f) {
                     const float rotSpeed = 0.003f;
@@ -203,7 +202,7 @@ namespace HIKARI {
         void SetBoundsWorld(const RectF& wr) { gWorldBounds = wr; gHasBounds = (wr.width > 0.0f && wr.height > 0.0f); }
 
         // ====== 更新 ======
-        void Update(float dt) {
+        void Update(float dt, const INPUT::InputSnapshot* input) {
             if (dt < 0.0f) dt = 0.0f;
 
             // (0) シェイクの計算
@@ -277,7 +276,7 @@ namespace HIKARI {
             }
 
             // (1.5) デバッグ入力による手動パン / ズーム
-            ApplyDebugControl(dt);
+            ApplyDebugControl(dt, input);
 
             // A. 基本移動
             Matrix3x3 mNegPos = Matrix3x3::MakeTranslate(-gState.position.x, -gState.position.y);
@@ -320,21 +319,10 @@ namespace HIKARI {
         }
 
         void EnableDebugControl(bool enable) { gDebugControlEnabled = enable; }
-        void SetDebugLayer(const std::string& layerName) { gDebugLayerName = layerName; }
         void SetDebugZoomStep(float step) { gDebugZoomStep = step; }
         void SetDebugZoomLimits(float minZoom, float maxZoom) {
             gDebugZoomMin = (minZoom < 0.0001f) ? 0.0001f : minZoom;
             gDebugZoomMax = (maxZoom < gDebugZoomMin) ? gDebugZoomMin : maxZoom;
-        }
-        void SetDebugActions(const std::string& dragButton, const std::string& dragAxisX, const std::string& dragAxisY, const std::string& zoomAxis) {
-            if (!dragButton.empty()) gDebugActions.dragButton = dragButton;
-            if (!dragAxisX.empty()) gDebugActions.dragAxisX = dragAxisX;
-            if (!dragAxisY.empty()) gDebugActions.dragAxisY = dragAxisY;
-            if (!zoomAxis.empty()) gDebugActions.zoomAxis = zoomAxis;
-        }
-        void SetDebugLookButton(const std::string& lookButton)
-        {
-            if (!lookButton.empty()) gDebugActions.lookButton = lookButton;
         }
         // ====== 座標変換 ======
         Vector2 WorldToScreen(const Vector2& w) { return TransformPoint(w, gView); }

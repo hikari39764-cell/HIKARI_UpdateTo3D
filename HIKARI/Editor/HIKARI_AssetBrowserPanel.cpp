@@ -317,33 +317,9 @@ namespace HIKARI {
                 { "sceneName", sceneName.empty() ? "New Scene" : sceneName },
                 { "systems", nlohmann::json::array({
                     {
-                        { "systemId", "TransformSystem" },
-                        { "enabled", true },
-                        { "executionOrder", 0 },
-                        { "settings", nlohmann::json::object() }
-                    },
-                    {
                         { "systemId", "ModelRenderSystem" },
                         { "enabled", true },
                         { "executionOrder", 100 },
-                        { "settings", nlohmann::json::object() }
-                    },
-                    {
-                        { "systemId", "AnimationSystem" },
-                        { "enabled", true },
-                        { "executionOrder", 150 },
-                        { "settings", nlohmann::json::object() }
-                    },
-                    {
-                        { "systemId", "VfxSystem" },
-                        { "enabled", true },
-                        { "executionOrder", 200 },
-                        { "settings", nlohmann::json::object() }
-                    },
-                    {
-                        { "systemId", "ScriptSystem" },
-                        { "enabled", false },
-                        { "executionOrder", 400 },
                         { "settings", nlohmann::json::object() }
                     },
                 }) },

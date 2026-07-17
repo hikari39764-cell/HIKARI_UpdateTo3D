@@ -35,29 +35,17 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
-#include "Scene/HIKARI_AnimationSystem.h"
-#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_CameraFollowComponent.h"
-#include "Scene/Components/HIKARI_DoorTransitionComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
-#include "Scene/Components/HIKARI_PlayerControllerComponent.h"
-#include "Scene/Components/HIKARI_SequencePlayerComponent.h"
-#include "Scene/Components/HIKARI_SpawnPointComponent.h"
+#include "Scene/Features/HIKARI_BuiltInRuntimeFeatures.h"
+#include "Scene/Features/HIKARI_RuntimeFeature.h"
+#include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
 #include "Scene/Sequencer/Drivers/HIKARI_CameraSequenceTrackDriver.h"
-#include "Scene/Sequencer/Runtime/HIKARI_SequencePlayerSystem.h"
-#include "Scene/Components/HIKARI_TriggerVolumeComponent.h"
-#include "Scene/Components/HIKARI_UIButtonSceneTransitionComponent.h"
 #include "Vfx/Runtime/HIKARI_VfxAsset.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 #include "Vfx/Post/HIKARI_PostProfile.h"
-#include "Scene/Components/HIKARI_ComponentLinkComponent.h"
-#include "Scene/Components/HIKARI_VfxPlayerComponent.h"
-#include "Scene/HIKARI_CameraFollowSystem.h"
-#include "Scene/HIKARI_DefaultSceneSystems.h"
-#include "Scene/Features/HIKARI_BuiltInRuntimeFeatures.h"
-#include "Scene/HIKARI_PlayerMovementSystem.h"
 #include "Scene/HIKARI_RuntimeSceneContext.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Tools/Baking/HIKARI_ProbeCubemapCaptureTarget.h"
@@ -534,15 +522,11 @@ namespace HIKARI {
         gameplayCamera_ = camera_;
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
 
-        RegisterDefaultComponentTypes();
-        RegisterDefaultSystemTypes();
-        RuntimeFeatureContext runtimeFeatureContext{
-            componentRegistry_,
-            systemTypeRegistry_
-        };
-        RegisterBuiltInRuntimeFeatures(runtimeFeatureContext);
-
         ReloadAssets();
+        if (!RegisterRuntimeFeatures()) {
+            HIKARI_LOG_ERROR(
+                "[RuntimeFeature] one or more built-in features failed to install");
+        }
         sequenceAssetStore_.SetAssetDatabase(&assetDatabase_);
         sequencePlaybackService_.SetAssetStore(&sequenceAssetStore_);
         VFX::SetAssetRegistry(&assetRegistry_);
@@ -565,11 +549,13 @@ namespace HIKARI {
             runtimePreviewCamera_.Update(
                 dt,
                 gameplayCamera_,
+                SERVICES::GetInputSnapshot(),
                 CameraControlInputContext::RuntimeWindow);
         } else if (UseDebugCamera() && !IsEditorCameraPreviewActive()) {
             debugCamera_.Update(
                 dt,
                 camera_,
+                SERVICES::GetInputSnapshot(),
                 CameraControlInputContext::EditorViewport);
         }
         systemScheduler_.PreUpdate(world_, frame);
@@ -578,7 +564,10 @@ namespace HIKARI {
         systemScheduler_.LateUpdate(world_, frame);
 
         if (runtimePlayActive_) {
-            sequencePlaybackService_.Update(dt);
+            if (IsRuntimeFeatureActive(
+                    RuntimeFeatureIds::Cinematics)) {
+                sequencePlaybackService_.Update(dt);
+            }
             resolvedCameraFrame_ = cameraDirector_.Resolve(
                 world_,
                 gameplayCamera_,
@@ -732,7 +721,6 @@ namespace HIKARI {
         if (!SERVICES::IsEditorUIEnabled() && !SERVICES::ArePortableObjectToolsEnabled()) {
             world_.RenderImGui();
         }
-        componentGizmoRenderer_.DrawScreenSpaceGizmos(world_, componentGizmoState_, selectedGizmoObjectId_);
     }
     const std::string& DocumentSceneBase::GetSceneId() const {
         return sceneId_;
@@ -789,6 +777,32 @@ namespace HIKARI {
     }
     ComponentRegistry& DocumentSceneBase::GetComponentRegistry() {
         return componentRegistry_;
+    }
+    const RuntimeFeatureCatalog&
+        DocumentSceneBase::GetRuntimeFeatureCatalog() const noexcept {
+        return runtimeFeatureCatalog_;
+    }
+    const RuntimeFeatureInstallReport&
+        DocumentSceneBase::GetRuntimeFeatureInstallReport() const noexcept {
+        return runtimeFeatureInstallReport_;
+    }
+    bool DocumentSceneBase::IsRuntimeFeatureActive(
+        std::string_view featureId) const noexcept {
+        return runtimeFeatureCatalog_.IsFeatureActive(featureId);
+    }
+    std::vector<SceneSystemData>
+        DocumentSceneBase::CreateProjectDefaultSceneSystems() const {
+        return runtimeFeatureCatalog_.CreateDefaultSceneSystems();
+    }
+    bool DocumentSceneBase::ReloadRuntimeFeaturesFromProjectSettings() {
+        if (runtimePlayActive_) {
+            HIKARI_LOG_WARN(
+                "[RuntimeFeature] feature settings cannot reload during Play");
+            return false;
+        }
+        const bool registered = RegisterRuntimeFeatures();
+        const bool rebuilt = RebuildRuntimeWorld();
+        return registered && rebuilt;
     }
 
     SceneRuntimeBuilder& DocumentSceneBase::GetRuntimeBuilder() {
@@ -996,11 +1010,15 @@ namespace HIKARI {
         systemScheduler_.Clear();
         RenderSubmissionSystem::InvalidateSceneResources(true);
 
-        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(
+            sceneDocument_,
+            &componentRegistry_);
         if (NeedsRuntimeDependencyRegistryRefresh(assetRegistry_, deps)) {
             // Editor 側で追加・再import された asset descriptor を runtime build 前に同期する。
             if (ReloadAssets()) {
-                deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+                deps = runtimeBuilder_.CollectDependencies(
+                    sceneDocument_,
+                    &componentRegistry_);
             } else {
                 HIKARI_LOG_WARN("[SceneRuntime] asset registry refresh failed before runtime rebuild.");
             }
@@ -1013,6 +1031,15 @@ namespace HIKARI {
             skyManager_,
             assetDatabase_.GetProjectRoot(),
             currentSceneAssetGuid_.value);
+        for (const RuntimeFeatureSceneIssue& issue :
+                runtimeFeatureCatalog_.AnalyzeSceneDocument(sceneDocument_)) {
+            HIKARI_LOG_WARN(
+                "[RuntimeFeature] scene data preserved but inactive: " +
+                issue.itemId + " feature=" + issue.featureId +
+                (issue.objectId.value != 0
+                    ? " objectId=" + std::to_string(issue.objectId.value)
+                    : std::string{}));
+        }
         const bool built = runtimeBuilder_.BuildWorldFromDocument(sceneDocument_, world_, assetRegistry_, componentRegistry_, modelManager_, skyManager_);
 
         environment_ = sceneDocument_.environment;
@@ -1301,7 +1328,8 @@ namespace HIKARI {
         const CinematicPlaybackOptions& options,
         float startTimeSeconds) {
 
-        if (!runtimePlayActive_) {
+        if (!runtimePlayActive_ ||
+            !IsRuntimeFeatureActive(RuntimeFeatureIds::Cinematics)) {
             return {};
         }
         const CinematicSequence* sequence = FindCinematicSequence(
@@ -1357,7 +1385,8 @@ namespace HIKARI {
     SEQUENCER::SequencePlaybackHandle DocumentSceneBase::PlaySequence(
         const SEQUENCER::SequencePlayRequest& request) {
 
-        return runtimePlayActive_
+        return runtimePlayActive_ &&
+            IsRuntimeFeatureActive(RuntimeFeatureIds::Cinematics)
             ? sequencePlaybackService_.Play(request)
             : SEQUENCER::SequencePlaybackHandle{};
     }
@@ -1372,6 +1401,16 @@ namespace HIKARI {
                 "RuntimePlayInactive",
                 {},
                 "Sequence playback requires an active runtime Play session"
+            });
+            return result;
+        }
+        if (!IsRuntimeFeatureActive(RuntimeFeatureIds::Cinematics)) {
+            SEQUENCER::SequencePlayResult result{};
+            result.diagnostics.push_back({
+                SEQUENCER::SequenceDiagnosticSeverity::Error,
+                "RuntimeFeatureDisabled",
+                {},
+                "Sequence playback requires the Cinematics runtime feature"
             });
             return result;
         }
@@ -1401,7 +1440,8 @@ namespace HIKARI {
     uint64_t DocumentSceneBase::SubmitSequenceCommand(
         SEQUENCER::SequencePlaybackCommand command) {
 
-        return runtimePlayActive_
+        return runtimePlayActive_ &&
+            IsRuntimeFeatureActive(RuntimeFeatureIds::Cinematics)
             ? sequencePlaybackService_.Submit(std::move(command))
             : 0;
     }
@@ -1466,6 +1506,8 @@ namespace HIKARI {
         viewportDebugViewState_ = {};
         selectedGizmoObjectId_ = {};
         runtimePlayActive_ = true;
+        SERVICES::GetInputService().Contexts().SetActive(
+            "Gameplay", true);
         HIKARI_LOG_INFO("Document scene entered runtime Play state.");
         return true;
     }
@@ -1475,6 +1517,8 @@ namespace HIKARI {
         }
 
         runtimePlayActive_ = false;
+        SERVICES::GetInputService().Contexts().SetActive(
+            "Gameplay", !SERVICES::IsEditorHost());
         runtimePreviewCameraActive_ = false;
         runtimeSceneCameraActive_ = false;
         sequencePlaybackService_.Reset();
@@ -1637,7 +1681,8 @@ namespace HIKARI {
         sceneDocument_ = SceneDocument{};
         ++sceneDocumentRevision_;
         sceneDocument_.sceneName = "Untitled Scene";
-        sceneDocument_.systems = CreateDefaultSceneSystems();
+        sceneDocument_.systems =
+            runtimeFeatureCatalog_.CreateDefaultSceneSystems();
         environment_ = sceneDocument_.environment;
         scenePath_.clear();
         sceneId_ = "TransientScene";
@@ -1748,10 +1793,14 @@ namespace HIKARI {
 
     int DocumentSceneBase::RebindModelComponents() {
         int reboundCount = 0;
-        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+        SceneDependencySet deps = runtimeBuilder_.CollectDependencies(
+            sceneDocument_,
+            &componentRegistry_);
         if (NeedsRuntimeDependencyRegistryRefresh(assetRegistry_, deps)) {
             if (ReloadAssets()) {
-                deps = runtimeBuilder_.CollectDependencies(sceneDocument_);
+                deps = runtimeBuilder_.CollectDependencies(
+                    sceneDocument_,
+                    &componentRegistry_);
             } else {
                 HIKARI_LOG_WARN("[SceneRuntime] asset registry refresh failed before model rebind.");
             }
@@ -2665,44 +2714,91 @@ namespace HIKARI {
         }
         return sceneDocument_.sceneName;
     }
-    void DocumentSceneBase::RegisterDefaultSystemTypes() {
-        systemTypeRegistry_.Register(SystemTypeInfo{
-            "ModelRenderSystem",
-            [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<RenderSubmissionSystem>();
+    bool DocumentSceneBase::RegisterRuntimeFeatures() {
+        componentRegistry_.Clear();
+        systemTypeRegistry_.Clear();
+        componentSystemPolicy_.Clear();
+        runtimeFeatureCatalog_ = CreateBuiltInRuntimeFeatureCatalog();
+
+        ProjectSettingsService projectSettings{};
+        const bool settingsLoaded = projectSettings.Load(
+            assetDatabase_.GetProjectRoot().empty()
+                ? std::filesystem::current_path()
+                : assetDatabase_.GetProjectRoot());
+        if (!settingsLoaded) {
+            HIKARI_LOG_WARN(
+                "[RuntimeFeature] project settings could not be loaded; defaults are used");
+        }
+
+        RuntimeFeatureContext context{
+            componentRegistry_,
+            systemTypeRegistry_,
+            componentSystemPolicy_,
+            RuntimeFeatureServices{
+                &gameplayCamera_,
+                &runtimeSceneCameraActive_,
+                &sequencePlaybackService_,
+                &runtimePlayActive_,
+                &SERVICES::GetInputService()
             }
-        });
-        systemTypeRegistry_.Register(SystemTypeInfo{
-            "PlayerMovementSystem",
-            [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<PlayerMovementSystem>(&gameplayCamera_);
-            }
-        });
-        systemTypeRegistry_.Register(SystemTypeInfo{
-            "AnimationSystem",
-            [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<AnimationSystem>();
-            }
-        });
-        systemTypeRegistry_.Register(SystemTypeInfo{
-            "CameraFollowSystem",
-            [this](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                return std::make_unique<CameraFollowSystem>(gameplayCamera_, runtimeSceneCameraActive_);
-            }
-        });
+        };
+        runtimeFeatureInstallReport_ =
+            runtimeFeatureCatalog_.RegisterEnabled(
+                context,
+                projectSettings.GetSettings().enabledRuntimeFeatures);
+
+        for (const std::string& issue :
+                runtimeFeatureInstallReport_.resolution.issues) {
+            HIKARI_LOG_ERROR("[RuntimeFeature] " + issue);
+        }
+        for (const std::string& featureId :
+                runtimeFeatureInstallReport_.resolution.
+                    implicitlyEnabledFeatures) {
+            HIKARI_LOG_INFO(
+                "[RuntimeFeature] dependency enabled: " + featureId);
+        }
+        for (const std::string& featureId :
+                runtimeFeatureInstallReport_.installedFeatures) {
+            HIKARI_LOG_INFO("[RuntimeFeature] installed: " + featureId);
+        }
+        for (const std::string& featureId :
+                runtimeFeatureInstallReport_.failedFeatures) {
+            HIKARI_LOG_ERROR("[RuntimeFeature] failed: " + featureId);
+        }
+        if (!runtimeFeatureCatalog_.IsFeatureActive(
+                RuntimeFeatureIds::Cinematics)) {
+            sequencePlaybackService_.Reset();
+            currentCameraSequenceHandle_ = {};
+        }
+        return runtimeFeatureInstallReport_.success;
     }
     bool DocumentSceneBase::BuildSystemScheduleFromDocument() {
         if (sceneDocument_.systems.empty()) {
-            sceneDocument_.systems = CreateDefaultSceneSystems();
+            sceneDocument_.systems =
+                runtimeFeatureCatalog_.CreateDefaultSceneSystems();
         }
 
         bool fullyConfigured = true;
         for (const SceneSystemData& entry : sceneDocument_.systems) {
+            if (componentSystemPolicy_.IsComponentDrivenSystem(
+                    entry.systemId)) {
+                continue;
+            }
             if (!entry.enabled) {
                 continue;
             }
 
             if (!systemTypeRegistry_.Find(entry.systemId)) {
+                const std::string owner =
+                    runtimeFeatureCatalog_.FindOwningFeatureForSystem(
+                        entry.systemId);
+                if (!owner.empty() &&
+                    !runtimeFeatureCatalog_.IsFeatureActive(owner)) {
+                    HIKARI_LOG_WARN(
+                        "[RuntimeFeature] disabled system preserved: " +
+                        entry.systemId + " feature=" + owner);
+                    continue;
+                }
                 HIKARI_LOG_WARN(
                     "[SceneSystem] unavailable system skipped: " + entry.systemId);
                 fullyConfigured = false;
@@ -2728,29 +2824,18 @@ namespace HIKARI {
             }
         }
 
-        const bool hasSequencePlayerComponent = std::any_of(
-            sceneDocument_.objects.begin(),
-            sceneDocument_.objects.end(),
-            [](const SceneObjectData& object) {
-                return std::any_of(
-                    object.components.begin(),
-                    object.components.end(),
-                    [](const SceneComponentData& component) {
-                        return component.type ==
-                            "SequencePlayerComponent";
-                    });
-            });
-        if (hasSequencePlayerComponent &&
-            !systemScheduler_.HasSystem("SequencePlayerSystem")) {
-            if (!systemScheduler_.AddSystem(
-                    "SequencePlayerSystem",
-                    170,
-                    std::make_unique<SequencePlayerSystem>(
-                        sequencePlaybackService_,
-                        runtimePlayActive_))) {
+        const ComponentSystemInstallResult componentSystems =
+            componentSystemPolicy_.InstallRequiredSystems(
+                sceneDocument_,
+                systemTypeRegistry_,
+                systemScheduler_);
+        if (!componentSystems.success) {
+            fullyConfigured = false;
+            for (const std::string& systemId :
+                    componentSystems.unavailableSystems) {
                 HIKARI_LOG_ERROR(
-                    "[SceneSystem] SequencePlayerSystem could not be attached");
-                fullyConfigured = false;
+                    "[SceneSystem] component companion unavailable: " +
+                    systemId);
             }
         }
 
@@ -2767,243 +2852,6 @@ namespace HIKARI {
             (order.empty() ? std::string("<none>") : schedule.str()));
         return fullyConfigured;
     }
-    void DocumentSceneBase::RegisterDefaultComponentTypes() {
-        if (!componentRegistry_.Find("CameraComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "CameraComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<CameraComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["verticalFovDegrees"] = 60.0f;
-                    properties["nearClip"] = 0.1f;
-                    properties["farClip"] = 100.0f;
-                }
-            });
-        }
-        if (!componentRegistry_.Find("ModelComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "ModelComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<ModelComponent>(); },
-                {},
-                { "AnimatorComponent" },
-                {},
-                false
-            });
-        }
-        if (!componentRegistry_.Find("AnimatorComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "AnimatorComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<AnimatorComponent>(); },
-                { "ModelComponent" },
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["clip"] = "";
-                    properties["timeSec"] = 0.0f;
-                    properties["speed"] = 1.0f;
-                    properties["loop"] = true;
-                    properties["autoPlay"] = true;
-                    properties["playing"] = true;
-                    properties["finished"] = false;
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("PlayerControllerComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "PlayerControllerComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<PlayerControllerComponent>(); },
-                { "AnimatorComponent" },
-                { "CameraFollowComponent", "SceneScanFxComponent" },
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["moveXAxisName"] = "MoveX";
-                    properties["moveYAxisName"] = "MoveY";
-                    properties["moveSpeed"] = 4.0f;
-                    properties["acceleration"] = 60.0f;
-                    properties["deceleration"] = 72.0f;
-                    properties["turnSpeed"] = 12.0f;
-                    properties["inputDeadZone"] = 0.08f;
-                    properties["rotateToMove"] = true;
-                    properties["cameraRelativeMovement"] = true;
-                    properties["useBounds"] = true;
-                    properties["bounds"] = {
-                        { "minX", -12.0f },
-                        { "maxX", 12.0f },
-                        { "minZ", -12.0f },
-                        { "maxZ", 12.0f }
-                    };
-                    properties["animationEnabled"] = true;
-                    properties["autoSelectAnimationClips"] = true;
-                    properties["idleClip"] = "";
-                    properties["moveClip"] = "";
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("CameraFollowComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "CameraFollowComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<CameraFollowComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["targetObjectId"] = 0;
-                    properties["useOwnerAsFallbackTarget"] = true;
-                    properties["offset"] = nlohmann::json::array({ 0.0f, 5.5f, -7.5f });
-                    properties["lookAtOffset"] = nlohmann::json::array({ 0.0f, 1.2f, 0.0f });
-                    properties["followSmooth"] = 10.0f;
-                    properties["lookSmooth"] = 12.0f;
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("SequencePlayerComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "SequencePlayerComponent",
-                []() -> std::unique_ptr<IComponent> {
-                    return std::make_unique<SequencePlayerComponent>();
-                },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&,
-                    nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["sequenceAssetGuid"] = "";
-                    properties["playOnStart"] = false;
-                    properties["loop"] = false;
-                    properties["playbackRate"] = 1.0f;
-                    properties["startTimeSeconds"] = 0.0f;
-                    properties["channel"] = "Cinematics";
-                    properties["priority"] = 0;
-                    properties["channelPolicy"] =
-                        "ReplaceIfHigherOrEqual";
-                    properties["stopOnDisable"] = true;
-                    properties["restartIfPlaying"] = true;
-                    properties["ownerSlotName"] = "Owner";
-                    properties["bindings"] = nlohmann::json::array();
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("UIButtonSceneTransitionComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "UIButtonSceneTransitionComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<UIButtonSceneTransitionComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["targetSceneAssetGuid"] = "";
-                    properties["transitionProfileId"] = "noise_wipe";
-                    properties["screenRect"] = {
-                        { "x", 100.0f },
-                        { "y", 100.0f },
-                        { "w", 200.0f },
-                        { "h", 80.0f }
-                    };
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("SpawnPointComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "SpawnPointComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<SpawnPointComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData& object, nlohmann::json& properties) {
-                    properties["spawnPointId"] = object.name.empty() ? "DefaultSpawn" : object.name;
-                    properties["enabled"] = true;
-                }
-            });
-        }
-
-        if (!componentRegistry_.Find("TriggerVolumeComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "TriggerVolumeComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<TriggerVolumeComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["boxSize"] = {
-                        { "x", 1.0f },
-                        { "y", 2.0f },
-                        { "z", 1.0f }
-                    };
-                }
-            });
-        }
-
-
-        if (!componentRegistry_.Find("VfxPlayerComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "VfxPlayerComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<VfxPlayerComponent>(); },
-                {},
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["enabled"] = true;
-                    properties["visible"] = true;
-                    properties["slots"] = nlohmann::json::array({
-                        {
-                            { "slotName", "Default" },
-                            { "effectAssetId", "" },
-                            { "loop", false },
-                            { "autoPlay", false },
-                            { "restartIfAlreadyPlaying", true }
-                        }
-                    });
-                }
-            });
-        }
-        if (!componentRegistry_.Find("ComponentLinkComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "ComponentLinkComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<ComponentLinkComponent>(); },
-                {},
-                {},
-                {},
-                false
-            });
-        }
-        if (!componentRegistry_.Find("DoorTransitionComponent")) {
-            componentRegistry_.Register(ComponentTypeInfo{
-                "DoorTransitionComponent",
-                []() -> std::unique_ptr<IComponent> { return std::make_unique<DoorTransitionComponent>(); },
-                { "TriggerVolumeComponent" },
-                {},
-                {},
-                false,
-                [](const SceneObjectData&, nlohmann::json& properties) {
-                    properties["targetSceneAssetGuid"] = "";
-                    properties["requireInteractKey"] = true;
-                    properties["enabled"] = true;
-                }
-            });
-        }
-    }
-
     bool DocumentSceneBase::UseDebugCamera() const {
         return !runtimePlayActive_;
     }

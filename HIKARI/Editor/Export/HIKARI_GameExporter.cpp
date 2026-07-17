@@ -909,14 +909,6 @@ namespace HIKARI::EDITOR {
                 }
             }
 
-            const std::filesystem::path inputConfig = projectRoot / "input.json";
-            std::error_code inputConfigError{};
-            if (std::filesystem::exists(inputConfig, inputConfigError) && !inputConfigError) {
-                if (!CopyFileChecked(inputConfig, outputDirectory / "input.json", errorMessage)) {
-                    return false;
-                }
-            }
-
             if (!CopyDxcRuntime(projectRoot, outputDirectory, errorMessage)) {
                 return false;
             }

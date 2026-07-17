@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 
+#include "Assets/HIKARI_AssetGuid.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelineCanvas.h"
 #include "Editor/Workspaces/HIKARI_SequenceBindingPanel.h"
 #include "Scene/HIKARI_CinematicSequencePlayer.h"
@@ -24,6 +25,7 @@ namespace HIKARI::EDITOR {
         CameraTimelinePanelResult Draw(
             SceneDocument& document,
             SceneCinematicsSettings& settings,
+            const AssetGuid& sequenceAssetGuid,
             SceneObjectId selectedCameraObjectId,
             float deltaTime,
             bool previewAllowed,

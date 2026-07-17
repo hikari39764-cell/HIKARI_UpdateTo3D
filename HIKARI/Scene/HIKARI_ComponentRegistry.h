@@ -15,6 +15,13 @@ namespace HIKARI {
     class IComponent;
     struct SceneObjectData;
 
+    struct ComponentTypePresentation {
+        std::string displayName{};
+        std::string category{ "Other" };
+        std::string description{};
+        std::string featureId{};
+    };
+
     struct ComponentTypeInfo {
         using FactoryFn = std::function<std::unique_ptr<IComponent>()>;
         using InitializeDefaultsFn = std::function<void(const SceneObjectData& object, nlohmann::json& properties)>;
@@ -26,13 +33,16 @@ namespace HIKARI {
         std::vector<std::string> incompatibleComponents{};
         bool allowMultiple = false;
         InitializeDefaultsFn initializeDefaults{};
+        ComponentTypePresentation presentation{};
     };
 
     class ComponentRegistry {
     public:
-        void Register(ComponentTypeInfo info);
+        bool Register(ComponentTypeInfo info);
+        void Clear() noexcept;
         const ComponentTypeInfo* Find(std::string_view typeName) const;
         std::vector<std::string> GetTypeNames() const;
+        std::vector<const ComponentTypeInfo*> GetTypeInfos() const;
 
         IComponent* AddComponentToObject(GameObject& object, std::string_view typeName) const;
 

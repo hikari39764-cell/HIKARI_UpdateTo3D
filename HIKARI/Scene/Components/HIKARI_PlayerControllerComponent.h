@@ -22,8 +22,6 @@ namespace HIKARI {
         void BuildInspector(IInspectorBuilder& builder) override;
 
         bool IsEnabled() const;
-        const std::string& GetMoveXAxisName() const;
-        const std::string& GetMoveYAxisName() const;
         float GetMoveSpeed() const;
         float GetAcceleration() const;
         float GetDeceleration() const;
@@ -50,8 +48,6 @@ namespace HIKARI {
         void ClampSettings();
 
         bool enabled_ = true;
-        std::string moveXAxisName_{ "MoveX" };
-        std::string moveYAxisName_{ "MoveY" };
         float moveSpeed_ = 4.0f;
         float acceleration_ = 60.0f;
         float deceleration_ = 72.0f;

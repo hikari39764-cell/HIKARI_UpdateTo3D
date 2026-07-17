@@ -2,6 +2,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
+#include <unordered_set>
+#include <utility>
 
 #include <json.hpp>
 
@@ -40,8 +43,24 @@ namespace HIKARI {
         }
 
         settings_ = ProjectSettings{};
-        settings_.version = root.value("version", 1u);
+        settings_.version = (std::max)(root.value("version", 1u), 2u);
         settings_.startupSceneGuid.value = root.value("startupSceneGuid", std::string{});
+        if (root.contains("enabledRuntimeFeatures") &&
+            root["enabledRuntimeFeatures"].is_array()) {
+            settings_.enabledRuntimeFeatures.clear();
+            std::unordered_set<std::string> seen;
+            for (const nlohmann::json& node :
+                    root["enabledRuntimeFeatures"]) {
+                if (!node.is_string()) {
+                    continue;
+                }
+                std::string featureId = node.get<std::string>();
+                if (!featureId.empty() && seen.insert(featureId).second) {
+                    settings_.enabledRuntimeFeatures.push_back(
+                        std::move(featureId));
+                }
+            }
+        }
         return true;
     }
 
@@ -61,6 +80,7 @@ namespace HIKARI {
         const nlohmann::json root{
             { "version", settings_.version },
             { "startupSceneGuid", settings_.startupSceneGuid.value },
+            { "enabledRuntimeFeatures", settings_.enabledRuntimeFeatures },
         };
 
         std::ofstream ofs(settingsPath_);
@@ -88,6 +108,21 @@ namespace HIKARI {
 
         settings_.startupSceneGuid = guid;
         return true;
+    }
+
+    void ProjectSettingsService::SetEnabledRuntimeFeatures(
+        std::vector<std::string> featureIds) {
+
+        settings_.enabledRuntimeFeatures.clear();
+        std::unordered_set<std::string> seen;
+        settings_.enabledRuntimeFeatures.reserve(featureIds.size());
+        for (std::string& featureId : featureIds) {
+            if (!featureId.empty() && seen.insert(featureId).second) {
+                settings_.enabledRuntimeFeatures.push_back(
+                    std::move(featureId));
+            }
+        }
+        settings_.version = (std::max)(settings_.version, 2u);
     }
 
 } // namespace HIKARI

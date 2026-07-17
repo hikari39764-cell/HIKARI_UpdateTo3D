@@ -9,7 +9,6 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_JsonRead.h"
-#include "Scene/HIKARI_DefaultSceneSystems.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Sequencer/Serialization/HIKARI_CinematicSequenceJson.h"
 
@@ -18,6 +17,42 @@ namespace HIKARI {
     using nlohmann::json;
 
     namespace {
+        void MigrateLegacyPlayerInput(SceneDocument& document) {
+            if (document.version >= 2) {
+                return;
+            }
+            for (SceneObjectData& object : document.objects) {
+                SceneComponentData* playerController = nullptr;
+                bool hasPlayerInput = false;
+                for (SceneComponentData& component : object.components) {
+                    if (component.type == "PlayerControllerComponent") {
+                        playerController = &component;
+                    } else if (component.type == "PlayerInputComponent") {
+                        hasPlayerInput = true;
+                    }
+                }
+                if (playerController == nullptr) {
+                    continue;
+                }
+                playerController->properties.erase("moveXAxisName");
+                playerController->properties.erase("moveYAxisName");
+                if (!hasPlayerInput) {
+                    object.components.push_back(SceneComponentData{
+                        "PlayerInputComponent",
+                        {
+                            { "enabled", true },
+                            { "userId", 0 },
+                            { "moveAction", "Gameplay.Move" },
+                            { "lookAction", "Gameplay.Look" },
+                            { "jumpAction", "Gameplay.Jump" },
+                            { "interactAction", "Gameplay.Interact" },
+                        }
+                    });
+                }
+            }
+            document.version = kCurrentSceneDocumentVersion;
+        }
+
         json ToVec3(const MATH::Vec3& v) {
             return json::array({ v.x, v.y, v.z });
         }
@@ -520,7 +555,6 @@ namespace HIKARI {
         void DeserializeSystems(const json& in, SceneDocument& outDocument) {
             outDocument.systems.clear();
             if (!in.is_array()) {
-                outDocument.systems = CreateDefaultSceneSystems();
                 return;
             }
 
@@ -543,19 +577,12 @@ namespace HIKARI {
                 outDocument.systems.push_back(std::move(system));
             }
 
-            if (outDocument.systems.empty()) {
-                outDocument.systems = CreateDefaultSceneSystems();
-            }
         }
 
 
         void SerializeSystems(const SceneDocument& document, json& out) {
             out = json::array();
-            const std::vector<SceneSystemData> systems = document.systems.empty()
-                ? CreateDefaultSceneSystems()
-                : document.systems;
-
-            for (const SceneSystemData& system : systems) {
+            for (const SceneSystemData& system : document.systems) {
                 out.push_back({
                     { "systemId", system.systemId },
                     { "enabled", system.enabled },
@@ -643,6 +670,11 @@ namespace HIKARI {
                 outDocument.objects.push_back(std::move(objectData));
             }
         }
+
+        MigrateLegacyPlayerInput(outDocument);
+        outDocument.version = (std::max)(
+            outDocument.version,
+            kCurrentSceneDocumentVersion);
 
         return true;
     }

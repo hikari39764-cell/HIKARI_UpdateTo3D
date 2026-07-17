@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <string>
 
+#include "Editor/Authoring/HIKARI_SequencePreviewBindingResolver.h"
+
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
@@ -74,18 +76,6 @@ namespace HIKARI::EDITOR {
                 value.pop_back();
             }
             return value.empty() ? std::string("Camera") : value;
-        }
-
-        std::string BuildCameraSlotName(
-            const SceneDocument& document,
-            SceneObjectId cameraObjectId) {
-
-            const SceneObjectData* object = FindSceneObject(
-                document,
-                cameraObjectId);
-            return "Camera." + MakeSlotToken(
-                object != nullptr ? object->name :
-                    ("Object" + std::to_string(cameraObjectId.value)));
         }
 
         std::string MakeUniqueSlotName(
@@ -166,7 +156,7 @@ namespace HIKARI::EDITOR {
 
             const SceneObjectId previousObject = binding.sceneObjectId;
             const std::string baseName = previousObject.value != 0
-                ? BuildCameraSlotName(document, previousObject)
+                ? BuildCameraPreviewSlotName(document, previousObject)
                 : "Camera." + MakeSlotToken(binding.name);
             binding.targetKind =
                 SEQUENCER::SequenceBindingTargetKind::Slot;
@@ -190,6 +180,7 @@ namespace HIKARI::EDITOR {
         if (cameraObjectId.value == 0) {
             return {};
         }
+        SEQUENCER::SequenceBindingId availableBindingId{};
         for (const SEQUENCER::SequenceBinding& binding :
                 sequence.bindings) {
             if (binding.targetKind !=
@@ -202,13 +193,38 @@ namespace HIKARI::EDITOR {
                     binding.id,
                     previewObject) &&
                 previewObject == cameraObjectId) {
-                return binding.id;
+                if (IsBindingUsed(sequence, binding.id)) {
+                    return binding.id;
+                }
+                if (!availableBindingId.IsValid()) {
+                    availableBindingId = binding.id;
+                }
             }
+        }
+        if (availableBindingId.IsValid()) {
+            return availableBindingId;
+        }
+
+        const std::string canonicalSlotName =
+            BuildCameraPreviewSlotName(document, cameraObjectId);
+        const auto canonicalBinding = std::find_if(
+            sequence.bindings.begin(),
+            sequence.bindings.end(),
+            [&](const SEQUENCER::SequenceBinding& binding) {
+                return binding.targetKind ==
+                        SEQUENCER::SequenceBindingTargetKind::Slot &&
+                    binding.slotName == canonicalSlotName;
+            });
+        if (canonicalBinding != sequence.bindings.end()) {
+            (void)previewBindings.Bind(
+                canonicalBinding->id,
+                cameraObjectId);
+            return canonicalBinding->id;
         }
 
         const std::string slotName = MakeUniqueSlotName(
             sequence.bindings,
-            BuildCameraSlotName(document, cameraObjectId));
+            canonicalSlotName);
         const SEQUENCER::SequenceBindingId bindingId =
             SEQUENCER::FindOrCreateSlotBinding(
                 sequence.bindings,
@@ -223,10 +239,16 @@ namespace HIKARI::EDITOR {
     SequenceBindingPanelResult SequenceBindingPanel::Draw(
         const SceneDocument& document,
         CinematicSequence& sequence,
+        const AssetGuid& sequenceAssetGuid,
         bool portableAsset,
         bool editingAllowed) {
 
         SequenceBindingPanelResult result{};
+        PreparePreviewBindings(
+            document,
+            sequence,
+            sequenceAssetGuid,
+            portableAsset);
 #if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::CollapsingHeader(
                 "Bindings",
@@ -235,7 +257,7 @@ namespace HIKARI::EDITOR {
         }
         ImGui::TextDisabled(
             portableAsset
-                ? "Slots are saved in the asset; Preview Camera is local to this workspace."
+                ? "Slots are saved in the asset; Preview Cameras are resolved from this scene."
                 : "Embedded sequences may bind directly to scene cameras.");
 
         const bool hasDirectBindings = std::any_of(
@@ -421,6 +443,7 @@ namespace HIKARI::EDITOR {
 #else
         (void)document;
         (void)sequence;
+        (void)sequenceAssetGuid;
         (void)portableAsset;
         (void)editingAllowed;
 #endif
@@ -441,6 +464,38 @@ namespace HIKARI::EDITOR {
 
     void SequenceBindingPanel::Reset() {
         previewBindings_.Clear();
+        previewSourceAssetGuid_ = {};
+        previewSourceSequenceId_ = {};
+        previewSourcePortable_ = false;
+        previewSourceInitialized_ = false;
+    }
+
+    void SequenceBindingPanel::PreparePreviewBindings(
+        const SceneDocument& document,
+        const CinematicSequence& sequence,
+        const AssetGuid& sequenceAssetGuid,
+        bool portableAsset) {
+
+        const bool sameSource = previewSourceInitialized_ &&
+            previewSourcePortable_ == portableAsset &&
+            previewSourceSequenceId_ == sequence.id &&
+            (!portableAsset ||
+                previewSourceAssetGuid_ == sequenceAssetGuid);
+        if (sameSource) {
+            return;
+        }
+        previewBindings_.Clear();
+        if (portableAsset) {
+            (void)RestoreSequencePreviewBindings(
+                document,
+                sequenceAssetGuid,
+                sequence,
+                previewBindings_);
+        }
+        previewSourceAssetGuid_ = sequenceAssetGuid;
+        previewSourceSequenceId_ = sequence.id;
+        previewSourcePortable_ = portableAsset;
+        previewSourceInitialized_ = true;
     }
 
 } // namespace HIKARI::EDITOR

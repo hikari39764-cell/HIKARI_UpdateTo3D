@@ -595,6 +595,7 @@ namespace HIKARI::EDITOR {
             cameraTimelinePanel_.Draw(
                 scene.GetSceneDocument(),
                 editableSettings,
+                sequenceDocument.GetAssetGuid(),
                 selectedCameraObjectId,
                 ImGui::GetIO().DeltaTime,
                 actionsAllowed,

@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include "Matrix3x3.h"
-#include <string>
 
 namespace HIKARI {
+    namespace INPUT { class InputSnapshot; }
     namespace CAMERA {
 
         using EaseFn = float(*)(float); // t ∈ [0,1] → [0,1]
@@ -56,7 +56,9 @@ namespace HIKARI {
         void SetBoundsWorld(const RectF& worldRect);            // ワールド境界を設定（<=0 で無効）
 
         // ----- 更新 / 取得 -----
-        void  Update(float deltaTime);
+        void  Update(
+            float deltaTime,
+            const INPUT::InputSnapshot* input = nullptr);
         const Matrix3x3& GetViewMatrix();
         State GetState();
         Vector2 GetPosition();
@@ -65,11 +67,8 @@ namespace HIKARI {
 
         // ===== デバッグコントロール =====
         void EnableDebugControl(bool enable);
-        void SetDebugLayer(const std::string& layerName);
         void SetDebugZoomStep(float step);
         void SetDebugZoomLimits(float minZoom, float maxZoom);
-        void SetDebugActions(const std::string& dragButton, const std::string& dragAxisX, const std::string& dragAxisY, const std::string& zoomAxis);
-        void SetDebugLookButton(const std::string& lookButton);
         // ===== 座標変換 =====
         Vector2 WorldToScreen(const Vector2& w);
         Vector2 ScreenToWorld(const Vector2& s);

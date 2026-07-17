@@ -23,8 +23,6 @@ namespace HIKARI {
 
     void PlayerControllerComponent::Serialize(nlohmann::json& out) const {
         out["enabled"] = enabled_;
-        out["moveXAxisName"] = moveXAxisName_;
-        out["moveYAxisName"] = moveYAxisName_;
         out["moveSpeed"] = moveSpeed_;
         out["acceleration"] = acceleration_;
         out["deceleration"] = deceleration_;
@@ -47,8 +45,6 @@ namespace HIKARI {
 
     void PlayerControllerComponent::Deserialize(const nlohmann::json& in) {
         enabled_ = in.value("enabled", enabled_);
-        moveXAxisName_ = in.value("moveXAxisName", moveXAxisName_);
-        moveYAxisName_ = in.value("moveYAxisName", moveYAxisName_);
         moveSpeed_ = in.value("moveSpeed", moveSpeed_);
         acceleration_ = in.value("acceleration", acceleration_);
         deceleration_ = in.value("deceleration", deceleration_);
@@ -78,8 +74,6 @@ namespace HIKARI {
 
     void PlayerControllerComponent::BuildInspector(IInspectorBuilder& builder) {
         builder.Bool("Enabled", enabled_);
-        builder.String("Move X Axis", moveXAxisName_);
-        builder.String("Move Y Axis", moveYAxisName_);
         builder.Float("Move Speed", moveSpeed_);
         builder.Float("Acceleration", acceleration_);
         builder.Float("Deceleration", deceleration_);
@@ -100,8 +94,6 @@ namespace HIKARI {
     }
 
     bool PlayerControllerComponent::IsEnabled() const { return enabled_; }
-    const std::string& PlayerControllerComponent::GetMoveXAxisName() const { return moveXAxisName_; }
-    const std::string& PlayerControllerComponent::GetMoveYAxisName() const { return moveYAxisName_; }
     float PlayerControllerComponent::GetMoveSpeed() const { return (std::max)(moveSpeed_, 0.0f); }
     float PlayerControllerComponent::GetAcceleration() const { return (std::max)(acceleration_, 0.0f); }
     float PlayerControllerComponent::GetDeceleration() const { return (std::max)(deceleration_, 0.0f); }

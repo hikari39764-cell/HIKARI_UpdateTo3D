@@ -111,17 +111,6 @@ namespace HIKARI {
                             AddMaterialTextureReferences(materialGuid, owner, assetDatabase, summary);
                         }
                     }
-                } else if (component.type == "VfxPlayerComponent") {
-                    if (component.properties.contains("slots") && component.properties["slots"].is_array()) {
-                        for (const nlohmann::json& slot : component.properties["slots"]) {
-                            AddReference(
-                                slot.value("effectAssetId", std::string{}),
-                                owner,
-                                "VFX",
-                                assetDatabase,
-                                summary);
-                        }
-                    }
                 } else if (component.type ==
                         "SequencePlayerComponent") {
                     AddReference(
@@ -130,14 +119,6 @@ namespace HIKARI {
                             std::string{}),
                         owner,
                         "Sequence",
-                        assetDatabase,
-                        summary);
-                } else if (component.type == "UIButtonSceneTransitionComponent" ||
-                    component.type == "DoorTransitionComponent") {
-                    AddReference(
-                        component.properties.value("targetSceneAssetGuid", std::string{}),
-                        owner,
-                        "Scene Transition",
                         assetDatabase,
                         summary);
                 }

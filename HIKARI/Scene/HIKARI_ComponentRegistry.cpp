@@ -4,11 +4,19 @@
 
 namespace HIKARI {
 
-    void ComponentRegistry::Register(ComponentTypeInfo info) {
+    bool ComponentRegistry::Register(ComponentTypeInfo info) {
         if (info.typeName.empty() || !info.factory) {
-            return;
+            return false;
         }
-        byName_[info.typeName] = std::move(info);
+        if (info.presentation.displayName.empty()) {
+            info.presentation.displayName = info.typeName;
+        }
+        const std::string typeName = info.typeName;
+        return byName_.emplace(typeName, std::move(info)).second;
+    }
+
+    void ComponentRegistry::Clear() noexcept {
+        byName_.clear();
     }
 
     const ComponentTypeInfo* ComponentRegistry::Find(std::string_view typeName) const {
@@ -26,6 +34,15 @@ namespace HIKARI {
             names.push_back(name);
         }
         return names;
+    }
+
+    std::vector<const ComponentTypeInfo*> ComponentRegistry::GetTypeInfos() const {
+        std::vector<const ComponentTypeInfo*> infos;
+        infos.reserve(byName_.size());
+        for (const auto& [_, info] : byName_) {
+            infos.push_back(&info);
+        }
+        return infos;
     }
 
     IComponent* ComponentRegistry::AddComponentToObject(GameObject& object, std::string_view typeName) const {

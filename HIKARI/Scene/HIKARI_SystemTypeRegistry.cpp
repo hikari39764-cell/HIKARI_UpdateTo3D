@@ -6,11 +6,19 @@
 
 namespace HIKARI {
 
-void SystemTypeRegistry::Register(SystemTypeInfo info) {
+bool SystemTypeRegistry::Register(SystemTypeInfo info) {
     if (info.systemId.empty() || !info.factory) {
-        return;
+        return false;
     }
-    byName_[info.systemId] = std::move(info);
+    if (info.displayName.empty()) {
+        info.displayName = info.systemId;
+    }
+    const std::string systemId = info.systemId;
+    return byName_.emplace(systemId, std::move(info)).second;
+}
+
+void SystemTypeRegistry::Clear() noexcept {
+    byName_.clear();
 }
 
 const SystemTypeInfo* SystemTypeRegistry::Find(std::string_view systemId) const {

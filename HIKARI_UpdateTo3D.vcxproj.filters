@@ -37,6 +37,18 @@
     <Filter Include="Header Files\Core">
       <UniqueIdentifier>{7D3F4CC6-EB90-59C6-9530-4E5F0F14A647}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Input">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Input\Assets">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Input\Platform">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Input\Runtime">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D004}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Project">
       <UniqueIdentifier>{F3C30E53-E47A-4E83-A08B-A59E8827F4A7}</UniqueIdentifier>
     </Filter>
@@ -199,9 +211,6 @@
     <Filter Include="Header Files\Scene\Debug">
       <UniqueIdentifier>{4C3EB3DD-15E0-5D1C-85D7-4AA8807C63FE}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Scene\Features">
-      <UniqueIdentifier>{A527CC7E-6B32-4D8A-A90D-C8C1A16C96B2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Scene\Prefab">
       <UniqueIdentifier>{0D697DE1-8847-580E-9C3D-9C62C434BF48}</UniqueIdentifier>
     </Filter>
@@ -213,6 +222,9 @@
     </Filter>
     <Filter Include="Header Files\Scene\Systems">
       <UniqueIdentifier>{E97E3424-93C4-5609-9AA9-CDB26446660B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Features">
+      <UniqueIdentifier>{9DA8A6F0-A1B6-4C2F-AB4A-72A7B1B430F0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\ThirdParty">
       <UniqueIdentifier>{0DB7CCE5-71FE-57DF-B834-2F53DA9C85CC}</UniqueIdentifier>
@@ -348,6 +360,18 @@
     </Filter>
     <Filter Include="Source Files\Core">
       <UniqueIdentifier>{583BDFB5-9391-50A8-9F0B-2EF44B106A3F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Input">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Input\Assets">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Input\Platform">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Input\Runtime">
+      <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D014}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Project">
       <UniqueIdentifier>{F99E1225-9D38-46D9-8E27-C12364820C53}</UniqueIdentifier>
@@ -508,9 +532,6 @@
     <Filter Include="Source Files\Scene\Debug">
       <UniqueIdentifier>{61D0EB26-341C-5110-87A3-AEEF1F6750A6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Scene\Features">
-      <UniqueIdentifier>{5A7D469C-EE5D-4B99-989F-5861661049DE}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Scene\Prefab">
       <UniqueIdentifier>{C1264B45-8BA5-5A2B-A4D8-F8D173EB557C}</UniqueIdentifier>
     </Filter>
@@ -522,6 +543,9 @@
     </Filter>
     <Filter Include="Source Files\Scene\Systems">
       <UniqueIdentifier>{E560D4F1-8CA3-5F5B-BD6E-26E4A9BA2659}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Features">
+      <UniqueIdentifier>{F68D8E93-A8B1-4E63-B526-53B12EF19020}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\ThirdParty">
       <UniqueIdentifier>{9B81F76E-095D-5DA3-BAAA-BC8D214BCAA0}</UniqueIdentifier>
@@ -624,8 +648,29 @@
     <ClCompile Include="HIKARI\Gfx\HIKARI_ShaderCompiler.cpp">
       <Filter>Source Files\Gfx</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\HIKARI_Input.cpp">
-      <Filter>Source Files\Core</Filter>
+    <ClCompile Include="HIKARI\Input\Assets\HIKARI_InputActionMap.cpp">
+      <Filter>Source Files\Input\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Assets\HIKARI_InputActionMapJson.cpp">
+      <Filter>Source Files\Input\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Platform\HIKARI_Win32InputBackend.cpp">
+      <Filter>Source Files\Input\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Platform\HIKARI_Win32InputCapture.cpp">
+      <Filter>Source Files\Input\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Runtime\HIKARI_InputContextStack.cpp">
+      <Filter>Source Files\Input\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Runtime\HIKARI_InputRebindOperation.cpp">
+      <Filter>Source Files\Input\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Runtime\HIKARI_InputService.cpp">
+      <Filter>Source Files\Input\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Input\Runtime\HIKARI_InputTypes.cpp">
+      <Filter>Source Files\Input\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp">
       <Filter>Source Files\Vfx\Post</Filter>
@@ -855,6 +900,9 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequencePreviewBindingResolver.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
@@ -1032,13 +1080,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp">
@@ -1050,10 +1092,7 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.cpp">
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerInputComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
@@ -1098,13 +1137,7 @@
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp">
       <Filter>Source Files\Vfx\Backends</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
@@ -1413,12 +1446,6 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.cpp">
-      <Filter>Source Files\Scene\Features</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Features\HIKARI_SceneScanFxFeature.cpp">
-      <Filter>Source Files\Scene\Features</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1470,8 +1497,29 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.cpp">
+    <ClCompile Include="HIKARI\Scene\HIKARI_PlayerInputSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_ComponentSystemPolicy.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureCatalog.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_RenderingRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_SequenceRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
@@ -1519,6 +1567,36 @@
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditor.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorActions.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorBinding.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorComposite.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorContexts.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorMonitor.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorRebind.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorWidgets.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ValidationLabPanel.cpp">
@@ -1891,13 +1969,7 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_UIButtonSceneTransitionComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_SceneScanFxComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h">
@@ -1909,10 +1981,7 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_TriggerVolumeComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_DoorTransitionComponent.h">
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerInputComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
@@ -1939,13 +2008,7 @@
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h">
       <Filter>Header Files\Vfx\Backends</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_VfxPlayerComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SequencePlayerComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ComponentLinkComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h">
@@ -2045,6 +2108,9 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequencePreviewBindingResolver.h">
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.h">
@@ -2389,8 +2455,35 @@
     <ClInclude Include="HIKARI\Gfx\HIKARI_ShaderCompiler.h">
       <Filter>Header Files\Gfx</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\HIKARI_Input.h">
-      <Filter>Header Files\Core</Filter>
+    <ClInclude Include="HIKARI\Input\Assets\HIKARI_InputActionMap.h">
+      <Filter>Header Files\Input\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Assets\HIKARI_InputActionMapJson.h">
+      <Filter>Header Files\Input\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Platform\HIKARI_IInputBackend.h">
+      <Filter>Header Files\Input\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Platform\HIKARI_Win32InputBackend.h">
+      <Filter>Header Files\Input\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputActionIds.h">
+      <Filter>Header Files\Input\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputContextStack.h">
+      <Filter>Header Files\Input\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputRebindOperation.h">
+      <Filter>Header Files\Input\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputService.h">
+      <Filter>Header Files\Input\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputTypes.h">
+      <Filter>Header Files\Input\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Input\Runtime\HIKARI_InputUser.h">
+      <Filter>Header Files\Input\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostChain.h">
       <Filter>Header Files\Vfx\Post</Filter>
@@ -2488,9 +2581,6 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_DefaultSceneSystems.h">
-      <Filter>Header Files\Scene\Systems</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -2502,15 +2592,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.h">
       <Filter>Header Files\Scene\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.h">
-      <Filter>Header Files\Scene\Features</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h">
-      <Filter>Header Files\Scene\Features</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Features\HIKARI_SceneScanFxFeature.h">
-      <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
@@ -2575,8 +2656,35 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_SceneScanFxSystem.h">
+    <ClInclude Include="HIKARI\Scene\HIKARI_PlayerInputSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_ComponentSystemPolicy.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureIds.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureCatalog.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RenderingRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_SequenceRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
@@ -2627,6 +2735,18 @@
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_InputActionMapPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditor.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_InputActionMapEditorWidgets.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ValidationLabPanel.h">
@@ -2844,7 +2964,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="input.json">
+    <None Include="ProjectSettings\Input\actions.json">
+      <Filter>Project\Config</Filter>
+    </None>
+    <None Include="ProjectSettings\Input\editor.inputmap.json">
+      <Filter>Project\Config</Filter>
+    </None>
+    <None Include="ProjectSettings\Input\gameplay.inputmap.json">
+      <Filter>Project\Config</Filter>
+    </None>
+    <None Include="ProjectSettings\Input\global.inputmap.json">
       <Filter>Project\Config</Filter>
     </None>
     <None Include="ProjectSettings\render_quality.json">

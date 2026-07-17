@@ -6,6 +6,7 @@
 #include "HIKARI/Render2D/HIKARI_Renderer.h"
 #include "HIKARI/Render2D/HIKARI_SpineActor.h"
 #include "HIKARI/Runtime/HIKARI_RuntimeLaunchConfig.h"
+#include "HIKARI/Input/Runtime/HIKARI_InputActionIds.h"
 
 const char kWindowTitle[] = "HIKARI_Ver1.3";
 
@@ -22,7 +23,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		(void)HIKARI::SERVICES::ApplyWindowPresentationSettings();
 	}
 
-	HIKARI::HINPUT::SwitchLayer("Debug");
 	HIKARI::MATH::RunMathConventionSelfCheck();
 	HIKARI::SpineActor op;
 	op.Load("./Assets/Spine/op.atlas", "./Assets/Spine/op.json");
@@ -111,8 +111,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 
+		const HIKARI::INPUT::InputSnapshot& input =
+			HIKARI::SERVICES::GetInputSnapshot();
 		if (HIKARI::SERVICES::ShouldProduceEditorUiFrame() &&
-			HIKARI::HINPUT::IsPressed("ToggleEditorUI")) {
+			input.IsPressed(HIKARI::INPUT::ActionIds::ToggleEditorUI)) {
 			HIKARI::SERVICES::SetEditorUIEnabled(!HIKARI::SERVICES::IsEditorUIEnabled());
 		}
 
@@ -121,10 +123,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 		if (app.IsInProcessPlayRunning() &&
-			HIKARI::HINPUT::IsPressed("StopPlay")) {
+			input.IsPressed(HIKARI::INPUT::ActionIds::StopPlay)) {
 			app.RequestPlayStop();
 		}
-		if (HIKARI::HINPUT::IsPressed("CloseProgram")) {
+		if (input.IsPressed(HIKARI::INPUT::ActionIds::CloseProgram)) {
 			break;
 		}
 	}

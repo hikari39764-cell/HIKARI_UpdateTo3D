@@ -2,6 +2,7 @@
 #include "Render3D/Core/HIKARI_Camera3D.h"
 
 namespace HIKARI {
+    namespace INPUT { class InputSnapshot; }
 
     enum class CameraControlInputContext {
         EditorViewport,
@@ -26,6 +27,7 @@ namespace HIKARI {
         void Update(
             float dt,
             Camera3D& camera,
+            const INPUT::InputSnapshot& input,
             CameraControlInputContext inputContext =
                 CameraControlInputContext::EditorViewport);
 

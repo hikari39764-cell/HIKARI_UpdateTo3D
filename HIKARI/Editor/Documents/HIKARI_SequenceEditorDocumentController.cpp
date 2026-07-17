@@ -78,10 +78,7 @@ namespace HIKARI::EDITOR {
         AssetDatabase& assetDatabase,
         std::string& outMessage) {
 
-        const bool saved = document_.Save(assetDatabase, outMessage);
-        timelineResetRequested_ |= saved &&
-            document_.GetSourceKind() == SequenceEditorSourceKind::Asset;
-        return saved;
+        return document_.Save(assetDatabase, outMessage);
     }
 
     bool SequenceEditorDocumentController::SaveAs(

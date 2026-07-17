@@ -8,12 +8,12 @@
 #include <string_view>
 
 #include "Core/HIKARI_FrameContext.h"
-#include "HIKARI_Input.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
+#include "Scene/Components/HIKARI_PlayerInputComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 
@@ -232,14 +232,12 @@ namespace HIKARI {
                 const float moveSpeed = player.GetMoveSpeed();
 
                 if (player.IsEnabled() && dt > 0.0f) {
-                    float inputX = 0.0f;
-                    float inputY = 0.0f;
-                    if (!player.GetMoveXAxisName().empty()) {
-                        inputX = HINPUT::GetAxis(player.GetMoveXAxisName());
-                    }
-                    if (!player.GetMoveYAxisName().empty()) {
-                        inputY = HINPUT::GetAxis(player.GetMoveYAxisName());
-                    }
+                    const PlayerInputComponent* playerInput =
+                        object.GetComponent<PlayerInputComponent>();
+                    const PlayerCommand command = playerInput != nullptr
+                        ? playerInput->GetCommand() : PlayerCommand{};
+                    const float inputX = command.move.x;
+                    const float inputY = command.move.y;
 
                     const MATH::Vec3 inputDirection = ResolveMoveDirection(player, camera, inputX, inputY);
                     if (MATH::Length(inputDirection) > 1e-5f) {

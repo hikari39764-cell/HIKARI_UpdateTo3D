@@ -2,14 +2,23 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #include "Assets/HIKARI_AssetGuid.h"
+#include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
 
 namespace HIKARI {
 
     struct ProjectSettings {
-        uint32_t version = 1;
+        uint32_t version = 2;
         AssetGuid startupSceneGuid{};
+        std::vector<std::string> enabledRuntimeFeatures{
+            std::string(RuntimeFeatureIds::Rendering),
+            std::string(RuntimeFeatureIds::Camera),
+            std::string(RuntimeFeatureIds::GameplayBasic),
+            std::string(RuntimeFeatureIds::Cinematics)
+        };
     };
 
     class ProjectSettingsService {
@@ -21,6 +30,8 @@ namespace HIKARI {
         ProjectSettings& GetSettings();
 
         bool SetStartupSceneGuid(const AssetGuid& guid);
+        void SetEnabledRuntimeFeatures(
+            std::vector<std::string> featureIds);
 
     private:
         std::filesystem::path projectRoot_{};

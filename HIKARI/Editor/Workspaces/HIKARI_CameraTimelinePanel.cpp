@@ -98,6 +98,7 @@ namespace HIKARI::EDITOR {
     CameraTimelinePanelResult CameraTimelinePanel::Draw(
         SceneDocument& document,
         SceneCinematicsSettings& settings,
+        const AssetGuid& sequenceAssetGuid,
         SceneObjectId selectedCameraObjectId,
         float deltaTime,
         bool previewAllowed,
@@ -235,6 +236,7 @@ namespace HIKARI::EDITOR {
             bindingPanel_.Draw(
                 document,
                 *sequence,
+                sequenceAssetGuid,
                 portableAsset,
                 previewAllowed);
         if (bindingResult.sequenceChanged) {
@@ -462,6 +464,7 @@ namespace HIKARI::EDITOR {
         previewCutPending_ = false;
 #else
         (void)document;
+        (void)sequenceAssetGuid;
         (void)selectedCameraObjectId;
         (void)deltaTime;
         (void)previewAllowed;

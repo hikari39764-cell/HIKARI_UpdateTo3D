@@ -9,6 +9,7 @@
 #include "HIKARI_SelectionSyncService.h"
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
 #include "Render3D/HIKARI_Math3D.h"
+#include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Prefab/HIKARI_PrefabDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -72,6 +73,45 @@ namespace HIKARI {
         }
 
 #if defined(HIKARI_WITH_EDITOR)
+        int ComponentCategoryRank(std::string_view category) {
+            if (category == "Rendering") {
+                return 0;
+            }
+            if (category == "Camera") {
+                return 1;
+            }
+            if (category == "Gameplay") {
+                return 2;
+            }
+            if (category == "Cinematics") {
+                return 3;
+            }
+            return 4;
+        }
+
+        bool ComponentPresentationLess(
+            const ComponentTypeInfo* lhs,
+            const ComponentTypeInfo* rhs) {
+
+            if (lhs == nullptr || rhs == nullptr) {
+                return rhs != nullptr;
+            }
+            const int lhsRank = ComponentCategoryRank(
+                lhs->presentation.category);
+            const int rhsRank = ComponentCategoryRank(
+                rhs->presentation.category);
+            if (lhsRank != rhsRank) {
+                return lhsRank < rhsRank;
+            }
+            if (lhs->presentation.category !=
+                rhs->presentation.category) {
+                return lhs->presentation.category <
+                    rhs->presentation.category;
+            }
+            return lhs->presentation.displayName <
+                rhs->presentation.displayName;
+        }
+
         bool HasDocumentComponent(const SceneObjectData& object, std::string_view typeName) {
             return std::any_of(
                 object.components.begin(),
@@ -263,13 +303,47 @@ namespace HIKARI {
                     }
                 }
 
-                std::vector<std::string> componentTypes = scene.GetComponentRegistry().GetTypeNames();
-                std::sort(componentTypes.begin(), componentTypes.end());
+                std::vector<const ComponentTypeInfo*> componentTypes =
+                    scene.GetComponentRegistry().GetTypeInfos();
+                std::sort(
+                    componentTypes.begin(),
+                    componentTypes.end(),
+                    ComponentPresentationLess);
                 bool needsRebuildAfterAdd = false;
                 if (ImGui::BeginCombo("Add Component", "Select component type")) {
-                    for (const std::string& typeName : componentTypes) {
-                        if (ImGui::Selectable(typeName.c_str(), false)) {
-                            ComponentAddResult addResult = componentAuthoringService_.AddComponent(scene.GetComponentRegistry(), *target, typeName);
+                    std::string currentCategory{};
+                    for (const ComponentTypeInfo* typeInfo : componentTypes) {
+                        if (typeInfo == nullptr) {
+                            continue;
+                        }
+                        if (currentCategory !=
+                            typeInfo->presentation.category) {
+                            if (!currentCategory.empty()) {
+                                ImGui::Separator();
+                            }
+                            currentCategory =
+                                typeInfo->presentation.category;
+                            ImGui::TextDisabled(
+                                "%s",
+                                currentCategory.c_str());
+                        }
+
+                        ImGui::PushID(typeInfo->typeName.c_str());
+                        const bool selected = ImGui::Selectable(
+                            typeInfo->presentation.displayName.c_str(),
+                            false);
+                        if (ImGui::IsItemHovered() &&
+                            !typeInfo->presentation.description.empty()) {
+                            ImGui::SetTooltip(
+                                "%s",
+                                typeInfo->presentation.description.c_str());
+                        }
+                        ImGui::PopID();
+                        if (selected) {
+                            ComponentAddResult addResult = componentAuthoringService_.AddComponent(
+                                scene.GetComponentRegistry(),
+                                *target,
+                                typeInfo->typeName);
                             context.componentAddStatusMessage = addResult.message;
                             context.componentAddStatusIsError = !addResult.success;
                             if (addResult.success && addResult.documentChanged) {

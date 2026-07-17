@@ -1,12 +1,9 @@
 #pragma once
 
-#include <span>
-
-#include "Scene/Features/HIKARI_RuntimeFeature.h"
+#include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
 
 namespace HIKARI {
 
-std::span<const RuntimeFeatureDescriptor> GetBuiltInRuntimeFeatures();
-void RegisterBuiltInRuntimeFeatures(RuntimeFeatureContext& context);
+    RuntimeFeatureCatalog CreateBuiltInRuntimeFeatureCatalog();
 
 } // namespace HIKARI

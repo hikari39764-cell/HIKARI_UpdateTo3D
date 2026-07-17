@@ -21,7 +21,6 @@
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
-#include "Scene/HIKARI_DefaultSceneSystems.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -1592,11 +1591,8 @@ namespace HIKARI {
                 DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
                 ImGui::SeparatorText("Gizmos");
                 ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
-                ImGui::Checkbox("Trigger Volumes", &context_.gizmos.showTriggerVolumes);
                 ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
-                ImGui::Checkbox("Door Transitions", &context_.gizmos.showDoorTransitions);
                 ImGui::Checkbox("Camera Frustums", &context_.gizmos.showCameraFrustums);
-                ImGui::Checkbox("UI Screen Rects", &context_.gizmos.showUIScreenRects);
                 ImGui::SeparatorText("Snap");
                 ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
                 ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
@@ -1847,13 +1843,25 @@ namespace HIKARI {
                 ImGui::Text("Ambient: %.2f", environment.ambient.intensity);
                 ImGui::EndTabItem();
             }
+            if (ImGui::BeginTabItem("Project Features")) {
+                ImGui::SeparatorText("Project Runtime Modules");
+                projectFeaturesPanel_.Draw(scene);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Input")) {
+                ImGui::SeparatorText("Project Input Actions");
+                inputActionMapPanel_.DrawLauncher(
+                    SERVICES::GetInputService());
+                ImGui::EndTabItem();
+            }
             if (ImGui::BeginTabItem("Systems")) {
                 ImGui::SeparatorText("Scene Systems");
                 ImGui::TextDisabled("Enabled systems and execution order are applied to the runtime schedule.");
 
                 SceneDocument& document = scene.GetSceneDocument();
                 if (document.systems.empty()) {
-                    document.systems = CreateDefaultSceneSystems();
+                    document.systems =
+                        scene.CreateProjectDefaultSceneSystems();
                 }
 
                 if (ImGui::BeginTable("SceneSystemsTable", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
@@ -1896,6 +1904,8 @@ namespace HIKARI {
             }
             ImGui::EndTabBar();
         }
+
+        inputActionMapPanel_.DrawModal(SERVICES::GetInputService());
 
         ImGui::End();
 #else

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Assets/HIKARI_AssetGuid.h"
 #include "Scene/HIKARI_CinematicSequence.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
@@ -20,6 +21,7 @@ namespace HIKARI::EDITOR {
         SequenceBindingPanelResult Draw(
             const SceneDocument& document,
             CinematicSequence& sequence,
+            const AssetGuid& sequenceAssetGuid,
             bool portableAsset,
             bool editingAllowed);
 
@@ -29,7 +31,17 @@ namespace HIKARI::EDITOR {
         void Reset();
 
     private:
+        void PreparePreviewBindings(
+            const SceneDocument& document,
+            const CinematicSequence& sequence,
+            const AssetGuid& sequenceAssetGuid,
+            bool portableAsset);
+
         SEQUENCER::SequenceBindingContext previewBindings_{};
+        AssetGuid previewSourceAssetGuid_{};
+        CinematicSequenceId previewSourceSequenceId_{};
+        bool previewSourcePortable_ = false;
+        bool previewSourceInitialized_ = false;
     };
 
 } // namespace HIKARI::EDITOR

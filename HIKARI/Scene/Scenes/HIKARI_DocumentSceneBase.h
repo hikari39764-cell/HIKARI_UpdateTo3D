@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Assets/HIKARI_AssetDatabase.h"
@@ -19,6 +20,7 @@
 #include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
 #endif
 #include "Scene/HIKARI_ComponentRegistry.h"
+#include "Scene/HIKARI_ComponentSystemPolicy.h"
 #include "Scene/HIKARI_CameraDirector.h"
 #include "Scene/HIKARI_CinematicCameraPlayback.h"
 #include "Scene/HIKARI_IScene.h"
@@ -27,6 +29,7 @@
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
+#include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
 #include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackService.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
@@ -70,6 +73,14 @@ namespace HIKARI {
         ModelManager& GetModelManager();
         SkyManager& GetSkyManager();
         ComponentRegistry& GetComponentRegistry();
+        const RuntimeFeatureCatalog& GetRuntimeFeatureCatalog() const noexcept;
+        const RuntimeFeatureInstallReport&
+            GetRuntimeFeatureInstallReport() const noexcept;
+        bool IsRuntimeFeatureActive(
+            std::string_view featureId) const noexcept;
+        std::vector<SceneSystemData>
+            CreateProjectDefaultSceneSystems() const;
+        bool ReloadRuntimeFeaturesFromProjectSettings();
         SceneRuntimeBuilder& GetRuntimeBuilder();
         const SceneRuntimeBuilder& GetRuntimeBuilder() const;
 
@@ -184,8 +195,7 @@ namespace HIKARI {
         void SyncReflectionProbeRuntimeFromAuthoring();
 
     protected:
-        void RegisterDefaultComponentTypes();
-        void RegisterDefaultSystemTypes();
+        bool RegisterRuntimeFeatures();
         bool BuildSystemScheduleFromDocument();
 
         virtual bool UseDebugCamera() const;
@@ -237,6 +247,9 @@ namespace HIKARI {
         bool runtimePlayActive_ = false;
         bool runtimeParkedForStandalone_ = false;
         World world_{};
+        RuntimeFeatureCatalog runtimeFeatureCatalog_{};
+        RuntimeFeatureInstallReport runtimeFeatureInstallReport_{};
+        ComponentSystemPolicy componentSystemPolicy_{};
         SystemTypeRegistry systemTypeRegistry_{};
         SystemScheduler systemScheduler_{};
         ModelManager modelManager_{};

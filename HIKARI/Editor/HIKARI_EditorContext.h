@@ -21,12 +21,9 @@ namespace HIKARI {
 
     struct ComponentGizmoState {
         bool showComponentGizmos = true;
-        bool showTriggerVolumes = false;
         bool showSpawnPoints = false;
-        bool showDoorTransitions = false;
         bool showCameraFrustums = true;
         bool showPlayerBounds = true;
-        bool showUIScreenRects = false;
         bool showOnlySelectedObject = false;
     };
 

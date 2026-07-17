@@ -30,22 +30,12 @@
             "clips": [
               {
                 "cameraBindingId": 1,
-                "durationSeconds": 2.0,
+                "durationSeconds": 3.6666667461395264,
                 "id": 1,
                 "startTimeSeconds": 0.0,
                 "transition": {
                   "durationSeconds": 0.0,
                   "mode": "cut"
-                }
-              },
-              {
-                "cameraBindingId": 2,
-                "durationSeconds": 2.0,
-                "id": 2,
-                "startTimeSeconds": 1.9777778387069702,
-                "transition": {
-                  "durationSeconds": 0.5,
-                  "mode": "easeInOut"
                 }
               }
             ],
@@ -54,13 +44,94 @@
             "type": "cameraCut"
           },
           {
-            "channels": [],
+            "channels": [
+              {
+                "cameraBindingId": 1,
+                "keyframes": [
+                  {
+                    "id": 1,
+                    "interpolation": "smooth",
+                    "position": [
+                      -16.567821502685547,
+                      6.156315803527832,
+                      -1.939609408378601
+                    ],
+                    "rotationEulerDeg": [
+                      -178.10923767089844,
+                      66.89814758300781,
+                      -180.0
+                    ],
+                    "timeSeconds": 0.0
+                  },
+                  {
+                    "id": 2,
+                    "interpolation": "smooth",
+                    "position": [
+                      -12.168262481689453,
+                      5.751866340637207,
+                      -9.894811630249023
+                    ],
+                    "rotationEulerDeg": [
+                      -178.10922241210938,
+                      135.11904907226563,
+                      -180.0
+                    ],
+                    "timeSeconds": 1.8050000667572021
+                  },
+                  {
+                    "id": 3,
+                    "interpolation": "smooth",
+                    "position": [
+                      -12.168262481689453,
+                      5.751866340637207,
+                      -9.894811630249023
+                    ],
+                    "rotationEulerDeg": [
+                      -346.5144958496094,
+                      210.034912109375,
+                      -361.5832824707031
+                    ],
+                    "timeSeconds": 3.156111001968384
+                  }
+                ]
+              }
+            ],
             "enabled": true,
             "id": 2,
             "type": "cameraTransform"
           },
           {
-            "channels": [],
+            "channels": [
+              {
+                "cameraBindingId": 1,
+                "keyframes": [
+                  {
+                    "farClip": 82.60199737548828,
+                    "id": 1,
+                    "interpolation": "smooth",
+                    "nearClip": 0.6010000109672546,
+                    "timeSeconds": 0.0,
+                    "verticalFovDegrees": 73.19999694824219
+                  },
+                  {
+                    "farClip": 95.19999694824219,
+                    "id": 4,
+                    "interpolation": "smooth",
+                    "nearClip": 0.6010000109672546,
+                    "timeSeconds": 1.7666666507720947,
+                    "verticalFovDegrees": 102.0
+                  },
+                  {
+                    "farClip": 82.60199737548828,
+                    "id": 5,
+                    "interpolation": "smooth",
+                    "nearClip": 0.6010000109672546,
+                    "timeSeconds": 3.156111001968384,
+                    "verticalFovDegrees": 73.19999694824219
+                  }
+                ]
+              }
+            ],
             "enabled": true,
             "id": 3,
             "type": "cameraLens"
@@ -452,19 +523,19 @@
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          -16.567821502685547,
-          6.156315803527832,
-          -1.939609408378601
+          -12.168262481689453,
+          5.751866340637207,
+          -9.894811630249023
         ],
         "rotationEulerDeg": [
-          -178.10923767089844,
-          66.89814758300781,
-          -180.0
+          -346.5144958496094,
+          210.034912109375,
+          -361.5832824707031
         ],
         "scale": [
-          0.9343090653419495,
-          1.162758708000183,
-          1.8899997472763062
+          1.0,
+          1.0,
+          1.0
         ]
       }
     },
@@ -508,16 +579,7 @@
       "components": [
         {
           "properties": {
-            "bindings": [
-              {
-                "sceneObjectId": 2,
-                "slotName": "Camera.GameObject_2"
-              },
-              {
-                "sceneObjectId": 3,
-                "slotName": "Camera.GameObject_3"
-              }
-            ],
+            "bindings": [],
             "channel": "Cinematics",
             "channelPolicy": "ReplaceIfHigherOrEqual",
             "enabled": true,
@@ -527,7 +589,7 @@
             "playbackRate": 1.0,
             "priority": 0,
             "restartIfPlaying": true,
-            "sequenceAssetGuid": "1d4d0e35b277e347fe64ec66cbbe02b5",
+            "sequenceAssetGuid": "a2dcc5ae4faaa2c734bff22307ca103f",
             "startTimeSeconds": 0.0,
             "stopOnDisable": true
           },
@@ -563,58 +625,10 @@
   "systems": [
     {
       "enabled": true,
-      "executionOrder": 0,
-      "settings": {},
-      "systemId": "TransformSystem"
-    },
-    {
-      "enabled": true,
       "executionOrder": 100,
       "settings": {},
       "systemId": "ModelRenderSystem"
-    },
-    {
-      "enabled": true,
-      "executionOrder": 140,
-      "settings": {},
-      "systemId": "PlayerMovementSystem"
-    },
-    {
-      "enabled": true,
-      "executionOrder": 150,
-      "settings": {},
-      "systemId": "AnimationSystem"
-    },
-    {
-      "enabled": true,
-      "executionOrder": 180,
-      "settings": {},
-      "systemId": "SceneScanFxSystem"
-    },
-    {
-      "enabled": true,
-      "executionOrder": 190,
-      "settings": {},
-      "systemId": "CameraFollowSystem"
-    },
-    {
-      "enabled": true,
-      "executionOrder": 200,
-      "settings": {},
-      "systemId": "VfxSystem"
-    },
-    {
-      "enabled": false,
-      "executionOrder": 300,
-      "settings": {},
-      "systemId": "PhysicsSystem"
-    },
-    {
-      "enabled": false,
-      "executionOrder": 400,
-      "settings": {},
-      "systemId": "ScriptSystem"
     }
   ],
-  "version": 1
+  "version": 2
 }

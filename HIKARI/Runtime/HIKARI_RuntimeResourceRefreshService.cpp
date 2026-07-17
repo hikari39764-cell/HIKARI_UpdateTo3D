@@ -85,7 +85,9 @@ namespace HIKARI {
         scene.ReloadAssets();
 
         const SceneDependencySet dependencies =
-            scene.GetRuntimeBuilder().CollectDependencies(scene.GetSceneDocument());
+            scene.GetRuntimeBuilder().CollectDependencies(
+                scene.GetSceneDocument(),
+                &scene.GetComponentRegistry());
 
         bool modelTouched = false;
         const AssetRegistry& registry = scene.GetAssetRegistry();
@@ -241,7 +243,9 @@ namespace HIKARI {
         RuntimeResourceRefreshReport& report) {
 
         const SceneDependencySet dependencies =
-            scene.GetRuntimeBuilder().CollectDependencies(scene.GetSceneDocument());
+            scene.GetRuntimeBuilder().CollectDependencies(
+                scene.GetSceneDocument(),
+                &scene.GetComponentRegistry());
 
         bool modelTouched = false;
         const AssetRegistry& registry = scene.GetAssetRegistry();

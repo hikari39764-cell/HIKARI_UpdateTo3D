@@ -346,7 +346,9 @@ namespace HIKARI {
         }
     }
 
-    SceneDependencySet SceneRuntimeBuilder::CollectDependencies(const SceneDocument& document) const {
+    SceneDependencySet SceneRuntimeBuilder::CollectDependencies(
+        const SceneDocument& document,
+        const ComponentRegistry* enabledComponents) const {
         SceneDependencySet deps{};
 
         if (!document.environment.sky.skyAsset.empty()) {
@@ -375,6 +377,10 @@ namespace HIKARI {
 
         for (const SceneObjectData& object : document.objects) {
             for (const SceneComponentData& component : object.components) {
+                if (enabledComponents != nullptr &&
+                    enabledComponents->Find(component.type) == nullptr) {
+                    continue;
+                }
                 if (component.type == "ModelComponent") {
                     const std::string assetId = component.properties.value("assetId", std::string{});
                     if (!assetId.empty()) {

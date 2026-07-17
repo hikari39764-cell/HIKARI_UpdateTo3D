@@ -14,7 +14,6 @@ namespace HIKARI {
             const ComponentGizmoState& state,
             SceneObjectId selectedObjectId,
             float cameraAspect) const;
-        void DrawScreenSpaceGizmos(const World& world, const ComponentGizmoState& state, SceneObjectId selectedObjectId) const;
     };
 
 } // namespace HIKARI

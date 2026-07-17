@@ -1,10 +1,8 @@
 #include "HIKARI_DebugCameraController3D.h"
 #include <algorithm>
 #include <cmath>
-#include <Windows.h>
-#undef min
-#undef max
-#include "HIKARI_Input.h"
+#include "Input/Runtime/HIKARI_InputActionIds.h"
+#include "Input/Runtime/HIKARI_InputTypes.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "imgui.h"
@@ -57,6 +55,7 @@ namespace HIKARI {
     void DebugCameraController3D::Update(
         float dt,
         Camera3D& camera,
+        const INPUT::InputSnapshot& input,
         CameraControlInputContext inputContext) {
 #if !defined(HIKARI_WITH_EDITOR)
         (void)inputContext;
@@ -90,17 +89,20 @@ namespace HIKARI {
 #endif
 
         // エディタ操作キー(W/E/R/Q)と衝突しないよう、カメラリセットは Home に寄せる。
-        if (!wantKeyboard && (::GetAsyncKeyState(VK_HOME) & 0x8000) != 0) {
+        if (!wantKeyboard && input.IsDown(
+                INPUT::ActionIds::EditorCameraReset)) {
             position_ = resetPosition_;
             yaw_ = resetYaw_;
             pitch_ = resetPitch_;
         }
 
-        const bool rightMouseDown = HINPUT::IsMouseDown(HINPUT::MouseButton::Right);
+        const bool rightMouseDown = input.IsDown(
+            INPUT::ActionIds::EditorCameraLookHeld);
         if (!wantMouse && rightMouseDown) {
-            const Vector2 delta = HINPUT::GetMouseDelta();
-            yaw_ += delta.x * settings_.mouseLookSensitivity;
-            pitch_ -= delta.y * settings_.mouseLookSensitivity;
+            const std::array<float, 2> look = input.GetAxis2D(
+                INPUT::ActionIds::EditorCameraLook);
+            yaw_ += look[0] * settings_.mouseLookSensitivity;
+            pitch_ -= look[1] * settings_.mouseLookSensitivity;
             pitch_ = ClampPitch(pitch_);
         }
 
@@ -113,15 +115,17 @@ namespace HIKARI {
             inputContext == CameraControlInputContext::RuntimeWindow ||
             rightMouseDown;
         if (!wantKeyboard && movementInputActive) {
-            MATH::Vec3 move{};
-            if ((::GetAsyncKeyState('W') & 0x8000) != 0) move = move + forward;
-            if ((::GetAsyncKeyState('S') & 0x8000) != 0) move = move - forward;
-            if ((::GetAsyncKeyState('D') & 0x8000) != 0) move = move + right;
-            if ((::GetAsyncKeyState('A') & 0x8000) != 0) move = move - right;
-            if ((::GetAsyncKeyState('E') & 0x8000) != 0) move = move + worldUp;
-            if ((::GetAsyncKeyState('Q') & 0x8000) != 0) move = move - worldUp;
+            const std::array<float, 2> moveAxes = input.GetAxis2D(
+                INPUT::ActionIds::EditorCameraMove);
+            const float vertical = input.GetAxis1D(
+                INPUT::ActionIds::EditorCameraMoveVertical);
+            MATH::Vec3 move =
+                right * moveAxes[0] +
+                forward * moveAxes[1] +
+                worldUp * vertical;
 
-            const bool fast = ((::GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
+            const bool fast = input.IsDown(
+                INPUT::ActionIds::EditorCameraBoost);
             float speed = settings_.moveSpeed;
             if (fast) {
                 speed *= settings_.fastMultiplier;
@@ -134,7 +138,8 @@ namespace HIKARI {
         }
 
         if (acceptWheel) {
-            const float wheel = HINPUT::GetMouseWheelDelta();
+            const float wheel = input.GetAxis1D(
+                INPUT::ActionIds::EditorCameraZoom);
             if (std::abs(wheel) > 1e-6f) {
                 position_ = position_ + forward * (wheel * settings_.wheelMoveStep);
             }

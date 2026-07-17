@@ -18,11 +18,14 @@ struct SystemTypeInfo {
 
     std::string systemId{};
     FactoryFn factory{};
+    std::string displayName{};
+    std::string featureId{};
 };
 
 class SystemTypeRegistry {
 public:
-    void Register(SystemTypeInfo info);
+    bool Register(SystemTypeInfo info);
+    void Clear() noexcept;
     const SystemTypeInfo* Find(std::string_view systemId) const;
     std::unique_ptr<ISystem> Create(std::string_view systemId, const nlohmann::json& settings) const;
     std::vector<std::string> GetTypeNames() const;

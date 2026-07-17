@@ -1,28 +1,19 @@
 #include "Scene/Features/HIKARI_BuiltInRuntimeFeatures.h"
 
-#include <array>
-
-#include "Scene/Features/HIKARI_SceneScanFxFeature.h"
+#include "Scene/Features/HIKARI_CameraRuntimeFeature.h"
+#include "Scene/Features/HIKARI_GameplayRuntimeFeature.h"
+#include "Scene/Features/HIKARI_RenderingRuntimeFeature.h"
+#include "Scene/Features/HIKARI_SequenceRuntimeFeature.h"
 
 namespace HIKARI {
-namespace {
 
-constexpr std::array<RuntimeFeatureDescriptor, 1> kBuiltInRuntimeFeatures = {{
-    RuntimeFeatureDescriptor{ "SceneScanFx", &RegisterSceneScanFxFeature }
-}};
-
-} // namespace
-
-std::span<const RuntimeFeatureDescriptor> GetBuiltInRuntimeFeatures() {
-    return kBuiltInRuntimeFeatures;
-}
-
-void RegisterBuiltInRuntimeFeatures(RuntimeFeatureContext& context) {
-    for (const RuntimeFeatureDescriptor& descriptor : kBuiltInRuntimeFeatures) {
-        if (descriptor.registerFeature) {
-            descriptor.registerFeature(context);
-        }
+    RuntimeFeatureCatalog CreateBuiltInRuntimeFeatureCatalog() {
+        RuntimeFeatureCatalog catalog;
+        (void)catalog.Add(CreateRenderingRuntimeFeature());
+        (void)catalog.Add(CreateCameraRuntimeFeature());
+        (void)catalog.Add(CreateGameplayRuntimeFeature());
+        (void)catalog.Add(CreateSequenceRuntimeFeature());
+        return catalog;
     }
-}
 
 } // namespace HIKARI

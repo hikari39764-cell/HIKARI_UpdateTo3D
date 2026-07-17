@@ -7,7 +7,7 @@
 #include "HIKARI_Bgm.h"
 #include "HIKARI_SE.h"
 #include "HIKARI_Anim.h"
-#include "HIKARI_Input.h"
+#include "Input/Runtime/HIKARI_InputService.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
@@ -50,6 +50,7 @@
 #endif
 #include <objbase.h>
 #include <algorithm>
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -61,7 +62,6 @@ namespace HIKARI {
 
         struct BootstrapConfig {
             RuntimeHostMode hostMode = DefaultRuntimeHostMode();
-            const char* inputConfigPath = "input.json";
             bool enableDebugCamera = false;
             bool enableDebugLayer = true;
             bool resizableWindow = true;
@@ -85,6 +85,7 @@ namespace HIKARI {
         };
 
         inline PLATFORM::Win32Window gWindow{};
+        inline INPUT::InputService gInputService{};
         inline RUNTIME::GamePresentationController gGamePresentationController{};
         inline GFX::Dx12Core gCore{};
         inline GFX::Context gCtx{};
@@ -117,6 +118,10 @@ namespace HIKARI {
         inline uint64_t gPreviewTelemetryPresentedFrames = 0;
 
         inline RuntimeHostMode GetRuntimeHostMode() { return gRuntimeHostMode; }
+        inline INPUT::InputService& GetInputService() { return gInputService; }
+        inline const INPUT::InputSnapshot& GetInputSnapshot() {
+            return gInputService.GetSnapshot();
+        }
         inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
         inline bool IsExportedGameHost() { return IsExportedGameHostMode(gRuntimeHostMode); }
         inline bool IsStandaloneGameHost() { return IsStandaloneGameHostMode(gRuntimeHostMode); }
@@ -549,18 +554,15 @@ namespace HIKARI {
             HIKARI::VFX::Initialize(gCtx);
             HIKARI_LOG_INFO("VFX initialized.");
 
-            if (cfg.inputConfigPath) {
-                HIKARI::HINPUT::Init(cfg.inputConfigPath);
-                std::ostringstream oss;
-                oss << "Input initialized. config=" << cfg.inputConfigPath;
-                HIKARI_LOG_INFO(oss.str());
+            if (!gInputService.Initialize(std::filesystem::current_path())) {
+                HIKARI_LOG_ERROR("Input service initialization failed.");
+                return false;
             }
-            else {
-                HIKARI::HINPUT::Init();
-                HIKARI_LOG_INFO("Input initialized. config=<default>");
-            }
-            HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
-            HIKARI::HINPUT::SetBackend(HIKARI::HINPUT::BackendType::Win32);
+            gInputService.Contexts().SetActive(
+                "Editor", IsEditorHost());
+            gInputService.Contexts().SetActive(
+                "Gameplay", !IsEditorHost());
+            gInputService.SetHostWindow(gWindow.GetHWND());
 
             HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
@@ -595,6 +597,7 @@ namespace HIKARI {
 
         inline void FinalizeAll() {
             HIKARI_LOG_INFO("HIKARI shutdown started.");
+            gInputService.Shutdown();
             if (IsInProcessGamePresentationActive() &&
                 !EndInProcessGamePresentation()) {
                 HIKARI_LOG_ERROR(
@@ -764,7 +767,7 @@ namespace HIKARI {
                 UpdateGpuContexts();
                 return false;
             }
-            HIKARI::HINPUT::SetHostWindow(gameWindow->GetHWND());
+            gInputService.SetHostWindow(gameWindow->GetHWND());
             gLogicalScreenWidth = gameWindow->Width();
             gLogicalScreenHeight = gameWindow->Height();
             HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
@@ -830,7 +833,7 @@ namespace HIKARI {
             gPendingWindowWidth = 0;
             gPendingWindowHeight = 0;
             UpdateGpuContexts();
-            HIKARI::HINPUT::SetHostWindow(gWindow.GetHWND());
+            gInputService.SetHostWindow(gWindow.GetHWND());
             gLogicalScreenWidth = gWindow.Width();
             gLogicalScreenHeight = gWindow.Height();
             HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
@@ -1002,11 +1005,11 @@ namespace HIKARI {
             DX::DxRenderer::BeginFrame();
             PLATFORM::Win32Window* inputWindow =
                 gGamePresentationController.GetGameWindow();
-            HIKARI::HINPUT::SetExternalMouseWheelDelta(
+            gInputService.SetExternalMouseWheel(
                 inputWindow != nullptr
                     ? inputWindow->ConsumeMouseWheelDelta()
                     : gWindow.ConsumeMouseWheelDelta());
-            HIKARI::HINPUT::Update(frame.unscaledDt);
+            gInputService.Update(frame.unscaledDt);
             HIKARI::VFX::BeginFrame(frame.gameDt);
             if (gEnableImGui &&
                 gImGuiInitialized &&
@@ -1039,7 +1042,9 @@ namespace HIKARI {
                 gImGuiFrameBegun = true;
 #endif
             }
-            HIKARI::CAMERA::Update(frame.gameDt);
+            HIKARI::CAMERA::Update(
+                frame.gameDt,
+                &gInputService.GetSnapshot());
             return true;
         }
 

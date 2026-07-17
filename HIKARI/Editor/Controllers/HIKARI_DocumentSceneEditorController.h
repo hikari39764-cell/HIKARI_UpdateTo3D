@@ -11,6 +11,8 @@
 #include "Editor/HIKARI_HierarchyPanel.h"
 #include "Editor/HIKARI_InspectorPanel.h"
 #include "Editor/Panels/HIKARI_PerformanceAuditPanel.h"
+#include "Editor/Panels/HIKARI_ProjectFeaturesPanel.h"
+#include "Editor/Panels/HIKARI_InputActionMapPanel.h"
 #include "Editor/Panels/HIKARI_QualityPanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/Panels/HIKARI_ValidationLabPanel.h"
@@ -53,6 +55,8 @@ namespace HIKARI {
         ResourceWorkspacePanel resourceWorkspacePanel_{};
         StatsPanel statsPanel_{};
         PerformanceAuditPanel performanceAuditPanel_{};
+        ProjectFeaturesPanel projectFeaturesPanel_{};
+        InputActionMapPanel inputActionMapPanel_{};
         ValidationLabPanel validationLabPanel_{};
         EnvironmentPanel environmentPanel_{};
         QualityPanel qualityPanel_{};
