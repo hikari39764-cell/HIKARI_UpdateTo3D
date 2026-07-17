@@ -477,6 +477,7 @@ namespace HIKARI::MESHRENDERER {
         bool clusterGpuCullCounterReadbackReady = false;
         bool clusterGpuCullCounterReadbackValid = false;
         bool clusterGpuCullDebugCountersEnabled = false;
+        bool clusterGpuCullFineCullingOwnedByAmplificationShader = false;
         bool clusterGpuCullHzbOcclusionEnabled = false;
         bool clusterGpuCullOcclusionHistoryReady = false;
         bool gpuDrivenCullingCameraFrozen = false;

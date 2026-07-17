@@ -549,7 +549,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 : nullptr;
 
         frameContext_.stats.commandBuildReady =
-            frameContext_.commands.gpuDrawIndexedArgs != nullptr ||
             frameContext_.commands.meshDispatchArgs != nullptr ||
             (frameContext_.commands.surfaceDrawIndexedArgs != nullptr &&
                 frameContext_.commands.surfaceDrawIndexedCounter != nullptr) ||

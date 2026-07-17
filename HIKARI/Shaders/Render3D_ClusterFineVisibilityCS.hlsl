@@ -123,6 +123,32 @@ void CullPageTasksCS(
         return;
     }
 
+    // Mesh Shader 主線では CS は page 単位の候補 Range だけを発行する。
+    // meshlet の frustum / cone 精査と圧縮は AS の LDS / Wave 内で完結させる。
+    if (gClusterCullMeshletFineCullingOwner ==
+        HIKARI_CLUSTER_CULL_MESHLET_FINE_CULL_AMPLIFICATION)
+    {
+        if (groupIndex == 0u)
+        {
+            const uint candidateClusterCount = pageRangeEnd - pageRangeStart;
+            HikariClusterCullEmitDraw(
+                input,
+                pageRangeStart,
+                candidateClusterCount,
+                candidateClusterCount,
+                page.firstIndex,
+                page.indexCount,
+                0u,
+                0u,
+                0xffffffffu,
+                HikariClusterCullEmptyPacket4(),
+                HikariClusterCullEmptyPacket4(),
+                HikariClusterCullEmptyPacket4(),
+                HikariClusterCullEmptyPacket4());
+        }
+        return;
+    }
+
     bool doubleSided = HikariClusterCullIsDoubleSided(input.flags);
     bool coneSkipMaterial =
         (input.flags & (

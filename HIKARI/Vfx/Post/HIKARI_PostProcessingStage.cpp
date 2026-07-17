@@ -337,6 +337,17 @@ namespace HIKARI::POST {
             bloomDebugStats_.failed = true;
             return nullptr;
         }
+        // Bloom チェーンは 1/4 解像度で回す。先頭の extract がフル解像度 SRV を
+        // 低解像度 ping へ描くことでダウンサンプルを兼ねる。5-tap ブラーの
+        // pass あたりピクセルコストは 1/16 になり、テクセル幅が広がるぶん
+        // 拡散も自然に太くなる。合成側 (加算ブレンド) は linear サンプルで
+        // アップサンプルされる。
+        const int bloomWidth =
+            (std::max)(source.GetWidth() / 4, 32);
+        const int bloomHeight =
+            (std::max)(source.GetHeight() / 4, 32);
+        bloomDebugStats_.textureWidth = bloomWidth;
+        bloomDebugStats_.textureHeight = bloomHeight;
         CommonParams params = commonParams_;
         params.user[0] = {
             (std::max)(0.0f, bloomSettings_.threshold),
@@ -345,12 +356,12 @@ namespace HIKARI::POST {
             static_cast<float>(bloomDebugStats_.downsampleCount)
         };
         params.user[1] = {
-            1.0f / static_cast<float>((std::max)(1, source.GetWidth())),
-            1.0f / static_cast<float>((std::max)(1, source.GetHeight())), 0, 0
+            1.0f / static_cast<float>(bloomWidth),
+            1.0f / static_cast<float>(bloomHeight), 0, 0
         };
         bloomDebugStats_.initialized = true;
         bloomDebugStats_.passCount = 1u + bloomDebugStats_.downsampleCount * 2u;
-        return bloomChain_.Execute(source, quad, params);
+        return bloomChain_.Execute(source, quad, params, bloomWidth, bloomHeight);
     }
 
     RenderTarget2D* PostProcessingStage::ApplyFxaa(

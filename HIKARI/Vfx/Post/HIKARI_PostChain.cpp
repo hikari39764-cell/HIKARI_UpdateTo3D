@@ -117,15 +117,20 @@ namespace HIKARI {
             EnsureTempSize(w, h);
         }
 
-        RenderTarget2D* PostChain::Execute(RenderTarget2D& src, QuadDrawer& quad, const CommonParams& params)
+        RenderTarget2D* PostChain::Execute(
+            RenderTarget2D& src,
+            QuadDrawer& quad,
+            const CommonParams& params,
+            int tempWidth,
+            int tempHeight)
         {
             if (effects_.empty()) {
                 return &src;
             }
 
 
-            int w = src.GetWidth();
-            int h = src.GetHeight();
+            int w = tempWidth > 0 ? tempWidth : src.GetWidth();
+            int h = tempHeight > 0 ? tempHeight : src.GetHeight();
             EnsureTempSize(w, h);
             if (ping_.GetResource() == nullptr || pong_.GetResource() == nullptr) {
                 DEBUGLOG::PushRenderError(std::string("[PostChain][ERROR] Execute skipped: temp buffers invalid.\n") + DumpState());

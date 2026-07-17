@@ -43,6 +43,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         constexpr size_t kClusterCullOcclusionHistoryEntryBytes = sizeof(uint32_t) * 2u;
         constexpr uint32_t kClusterCullHzbOcclusionConfirmFrames = 1u;
         constexpr size_t kClusterCullVisibleClusterListCapacityMultiplier = 64u;
+        constexpr uint32_t kClusterMeshletFineCullingOwnerAmplificationShader = 1u;
 
         uint64_t CurrentRetireFenceValue() {
             return SERVICES::gCtx.currentFrameRetireFenceValue != 0
@@ -1526,11 +1527,17 @@ namespace HIKARI::RENDER3D::CLUSTER {
             static_cast<uint32_t>((std::min)(
                 visibleClusterListCapacity_,
                 static_cast<size_t>(UINT32_MAX)));
-        baseConstants.meshletPreciseCompaction = 1u;
+        // Cluster mainline は page / instance の粗い可視性だけを CS で確定し、
+        // meshlet 単位の frustum / cone 精査は AS に所有させる。
+        baseConstants.meshletFineCullingOwner =
+            kClusterMeshletFineCullingOwnerAmplificationShader;
         baseConstants.emitTraditionalDrawArgs =
             emitTraditionalDrawArgs ? 1u : 0u;
         stats_.debugCountersEnabled = baseConstants.enableDebugCounters != 0u;
         stats_.traditionalDrawArgsEmitted = emitTraditionalDrawArgs;
+        stats_.meshletFineCullingDeferredToAmplificationShader =
+            baseConstants.meshletFineCullingOwner ==
+                kClusterMeshletFineCullingOwnerAmplificationShader;
         stats_.lodTargetErrorNdc = baseConstants.lodTargetErrorNdc;
         stats_.lodTransitionRelaxPerLevel =
             baseConstants.lodTransitionRelaxPerLevel;

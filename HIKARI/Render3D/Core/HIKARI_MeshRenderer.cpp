@@ -772,9 +772,6 @@ namespace HIKARI::MESHRENDERER {
             workContext.frame = &g.gpuDrivenFrame;
             workContext.passMask = passMask;
             workContext.collectCounterReadback = collectCounterReadback;
-            workContext.emitTraditionalDrawArgs =
-                g.traditionalIndirectOwner.HasSourceCommands(
-                    g.gpuDrivenSceneSource);
             if (depthPyramid != nullptr &&
                 depthPyramid->valid &&
                 depthPyramid->pyramidSrv.ptr != 0 &&
@@ -836,6 +833,8 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.gpuCounterReadbackValid;
             g.debugStats.clusterGpuCullDebugCountersEnabled =
                 clusterCullStats.debugCountersEnabled;
+            g.debugStats.clusterGpuCullFineCullingOwnedByAmplificationShader =
+                clusterCullStats.meshletFineCullingDeferredToAmplificationShader;
             g.debugStats.clusterGpuCullOcclusionHistoryReady =
                 clusterCullStats.occlusionHistoryReady;
             g.debugStats.clusterGpuCullGpuInputCount =

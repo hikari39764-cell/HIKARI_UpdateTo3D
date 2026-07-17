@@ -1,11 +1,11 @@
 {
   "renderQuality": {
-    "antiAliasingMode": "DLSS",
-    "dlssQualityMode": "UltraPerformance",
+    "antiAliasingMode": "DLAA",
+    "dlssQualityMode": "Quality",
     "forwardCostMode": "Full",
-    "frameGenerationMode": "Off",
+    "frameGenerationMode": "DLSS",
     "frameGenerationMultiplier": 2,
-    "geometryPipeline": "MeshShader",
+    "geometryPipeline": "TraditionalVsPs",
     "lightProbeVolumeSampling": "FastSmooth",
     "sceneDepthPrepass": false,
     "sceneResolution": "2160p",

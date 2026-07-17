@@ -105,6 +105,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         bool gpuCounterReadbackValid = false;
         bool debugCountersEnabled = false;
         bool traditionalDrawArgsEmitted = false;
+        bool meshletFineCullingDeferredToAmplificationShader = false;
         bool occlusionHistoryReady = false;
         uint32_t gpuInputCount = 0;
         uint32_t gpuPageTaskCount = 0;
@@ -413,7 +414,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             uint32_t hzbAllowLargeRectOcclusion = 0;
             uint32_t hzbTestBudget = 0;
             uint32_t visibleClusterListCapacity = 0;
-            uint32_t meshletPreciseCompaction = 1;
+            uint32_t meshletFineCullingOwner = 1;
             uint32_t emitTraditionalDrawArgs = 0;
             float lodTransitionRelaxPerLevel = 0.0f;
             float lodErrorRelaxPerLevel = 0.0f;

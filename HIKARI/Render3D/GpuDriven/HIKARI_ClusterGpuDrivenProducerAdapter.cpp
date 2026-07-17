@@ -76,10 +76,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 GpuVisibilityBucketResult& bucketVisibility =
                     passVisibility.buckets[ToCommandBucketIndex(
                         ToGpuDrivenCommandBucket(sourceBucket))];
-                bucketLayout.gpuDrawIndexedArgumentOffset =
-                    cullingPass.GetDrawArgumentBufferOffset(
-                        clusterPass,
-                        sourceBucket);
                 bucketLayout.meshDispatchArgumentOffset =
                     cullingPass.GetMeshletDispatchArgumentBufferOffset(
                         clusterPass,
@@ -160,16 +156,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             stats.visibleClusterListBufferReady &&
             stats.counterBufferReady;
 
-        output.commands.gpuDrawIndexedArgs =
-            stats.traditionalDrawArgsEmitted
-                ? cullingPass_->GetDrawArgumentBuffer()
-                : nullptr;
         output.commands.meshDispatchArgs =
             cullingPass_->GetMeshletDispatchArgumentBuffer();
-        output.commands.gpuDrawIndexedSignature =
-            stats.traditionalDrawArgsEmitted
-                ? cullingPass_->GetDrawCommandSignature()
-                : nullptr;
         output.commands.meshDispatchSignature =
             cullingPass_->GetMeshletDispatchCommandSignature();
 
@@ -205,7 +193,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             *cullingPass_);
 
         output.commandBuildReady =
-            output.commands.gpuDrawIndexedArgs != nullptr ||
             output.commands.meshDispatchArgs != nullptr;
         return output;
     }
@@ -262,6 +249,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         depthOcclusion.hzbViewProj = context.depthOcclusion.hzbViewProj;
         depthOcclusion.hzbViewProjValid = context.depthOcclusion.hzbViewProjValid;
 
+        // Traditional VS+PS は専用の GpuTraditionalCommandStreamBuffer が所有する。
+        // Cluster producer は Mesh Shader 用の候補 Range / Dispatch だけを発行する。
         result.submitted = cullingPass_->Dispatch(
             context.commandList,
             context.viewProj,
@@ -272,7 +261,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             rangeCount,
             depthOcclusion,
             context.collectCounterReadback,
-            context.emitTraditionalDrawArgs);
+            false);
         return result;
     }
 

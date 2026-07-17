@@ -3093,6 +3093,12 @@
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenWaterDeform.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCompaction.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCulling.hlsli">
+      <Filter>Project\Shaders\Include</Filter>
+    </None>
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletDraw.hlsli">
       <Filter>Project\Shaders\Include</Filter>
     </None>

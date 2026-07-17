@@ -1193,16 +1193,23 @@ void HikariClusterCullEmitDraw(
     visible.meshletPrimitiveOffsetBytes = input.meshletPrimitiveOffsetBytes;
     visible.meshletPrimitiveCount = input.meshletPrimitiveCount;
     visible.geometryClusterCount = input.geometryClusterCount;
+    const bool amplificationFineCull =
+        gClusterCullMeshletFineCullingOwner ==
+            HIKARI_CLUSTER_CULL_MESHLET_FINE_CULL_AMPLIFICATION;
     const bool contiguousVisibleRange =
         mergedGapCount == 0u &&
         visibleClusterCount == clusterCount;
-    uint visibleRangeFlags = contiguousVisibleRange
-        ? HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED
-        : 0u;
+    uint visibleRangeFlags = amplificationFineCull
+        ? HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_AS_FINE_CULL
+        : (contiguousVisibleRange
+            ? HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED
+            : 0u);
     const bool useClusterList =
+        !amplificationFineCull &&
         clusterListStart != 0xffffffffu &&
         visibleClusterCount <= HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY;
     const bool usePacket =
+        !amplificationFineCull &&
         !useClusterList &&
         visibleClusterCount <= HIKARI_CLUSTER_CULL_VISIBLE_PACKET_CAPACITY;
     if (visibleClusterCount != 0u && usePacket)
@@ -1384,7 +1391,8 @@ void HikariClusterCullAppendVisibleCluster(
         gapIndexWithinBudget &&
         (fitsPacket || fitsClusterList);
     const bool meshletPreciseCompaction =
-        gClusterCullMeshletPreciseCompaction != 0u;
+        gClusterCullMeshletFineCullingOwner ==
+            HIKARI_CLUSTER_CULL_MESHLET_FINE_CULL_COMPUTE;
     const bool meshletPreciseGapMerge =
         meshletPreciseCompaction &&
         hasMergeGap &&

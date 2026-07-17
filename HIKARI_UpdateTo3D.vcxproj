@@ -1184,6 +1184,8 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshMaterialData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshObjectData.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenWaterDeform.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCompaction.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCulling.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletDraw.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletForwardMSCommon.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletMSCommon.hlsli" />

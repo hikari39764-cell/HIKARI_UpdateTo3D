@@ -138,7 +138,7 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullHzbAllowLargeRectOcclusion;
     uint gClusterCullHzbTestBudget;
     uint gClusterCullVisibleClusterListCapacity;
-    uint gClusterCullMeshletPreciseCompaction;
+    uint gClusterCullMeshletFineCullingOwner;
     uint gClusterCullEmitTraditionalDrawArgs;
     float gClusterCullLodTransitionRelaxPerLevel;
     float gClusterCullLodErrorRelaxPerLevel;
@@ -250,6 +250,9 @@ static const uint HIKARI_CLUSTER_CULL_FINE_GROUP_SIZE = 64u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PACKET = 1u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_PRECULLED = 2u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_CLUSTER_LIST = 4u;
+static const uint HIKARI_CLUSTER_CULL_VISIBLE_RANGE_FLAG_AS_FINE_CULL = 8u;
+static const uint HIKARI_CLUSTER_CULL_MESHLET_FINE_CULL_COMPUTE = 0u;
+static const uint HIKARI_CLUSTER_CULL_MESHLET_FINE_CULL_AMPLIFICATION = 1u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_PACKET_CAPACITY = 16u;
 static const uint HIKARI_CLUSTER_CULL_VISIBLE_CLUSTER_LIST_PACK_CAPACITY = 64u;
 static const uint HIKARI_CLUSTER_CULL_HZB_QUERY_OK = 0u;

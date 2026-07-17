@@ -34,6 +34,7 @@ struct HikariMeshletVisibleRange
 static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_PACKET = 1u;
 static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_PRECULLED = 2u;
 static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_CLUSTER_LIST = 4u;
+static const uint HIKARI_MESHLET_VISIBLE_RANGE_FLAG_AS_FINE_CULL = 8u;
 static const uint HIKARI_MESHLET_VISIBLE_PACKET_CAPACITY = 16u;
 static const uint HIKARI_MESHLET_VISIBLE_CLUSTER_LIST_CAPACITY = 64u;
 static const uint HIKARI_MESHLET_AS_MAX_CLUSTER_PAYLOAD =
@@ -111,6 +112,12 @@ bool HikariMeshletVisibleRangeIsPreculled(HikariMeshletVisibleRange visible)
 bool HikariMeshletVisibleRangeUsesClusterList(HikariMeshletVisibleRange visible)
 {
     return (visible.reserved0 & HIKARI_MESHLET_VISIBLE_RANGE_FLAG_CLUSTER_LIST) != 0u;
+}
+
+bool HikariMeshletVisibleRangeRequiresAmplificationFineCull(
+    HikariMeshletVisibleRange visible)
+{
+    return (visible.reserved0 & HIKARI_MESHLET_VISIBLE_RANGE_FLAG_AS_FINE_CULL) != 0u;
 }
 
 uint HikariMeshletVisibleRangePacketCount(HikariMeshletVisibleRange visible)

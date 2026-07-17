@@ -22,7 +22,15 @@ namespace HIKARI {
             std::string DumpState() const;
 
             bool HasAny() const { return !effects_.empty(); }
-            RenderTarget2D* Execute(RenderTarget2D& src, QuadDrawer& quad, const CommonParams& params);
+            // tempWidth/tempHeight を指定すると ping/pong をそのサイズで確保し、
+            // 先頭エフェクトの描画がそのままダウンサンプルを兼ねる (bloom 用)。
+            // 0 のときは src と同サイズ。
+            RenderTarget2D* Execute(
+                RenderTarget2D& src,
+                QuadDrawer& quad,
+                const CommonParams& params,
+                int tempWidth = 0,
+                int tempHeight = 0);
             RenderTarget2D* GetPing() { return &ping_; }
             void PrepareBuffers(int w, int h);
 

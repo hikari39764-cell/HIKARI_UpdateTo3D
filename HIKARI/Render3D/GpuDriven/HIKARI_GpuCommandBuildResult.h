@@ -11,7 +11,6 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenCommandBucketLayout {
-        UINT64 gpuDrawIndexedArgumentOffset = 0;
         UINT64 meshDispatchArgumentOffset = 0;
         UINT64 counterOffset = 0;
     };
@@ -53,12 +52,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         ID3D12Resource* surfaceDrawIndexedArgs = nullptr;
         ID3D12Resource* surfaceSkinnedDrawIndexedArgs = nullptr;
         ID3D12Resource* surfaceDrawIndexedCounter = nullptr;
-        ID3D12Resource* gpuDrawIndexedArgs = nullptr;
         ID3D12Resource* meshDispatchArgs = nullptr;
 
         ID3D12CommandSignature* surfaceDrawIndexedSignature = nullptr;
         ID3D12CommandSignature* surfaceSkinnedDrawIndexedSignature = nullptr;
-        ID3D12CommandSignature* gpuDrawIndexedSignature = nullptr;
         ID3D12CommandSignature* meshDispatchSignature = nullptr;
 
         GpuDrivenCommandLayout layout{};

@@ -590,7 +590,15 @@ namespace HIKARI {
                     s.mesh.clusterGpuCullSourceInstanceCount,
                     s.mesh.clusterGpuCullSubmittedInstanceCount,
                     s.mesh.clusterGpuCullOverflowInstanceCount);
-                MetricRow("Visible Ranges / Clusters / Draw Args", "%zu / %zu / %zu",
+                const bool asFineCull =
+                    s.mesh.clusterGpuCullFineCullingOwnedByAmplificationShader;
+                MetricRow("Meshlet Fine Cull Owner / Coarse Owner", "%s / CS page + HZB",
+                    asFineCull ? "AS" : "CS");
+                MetricRow(
+                    asFineCull
+                        ? "Candidate Ranges / Meshlets / Dispatch Args"
+                        : "Visible Ranges / Clusters / Draw Args",
+                    "%zu / %zu / %zu",
                     s.mesh.clusterGpuCullGpuVisibleRangeCount,
                     s.mesh.clusterGpuCullGpuVisibleClusterCount,
                     s.mesh.clusterGpuCullGpuDrawCommandCount);

@@ -26,7 +26,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         dispatchContext.frame = context.frame;
         dispatchContext.passMask = context.passMask;
         dispatchContext.collectCounterReadback = context.collectCounterReadback;
-        dispatchContext.emitTraditionalDrawArgs = context.emitTraditionalDrawArgs;
         dispatchContext.depthOcclusion = context.depthOcclusion;
 
         const GpuDrivenProducerWorkResult dispatchResult =
