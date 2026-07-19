@@ -6,8 +6,12 @@
 
 namespace HIKARI {
 
-PlayerInputSystem::PlayerInputSystem(INPUT::InputService* inputService)
-    : inputService_(inputService) {
+void PlayerInputSystem::OnWorldAttached(World& world) {
+    inputService_ = world.Services().Find<INPUT::InputService>();
+}
+
+void PlayerInputSystem::OnWorldDetached(World&) {
+    inputService_ = nullptr;
 }
 
 void PlayerInputSystem::PreUpdate(World& world, const FrameContext&) {

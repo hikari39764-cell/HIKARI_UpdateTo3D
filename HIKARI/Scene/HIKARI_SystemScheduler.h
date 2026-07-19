@@ -25,6 +25,9 @@ public:
     void DetachWorld(World& world);
 
     void PreUpdate(World& world, const FrameContext& frame);
+    void PreFixedUpdate(World& world, const FrameContext& frame);
+    void FixedUpdate(World& world, const FrameContext& frame);
+    void PostFixedUpdate(World& world, const FrameContext& frame);
     void Update(World& world, const FrameContext& frame);
     void LateUpdate(World& world, const FrameContext& frame);
 

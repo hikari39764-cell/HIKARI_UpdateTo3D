@@ -69,7 +69,7 @@ namespace HIKARI {
                     return;
                 }
 
-                const Transform3D& worldTransform = object.Transform();
+                const Transform3D& worldTransform = object.GetTransform();
                 if (debugMode == ModelRenderDebugMode::WireOverlay ||
                     debugMode == ModelRenderDebugMode::WireOnly) {
                     MESHWIREDEBUG::SubmitModelWire(

@@ -42,16 +42,7 @@ namespace HIKARI {
     }
 
     GameObject* SelectionSyncService::FindRuntimeObjectByDocumentId(DocumentSceneBase& scene, SceneObjectId id) const {
-        if (id.value == 0) {
-            return nullptr;
-        }
-
-        for (const auto& object : scene.GetWorld().GetObjects()) {
-            if (object && object->GetDocumentId() == id) {
-                return object.get();
-            }
-        }
-        return nullptr;
+        return scene.GetWorld().FindObject(id);
     }
 
     bool SelectionSyncService::SyncSelectedObjectBackToDocument(DocumentSceneBase& scene, EditorSelection& selection, bool& sceneDirty, uint64_t& nextSceneObjectId) const {
@@ -63,7 +54,8 @@ namespace HIKARI {
         bool changed = false;
         bool requiresRebuild = false;
 
-        const Transform3D& runtimeTransform = selection.selectedObject->Transform();
+        const Transform3D& runtimeTransform =
+            selection.selectedObject->GetTransform();
         if (documentObject->transform.position.x != runtimeTransform.position.x
             || documentObject->transform.position.y != runtimeTransform.position.y
             || documentObject->transform.position.z != runtimeTransform.position.z) {

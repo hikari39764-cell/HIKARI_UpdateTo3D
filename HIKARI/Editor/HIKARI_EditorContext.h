@@ -4,8 +4,9 @@
 #include <string>
 
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/Debug/HIKARI_RenderDebugView.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
+#include "Scene/Debug/HIKARI_ComponentGizmoRegistry.h"
+#include "Scene/Debug/HIKARI_ViewportDebugState.h"
 
 namespace HIKARI {
 
@@ -17,14 +18,6 @@ namespace HIKARI {
         ModelAsset* selectedAsset = nullptr;
         std::string selectedAssetGuid{};
         std::string selectedAssetPath{};
-    };
-
-    struct ComponentGizmoState {
-        bool showComponentGizmos = true;
-        bool showSpawnPoints = false;
-        bool showCameraFrustums = true;
-        bool showPlayerBounds = true;
-        bool showOnlySelectedObject = false;
     };
 
     enum class EditorTransformGizmoOperation {
@@ -46,42 +39,6 @@ namespace HIKARI {
         MATH::Vec3 translateSnap{ 0.5f, 0.5f, 0.5f };
         float rotateSnapDeg = 15.0f;
         float scaleSnap = 0.1f;
-    };
-
-    enum class LightProbeVolumeOverlayMode {
-        Off,
-        BoundsOnly,
-        SampledPoints,
-        AllPoints,
-    };
-
-    enum class ReflectionProbeEditTarget {
-        ProbePosition,
-        InfluenceBox,
-        ProjectionBox,
-    };
-
-    struct ViewportOverlayState {
-        bool showGrid = true;
-        bool showAxis = true;
-        bool showLights = true;
-        bool showReflectionProbe = true;
-        bool showLightProbeVolume = false;
-        bool showProbeLabels = true;
-        bool showXRayGizmos = false;
-        bool editReflectionProbe = false;
-        LightProbeVolumeOverlayMode lightProbeVolumeMode = LightProbeVolumeOverlayMode::BoundsOnly;
-        ReflectionProbeEditTarget reflectionProbeEditTarget = ReflectionProbeEditTarget::ProbePosition;
-    };
-
-    struct ViewportPerformanceState {
-        bool disableSsaoInEditorViewport = false;
-    };
-
-    struct ViewportDebugViewState {
-        RenderDebugView renderView = RenderDebugView::None;
-        bool showLegend = true;
-        bool freezeCullingCamera = false;
     };
 
     struct ViewportWindowState {

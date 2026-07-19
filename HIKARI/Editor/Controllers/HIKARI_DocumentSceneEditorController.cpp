@@ -27,6 +27,7 @@
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Scene/Debug/HIKARI_BuiltInComponentGizmoProviders.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
@@ -1394,10 +1395,11 @@ namespace HIKARI {
                     GameObject cameraProxy{ "Camera Gizmo Proxy" };
                     cameraProxy.SetDocumentId(
                         context_.selection.selectedObject->GetDocumentId());
-                    cameraProxy.Transform() =
-                        context_.selection.selectedObject->Transform();
-                    cameraProxy.Transform().scale = { 1.0f, 1.0f, 1.0f };
-                    cameraProxy.Transform().useExplicitMatrix = false;
+                    Transform3D proxyTransform =
+                        context_.selection.selectedObject->GetTransform();
+                    proxyTransform.scale = { 1.0f, 1.0f, 1.0f };
+                    proxyTransform.useExplicitMatrix = false;
+                    (void)cameraProxy.SetLocalTransform(proxyTransform);
                     gizmoResult = transformGizmo_.Draw(
                         cameraProxy,
                         scene.GetCamera(),
@@ -1581,12 +1583,23 @@ namespace HIKARI {
                     "Component Gizmos")) {
                 context_.gizmos.showComponentGizmos = !context_.gizmos.showComponentGizmos;
             }
+            const ComponentGizmoRegistry& gizmoRegistry =
+                scene.GetComponentGizmoRegistry();
+            const ComponentGizmoProvider* playerBoundsProvider =
+                gizmoRegistry.Find(kPlayerBoundsGizmoProviderId);
+            const bool playerBoundsVisible =
+                playerBoundsProvider != nullptr &&
+                context_.gizmos.IsProviderVisible(
+                    playerBoundsProvider->providerId,
+                    playerBoundsProvider->defaultVisible);
             if (DrawMiniTextToggle(
                     "P",
                     "ViewportPlayerBounds",
-                    context_.gizmos.showPlayerBounds,
+                    playerBoundsVisible,
                     "Player Bounds")) {
-                context_.gizmos.showPlayerBounds = !context_.gizmos.showPlayerBounds;
+                context_.gizmos.SetProviderVisible(
+                    std::string(kPlayerBoundsGizmoProviderId),
+                    !playerBoundsVisible);
             }
             if (EDITOR::EditorIconManager::IconButton(
                     EDITOR::EditorIconKind::Settings,
@@ -1601,8 +1614,19 @@ namespace HIKARI {
                 DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
                 ImGui::SeparatorText("Gizmos");
                 ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
-                ImGui::Checkbox("Spawn Points", &context_.gizmos.showSpawnPoints);
-                ImGui::Checkbox("Camera Frustums", &context_.gizmos.showCameraFrustums);
+                for (const ComponentGizmoProvider& provider :
+                    gizmoRegistry.GetProviders()) {
+                    bool visible = context_.gizmos.IsProviderVisible(
+                        provider.providerId,
+                        provider.defaultVisible);
+                    if (ImGui::Checkbox(
+                            provider.displayName.c_str(),
+                            &visible)) {
+                        context_.gizmos.SetProviderVisible(
+                            provider.providerId,
+                            visible);
+                    }
+                }
                 ImGui::SeparatorText("Snap");
                 ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
                 ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");

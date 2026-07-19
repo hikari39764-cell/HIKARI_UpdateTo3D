@@ -4,18 +4,17 @@
 
 namespace HIKARI {
 
-    class Camera3D;
+    struct GameplayCameraService;
 
     class CameraFollowSystem final : public ISystem {
     public:
-        CameraFollowSystem(Camera3D& camera, const bool& runtimeCameraActive);
-
         std::string_view GetName() const override { return "CameraFollowSystem"; }
+        void OnWorldAttached(World& world) override;
+        void OnWorldDetached(World& world) override;
         void Update(World& world, const FrameContext& frame) override;
 
     private:
-        Camera3D* camera_ = nullptr;
-        const bool* runtimeCameraActive_ = nullptr;
+        GameplayCameraService* cameraService_ = nullptr;
     };
 
 } // namespace HIKARI

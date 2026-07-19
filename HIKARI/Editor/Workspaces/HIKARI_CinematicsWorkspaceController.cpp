@@ -19,30 +19,19 @@ namespace HIKARI::EDITOR {
             if (cameraObjectId.value == 0) {
                 return false;
             }
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (!object || !(object->GetDocumentId() == cameraObjectId)) {
-                    continue;
-                }
-                const CameraComponent* camera =
-                    object->GetComponent<CameraComponent>();
-                return camera != nullptr && camera->IsEnabled();
-            }
-            return false;
+            const GameObject* object =
+                scene.GetWorld().FindObject(cameraObjectId);
+            const CameraComponent* camera = object != nullptr
+                ? object->GetComponent<CameraComponent>()
+                : nullptr;
+            return camera != nullptr && camera->IsEnabled();
         }
 
         GameObject* FindRuntimeObject(
             DocumentSceneBase& scene,
             SceneObjectId objectId) {
 
-            if (objectId.value == 0) {
-                return nullptr;
-            }
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (object && object->GetDocumentId() == objectId) {
-                    return object.get();
-                }
-            }
-            return nullptr;
+            return scene.GetWorld().FindObject(objectId);
         }
 
         DirectorCameraPose CameraPoseFromView(const Camera3D& camera) {
@@ -442,7 +431,6 @@ namespace HIKARI::EDITOR {
             if (GameObject* object = FindRuntimeObject(
                     scene,
                     result.gizmo.objectId)) {
-                Transform3D& runtimeTransform = object->Transform();
                 const bool cameraPoseApplied =
                     object->GetComponent<CameraComponent>() != nullptr &&
                     scene.ApplyCameraObjectPose(
@@ -451,16 +439,17 @@ namespace HIKARI::EDITOR {
                         result.gizmo.rotation,
                         true);
                 if (!cameraPoseApplied) {
+                    Transform3D runtimeTransform =
+                        object->GetTransform();
                     runtimeTransform.position =
                         result.gizmo.transform.position;
                     runtimeTransform.rotation = MATH::NormalizeQ(
                         result.gizmo.rotation);
+                    runtimeTransform.scale =
+                        result.gizmo.transform.scale;
+                    runtimeTransform.useExplicitMatrix = false;
+                    (void)object->SetLocalTransform(runtimeTransform);
                 }
-                runtimeTransform.scale = cameraPoseApplied
-                    ? MATH::Vec3{ 1.0f, 1.0f, 1.0f }
-                    : result.gizmo.transform.scale;
-                runtimeTransform.useExplicitMatrix = false;
-                object->MarkRenderStateDirty();
 
                 if (SceneObjectData* documentObject =
                         selectionSync.FindDocumentObjectByRuntime(

@@ -7,6 +7,7 @@
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Scene/Components/HIKARI_CameraFollowComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_RuntimeWorldServices.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI {
@@ -23,32 +24,26 @@ namespace HIKARI {
             return (std::clamp)(1.0f - std::exp(-smooth * dt), 0.0f, 1.0f);
         }
 
-        GameObject* FindObjectByDocumentId(World& world, SceneObjectId id) {
-            if (id.value == 0u) {
-                return nullptr;
-            }
-
-            for (const auto& object : world.GetObjects()) {
-                if (object && object->GetDocumentId() == id) {
-                    return object.get();
-                }
-            }
-            return nullptr;
-        }
-
         GameObject* ResolveTargetObject(World& world, GameObject& owner, const CameraFollowComponent& component) {
-            if (GameObject* target = FindObjectByDocumentId(world, component.GetTargetObjectId())) {
+            if (GameObject* target = world.FindObject(component.GetTargetObjectId())) {
                 return target;
             }
             return component.GetUseOwnerAsFallbackTarget() ? &owner : nullptr;
         }
     }
 
-    CameraFollowSystem::CameraFollowSystem(Camera3D& camera, const bool& runtimeCameraActive)
-        : camera_(&camera), runtimeCameraActive_(&runtimeCameraActive) {}
+    void CameraFollowSystem::OnWorldAttached(World& world) {
+        cameraService_ = world.Services().Find<GameplayCameraService>();
+    }
+
+    void CameraFollowSystem::OnWorldDetached(World&) {
+        cameraService_ = nullptr;
+    }
 
     void CameraFollowSystem::Update(World& world, const FrameContext& frame) {
-        if (camera_ == nullptr || runtimeCameraActive_ == nullptr || !*runtimeCameraActive_) {
+        if (cameraService_ == nullptr ||
+            cameraService_->camera == nullptr ||
+            !cameraService_->IsRuntimeCameraActive()) {
             return;
         }
 
@@ -68,7 +63,8 @@ namespace HIKARI {
                     return;
                 }
 
-                const MATH::Vec3 targetPosition = target->Transform().position;
+                const MATH::Vec3 targetPosition =
+                    target->GetTransform().position;
                 MATH::Vec3 desiredEye = targetPosition + component.GetOffset();
                 MATH::Vec3 desiredLookAt = targetPosition + component.GetLookAtOffset();
                 if (MATH::Length(desiredLookAt - desiredEye) <= 1e-4f) {
@@ -84,7 +80,7 @@ namespace HIKARI {
                 }
 
                 component.SetRuntimeCameraState(eye, lookAt);
-                camera_->SetLookAt(eye, lookAt);
+                cameraService_->camera->SetLookAt(eye, lookAt);
                 applied = true;
             });
     }

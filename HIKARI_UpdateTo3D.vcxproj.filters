@@ -990,6 +990,12 @@
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
       <Filter>Source Files\Scene\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.cpp">
+      <Filter>Source Files\Scene\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.cpp">
+      <Filter>Source Files\Scene\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
@@ -1470,6 +1476,9 @@
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Core\HIKARI_FixedStepClock.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -1543,6 +1552,9 @@
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureCatalog.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_RuntimeExtension.cpp">
       <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.cpp">
@@ -2002,7 +2014,22 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeObjectHandle.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_World.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldEvents.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldEventStream.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldServiceRegistry.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeWorldServices.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h">
@@ -2288,6 +2315,15 @@
       <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h">
+      <Filter>Header Files\Scene\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.h">
+      <Filter>Header Files\Scene\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ViewportDebugState.h">
+      <Filter>Header Files\Scene\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.h">
       <Filter>Header Files\Scene\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h">
@@ -2653,6 +2689,9 @@
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Core\HIKARI_FixedStepClock.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -2738,6 +2777,9 @@
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeExtension.h">
       <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureIds.h">

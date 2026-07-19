@@ -27,12 +27,7 @@ namespace HIKARI::RUNTIME_TOOLS {
 #if defined(HIKARI_ENABLE_IMGUI)
     namespace {
         GameObject* FindObjectById(DocumentSceneBase& scene, SceneObjectId id) {
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (object && object->GetDocumentId() == id) {
-                    return object.get();
-                }
-            }
-            return nullptr;
+            return scene.GetWorld().FindObject(id);
         }
 
         GameObject* FirstObject(DocumentSceneBase& scene) {
@@ -342,10 +337,16 @@ namespace HIKARI::RUNTIME_TOOLS {
         }
 
         void DrawTransform(GameObject& object) {
-            Transform3D& transform = object.Transform();
+            Transform3D transform = object.GetTransform();
             ImGui::SeparatorText("Transform");
-            ImGui::DragFloat3("Position", &transform.position.x, 0.05f);
-            ImGui::DragFloat3("Scale", &transform.scale.x, 0.02f, 0.001f, 1000.0f);
+            bool changed = ImGui::DragFloat3(
+                "Position", &transform.position.x, 0.05f);
+            changed |= ImGui::DragFloat3(
+                "Scale", &transform.scale.x, 0.02f, 0.001f, 1000.0f);
+            if (changed) {
+                transform.useExplicitMatrix = false;
+                (void)object.SetLocalTransform(transform);
+            }
             ImGui::Text("Rotation quat: %.3f, %.3f, %.3f, %.3f",
                 transform.rotation.x,
                 transform.rotation.y,

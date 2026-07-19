@@ -37,6 +37,8 @@ bld/
 # though Visual Studio build-output Debug directories are ignored above.
 !HIKARI/Render3D/Debug/
 !HIKARI/Render3D/Debug/**
+!HIKARI/Scene/Debug/
+!HIKARI/Scene/Debug/**
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

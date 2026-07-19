@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Editor/HIKARI_EditorContext.h"
-#include "Scene/HIKARI_SceneDocument.h"
+#include "Scene/Debug/HIKARI_ComponentGizmoRegistry.h"
 
 namespace HIKARI {
 
@@ -9,11 +8,19 @@ namespace HIKARI {
 
     class ComponentGizmoRenderer {
     public:
+        ComponentGizmoRenderer();
+
+        ComponentGizmoRegistry& Registry() noexcept;
+        const ComponentGizmoRegistry& Registry() const noexcept;
+
         void SubmitWorldGizmos(
             const World& world,
             const ComponentGizmoState& state,
             SceneObjectId selectedObjectId,
             float cameraAspect) const;
+
+    private:
+        ComponentGizmoRegistry registry_{};
     };
 
 } // namespace HIKARI

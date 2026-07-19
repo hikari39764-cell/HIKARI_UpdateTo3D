@@ -1,0 +1,56 @@
+#pragma once
+
+#include <functional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+
+#include "Scene/HIKARI_SceneObjectId.h"
+
+namespace HIKARI {
+
+    class GameObject;
+
+    struct ComponentGizmoState {
+        bool showComponentGizmos = true;
+        bool showOnlySelectedObject = false;
+        std::unordered_map<std::string, bool> providerVisibility{};
+
+        bool IsProviderVisible(
+            std::string_view providerId,
+            bool defaultVisible) const;
+        void SetProviderVisible(
+            std::string providerId,
+            bool visible);
+    };
+
+    struct ComponentGizmoDrawContext {
+        SceneObjectId selectedObjectId{};
+        float cameraAspect = 1.0f;
+    };
+
+    using DrawComponentGizmoFn = std::function<void(
+        const GameObject& object,
+        const ComponentGizmoDrawContext& context)>;
+
+    struct ComponentGizmoProvider {
+        std::string providerId{};
+        std::string displayName{};
+        bool defaultVisible = true;
+        DrawComponentGizmoFn draw{};
+    };
+
+    class ComponentGizmoRegistry {
+    public:
+        bool Register(ComponentGizmoProvider provider);
+        const ComponentGizmoProvider* Find(
+            std::string_view providerId) const noexcept;
+        const std::vector<ComponentGizmoProvider>&
+            GetProviders() const noexcept;
+
+    private:
+        std::vector<ComponentGizmoProvider> providers_{};
+    };
+
+} // namespace HIKARI

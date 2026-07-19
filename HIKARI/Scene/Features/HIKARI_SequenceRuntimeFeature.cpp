@@ -44,11 +44,6 @@ namespace HIKARI {
             }
 
             bool Register(RuntimeFeatureContext& context) override {
-                if (context.services.sequencePlaybackService == nullptr ||
-                    context.services.runtimePlayActive == nullptr) {
-                    return false;
-                }
-
                 ComponentTypeInfo player{};
                 player.typeName = "SequencePlayerComponent";
                 player.factory = []() -> std::unique_ptr<IComponent> {
@@ -79,20 +74,12 @@ namespace HIKARI {
                     "Cinematics"
                 };
 
-                SEQUENCER::SequencePlaybackService* playbackService =
-                    context.services.sequencePlaybackService;
-                bool* runtimePlayActive =
-                    context.services.runtimePlayActive;
-
                 bool success = context.componentRegistry.Register(
                     std::move(player));
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{
                     "SequencePlayerSystem",
-                    [playbackService, runtimePlayActive](
-                        const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                        return std::make_unique<SequencePlayerSystem>(
-                            *playbackService,
-                            *runtimePlayActive);
+                    [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                        return std::make_unique<SequencePlayerSystem>();
                     },
                     "Sequence Player",
                     "Cinematics"

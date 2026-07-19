@@ -80,6 +80,33 @@ void SystemScheduler::PreUpdate(World& world, const FrameContext& frame) {
     }
 }
 
+void SystemScheduler::PreFixedUpdate(
+    World& world,
+    const FrameContext& frame) {
+
+    for (const SystemEntry& entry : systems_) {
+        entry.system->PreFixedUpdate(world, frame);
+    }
+}
+
+void SystemScheduler::FixedUpdate(
+    World& world,
+    const FrameContext& frame) {
+
+    for (const SystemEntry& entry : systems_) {
+        entry.system->FixedUpdate(world, frame);
+    }
+}
+
+void SystemScheduler::PostFixedUpdate(
+    World& world,
+    const FrameContext& frame) {
+
+    for (const SystemEntry& entry : systems_) {
+        entry.system->PostFixedUpdate(world, frame);
+    }
+}
+
 void SystemScheduler::Update(World& world, const FrameContext& frame) {
     for (const SystemEntry& entry : systems_) {
         entry.system->Update(world, frame);

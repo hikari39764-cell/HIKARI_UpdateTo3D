@@ -42,7 +42,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 EqualVec3(lhs.position, rhs.position) &&
                 EqualQuat(lhs.rotation, rhs.rotation) &&
                 EqualVec3(lhs.scale, rhs.scale) &&
-                lhs.parent == rhs.parent &&
+                lhs.GetParent() == rhs.GetParent() &&
                 lhs.useExplicitMatrix == rhs.useExplicitMatrix &&
                 EqualMat4(lhs.explicitMatrix, rhs.explicitMatrix);
         }

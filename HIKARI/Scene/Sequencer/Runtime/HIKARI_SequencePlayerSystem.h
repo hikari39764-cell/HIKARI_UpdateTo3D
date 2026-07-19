@@ -9,6 +9,7 @@ namespace HIKARI {
 
     class GameObject;
     class SequencePlayerComponent;
+    struct RuntimePlayStateService;
 
 namespace SEQUENCER {
     class SequencePlaybackService;
@@ -16,13 +17,10 @@ namespace SEQUENCER {
 
     class SequencePlayerSystem final : public ISystem {
     public:
-        explicit SequencePlayerSystem(
-            SEQUENCER::SequencePlaybackService& playbackService,
-            const bool& runtimePlayActive) noexcept;
-
         std::string_view GetName() const override {
             return "SequencePlayerSystem";
         }
+        void OnWorldAttached(World& world) override;
         void OnWorldDetached(World& world) override;
         void Update(World& world, const FrameContext& frame) override;
 
@@ -38,7 +36,7 @@ namespace SEQUENCER {
             SEQUENCER::SequenceStopReason reason);
 
         SEQUENCER::SequencePlaybackService* playbackService_ = nullptr;
-        const bool* runtimePlayActive_ = nullptr;
+        const RuntimePlayStateService* runtimePlayState_ = nullptr;
         std::vector<SEQUENCER::SequencePlaybackHandle> trackedHandles_{};
     };
 

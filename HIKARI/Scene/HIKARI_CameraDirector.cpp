@@ -360,13 +360,8 @@ namespace HIKARI {
             return false;
         }
 
-        const GameObject* cameraObject = nullptr;
-        for (const auto& object : world.GetObjects()) {
-            if (object && object->GetDocumentId() == cameraObjectId) {
-                cameraObject = object.get();
-                break;
-            }
-        }
+        const GameObject* cameraObject =
+            world.FindObject(cameraObjectId);
         if (cameraObject == nullptr) {
             return false;
         }
@@ -376,7 +371,8 @@ namespace HIKARI {
             return false;
         }
 
-        const MATH::Mat4 worldMatrix = cameraObject->Transform().GetWorldMatrix();
+        const MATH::Mat4 worldMatrix =
+            cameraObject->GetTransform().GetWorldMatrix();
         const MATH::Vec3 eye = ExtractAxis(worldMatrix, 3);
         MATH::Vec3 forward = MATH::Normalize(ExtractAxis(worldMatrix, 2));
         if (MATH::Length(forward) <= kVectorEpsilon) {

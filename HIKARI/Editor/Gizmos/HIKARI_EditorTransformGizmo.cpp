@@ -290,8 +290,7 @@ namespace HIKARI::EDITOR {
         EditorTransformGizmoResult result{};
 
 #if defined(HIKARI_WITH_EDITOR)
-        const Transform3D& sourceTransform =
-            static_cast<const GameObject&>(object).Transform();
+        const Transform3D& sourceTransform = object.GetTransform();
         const DecomposedGizmoMatrix initial =
             MakeGizmoTransform(sourceTransform);
         float model[16]{};
@@ -305,11 +304,12 @@ namespace HIKARI::EDITOR {
             initial,
             model);
         if (result.changed) {
-            Transform3D& runtimeTransform = object.Transform();
+            Transform3D runtimeTransform = sourceTransform;
             runtimeTransform.useExplicitMatrix = false;
             runtimeTransform.position = result.transform.position;
             runtimeTransform.scale = result.transform.scale;
             runtimeTransform.rotation = result.rotation;
+            (void)object.SetLocalTransform(runtimeTransform);
         }
 #else
         (void)object;

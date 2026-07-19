@@ -58,11 +58,6 @@ namespace HIKARI {
             }
 
             bool Register(RuntimeFeatureContext& context) override {
-                if (context.services.gameplayCamera == nullptr ||
-                    context.services.runtimeSceneCameraActive == nullptr) {
-                    return false;
-                }
-
                 ComponentTypeInfo camera{};
                 camera.typeName = "CameraComponent";
                 camera.factory = []() -> std::unique_ptr<IComponent> {
@@ -104,21 +99,14 @@ namespace HIKARI {
                     "Camera Follow",
                     "Drives the gameplay camera from a scene target.");
 
-                Camera3D* gameplayCamera = context.services.gameplayCamera;
-                bool* runtimeCameraActive =
-                    context.services.runtimeSceneCameraActive;
-
                 bool success = context.componentRegistry.Register(
                     std::move(camera));
                 success = context.componentRegistry.Register(
                     std::move(follow)) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{
                     "CameraFollowSystem",
-                    [gameplayCamera, runtimeCameraActive](
-                        const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                        return std::make_unique<CameraFollowSystem>(
-                            *gameplayCamera,
-                            *runtimeCameraActive);
+                    [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                        return std::make_unique<CameraFollowSystem>();
                     },
                     "Camera Follow",
                     "Camera"

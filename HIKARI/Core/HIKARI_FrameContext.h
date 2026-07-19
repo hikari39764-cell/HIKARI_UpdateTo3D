@@ -12,6 +12,12 @@ struct FrameContext {
     float gameTimeScale = 1.0f;
     bool paused = false;
     uint64_t frameIndex = 0;
+    uint64_t fixedTickIndex = 0;
+    uint32_t fixedStepIndex = 0;
+    uint32_t fixedStepsThisFrame = 0;
+    float fixedInterpolationAlpha = 0.0f;
+    float droppedFixedTime = 0.0f;
+    bool isFixedStep = false;
 };
 
 } // namespace HIKARI

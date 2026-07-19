@@ -20,12 +20,7 @@ namespace HIKARI::EDITOR {
         }
 
         GameObject* FindRuntimeObject(DocumentSceneBase& scene, SceneObjectId id) {
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (object && object->GetDocumentId() == id) {
-                    return object.get();
-                }
-            }
-            return nullptr;
+            return scene.GetWorld().FindObject(id);
         }
 
         std::string ResolveObjectName(

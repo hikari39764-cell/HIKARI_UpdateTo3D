@@ -55,7 +55,10 @@ namespace HIKARI {
                 continue;
             }
 
-            resolvedEntry_ = ResolvedSceneEntry{ pendingSceneId_, pendingSpawnPointId_, object->Transform().position };
+            resolvedEntry_ = ResolvedSceneEntry{
+                pendingSceneId_,
+                pendingSpawnPointId_,
+                object->GetTransform().position };
             pendingSceneId_.clear();
             pendingSpawnPointId_.clear();
             return;

@@ -67,12 +67,7 @@ namespace HIKARI::EDITOR {
         }
 
         GameObject* FindRuntimeObject(DocumentSceneBase& scene, SceneObjectId objectId) {
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (object && object->GetDocumentId() == objectId) {
-                    return object.get();
-                }
-            }
-            return nullptr;
+            return scene.GetWorld().FindObject(objectId);
         }
 
         void SelectRuntimeObject(EditorContext& context, GameObject* object) {
@@ -104,7 +99,8 @@ namespace HIKARI::EDITOR {
                     continue;
                 }
 
-                const MATH::Mat4 worldMatrix = object->Transform().GetWorldMatrix();
+                const MATH::Mat4 worldMatrix =
+                    object->GetTransform().GetWorldMatrix();
                 const MATH::Vec3 position = ExtractAxis(worldMatrix, 3);
                 const MATH::Vec3 forward = ExtractAxis(worldMatrix, 2);
                 MATH::Vec2 forwardXZ{ forward.x, forward.z };
@@ -325,7 +321,7 @@ namespace HIKARI::EDITOR {
                     continue;
                 }
                 const MATH::Vec3 position = ExtractAxis(
-                    object->Transform().GetWorldMatrix(),
+                    object->GetTransform().GetWorldMatrix(),
                     3);
                 const ImVec2 screen = WorldToScreen(
                     { position.x, position.z },

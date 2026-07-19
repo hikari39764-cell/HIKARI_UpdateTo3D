@@ -19,6 +19,17 @@ namespace HIKARI {
         ImGui::Text("unscaledDt: %.6f", frame.unscaledDt);
         ImGui::Text("gameDt:     %.6f", frame.gameDt);
         ImGui::Text("fixedDt:    %.6f", frame.fixedDt);
+        ImGui::Text(
+            "fixedTick:  %llu",
+            static_cast<unsigned long long>(frame.fixedTickIndex));
+        ImGui::Text("fixedSteps: %u", frame.fixedStepsThisFrame);
+        ImGui::Text("fixedAlpha: %.3f", frame.fixedInterpolationAlpha);
+        if (frame.droppedFixedTime > 0.0f) {
+            ImGui::TextColored(
+                ImVec4(1.0f, 0.55f, 0.2f, 1.0f),
+                "dropped fixed time: %.4f s",
+                frame.droppedFixedTime);
+        }
         ImGui::Separator();
 
         ImGui::Text("timeScale:  %.3f", frame.gameTimeScale);

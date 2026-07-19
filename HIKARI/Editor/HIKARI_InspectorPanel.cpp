@@ -63,9 +63,11 @@ namespace HIKARI {
         ImGui::PushID(objectIdScope.c_str());
         ImGui::Text("Name: %s", object.GetName().c_str());
 
-        Transform3D& transform = object.Transform();
+        Transform3D transform = object.GetTransform();
+        bool transformChanged = false;
         ImGui::SeparatorText("Transform3D");
-        ImGui::DragFloat3("Position", &transform.position.x, 0.01f);
+        transformChanged |=
+            ImGui::DragFloat3("Position", &transform.position.x, 0.01f);
 
         const MATH::Vec3 runtimeEulerDeg = MATH::EulerXYZDegreesFromQuat(transform.rotation);
         if (gRotationEditor.object != &object) {
@@ -77,9 +79,19 @@ namespace HIKARI {
         }
         if (ImGui::DragFloat3("Rotation Euler (deg)", &gRotationEditor.eulerDeg.x, 0.1f)) {
             transform.rotation = QuatFromEulerDegrees(gRotationEditor.eulerDeg);
+            transformChanged = true;
         }
         gRotationEditor.editing = ImGui::IsItemActive();
-        ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, 0.001f, 1000.0f);
+        transformChanged |= ImGui::DragFloat3(
+            "Scale",
+            &transform.scale.x,
+            0.01f,
+            0.001f,
+            1000.0f);
+        if (transformChanged) {
+            transform.useExplicitMatrix = false;
+            (void)object.SetLocalTransform(transform);
+        }
 
         ImGui::SeparatorText("Components");
         ImGuiInspectorBuilder builder{};

@@ -54,6 +54,11 @@ const FrameContext& BeginFrame() {
     gFrame.rawDt = rawDt;
     gFrame.unscaledDt = rawDt;
     gFrame.gameDt = gFrame.paused ? 0.0f : (rawDt * gFrame.gameTimeScale);
+    gFrame.fixedStepIndex = 0;
+    gFrame.fixedStepsThisFrame = 0;
+    gFrame.fixedInterpolationAlpha = 0.0f;
+    gFrame.droppedFixedTime = 0.0f;
+    gFrame.isFixedStep = false;
     ++gFrame.frameIndex;
 
     return gFrame;
@@ -81,6 +86,30 @@ bool IsPaused() {
 
 void SetMaxDeltaSeconds(float maxDelta) {
     gMaxDeltaSeconds = (maxDelta < 0.0f) ? 0.0f : maxDelta;
+}
+
+void SetFixedDeltaSeconds(float fixedDelta) {
+    constexpr float kMinimumFixedDelta = 1.0f / 1000.0f;
+    gFrame.fixedDt = (std::max)(fixedDelta, kMinimumFixedDelta);
+}
+
+float GetFixedDeltaSeconds() {
+    return gFrame.fixedDt;
+}
+
+void ReportFixedStepFrame(
+    uint64_t completedTickIndex,
+    uint32_t stepsThisFrame,
+    float interpolationAlpha,
+    float droppedSeconds) {
+
+    gFrame.fixedTickIndex = completedTickIndex;
+    gFrame.fixedStepsThisFrame = stepsThisFrame;
+    gFrame.fixedInterpolationAlpha = (std::clamp)(
+        interpolationAlpha,
+        0.0f,
+        1.0f);
+    gFrame.droppedFixedTime = (std::max)(droppedSeconds, 0.0f);
 }
 
 } // namespace HIKARI::TIME

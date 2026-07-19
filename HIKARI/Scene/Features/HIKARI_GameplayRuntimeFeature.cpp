@@ -70,10 +70,6 @@ namespace HIKARI {
             }
 
             bool Register(RuntimeFeatureContext& context) override {
-                if (context.services.gameplayCamera == nullptr) {
-                    return false;
-                }
-
                 ComponentTypeInfo controller{};
                 controller.typeName = "PlayerControllerComponent";
                 controller.factory = []() -> std::unique_ptr<IComponent> {
@@ -145,7 +141,6 @@ namespace HIKARI {
                     "Spawn Point",
                     "Names a reusable spawn location in the scene.");
 
-                Camera3D* gameplayCamera = context.services.gameplayCamera;
                 bool success = context.componentRegistry.Register(
                     std::move(playerInput));
                 success = context.componentRegistry.Register(
@@ -154,19 +149,16 @@ namespace HIKARI {
                     std::move(spawnPoint)) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{
                     "PlayerInputSystem",
-                    [inputService = context.services.inputService](
-                        const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                        return std::make_unique<PlayerInputSystem>(inputService);
+                    [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                        return std::make_unique<PlayerInputSystem>();
                     },
                     "Player Input",
                     "GameplayBasic"
                 }) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{
                     "PlayerMovementSystem",
-                    [gameplayCamera](
-                        const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                        return std::make_unique<PlayerMovementSystem>(
-                            gameplayCamera);
+                    [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
+                        return std::make_unique<PlayerMovementSystem>();
                     },
                     "Player Movement",
                     "GameplayBasic"

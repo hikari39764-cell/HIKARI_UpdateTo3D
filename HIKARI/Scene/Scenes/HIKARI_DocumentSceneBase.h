@@ -9,6 +9,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
+#include "Core/HIKARI_FixedStepClock.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
@@ -26,13 +27,16 @@
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
+#include "Scene/HIKARI_RuntimeWorldServices.h"
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
+#include "Scene/Features/HIKARI_RuntimeExtension.h"
 #include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackService.h"
 #include "Scene/Serialization/HIKARI_SceneSerializer.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Scene/Debug/HIKARI_ViewportDebugState.h"
 #include "Tools/Baking/HIKARI_LightingBakeReport.h"
 
 namespace HIKARI {
@@ -80,6 +84,9 @@ namespace HIKARI {
         const RuntimeFeatureCatalog& GetRuntimeFeatureCatalog() const noexcept;
         const RuntimeFeatureInstallReport&
             GetRuntimeFeatureInstallReport() const noexcept;
+        bool AddRuntimeExtension(
+            std::unique_ptr<IRuntimeExtension> extension);
+        std::vector<std::string> GetRuntimeExtensionIds() const;
         bool IsRuntimeFeatureActive(
             std::string_view featureId) const noexcept;
         std::vector<SceneSystemData>
@@ -191,6 +198,9 @@ namespace HIKARI {
         bool IsCurrentSceneAsset(const AssetGuid& guid) const;
         std::string GetCurrentSceneDisplayName() const;
 
+        ComponentGizmoRegistry& GetComponentGizmoRegistry() noexcept;
+        const ComponentGizmoRegistry&
+            GetComponentGizmoRegistry() const noexcept;
         void SetComponentGizmoState(const ComponentGizmoState& state);
         void SetViewportOverlayState(const ViewportOverlayState& state);
         void SetViewportPerformanceState(const ViewportPerformanceState& state);
@@ -201,6 +211,7 @@ namespace HIKARI {
     protected:
         bool RegisterRuntimeFeatures();
         bool BuildSystemScheduleFromDocument();
+        bool ConfigureRuntimeWorldServices();
 
         virtual bool UseDebugCamera() const;
         virtual bool DrawDebugHelpers() const;
@@ -250,7 +261,12 @@ namespace HIKARI {
         bool runtimeSceneCameraActive_ = false;
         bool runtimePlayActive_ = false;
         bool runtimeParkedForStandalone_ = false;
+        bool runtimeInitialized_ = false;
         World world_{};
+        FixedStepClock fixedStepClock_{};
+        RuntimePlayStateService runtimePlayStateService_{};
+        GameplayCameraService gameplayCameraService_{};
+        RuntimeExtensionHost runtimeExtensionHost_{};
         RuntimeFeatureCatalog runtimeFeatureCatalog_{};
         RuntimeFeatureInstallReport runtimeFeatureInstallReport_{};
         ComponentSystemPolicy componentSystemPolicy_{};

@@ -506,12 +506,14 @@ namespace HIKARI {
         for (const SceneObjectData& objectData : document.objects) {
             GameObject* object = world.CreateObject(objectData.name);
             object->SetDocumentId(objectData.id);
-            object->Transform().position = objectData.transform.position;
-            object->Transform().scale = objectData.transform.scale;
-            object->Transform().rotation = MATH::Quat::FromEulerXYZ(
+            Transform3D localTransform{};
+            localTransform.position = objectData.transform.position;
+            localTransform.scale = objectData.transform.scale;
+            localTransform.rotation = MATH::Quat::FromEulerXYZ(
                 objectData.transform.rotationEulerDeg.x * kDegToRad,
                 objectData.transform.rotationEulerDeg.y * kDegToRad,
                 objectData.transform.rotationEulerDeg.z * kDegToRad);
+            (void)object->SetLocalTransform(localTransform);
 
             for (const SceneComponentData& componentData : objectData.components) {
                 IComponent* component = componentRegistry.AddComponentToObject(*object, componentData.type);
@@ -531,6 +533,22 @@ namespace HIKARI {
                         modelComponent->GetAssetId()));
                     BuildModelMaterialOverride(*modelComponent, assetRegistry);
                 }
+            }
+        }
+
+        for (const SceneObjectData& objectData : document.objects) {
+            if (!objectData.parent.has_value()) {
+                continue;
+            }
+            GameObject* child = world.FindObject(objectData.id);
+            GameObject* parent = world.FindObject(*objectData.parent);
+            if (child == nullptr || parent == nullptr ||
+                !child->SetParent(parent)) {
+                HIKARI_LOG_WARN(
+                    "[SceneRuntime] invalid object hierarchy skipped: child=" +
+                    std::to_string(objectData.id.value) +
+                    " parent=" +
+                    std::to_string(objectData.parent->value));
             }
         }
 

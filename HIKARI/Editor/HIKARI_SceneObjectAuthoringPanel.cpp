@@ -43,7 +43,8 @@ namespace HIKARI {
                 return;
             }
 
-            const Transform3D& transform = context.selection.selectedObject->Transform();
+            const Transform3D& transform =
+                context.selection.selectedObject->GetTransform();
             target.transform.position = transform.position;
             target.transform.scale = transform.scale;
             target.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(transform.rotation);

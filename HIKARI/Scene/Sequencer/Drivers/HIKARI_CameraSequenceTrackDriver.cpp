@@ -85,13 +85,8 @@ namespace HIKARI::SEQUENCER {
                     cameraObjectId)) {
                 continue;
             }
-            const GameObject* cameraObject = nullptr;
-            for (const auto& object : world_.GetObjects()) {
-                if (object && object->GetDocumentId() == cameraObjectId) {
-                    cameraObject = object.get();
-                    break;
-                }
-            }
+            const GameObject* cameraObject =
+                world_.FindObject(cameraObjectId);
             const CameraComponent* camera = cameraObject
                 ? cameraObject->GetComponent<CameraComponent>()
                 : nullptr;

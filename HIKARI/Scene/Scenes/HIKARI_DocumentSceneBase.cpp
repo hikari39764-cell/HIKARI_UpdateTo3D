@@ -518,9 +518,20 @@ namespace HIKARI {
     DocumentSceneBase::~DocumentSceneBase() = default;
 
     void DocumentSceneBase::OnEnter() {
+        runtimeInitialized_ = true;
         camera_.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
         gameplayCamera_ = camera_;
         debugCamera_.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
+        fixedStepClock_.SetSettings(FixedStepSettings{
+            TIME::GetFixedDeltaSeconds(),
+            8,
+            0.25f
+        });
+        fixedStepClock_.Reset();
+        if (!ConfigureRuntimeWorldServices()) {
+            HIKARI_LOG_ERROR(
+                "[RuntimeExtension] world service registration failed");
+        }
 
         ReloadAssets();
         if (!RegisterRuntimeFeatures()) {
@@ -541,10 +552,22 @@ namespace HIKARI {
         sequenceAssetStore_.Clear();
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
+        world_.Services().Clear();
+        fixedStepClock_.Reset();
+        runtimeInitialized_ = false;
         RuntimeSceneContext::SetCurrentWorld(nullptr);
     }
     void DocumentSceneBase::Update(float dt) {
-        const FrameContext& frame = HIKARI::TIME::GetFrameContext();
+        FrameContext frame = HIKARI::TIME::GetFrameContext();
+        if (std::abs(
+                fixedStepClock_.GetSettings().stepSeconds -
+                frame.fixedDt) > 1e-6f) {
+            FixedStepSettings settings =
+                fixedStepClock_.GetSettings();
+            settings.stepSeconds = frame.fixedDt;
+            fixedStepClock_.SetSettings(settings);
+        }
+        world_.BeginFrame(frame.frameIndex);
         if (runtimePlayActive_ && runtimePreviewCameraActive_) {
             runtimePreviewCamera_.Update(
                 dt,
@@ -560,6 +583,37 @@ namespace HIKARI {
         }
         systemScheduler_.PreUpdate(world_, frame);
         world_.Update(dt);
+
+        const FixedStepFramePlan fixedPlan =
+            fixedStepClock_.Advance(frame.gameDt);
+        frame.fixedDt = fixedPlan.stepSeconds;
+        frame.fixedStepsThisFrame = fixedPlan.stepCount;
+        frame.fixedInterpolationAlpha =
+            fixedPlan.interpolationAlpha;
+        frame.droppedFixedTime = fixedPlan.droppedSeconds;
+        TIME::ReportFixedStepFrame(
+            fixedStepClock_.GetCompletedTickCount(),
+            fixedPlan.stepCount,
+            fixedPlan.interpolationAlpha,
+            fixedPlan.droppedSeconds);
+        for (uint32_t stepIndex = 0;
+            stepIndex < fixedPlan.stepCount;
+            ++stepIndex) {
+
+            FrameContext fixedFrame = frame;
+            fixedFrame.rawDt = fixedPlan.stepSeconds;
+            fixedFrame.gameDt = fixedPlan.stepSeconds;
+            fixedFrame.unscaledDt = fixedPlan.stepSeconds;
+            fixedFrame.fixedTickIndex =
+                fixedPlan.GetTickIndex(stepIndex);
+            fixedFrame.fixedStepIndex = stepIndex;
+            fixedFrame.isFixedStep = true;
+            world_.BeginFixedStep(fixedFrame.fixedTickIndex);
+            systemScheduler_.PreFixedUpdate(world_, fixedFrame);
+            systemScheduler_.FixedUpdate(world_, fixedFrame);
+            systemScheduler_.PostFixedUpdate(world_, fixedFrame);
+        }
+
         systemScheduler_.Update(world_, frame);
         systemScheduler_.LateUpdate(world_, frame);
 
@@ -798,6 +852,20 @@ namespace HIKARI {
         DocumentSceneBase::GetRuntimeFeatureInstallReport() const noexcept {
         return runtimeFeatureInstallReport_;
     }
+    bool DocumentSceneBase::AddRuntimeExtension(
+        std::unique_ptr<IRuntimeExtension> extension) {
+
+        if (runtimeInitialized_) {
+            HIKARI_LOG_WARN(
+                "[RuntimeExtension] extensions must be added before OnEnter");
+            return false;
+        }
+        return runtimeExtensionHost_.Add(std::move(extension));
+    }
+    std::vector<std::string>
+        DocumentSceneBase::GetRuntimeExtensionIds() const {
+        return runtimeExtensionHost_.GetExtensionIds();
+    }
     bool DocumentSceneBase::IsRuntimeFeatureActive(
         std::string_view featureId) const noexcept {
         return runtimeFeatureCatalog_.IsFeatureActive(featureId);
@@ -844,6 +912,14 @@ namespace HIKARI {
     }
     bool& DocumentSceneBase::GetEnvironmentLightingEnabled() {
         return environmentLightingEnabled_;
+    }
+    ComponentGizmoRegistry&
+        DocumentSceneBase::GetComponentGizmoRegistry() noexcept {
+        return componentGizmoRenderer_.Registry();
+    }
+    const ComponentGizmoRegistry&
+        DocumentSceneBase::GetComponentGizmoRegistry() const noexcept {
+        return componentGizmoRenderer_.Registry();
     }
     void DocumentSceneBase::SetComponentGizmoState(const ComponentGizmoState& state) {
         componentGizmoState_ = state;
@@ -1020,6 +1096,7 @@ namespace HIKARI {
     bool DocumentSceneBase::RebuildRuntimeWorld() {
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
+        fixedStepClock_.Reset();
         RenderSubmissionSystem::InvalidateSceneResources(true);
 
         SceneDependencySet deps = runtimeBuilder_.CollectDependencies(
@@ -1073,6 +1150,7 @@ namespace HIKARI {
     bool DocumentSceneBase::ApplySystemRuntimeChanges() {
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
+        fixedStepClock_.Reset();
         RenderSubmissionSystem::InvalidateSceneResources(true);
 
         const bool configured = BuildSystemScheduleFromDocument();
@@ -1097,16 +1175,12 @@ namespace HIKARI {
                 });
             bool previewCameraValid = previewObject != sceneDocument_.objects.end();
             if (previewCameraValid) {
-                previewCameraValid = false;
-                for (const auto& runtimeObject : world_.GetObjects()) {
-                    if (!runtimeObject ||
-                        !(runtimeObject->GetDocumentId() == editorCameraPreviewObjectId_)) {
-                        continue;
-                    }
-                    const CameraComponent* camera = runtimeObject->GetComponent<CameraComponent>();
-                    previewCameraValid = camera != nullptr && camera->IsEnabled();
-                    break;
-                }
+                const GameObject* runtimeObject =
+                    world_.FindObject(editorCameraPreviewObjectId_);
+                const CameraComponent* camera = runtimeObject != nullptr
+                    ? runtimeObject->GetComponent<CameraComponent>()
+                    : nullptr;
+                previewCameraValid = camera != nullptr && camera->IsEnabled();
             }
             if (!previewCameraValid) {
                 EndEditorCameraPreview();
@@ -1170,13 +1244,7 @@ namespace HIKARI {
             return true;
         }
 
-        GameObject* cameraObject = nullptr;
-        for (const auto& object : world_.GetObjects()) {
-            if (object && object->GetDocumentId() == cameraObjectId) {
-                cameraObject = object.get();
-                break;
-            }
-        }
+        GameObject* cameraObject = world_.FindObject(cameraObjectId);
         const CameraComponent* cameraComponent =
             cameraObject != nullptr ? cameraObject->GetComponent<CameraComponent>() : nullptr;
         if (cameraComponent == nullptr || !cameraComponent->IsEnabled()) {
@@ -1289,13 +1357,7 @@ namespace HIKARI {
             return false;
         }
 
-        GameObject* runtimeObject = nullptr;
-        for (const auto& object : world_.GetObjects()) {
-            if (object && object->GetDocumentId() == cameraObjectId) {
-                runtimeObject = object.get();
-                break;
-            }
-        }
+        GameObject* runtimeObject = world_.FindObject(cameraObjectId);
         CameraComponent* cameraComponent =
             runtimeObject != nullptr
                 ? runtimeObject->GetComponent<CameraComponent>()
@@ -1312,12 +1374,12 @@ namespace HIKARI {
                 documentObject->transform.rotationEulerDeg);
         documentObject->transform.scale = { 1.0f, 1.0f, 1.0f };
 
-        Transform3D& runtimeTransform = runtimeObject->Transform();
+        Transform3D runtimeTransform = runtimeObject->GetTransform();
         runtimeTransform.position = position;
         runtimeTransform.rotation = normalizedRotation;
         runtimeTransform.scale = { 1.0f, 1.0f, 1.0f };
         runtimeTransform.useExplicitMatrix = false;
-        runtimeObject->MarkRenderStateDirty();
+        (void)runtimeObject->SetLocalTransform(runtimeTransform);
 
         if (markDirty) {
             sceneDocumentDirty_ = true;
@@ -1518,6 +1580,7 @@ namespace HIKARI {
         viewportDebugViewState_ = {};
         selectedGizmoObjectId_ = {};
         runtimePlayActive_ = true;
+        fixedStepClock_.Reset();
         SERVICES::GetInputService().Contexts().SetActive(
             "Gameplay", true);
         HIKARI_LOG_INFO("Document scene entered runtime Play state.");
@@ -1529,6 +1592,7 @@ namespace HIKARI {
         }
 
         runtimePlayActive_ = false;
+        fixedStepClock_.Reset();
         SERVICES::GetInputService().Contexts().SetActive(
             "Gameplay", !SERVICES::IsEditorHost());
         runtimePreviewCameraActive_ = false;
@@ -2731,6 +2795,13 @@ namespace HIKARI {
         systemTypeRegistry_.Clear();
         componentSystemPolicy_.Clear();
         runtimeFeatureCatalog_ = CreateBuiltInRuntimeFeatureCatalog();
+        const bool extensionsRegistered =
+            runtimeExtensionHost_.RegisterRuntimeFeatures(
+                runtimeFeatureCatalog_);
+        if (!extensionsRegistered) {
+            HIKARI_LOG_ERROR(
+                "[RuntimeExtension] one or more extensions failed to register features");
+        }
 
         ProjectSettingsService projectSettings{};
         const bool settingsLoaded = projectSettings.Load(
@@ -2746,18 +2817,14 @@ namespace HIKARI {
             componentRegistry_,
             systemTypeRegistry_,
             componentSystemPolicy_,
-            RuntimeFeatureServices{
-                &gameplayCamera_,
-                &runtimeSceneCameraActive_,
-                &sequencePlaybackService_,
-                &runtimePlayActive_,
-                &SERVICES::GetInputService()
-            }
+            world_
         };
         runtimeFeatureInstallReport_ =
             runtimeFeatureCatalog_.RegisterEnabled(
                 context,
                 projectSettings.GetSettings().enabledRuntimeFeatures);
+        runtimeFeatureInstallReport_.success =
+            runtimeFeatureInstallReport_.success && extensionsRegistered;
 
         for (const std::string& issue :
                 runtimeFeatureInstallReport_.resolution.issues) {
@@ -2783,6 +2850,23 @@ namespace HIKARI {
             currentCameraSequenceHandle_ = {};
         }
         return runtimeFeatureInstallReport_.success;
+    }
+
+    bool DocumentSceneBase::ConfigureRuntimeWorldServices() {
+        runtimePlayStateService_.active = &runtimePlayActive_;
+        gameplayCameraService_.camera = &gameplayCamera_;
+        gameplayCameraService_.runtimeSceneCameraActive =
+            &runtimeSceneCameraActive_;
+
+        WorldServiceRegistry& services = world_.Services();
+        services.Clear();
+        bool success = services.Register(SERVICES::GetInputService());
+        success = services.Register(sequencePlaybackService_) && success;
+        success = services.Register(runtimePlayStateService_) && success;
+        success = services.Register(gameplayCameraService_) && success;
+        success = runtimeExtensionHost_.RegisterWorldServices(services) &&
+            success;
+        return success;
     }
     bool DocumentSceneBase::BuildSystemScheduleFromDocument() {
         if (sceneDocument_.systems.empty()) {
@@ -2866,16 +2950,13 @@ namespace HIKARI {
 
     bool DocumentSceneBase::HasRuntimeSceneCameraDriver() const {
         if (sceneDocument_.camera.defaultCameraObjectId.has_value()) {
-            for (const auto& object : world_.GetObjects()) {
-                if (!object ||
-                    !(object->GetDocumentId() == sceneDocument_.camera.defaultCameraObjectId.value())) {
-                    continue;
-                }
-                const CameraComponent* camera = object->GetComponent<CameraComponent>();
-                if (camera != nullptr && camera->IsEnabled()) {
-                    return true;
-                }
-                break;
+            const GameObject* object = world_.FindObject(
+                sceneDocument_.camera.defaultCameraObjectId.value());
+            const CameraComponent* camera = object != nullptr
+                ? object->GetComponent<CameraComponent>()
+                : nullptr;
+            if (camera != nullptr && camera->IsEnabled()) {
+                return true;
             }
         }
 

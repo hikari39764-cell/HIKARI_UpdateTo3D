@@ -17,6 +17,9 @@ public:
     virtual void OnWorldDetached(World&) {}
 
     virtual void PreUpdate(World&, const FrameContext&) {}
+    virtual void PreFixedUpdate(World&, const FrameContext&) {}
+    virtual void FixedUpdate(World&, const FrameContext&) {}
+    virtual void PostFixedUpdate(World&, const FrameContext&) {}
     virtual void Update(World&, const FrameContext&) {}
     virtual void LateUpdate(World&, const FrameContext&) {}
 

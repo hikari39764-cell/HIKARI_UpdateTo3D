@@ -8,29 +8,16 @@
 
 namespace HIKARI {
 
-    class Camera3D;
     class ComponentRegistry;
     class ComponentSystemPolicy;
     class SystemTypeRegistry;
-    namespace INPUT { class InputService; }
-
-    namespace SEQUENCER {
-        class SequencePlaybackService;
-    }
-
-    struct RuntimeFeatureServices {
-        Camera3D* gameplayCamera = nullptr;
-        bool* runtimeSceneCameraActive = nullptr;
-        SEQUENCER::SequencePlaybackService* sequencePlaybackService = nullptr;
-        bool* runtimePlayActive = nullptr;
-        INPUT::InputService* inputService = nullptr;
-    };
+    class World;
 
     struct RuntimeFeatureContext {
         ComponentRegistry& componentRegistry;
         SystemTypeRegistry& systemTypeRegistry;
         ComponentSystemPolicy& componentSystemPolicy;
-        RuntimeFeatureServices services{};
+        World& world;
     };
 
     class IRuntimeFeature {

@@ -2,9 +2,12 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "HIKARI_GameObject.h"
+#include "Scene/HIKARI_WorldEventStream.h"
+#include "Scene/HIKARI_WorldServiceRegistry.h"
 namespace HIKARI {
 
 
@@ -15,6 +18,10 @@ namespace HIKARI {
 
         GameObject* CreateObject(const std::string& name);
         void DestroyObject(GameObject* object);
+        GameObject* FindObject(RuntimeObjectHandle handle) noexcept;
+        const GameObject* FindObject(RuntimeObjectHandle handle) const noexcept;
+        GameObject* FindObject(SceneObjectId id) noexcept;
+        const GameObject* FindObject(SceneObjectId id) const noexcept;
 
         void Update(float dt);
         void Render();
@@ -28,6 +35,15 @@ namespace HIKARI {
         void MarkRenderObjectRemoved(uint64_t renderObjectId);
         void AcknowledgeRenderDirtyObjects();
         void AcknowledgeAllRenderObjects();
+
+        WorldServiceRegistry& Services() noexcept;
+        const WorldServiceRegistry& Services() const noexcept;
+        WorldEventStream& FrameEvents() noexcept;
+        const WorldEventStream& FrameEvents() const noexcept;
+        WorldEventStream& FixedEvents() noexcept;
+        const WorldEventStream& FixedEvents() const noexcept;
+        void BeginFrame(uint64_t frameIndex) noexcept;
+        void BeginFixedStep(uint64_t fixedTickIndex) noexcept;
 
         template<class T, class Fn>
         void ForEachObjectWith(Fn&& fn) {
@@ -50,9 +66,29 @@ namespace HIKARI {
         }
 
     private:
+        friend class GameObject;
+
+        struct ObjectSlot {
+            GameObject* object = nullptr;
+            uint32_t generation = 1;
+        };
+
+        RuntimeObjectHandle AllocateObjectHandle(GameObject* object);
+        void ReleaseObjectHandle(RuntimeObjectHandle handle);
+        void OnDocumentIdChanged(
+            GameObject* object,
+            SceneObjectId previousId,
+            SceneObjectId nextId);
+
         std::vector<std::unique_ptr<GameObject>> objects_;
+        std::vector<ObjectSlot> objectSlots_{};
+        std::vector<uint32_t> freeObjectSlots_{};
+        std::unordered_map<uint64_t, GameObject*> objectsByDocumentId_{};
         std::vector<GameObject*> renderDirtyObjects_{};
         std::vector<uint64_t> removedRenderObjectIds_{};
+        WorldServiceRegistry services_{};
+        WorldEventStream frameEvents_{};
+        WorldEventStream fixedEvents_{};
     };
 
 } // namespace HIKARI

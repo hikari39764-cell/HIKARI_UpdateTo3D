@@ -8,6 +8,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Scene/Components/HIKARI_SequencePlayerComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_RuntimeWorldServices.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackService.h"
 
@@ -35,15 +36,16 @@ namespace HIKARI {
         }
     }
 
-    SequencePlayerSystem::SequencePlayerSystem(
-        SEQUENCER::SequencePlaybackService& playbackService,
-        const bool& runtimePlayActive) noexcept
-        : playbackService_(&playbackService)
-        , runtimePlayActive_(&runtimePlayActive) {
+    void SequencePlayerSystem::OnWorldAttached(World& world) {
+        playbackService_ = world.Services().Find<
+            SEQUENCER::SequencePlaybackService>();
+        runtimePlayState_ = world.Services().Find<
+            RuntimePlayStateService>();
     }
 
     void SequencePlayerSystem::OnWorldDetached(World& world) {
         if (playbackService_ == nullptr) {
+            runtimePlayState_ = nullptr;
             return;
         }
         world.ForEachObjectWith<SequencePlayerComponent>(
@@ -60,14 +62,16 @@ namespace HIKARI {
             }
         }
         trackedHandles_.clear();
+        playbackService_ = nullptr;
+        runtimePlayState_ = nullptr;
     }
 
     void SequencePlayerSystem::Update(
         World& world,
         const FrameContext&) {
 
-        if (playbackService_ == nullptr || runtimePlayActive_ == nullptr ||
-            !*runtimePlayActive_) {
+        if (playbackService_ == nullptr || runtimePlayState_ == nullptr ||
+            !runtimePlayState_->IsActive()) {
             return;
         }
         std::vector<SEQUENCER::SequencePlaybackHandle> activeHandles{};

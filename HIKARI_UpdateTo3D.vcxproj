@@ -318,6 +318,7 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_PlayerInputSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentSystemPolicy.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureCatalog.cpp" />
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_RuntimeExtension.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_RenderingRuntimeFeature.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.cpp" />
@@ -491,6 +492,8 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.cpp" />
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp" />
@@ -526,6 +529,7 @@
     <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.cpp" />
     <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp" />
+    <ClCompile Include="HIKARI\Core\HIKARI_FixedStepClock.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
@@ -865,7 +869,12 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneManager.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_GameObject.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeObjectHandle.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_World.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldEvents.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldEventStream.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_WorldServiceRegistry.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_RuntimeWorldServices.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
@@ -1001,6 +1010,9 @@
     <ClInclude Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ViewportDebugState.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
@@ -1148,10 +1160,12 @@
     <ClInclude Include="HIKARI\Core\HIKARI_FrameContext.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_FramePhase.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Logger.h" />
+    <ClInclude Include="HIKARI\Core\HIKARI_FixedStepClock.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h" />
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeExtension.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureIds.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureCatalog.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_BuiltInRuntimeFeatures.h" />

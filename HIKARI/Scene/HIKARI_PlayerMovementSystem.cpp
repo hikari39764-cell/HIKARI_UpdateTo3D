@@ -15,6 +15,7 @@
 #include "Scene/Components/HIKARI_PlayerControllerComponent.h"
 #include "Scene/Components/HIKARI_PlayerInputComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_RuntimeWorldServices.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI {
@@ -203,31 +204,46 @@ namespace HIKARI {
             }
         }
 
-        void UpdateRotationTowards(GameObject& object, const MATH::Vec3& moveDirection, float turnSpeed, float dt) {
+        MATH::Quat RotationTowards(
+            const MATH::Quat& currentRotation,
+            const MATH::Vec3& moveDirection,
+            float turnSpeed,
+            float dt) {
+
             if (MATH::Length(moveDirection) <= 1e-5f) {
-                return;
+                return currentRotation;
             }
 
             const float targetYaw = std::atan2(moveDirection.x, moveDirection.z);
-            const float currentYaw = ExtractHorizontalYaw(object.Transform().rotation);
+            const float currentYaw = ExtractHorizontalYaw(currentRotation);
             const float delta = WrapAngle(targetYaw - currentYaw);
             const float maxStep = turnSpeed > 0.0f ? turnSpeed * dt : std::abs(delta);
             const float nextYaw = currentYaw + MoveTowards(0.0f, delta, maxStep);
-            object.Transform().rotation = MATH::Quat::FromEulerXYZ(0.0f, nextYaw, 0.0f);
+            return MATH::Quat::FromEulerXYZ(0.0f, nextYaw, 0.0f);
         }
     }
 
-    PlayerMovementSystem::PlayerMovementSystem(const Camera3D* camera)
-        : camera_(camera) {
+    void PlayerMovementSystem::OnWorldAttached(World& world) {
+        cameraService_ = world.Services().Find<GameplayCameraService>();
     }
 
-    void PlayerMovementSystem::Update(World& world, const FrameContext& frame) {
-        const float dt = (std::max)(frame.gameDt, 0.0f);
-        const Camera3D* camera = camera_;
+    void PlayerMovementSystem::OnWorldDetached(World&) {
+        cameraService_ = nullptr;
+    }
+
+    void PlayerMovementSystem::FixedUpdate(
+        World& world,
+        const FrameContext& frame) {
+
+        const float dt = (std::max)(frame.fixedDt, 0.0f);
+        const Camera3D* camera = cameraService_ != nullptr
+            ? cameraService_->camera
+            : nullptr;
 
         world.ForEachObjectWith<PlayerControllerComponent>(
             [dt, camera](GameObject& object, PlayerControllerComponent& player) {
                 MATH::Vec3 velocity = player.GetVelocity();
+                Transform3D localTransform = object.GetTransform();
                 PlayerMovementState state = PlayerMovementState::Idle;
                 const float moveSpeed = player.GetMoveSpeed();
 
@@ -260,23 +276,33 @@ namespace HIKARI {
                         state = MATH::Length(velocity) > 0.02f ? PlayerMovementState::Moving : PlayerMovementState::Idle;
                     }
 
-                    object.Transform().position = object.Transform().position + velocity * dt;
+                    localTransform.position =
+                        localTransform.position + velocity * dt;
                     if (player.GetUseBounds()) {
-                        object.Transform().position.x =
-                            Clamp(object.Transform().position.x, player.GetMinX(), player.GetMaxX());
-                        object.Transform().position.z =
-                            Clamp(object.Transform().position.z, player.GetMinZ(), player.GetMaxZ());
+                        localTransform.position.x = Clamp(
+                            localTransform.position.x,
+                            player.GetMinX(),
+                            player.GetMaxX());
+                        localTransform.position.z = Clamp(
+                            localTransform.position.z,
+                            player.GetMinZ(),
+                            player.GetMaxZ());
                     }
 
                     if (player.GetRotateToMove() && state == PlayerMovementState::Moving) {
                         const MATH::Vec3 facingDirection = MATH::Normalize({ velocity.x, 0.0f, velocity.z });
-                        UpdateRotationTowards(object, facingDirection, player.GetTurnSpeed(), dt);
+                        localTransform.rotation = RotationTowards(
+                            localTransform.rotation,
+                            facingDirection,
+                            player.GetTurnSpeed(),
+                            dt);
                     }
                 } else {
                     velocity = MoveVectorTowards(velocity, {}, player.GetDeceleration() * dt);
                 }
 
                 player.SetRuntimeState(state, velocity, moveSpeed);
+                (void)object.SetLocalTransform(localTransform);
                 ApplyPlayerAnimation(object, player, state);
             });
     }

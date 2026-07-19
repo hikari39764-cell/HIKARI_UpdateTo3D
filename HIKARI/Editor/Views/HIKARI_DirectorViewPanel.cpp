@@ -41,15 +41,7 @@ namespace HIKARI::EDITOR {
             const DocumentSceneBase& scene,
             SceneObjectId objectId) {
 
-            if (objectId.value == 0) {
-                return nullptr;
-            }
-            for (const auto& object : scene.GetWorld().GetObjects()) {
-                if (object && object->GetDocumentId() == objectId) {
-                    return object.get();
-                }
-            }
-            return nullptr;
+            return scene.GetWorld().FindObject(objectId);
         }
 
         bool HasDocumentParent(
@@ -224,7 +216,8 @@ namespace HIKARI::EDITOR {
                 const float nearHalfWidth = nearHalfHeight * aspect;
                 const float farHalfHeight = tangent * farDistance;
                 const float farHalfWidth = farHalfHeight * aspect;
-                const MATH::Mat4 world = object->Transform().GetWorldMatrix();
+                const MATH::Mat4 world =
+                    object->GetTransform().GetWorldMatrix();
                 const CameraOverlayBasis basis = BuildCameraOverlayBasis(world);
 
                 CameraOverlayEntry entry{};
@@ -579,7 +572,7 @@ namespace HIKARI::EDITOR {
         if (ImGui::Button("Frame Selected")) {
             SetMode(DirectorViewMode::Free);
             freeCamera_.Focus(ExtractPosition(
-                selectedObject->Transform().GetWorldMatrix()));
+                selectedObject->GetTransform().GetWorldMatrix()));
             toolbarCameraChanged = true;
         }
         if (frameDisabled) {
@@ -843,7 +836,7 @@ namespace HIKARI::EDITOR {
                     FindRuntimeObject(scene, selectedObjectId)) {
                 ActiveController().Focus(
                     ExtractPosition(
-                        selectedObject->Transform().GetWorldMatrix()));
+                        selectedObject->GetTransform().GetWorldMatrix()));
                 cameraChanged = true;
             }
         }
@@ -898,11 +891,13 @@ namespace HIKARI::EDITOR {
             if (selectedObject != nullptr) {
                 GameObject proxy{ "Director Gizmo Proxy" };
                 proxy.SetDocumentId(selectedObjectId);
-                proxy.Transform() = selectedObject->Transform();
+                Transform3D proxyTransform =
+                    selectedObject->GetTransform();
                 if (selectedObjectIsCamera) {
-                    proxy.Transform().scale = { 1.0f, 1.0f, 1.0f };
-                    proxy.Transform().useExplicitMatrix = false;
+                    proxyTransform.scale = { 1.0f, 1.0f, 1.0f };
+                    proxyTransform.useExplicitMatrix = false;
                 }
+                (void)proxy.SetLocalTransform(proxyTransform);
                 EditorTransformGizmoState directorGizmoState = gizmoState;
                 if (io.KeyCtrl) {
                     directorGizmoState.snapEnabled = true;

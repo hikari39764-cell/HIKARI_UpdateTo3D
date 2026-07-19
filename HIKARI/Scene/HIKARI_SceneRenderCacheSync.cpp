@@ -128,7 +128,7 @@ namespace HIKARI {
                 desc.renderModel = renderModelCache.GetOrCreate(*asset);
             }
 
-            desc.worldTransform = object.Transform();
+            desc.worldTransform = object.GetTransform();
             desc.localBounds = ResolveLocalBounds(desc.model, desc.renderModel);
             desc.worldBounds = BOUNDS::TransformBounds(
                 desc.localBounds,
